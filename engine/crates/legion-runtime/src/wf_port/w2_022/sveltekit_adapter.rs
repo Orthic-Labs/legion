@@ -21,6 +21,75 @@ pub const SVELTE_LAYOUT_MARKER_CLOSE: &str = "<!-- impeccable-live-svelte-end --
 pub const SVELTE_ROOT_IMPORT: &str =
     "import ImpeccableLiveRoot from '$lib/designer/ImpeccableLiveRoot.svelte';";
 
+/// Resolve a project-relative mutation target without following a symlink
+/// outside the project. For paths that do not exist yet, validate the nearest
+/// existing ancestor before returning a path rooted at its canonical location.
+pub fn project_mutation_target(cwd: &Path, relative: &Path) -> io::Result<PathBuf> {
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "mutation target is outside project",
+        ));
+    }
+
+    let root = cwd.canonicalize()?;
+    let mut has_name = false;
+    let mut probe = root.clone();
+    for component in relative.components() {
+        match component {
+            std::path::Component::CurDir => continue,
+            std::path::Component::Normal(name) => {
+                has_name = true;
+                probe.push(name);
+                match probe.canonicalize() {
+                    Ok(resolved) if resolved.starts_with(&root) => {}
+                    Ok(_) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::PermissionDenied,
+                            "mutation target is outside project",
+                        ));
+                    }
+                    Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                        match fs::symlink_metadata(&probe) {
+                            Ok(metadata) if metadata.file_type().is_symlink() => {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::PermissionDenied,
+                                    "mutation target contains a dangling symlink",
+                                ));
+                            }
+                            Ok(_) => return Err(err),
+                            Err(metadata_err) if metadata_err.kind() == io::ErrorKind::NotFound => {
+                                // Nothing below a genuinely missing component can
+                                // exist; the nearest existing ancestor was validated.
+                                return Ok(root.join(relative));
+                            }
+                            Err(metadata_err) => return Err(metadata_err),
+                        }
+                    }
+                    Err(err) => return Err(err),
+                }
+            }
+            _ => unreachable!("absolute and parent components were rejected"),
+        }
+    }
+    if !has_name {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "mutation target is project root",
+        ));
+    }
+    Ok(root.join(relative))
+}
+
 fn escape_regexp(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for c in value.chars() {
@@ -243,11 +312,34 @@ fn file_includes(file: &Path, text: &str) -> bool {
 }
 
 /// Mirrors `pruneEmptyDir(dir, stopDir)`.
-fn prune_empty_dir(dir: &Path, stop_dir: &Path) {
+fn prune_empty_dir(dir: &Path, stop_relative: &Path, project_root: &Path) {
+    let Ok(root) = project_root.canonicalize() else {
+        return;
+    };
+    let stop_dir = root.join(stop_relative);
+    if project_mutation_target(&root, stop_relative).is_err() {
+        return;
+    }
     let mut current = dir.to_path_buf();
     loop {
-        if !current.starts_with(stop_dir) || current == stop_dir {
+        if !current.starts_with(&stop_dir) || current == stop_dir {
             return;
+        }
+        let Ok(relative) = current.strip_prefix(&root) else {
+            return;
+        };
+        if project_mutation_target(&root, relative).is_err() {
+            return;
+        }
+        let Ok(metadata) = fs::symlink_metadata(&current) else {
+            return;
+        };
+        if metadata.file_type().is_symlink() {
+            return;
+        }
+        match current.canonicalize() {
+            Ok(real) if real == current => {}
+            _ => return,
         }
         match fs::read_dir(&current) {
             Ok(mut entries) => {
@@ -314,7 +406,7 @@ pub struct SvelteKitApplyResult {
 
 /// Mirrors `ensureSvelteLiveRootComponent(cwd, port)`.
 pub fn ensure_sveltekit_live_root_component(cwd: &Path, port: i64) -> io::Result<PathBuf> {
-    let file = cwd.join(SVELTE_LIVE_ROOT_COMPONENT);
+    let file = project_mutation_target(cwd, Path::new(SVELTE_LIVE_ROOT_COMPONENT))?;
     if let Some(parent) = file.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -333,9 +425,9 @@ pub fn apply_sveltekit_live_adapter(
     let Some(detected) = detect_sveltekit_project(cwd, config_files) else {
         return Ok(None);
     };
+    let layout_abs = project_mutation_target(cwd, Path::new(&detected.layout_file))?;
+    let _root_abs = project_mutation_target(cwd, Path::new(SVELTE_LIVE_ROOT_COMPONENT))?;
     ensure_sveltekit_live_root_component(cwd, port)?;
-
-    let layout_abs = cwd.join(&detected.layout_file);
     if let Some(parent) = layout_abs.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -374,7 +466,8 @@ pub fn remove_sveltekit_live_adapter(
         return Ok(None);
     };
 
-    let layout_abs = cwd.join(&detected.layout_file);
+    let layout_abs = project_mutation_target(cwd, Path::new(&detected.layout_file))?;
+    let root_abs = project_mutation_target(cwd, Path::new(SVELTE_LIVE_ROOT_COMPONENT))?;
     let mut removed = false;
     if layout_abs.exists() {
         let before = fs::read_to_string(&layout_abs)?;
@@ -385,14 +478,13 @@ pub fn remove_sveltekit_live_adapter(
         }
     }
 
-    let root_abs = cwd.join(SVELTE_LIVE_ROOT_COMPONENT);
     if root_abs.exists() {
         fs::remove_file(&root_abs)?;
         removed = true;
     }
 
     if let Some(parent) = root_abs.parent() {
-        prune_empty_dir(parent, &cwd.join("src"));
+        prune_empty_dir(parent, Path::new("src"), cwd);
     }
 
     Ok(Some(SvelteKitRemoveResult {
@@ -542,6 +634,86 @@ mod tests {
         assert_eq!(detected.app_html, "src/app.html");
         assert_eq!(detected.layout_file, "src/routes/+layout.svelte");
         assert_eq!(detected.root_component, SVELTE_LIVE_ROOT_COMPONENT);
+    }
+
+    #[test]
+    fn custom_configured_app_html_is_detected_and_removed() {
+        let dir = TmpDir::new();
+        let config_files = vec!["custom/app.html".to_string()];
+        write(
+            &dir.0,
+            "custom/app.html",
+            "<!doctype html>%sveltekit.head%<body>%sveltekit.body%</body>",
+        );
+        write(&dir.0, "svelte.config.js", "export default {};\n");
+        write(&dir.0, "src/routes/+layout.svelte", default_svelte_layout());
+
+        apply_sveltekit_live_adapter(&dir.0, 4173, Some(&config_files)).unwrap();
+        let removed = remove_sveltekit_live_adapter(&dir.0, Some(&config_files))
+            .unwrap()
+            .unwrap();
+
+        assert!(removed.removed);
+        assert!(!dir.0.join(SVELTE_LIVE_ROOT_COMPONENT).exists());
+        assert!(!fs::read_to_string(dir.0.join("src/routes/+layout.svelte"))
+            .unwrap()
+            .contains(SVELTE_LAYOUT_MARKER_OPEN));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mutation_target_rejects_symlinked_parent_outside_project() {
+        use std::os::unix::fs::symlink;
+
+        let dir = TmpDir::new();
+        let outside = TmpDir::new();
+        symlink(&outside.0, dir.0.join("src")).unwrap();
+
+        let result = project_mutation_target(&dir.0, Path::new(SVELTE_LIVE_ROOT_COMPONENT));
+
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mutation_target_preserves_lexical_path_for_internal_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let dir = TmpDir::new();
+        write(&dir.0, "real/file.txt", "keep");
+        symlink(dir.0.join("real/file.txt"), dir.0.join("alias")).unwrap();
+
+        let target = project_mutation_target(&dir.0, Path::new("alias")).unwrap();
+
+        assert_eq!(target, dir.0.canonicalize().unwrap().join("alias"));
+        fs::remove_file(&target).unwrap();
+        assert!(fs::symlink_metadata(dir.0.join("alias")).is_err());
+        assert_eq!(
+            fs::read_to_string(dir.0.join("real/file.txt")).unwrap(),
+            "keep"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mutation_target_rejects_dangling_symlinks_and_project_root() {
+        use std::os::unix::fs::symlink;
+
+        let dir = TmpDir::new();
+        symlink(dir.0.join("missing"), dir.0.join("dangling")).unwrap();
+
+        assert_eq!(
+            project_mutation_target(&dir.0, Path::new("dangling/child"))
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        assert_eq!(
+            project_mutation_target(&dir.0, Path::new("."))
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
     }
 
     #[test]

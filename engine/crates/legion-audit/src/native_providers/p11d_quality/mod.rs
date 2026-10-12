@@ -83,11 +83,38 @@ pub mod data_suite {
     // (unsupported by the `regex` crate) and are reimplemented below as
     // explicit scans with identical semantics.
     const RULES: &[Rule] = &[
-        Rule { id: "data.sql-interpolation", level: "error", message: "SQL text appears to interpolate or concatenate variable input.", patterns: &[r#"(?is)(?:SELECT|INSERT|UPDATE|DELETE|ALTER|DROP)[^\n;]*(?:\$\{|\+\s*(?:req|request|input|user|params|query)|format\s*\(|f['"])"#] },
-        Rule { id: "data.destructive-migration", level: "warning", message: "Migration contains a destructive DROP operation; require backup, rollback, and compatibility evidence.", patterns: &[r#"(?i)\bDROP\s+(?:TABLE|COLUMN|DATABASE|INDEX)\b"#] },
-        Rule { id: "data.sqlite-foreign-keys-off", level: "error", message: "SQLite foreign-key enforcement is disabled.", patterns: &[r#"(?i)PRAGMA\s+foreign_keys\s*=\s*(?:OFF|0)"#] },
-        Rule { id: "data.redis-keys", level: "warning", message: "Redis KEYS can block the server; use bounded SCAN for production paths.", patterns: &[r#"\.(?:keys|KEYS)\s*\(\s*['"][^'"]*['"]\s*\)"#] },
-        Rule { id: "data.mongo-javascript", level: "error", message: "MongoDB server-side JavaScript evaluation is used.", patterns: &[r#"(?i)\$(?:where|function)\b|mapReduce\s*\("#] },
+        Rule {
+            id: "data.sql-interpolation",
+            level: "error",
+            message: "SQL text appears to interpolate or concatenate variable input.",
+            patterns: &[
+                r#"(?is)(?:SELECT|INSERT|UPDATE|DELETE|ALTER|DROP)[^\n;]*(?:\$\{|\+\s*(?:req|request|input|user|params|query)|format\s*\(|f['"])"#,
+            ],
+        },
+        Rule {
+            id: "data.destructive-migration",
+            level: "warning",
+            message: "Migration contains a destructive DROP operation; require backup, rollback, and compatibility evidence.",
+            patterns: &[r#"(?i)\bDROP\s+(?:TABLE|COLUMN|DATABASE|INDEX)\b"#],
+        },
+        Rule {
+            id: "data.sqlite-foreign-keys-off",
+            level: "error",
+            message: "SQLite foreign-key enforcement is disabled.",
+            patterns: &[r#"(?i)PRAGMA\s+foreign_keys\s*=\s*(?:OFF|0)"#],
+        },
+        Rule {
+            id: "data.redis-keys",
+            level: "warning",
+            message: "Redis KEYS can block the server; use bounded SCAN for production paths.",
+            patterns: &[r#"\.(?:keys|KEYS)\s*\(\s*['"][^'"]*['"]\s*\)"#],
+        },
+        Rule {
+            id: "data.mongo-javascript",
+            level: "error",
+            message: "MongoDB server-side JavaScript evaluation is used.",
+            patterns: &[r#"(?i)\$(?:where|function)\b|mapReduce\s*\("#],
+        },
     ];
 
     /// JS: `/\bADD\s+(?:COLUMN\s+)?[A-Za-z0-9_"\`]+[^;\n]*\bNOT\s+NULL\b(?![^;\n]*\bDEFAULT\b)/i`
@@ -305,22 +332,118 @@ pub mod infrastructure_suite {
     }
 
     const RULES: &[Rule] = &[
-        Rule { id: "container.latest-tag", level: "warning", message: "Container base image is unpinned or uses latest.", pattern: r"(?im)^\s*FROM\s+[^\s:@]+(?::latest)?\s*$", applies: is_dockerfile },
-        Rule { id: "container.remote-add", level: "warning", message: "Docker ADD fetches a mutable remote resource without explicit integrity verification.", pattern: r"(?im)^\s*ADD\s+https?://", applies: is_dockerfile },
-        Rule { id: "container.curl-pipe-shell", level: "error", message: "Container build pipes remote content directly to a shell.", pattern: r"(?i)(?:curl|wget)[^\n|]*\|\s*(?:sh|bash|zsh)", applies: is_dockerfile },
-        Rule { id: "container-root-user", level: "warning", message: "Container has no explicit non-root USER.", pattern: r"(?im)^\s*FROM\s+", applies: is_dockerfile_no_user },
-        Rule { id: "k8s-privileged", level: "error", message: "Kubernetes workload enables privileged mode.", pattern: r"(?i)privileged:\s*true", applies: is_yaml },
-        Rule { id: "k8s-host-namespace", level: "error", message: "Kubernetes workload joins a host namespace.", pattern: r"(?i)(?:hostNetwork|hostPID|hostIPC):\s*true", applies: is_yaml },
-        Rule { id: "k8s-unpinned-image", level: "warning", message: "Kubernetes image is not digest-pinned.", pattern: r"(?im)image:\s*[^\s@]+(?::latest)?\s*$", applies: is_yaml },
-        Rule { id: "k8s-secret-literal", level: "error", message: "Secret-like value appears inline in deployment YAML.", pattern: r#"(?i)(?:password|secret|token|api[_-]?key):\s*['"]?[^\s${][^\n]{5,}"#, applies: is_yaml },
-        Rule { id: "actions-write-all", level: "error", message: "GitHub Actions grants write-all permissions.", pattern: r"(?i)permissions:\s*write-all", applies: is_workflow },
-        Rule { id: "actions-unpinned", level: "warning", message: "GitHub Action is not pinned to an immutable commit.", pattern: r"(?im)uses:\s*[^\s@]+@(?:main|master|latest|v?\d+(?:\.\d+)?)\s*$", applies: is_workflow },
-        Rule { id: "actions-expression-in-shell", level: "error", message: "Attacker-controlled event data is interpolated directly into a shell command.", pattern: r"(?i)run:\s*[^\n]*\$\{\{\s*github\.event\.", applies: is_workflow },
-        Rule { id: "actions-pr-target-checkout", level: "critical", message: "Privileged pull_request_target workflow checks out attacker-controlled head code.", pattern: r"(?i)ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}", applies: is_workflow_pr_target },
-        Rule { id: "terraform-open-ingress", level: "error", message: "Terraform security rule allows global IPv4 access.", pattern: r#"(?i)cidr_blocks\s*=\s*\[[^\]]*['"]0\.0\.0\.0/0['"][^\]]*\]"#, applies: is_tf },
-        Rule { id: "terraform-public-storage", level: "error", message: "Infrastructure configuration enables public storage access.", pattern: r"(?i)(?:acl\s*=\s*['\x22]public|public_access\s*=\s*true|block_public_acls\s*=\s*false)", applies: is_tf },
-        Rule { id: "release-mutable-download", level: "warning", message: "Release tooling downloads from a mutable latest URL.", pattern: r#"(?i)https?://[^\s'"]+/(?:latest|releases/latest|download/latest)[^\s'"]*"#, applies: is_release_script },
-        Rule { id: "tauri-updater-insecure", level: "error", message: "Tauri updater permits insecure transport.", pattern: r"(?i)dangerousInsecureTransportProtocol\s*[:=]\s*true", applies: is_tauri_conf },
+        Rule {
+            id: "container.latest-tag",
+            level: "warning",
+            message: "Container base image is unpinned or uses latest.",
+            pattern: r"(?im)^\s*FROM\s+[^\s:@]+(?::latest)?\s*$",
+            applies: is_dockerfile,
+        },
+        Rule {
+            id: "container.remote-add",
+            level: "warning",
+            message: "Docker ADD fetches a mutable remote resource without explicit integrity verification.",
+            pattern: r"(?im)^\s*ADD\s+https?://",
+            applies: is_dockerfile,
+        },
+        Rule {
+            id: "container.curl-pipe-shell",
+            level: "error",
+            message: "Container build pipes remote content directly to a shell.",
+            pattern: r"(?i)(?:curl|wget)[^\n|]*\|\s*(?:sh|bash|zsh)",
+            applies: is_dockerfile,
+        },
+        Rule {
+            id: "container-root-user",
+            level: "warning",
+            message: "Container has no explicit non-root USER.",
+            pattern: r"(?im)^\s*FROM\s+",
+            applies: is_dockerfile_no_user,
+        },
+        Rule {
+            id: "k8s-privileged",
+            level: "error",
+            message: "Kubernetes workload enables privileged mode.",
+            pattern: r"(?i)privileged:\s*true",
+            applies: is_yaml,
+        },
+        Rule {
+            id: "k8s-host-namespace",
+            level: "error",
+            message: "Kubernetes workload joins a host namespace.",
+            pattern: r"(?i)(?:hostNetwork|hostPID|hostIPC):\s*true",
+            applies: is_yaml,
+        },
+        Rule {
+            id: "k8s-unpinned-image",
+            level: "warning",
+            message: "Kubernetes image is not digest-pinned.",
+            pattern: r"(?im)image:\s*[^\s@]+(?::latest)?\s*$",
+            applies: is_yaml,
+        },
+        Rule {
+            id: "k8s-secret-literal",
+            level: "error",
+            message: "Secret-like value appears inline in deployment YAML.",
+            pattern: r#"(?i)(?:password|secret|token|api[_-]?key):\s*['"]?[^\s${][^\n]{5,}"#,
+            applies: is_yaml,
+        },
+        Rule {
+            id: "actions-write-all",
+            level: "error",
+            message: "GitHub Actions grants write-all permissions.",
+            pattern: r"(?i)permissions:\s*write-all",
+            applies: is_workflow,
+        },
+        Rule {
+            id: "actions-unpinned",
+            level: "warning",
+            message: "GitHub Action is not pinned to an immutable commit.",
+            pattern: r"(?im)uses:\s*[^\s@]+@(?:main|master|latest|v?\d+(?:\.\d+)?)\s*$",
+            applies: is_workflow,
+        },
+        Rule {
+            id: "actions-expression-in-shell",
+            level: "error",
+            message: "Attacker-controlled event data is interpolated directly into a shell command.",
+            pattern: r"(?i)run:\s*[^\n]*\$\{\{\s*github\.event\.",
+            applies: is_workflow,
+        },
+        Rule {
+            id: "actions-pr-target-checkout",
+            level: "critical",
+            message: "Privileged pull_request_target workflow checks out attacker-controlled head code.",
+            pattern: r"(?i)ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}",
+            applies: is_workflow_pr_target,
+        },
+        Rule {
+            id: "terraform-open-ingress",
+            level: "error",
+            message: "Terraform security rule allows global IPv4 access.",
+            pattern: r#"(?i)cidr_blocks\s*=\s*\[[^\]]*['"]0\.0\.0\.0/0['"][^\]]*\]"#,
+            applies: is_tf,
+        },
+        Rule {
+            id: "terraform-public-storage",
+            level: "error",
+            message: "Infrastructure configuration enables public storage access.",
+            pattern: r"(?i)(?:acl\s*=\s*['\x22]public|public_access\s*=\s*true|block_public_acls\s*=\s*false)",
+            applies: is_tf,
+        },
+        Rule {
+            id: "release-mutable-download",
+            level: "warning",
+            message: "Release tooling downloads from a mutable latest URL.",
+            pattern: r#"(?i)https?://[^\s'"]+/(?:latest|releases/latest|download/latest)[^\s'"]*"#,
+            applies: is_release_script,
+        },
+        Rule {
+            id: "tauri-updater-insecure",
+            level: "error",
+            message: "Tauri updater permits insecure transport.",
+            pattern: r"(?i)dangerousInsecureTransportProtocol\s*[:=]\s*true",
+            applies: is_tauri_conf,
+        },
     ];
 
     /// JS: `/(?:curl|wget|Invoke-WebRequest|fetch\s*\()[\s\S]{0,300}https?:\/\/(?![\s\S]{0,500}(?:sha256|checksum|digest|integrity))/is`

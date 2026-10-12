@@ -7,6 +7,7 @@
 //! that typed boundary; missing host tools return typed degradation without
 //! starting a process. Neither a tool name nor parser success is evidence.
 
+mod attested_runs;
 mod contracts;
 mod disposable_copy;
 pub(crate) mod parsers;
@@ -14,6 +15,7 @@ mod registry;
 mod resolver;
 mod runtime_capture;
 
+pub use attested_runs::{AdapterEnrollment, AttestedRunsEnrollment, EnrollmentError};
 pub use contracts::{
     CommandShape, LegacyCheckError, LegacyCheckExecution, LegacyCheckInput, LegacyCheckOutput,
     LegacyCheckProcessRequest, LegacyCheckProcessState, LegacyCheckSpec, CONTRACT_SCHEMA_VERSION,
@@ -21,7 +23,8 @@ pub use contracts::{
 };
 pub use registry::{spec, specs, LEGACY_CHECK_SPECS};
 pub use resolver::{
-    resolve_command, resolve_request, resolve_test_command, ResolveError, ResolvedCommand,
+    resolve_command, resolve_request, resolve_test_command, resolve_test_command_with_enrollment,
+    ResolveError, ResolvedCommand,
 };
 pub use runtime_capture::runtime_inputs;
 
@@ -101,9 +104,20 @@ where
                 );
             }
         };
+        if request
+            .expected_digest
+            .as_deref()
+            .is_some_and(|expected| expected != resolved.digest)
+        {
+            return legion_provider_sdk::ExecutionReceipt::failure(
+                &request,
+                legion_provider_sdk::ExecutionState::Internal,
+                "external-project-tool resolved executable does not match caller digest pin",
+            );
+        }
         request.executable = resolved.executable.to_string_lossy().into_owned();
         request.args = resolved.args;
-        request.expected_digest = Some(resolved.digest);
+        request.expected_digest = request.expected_digest.or(Some(resolved.digest));
         request.cwd = resolved.cwd.to_string_lossy().into_owned();
         request.request_id = audit_artifact_request_id(&request.request_id);
         self.inner.execute(request, cancellation).await
@@ -233,6 +247,7 @@ pub struct AuditScratch {
     root: PathBuf,
     remove_on_drop: bool,
     retained: std::sync::atomic::AtomicBool,
+    pending_attested: std::sync::atomic::AtomicUsize,
 }
 
 impl AuditScratch {
@@ -268,7 +283,8 @@ impl AuditScratch {
                         root,
                         remove_on_drop: true,
                         retained: std::sync::atomic::AtomicBool::new(false),
-                    })
+                        pending_attested: std::sync::atomic::AtomicUsize::new(0),
+                    });
                 }
                 Err(error) => last = format!("cannot create {}: {error}", root.display()),
             }
@@ -303,6 +319,7 @@ impl AuditScratch {
             root,
             remove_on_drop: false,
             retained: std::sync::atomic::AtomicBool::new(false),
+            pending_attested: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
@@ -320,6 +337,15 @@ impl AuditScratch {
 
     pub(super) fn retain_after_drop(&self) {
         self.retained.store(true, Ordering::Release);
+    }
+
+    pub(super) fn begin_attested_request(&self) {
+        self.pending_attested.fetch_add(1, Ordering::AcqRel);
+    }
+
+    pub(super) fn finish_attested_request(&self) {
+        let previous = self.pending_attested.fetch_sub(1, Ordering::AcqRel);
+        debug_assert!(previous > 0, "attested request completion must be paired");
     }
 
     /// Sandbox profiles.
@@ -347,7 +373,10 @@ impl AuditScratch {
 
 impl Drop for AuditScratch {
     fn drop(&mut self) {
-        if self.remove_on_drop && !self.retained.load(Ordering::Acquire) {
+        if self.remove_on_drop
+            && !self.retained.load(Ordering::Acquire)
+            && self.pending_attested.load(Ordering::Acquire) == 0
+        {
             let _ = std::fs::remove_dir_all(&self.root);
         }
     }
@@ -545,9 +574,21 @@ impl LegacyCheckDispatcher {
                 .and_then(|resolution| resolution.get("reason"))
                 .and_then(Value::as_str)
                 .is_some_and(|reason| reason.starts_with("read-only-test-owner-unavailable:"));
+        let managed_test_runner_unavailable = execution.state
+            == LegacyCheckProcessState::MissingExecutable
+            && output
+                .details
+                .get("testCommandResolution")
+                .and_then(|resolution| resolution.get("reason"))
+                .and_then(Value::as_str)
+                .is_some_and(|reason| reason.starts_with("managed-test-runner-"));
         let mut gaps = output.coverage_gaps.clone();
         let mut degradation = output.degradation.clone();
-        if !process_ok && !sandbox_refused && !read_only_test_owner_unavailable {
+        if !process_ok
+            && !sandbox_refused
+            && !read_only_test_owner_unavailable
+            && !managed_test_runner_unavailable
+        {
             gaps.push(format!("external-process:{}", execution.state.as_str()));
             degradation.push(format!("external-process:{}", execution.state.as_str()));
         }
@@ -560,6 +601,13 @@ impl LegacyCheckDispatcher {
         // nothing broke.
         let unavailable_reason = if read_only_test_owner_unavailable {
             Some("read-only-test-owner-unavailable:test".to_owned())
+        } else if managed_test_runner_unavailable {
+            output
+                .details
+                .get("testCommandResolution")
+                .and_then(|resolution| resolution.get("reason"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
         } else {
             (execution.state == LegacyCheckProcessState::MissingExecutable).then(|| {
                 let gap_text = output
@@ -569,6 +617,7 @@ impl LegacyCheckDispatcher {
                     .find(|gap| {
                         gap.starts_with("missing executable: ")
                             || gap.contains("is not configured")
+                            || gap.starts_with("managed-test-runner-")
                             || gap.starts_with("no configured project")
                             || gap.contains("metadata is unavailable")
                     })
@@ -577,6 +626,7 @@ impl LegacyCheckDispatcher {
                     Some(gap) if gap.starts_with("missing executable: ") => {
                         format!("tool-missing:{}", &gap["missing executable: ".len()..])
                     }
+                    Some(gap) if gap.starts_with("managed-test-runner-") => gap,
                     Some(_) => format!("not-configured:{}", contract.check),
                     None => format!("tool-missing:{}", contract.tool),
                 }
@@ -722,6 +772,7 @@ impl LegacyCheckDispatcher {
 pub struct NativeLegacyCheckExecutor {
     root: PathBuf,
     external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
+    attested_runs: Option<Arc<AttestedRunsEnrollment>>,
     /// Shared across clones; created lazily under the system temp dir unless
     /// the host supplied one with `with_scratch`.
     scratch: Arc<Mutex<Option<Arc<AuditScratch>>>>,
@@ -735,6 +786,7 @@ impl std::fmt::Debug for NativeLegacyCheckExecutor {
                 "external_project_tool",
                 &self.external_project_tool.is_some(),
             )
+            .field("attested_runs", &self.attested_runs.is_some())
             .finish()
     }
 }
@@ -744,6 +796,7 @@ impl NativeLegacyCheckExecutor {
         Self {
             root: root.into(),
             external_project_tool: None,
+            attested_runs: None,
             scratch: Arc::new(Mutex::new(None)),
         }
     }
@@ -771,6 +824,12 @@ impl NativeLegacyCheckExecutor {
 
     pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
         self.external_project_tool = Some(tool);
+        self
+    }
+
+    /// Enable verified managed test runs using an explicitly loaded host pin.
+    pub fn with_attested_runs(mut self, enrollment: AttestedRunsEnrollment) -> Self {
+        self.attested_runs = Some(Arc::new(enrollment));
         self
     }
 
@@ -805,7 +864,21 @@ impl NativeLegacyCheckExecutor {
         let mut test_command = None;
         let mut test_command_source = None;
         if contract.check == "test" {
-            match resolve_test_command(&self.root, inventory) {
+            if self.attested_runs.is_none() {
+                let execution = disposable_copy::incomplete(
+                    &input,
+                    "managed-test-trust-not-configured".into(),
+                    json!({"assurance":"attested-runs-required"}),
+                );
+                return dispatcher
+                    .project_result(provider, &input, execution)
+                    .map_err(|error| AuditError::Provider(error.to_string()));
+            }
+            match resolve_test_command_with_enrollment(
+                &self.root,
+                inventory,
+                self.attested_runs.as_deref(),
+            ) {
                 Ok((resolved, source)) => {
                     test_command = Some(resolved);
                     test_command_source = Some(source);
@@ -821,7 +894,7 @@ impl NativeLegacyCheckExecutor {
                         LegacyCheckProcessState::Failed
                     };
                     let message = if matches!(&error, ResolveError::NotConfigured(_)) {
-                        format!("test runner is not configured: {}", error.message())
+                        error.message()
                     } else {
                         error.message()
                     };
@@ -860,12 +933,7 @@ impl NativeLegacyCheckExecutor {
                 }
             }
         }
-        if test_command_source
-            .as_ref()
-            .and_then(|source| source.get("family"))
-            .and_then(Value::as_str)
-            == Some("rust-rightkit")
-        {
+        if test_command_source.is_some() {
             let Some(tool) = &self.external_project_tool else {
                 let mut execution = execute_external(&input, contract.command, now_ms());
                 attach_test_command_source(&mut execution, test_command_source.as_ref());
@@ -884,13 +952,16 @@ impl NativeLegacyCheckExecutor {
                 tool.as_ref(),
                 &self.root,
                 resolved,
-                test_command_source.as_ref().expect("Rust source metadata"),
+                test_command_source
+                    .as_ref()
+                    .expect("resolved test source metadata"),
                 provider,
                 inventory,
                 &input,
                 &scratch,
                 cancellation,
                 timeout,
+                self.attested_runs.as_deref(),
             )
             .await;
             return dispatcher
@@ -1554,6 +1625,19 @@ fn exact_version_token_matches(output: &str, required: &str) -> bool {
 }
 
 fn test_declaration_location(source: Option<&Value>, input: &LegacyCheckInput) -> Option<String> {
+    if let Some(path) = source
+        .and_then(|value| value.get("testDeclarationPath"))
+        .and_then(Value::as_str)
+        .filter(|path| {
+            input
+                .denominator
+                .entries
+                .iter()
+                .any(|entry| entry.path == *path)
+        })
+    {
+        return Some(path.to_owned());
+    }
     let sources = source?.get("sources")?.as_array()?;
     sources
         .iter()
@@ -3233,6 +3317,21 @@ mod tests {
         drop(scratch);
         assert!(!scratch_root.exists());
         assert!(AuditScratch::with_scratch_dir(&root, root.join("inner")).is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn successful_sibling_cannot_clear_unverified_request_retention() {
+        let root = unique_fixture();
+        let scratch = AuditScratch::create(&root).unwrap();
+        let scratch_root = scratch.root().to_path_buf();
+        scratch.begin_attested_request();
+        scratch.begin_attested_request();
+        scratch.retain_after_drop();
+        scratch.finish_attested_request();
+        drop(scratch);
+        assert!(scratch_root.exists());
+        let _ = fs::remove_dir_all(scratch_root);
         let _ = fs::remove_dir_all(root);
     }
 

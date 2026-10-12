@@ -18,7 +18,7 @@
     "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
     "mode": { "enum": ["DECISION_CHALLENGE", "BLOCKER_CONSULT"], "description": "PACKET_ONLY is not a record mode: it runs no seats and produces no record, and validate-record rejects it." },
     "loop": { "enum": [1, 2], "description": "Which complete loop this record belongs to. Loop 1 is the plan/design review before the build; loop 2 is the evidence review after it. Never more than two." },
-    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Must match the request's top-level packetDigest and its recomputed projected digest." },
     "sourceRevision": { "type": "string", "minLength": 7 },
 
     "seatRecords": {
@@ -36,7 +36,7 @@
           "scores": { "type": ["object", "null"], "additionalProperties": { "type": "number", "minimum": 1, "maximum": 10 }, "description": "Per-dimension 1-10 scores from the rubric (JURY seats)." },
           "topConcern": { "type": ["string", "null"] },
           "answers": { "type": ["object", "null"], "additionalProperties": { "type": "string" }, "description": "Forced answers keyed by question id (rubric questions plus the stance's own)." },
-          "isolated": { "type": "boolean", "description": "Independence contract: no cross-seat priming." },
+          "isolated": { "type": "boolean", "description": "Each seat ran in a distinct context and received only inputs authorized for its round. POSITION and JURY are blind to peer positions; DEBATE may receive them." },
           "providerId": { "type": ["string", "null"] },
           "reusedModel": { "type": "boolean", "default": false, "description": "Record explicitly when the same model is reused rather than hiding degraded independence." },
           "position": { "type": "string", "minLength": 1 }
@@ -122,7 +122,7 @@
       "additionalProperties": false,
       "required": ["digestVerified"],
       "properties": {
-        "digestVerified": { "type": "boolean" },
+        "digestVerified": { "type": "boolean", "description": "Accepted only when the bound request's packetDigest and this record's packetDigest both match the recomputed request digest." },
         "mutationDetected": { "type": "boolean", "default": false, "description": "Any seat mutating the subject under review invalidates that review." }
       }
     }

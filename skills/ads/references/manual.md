@@ -220,7 +220,12 @@ When sub-skills or agents reference `ads/references/*.md`, resolve to
 ### Ads Health Score (0-100)
 
 Per-platform score using weighted algorithm from `references/scoring-system.md`.
-Cross-platform aggregate weighted by budget share:
+Cross-platform aggregate weighted by budget share only when scores cover the full scoped budget.
+If any platform/provider is missing, name it & report coverage; never treat it as zero or silently
+rescale remaining shares. A covered-only figure must show its denominator. Before comparing
+conversion counts, value, CPA, or ROAS across platforms, align the conversion event & value rule,
+attribution window (click and view separately), counting & deduplication rules, reporting timezone,
+currency, and attribution model. Mark mismatches unavailable for direct comparison.
 
 ```
 Aggregate = Sum(Platform_Score x Platform_Budget_Share)

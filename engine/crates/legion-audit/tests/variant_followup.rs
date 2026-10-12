@@ -30,6 +30,7 @@ const SCANNER_PROVIDER_ID: &str = "fixture.scanner";
 const KEY: &[u8] = b"variant-followup-fixture-signing-key";
 const DB_SOURCE: &str = "fn run(q: &str) {\n    db.execute(&format!(\"select {q}\"));\n}\n";
 const DB_ANCHOR: &str = "db.execute(&format!(\"select {q}\"));";
+const ALT_ANCHOR: &str = "pub fn other_query(q: &str) { db.execute(&format!(\"select {q}\")); }";
 
 fn temp_dir(name: &str) -> PathBuf {
     static NEXT: ::std::sync::atomic::AtomicU64 = ::std::sync::atomic::AtomicU64::new(0);
@@ -207,6 +208,24 @@ fn setup_with_source(name: &str, db_source: &str) -> Run {
     fs::create_dir_all(root.join("src")).unwrap();
     fs::write(root.join("src/db.rs"), db_source).unwrap();
     fs::write(root.join("src/other.rs"), "pub fn other() {}\n").unwrap();
+    fs::create_dir_all(root.join("src/callers")).unwrap();
+    fs::write(
+        root.join("src/callers/queries.rs"),
+        "pub fn query() { db::run(); }\n",
+    )
+    .unwrap();
+    fs::create_dir_all(root.join("src/alternate")).unwrap();
+    fs::write(
+        root.join("src/alternate/db_access.rs"),
+        "pub fn other_query(q: &str) { db.execute(&format!(\"select {q}\")); }\n",
+    )
+    .unwrap();
+    fs::create_dir_all(root.join("src/unrelated")).unwrap();
+    fs::write(
+        root.join("src/unrelated/else.rs"),
+        "pub fn independent() {}\n",
+    )
+    .unwrap();
     let repository = root.to_string_lossy().into_owned();
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
@@ -544,13 +563,22 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     assert_eq!(planned.seeds, 1);
     assert_eq!(planned.provider, VARIANT_PROVIDER_ID);
 
-    // The follow-up plan holds exactly the variant provider over exactly the
-    // confirmed paths, signed and bound to the parent plan digest.
+    // The follow-up plan separates confirmed seeds from deterministic sibling
+    // and caller context, signed and bound to the parent plan digest.
     let dir = run.run.join(FOLLOWUP_DIR);
     let frozen: AuditPlan = serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE))).unwrap();
     assert_eq!(frozen.providers.len(), 1);
     assert_eq!(frozen.providers[0].id, VARIANT_PROVIDER_ID);
-    assert_eq!(frozen.providers[0].configuration["denominatorCount"], 1);
+    assert_eq!(frozen.providers[0].configuration["denominatorCount"], 4);
+    assert_eq!(
+        planned.analysis_paths,
+        vec![
+            "src/alternate/db_access.rs".to_owned(),
+            "src/callers/queries.rs".to_owned(),
+            "src/db.rs".to_owned(),
+            "src/other.rs".to_owned()
+        ]
+    );
     let parent_digest = read_json(&run.run.join("plan.json"))["seal"]["digest"].clone();
     assert_eq!(
         frozen.followup_binding().unwrap()["parentPlanDigest"],
@@ -562,10 +590,10 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
         parent_digest
     );
 
-    // The packet scopes the denominator to the confirmed file and seeds the
-    // lens with the confirmed finding.
+    // The packet scopes analysis to the seed, its sibling, and its caller,
+    // while keeping the confirmed finding in a distinct seed list.
     let work = variant_packet(&run);
-    assert_eq!(work.request.denominator_paths, vec!["src/db.rs".to_owned()]);
+    assert_eq!(work.request.denominator_paths, planned.analysis_paths);
     let seeds = work.request.packet["variantSeeds"].as_array().unwrap();
     assert_eq!(seeds.len(), 1);
     assert_eq!(seeds[0]["rule"], "sql-concat");
@@ -577,6 +605,32 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
         "user input is interpolated into the query text"
     );
     assert_eq!(seeds[0]["parentFindingId"], "adjudicated:cand-sql");
+    let scope_paths = work.request.packet["variantScope"]["paths"]
+        .as_array()
+        .unwrap();
+    assert_eq!(scope_paths.len(), 4);
+    assert!(scope_paths.iter().any(|path| {
+        path["path"] == "src/callers/queries.rs"
+            && path["relations"].as_array().is_some_and(|relations| {
+                relations
+                    .iter()
+                    .any(|value| value == "caller-reference:src/db.rs")
+            })
+    }));
+    assert!(scope_paths.iter().any(|path| {
+        path["path"] == "src/alternate/db_access.rs"
+            && path["relations"].as_array().is_some_and(|relations| {
+                relations.iter().any(|value| {
+                    value
+                        .as_str()
+                        .is_some_and(|value| value.starts_with("root-cause-token:src/db.rs:"))
+                })
+            })
+    }));
+    assert!(!work
+        .request
+        .denominator_paths
+        .contains(&"src/unrelated/else.rs".to_owned()));
 
     // Compiling again is idempotent and keeps the same plan.
     let again = compile_followup(&run.run, &variant_spec())
@@ -600,14 +654,21 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
     compile_followup(&run.run, &variant_spec())
         .unwrap()
         .unwrap();
+    let mut sibling_finding = variant_finding();
+    sibling_finding["evidence"] = json!(["src/alternate/db_access.rs:1"]);
+    sibling_finding["anchor"] = json!({
+        "path": "src/alternate/db_access.rs",
+        "line": 1,
+        "text": ALT_ANCHOR,
+    });
     let ingested = ingest_lens_result(
         &run.run.join(FOLLOWUP_DIR),
         VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([variant_finding()])),
+        &variant_result(&run, json!([sibling_finding])),
     )
     .unwrap();
     assert!(ingested.complete);
-    assert_eq!((ingested.examined, ingested.expected), (1, 1));
+    assert_eq!((ingested.examined, ingested.expected), (4, 4));
 
     let after = recompute_run(&run.run).unwrap();
     assert!(
@@ -628,6 +689,31 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
         .collect();
     assert!(ids.contains(&"adjudicated:cand-sql"), "{ids:?}");
     assert!(ids.contains(&"variant-1"), "{ids:?}");
+}
+
+#[test]
+fn variant_findings_cannot_anchor_outside_the_frozen_analysis_scope() {
+    let run = confirmed_run("out-of-scope-anchor");
+    compile_followup(&run.run, &variant_spec())
+        .unwrap()
+        .unwrap();
+    let mut finding = variant_finding();
+    finding["evidence"] = json!(["src/unrelated/else.rs:1"]);
+    finding["anchor"] = json!({
+        "path": "src/unrelated/else.rs",
+        "line": 1,
+        "text": "pub fn independent() {}",
+    });
+    let result = variant_result(&run, json!([finding]));
+
+    let error = match ingest_lens_result(&run.run.join(FOLLOWUP_DIR), VARIANT_PROVIDER_ID, &result)
+    {
+        Ok(_) => panic!("an in-inventory path outside frozen variant scope must be rejected"),
+        Err(error) => error,
+    };
+    assert!(error
+        .to_string()
+        .contains("outside the frozen analysis scope"));
 }
 
 #[test]

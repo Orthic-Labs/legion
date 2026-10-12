@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     error::AuditError,
     inventory::InventoryEnvelope,
-    plan::{AuditProvider, FrozenPlan},
+    plan::{AuditProvider, FrozenPlan, PROVIDER_UNIVERSE_BOUND},
 };
 
 /// Immutable outputs available to a provider from earlier steps in this
@@ -284,6 +284,7 @@ pub fn execute(
     inventory: &InventoryEnvelope,
     executor: &dyn ProviderExecutor,
 ) -> Result<ExecutionReport, AuditError> {
+    reject_provider_universe_execution_plan(plan)?;
     inventory.validate()?;
     if inventory.repository_id != plan.plan().repository_id
         || inventory.generation != plan.plan().inventory_generation
@@ -466,6 +467,7 @@ pub async fn execute_with_cancellation(
 ) -> Result<ExecutionReport, AuditError> {
     // Keep validation/report assembly identical to legacy synchronous path;
     // host execution is selected through the async executor seam.
+    reject_provider_universe_execution_plan(plan)?;
     inventory.validate()?;
     if inventory.repository_id != plan.plan().repository_id
         || inventory.generation != plan.plan().inventory_generation
@@ -642,6 +644,15 @@ pub async fn execute_with_cancellation(
         coverage_notes: sorted_unique(coverage_notes),
         gaps,
     })
+}
+
+fn reject_provider_universe_execution_plan(plan: &FrozenPlan) -> Result<(), AuditError> {
+    if plan.plan().bounds.contains_key(PROVIDER_UNIVERSE_BOUND) {
+        return Err(AuditError::Invalid(
+            "provider-universe plan cannot be executed".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn failed_execution(
@@ -1535,6 +1546,41 @@ mod tests {
         assert_eq!(seen[1].0, "legacy.visual.core");
         assert_eq!(seen[1].1, 1, "partial runtime result remains available");
         assert_eq!(seen[1].2, plan.digest());
+    }
+
+    #[test]
+    fn provider_universe_purpose_is_rejected_before_sync_or_async_provider_effects() {
+        use crate::plan::PROVIDER_UNIVERSE_BOUND;
+
+        let (ordinary, inventory) = handoff_fixture();
+        let mut plan = ordinary.plan().clone();
+        plan.bounds.insert(
+            PROVIDER_UNIVERSE_BOUND.into(),
+            serde_json::json!({
+                "schemaVersion": 1,
+                "purpose": "audit-provider-universe",
+                "selectedPlanDigest": ordinary.digest(),
+            }),
+        );
+        let universe = plan.freeze(Some(b"execution-purpose-test-key")).unwrap();
+
+        let executor = ContextOrder::default();
+        assert!(execute(&universe, &inventory, &executor).is_err());
+        assert!(executor.0.lock().unwrap().is_empty());
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        assert!(runtime
+            .block_on(execute_with_cancellation(
+                &universe,
+                &inventory,
+                &executor,
+                CancellationToken::new(),
+            ))
+            .is_err());
+        assert!(executor.0.lock().unwrap().is_empty());
     }
 
     fn provider() -> AuditProvider {

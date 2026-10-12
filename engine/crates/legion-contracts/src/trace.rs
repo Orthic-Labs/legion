@@ -46,7 +46,7 @@ pub enum SemanticRequirement {
 /// Which shared authority role attached to this request (Arcane §13), if
 /// any. Absence is represented by `None` on the containing field, not by a
 /// variant, so "no authority attached" never needs a placeholder string.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityKind {
     Sage,
@@ -62,6 +62,65 @@ pub enum RoleDecisionState {
     Bound,
     Launched,
     Skipped,
+}
+
+/// Typed observation emitted by the native hook for a host subagent lifecycle
+/// event. It is deliberately distinct from caller-declared `RoleDecision`s.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ChildLifecycleEvent {
+    #[serde(rename = "SubagentStart")]
+    SubagentStart,
+    #[serde(rename = "SubagentStop")]
+    SubagentStop,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChildLifecycleObservation {
+    pub schema_version: u32,
+    pub kind: String,
+    pub event: ChildLifecycleEvent,
+    pub session_id: String,
+    pub child_id: String,
+    pub role: AuthorityKind,
+    /// True means the hook received this host event; it does not mean the
+    /// child launch or task succeeded.
+    pub event_observed: bool,
+    /// Hook response status only; it is not launch approval.
+    pub hook_acknowledged: bool,
+    pub observed_at_unix_ms: u64,
+}
+
+impl ChildLifecycleObservation {
+    pub fn validate(&self) -> Result<(), ContractError> {
+        if self.schema_version != 2 {
+            return Err(ContractError::UnsupportedVersion(self.schema_version));
+        }
+        if self.kind != "legion-child-lifecycle" {
+            return Err(ContractError::InvalidContract {
+                path: "kind".into(),
+                reason: "must identify a child lifecycle observation".into(),
+            });
+        }
+        for (path, value) in [
+            ("session_id", self.session_id.as_str()),
+            ("child_id", self.child_id.as_str()),
+        ] {
+            if value.trim().is_empty() {
+                return Err(ContractError::InvalidContract {
+                    path: path.into(),
+                    reason: "must be non-empty for lifecycle identity matching".into(),
+                });
+            }
+        }
+        if !self.event_observed {
+            return Err(ContractError::InvalidContract {
+                path: "event_observed".into(),
+                reason: "typed lifecycle record must represent a received host event".into(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -321,21 +380,22 @@ where
 /// This reader accepts both v1 and v2; strict v1-only readers remain v1-only.
 pub type RouteOutcomeTraceV2 = RouteOutcomeTrace;
 
-/// Adoption counts from the latest valid role observation per request/role.
-/// Eligibility is an independent host/lead label; unknown and false remain
-/// separate from labelled eligible=true.
+/// Counts latest caller-declared role decision states per request/role.
+/// These values are not evidence that a child launched or completed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
-pub struct RoleAdoptionMetrics {
+pub struct RoleDecisionDeclarationMetrics {
     pub labelled_eligible: usize,
-    pub eligible_launches: usize,
-    pub unnecessary_launches: usize,
-    pub unknown_launches: usize,
+    pub declared_eligible_launches: usize,
+    pub declared_unnecessary_launches: usize,
+    pub declared_unknown_launches: usize,
     pub eligible_skips: usize,
     pub pending_selected: usize,
     pub pending_bound: usize,
 }
 
-pub fn fold_role_adoption(traces: &[RouteOutcomeTrace]) -> RoleAdoptionMetrics {
+pub fn fold_role_decision_declarations(
+    traces: &[RouteOutcomeTrace],
+) -> RoleDecisionDeclarationMetrics {
     let mut latest: Vec<(&RequestId, AuthorityKind, &RoleDecision)> = Vec::new();
     for trace in traces {
         if trace.validate().is_err() {
@@ -354,16 +414,18 @@ pub fn fold_role_adoption(traces: &[RouteOutcomeTrace]) -> RoleAdoptionMetrics {
             }
         }
     }
-    let mut metrics = RoleAdoptionMetrics::default();
+    let mut metrics = RoleDecisionDeclarationMetrics::default();
     for (_, _, decision) in latest {
         match decision.eligible {
             Some(true) => metrics.labelled_eligible += 1,
             Some(false) | None => {}
         }
         match (decision.state, decision.eligible) {
-            (RoleDecisionState::Launched, Some(true)) => metrics.eligible_launches += 1,
-            (RoleDecisionState::Launched, Some(false)) => metrics.unnecessary_launches += 1,
-            (RoleDecisionState::Launched, None) => metrics.unknown_launches += 1,
+            (RoleDecisionState::Launched, Some(true)) => metrics.declared_eligible_launches += 1,
+            (RoleDecisionState::Launched, Some(false)) => {
+                metrics.declared_unnecessary_launches += 1
+            }
+            (RoleDecisionState::Launched, None) => metrics.declared_unknown_launches += 1,
             (RoleDecisionState::Skipped, Some(true)) => metrics.eligible_skips += 1,
             (RoleDecisionState::Selected, _) => metrics.pending_selected += 1,
             (RoleDecisionState::Bound, _) => metrics.pending_bound += 1,
@@ -371,6 +433,33 @@ pub fn fold_role_adoption(traces: &[RouteOutcomeTrace]) -> RoleAdoptionMetrics {
         }
     }
     metrics
+}
+
+/// Compatibility adapter retaining the old metric field names. Values still
+/// come only from caller declarations; use `fold_role_decision_declarations`
+/// for outputs that label their provenance explicitly.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
+pub struct RoleAdoptionMetrics {
+    pub labelled_eligible: usize,
+    pub eligible_launches: usize,
+    pub unnecessary_launches: usize,
+    pub unknown_launches: usize,
+    pub eligible_skips: usize,
+    pub pending_selected: usize,
+    pub pending_bound: usize,
+}
+
+pub fn fold_role_adoption(traces: &[RouteOutcomeTrace]) -> RoleAdoptionMetrics {
+    let declarations = fold_role_decision_declarations(traces);
+    RoleAdoptionMetrics {
+        labelled_eligible: declarations.labelled_eligible,
+        eligible_launches: declarations.declared_eligible_launches,
+        unnecessary_launches: declarations.declared_unnecessary_launches,
+        unknown_launches: declarations.declared_unknown_launches,
+        eligible_skips: declarations.eligible_skips,
+        pending_selected: declarations.pending_selected,
+        pending_bound: declarations.pending_bound,
+    }
 }
 
 fn deserialize_trace_schema_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -630,11 +719,11 @@ mod tests {
             state: RoleDecisionState::Launched,
             reason: None,
         }]);
-        let metrics = fold_role_adoption(&[selected, launched, unnecessary, unknown]);
+        let metrics = fold_role_decision_declarations(&[selected, launched, unnecessary, unknown]);
         assert_eq!(metrics.labelled_eligible, 1);
-        assert_eq!(metrics.eligible_launches, 1);
-        assert_eq!(metrics.unnecessary_launches, 1);
-        assert_eq!(metrics.unknown_launches, 1);
+        assert_eq!(metrics.declared_eligible_launches, 1);
+        assert_eq!(metrics.declared_unnecessary_launches, 1);
+        assert_eq!(metrics.declared_unknown_launches, 1);
         assert_eq!(metrics.pending_selected, 0);
     }
 }

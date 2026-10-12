@@ -87,6 +87,12 @@ cause-of-action date, and notice status.
 
 ## NotebookLM
 
-NotebookLM is a provider/artifact route. Its answers are leads, never evidence. Private or
-medical uploads require a per-run approval receipt. Promotion requires opening the underlying
-source and locating the supporting passage through the normal provider contract.
+NotebookLM is a provider/artifact route. The supported stateful execution path is the callable
+`notebooklm` host adapter, when that adapter is actually exposed by the current host; use only its
+published operations. The installed native CLI accepts host-opened source records but does not
+execute NotebookLM search, create, upload, generate, or download operations. For evidence
+processing, open the underlying source and locate its supporting passage; submit it only as a
+`--source-record` that passes current `legion-research` validation. Records labeled with provider
+`notebooklm` and NotebookLM answers are lead-only. Private or medical uploads require a per-run
+approval receipt. If no callable adapter is exposed, return the retained NotebookLM route as
+`unavailable`, name the missing host capability, and make no execution claim.

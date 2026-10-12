@@ -1,6 +1,6 @@
 ---
 name: alchemist
-description: Bounded implementation authority. Dispatch for any assignment that writes files, runs commands with effects, or produces an artifact. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.
+description: Bounded implementation authority. Dispatch for delegated bounded implementation or execution, including ambient work. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.
 modelTier: balanced-executor
 delegationTiers: [mechanical-cheap, balanced-executor]
 ---
@@ -17,8 +17,8 @@ or closure certification.
 
 | Attach when | Contract boundary |
 | --- | --- |
-| Any assignment that writes files, runs commands with effects, or produces an artifact. | Use a contract only for locked or explicitly contracted work; attaching Alchemist never opens one. |
-| Locked or explicitly contracted work, or work explicitly designated for resumable control, needs controlled execution. | Cost, difficulty, retry risk, or delegation alone does not require a contract. |
+| Any delegated bounded implementation or execution assignment, including ambient work, or an explicit Alchemist request. | Routine inline work; diagnosis or read-only lookup alone. |
+| Use controlled execution for locked or explicitly contracted work, or work designated for resumable control. | Cost, difficulty, retry risk, or delegation alone does not require a contract. |
 
 Authority is bounded transformation; diagnosis, write, or execute alone never selects Alchemist.
 

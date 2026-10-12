@@ -579,7 +579,20 @@ fn handle_request<'a>(
 
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/health") => {
-            write_json(&mut stream, 200, "OK", &json!({ "ok": true }));
+            if let Some(provided) = req.query.get("token") {
+                if provided != token {
+                    write_unauthorized(&mut stream);
+                    return true;
+                }
+                write_json(
+                    &mut stream,
+                    200,
+                    "OK",
+                    &json!({ "ok": true, "pid": std::process::id(), "port": port }),
+                );
+            } else {
+                write_json(&mut stream, 200, "OK", &json!({ "ok": true }));
+            }
             true
         }
         ("GET", "/stop") => {
@@ -594,7 +607,12 @@ fn handle_request<'a>(
                 );
                 return true;
             }
-            write_json(&mut stream, 200, "OK", &json!({ "ok": true }));
+            write_json(
+                &mut stream,
+                200,
+                "OK",
+                &json!({ "ok": true, "accepted": true, "pid": std::process::id(), "port": port }),
+            );
             false // signal caller to shut down after this response
         }
         ("GET", "/events") => {
@@ -1247,6 +1265,32 @@ mod tests {
     }
 
     #[test]
+    fn authenticated_health_returns_server_identity_without_echoing_token() {
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
+        let req = mk_req("GET", "/health", &[("token", "tok")], b"");
+        let mut out = Vec::new();
+        handle_request(
+            req,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            8400,
+            &controller,
+            Path::new("."),
+        );
+        let response = String::from_utf8(out).unwrap();
+        assert!(response.contains("200 OK"));
+        assert!(response.contains(&format!("\"pid\":{}", std::process::id())));
+        assert!(response.contains("\"port\":8400"));
+        assert!(!response.contains("tok"));
+    }
+
+    #[test]
     fn events_post_requires_matching_token() {
         let queue = QueueState::new();
         let controller = ManualApplyController::new(
@@ -1825,10 +1869,15 @@ mod tests {
             "tok",
             &queue,
             Path::new("."),
-            0,
+            8400,
             &controller,
             &session_dir
         ));
+        let response = String::from_utf8(out2).unwrap();
+        assert!(response.contains("200 OK"));
+        assert!(response.contains("\"accepted\":true"));
+        assert!(response.contains(&format!("\"pid\":{}", std::process::id())));
+        assert!(response.contains("\"port\":8400"));
     }
 
     #[test]

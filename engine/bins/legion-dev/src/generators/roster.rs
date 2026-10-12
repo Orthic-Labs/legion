@@ -9,19 +9,6 @@ use std::path::{Path, PathBuf};
 
 pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle"];
 const MODEL_TIERS: &[&str] = &["frontier-judgment", "balanced-executor", "mechanical-cheap"];
-const PROJECTION_SECTIONS: &[&str] = &[
-    "Purpose",
-    "Triggers",
-    "Routes",
-    "Capabilities",
-    "Inputs",
-    "Outputs",
-    "Boundaries",
-    "Handoffs",
-    "Evidence rules",
-    "Model policy",
-];
-
 fn route_method(id: &str) -> &'static str {
     match id {
         "sage" => "doctrine/sage.md",
@@ -71,31 +58,6 @@ fn parse_frontmatter(
     }
     let body = normalized[end + 5..].trim().to_string();
     Ok((values, body))
-}
-
-fn section(body: &str, name: &str) -> Option<String> {
-    let heading = format!("## {name}");
-    let start_line = body.lines().position(|l| l.trim_eq_heading(&heading))?;
-    let lines: Vec<&str> = body.lines().collect();
-    let mut end_line = lines.len();
-    for (i, l) in lines.iter().enumerate().skip(start_line + 1) {
-        if l.starts_with("## ") {
-            end_line = i;
-            break;
-        }
-    }
-    let content = lines[start_line + 1..end_line].join("\n");
-    Some(format!("## {}\n\n{}", name, content.trim()))
-}
-
-trait TrimEqHeading {
-    fn trim_eq_heading(&self, heading: &str) -> bool;
-}
-impl TrimEqHeading for &str {
-    fn trim_eq_heading(&self, heading: &str) -> bool {
-        // case-insensitive match against "## Name" with optional trailing spaces (mirrors /^##\s+name\s*$/mi over one line)
-        self.trim_end().eq_ignore_ascii_case(heading)
-    }
 }
 
 pub fn roster_path(root: &Path, id: &str) -> Result<PathBuf, String> {
@@ -153,10 +115,10 @@ pub fn roster_roles(root: &Path) -> Result<Vec<RosterRole>, String> {
 
 pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
     let role = load_roster_role(root, id)?;
-    let sections: Vec<String> = PROJECTION_SECTIONS
-        .iter()
-        .filter_map(|name| section(&role.body, name))
-        .collect();
+    let method_path = root.join(route_method(id));
+    let method_source = fs::read_to_string(&method_path)
+        .map_err(|error| format!("{}: {error}", method_path.display()))?;
+    let (_, method) = parse_frontmatter(&method_source, &method_path)?;
     let mut name_cap = role.name.clone();
     if let Some(c) = name_cap.get_mut(0..1) {
         c.make_ascii_uppercase();
@@ -171,10 +133,14 @@ pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
         String::new(),
         format!("Model tier: `{}`. Host resolves a compatible provider/model; roster source is vendor-neutral.", role.model_tier),
         String::new(),
-        format!("Route method: `{}`.", route_method(id)),
+        "## Roster".to_string(),
         String::new(),
     ];
-    lines.extend(sections);
+    lines.push(role.body);
+    lines.push(String::new());
+    lines.push("## Method".to_string());
+    lines.push(String::new());
+    lines.push(method);
     lines.push(String::new());
     Ok(lines.join("\n"))
 }
@@ -197,4 +163,36 @@ pub fn low_fidelity_projection(root: &Path) -> Result<String, String> {
             .to_string(),
     );
     Ok(lines.join("\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn role_projection_embeds_full_roster_and_doctrine_method() {
+        let root =
+            std::env::temp_dir().join(format!("legion-roster-projection-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/roster")).unwrap();
+        fs::create_dir_all(root.join("doctrine")).unwrap();
+        fs::write(
+            root.join("src/roster/sage.md"),
+            "---\nname: sage\ndescription: Dispatch for material judgment\nmodelTier: frontier-judgment\n---\n\n## Purpose\n\nFull roster purpose.\n\n## Triggers\n\nMaterial choice only.\n\n## Boundaries\n\nSage never performs product-state effects.\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("doctrine/sage.md"),
+            "---\nname: sage-method\n---\n\n## Method\n\nSage adjudicates product-source effects.\n",
+        )
+        .unwrap();
+
+        let projection = role_projection(&root, "sage").unwrap();
+        let _ = fs::remove_dir_all(&root);
+        assert!(projection.contains("Full roster purpose."));
+        assert!(projection.contains("Material choice only."));
+        assert!(projection.contains("Sage never performs product-state effects."));
+        assert!(projection.contains("Sage adjudicates product-source effects."));
+        assert!(!projection.contains("Route method: `doctrine/"));
+    }
 }

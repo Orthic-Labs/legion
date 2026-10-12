@@ -13,11 +13,19 @@ executes the exact frozen provider set. It writes `plan.json`, `facts.json`, `re
 
 Flags: `--profile <name>`, `--only <provider>` / `--skip <provider>` (repeatable, resolved before the
 plan freezes), `--type`/`--base`/`--base-commit`/`--dir` (diff scope, annotates facts and never
-narrows the denominator), `--url`, `--surfaces`, `--visual-spec`, `--visual-baselines`,
+narrows the denominator), `--url`, `--surfaces`, `--runtime-interactions`, `--visual-spec`, `--visual-baselines`,
 `--width`/`--height`, `--plan-only` (freeze and seal the plan without executing it),
 `--provider-plan <plan.json>` with repeated `--provider-result <file>` (reconcile supplied results
 against a frozen plan), and `--json`. `legion audit --help` is not supported; the flag list lives in
 `engine/bins/legion/src/commands/audit.rs`.
+
+Filtered runs preserve the applicable-provider universe computed from the same frozen inventory.
+The report records `applicableProviders`, `selectedApplicableProviders`,
+`excludedApplicableProviders`, and requested filters. `planComplete` describes reconciliation
+within the selected plan; `fullScope` is true only when no applicable provider was excluded.
+Providers with empty denominators and conditional lenses whose checked triggers did not fire are
+not omissions. A complete filtered plan may therefore have `planComplete: true` and
+`fullScope: false`.
 
 Companions: `legion verify <run-dir>` re-checks the persisted facts against the frozen plan;
 `legion report <run-dir>/report.json --format md|html|sarif|json [--out <file>]` renders a frozen report;
@@ -116,8 +124,14 @@ legion verify <run-dir>
 ```
 
 The follow-up is a second signed plan under `<run-dir>/followup/` (own `plan.json`, `frozen-plan.json`,
-`epoch.key`, `lens-packets/`, `lens-receipts/`). Its only provider is the variant analysis over exactly
-the confirmed files, and the plan binds the parent plan digest and the confirmed verdict digests. The
+`epoch.key`, `lens-packets/`, `lens-receipts/`). Its only provider is variant analysis over a
+deterministic scope inside the frozen inventory: confirmed files, source siblings in the same
+directory, first-party source files with a lexical reference to a confirmed file's module stem, and
+source files sharing non-ubiquitous identifiers from seed evidence. The signed plan records
+`confirmedPaths` separately from `analysisPaths` and the reason each analysis path entered scope.
+Findings and withdrawals must anchor inside `analysisPaths`; an
+in-inventory file outside that set cannot bypass scope. The plan binds the parent plan digest and the
+confirmed verdict digests. The
 packet carries `variantSeeds`, one per confirmed finding (`rule`, `path`, `line`, `verdict`, `rationale`,
 `threatModel`, `reachability`, `impact`, `parentFindingId`). Each variant finding is a normal lens
 finding with a verbatim anchor plus `parentFindingId` (the seed's `adjudicated:<candidateId>`); zero
@@ -141,6 +155,14 @@ process. Without that receipt, build/type/lint/test/runtime commands are skipped
 file-only providers still run. Supply `--url <running-app-url>` for selected runtime providers,
 `--surfaces <targets.json>` for button/card-driven views, `--visual-spec <spec.json>` for explicit
 rendered evidence, or `--visual-baselines <map.json>` for baseline comparison.
+
+`--runtime-interactions <descriptors.json>` freezes bounded declarative probe requests against
+exact frozen loopback surfaces. Each descriptor binds a fixture source digest, probe action digest,
+surface label/URL, and isolation-binding ID; these caller-supplied fields are claims, not proof of
+fixture isolation. Only click/type/limited-key/selector assertions are accepted; scripts, eval,
+navigation, and unknown action fields are rejected. Until a trusted host verifier proves isolated
+target binding and scoped egress, no interaction action runs and each descriptor reports
+`runtime-probe-isolation-not-configured`; ordinary baseline capture continues.
 
 ## Capability ownership (host-declared)
 

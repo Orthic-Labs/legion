@@ -38,6 +38,10 @@ Scope narrowing cancels only work outside remaining authorization; continue auth
 4. Report scheduler-observed next occurrence. Never claim timing, execution, or deadline enforcement
    that host has not exposed.
 
+Before claiming a check is placeable, name its supported mechanism, bound target/owner, trigger or
+interval, & inspection question; general scheduler availability alone does not establish a fit. In a
+dry run, report that concrete route as proposed & unregistered.
+
 Reuse existing wake for same target. Never emulate scheduling with sleep or repeated short polls.
 
 ## Truthful scheduling

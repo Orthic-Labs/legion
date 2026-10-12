@@ -283,9 +283,15 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
     let visual_findings_match = recomputed_visual_findings
         .as_deref()
         .is_some_and(|expected| matches_visual_findings(&stored, expected));
+    let provider_coverage_matches = matches_optional_claim(
+        &stored,
+        "providerCoverage",
+        recomputed.report.claims.get("providerCoverage"),
+    );
     if stored.get("status") != Some(&status)
         || stored.get("gaps") != Some(&json!(recomputed.report.gaps))
         || stored.pointer("/claims/lensesRan") != Some(&lenses_ran)
+        || !provider_coverage_matches
         || !visual_findings_match
     {
         errors.push(
@@ -346,6 +352,10 @@ fn matches_visual_findings(stored: &Value, expected: &[Value]) -> bool {
     stored_visual_findings(stored).as_deref() == Some(expected)
 }
 
+fn matches_optional_claim(stored: &Value, name: &str, expected: Option<&Value>) -> bool {
+    stored.pointer(&format!("/claims/{name}")) == expected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -404,5 +414,36 @@ mod tests {
         let no_visual = json!({"findings": [finding("legacy.code.core")]});
         assert!(matches_visual_findings(&no_visual, &[]));
         assert!(!matches_visual_findings(&json!({}), &[]));
+    }
+
+    #[test]
+    fn provider_coverage_claim_must_match_recomputed_presence_and_contents() {
+        let coverage = json!({"fullScope": false, "planComplete": false});
+        let recomputed = Some(&coverage);
+        assert!(matches_optional_claim(
+            &json!({"claims": {"providerCoverage": coverage}}),
+            "providerCoverage",
+            recomputed,
+        ));
+        assert!(!matches_optional_claim(
+            &json!({"claims": {}}),
+            "providerCoverage",
+            recomputed,
+        ));
+        assert!(!matches_optional_claim(
+            &json!({"claims": {"providerCoverage": {"fullScope": true}}}),
+            "providerCoverage",
+            recomputed,
+        ));
+        assert!(matches_optional_claim(
+            &json!({"claims": {}}),
+            "providerCoverage",
+            None,
+        ));
+        assert!(!matches_optional_claim(
+            &json!({"claims": {"providerCoverage": {"fullScope": true}}}),
+            "providerCoverage",
+            None,
+        ));
     }
 }

@@ -59,8 +59,8 @@ pub mod queue;
 pub mod server_info;
 
 use std::env;
-use std::io::{self, Write};
-use std::net::{TcpListener, TcpStream};
+use std::io::{self, Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -240,8 +240,10 @@ pub fn parse_port_arg(args: &[String]) -> Option<u16> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum RunOutcome {
     HelpPrinted,
-    Stopped,
-    StopFailedNoServer,
+    Stopped {
+        server: StopServerState,
+        injection: InjectionCleanupState,
+    },
     AlreadyRunning {
         port: u16,
         pid: u32,
@@ -259,38 +261,279 @@ pub enum RunOutcome {
     },
 }
 
-/// `stop` subcommand: read `server.json`, hit `GET /stop?token=...` on the
-/// recorded port, report success/failure. `--keep-inject` handling and the
-/// `live-inject.mjs --remove` shellout are named-gap NOT-PORTED: they depend
-/// on `live-inject.mjs`, which is not part of this packet and is not ported
-/// elsewhere (`full-Q1.md` lists it `NOT-STARTED`). Callers that need that
-/// half must still shell out to the legacy script until `live-inject.mjs` is
-/// ported.
-pub fn stop_running_server(project_root: &Path) -> RunOutcome {
-    match read_live_server_info(project_root) {
-        Some((info, _path)) => {
-            let addr = format!("127.0.0.1:{}", info.port);
-            match TcpStream::connect(addr.as_str()) {
-                Ok(mut stream) => {
-                    let req = format!(
-                        "GET /stop?token={} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
-                        info.token
-                    );
-                    let _ = stream.write_all(req.as_bytes());
-                    println!("Stopped live server on port {}.", info.port);
-                    RunOutcome::Stopped
-                }
-                Err(_) => {
-                    println!("No running live server found.");
-                    RunOutcome::StopFailedNoServer
-                }
+/// Server-side result for a stop request. `AcceptedUnconfirmed` preserves the
+/// distinction between the handler accepting `/stop` and the listener no
+/// longer serving this server's authenticated health metadata.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StopServerState {
+    Confirmed { port: u16 },
+    AcceptedUnconfirmed { port: u16 },
+    NotRunning { port: Option<u16> },
+    Failed { port: Option<u16>, message: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InjectionCleanupState {
+    Retained,
+    Removed(serde_json::Value),
+    Failed(serde_json::Value),
+}
+
+#[derive(Debug)]
+struct StopHttpResponse {
+    status: u16,
+    json: Option<serde_json::Value>,
+}
+
+const STOP_CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+const STOP_IO_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+const STOP_CONFIRM_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+const STOP_RESPONSE_LIMIT: u64 = 8 * 1024;
+
+fn stop_http_request(port: u16, path: &str, token: &str) -> io::Result<StopHttpResponse> {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
+    let mut stream = TcpStream::connect_timeout(&address, STOP_CONNECT_TIMEOUT)?;
+    stream.set_read_timeout(Some(STOP_IO_TIMEOUT))?;
+    stream.set_write_timeout(Some(STOP_IO_TIMEOUT))?;
+    let request = format!(
+        "GET {path}?token={token} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
+    );
+    stream.write_all(request.as_bytes())?;
+
+    let mut bytes = Vec::new();
+    stream
+        .take(STOP_RESPONSE_LIMIT + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > STOP_RESPONSE_LIMIT {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stop response exceeded size limit",
+        ));
+    }
+    let header_end = bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "incomplete HTTP response"))?;
+    if header_end > 4096 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stop response headers exceeded size limit",
+        ));
+    }
+    let header = std::str::from_utf8(&bytes[..header_end])
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid HTTP response headers"))?;
+    let status = header
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|raw| raw.parse::<u16>().ok())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "invalid HTTP status"))?;
+    let body = &bytes[header_end + 4..];
+    let content_length = header
+        .lines()
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.trim().eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "missing response length"))?;
+    if content_length > STOP_RESPONSE_LIMIT as usize || content_length != body.len() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "invalid stop response length",
+        ));
+    }
+    let json = serde_json::from_slice(body).ok();
+    Ok(StopHttpResponse { status, json })
+}
+
+fn stop_metadata_matches(response: &StopHttpResponse, info: &ServerInfo) -> bool {
+    let Some(json) = response.json.as_ref() else {
+        return false;
+    };
+    response.status == 200
+        && json.get("ok").and_then(serde_json::Value::as_bool) == Some(true)
+        && json.get("pid").and_then(serde_json::Value::as_u64) == Some(u64::from(info.pid))
+        && json.get("port").and_then(serde_json::Value::as_u64) == Some(u64::from(info.port))
+}
+
+fn server_record_for_stop(project_root: &Path) -> Result<Option<ServerInfo>, String> {
+    let paths = [
+        crate::wf_port::q_q1::paths::get_live_server_path(project_root),
+        crate::wf_port::q_q1::paths::get_legacy_live_server_path(project_root),
+    ];
+    let mut invalid = None;
+    for path in paths {
+        let contents = match std::fs::read_to_string(&path) {
+            Ok(contents) => contents,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
+            Err(err) => {
+                invalid = Some(format!("could not read {}: {err}", path.display()));
+                continue;
+            }
+        };
+        match serde_json::from_str::<ServerInfo>(&contents) {
+            Ok(info) if info.pid > 0 && info.port > 0 && !info.token.is_empty() => {
+                return Ok(Some(info));
+            }
+            Ok(_) => invalid = Some(format!("invalid server metadata in {}", path.display())),
+            Err(err) => {
+                invalid = Some(format!(
+                    "invalid server metadata in {}: {err}",
+                    path.display()
+                ))
             }
         }
-        None => {
-            println!("No running live server found.");
-            RunOutcome::StopFailedNoServer
+    }
+    match invalid {
+        Some(message) => Err(message),
+        None => Ok(None),
+    }
+}
+
+fn stop_server(project_root: &Path) -> StopServerState {
+    let info = match server_record_for_stop(project_root) {
+        Ok(Some(info)) => info,
+        Ok(None) => return StopServerState::NotRunning { port: None },
+        Err(message) => {
+            return StopServerState::Failed {
+                port: None,
+                message,
+            }
+        }
+    };
+    let port = info.port;
+    match stop_http_request(port, "/health", &info.token) {
+        Ok(response) if stop_metadata_matches(&response, &info) => {}
+        Err(err) if err.kind() == io::ErrorKind::ConnectionRefused => {
+            return StopServerState::NotRunning { port: Some(port) };
+        }
+        Ok(_) => {
+            return StopServerState::Failed {
+                port: Some(port),
+                message: "health endpoint did not match recorded server metadata".into(),
+            };
+        }
+        Err(err) => {
+            return StopServerState::Failed {
+                port: Some(port),
+                message: format!("could not verify live server: {err}"),
+            };
         }
     }
+
+    match stop_http_request(port, "/stop", &info.token) {
+        Ok(response)
+            if response.status == 200
+                && response
+                    .json
+                    .as_ref()
+                    .and_then(|json| json.get("ok"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && response
+                    .json
+                    .as_ref()
+                    .and_then(|json| json.get("accepted"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && response
+                    .json
+                    .as_ref()
+                    .and_then(|json| json.get("pid"))
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(u64::from(info.pid))
+                && response
+                    .json
+                    .as_ref()
+                    .and_then(|json| json.get("port"))
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(u64::from(info.port)) => {}
+        Err(err) if err.kind() == io::ErrorKind::ConnectionRefused => {
+            return StopServerState::NotRunning { port: Some(port) };
+        }
+        Ok(_) => {
+            return StopServerState::Failed {
+                port: Some(port),
+                message: "stop endpoint did not confirm acceptance for recorded server".into(),
+            };
+        }
+        Err(err) => {
+            return StopServerState::Failed {
+                port: Some(port),
+                message: format!("stop request failed: {err}"),
+            };
+        }
+    };
+    let deadline = std::time::Instant::now() + STOP_CONFIRM_TIMEOUT;
+    while std::time::Instant::now() < deadline {
+        match stop_http_request(port, "/health", &info.token) {
+            Err(err) if err.kind() == io::ErrorKind::ConnectionRefused => {
+                return StopServerState::Confirmed { port };
+            }
+            Ok(response) if stop_metadata_matches(&response, &info) => {}
+            Ok(_) => return StopServerState::Confirmed { port },
+            Err(_) => {}
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    StopServerState::AcceptedUnconfirmed { port }
+}
+
+/// Stop the server and, unless requested otherwise, remove the live injection
+/// from the current project. Injection config resolution does not depend on
+/// `server.json`, so this also repairs cleanup after a prior stop removed it.
+pub fn stop_running_server(project_root: &Path, keep_inject: bool) -> RunOutcome {
+    let env_live_config = env::var("IMPECCABLE_LIVE_CONFIG").ok();
+    stop_running_server_with_config(project_root, keep_inject, env_live_config.as_deref())
+}
+
+fn stop_running_server_with_config(
+    project_root: &Path,
+    keep_inject: bool,
+    env_live_config: Option<&str>,
+) -> RunOutcome {
+    let server = stop_server(project_root);
+    let injection = if keep_inject {
+        InjectionCleanupState::Retained
+    } else {
+        let report = crate::wf_port::w2_018::inject::remove_project_injection(
+            project_root,
+            None,
+            env_live_config,
+        );
+        if report.ok {
+            InjectionCleanupState::Removed(report.payload)
+        } else {
+            InjectionCleanupState::Failed(report.payload)
+        }
+    };
+    let server_json = match &server {
+        StopServerState::Confirmed { port } => {
+            serde_json::json!({ "state": "confirmed", "port": port })
+        }
+        StopServerState::AcceptedUnconfirmed { port } => {
+            serde_json::json!({ "state": "accepted_unconfirmed", "port": port })
+        }
+        StopServerState::NotRunning { port } => {
+            serde_json::json!({ "state": "not_running", "port": port })
+        }
+        StopServerState::Failed { port, message } => {
+            serde_json::json!({ "state": "failed", "port": port, "message": message })
+        }
+    };
+    let injection_json = match &injection {
+        InjectionCleanupState::Retained => serde_json::json!({ "state": "retained" }),
+        InjectionCleanupState::Removed(payload) => {
+            serde_json::json!({ "state": "removed", "result": payload })
+        }
+        InjectionCleanupState::Failed(payload) => {
+            serde_json::json!({ "state": "failed", "result": payload })
+        }
+    };
+    println!(
+        "{}",
+        serde_json::json!({ "server": server_json, "injection": injection_json })
+    );
+    RunOutcome::Stopped { server, injection }
 }
 
 /// `--background`: mirrors the JS `spawn(process.execPath, [thisFile,
@@ -398,7 +641,8 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     }
 
     if args.iter().any(|a| a == "stop") {
-        return stop_running_server(project_root);
+        let keep_inject = args.iter().any(|a| a == "--keep-inject");
+        return stop_running_server(project_root, keep_inject);
     }
 
     if args.iter().any(|a| a == "--background") {
@@ -502,8 +746,19 @@ pub fn main_cli() -> i32 {
     let args: Vec<String> = env::args().skip(1).collect();
     let cwd = env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     match run(&args, &cwd) {
-        RunOutcome::HelpPrinted | RunOutcome::Stopped | RunOutcome::ServerExited => 0,
-        RunOutcome::StopFailedNoServer => 0,
+        RunOutcome::HelpPrinted | RunOutcome::ServerExited => 0,
+        RunOutcome::Stopped { server, injection } => {
+            let server_ok = matches!(
+                server,
+                StopServerState::Confirmed { .. } | StopServerState::NotRunning { .. }
+            );
+            let injection_ok = !matches!(injection, InjectionCleanupState::Failed(_));
+            if server_ok && injection_ok {
+                0
+            } else {
+                1
+            }
+        }
         RunOutcome::AlreadyRunning { .. } => 1,
         RunOutcome::BackgroundStarted { ready, .. } => {
             if ready {
@@ -555,6 +810,100 @@ mod session_cleanup_tests {
                 .unwrap()
                 .as_nanos()
         ))
+    }
+
+    fn write_stop_config(root: &Path) {
+        let config = root.join(".impeccable/live/config.json");
+        std::fs::create_dir_all(config.parent().unwrap()).unwrap();
+        std::fs::write(
+            config,
+            r#"{"files":["index.html"],"insertAfter":"</body>","commentSyntax":"html"}"#,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn stop_health_requires_authenticated_server_metadata_not_pid_alone() {
+        let info = ServerInfo {
+            pid: 41,
+            port: 8400,
+            token: "secret".into(),
+        };
+        let matching = StopHttpResponse {
+            status: 200,
+            json: Some(serde_json::json!({ "ok": true, "pid": 41, "port": 8400 })),
+        };
+        let wrong_port = StopHttpResponse {
+            status: 200,
+            json: Some(serde_json::json!({ "ok": true, "pid": 41, "port": 8401 })),
+        };
+        assert!(stop_metadata_matches(&matching, &info));
+        assert!(!stop_metadata_matches(&wrong_port, &info));
+    }
+
+    #[test]
+    fn stop_reads_metadata_even_when_pid_liveness_would_be_stale() {
+        let root = scratch_root("stop-metadata");
+        std::fs::create_dir_all(&root).unwrap();
+        let info = ServerInfo {
+            pid: u32::MAX,
+            port: 8400,
+            token: "recorded-token".into(),
+        };
+        let path = crate::wf_port::q_q1::paths::get_live_server_path(&root);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, serde_json::to_vec(&info).unwrap()).unwrap();
+
+        assert_eq!(server_record_for_stop(&root).unwrap(), Some(info));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn stop_retries_injection_cleanup_without_server_record() {
+        let root = scratch_root("stop-retry-cleanup");
+        std::fs::create_dir_all(&root).unwrap();
+        write_stop_config(&root);
+        std::fs::write(root.join("index.html"), "<html><body>plain</body></html>").unwrap();
+
+        let outcome = stop_running_server_with_config(&root, false, None);
+
+        assert!(matches!(
+            outcome,
+            RunOutcome::Stopped {
+                server: StopServerState::NotRunning { port: None },
+                injection: InjectionCleanupState::Removed(_)
+            }
+        ));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn stop_keep_inject_flag_survives_dispatch() {
+        let root = scratch_root("stop-keep-inject");
+        std::fs::create_dir_all(&root).unwrap();
+        write_stop_config(&root);
+        let content = format!(
+            "<html><body><!-- {} --><script src=\"live.js\"></script><!-- {} --></body></html>",
+            crate::wf_port::w2_018::inject::MARKER_OPEN_TEXT,
+            crate::wf_port::w2_018::inject::MARKER_CLOSE_TEXT,
+        );
+        std::fs::write(root.join("index.html"), &content).unwrap();
+
+        let args = vec!["stop".to_string(), "--keep-inject".to_string()];
+        let outcome = run(&args, &root);
+
+        assert!(matches!(
+            outcome,
+            RunOutcome::Stopped {
+                injection: InjectionCleanupState::Retained,
+                ..
+            }
+        ));
+        assert_eq!(
+            std::fs::read_to_string(root.join("index.html")).unwrap(),
+            content
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

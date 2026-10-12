@@ -126,7 +126,9 @@ pub enum SecurityAdjudicationError {
     UnexpectedSeverity(SecurityVerdictKind),
     #[error("surviving security verdict {0:?} requires attackerControl above unproven")]
     WeakAttackerControl(SecurityVerdictKind),
-    #[error("surviving security verdict {0:?} requires proof (reproduction, trace, PoC, or mathematical proof)")]
+    #[error(
+        "surviving security verdict {0:?} requires proof (reproduction, trace, PoC, or mathematical proof)"
+    )]
     MissingProof(SecurityVerdictKind),
     #[error("surviving security verdict {0:?} requires evidenceStrength above possible")]
     WeakEvidenceStrength(SecurityVerdictKind),
@@ -145,7 +147,9 @@ pub enum SecurityAdjudicationError {
         field: &'static str,
         text: String,
     },
-    #[error("candidate {candidate}: `{field}` is too thin to be an assessment (needs at least 12 characters and 2 words)")]
+    #[error(
+        "candidate {candidate}: `{field}` is too thin to be an assessment (needs at least 12 characters and 2 words)"
+    )]
     ThinContent {
         candidate: String,
         field: &'static str,
@@ -156,11 +160,15 @@ pub enum SecurityAdjudicationError {
         other: String,
         field: &'static str,
     },
-    #[error("surviving verdict for {candidate} does not reference the candidate's path ({path}) or sink")]
+    #[error(
+        "surviving verdict for {candidate} does not reference the candidate's path ({path}) or sink"
+    )]
     MissingCandidateReference { candidate: String, path: String },
     #[error("surviving verdict for {0} must cite at least one evidence location (file and line)")]
     MissingEvidenceCitation(String),
-    #[error("surviving verdict for {candidate} cites no evidence inside the candidate's file {expected} (cited {cited})")]
+    #[error(
+        "surviving verdict for {candidate} cites no evidence inside the candidate's file {expected} (cited {cited})"
+    )]
     EvidenceOutsideCandidateFile {
         candidate: String,
         expected: String,
@@ -176,7 +184,9 @@ pub enum SecurityAdjudicationError {
     },
     #[error("verdict for {0}: adjudicator context equals the generator's context")]
     GeneratorContext(String),
-    #[error("verdict for {candidate}: context {actual} is not the isolated context {expected} issued for this candidate")]
+    #[error(
+        "verdict for {candidate}: context {actual} is not the isolated context {expected} issued for this candidate"
+    )]
     UnexpectedContext {
         candidate: String,
         expected: String,
@@ -1015,7 +1025,7 @@ fn validate_content(
                 return Err(SecurityAdjudicationError::EmptyField {
                     candidate: id.to_owned(),
                     field,
-                })
+                });
             }
             None => {}
         }
@@ -1201,7 +1211,7 @@ pub fn adjudicate_scanner_candidates_isolated(
             None if policy == ContextPolicy::Attested => {
                 return Err(SecurityAdjudicationError::MissingContextAttestation(
                     id.to_owned(),
-                ))
+                ));
             }
             None => {}
         }
@@ -1226,7 +1236,7 @@ pub fn adjudicate_scanner_candidates_isolated(
                             other: other.clone(),
                             field,
                         },
-                    ))
+                    ));
                 }
                 Some(_) => {}
                 None => {

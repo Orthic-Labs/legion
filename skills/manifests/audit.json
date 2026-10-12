@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/audit",
-      "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
+      "\"Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.\""
     ],
     "outputs": [
       "references/a11y-checklist.md",
@@ -74,7 +74,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:6b0c7ef7248a1bae218fae81fd1664b24c3498238816ef4067dee071cd74adb8"
+      "digest": "sha256:dc5438fdf6f0cce1784670362912cfeec400f7cb42dc959ebfd68a4a5846da43"
     },
     {
       "path": "agents/openai.yaml",
@@ -119,12 +119,12 @@
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:11c0806a4dab4c619fe47606440312b6e409147cd329f711658ee68decc4b3f4"
+      "digest": "sha256:5439c8b181892bed6d2689a8ebf941eec6a645298429c328826498594d0bf645"
     },
     {
       "path": "references/lens-cues.md",
       "uri": "legion-skill://audit/references/lens-cues.md",
-      "digest": "sha256:f57dd7466d1651198a1def37682a17e8958d2d7ee33f62817044e2383d874ddd"
+      "digest": "sha256:511c67cc07588dbfbde2a81e7f131042abc3480c959151792fb8924ce94d2c59"
     },
     {
       "path": "references/lens-routing.md",

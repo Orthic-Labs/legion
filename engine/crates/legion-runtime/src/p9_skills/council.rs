@@ -64,6 +64,16 @@ pub fn digest_value(value: &Value) -> String {
     format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
+/// Digest a Council request while excluding its own top-level `packetDigest` field.
+/// Nested fields with the same name remain part of the request and affect the digest.
+pub fn request_digest(request: &Value) -> String {
+    let mut projection = request.clone();
+    if let Value::Object(fields) = &mut projection {
+        fields.remove("packetDigest");
+    }
+    digest_value(&projection)
+}
+
 /// Mirrors `findForbiddenToken`: recursively scans strings for the forbidden authority tokens.
 pub fn find_forbidden_token(value: &Value) -> Option<&'static str> {
     match value {
@@ -138,8 +148,18 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
         if get(record, "mode") != get(request, "mode") {
             errors.push("$.mode does not match request".to_string());
         }
-        if get(record, "packetDigest") != get(request, "packetDigest") {
-            errors.push("$.packetDigest does not match request".to_string());
+        let computed_digest = request_digest(request);
+        let request_digest_matches = get(request, "packetDigest")
+            .and_then(Value::as_str)
+            .is_some_and(|digest| digest == computed_digest);
+        let record_digest_matches = get(record, "packetDigest")
+            .and_then(Value::as_str)
+            .is_some_and(|digest| digest == computed_digest);
+        if !request_digest_matches {
+            errors.push("$.packetDigest does not match request content".to_string());
+        }
+        if !record_digest_matches {
+            errors.push("$.packetDigest does not match computed request digest".to_string());
         }
         if get(record, "sourceRevision") != get(request, "sourceRevision") {
             errors.push("$.sourceRevision does not match request".to_string());
@@ -167,12 +187,31 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
         errors.push(format!("$ contains forbidden authority token {token}"));
     }
 
-    let digest_verified = record
+    let digest_verified_flag = record
         .pointer("/integrity/digestVerified")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    if !digest_verified {
+    let request_digest_verified = request.is_some_and(|request| {
+        let computed_digest = request_digest(request);
+        request
+            .get("packetDigest")
+            .and_then(Value::as_str)
+            .is_some_and(|digest| digest == computed_digest)
+            && record
+                .get("packetDigest")
+                .and_then(Value::as_str)
+                .is_some_and(|digest| digest == computed_digest)
+    });
+    if request.is_none() {
+        errors.push("$.request is required to verify packet digest".to_string());
+    }
+    if !digest_verified_flag {
         errors.push("$.integrity.digestVerified must be true".to_string());
+    } else if !request_digest_verified {
+        errors.push(
+            "$.integrity.digestVerified cannot be accepted without a matching request digest"
+                .to_string(),
+        );
     }
     let mutation_detected = record
         .pointer("/integrity/mutationDetected")
@@ -465,6 +504,35 @@ mod tests {
     }
 
     #[test]
+    fn request_digest_is_stable_when_top_level_digest_is_inserted() {
+        let mut request = json!({"requestId": "R1", "packet": {"subject": "artifact"}});
+        let digest = request_digest(&request);
+        request["packetDigest"] = json!(digest);
+        assert_eq!(request_digest(&request), digest);
+    }
+
+    #[test]
+    fn request_digest_includes_nested_packet_digest_fields() {
+        let a = json!({"packet": {"packetDigest": "first"}});
+        let b = json!({"packet": {"packetDigest": "second"}});
+        assert_ne!(request_digest(&a), request_digest(&b));
+    }
+
+    fn validate_with_matching_request(record: &Value) -> Vec<String> {
+        let mut record = record.clone();
+        let mut request = json!({});
+        for key in ["requestId", "mode", "sourceRevision", "loop"] {
+            if let Some(value) = record.get(key) {
+                request[key] = value.clone();
+            }
+        }
+        let digest = request_digest(&request);
+        request["packetDigest"] = json!(digest);
+        record["packetDigest"] = json!(digest);
+        validate_record_fields(&record, Some(&request))
+    }
+
+    #[test]
     fn finds_forbidden_token_nested() {
         let v = json!({"nested": {"x": ["ok", "contains DECISION_SEALED here"]}});
         assert_eq!(find_forbidden_token(&v), Some("DECISION_SEALED"));
@@ -514,10 +582,64 @@ mod tests {
             "outcome": "CONTRACT_SAFE",
             "integrity": {"digestVerified": false},
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors
             .iter()
             .any(|e| e.contains("digestVerified must be true")));
+    }
+
+    #[test]
+    fn caller_digest_verified_flag_cannot_replace_request_verification() {
+        let record = json!({
+            "mode": "BLOCKER_CONSULT",
+            "outcome": "CONTRACT_SAFE",
+            "integrity": {"digestVerified": true, "mutationDetected": false},
+        });
+        let errors = validate_record_fields(&record, None);
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("request is required to verify packet digest")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("digestVerified cannot be accepted")));
+    }
+
+    #[test]
+    fn request_bound_validation_rejects_artifact_mutations_and_forged_digest_flags() {
+        let mut request =
+            json!({"requestId": "R1", "mode": "BLOCKER_CONSULT", "subject": "before"});
+        let digest = request_digest(&request);
+        request["packetDigest"] = json!(digest);
+        let record = json!({
+            "requestId": "R1",
+            "mode": "BLOCKER_CONSULT",
+            "packetDigest": digest,
+            "outcome": "CONTRACT_SAFE",
+            "dispositionState": "PENDING",
+            "integrity": {"digestVerified": true, "mutationDetected": false},
+            "seatRecords": three_seats(),
+        });
+        assert!(validate_record_fields(&record, Some(&request)).is_empty());
+
+        let mut mutated_request = request.clone();
+        mutated_request["subject"] = json!("after");
+        let errors = validate_record_fields(&record, Some(&mutated_request));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("does not match request content")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("does not match computed request digest")));
+
+        let mut forged = record;
+        forged["packetDigest"] = json!(request_digest(&mutated_request));
+        let errors = validate_record_fields(&forged, Some(&mutated_request));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("does not match request content")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("digestVerified cannot be accepted")));
     }
 
     fn three_seats() -> Value {
@@ -539,7 +661,7 @@ mod tests {
             "findings": [{"findingId": "F1"}],
             "callerDispositions": [],
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors
             .iter()
             .any(|e| e.contains("missing terminal disposition for F1")));
@@ -557,7 +679,7 @@ mod tests {
             "callerDispositions": [],
             "freshVerdictRecordId": null,
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
     }
 
@@ -573,7 +695,7 @@ mod tests {
             "callerDispositions": [],
             "freshVerdictRecordId": "CV-2",
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors
             .iter()
             .any(|e| e.contains("freshVerdictRecordId cannot be set while")));
@@ -591,7 +713,7 @@ mod tests {
             "callerDispositions": [{"findingId": "F1", "disposition": "ACCEPT"}],
             "freshVerdictRecordId": "CV-2",
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
     }
 
@@ -603,7 +725,7 @@ mod tests {
             "integrity": {"digestVerified": true},
             "seatRecords": three_seats(),
         });
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors
             .iter()
             .any(|e| e.contains("dispositionState must be PENDING or COMPLETE")));
@@ -621,7 +743,7 @@ mod tests {
                 {"lens": "minimize/code:senior-developer", "isolated": true},
             ],
         });
-        assert!(validate_record_fields(&two, None)
+        assert!(validate_with_matching_request(&two)
             .iter()
             .any(|e| e.contains("at least 3 seats with distinct lens ids")));
 
@@ -636,7 +758,7 @@ mod tests {
                 {"lens": "minimize/code:senior-developer", "isolated": true},
             ],
         });
-        let errors = validate_record_fields(&duplicate, None);
+        let errors = validate_with_matching_request(&duplicate);
         assert!(errors.iter().any(|e| e.contains("more than one seat")));
         assert!(errors
             .iter()
@@ -649,7 +771,7 @@ mod tests {
             "integrity": {"digestVerified": true},
             "seatRecords": three_seats(),
         });
-        assert!(validate_record_fields(&three, None).is_empty());
+        assert!(validate_with_matching_request(&three).is_empty());
     }
 
     fn debate_seats() -> Value {
@@ -679,14 +801,14 @@ mod tests {
     #[test]
     fn debate_round_reuses_a_lens_once_per_round() {
         let record = debated_record(json!([]), json!([]));
-        let errors = validate_record_fields(&record, None);
+        let errors = validate_with_matching_request(&record);
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
 
         let mut twice = record.clone();
         twice["seatRecords"].as_array_mut().unwrap().push(json!({
             "lens": "improvement-path/code:senior-developer", "round": "DEBATE", "isolated": true
         }));
-        assert!(validate_record_fields(&twice, None)
+        assert!(validate_with_matching_request(&twice)
             .iter()
             .any(|e| e.contains("more than one seat")));
     }
@@ -697,7 +819,7 @@ mod tests {
         record["seatRecords"].as_array_mut().unwrap().push(json!({
             "lens": "red-team/code:lead-architect", "round": "DEBATE", "isolated": true
         }));
-        assert!(validate_record_fields(&record, None)
+        assert!(validate_with_matching_request(&record)
             .iter()
             .any(|e| e.contains("DEBATE seat red-team/code:lead-architect has no POSITION seat")));
     }
@@ -706,7 +828,7 @@ mod tests {
     fn loop_is_one_or_two_and_matches_the_request() {
         let mut record = debated_record(json!([]), json!([]));
         record["loop"] = json!(3);
-        assert!(validate_record_fields(&record, None)
+        assert!(validate_with_matching_request(&record)
             .iter()
             .any(|e| e.contains("loop must be 1 or 2")));
 
@@ -728,7 +850,7 @@ mod tests {
             findings.clone(),
             json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "not real"}]),
         );
-        assert!(validate_record_fields(&owner_reject, None)
+        assert!(validate_with_matching_request(&owner_reject)
             .iter()
             .any(|e| e.contains("sustained contest; only the user may reject")));
 
@@ -736,19 +858,19 @@ mod tests {
             findings.clone(),
             json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "not real", "ruledBy": "USER"}]),
         );
-        assert!(validate_record_fields(&user_reject, None).is_empty());
+        assert!(validate_with_matching_request(&user_reject).is_empty());
 
         // Accepting a sustained contest, or rejecting one nobody sustained, needs no ruling.
         let accepted = debated_record(
             findings,
             json!([{"findingId": "F-1", "disposition": "ACCEPT"}]),
         );
-        assert!(validate_record_fields(&accepted, None).is_empty());
+        assert!(validate_with_matching_request(&accepted).is_empty());
         let withdrawn = debated_record(
             json!([{"findingId": "F-1", "contested": true, "sustainedBy": []}]),
             json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "withdrawn"}]),
         );
-        assert!(validate_record_fields(&withdrawn, None).is_empty());
+        assert!(validate_with_matching_request(&withdrawn).is_empty());
     }
 
     #[test]

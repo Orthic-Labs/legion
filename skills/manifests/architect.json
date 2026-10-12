@@ -93,7 +93,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://architect/SKILL.md",
-      "digest": "sha256:34bc8b2362d4e78fffd28b0d070d7edfbaa436371cd7f33f8d602cfe511acbb2"
+      "digest": "sha256:5557bb152f47c179927059f2580211399e6cc37d69df49bd8a5187b9679ad6a0"
     },
     {
       "path": "agents/openai.yaml",
@@ -113,7 +113,7 @@
     {
       "path": "doctrine/architecture/README.md",
       "uri": "legion-skill://architect/doctrine/architecture/README.md",
-      "digest": "sha256:c76d7450c60e4cca5b5108c351ae36f0ef351056727d3bfddae68b26b2741fa4"
+      "digest": "sha256:e71f24028b81b2e8e30e387f239c547b4d85366fc9dbfd6c75d2cc5fd31a1c2a"
     },
     {
       "path": "doctrine/architecture/controls/acceptance-ledger.md",
@@ -228,7 +228,7 @@
     {
       "path": "doctrine/architecture/methods/add.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/add.md",
-      "digest": "sha256:b80310fb1bec53aa00caa181c013adedb068d82003490ea81a2cd3959808aa45"
+      "digest": "sha256:8d4cea92af7fac4edad119ca5d33910ed0a283d26dbbedc087ffaf2b2974f850"
     },
     {
       "path": "doctrine/architecture/methods/assurance-case.md",
@@ -238,7 +238,7 @@
     {
       "path": "doctrine/architecture/methods/atam.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/atam.md",
-      "digest": "sha256:79986e78b5737c19d555c57eac441a1b569a3c4af611110c423323d164076acd"
+      "digest": "sha256:fa55cad50fe89421a9e1821220e8a5f413583631e874eec9a110540366f5bd4c"
     },
     {
       "path": "doctrine/architecture/methods/brainstorming.md",
@@ -248,7 +248,7 @@
     {
       "path": "doctrine/architecture/methods/cbam.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/cbam.md",
-      "digest": "sha256:a298bfc17a5ceb74cd6f2fb259fbd2f142bbca06c47d92e8b3589132dc9183e5"
+      "digest": "sha256:405613dcc7ed5e88299863115df4de3e6c068f47888f117c2e840880d57d26c2"
     },
     {
       "path": "doctrine/architecture/methods/decision-analysis.md",
@@ -258,7 +258,7 @@
     {
       "path": "doctrine/architecture/methods/qaw.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/qaw.md",
-      "digest": "sha256:23716b3f7971999c24870eb9adfa27796adaf7401deefe7b86149fb1276034b8"
+      "digest": "sha256:ae0774b59e17d70fa0376f61359eb9e0ff6b57d363387c843da837502e5955e3"
     },
     {
       "path": "doctrine/architecture/methods/technology-selection.md",
@@ -573,7 +573,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://architect/references/manual.md",
-      "digest": "sha256:1cb1b07a371ad611af74b14222953b747e1ce801b61ea44474183353392952e8"
+      "digest": "sha256:7a33acd6bcda125503400510fcdd0c550bb8d20d30530c2ac80d4a1e53a0b565"
     }
   ]
 }

@@ -20,3 +20,13 @@ Loaded when `ResearchRoute.methods` contains `scholarly`.
 Each clinical/scientific claim records study design, population/sample, method, result, limitations,
 and applicability where relevant. Vendor whitepapers and unattributed summaries may be leads but do
 not become primary scholarly evidence.
+
+For a requested systematic review, scoping review, or other systematic evidence synthesis, retain
+an auditable study-level record: source and stable identifier; study design, population/sample,
+intervention/comparator, outcome and timepoint; result and uncertainty; limitations; and publication
+status. Link preprints to later published versions, describe material version changes, and count one
+study once. Record each searched source/database, query or strategy, search date, eligibility rules,
+deduplication, records found and screened, full-text exclusions with reasons, and any unavailable
+full texts. Report the flow from search through inclusion so readers can see what was excluded and
+why. Do not impose this accounting on ordinary scholarly questions that do not request a systematic
+synthesis.

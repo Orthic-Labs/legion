@@ -15,6 +15,10 @@ use crate::{
 
 /// `AuditPlan::bounds` key carrying the parent-run binding of a follow-up plan.
 pub const FOLLOWUP_BOUND: &str = "followup";
+/// Signed purpose marker distinguishing the full provider universe from an
+/// ordinary selected execution plan. This marker is valid only in the
+/// provider-selection scope plan, never in an executable native plan.
+pub const PROVIDER_UNIVERSE_BOUND: &str = "providerUniverse";
 
 /// A conditional-lens provider excluded from a frozen plan because its
 /// deterministic trigger was checked over the frozen inventory and did not
@@ -409,17 +413,53 @@ impl AuditPlan {
         })
     }
 
+    /// Compile the complete provider universe used to derive Audit coverage,
+    /// and bind it to the exact selected execution-plan digest. Ordinary
+    /// compilation deliberately does not add this marker, so a selected plan
+    /// cannot be substituted as the full universe without changing signed
+    /// bytes and purpose.
+    pub fn compile_provider_universe(
+        root: Option<&Path>,
+        inventory: &InventoryEnvelope,
+        all_specs: &[ProviderSpec],
+        selected_plan_digest: &str,
+    ) -> Result<Self, AuditError> {
+        if !valid_sha256_label(selected_plan_digest) {
+            return Err(AuditError::Invalid(
+                "selected execution plan digest is invalid".into(),
+            ));
+        }
+        let mut plan = Self::compile_with_root(root, inventory, all_specs)?;
+        if plan.bounds.contains_key(PROVIDER_UNIVERSE_BOUND) {
+            return Err(AuditError::Invalid(
+                "provider universe marker is reserved for universe compilation".into(),
+            ));
+        }
+        plan.bounds.insert(
+            PROVIDER_UNIVERSE_BOUND.into(),
+            serde_json::json!({
+                "schemaVersion": 1,
+                "purpose": "audit-provider-universe",
+                "selectedPlanDigest": selected_plan_digest,
+            }),
+        );
+        Ok(plan)
+    }
+
     /// Compiles the follow-up plan for security variant analysis: a plan of
-    /// exactly one provider (the `variant-analysis` spec) whose denominator is
-    /// the repository files of the independently confirmed findings
-    /// (`denominator_entries_with_security_context`). The confirmed paths are
-    /// frozen into the provider selector, and the parent run is bound through
-    /// `bounds.followup` (parent plan digest and the digest of the confirmed
-    /// findings), so the plan digest and signature cover both.
+    /// exactly one provider (the `variant-analysis` spec) whose denominator
+    /// contains confirmed finding files plus deterministic in-inventory sibling
+    /// and caller context. Confirmed paths remain distinct seed evidence; the
+    /// expanded analysis paths are frozen into the provider selector. The
+    /// parent run is bound through `bounds.followup` (parent plan digest and
+    /// the digest of the confirmed findings), so the plan digest and signature
+    /// cover both.
     pub fn compile_followup(
         inventory: &InventoryEnvelope,
         variant_spec: &ProviderSpec,
         confirmed_paths: &[String],
+        analysis_paths: &[String],
+        scope_relations: &Value,
         parent_plan_digest: &str,
         confirmed_digest: &str,
     ) -> Result<Self, AuditError> {
@@ -440,21 +480,34 @@ impl AuditPlan {
                 "a security follow-up plan needs at least one confirmed path".into(),
             ));
         }
-        let expected = inventory.denominator_entries_with_security_context(
-            &variant_spec.selector,
-            &[],
-            &paths,
-        )?;
-        if expected.entries.len() != paths.len() {
+        let analysis_paths = analysis_paths
+            .iter()
+            .map(|path| path.replace('\\', "/"))
+            .collect::<std::collections::BTreeSet<_>>();
+        if !paths.iter().all(|path| analysis_paths.contains(path)) {
+            return Err(AuditError::Invalid(
+                "variant analysis scope omits a confirmed finding seed".into(),
+            ));
+        }
+        let selector = serde_json::json!({
+            "op": "confirmedSecurityFinding",
+            "paths": analysis_paths,
+        });
+        let expected = inventory.denominator_entries(&selector)?;
+        let analysis_paths = expected
+            .entries
+            .iter()
+            .map(|entry| entry.path.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        if analysis_paths.len() != expected.entries.len()
+            || expected.entries.len() != selector["paths"].as_array().map_or(0, Vec::len)
+        {
             return Err(AuditError::SourceDrift(
-                "a confirmed finding path is not part of the frozen inventory".into(),
+                "a variant analysis path is not part of the frozen inventory".into(),
             ));
         }
         let mut spec = variant_spec.clone();
-        spec.selector = serde_json::json!({
-            "op": "confirmedSecurityFinding",
-            "paths": paths,
-        });
+        spec.selector = selector;
         let mut plan = Self::compile_with_root(None, inventory, std::slice::from_ref(&spec))?;
         plan.bounds.insert(
             FOLLOWUP_BOUND.into(),
@@ -464,6 +517,13 @@ impl AuditPlan {
                 "parentPlanDigest": parent_plan_digest,
                 "confirmedDigest": confirmed_digest,
                 "confirmedPaths": paths,
+                "scopeVersion": 2,
+                "analysisPaths": expected
+                    .entries
+                    .iter()
+                    .map(|entry| entry.path.clone())
+                    .collect::<Vec<_>>(),
+                "scopeRelations": scope_relations,
             }),
         );
         Ok(plan)
@@ -486,6 +546,23 @@ impl AuditPlan {
             return Err(AuditError::Invalid(
                 "audit plan inventory digest is required".into(),
             ));
+        }
+        if let Some(binding) = self.bounds.get(PROVIDER_UNIVERSE_BOUND) {
+            let object = binding.as_object().ok_or_else(|| {
+                AuditError::Invalid("provider universe bound is not an object".into())
+            })?;
+            if object.len() != 3
+                || binding.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+                || binding.get("purpose").and_then(Value::as_str) != Some("audit-provider-universe")
+                || !binding
+                    .get("selectedPlanDigest")
+                    .and_then(Value::as_str)
+                    .is_some_and(valid_sha256_label)
+            {
+                return Err(AuditError::Invalid(
+                    "provider universe bound is malformed or unsupported".into(),
+                ));
+            }
         }
         for provider in &self.providers {
             for field in [
@@ -618,6 +695,12 @@ impl AuditPlan {
             signature,
         })
     }
+}
+
+fn valid_sha256_label(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 impl FrozenPlan {

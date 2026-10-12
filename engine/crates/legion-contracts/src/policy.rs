@@ -4,8 +4,34 @@ use std::collections::BTreeMap;
 use crate::{
     canonical_digest,
     id::{AgentId, RequestId, TaskId},
-    require_version, ContractError,
+    require_version,
+    trace::AuthorityKind,
+    ContractError,
 };
+
+/// Actor identity resolved by a host adapter, carried independently from an
+/// effect request. Caller-provided request fields never authenticate a role.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HookActorContext {
+    Authenticated(AuthorityKind),
+    Unavailable,
+    Conflicting,
+}
+
+impl HookActorContext {
+    /// Sage and Oracle are read-only authorities; Alchemist receives no
+    /// additional permissions from its role.
+    pub fn requires_read_only_effects(self) -> bool {
+        matches!(
+            self,
+            Self::Authenticated(AuthorityKind::Sage | AuthorityKind::Oracle)
+        )
+    }
+
+    pub fn permits_effect(self, effect_class: EffectClass) -> bool {
+        !self.requires_read_only_effects() || effect_class == EffectClass::MCP_KNOWN_OBSERVATION
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
@@ -33,7 +59,7 @@ pub enum EffectClass {
     /// Only hook fallback logic assigns this class; caller-supplied class strings
     /// cannot claim unclassified treatment.
     MCP_UNCLASSIFIED_OBSERVATION,
-    /// An MCP tool the Guard positively recognises as read-only.
+    /// A tool the Guard positively recognises as read-only (MCP or host).
     ///
     /// Distinct from `MCP_UNCLASSIFIED_OBSERVATION`, which means "we do not
     /// know what this does" and must stay denied. A named tool that only
@@ -304,6 +330,22 @@ impl EffectRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hook_actor_read_only_constraint_requires_authenticated_sage_or_oracle() {
+        assert!(HookActorContext::Authenticated(AuthorityKind::Sage).requires_read_only_effects());
+        assert!(HookActorContext::Authenticated(AuthorityKind::Oracle).requires_read_only_effects());
+        assert!(
+            !HookActorContext::Authenticated(AuthorityKind::Alchemist).requires_read_only_effects()
+        );
+        assert!(!HookActorContext::Unavailable.requires_read_only_effects());
+        assert!(!HookActorContext::Conflicting.requires_read_only_effects());
+        assert!(HookActorContext::Authenticated(AuthorityKind::Sage)
+            .permits_effect(EffectClass::MCP_KNOWN_OBSERVATION));
+        assert!(!HookActorContext::Authenticated(AuthorityKind::Oracle)
+            .permits_effect(EffectClass::COMMAND_EXEC));
+        assert!(HookActorContext::Unavailable.permits_effect(EffectClass::COMMAND_EXEC));
+    }
 
     #[test]
     fn canonical_default_pack_is_valid_and_has_no_duplicate_rule_ids() {

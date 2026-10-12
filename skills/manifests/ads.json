@@ -87,7 +87,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ads/SKILL.md",
-      "digest": "sha256:4d31249f1252ceada669736b04d6447750e652999f660ef3d9364c8abdd9232b"
+      "digest": "sha256:ae056f876e18a8ec497a6488738b88ac5e0a2aea8d26130545c6ae665db07267"
     },
     {
       "path": "agents/audit-budget.md",
@@ -277,7 +277,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://ads/references/manual.md",
-      "digest": "sha256:0768c531050b0c6783605db71ced479b22e4e280a2ee6b0baa680c2f86cf6131"
+      "digest": "sha256:6d59cf6a7d8a76508e78790dd4c8e195525b5ffb920fbc554366dfaeb2811cd2"
     },
     {
       "path": "references/meta-audit.md",
@@ -327,7 +327,7 @@
     {
       "path": "references/scoring-system.md",
       "uri": "legion-skill://ads/references/scoring-system.md",
-      "digest": "sha256:67f19deaf755c738bf12e24b0208ec3cffb81bed8436a20bcbdf99788b1dbdfd"
+      "digest": "sha256:323118b49c34138fa91f784760fa4e43026ec76f363a10b0ca82bc68711a771f"
     },
     {
       "path": "references/tiktok-audit.md",

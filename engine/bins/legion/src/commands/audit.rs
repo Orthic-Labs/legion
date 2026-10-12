@@ -24,6 +24,18 @@ pub struct AuditArgs {
     pub url: Option<String>,
     #[arg(long)]
     pub surfaces: Option<String>,
+    /// Explicit host enrollment for RustRight attested test-run execution.
+    /// Supported only by the native provider registry route.
+    #[arg(long = "rightkit-trust")]
+    pub rightkit_trust: Option<PathBuf>,
+    /// Frozen, declarative browser-probe descriptors (JSON array). Descriptors
+    /// are authorization requests only; runtime probes remain unavailable until
+    /// a trusted host isolation verifier is configured.
+    #[arg(long = "runtime-interactions")]
+    pub runtime_interactions: Option<PathBuf>,
+    /// Frozen fixture mapping referenced by `--runtime-interactions`.
+    #[arg(long = "runtime-fixtures")]
+    pub runtime_fixtures: Option<PathBuf>,
     #[arg(long = "visual-spec")]
     pub visual_spec: Option<PathBuf>,
     #[arg(long = "visual-baselines")]
@@ -89,6 +101,13 @@ pub struct AuditArgs {
     pub findings_active: bool,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
+    if args.rightkit_trust.is_some() {
+        if let Some(route) = rightkit_trust_early_subcommand(&args) {
+            return Err(CommandError::usage(format!(
+                "--rightkit-trust is unsupported for the audit {route} subcommand",
+            )));
+        }
+    }
     if args.root.as_os_str() == "ingest"
         && (args.ingest_run.is_some()
             || args.ingest_provider.is_some()
@@ -123,27 +142,44 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
+    let native_application_configured =
+        std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some();
+    if args.rightkit_trust.is_some()
+        && !rightkit_trust_route_is_supported(
+            direct,
+            args.native_rule_manifest.is_some(),
+            native_application_configured,
+        )
+    {
+        return Err(CommandError::usage(
+            "--rightkit-trust is supported only by the native provider registry route",
+        ));
+    }
     // Gaps the direct route adds when its provider plan could not be bound
     // (for example `unsealed-plan`); empty for every other route.
     let mut direct_gaps: Vec<String> = Vec::new();
-    let (application, context_notices, effect_artifact_scratch) = if direct {
+    let (application, context_notices, effect_artifact_scratch, trusted_scope_universe) = if direct
+    {
         let (application, notices, gaps) = direct_application(&args, &root)?;
         direct_gaps = gaps;
-        (Arc::new(application), notices, None)
+        (Arc::new(application), notices, None, false)
     } else if let Some(manifest) = &args.native_rule_manifest {
         let (application, notices) = native_rule_diagnostic_application(&args, &root, manifest)?;
-        (Arc::new(application), notices, None)
-    } else if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() {
+        (Arc::new(application), notices, None, false)
+    } else if native_application_configured {
         (
             super::native_application_for(&root.to_string_lossy())?,
             Vec::new(),
             None,
+            false,
         )
     } else {
-        let (application, notices, scratch) = native_registry_application(&root)?;
-        (Arc::new(application), notices, Some(scratch))
+        let (application, notices, scratch) =
+            native_registry_application(&root, args.rightkit_trust.as_deref())?;
+        (Arc::new(application), notices, Some(scratch), true)
     };
-    let mut selected_specs = application.provider_specs();
+    let all_specs = application.provider_specs();
+    let mut selected_specs = all_specs.clone();
     let configured_ids = selected_specs
         .iter()
         .map(|provider| provider.id.as_str())
@@ -211,7 +247,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Runtime capture inputs are frozen into the provider's runner so the plan
     // seal covers them; inputs that cannot reach a provider are named gaps.
     let (runtime_gaps, runtime_injected) =
-        apply_runtime_inputs(&args, &mut selected_specs, direct)?;
+        apply_runtime_inputs(&args, &root, &mut selected_specs, direct)?;
     // `--visual-spec`/`--visual-baselines` freeze into the visual provider the
     // same way; both binders' declared gaps are reported with the run.
     let (visual_gaps, visual_injected) = apply_visual_inputs(&args, &mut selected_specs, direct)?;
@@ -236,6 +272,30 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // packets are built from the exact inventory the executed plan was frozen over
     // rather than a re-walk that scanner scratch output could perturb.
     let lens_basis = freeze_lens_basis(&root, &selected_specs, signing_key.as_deref());
+    let provider_selection = if !provider_scope_claims_allowed(trusted_scope_universe) {
+        // Imported provider specs describe only the selected execution set.
+        // They cannot establish the repository's full applicable universe, so
+        // do not bless them by re-signing them as a scope plan.
+        Value::Null
+    } else {
+        match lens_basis.as_ref() {
+            Ok((selected_plan, inventory)) => provider_selection_coverage(
+                &root,
+                inventory,
+                &all_specs,
+                &args,
+                signing_key.as_deref(),
+                selected_plan.digest(),
+            ),
+            Err(error) => json!({
+                "complete": false,
+                "fullScope": false,
+                "error": error,
+                "requestedOnly": args.only,
+                "requestedSkip": args.skip,
+            }),
+        }
+    };
     let result = application
         .invoke_with_cancellation(operation, cancellation)
         .await
@@ -259,7 +319,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             input_gaps.extend(lens_work_gaps);
             let mut plan_gaps = vec!["plan-only".to_owned()];
             plan_gaps.extend(direct_gaps.iter().cloned());
-            let output = json!({
+            if provider_selection.get("complete").and_then(Value::as_bool) != Some(true) {
+                plan_gaps.push("provider-scope-universe-unavailable".into());
+            }
+            let mut output = json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
             "repository": repository_id,
@@ -271,6 +334,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "binding": binding,
                 "providers": providers,
                 "providerSpecs": selected_specs,
+                "providerSelection": provider_selection,
                 "contextNotices": context_notices,
                 "auditStatus": "incomplete",
                 "qualityGate": "unproven",
@@ -281,6 +345,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "lensWork": lens_work,
                 "inputGaps": input_gaps
             });
+            if !provider_scope_claims_allowed(trusted_scope_universe) {
+                if let Some(object) = output.as_object_mut() {
+                    object.remove("providerSelection");
+                }
+            }
             if let Some(out) = &args.out {
                 write_artifact(
                     out,
@@ -315,6 +384,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report
                 .gaps
                 .extend(native_audit_input_gaps(&args, &declared_input_gaps));
+            if provider_selection.get("complete").and_then(Value::as_bool) != Some(true) {
+                report
+                    .gaps
+                    .push("provider-scope-universe-unavailable".into());
+            }
             if runtime_injected
                 && !execution
                     .results
@@ -388,16 +462,24 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             if !report.gaps.is_empty() {
                 report.status = legion_contracts::ReportStatus::Incomplete;
             }
-            report.claims.insert(
-                "providerCoverage".into(),
-                json!({
+            if provider_scope_claims_allowed(trusted_scope_universe) {
+                report.claims.insert(
+                    "providerCoverage".into(),
+                    json!({
                     "scope": "frozen-native-provider-plan",
-                    "fullAudit": report.gaps.is_empty(),
+                    "planComplete": report.gaps.is_empty(),
+                    "fullScope": provider_selection.get("fullScope").cloned().unwrap_or(json!(false)),
+                    "applicableProviders": provider_selection.get("applicableProviders").cloned().unwrap_or(json!([])),
+                    "selectedApplicableProviders": provider_selection.get("selectedApplicableProviders").cloned().unwrap_or(json!([])),
+                    "excludedApplicableProviders": provider_selection.get("excludedApplicableProviders").cloned().unwrap_or(json!([])),
+                    "requestedOnly": args.only.clone(),
+                    "requestedSkip": args.skip.clone(),
                     "plannedProviders": execution.planned_providers.clone(),
                     "executedProviders": execution.results.len(),
                     "sourcePort": ["tools/audit/audit-complete.mjs", "tools/audit/audit-run.mjs", "tools/audit/audit-finalize.mjs"],
-                }),
-            );
+                    }),
+                );
+            }
             if let Some(effect_artifact_root) = effect_artifact_root {
                 report
                     .claims
@@ -444,7 +526,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     execution.plan_signature.as_deref(),
                 )
                 .map_err(CommandError::integrity)?;
-                let plan = json!({
+                let mut plan = json!({
                     "schemaVersion": 1,
                     "kind": "audit-provider-plan",
                     "repository": root,
@@ -461,10 +543,16 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     },
                     "providers": execution.planned_providers,
                     "providerSpecs": selected_specs,
+                    "providerSelection": provider_selection,
                     "nativePlan": native_plan,
                     "effectArtifactsRoot": effect_artifact_root,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
                 });
+                if !provider_scope_claims_allowed(trusted_scope_universe) {
+                    if let Some(object) = plan.as_object_mut() {
+                        object.remove("providerSelection");
+                    }
+                }
                 let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
                 write_artifact(
                     out,
@@ -1205,11 +1293,18 @@ fn bind_runtime_visual_capture_source(specs: &mut [legion_contracts::ProviderSpe
 /// inputs were injected.
 fn apply_runtime_inputs(
     args: &AuditArgs,
+    root: &std::path::Path,
     specs: &mut [legion_contracts::ProviderSpec],
     direct: bool,
 ) -> Result<(Vec<String>, bool), CommandError> {
     let mut gaps = Vec::new();
     let Some(url) = args.url.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+        if args.runtime_interactions.is_some() {
+            gaps.push("runtime-interactions-not-consumed:runtime-url-not-supplied".into());
+        }
+        if args.runtime_fixtures.is_some() {
+            gaps.push("runtime-fixtures-not-consumed:runtime-url-not-supplied".into());
+        }
         if args
             .surfaces
             .as_deref()
@@ -1224,6 +1319,12 @@ fn apply_runtime_inputs(
     };
     if direct {
         gaps.push("runtime-inputs-not-consumed:provider-plan-supplied".into());
+        if args.runtime_interactions.is_some() {
+            gaps.push("runtime-interactions-not-consumed:provider-plan-supplied".into());
+        }
+        if args.runtime_fixtures.is_some() {
+            gaps.push("runtime-fixtures-not-consumed:provider-plan-supplied".into());
+        }
         return Ok((gaps, false));
     }
     if !specs
@@ -1231,6 +1332,12 @@ fn apply_runtime_inputs(
         .any(|provider| provider.id.as_str() == RUNTIME_PROVIDER_ID)
     {
         gaps.push("runtime-inputs-not-consumed:provider-not-selected".into());
+        if args.runtime_interactions.is_some() {
+            gaps.push("runtime-interactions-not-consumed:provider-not-selected".into());
+        }
+        if args.runtime_fixtures.is_some() {
+            gaps.push("runtime-fixtures-not-consumed:provider-not-selected".into());
+        }
         return Ok((gaps, false));
     }
     let (surfaces, unsupported) = runtime_surface_inputs(args, url)?;
@@ -1245,7 +1352,7 @@ fn apply_runtime_inputs(
         }
         None => None,
     };
-    let inputs = legion_audit::native_providers::legacy_checks::runtime_inputs(
+    let mut inputs = legion_audit::native_providers::legacy_checks::runtime_inputs(
         url,
         &surfaces,
         &unsupported,
@@ -1254,6 +1361,10 @@ fn apply_runtime_inputs(
         artifact_dir.as_deref(),
     )
     .map_err(|reason| CommandError::usage(format!("invalid runtime inputs: {reason}")))?;
+    let interactions = read_runtime_interactions(args, root, url, &surfaces)?;
+    if let Some(object) = inputs.as_object_mut() {
+        object.insert("interactions".into(), Value::Array(interactions));
+    }
     for provider in specs.iter_mut() {
         if provider.id.as_str() == RUNTIME_PROVIDER_ID {
             if let Some(runner) = provider.runner.as_object_mut() {
@@ -1262,6 +1373,654 @@ fn apply_runtime_inputs(
         }
     }
     Ok((gaps, true))
+}
+
+const MAX_RUNTIME_INTERACTIONS: usize = 8;
+const MAX_RUNTIME_INTERACTION_ACTIONS: usize = 32;
+const MAX_ACTIONS_PER_RUNTIME_INTERACTION: usize = 8;
+const MAX_RUNTIME_INTERACTION_STRING: usize = 2048;
+const MAX_RUNTIME_FIXTURE_FILES: usize = 64;
+const MAX_RUNTIME_FIXTURE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_RUNTIME_FROZEN_CONFIG_BYTES: usize = 16 * 1024 * 1024;
+
+/// Read & validate requested probe descriptors before freezing them into the
+/// runtime provider. These descriptors never grant execution authority; the
+/// runtime independently returns `NotConfigured` until host isolation is
+/// verified.
+fn read_runtime_interactions(
+    args: &AuditArgs,
+    root: &std::path::Path,
+    entry_url: &str,
+    surfaces: &[(String, String)],
+) -> Result<Vec<Value>, CommandError> {
+    let Some(path) = args.runtime_interactions.as_ref() else {
+        if args.runtime_fixtures.is_some() {
+            return Err(CommandError::usage(
+                "--runtime-fixtures requires --runtime-interactions",
+            ));
+        }
+        return Ok(Vec::new());
+    };
+    let fixture_path = args
+        .runtime_fixtures
+        .as_ref()
+        .ok_or_else(|| CommandError::usage("--runtime-interactions requires --runtime-fixtures"))?;
+    let bytes = std::fs::read(path).map_err(super::io_error)?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        CommandError::usage(format!("invalid --runtime-interactions file: {error}"))
+    })?;
+    let items = value.as_array().ok_or_else(|| {
+        CommandError::usage("--runtime-interactions file must contain a JSON array")
+    })?;
+    if items.is_empty() || items.len() > MAX_RUNTIME_INTERACTIONS {
+        return Err(CommandError::usage(
+            "--runtime-interactions must contain 1 to 8 descriptors",
+        ));
+    }
+    let known_surfaces = std::iter::once(("entry".to_owned(), entry_url.to_owned()))
+        .chain(surfaces.iter().cloned())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut ids = std::collections::BTreeSet::new();
+    let mut action_count = 0usize;
+    let mut referenced_fixtures = std::collections::BTreeMap::new();
+    for item in items {
+        if !json_exact_keys(
+            item,
+            &[
+                "id",
+                "surface",
+                "fixture",
+                "probe",
+                "isolationBindingId",
+                "expiresAfterMs",
+                "actions",
+            ],
+        ) {
+            return Err(CommandError::usage(
+                "runtime interaction has missing or unknown fields",
+            ));
+        }
+        let id = json_text(item, "id")
+            .filter(|text| runtime_id(text))
+            .ok_or_else(|| CommandError::usage("runtime interaction id is invalid"))?;
+        if !ids.insert(id.to_owned()) {
+            return Err(CommandError::usage("runtime interaction id is duplicated"));
+        }
+        let binding = json_text(item, "isolationBindingId")
+            .filter(|text| runtime_id(text))
+            .ok_or_else(|| {
+                CommandError::usage("runtime interaction isolationBindingId is invalid")
+            })?;
+        let _ = binding;
+        let expiry = item
+            .get("expiresAfterMs")
+            .and_then(Value::as_u64)
+            .filter(|expiry| (1..=30_000).contains(expiry))
+            .ok_or_else(|| {
+                CommandError::usage("runtime interaction expiresAfterMs must be 1 to 30000")
+            })?;
+        let _ = expiry;
+        let surface = item
+            .get("surface")
+            .ok_or_else(|| CommandError::usage("runtime interaction surface is missing"))?;
+        if !json_exact_keys(surface, &["label", "url"]) {
+            return Err(CommandError::usage(
+                "runtime interaction surface must contain only label and url",
+            ));
+        }
+        let label = json_text(surface, "label")
+            .filter(|text| !text.trim().is_empty() && text.len() <= MAX_RUNTIME_INTERACTION_STRING)
+            .ok_or_else(|| CommandError::usage("runtime interaction surface label is invalid"))?;
+        let url = json_text(surface, "url")
+            .filter(|text| text.len() <= MAX_RUNTIME_INTERACTION_STRING)
+            .ok_or_else(|| {
+                CommandError::usage("runtime interaction surface URL must be an exact loopback URL")
+            })?;
+        let fixture_url_path = exact_fixture_url_path(url).ok_or_else(|| {
+            CommandError::usage("runtime interaction surface URL must be an exact fixture URL")
+        })?;
+        if !known_surfaces.contains(&(label.to_owned(), url.to_owned())) {
+            return Err(CommandError::usage(
+                "runtime interaction surface does not match frozen runtime inputs",
+            ));
+        }
+        let fixture = item
+            .get("fixture")
+            .ok_or_else(|| CommandError::usage("runtime interaction fixture is missing"))?;
+        if !json_exact_keys(fixture, &["id", "sourceDigest"])
+            || !json_text(fixture, "id").is_some_and(runtime_id)
+            || !json_text(fixture, "sourceDigest").is_some_and(runtime_sha256)
+        {
+            return Err(CommandError::usage(
+                "runtime interaction fixture identity is invalid",
+            ));
+        }
+        let probe = item
+            .get("probe")
+            .ok_or_else(|| CommandError::usage("runtime interaction probe is missing"))?;
+        if !json_exact_keys(probe, &["id", "actionsDigest"])
+            || !json_text(probe, "id").is_some_and(runtime_id)
+            || !json_text(probe, "actionsDigest").is_some_and(runtime_sha256)
+        {
+            return Err(CommandError::usage(
+                "runtime interaction probe identity is invalid",
+            ));
+        }
+        let actions = item
+            .get("actions")
+            .and_then(Value::as_array)
+            .ok_or_else(|| CommandError::usage("runtime interaction actions must be an array"))?;
+        action_count = action_count.saturating_add(actions.len());
+        if actions.is_empty()
+            || actions.len() > MAX_ACTIONS_PER_RUNTIME_INTERACTION
+            || action_count > MAX_RUNTIME_INTERACTION_ACTIONS
+            || !actions.iter().all(valid_runtime_probe_action)
+        {
+            return Err(CommandError::usage(
+                "runtime interaction actions are invalid or exceed bounds",
+            ));
+        }
+        let expected = json_text(probe, "actionsDigest").unwrap_or_default();
+        let action_digest = legion_contracts::canonical_digest(actions).map_err(|error| {
+            CommandError::usage(format!(
+                "runtime interaction actions cannot be canonicalized: {error}"
+            ))
+        })?;
+        if action_digest != expected {
+            return Err(CommandError::usage(
+                "runtime interaction actionsDigest does not match actions",
+            ));
+        }
+        let fixture_id = json_text(fixture, "id").unwrap_or_default().to_owned();
+        let fixture_digest = json_text(fixture, "sourceDigest")
+            .unwrap_or_default()
+            .to_owned();
+        if referenced_fixtures
+            .insert(
+                fixture_id,
+                (fixture_digest.clone(), fixture_url_path.to_owned()),
+            )
+            .is_some_and(|existing| existing != (fixture_digest, fixture_url_path.to_owned()))
+        {
+            return Err(CommandError::usage(
+                "runtime interaction fixture id has conflicting source digests",
+            ));
+        }
+    }
+    let source = super::audit_inventory_source(root)?;
+    let inventory = source.inventory(&root.to_string_lossy()).map_err(|error| {
+        CommandError::usage(format!(
+            "could not freeze runtime fixture inventory: {error}"
+        ))
+    })?;
+    let fixtures =
+        read_runtime_fixture_manifest(fixture_path, root, &inventory, &referenced_fixtures)?;
+    let mut frozen = Vec::with_capacity(items.len());
+    let mut expanded_size = 2usize.saturating_add(items.len().saturating_sub(1));
+    for item in items {
+        let fixture = item.get("fixture").expect("validated runtime fixture");
+        let id = json_text(fixture, "id").expect("validated fixture id");
+        let bundle = fixtures.get(id).ok_or_else(|| {
+            CommandError::usage(format!("runtime fixture is not present in manifest: {id}"))
+        })?;
+        let old_fixture_size = json_encoded_len(fixture)
+            .ok_or_else(|| CommandError::usage("runtime fixture size overflow"))?;
+        let descriptor_size = json_encoded_len(item)
+            .ok_or_else(|| CommandError::usage("runtime interaction size overflow"))?;
+        let bundle_size = json_encoded_len(bundle)
+            .ok_or_else(|| CommandError::usage("frozen runtime fixture size overflow"))?;
+        expanded_size = expanded_size
+            .checked_add(descriptor_size.saturating_sub(old_fixture_size))
+            .and_then(|size| size.checked_add(bundle_size))
+            .ok_or_else(|| CommandError::usage("expanded runtime fixture size overflow"))?;
+        if expanded_size > MAX_RUNTIME_FROZEN_CONFIG_BYTES {
+            return Err(CommandError::usage(
+                "expanded runtime fixture descriptors exceed 16 MiB frozen-config limit",
+            ));
+        }
+        let mut item = item.clone();
+        item["fixture"] = bundle.clone();
+        frozen.push(item);
+    }
+    Ok(frozen)
+}
+
+fn json_encoded_len(value: &Value) -> Option<usize> {
+    match value {
+        Value::Null => Some(4),
+        Value::Bool(value) => Some(if *value { 4 } else { 5 }),
+        Value::Number(value) => Some(value.to_string().len()),
+        Value::String(value) => serde_json::to_string(value).ok().map(|text| text.len()),
+        Value::Array(values) => values.iter().try_fold(
+            2usize.saturating_add(values.len().saturating_sub(1)),
+            |size, value| size.checked_add(json_encoded_len(value)?),
+        ),
+        Value::Object(values) => values.iter().try_fold(
+            2usize.saturating_add(values.len().saturating_sub(1)),
+            |size, (key, value)| {
+                size.checked_add(serde_json::to_string(key).ok()?.len())?
+                    .checked_add(1)?
+                    .checked_add(json_encoded_len(value)?)
+            },
+        ),
+    }
+}
+
+fn read_runtime_fixture_manifest(
+    manifest_path: &std::path::Path,
+    root: &std::path::Path,
+    inventory: &legion_audit::InventoryEnvelope,
+    referenced: &std::collections::BTreeMap<String, (String, String)>,
+) -> Result<std::collections::BTreeMap<String, Value>, CommandError> {
+    let metadata = std::fs::metadata(manifest_path).map_err(super::io_error)?;
+    if !metadata.is_file() || metadata.len() > 4 * 1024 * 1024 {
+        return Err(CommandError::usage(
+            "--runtime-fixtures must be a regular manifest no larger than 4 MiB",
+        ));
+    }
+    let bytes = std::fs::read(manifest_path).map_err(super::io_error)?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        CommandError::usage(format!("invalid --runtime-fixtures file: {error}"))
+    })?;
+    if !json_exact_keys(&value, &["schemaVersion", "fixtures"])
+        || value.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+    {
+        return Err(CommandError::usage(
+            "--runtime-fixtures must use schemaVersion 1 and exact manifest fields",
+        ));
+    }
+    let rows = value
+        .get("fixtures")
+        .and_then(Value::as_array)
+        .ok_or_else(|| CommandError::usage("runtime fixture manifest fixtures must be an array"))?;
+    if rows.is_empty() || rows.len() > MAX_RUNTIME_INTERACTIONS {
+        return Err(CommandError::usage(
+            "runtime fixture manifest must contain 1 to 8 fixtures",
+        ));
+    }
+    let mut fixtures = std::collections::BTreeMap::new();
+    let mut total_bytes = 0usize;
+    for row in rows {
+        if !json_exact_keys(row, &["id", "files"]) {
+            return Err(CommandError::usage(
+                "runtime fixture must contain only id and files",
+            ));
+        }
+        let id = json_text(row, "id")
+            .filter(|text| runtime_id(text))
+            .ok_or_else(|| CommandError::usage("runtime fixture id is invalid"))?;
+        if !referenced.contains_key(id) {
+            return Err(CommandError::usage(format!(
+                "runtime fixture is not referenced by an interaction: {id}"
+            )));
+        }
+        let file_rows = row
+            .get("files")
+            .and_then(Value::as_array)
+            .ok_or_else(|| CommandError::usage("runtime fixture files must be an array"))?;
+        if file_rows.is_empty() || file_rows.len() > MAX_RUNTIME_FIXTURE_FILES {
+            return Err(CommandError::usage(
+                "runtime fixture must contain 1 to 64 files",
+            ));
+        }
+        let mut url_paths = std::collections::BTreeSet::new();
+        let mut source_paths = std::collections::BTreeSet::new();
+        let mut digest_files = Vec::with_capacity(file_rows.len());
+        let mut frozen_files = Vec::with_capacity(file_rows.len());
+        let mut fixture_bytes = 0usize;
+        for file in file_rows {
+            if !json_exact_keys(file, &["sourcePath", "path", "contentType"]) {
+                return Err(CommandError::usage(
+                    "runtime fixture file must contain only sourcePath, path and contentType",
+                ));
+            }
+            let source_path = json_text(file, "sourcePath")
+                .filter(|path| safe_inventory_path(path))
+                .ok_or_else(|| CommandError::usage("runtime fixture sourcePath is invalid"))?;
+            let url_path = json_text(file, "path")
+                .filter(|path| valid_fixture_url_path(path))
+                .ok_or_else(|| CommandError::usage("runtime fixture URL path is invalid"))?;
+            let content_type = json_text(file, "contentType")
+                .filter(|value| valid_fixture_content_type(value))
+                .ok_or_else(|| CommandError::usage("runtime fixture contentType is invalid"))?;
+            if !url_paths.insert(url_path.to_owned())
+                || !source_paths.insert(source_path.to_owned())
+            {
+                return Err(CommandError::usage(
+                    "runtime fixture contains duplicate URL or source mappings",
+                ));
+            }
+            let inventory_entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.path == source_path)
+                .ok_or_else(|| {
+                    CommandError::usage(format!(
+                        "runtime fixture source is outside frozen Audit inventory: {source_path}"
+                    ))
+                })?;
+            let source_bytes = read_inventory_regular_file(root, source_path)?;
+            let source_digest = format!("sha256:{}", sha256_hex(&source_bytes));
+            if inventory_entry.digest.as_deref() != Some(source_digest.as_str()) {
+                return Err(CommandError::usage(format!(
+                    "runtime fixture source changed since Audit inventory: {source_path}"
+                )));
+            }
+            fixture_bytes = fixture_bytes
+                .checked_add(source_bytes.len())
+                .ok_or_else(|| CommandError::usage("runtime fixture byte count overflow"))?;
+            total_bytes = total_bytes.checked_add(source_bytes.len()).ok_or_else(|| {
+                CommandError::usage("runtime fixture manifest byte count overflow")
+            })?;
+            if fixture_bytes > MAX_RUNTIME_FIXTURE_BYTES || total_bytes > MAX_RUNTIME_FIXTURE_BYTES
+            {
+                return Err(CommandError::usage(
+                    "runtime fixture bodies exceed 16 MiB frozen-input limit",
+                ));
+            }
+            let body = serde_json::to_value(&source_bytes).map_err(super::io_error)?;
+            digest_files.push(json!({"body":body,"contentType":content_type,"path":url_path}));
+            frozen_files.push(json!({
+                "sourcePath":source_path,
+                "sourceDigest":source_digest,
+                "path":url_path,
+                "contentType":content_type,
+                "body":body,
+            }));
+        }
+        digest_files.sort_by(|left, right| {
+            left.get("path")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .as_bytes()
+                .cmp(
+                    right
+                        .get("path")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .as_bytes(),
+                )
+        });
+        let source_digest = legion_contracts::canonical_digest(&json!({"files":digest_files}))
+            .map_err(|error| {
+                CommandError::usage(format!("runtime fixture cannot be canonicalized: {error}"))
+            })?;
+        let (expected_digest, exact_path) = referenced.get(id).expect("referenced fixture");
+        if &source_digest != expected_digest {
+            return Err(CommandError::usage(format!(
+                "runtime fixture digest does not match frozen bundle: {id}"
+            )));
+        }
+        if !url_paths.contains(exact_path) {
+            return Err(CommandError::usage(format!(
+                "runtime fixture exact URL path does not match a manifest file: {id}"
+            )));
+        }
+        if fixtures
+            .insert(
+                id.to_owned(),
+                json!({
+                    "id":id,
+                    "sourceDigest":source_digest,
+                    "inventoryDigest":inventory.digest,
+                    "files":frozen_files,
+                }),
+            )
+            .is_some()
+        {
+            return Err(CommandError::usage("runtime fixture id is duplicated"));
+        }
+    }
+    if fixtures.len() != referenced.len() {
+        return Err(CommandError::usage(
+            "runtime interaction references a fixture missing from manifest",
+        ));
+    }
+    Ok(fixtures)
+}
+
+fn safe_inventory_path(value: &str) -> bool {
+    if value.is_empty() || value.len() > MAX_RUNTIME_INTERACTION_STRING || value.contains('\\') {
+        return false;
+    }
+    let path = std::path::Path::new(value);
+    !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+        && path.to_string_lossy().replace('\\', "/") == value
+}
+
+fn valid_fixture_url_path(value: &str) -> bool {
+    value.starts_with('/')
+        && value.len() <= MAX_RUNTIME_INTERACTION_STRING
+        && value.is_ascii()
+        && !value
+            .chars()
+            .any(|character| matches!(character, '\\' | '?' | '#' | '%') || character.is_control())
+        && !value
+            .split('/')
+            .skip(1)
+            .any(|segment| segment.is_empty() || matches!(segment, "." | ".."))
+        && value.bytes().all(|byte| {
+            byte == b'/' || byte.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=@:".contains(&byte)
+        })
+}
+
+fn exact_fixture_url_path(value: &str) -> Option<&str> {
+    let remainder = value.strip_prefix("http://")?;
+    let authority_end = remainder.find('/').unwrap_or(remainder.len());
+    let authority = &remainder[..authority_end];
+    let port = authority.strip_prefix("127.0.0.1:")?;
+    if port.is_empty() || !port.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let port_number = port.parse::<u16>().ok()?;
+    if port_number == 0 {
+        return None;
+    }
+    let raw_path = if authority_end == remainder.len() {
+        "/"
+    } else {
+        &remainder[authority_end..]
+    };
+    if !valid_fixture_url_path(raw_path) {
+        return None;
+    }
+    Some(raw_path)
+}
+
+fn valid_fixture_content_type(value: &str) -> bool {
+    !value.trim().is_empty()
+        && value.len() <= MAX_RUNTIME_INTERACTION_STRING
+        && value.is_ascii()
+        && !value
+            .chars()
+            .any(|character| matches!(character, '\r' | '\n'))
+}
+
+fn read_inventory_regular_file(
+    root: &std::path::Path,
+    source_path: &str,
+) -> Result<Vec<u8>, CommandError> {
+    let relative = std::path::Path::new(source_path);
+    let mut current = root.to_path_buf();
+    let components = relative.components().collect::<Vec<_>>();
+    for (index, component) in components.iter().enumerate() {
+        let std::path::Component::Normal(name) = component else {
+            return Err(CommandError::usage("runtime fixture source path is unsafe"));
+        };
+        current.push(name);
+        let metadata = std::fs::symlink_metadata(&current).map_err(super::io_error)?;
+        if metadata.file_type().is_symlink()
+            || if index + 1 == components.len() {
+                !metadata.is_file()
+            } else {
+                !metadata.is_dir()
+            }
+        {
+            return Err(CommandError::usage(format!(
+                "runtime fixture source must be a regular non-symlink file: {source_path}"
+            )));
+        }
+    }
+    let canonical = std::fs::canonicalize(&current).map_err(super::io_error)?;
+    if !canonical.starts_with(root) {
+        return Err(CommandError::usage(
+            "runtime fixture source resolves outside Audit root",
+        ));
+    }
+    let mut file = std::fs::File::open(&canonical).map_err(super::io_error)?;
+    if !file.metadata().map_err(super::io_error)?.is_file() {
+        return Err(CommandError::usage(
+            "runtime fixture source is not a regular file",
+        ));
+    }
+    let mut bytes = Vec::new();
+    let mut limited = std::io::Read::take(&mut file, (MAX_RUNTIME_FIXTURE_BYTES + 1) as u64);
+    std::io::Read::read_to_end(&mut limited, &mut bytes).map_err(super::io_error)?;
+    if bytes.len() > MAX_RUNTIME_FIXTURE_BYTES {
+        return Err(CommandError::usage(
+            "runtime fixture source exceeds 16 MiB frozen-input limit",
+        ));
+    }
+    let after = std::fs::symlink_metadata(&current).map_err(super::io_error)?;
+    if after.file_type().is_symlink() || !after.is_file() {
+        return Err(CommandError::usage(
+            "runtime fixture source changed file type while freezing",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn json_exact_keys(value: &Value, keys: &[&str]) -> bool {
+    value.as_object().is_some_and(|object| {
+        object.len() == keys.len() && object.keys().all(|key| keys.contains(&key.as_str()))
+    })
+}
+
+fn json_text<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str)
+}
+
+fn runtime_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+}
+
+fn runtime_sha256(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
+}
+
+fn runtime_action_text(action: &Value, key: &str) -> Option<&str> {
+    action
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|text| !text.trim().is_empty() && text.len() <= MAX_RUNTIME_INTERACTION_STRING)
+}
+
+fn valid_runtime_probe_action(action: &Value) -> bool {
+    let Some(kind) = json_text(action, "type") else {
+        return false;
+    };
+    let has_exact = |required: &[&str], optional: &[&str]| {
+        action.as_object().is_some_and(|object| {
+            required.iter().all(|key| object.contains_key(*key))
+                && object
+                    .keys()
+                    .all(|key| required.contains(&key.as_str()) || optional.contains(&key.as_str()))
+        })
+    };
+    match kind {
+        "click" => {
+            has_exact(&["type", "selector"], &[])
+                && runtime_action_text(action, "selector").is_some()
+        }
+        "type" => {
+            has_exact(&["type", "text"], &[]) && runtime_action_text(action, "text").is_some()
+        }
+        "press" => {
+            has_exact(&["type", "key"], &[])
+                && json_text(action, "key").is_some_and(|key| {
+                    matches!(
+                        key,
+                        "Tab" | "Escape" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"
+                    )
+                })
+        }
+        "assertVisible" => {
+            has_exact(&["type", "selector"], &["timeout"])
+                && runtime_action_text(action, "selector").is_some()
+                && action.get("timeout").is_none_or(|timeout| {
+                    timeout
+                        .as_u64()
+                        .is_some_and(|value| (1..=5000).contains(&value))
+                })
+        }
+        "assertText" => {
+            has_exact(&["type", "selector", "text"], &[])
+                && runtime_action_text(action, "selector").is_some()
+                && runtime_action_text(action, "text").is_some()
+        }
+        _ => false,
+    }
+}
+
+fn loopback_http_url(value: &str) -> bool {
+    if value
+        .chars()
+        .any(|character| character.is_whitespace() || character.is_control())
+    {
+        return false;
+    }
+    let lower = value.to_ascii_lowercase();
+    let authority = if lower.starts_with("http://") {
+        &value[7..]
+    } else if lower.starts_with("https://") {
+        &value[8..]
+    } else {
+        return false;
+    };
+    let authority = authority.split(['/', '?', '#']).next().unwrap_or("");
+    if authority.is_empty() || authority.contains('@') {
+        return false;
+    }
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let Some(end) = rest.find(']') else {
+            return false;
+        };
+        let suffix = &rest[end + 1..];
+        let port = if suffix.is_empty() {
+            None
+        } else if let Some(port) = suffix.strip_prefix(':') {
+            Some(port)
+        } else {
+            return false;
+        };
+        (&rest[..end], port)
+    } else {
+        match authority.split_once(':') {
+            Some((host, port)) if !port.contains(':') => (host, Some(port)),
+            Some(_) => return false,
+            None => (authority, None),
+        }
+    };
+    if port.is_some_and(|port| {
+        port.is_empty()
+            || !port.bytes().all(|byte| byte.is_ascii_digit())
+            || port.parse::<u16>().is_err()
+    }) {
+        return false;
+    }
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1" | "::1"
+    )
 }
 
 /// `--surfaces` is either a comma-separated list of origin-relative paths
@@ -1351,6 +2110,131 @@ fn filter_provider_specs(
         providers.retain(|provider| !args.skip.iter().any(|id| id == provider.id.as_str()));
     }
     providers
+}
+
+/// Freeze the repository's applicable provider universe independently from
+/// user filters. Providers with empty denominators are not omissions.
+fn provider_selection_coverage(
+    root: &std::path::Path,
+    inventory: &legion_audit::InventoryEnvelope,
+    all_specs: &[legion_contracts::ProviderSpec],
+    args: &AuditArgs,
+    signing_key: Option<&[u8]>,
+    selected_plan_digest: &str,
+) -> Value {
+    let result = (|| -> Result<Value, String> {
+        let pending = legion_audit::AuditPlan::compile_provider_universe(
+            Some(root),
+            inventory,
+            all_specs,
+            selected_plan_digest,
+        )
+        .map_err(|error| error.to_string())?;
+        let scope_plan = match signing_key {
+            Some(key) => pending.freeze(Some(key)),
+            None => pending.freeze_source_diagnostic(),
+        }
+        .map_err(|error| error.to_string())?;
+        let plan = scope_plan.plan();
+        let applicable = plan
+            .providers()
+            .iter()
+            .filter(|provider| {
+                let declared = provider
+                    .configuration
+                    .get("hostDeclaration")
+                    .and_then(|value| value.get("declared"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true);
+                let denominator_count = provider
+                    .configuration
+                    .get("denominatorCount")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0);
+                let selector = provider.configuration.get("selector");
+                let always = selector.is_some_and(|selector| {
+                    selector.as_str() == Some("always")
+                        || selector.get("op").and_then(Value::as_str) == Some("always")
+                });
+                declared && (denominator_count > 0 || always)
+            })
+            .map(|provider| provider.id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        let selected = filter_provider_specs(all_specs.to_vec(), args)
+            .into_iter()
+            .map(|provider| provider.id.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        let selected_ids = selected.iter().cloned().collect::<Vec<_>>();
+        let mut claim = provider_selection_claim(
+            &applicable,
+            &selected,
+            &args.only,
+            &args.skip,
+            &inventory.digest,
+        );
+        let object = claim
+            .as_object_mut()
+            .ok_or_else(|| "provider selection claim is malformed".to_owned())?;
+        object.insert("selectedProviderIds".into(), json!(selected_ids));
+        object.insert(
+            "excludedConditionalProviders".into(),
+            json!(scope_plan.plan().excluded_conditional_providers),
+        );
+        object.insert(
+            "scopePlan".into(),
+            json!({
+                "digest": scope_plan.digest(),
+                "signature": scope_plan.signature(),
+                "plan": scope_plan.plan(),
+            }),
+        );
+        object.insert("complete".into(), json!(scope_plan.signature().is_some()));
+        if scope_plan.signature().is_none() {
+            object.insert(
+                "error".into(),
+                json!("applicable provider universe is not signed"),
+            );
+        }
+        Ok(claim)
+    })();
+    result.unwrap_or_else(|error| {
+        json!({
+            "complete": false,
+            "fullScope": false,
+            "error": error,
+            "requestedOnly": args.only.clone(),
+            "requestedSkip": args.skip.clone(),
+        })
+    })
+}
+
+fn provider_selection_claim(
+    applicable: &std::collections::BTreeSet<String>,
+    selected: &std::collections::BTreeSet<String>,
+    requested_only: &[String],
+    requested_skip: &[String],
+    inventory_digest: &str,
+) -> Value {
+    let selected_applicable = applicable
+        .intersection(selected)
+        .cloned()
+        .collect::<Vec<_>>();
+    let excluded = applicable.difference(selected).cloned().collect::<Vec<_>>();
+    let full_scope = excluded.is_empty();
+    json!({
+        "complete": true,
+        "inventoryDigest": inventory_digest,
+        "applicableProviders": applicable.iter().cloned().collect::<Vec<_>>(),
+        "selectedApplicableProviders": selected_applicable,
+        "excludedApplicableProviders": excluded,
+        "requestedOnly": requested_only,
+        "requestedSkip": requested_skip,
+        "fullScope": full_scope,
+    })
+}
+
+fn provider_scope_claims_allowed(trusted_scope_universe: bool) -> bool {
+    trusted_scope_universe
 }
 
 /// Node-parity audit scope (tools/audit/collect-facts.mjs `scopeFor` +
@@ -1696,11 +2580,184 @@ pub(super) fn audit_application_for(
     if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
         return super::native_application_for(repository_id);
     }
-    native_registry_application(root).map(|(application, _, _scratch)| Arc::new(application))
+    native_registry_application(root, None).map(|(application, _, _scratch)| Arc::new(application))
+}
+
+fn rightkit_trust_early_subcommand(args: &AuditArgs) -> Option<&'static str> {
+    if args.root.as_os_str() == "ingest"
+        && (args.ingest_run.is_some()
+            || args.ingest_provider.is_some()
+            || args.ingest_result.is_some()
+            || args.followup)
+    {
+        Some("ingest")
+    } else if args.root.as_os_str() == "findings" && !args.findings_args.is_empty() {
+        Some("findings")
+    } else {
+        None
+    }
+}
+
+const MAX_RIGHTKIT_TRUST_FILE_BYTES: u64 = 1024 * 1024;
+
+fn validate_rightkit_trust_path(
+    path: &std::path::Path,
+    audited_root: &std::path::Path,
+    scratch_root: &std::path::Path,
+) -> Result<PathBuf, CommandError> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(CommandError::usage(
+            "--rightkit-trust must be an absolute path without parent traversal",
+        ));
+    }
+
+    let mut file_metadata = None;
+    for ancestor in path.ancestors() {
+        let metadata = std::fs::symlink_metadata(ancestor).map_err(super::io_error)?;
+        if metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
+            return Err(CommandError::usage(
+                "--rightkit-trust path cannot contain symlink or reparse components",
+            ));
+        }
+        if ancestor == path {
+            file_metadata = Some(metadata);
+        } else if !metadata.is_dir() {
+            return Err(CommandError::usage(
+                "--rightkit-trust parent components must be directories",
+            ));
+        }
+    }
+    let metadata = file_metadata.ok_or_else(|| {
+        CommandError::usage("--rightkit-trust must name a regular enrollment file")
+    })?;
+    if !metadata.is_file() {
+        return Err(CommandError::usage(
+            "--rightkit-trust must name a regular enrollment file",
+        ));
+    }
+    if metadata.len() > MAX_RIGHTKIT_TRUST_FILE_BYTES {
+        return Err(CommandError::usage(
+            "--rightkit-trust enrollment exceeds 1 MiB",
+        ));
+    }
+
+    let canonical_path = std::fs::canonicalize(path).map_err(super::io_error)?;
+    let canonical_audit_root = std::fs::canonicalize(audited_root).map_err(super::io_error)?;
+    let canonical_scratch_root = std::fs::canonicalize(scratch_root).map_err(super::io_error)?;
+    if canonical_path.starts_with(&canonical_audit_root)
+        || canonical_path.starts_with(&canonical_scratch_root)
+    {
+        return Err(CommandError::usage(
+            "--rightkit-trust enrollment must be outside the audited and scratch roots",
+        ));
+    }
+    Ok(canonical_path)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
+    false
+}
+
+#[cfg(test)]
+mod rightkit_trust_cli_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn test_root() -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        std::env::temp_dir().join(format!(
+            "legion-rightkit-trust-cli-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
+
+    #[test]
+    fn rightkit_trust_path_rejects_relative_paths() {
+        let error = validate_rightkit_trust_path(
+            std::path::Path::new("relative-enrollment.json"),
+            std::path::Path::new("/audit"),
+            std::path::Path::new("/scratch"),
+        )
+        .unwrap_err();
+        assert!(error.message.contains("absolute path"));
+    }
+
+    #[test]
+    fn rightkit_trust_path_rejects_files_inside_audit_or_scratch_roots() {
+        let base = test_root();
+        let audited = base.join("repo");
+        let scratch = base.join("scratch");
+        std::fs::create_dir_all(&audited).unwrap();
+        std::fs::create_dir_all(&scratch).unwrap();
+        let in_audit = audited.join("enrollment.json");
+        let in_scratch = scratch.join("enrollment.json");
+        std::fs::write(&in_audit, b"{}").unwrap();
+        std::fs::write(&in_scratch, b"{}").unwrap();
+
+        for path in [&in_audit, &in_scratch] {
+            let error = validate_rightkit_trust_path(path, &audited, &scratch).unwrap_err();
+            assert!(error
+                .message
+                .contains("outside the audited and scratch roots"));
+        }
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rightkit_trust_path_rejects_symlink_components() {
+        use std::os::unix::fs::symlink;
+
+        let base = test_root();
+        let audited = base.join("repo");
+        let scratch = base.join("scratch");
+        let trusted = base.join("trusted");
+        std::fs::create_dir_all(&audited).unwrap();
+        std::fs::create_dir_all(&scratch).unwrap();
+        std::fs::create_dir_all(&trusted).unwrap();
+        let target = trusted.join("enrollment.json");
+        let link = base.join("enrollment.json");
+        std::fs::write(&target, b"{}").unwrap();
+        symlink(&target, &link).unwrap();
+
+        let error = validate_rightkit_trust_path(&link, &audited, &scratch).unwrap_err();
+        assert!(error.message.contains("symlink or reparse"));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn rightkit_trust_rejects_alternate_provider_routes() {
+        assert!(rightkit_trust_route_is_supported(false, false, false));
+        assert!(!rightkit_trust_route_is_supported(true, false, false));
+        assert!(!rightkit_trust_route_is_supported(false, true, false));
+        assert!(!rightkit_trust_route_is_supported(false, false, true));
+    }
+}
+
+fn rightkit_trust_route_is_supported(
+    direct: bool,
+    native_rule_manifest: bool,
+    native_application_configured: bool,
+) -> bool {
+    !direct && !native_rule_manifest && !native_application_configured
 }
 
 fn native_registry_application(
     root: &std::path::Path,
+    rightkit_trust: Option<&std::path::Path>,
 ) -> Result<
     (
         legion_application::NativeApplication,
@@ -1737,12 +2794,22 @@ fn native_registry_application(
         legion_audit::native_providers::legacy_checks::AuditScratch::create(root)
             .map_err(|error| CommandError::incomplete(error.to_string()))?,
     );
+    let enrollment = rightkit_trust
+        .map(|path| validate_rightkit_trust_path(path, root, scratch.root()))
+        .transpose()?
+        .map(|path| {
+            legion_audit::native_providers::legacy_checks::AttestedRunsEnrollment::load(&path)
+                .map_err(|error| CommandError::usage(error.to_string()))
+        })
+        .transpose()?;
     let external_tool = native_audit_external_tool(&scratch);
-    let executor = std::sync::Arc::new(
-        legion_audit::NativeProviderRegistry::new(root.to_path_buf())
-            .with_scratch(scratch.clone())
-            .with_external_project_tool(external_tool),
-    );
+    let mut registry = legion_audit::NativeProviderRegistry::new(root.to_path_buf())
+        .with_scratch(scratch.clone())
+        .with_external_project_tool(external_tool);
+    if let Some(enrollment) = enrollment {
+        registry = registry.with_attested_runs(enrollment);
+    }
+    let executor = std::sync::Arc::new(registry);
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
         root.to_string_lossy().into_owned(),
         source,
@@ -2344,6 +3411,56 @@ mod provider_plan_reader_tests {
 }
 
 #[cfg(test)]
+mod provider_scope_coverage_tests {
+    use super::provider_selection_claim;
+    use serde_json::json;
+    use std::collections::BTreeSet;
+
+    fn ids(values: &[&str]) -> BTreeSet<String> {
+        values.iter().map(|value| (*value).to_owned()).collect()
+    }
+
+    #[test]
+    fn non_applicable_providers_do_not_appear_as_scope_omissions() {
+        let claim = provider_selection_claim(
+            &ids(&["security.source"]),
+            &ids(&["security.source", "legacy.runtime"]),
+            &[],
+            &[],
+            "sha256:inventory",
+        );
+
+        assert_eq!(claim["fullScope"], json!(true));
+        assert_eq!(claim["excludedApplicableProviders"], json!([]));
+        assert_eq!(claim["applicableProviders"], json!(["security.source"]));
+    }
+
+    #[test]
+    fn explicit_filter_records_each_omitted_applicable_provider() {
+        let claim = provider_selection_claim(
+            &ids(&["security.source", "security.secrets"]),
+            &ids(&["security.source"]),
+            &["security.source".into()],
+            &[],
+            "sha256:inventory",
+        );
+
+        assert_eq!(claim["fullScope"], json!(false));
+        assert_eq!(
+            claim["excludedApplicableProviders"],
+            json!(["security.secrets"])
+        );
+        assert_eq!(claim["requestedOnly"], json!(["security.source"]));
+    }
+
+    #[test]
+    fn imported_or_custom_provider_specs_cannot_mint_a_scope_universe() {
+        assert!(!super::provider_scope_claims_allowed(false));
+        assert!(super::provider_scope_claims_allowed(true));
+    }
+}
+
+#[cfg(test)]
 mod closure_tests {
     use super::*;
 
@@ -2369,6 +3486,9 @@ mod closure_tests {
             skip: Vec::new(),
             url: None,
             surfaces: None,
+            rightkit_trust: None,
+            runtime_interactions: None,
+            runtime_fixtures: None,
             visual_spec: None,
             visual_baselines: None,
             width: 1280,
@@ -2547,7 +3667,7 @@ mod closure_tests {
         args.width = 390;
         args.height = 844;
         let mut specs = vec![runtime_spec()];
-        let (gaps, injected) = apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        let (gaps, injected) = apply_runtime_inputs(&args, &args.root, &mut specs, false).unwrap();
         assert!(injected);
         assert!(gaps.is_empty(), "{gaps:?}");
         let runtime = &specs[0].runner["runtime"];
@@ -2564,11 +3684,278 @@ mod closure_tests {
     }
 
     #[test]
+    fn runtime_interaction_descriptors_are_frozen_only_after_exact_scope_and_digest_checks() {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-runtime-interactions-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("interactions.json");
+        let fixture_file = dir.join("runtime-fixtures.json");
+        let source_path = dir.join("index.html");
+        let body_bytes = b"<main data-testid='ready'>ready</main>";
+        std::fs::write(&source_path, body_bytes).unwrap();
+        let body = serde_json::to_value(body_bytes).unwrap();
+        let fixture_digest = legion_contracts::canonical_digest(&json!({
+            "files":[{"body":body,"contentType":"text/html","path":"/index.html"}]
+        }))
+        .unwrap();
+        let write_manifest = |source_path: &str, url_path: &str| {
+            std::fs::write(
+                &fixture_file,
+                serde_json::to_vec(&json!({
+                    "schemaVersion":1,
+                    "fixtures":[{
+                        "id":"settings-fixture",
+                        "files":[{
+                            "sourcePath":source_path,
+                            "path":url_path,
+                            "contentType":"text/html"
+                        }]
+                    }]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        };
+        write_manifest("index.html", "/index.html");
+        let actions = json!([{"type":"assertVisible","selector":"[data-testid='ready']"}]);
+        let actions_digest = legion_contracts::canonical_digest(&actions).unwrap();
+        let descriptor = |surface: Value, actions: Value, digest: &str, fixture_digest: &str| {
+            json!([{
+                "id": "settings-ready",
+                "surface": surface,
+                "fixture": {"id":"settings-fixture", "sourceDigest":fixture_digest},
+                "probe": {"id":"settings-ready-probe", "actionsDigest":digest},
+                "isolationBindingId":"test-isolation-binding",
+                "expiresAfterMs":30000,
+                "actions":actions
+            }])
+        };
+        let url = "http://127.0.0.1:1422/index.html";
+        let mut args = minimal_audit_args();
+        args.root = dir.clone();
+        args.url = Some(url.into());
+        args.runtime_interactions = Some(file.clone());
+        args.runtime_fixtures = Some(fixture_file.clone());
+        let mut specs = vec![runtime_spec()];
+
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&descriptor(
+                json!({"label":"entry", "url":url}),
+                actions.clone(),
+                &actions_digest,
+                &fixture_digest,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        let (gaps, injected) = apply_runtime_inputs(&args, &args.root, &mut specs, false).unwrap();
+        assert!(gaps.is_empty());
+        assert!(injected);
+        assert_eq!(
+            specs[0].runner["runtime"]["interactions"][0]["probe"]["actionsDigest"],
+            actions_digest
+        );
+        assert_eq!(
+            specs[0].runner["runtime"]["interactions"][0]["surface"],
+            json!({"label":"entry", "url":url})
+        );
+        assert_eq!(
+            specs[0].runner["runtime"]["interactions"][0]["fixture"]["sourceDigest"],
+            fixture_digest
+        );
+        assert_eq!(
+            specs[0].runner["runtime"]["interactions"][0]["fixture"]["files"][0]["body"],
+            body
+        );
+
+        let mut invalid_expiry = descriptor(
+            json!({"label":"entry", "url":url}),
+            actions.clone(),
+            &actions_digest,
+            &fixture_digest,
+        )[0]
+        .clone();
+        invalid_expiry["expiresAfterMs"] = json!(30001);
+        std::fs::write(&file, serde_json::to_vec(&json!([invalid_expiry])).unwrap()).unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+
+        let source = super::super::audit_inventory_source(&dir).unwrap();
+        let inventory = source.inventory(&dir.to_string_lossy()).unwrap();
+        let referenced = std::collections::BTreeMap::from([(
+            "settings-fixture".to_owned(),
+            (fixture_digest.clone(), "/index.html".to_owned()),
+        )]);
+        std::fs::write(&source_path, b"changed after frozen inventory").unwrap();
+        assert!(
+            read_runtime_fixture_manifest(&fixture_file, &dir, &inventory, &referenced).is_err()
+        );
+        std::fs::write(&source_path, body_bytes).unwrap();
+
+        // Fixture URL path must be byte-for-byte present in the frozen bundle.
+        let mismatched_path = std::collections::BTreeMap::from([(
+            "settings-fixture".to_owned(),
+            (fixture_digest.clone(), "/other.html".to_owned()),
+        )]);
+        assert!(
+            read_runtime_fixture_manifest(&fixture_file, &dir, &inventory, &mismatched_path)
+                .is_err()
+        );
+
+        // A caller cannot point an action descriptor at a surface that was not
+        // part of the frozen navigation inventory.
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&descriptor(
+                json!({"label":"unfrozen", "url":"http://127.0.0.1:1422/admin"}),
+                actions.clone(),
+                &actions_digest,
+                &fixture_digest,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+
+        write_manifest("missing.html", "/index.html");
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+        write_manifest("index.html", "/index.html");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let external = dir.join("outside.html");
+            std::fs::write(&external, body_bytes).unwrap();
+            symlink(&external, dir.join("linked.html")).unwrap();
+            write_manifest("linked.html", "/index.html");
+            assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+            std::fs::remove_file(dir.join("linked.html")).unwrap();
+            std::fs::remove_file(external).unwrap();
+        }
+
+        let too_many_files = (0..=MAX_RUNTIME_FIXTURE_FILES)
+            .map(|_| json!({"sourcePath":"index.html", "path":"/duplicate.html", "contentType":"text/html"}))
+            .collect::<Vec<_>>();
+        std::fs::write(
+            &fixture_file,
+            serde_json::to_vec(&json!({"schemaVersion":1,"fixtures":[{"id":"settings-fixture","files":too_many_files}]})).unwrap(),
+        )
+        .unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+        write_manifest("index.html", "/index.html");
+
+        // The allow-list excludes script/eval and action mutations without a
+        // probe-declared, verified digest.
+        let script_actions = json!([{"type":"eval", "expression":"window.localStorage.clear()"}]);
+        let script_digest = legion_contracts::canonical_digest(&script_actions).unwrap();
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&descriptor(
+                json!({"label":"entry", "url":url}),
+                script_actions,
+                &script_digest,
+                &fixture_digest,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&descriptor(
+                json!({"label":"entry", "url":url}),
+                actions,
+                &format!("sha256:{}", "0".repeat(64)),
+                &fixture_digest,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+        let unsupported_actions = json!([{"type":"assertStyle","selector":"button","property":"display","value":"block"}]);
+        let unsupported_digest = legion_contracts::canonical_digest(&unsupported_actions).unwrap();
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&descriptor(
+                json!({"label":"entry", "url":url}),
+                unsupported_actions,
+                &unsupported_digest,
+                &fixture_digest,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn runtime_interaction_urls_must_be_exact_loopback_hosts() {
+        for url in [
+            "http://localhost:3000/",
+            "https://127.0.0.1/probe",
+            "http://[::1]:8080/",
+        ] {
+            assert!(loopback_http_url(url), "{url}");
+        }
+        for url in [
+            "http://example.test/",
+            "http://localhost.example.test/",
+            "http://127.0.0.2/",
+            "http://localhost@evil.test/",
+            "file:///tmp/fixture",
+        ] {
+            assert!(!loopback_http_url(url), "{url}");
+        }
+    }
+
+    #[test]
+    fn runtime_fixture_url_paths_are_exact_and_unencoded() {
+        assert_eq!(
+            exact_fixture_url_path("http://127.0.0.1:1422/index.html"),
+            Some("/index.html")
+        );
+        for url in [
+            "http://127.0.0.1:1422/",
+            "http://127.0.0.1:1422/%69ndex.html",
+            "http://127.0.0.1:1422/index.html?x=1",
+            "http://127.0.0.1:1422/index.html#top",
+            "http://127.0.0.1:0/index.html",
+        ] {
+            assert_eq!(exact_fixture_url_path(url), None, "{url}");
+        }
+    }
+
+    #[test]
+    fn expanded_runtime_fixture_config_has_a_cumulative_serialized_cap() {
+        let repeated_body = serde_json::to_value(vec![120_u8; 600_000]).unwrap();
+        let repeated_file = json!({
+            "sourcePath":"index.html",
+            "sourceDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "path":"/index.html",
+            "contentType":"text/html",
+            "body":repeated_body,
+        });
+        let descriptors = (0..MAX_RUNTIME_INTERACTIONS)
+            .map(|index| {
+                json!({
+                    "id":format!("probe-{index}"),
+                    "fixture":{"id":"fixture","sourceDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","files":[repeated_file.clone()]},
+                })
+            })
+            .collect::<Vec<_>>();
+        assert!(json_encoded_len(&json!(descriptors)).unwrap() > MAX_RUNTIME_FROZEN_CONFIG_BYTES);
+    }
+
+    #[test]
     fn runtime_visual_capture_source_is_frozen_only_without_explicit_spec() {
         let mut args = minimal_audit_args();
         args.url = Some("https://example.test/".into());
         let mut specs = vec![runtime_spec(), visual_spec_provider()];
-        apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        apply_runtime_inputs(&args, &args.root, &mut specs, false).unwrap();
         apply_visual_inputs(&args, &mut specs, false).unwrap();
         bind_runtime_visual_capture_source(&mut specs);
         assert_eq!(
@@ -2579,7 +3966,7 @@ mod closure_tests {
         let (spec_path, _) = visual_fixture("capture-source-explicit");
         args.visual_spec = Some(spec_path);
         let mut explicit = vec![runtime_spec(), visual_spec_provider()];
-        apply_runtime_inputs(&args, &mut explicit, false).unwrap();
+        apply_runtime_inputs(&args, &args.root, &mut explicit, false).unwrap();
         apply_visual_inputs(&args, &mut explicit, false).unwrap();
         bind_runtime_visual_capture_source(&mut explicit);
         assert!(explicit[1].runner["visual"].get("captureSource").is_none());
@@ -2592,7 +3979,7 @@ mod closure_tests {
         args.surfaces = Some("/a".into());
         args.width = 800;
         let mut specs = vec![runtime_spec()];
-        let (gaps, injected) = apply_runtime_inputs(&args, &mut specs, false).unwrap();
+        let (gaps, injected) = apply_runtime_inputs(&args, &args.root, &mut specs, false).unwrap();
         assert!(!injected);
         assert_eq!(
             gaps,
@@ -2608,6 +3995,7 @@ mod closure_tests {
         args.url = Some("http://127.0.0.1:1/".into());
         let (gaps, injected) = apply_runtime_inputs(
             &args,
+            &args.root,
             &mut Vec::<legion_contracts::ProviderSpec>::new(),
             false,
         )
@@ -2618,7 +4006,7 @@ mod closure_tests {
             vec!["runtime-inputs-not-consumed:provider-not-selected".to_owned()]
         );
         let (gaps, injected) =
-            apply_runtime_inputs(&args, &mut vec![runtime_spec()], true).unwrap();
+            apply_runtime_inputs(&args, &args.root, &mut vec![runtime_spec()], true).unwrap();
         assert!(!injected);
         assert_eq!(
             gaps,
@@ -2630,7 +4018,8 @@ mod closure_tests {
     fn invalid_runtime_url_is_a_usage_error() {
         let mut args = minimal_audit_args();
         args.url = Some("file:///etc/hosts".into());
-        let error = apply_runtime_inputs(&args, &mut vec![runtime_spec()], false).unwrap_err();
+        let error =
+            apply_runtime_inputs(&args, &args.root, &mut vec![runtime_spec()], false).unwrap_err();
         assert!(
             error.message.contains("invalid runtime inputs"),
             "{}",
@@ -2835,6 +4224,9 @@ mod closure_tests {
             skip: Vec::new(),
             url: None,
             surfaces: None,
+            rightkit_trust: None,
+            runtime_interactions: None,
+            runtime_fixtures: None,
             visual_spec: None,
             visual_baselines: None,
             width: 1280,
@@ -2859,6 +4251,29 @@ mod closure_tests {
             findings_generation: None,
             findings_active: false,
         }
+    }
+
+    #[test]
+    fn rightkit_trust_refuses_ingest_subcommand() {
+        let mut args = minimal_audit_args();
+        args.root = PathBuf::from("ingest");
+        args.rightkit_trust = Some(PathBuf::from("/external/enrollment.json"));
+        args.ingest_run = Some(PathBuf::from("/run"));
+
+        assert_eq!(rightkit_trust_early_subcommand(&args), Some("ingest"));
+    }
+
+    #[test]
+    fn rightkit_trust_refuses_findings_subcommand_but_allows_plain_directory() {
+        let mut args = minimal_audit_args();
+        args.root = PathBuf::from("findings");
+        args.rightkit_trust = Some(PathBuf::from("/external/enrollment.json"));
+        args.findings_args = vec!["list".to_owned()];
+
+        assert_eq!(rightkit_trust_early_subcommand(&args), Some("findings"));
+
+        args.findings_args.clear();
+        assert_eq!(rightkit_trust_early_subcommand(&args), None);
     }
 }
 

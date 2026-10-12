@@ -5,7 +5,15 @@ architecture craft. Architect owns architecture method; Sage is not the architec
 
 Ordered manifest: `workflow/01-frame.md`, `workflow/02-context-stakeholders.md`, `workflow/03-drivers-quality-scenarios.md`, `workflow/04-domain-data-change.md`, `workflow/05-risk-uncertainty.md`, `workflow/06-candidates.md`, `workflow/07-evaluate-select.md`, `workflow/08-minimize.md`, `workflow/09-describe-views.md`, `workflow/10-assure-accept.md`, `workflow/11-govern-evolve-retire.md`.
 
-Resume current state only. Go backward only for material delta with cause, scope, and affected IDs; load current phase plus triggered method only.
+## Bootstrap and resume
+
+Read `00-charter-significance-tailoring.md` first. It decides whether architecture applies and
+sets objective, depth, and rigor. Insignificant work, including a simple question, routes to D0
+without an architecture record. For significant new work, begin at `workflow/01-frame.md`; for
+continuing work, resume the recorded current phase. The charter assigns D2 `best_shape` where
+appropriate; complete the relevant reasoning without making every specialist method mandatory.
+Load the current phase plus only methods triggered by its inputs. Go backward only for a material
+delta with cause, scope, and affected IDs.
 
 Reject unknown phase, cancelled epoch, restart without delta, backward no cause scope, frame no fingerprint, objective upgrade, reviewer REQUIRED, and frozen reload no trigger.
 

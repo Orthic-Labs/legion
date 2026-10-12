@@ -483,6 +483,50 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
 }
 
 #[test]
+fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
+    let actions = json!([{"type":"click","selector":"button.save"}]);
+    let digest = format!(
+        "sha256:{}",
+        hex::encode(sha2::Sha256::digest(serde_json::to_vec(&actions).unwrap()))
+    );
+    let mut runtime = url_inputs(&[], &[]);
+    runtime["interactions"] = json!([{
+        "id":"save-probe",
+        "surface":{"label":"entry","url":"http://127.0.0.1:1422/?qa=1"},
+        "fixture":{"id":"isolated-fixture","sourceDigest":format!("sha256:{}", "a".repeat(64))},
+        "probe":{"id":"save","actionsDigest":digest},
+        "isolationBindingId":"fixture-binding",
+        "actions":actions,
+    }]);
+    let run = run(
+        Some(runtime),
+        Mode::Good {
+            entries: Vec::new(),
+            total: None,
+        },
+        true,
+    );
+    assert_valid_not_rejected(&run.result);
+    assert_eq!(run.calls.len(), 1, "baseline capture still runs once");
+    let runtime = &run.result.details["runtime"];
+    assert_eq!(runtime["surfaces"][0]["status"], "captured");
+    assert!(runtime["surfaces"][0]["screenshot"].is_object());
+    assert_eq!(runtime["interactions"][0]["status"], "unavailable");
+    assert_eq!(
+        runtime["interactions"][0]["reason"],
+        "runtime-probe-isolation-not-configured"
+    );
+    assert!(run
+        .result
+        .coverage_gaps
+        .contains(&"runtime-probe-isolation-not-configured:save-probe".to_owned()));
+    assert!(!run.calls[0]
+        .args
+        .iter()
+        .any(|arg| arg.contains("button.save")));
+}
+
+#[test]
 fn clean_console_makes_no_findings() {
     let run = run(
         Some(url_inputs(&[], &[])),

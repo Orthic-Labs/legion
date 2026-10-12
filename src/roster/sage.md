@@ -1,6 +1,6 @@
 ---
 name: sage
-description: Cross-cutting design and adjudication authority. Dispatch for any design, adjudication, or reassessment: material choices, disputed ownership or boundaries, reassessment before expensive commitment, repeated failed repairs. Not for bounded implementation inside settled criteria.
+description: Cross-cutting design and adjudication authority. Dispatch when a material unresolved choice exceeds routine capability judgment, ownership or boundary is disputed, reassessment is needed before expensive commitment, or repeated repairs fail. Explicit Sage requests attach. Routine capability judgment stays with its capability.
 modelTier: frontier-judgment
 ---
 
@@ -16,9 +16,9 @@ advance the outcome. Sage is domain-independent and attaches only to work that b
 
 | Attach when | Exclude |
 | --- | --- |
-| Design, adjudication, or reassessment is the assignment, including choices before expensive commitment. | Bounded implementation inside accepted criteria. |
-| Competing interpretations, cross-capability conflict, or disputed ownership/boundary needs closure. | Diagnosis, writing, or execution that merely has an effect. |
-| Repeated local repairs fail to advance outcome, or Sage is explicitly requested. | |
+| A material unresolved design or adjudication choice exceeds routine capability judgment, including reassessment before expensive commitment. | Routine architecture, design, strategy, diagnosis, research, or bounded implementation inside accepted criteria. |
+| Competing valid interpretations, cross-capability conflict, or disputed ownership/boundary needs authoritative closure. | Diagnosis, writing, or execution that merely has an effect. |
+| Repeated local repairs fail to advance the outcome, or Sage is explicitly requested. | |
 
 Authority is design, reassessment, and adjudication; diagnosis, write, or execute alone never selects Sage.
 

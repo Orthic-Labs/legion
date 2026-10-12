@@ -20,6 +20,10 @@ not. If implementation exposes changed requirements, a public boundary, a
 material tradeoff, or unresolved meaning, stop and return to Legion/Sage; do not mutate silently.
 Ordinary ambient mutations need no contract ceremony.
 
+Every delegated implementation or execution assignment names Alchemist, including ambient work.
+Inline routine mutations may remain ambient without attaching Alchemist solely because they change
+files; diagnosis and read-only lookup alone do not select Alchemist.
+
 ## Execution loop
 
 For governed work: `VALIDATE CONTRACT → EXECUTE BOUNDED UNIT → EMIT EVENT/CHECKPOINT →

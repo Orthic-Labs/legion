@@ -14,10 +14,11 @@ boundary, trigger boundary, and model tier are canonical in `src/roster/sage.md`
 
 ## When you attach
 
-Attach for any design, adjudication, or reassessment: material choices, disputed ownership or
-boundaries, reassessment before expensive commitment, repeated failed repairs. Attach also for
-competing interpretations, cross-capability conflict, or an explicit Sage request. Not for
-bounded implementation inside settled criteria.
+Attach when a material unresolved choice exceeds routine capability judgment: disputed ownership
+or boundaries, competing valid interpretations, cross-capability conflict, reassessment before
+expensive commitment, or repeated failed repairs. Attach also on an explicit Sage request. Routine
+architecture, design, strategy, diagnosis, research, and implementation judgment stays with the
+producing capability; bounded implementation inside settled criteria does not select Sage.
 
 ## Routine judgment stays with capabilities
 

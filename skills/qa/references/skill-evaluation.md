@@ -32,11 +32,15 @@ existing runtime-QA route and report behavior.
 
 ## Host-native specification review
 
-`legion-dev run-skill-evals` remains the structural/discovery evaluator: explicit aliases are
-checked deterministically, while natural-language routing cases remain `requires-model`. Use the
-development-only prepare/ingest path when a case needs host-native Oracle review for specification
-consistency; it supplements, and does not replace, either existing check or become installed
-end-user runtime.
+`legion-dev run-skill-evals` checks explicit aliases separately from behavioral scores. Without
+observations, semantic routing remains `requires-model`. Optional `--observations <path>` accepts
+`legion-skill-routing-observations/v1`: each row binds source path, category, case ID, prompt and
+fixture hashes, source-bundle hash, producer/model configuration, output/trace references, and
+six observed routing dimensions. The scorer compares only dimensions declared by the fixture; it
+does not invoke a model. Routing observations never establish output quality, safety, pressure, or
+human-quality judgments, which remain `requires-model`. Use the development-only prepare/ingest
+path when a case needs host-native Oracle review for specification consistency; it supplements,
+and does not replace, behavioral evaluation or become installed end-user runtime.
 
 Prepare one case into a review packet:
 

@@ -4,7 +4,7 @@
 
 use legion_runtime::p9_skills::alchemist::extract_model_from_profile;
 use legion_runtime::p9_skills::brand_identity::{audit_pairs, check_contrast, AuditPair};
-use legion_runtime::p9_skills::council::{digest_value, validate_record_fields};
+use legion_runtime::p9_skills::council::{digest_value, request_digest, validate_record_fields};
 use legion_runtime::p9_skills::qa::{build_dispatch, QaVerb};
 use legion_runtime::p9_skills::render_gap::{diff_signals, SeoSignals};
 use legion_runtime::p9_skills::seo::check_files;
@@ -39,8 +39,18 @@ fn seo_pre_commit_check_blocks_on_placeholder_text() {
 
 #[test]
 fn council_contracts_digest_and_validate_entry_points() {
-    let record = json!({
+    let mut request = json!({
+        "requestId": "R1",
         "mode": "BLOCKER_CONSULT",
+        "subject": {"artifact": "fixture"},
+    });
+    let packet_digest = request_digest(&request);
+    request["packetDigest"] = json!(packet_digest);
+
+    let record = json!({
+        "requestId": "R1",
+        "mode": "BLOCKER_CONSULT",
+        "packetDigest": packet_digest,
         "outcome": "CONTRACT_SAFE",
         "dispositionState": "PENDING",
         "integrity": {"digestVerified": true, "mutationDetected": false},
@@ -50,7 +60,7 @@ fn council_contracts_digest_and_validate_entry_points() {
             {"lens": "security-ops/code:security-reliability-reviewer", "isolated": true},
         ],
     });
-    let errors = validate_record_fields(&record, None);
+    let errors = validate_record_fields(&record, Some(&request));
     assert!(errors.is_empty(), "unexpected errors: {errors:?}");
     assert!(digest_value(&record).starts_with("sha256:"));
 }

@@ -180,6 +180,12 @@ fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> Stri
     for key in ["name", "description", "developer_instructions"] {
         table.insert(key.into(), canonical[key].clone());
     }
+    if matches!(id, "sage" | "oracle") {
+        table.insert(
+            "sandbox_mode".into(),
+            toml::Value::String("read-only".into()),
+        );
+    }
     // A role without a `model` key takes the codex model of its tier from
     // `src/config/model-tiers.json`, the one source of host model names. Only a
     // tier with no codex mapping falls back to the host-config inheritance
@@ -231,6 +237,18 @@ const ROSTER_ALCHEMIST: &str = include_str!(concat!(
 const ROSTER_ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../src/roster/oracle.md"
+));
+const DOCTRINE_SAGE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../doctrine/sage.md"
+));
+const DOCTRINE_ALCHEMIST: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../doctrine/alchemist.md"
+));
+const DOCTRINE_ORACLE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../doctrine/oracle.md"
 ));
 const COUNCIL_DOCTRINE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -436,6 +454,7 @@ mod role_binding_tests {
         for id in ["sage", "oracle"] {
             let profile: toml::Value = toml::from_str(&content(id)).unwrap();
             assert_eq!(profile["model"].as_str(), Some("gpt-6.1-sol"));
+            assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
             // Effort handling is unchanged: judgment roles take the parent effort.
             assert_eq!(profile["model_reasoning_effort"].as_str(), Some("high"));
         }
@@ -448,6 +467,28 @@ mod role_binding_tests {
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("operator-model"));
         assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
+    }
+
+    #[test]
+    fn role_projection_embeds_complete_doctrine_method_without_local_path_dependency() {
+        for (id, roster, doctrine) in [
+            ("sage", ROSTER_SAGE, DOCTRINE_SAGE),
+            ("alchemist", ROSTER_ALCHEMIST, DOCTRINE_ALCHEMIST),
+            ("oracle", ROSTER_ORACLE, DOCTRINE_ORACLE),
+        ] {
+            let projection = role_projection(id);
+            let (_, expected_roster) = frontmatter(roster);
+            let roster_start = projection.find("## Roster\n\n").unwrap() + "## Roster\n\n".len();
+            let method_heading = projection.find("\n## Method\n\n").unwrap();
+            assert_eq!(
+                projection[roster_start..method_heading].trim(),
+                expected_roster
+            );
+            let (_, expected_method) = frontmatter(doctrine);
+            let method_start = projection.find("## Method\n\n").unwrap() + "## Method\n\n".len();
+            assert_eq!(projection[method_start..].trim(), expected_method);
+            assert!(!projection.contains("Route method: `doctrine/"));
+        }
     }
 
     #[test]
@@ -989,27 +1030,13 @@ fn role_projection(id: &str) -> String {
     let name = f.get("name").cloned().unwrap_or_else(|| id.into());
     let desc = f.get("description").cloned().unwrap_or_default();
     let tier = f.get("modelTier").cloned().unwrap_or_default();
-    let route = match id {
-        "sage" => "doctrine/sage.md",
-        "alchemist" => "doctrine/alchemist.md",
-        _ => "doctrine/oracle.md",
+    let method = match id {
+        "sage" => DOCTRINE_SAGE,
+        "alchemist" => DOCTRINE_ALCHEMIST,
+        _ => DOCTRINE_ORACLE,
     };
-    let sections = [
-        "Purpose",
-        "Triggers",
-        "Routes",
-        "Capabilities",
-        "Inputs",
-        "Outputs",
-        "Boundaries",
-        "Handoffs",
-        "Evidence rules",
-        "Model policy",
-    ]
-    .iter()
-    .filter_map(|s| markdown_section(&b, s))
-    .collect::<Vec<_>>();
-    format!("---\nname: {name}\ndescription: {desc}\n---\n\n# {} — Legion role\n\nModel tier: `{tier}`. Host resolves a compatible provider/model; roster source is vendor-neutral.\n\nRoute method: `{route}`.\n\n{}\n",title_case(&name),sections.join("\n\n"))
+    let (_, method) = frontmatter(method);
+    format!("---\nname: {name}\ndescription: {desc}\n---\n\n# {} — Legion role\n\nModel tier: `{tier}`. Host resolves a compatible provider/model; roster source is vendor-neutral.\n\n## Roster\n\n{}\n\n## Method\n\n{}\n",title_case(&name),b.trim(),method.trim())
 }
 fn capability_catalog() -> String {
     let v: Value = serde_json::from_str(HOST_PROJECTION).unwrap_or_default();

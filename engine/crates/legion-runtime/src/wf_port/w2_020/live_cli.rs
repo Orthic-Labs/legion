@@ -59,6 +59,7 @@ use crate::wf_port::w2_018::inject::{
     validate_config, ConfigError, InjectConfig,
 };
 use crate::wf_port::w2_019::live_target::resolve_live_target;
+use crate::wf_port::w2_022::sveltekit_adapter::project_mutation_target;
 
 /// Mirrors `missingLiveContext(ctx)`. `has_product`/`has_design` correspond
 /// to `ctx.hasProduct` / `ctx.hasDesign`.
@@ -371,19 +372,44 @@ pub fn inject_port(cwd: &Path, port: u32) -> Option<Value> {
     validate_config(&parsed).ok()?;
 
     let resolved_files = resolve_files(cwd, &parsed);
-    let git_ignore = ensure_live_gitignores(cwd).ok();
-    let git_ignore_json = git_ignore
-        .map(|g| json!({ "file": g.file, "mode": g.mode, "changed": g.changed }))
-        .unwrap_or(Value::Null);
-
+    let mut targets = Vec::new();
     let mut results = Vec::new();
-    let mut any_inserted = false;
     for rel_file in &resolved_files {
-        let abs_file = cwd.join(rel_file);
-        if !abs_file.exists() {
-            results.push(json!({ "file": rel_file, "error": "file_not_found" }));
-            continue;
+        match project_mutation_target(cwd, Path::new(rel_file)) {
+            Ok(target) => match std::fs::symlink_metadata(&target) {
+                Ok(_) => targets.push(target),
+                Err(err) => results.push(json!({
+                    "file": rel_file,
+                    "error": if err.kind() == std::io::ErrorKind::NotFound { "file_not_found" } else { "file_unreadable" },
+                })),
+            },
+            Err(err) => results.push(json!({
+                "file": rel_file,
+                "error": if err.kind() == std::io::ErrorKind::PermissionDenied { "path_outside_project" } else { "file_unreadable" },
+            })),
         }
+    }
+    if !results.is_empty() || resolved_files.is_empty() {
+        if resolved_files.is_empty() {
+            results.push(json!({ "error": "no_files_resolved" }));
+        }
+        return Some(json!({ "ok": false, "port": port, "results": results }));
+    }
+
+    let git_ignore = match ensure_live_gitignores(cwd) {
+        Ok(result) => result,
+        Err(err) => {
+            return Some(
+                json!({ "ok": false, "port": port, "error": "gitignore_error", "message": err.to_string(), "results": [] }),
+            );
+        }
+    };
+    let git_ignore_json =
+        json!({ "file": git_ignore.file, "mode": git_ignore.mode, "changed": git_ignore.changed });
+
+    results.clear();
+    let mut any_inserted = false;
+    for (rel_file, abs_file) in resolved_files.iter().zip(targets) {
         let content = match std::fs::read_to_string(&abs_file) {
             Ok(c) => c,
             Err(_) => {

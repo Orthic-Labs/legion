@@ -126,3 +126,13 @@ Aggregate Score = Σ(Platform_Score × Platform_Budget_Share)
 Example: Google (82) × 40% + Meta (71) × 35% + LinkedIn (90) × 25%
        = 32.8 + 24.85 + 22.5 = 80.15 → Grade B
 ```
+
+Use this health-score aggregate only when every in-scope platform has a score and the supplied
+budget shares cover the full scoped budget. If a provider/platform is missing, report the covered
+budget share and missing platforms; do not silently treat missing scores as zero or renormalize
+the remaining shares. A covered-only score may be shown separately as
+`Σ(score × share) / covered_share`, labeled with its denominator and coverage. Never compare
+cross-platform conversion performance, CPA, or ROAS unless the compared reports align on:
+conversion event and value definition; attribution window, including separate click-through and
+view-through windows; counting rule and deduplication; reporting timezone; currency; and
+attribution model. State each mismatch or unavailable field and exclude it from direct comparison.

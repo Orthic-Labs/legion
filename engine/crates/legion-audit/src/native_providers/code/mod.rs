@@ -179,7 +179,7 @@ fn analyze(provider_id: &str, input: &Value) -> Result<Value, AuditError> {
         other => {
             return Err(AuditError::Provider(format!(
                 "unsupported native code provider: {other}"
-            )))
+            )));
         }
     })
 }

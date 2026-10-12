@@ -44,6 +44,10 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    enforces provider denominator & resource bounds.
 3. Execute only through installed `legion research`; Python product runtime is retired. Do not
    instruct a reader to run any `src/lib/research-core/**` script — it does not ship.
+   NotebookLM stateful work (search, create, upload, generate, download) requires a callable
+   `notebooklm` host adapter actually exposed in the current host. The native command only consumes
+   host-opened source records; with no callable adapter, preserve the route and report
+   `unavailable`. See `references/providers/notebooklm.md`.
 4. A hit is a lead; evidence needs an opened source and located passage; preserve atomic
    claims, contradictions, dates, scope, uncertainty.
 5. `verified` adds domain verification, citation-support, DOI retraction checks. Corrections

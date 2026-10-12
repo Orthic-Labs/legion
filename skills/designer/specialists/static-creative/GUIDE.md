@@ -41,7 +41,12 @@ When the request is ambiguous, ask which output type before loading any referenc
 |---|---|
 | `marketing.md` | Brand lead, conversion designer, copy strategist, visual director, production/spec checker |
 
-Output standard: spec recap, 3 variant briefs, generated assets (or prompts), filenames, posting-ready note.
+Output standard: spec recap, three materially distinct candidate compositions when the choice is
+non-trivial or options are requested, a separate scored critique, generated asset file(s),
+dimensions/format, filenames, and posting-readiness status. A prompt is a production input, not a
+generated asset: if no image/design generation capability is available, return the prompt as a
+clearly labeled partial and do not call it finished or posting-ready. A prompt-only result is
+complete only when the user asked for prompts.
 
 ## Optional independent review
 

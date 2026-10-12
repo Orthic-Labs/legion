@@ -123,6 +123,12 @@ impl NativeProviderRegistry {
         self.external_project_tool = Some(tool);
         self
     }
+
+    /// Pin the installed RustRight host runtime used for managed test runs.
+    pub fn with_attested_runs(mut self, enrollment: legacy_checks::AttestedRunsEnrollment) -> Self {
+        self.legacy_checks = self.legacy_checks.clone().with_attested_runs(enrollment);
+        self
+    }
 }
 
 #[async_trait::async_trait]

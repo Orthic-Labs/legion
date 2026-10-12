@@ -2051,6 +2051,7 @@ name = "legion-audit"
 version = "0.3.23"
 dependencies = [
  "async-trait",
+ "getrandom 0.3.4",
  "headless_chrome",
  "hex",
  "hmac 0.13.0",

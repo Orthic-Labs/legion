@@ -70,6 +70,7 @@ allowed; a second `BLOCK` returns directly to user and ends review loop.
 > **Missing evidence never becomes a pass.** An audit finding is closed by evidence from the resulting state, not by confidence in the proposed fix.
 
 `unknown` is an honest verdict; report it as such. Never let an unrun check, an unreadable artifact, or another agent's success claim launder into green.
+When another defect already blocks, still enumerate every material requested check that available evidence cannot answer as `UNKNOWN`.
 
 ## Boundaries
 

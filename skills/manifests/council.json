@@ -93,7 +93,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://council/SKILL.md",
-      "digest": "sha256:ba995fb273c15ee68329f9ac5bf18f8f330f00a539fac6672f2100a0e37120de"
+      "digest": "sha256:1ef4c0d37a033f1945454b6e5ef2fdc4e41ef71690911a0ed9ca5ae680488f3a"
     },
     {
       "path": "agents/openai.yaml",
@@ -118,12 +118,12 @@
     {
       "path": "lib/schemas/council-record-v1.schema.json",
       "uri": "legion-skill://council/lib/schemas/council-record-v1.schema.json",
-      "digest": "sha256:1e679a180862aa887d3abb6a7355f2b487652b5a7539e7b160bc37f58231207f"
+      "digest": "sha256:4e84e6cfa1f72ec23766d46ef0e7e5ff1ed26b9f5bd9abb5a859290f6df92b29"
     },
     {
       "path": "lib/schemas/council-request-v1.schema.json",
       "uri": "legion-skill://council/lib/schemas/council-request-v1.schema.json",
-      "digest": "sha256:8208e2523ad2c9028c83d27faf69f2034c4fab8caac6ff447d86abbdf69097b7"
+      "digest": "sha256:91b330202ecdb409dc0eaf059dd85dfbe3bdcfda04c55e2f5990cd6773e7fc27"
     },
     {
       "path": "references/lenses/README.md",

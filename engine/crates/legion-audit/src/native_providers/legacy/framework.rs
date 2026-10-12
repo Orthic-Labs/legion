@@ -8,41 +8,336 @@ use std::collections::{BTreeMap, BTreeSet};
 use legion_contracts::ProviderStatus;
 use serde_json::{json, Value};
 
-use super::common::{
-    denominator, digest_text, line_at, occurrences_ascii_case_insensitive, source_files,
-    ProviderInput,
-};
+use super::common::{denominator, digest_text, line_at, source_files, ProviderInput};
 
 #[derive(Clone, Copy)]
 struct Rule {
     id: &'static str,
     level: &'static str,
-    needle: &'static str,
+    pattern: &'static str,
     message: &'static str,
 }
 
 fn rules(family: &str) -> &'static [Rule] {
     match family {
-        "next" => &[Rule { id: "next-public-secret", level: "error", needle: "NEXT_PUBLIC_", message: "Secret-like configuration uses the browser-exposed NEXT_PUBLIC_ prefix." }, Rule { id: "next-unsafe-html", level: "warning", needle: "dangerouslySetInnerHTML=", message: "Raw HTML rendering requires a proven sanitization boundary." }, Rule { id: "next-unvalidated-redirect", level: "warning", needle: "NextResponse.redirect(", message: "Request-controlled data may reach a redirect target." }],
-        "vue" => &[Rule { id: "vue-v-html", level: "warning", needle: "v-html=", message: "v-html renders raw HTML and requires sanitization." }],
-        "nuxt" => &[Rule { id: "nuxt-public-secret", level: "error", needle: "public:", message: "Secret-like runtime configuration is placed in Nuxt public config." }, Rule { id: "nuxt-ssr-disabled", level: "note", needle: "ssr: false", message: "SSR is disabled; confirm this matches product and security assumptions." }],
-        "angular" => &[Rule { id: "angular-trust-bypass", level: "error", needle: "bypassSecurityTrust", message: "Angular sanitization is explicitly bypassed." }, Rule { id: "angular-inner-html", level: "warning", needle: "[innerHTML]=", message: "Dynamic HTML binding requires trust and sanitization review." }],
-        "svelte" => &[Rule { id: "svelte-raw-html", level: "warning", needle: "{@html ", message: "Svelte raw HTML rendering requires sanitization." }],
-        "sveltekit" => &[Rule { id: "sveltekit-public-env-secret", level: "error", needle: "/public", message: "Secret-like value is imported through SvelteKit public environment APIs." }, Rule { id: "sveltekit-unvalidated-redirect", level: "warning", needle: "redirect(", message: "Request-controlled data may reach a redirect target." }],
-        "express" => &[Rule { id: "express-trust-proxy-all", level: "warning", needle: "trust proxy', true", message: "Express trusts every proxy; verify deployment boundaries." }, Rule { id: "express-open-cors", level: "warning", needle: "origin: '*'", message: "Express CORS appears broadly permissive." }, Rule { id: "express-error-leak", level: "warning", needle: "err.stack", message: "Server error stack may be returned to clients." }],
-        "fastify" => &[Rule { id: "fastify-open-cors", level: "warning", needle: "origin: true", message: "Fastify CORS accepts arbitrary origins." }, Rule { id: "fastify-schema-missing", level: "note", needle: ".get(", message: "Route declaration has no visible validation schema." }],
-        "nest" => &[Rule { id: "nest-open-cors", level: "warning", needle: "enableCors(", message: "Nest CORS appears broadly permissive." }, Rule { id: "nest-validation-missing-transform", level: "note", needle: "ValidationPipe(", message: "Nest ValidationPipe does not visibly enable transformation." }],
-        "electron" => &[Rule { id: "electron-node-integration", level: "error", needle: "nodeIntegration: true", message: "Electron renderer has Node integration enabled." }, Rule { id: "electron-context-isolation", level: "error", needle: "contextIsolation: false", message: "Electron context isolation is disabled." }, Rule { id: "electron-web-security", level: "error", needle: "webSecurity: false", message: "Electron web security is disabled." }, Rule { id: "electron-shell-open-external", level: "warning", needle: "shell.openExternal(", message: "Potentially untrusted URL reaches shell.openExternal." }],
-        "django" => &[Rule { id: "django-debug", level: "error", needle: "DEBUG = True", message: "Django DEBUG is enabled in tracked configuration." }, Rule { id: "django-hosts-all", level: "warning", needle: "ALLOWED_HOSTS = [\"*\"]", message: "Django accepts every Host header." }, Rule { id: "django-csrf-exempt", level: "warning", needle: "@csrf_exempt", message: "Django CSRF protection is bypassed for this view." }, Rule { id: "django-mark-safe", level: "warning", needle: "mark_safe(", message: "Django output is explicitly marked safe." }],
-        "fastapi" => &[Rule { id: "fastapi-open-cors", level: "warning", needle: "allow_origins = [\"*\"]", message: "FastAPI CORS accepts every origin." }, Rule { id: "fastapi-no-response-model", level: "note", needle: "@app.get(", message: "FastAPI route has no visible response_model contract." }],
-        "flask" => &[Rule { id: "flask-debug", level: "error", needle: "debug=True", message: "Flask debug mode is enabled." }, Rule { id: "flask-secret-fallback", level: "high", needle: "SECRET_KEY", message: "Flask secret key has a tracked fallback value." }, Rule { id: "flask-render-template-string", level: "warning", needle: "render_template_string(", message: "Request-controlled data may reach a Jinja template source." }],
-        "spring" => &[Rule { id: "spring-csrf-disabled", level: "warning", needle: ".disable(", message: "Spring Security CSRF protection is disabled; prove the application is stateless." }, Rule { id: "spring-sensitive-permit-all", level: "error", needle: ".permitAll(", message: "Sensitive-looking Spring route is configured permitAll." }, Rule { id: "spring-spel-input", level: "error", needle: "parseExpression(", message: "Potentially variable input reaches a SpEL parser." }],
-        "ktor" => &[Rule { id: "ktor-any-host", level: "warning", needle: "anyHost()", message: "Ktor CORS permits any host." }, Rule { id: "ktor-forwarded-headers", level: "note", needle: "XForwardedHeaders", message: "Forwarded headers are trusted; verify proxy boundaries." }],
-        "rails" => &[Rule { id: "rails-forgery-skip", level: "warning", needle: "skip_forgery_protection", message: "Rails request forgery protection is bypassed." }, Rule { id: "rails-html-safe", level: "warning", needle: ".html_safe", message: "Rails output is explicitly marked HTML-safe." }, Rule { id: "rails-constantize-input", level: "error", needle: ".constantize", message: "Request-controlled value may select a Ruby constant." }],
-        "phoenix" => &[Rule { id: "phoenix-check-origin-disabled", level: "warning", needle: "check_origin: false", message: "Phoenix origin checks are disabled." }, Rule { id: "phoenix-raw-html", level: "warning", needle: "raw(", message: "Phoenix template emits raw HTML." }],
-        "flutter" => &[Rule { id: "flutter-bad-cert-callback", level: "error", needle: "badCertificateCallback", message: "Flutter/Dart accepts every TLS certificate." }, Rule { id: "flutter-webview-js-unrestricted", level: "warning", needle: "JavaScriptMode.unrestricted", message: "Flutter WebView enables unrestricted JavaScript." }],
-        "go-web" => &[Rule { id: "go-http-no-timeouts", level: "warning", needle: "http.Server", message: "Go HTTP server is used; verify read/write timeouts are configured." }, Rule { id: "go-template-html", level: "warning", needle: "template.HTML(", message: "Potentially untrusted content is cast to trusted template HTML." }],
-        "rust-web" => &[Rule { id: "rust-web-unbounded-body", level: "note", needle: "Bytes<", message: "Request body handling should have an explicit size bound." }, Rule { id: "rust-web-command-input", level: "error", needle: "Command::new", message: "Request-derived data may reach a process argument." }],
+        "next" => &[
+            Rule {
+                id: "next-public-secret",
+                level: "error",
+                pattern: r"NEXT_PUBLIC_[A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD)",
+                message: "Secret-like configuration uses the browser-exposed NEXT_PUBLIC_ prefix.",
+            },
+            Rule {
+                id: "next-unsafe-html",
+                level: "warning",
+                pattern: r"dangerouslySetInnerHTML\s*=",
+                message: "Raw HTML rendering requires a proven sanitization boundary.",
+            },
+            Rule {
+                id: "next-unvalidated-redirect",
+                level: "warning",
+                pattern: r"(?:redirect|NextResponse\.redirect)\s*\([^\n]*(?:searchParams|query|request\.url)",
+                message: "Request-controlled data may reach a redirect target.",
+            },
+        ],
+        "vue" => &[Rule {
+            id: "vue-v-html",
+            level: "warning",
+            pattern: r"\bv-html\s*=",
+            message: "v-html renders raw HTML and requires sanitization.",
+        }],
+        "nuxt" => &[
+            Rule {
+                id: "nuxt-public-secret",
+                level: "error",
+                pattern: r"(?i)public\s*:\s*\{[\s\S]{0,400}(?:secret|token|password|privateKey)\s*:",
+                message: "Secret-like runtime configuration is placed in Nuxt public config.",
+            },
+            Rule {
+                id: "nuxt-ssr-disabled",
+                level: "note",
+                pattern: r"\bssr\s*:\s*false",
+                message: "SSR is disabled; confirm this matches product and security assumptions.",
+            },
+        ],
+        "angular" => &[
+            Rule {
+                id: "angular-trust-bypass",
+                level: "error",
+                pattern: r"bypassSecurityTrust(?:Html|Script|Style|Url|ResourceUrl)\s*\(",
+                message: "Angular sanitization is explicitly bypassed.",
+            },
+            Rule {
+                id: "angular-inner-html",
+                level: "warning",
+                pattern: r"\[innerHTML\]\s*=",
+                message: "Dynamic HTML binding requires trust and sanitization review.",
+            },
+        ],
+        "svelte" => &[Rule {
+            id: "svelte-raw-html",
+            level: "warning",
+            pattern: r"\{@html\s+",
+            message: "Svelte raw HTML rendering requires sanitization.",
+        }],
+        "sveltekit" => &[
+            Rule {
+                id: "sveltekit-public-env-secret",
+                level: "error",
+                pattern: r"\$env/(?:static|dynamic)/public[\s\S]{0,160}(?:SECRET|TOKEN|PASSWORD|PRIVATE_KEY)",
+                message: "Secret-like value is imported through SvelteKit public environment APIs.",
+            },
+            Rule {
+                id: "sveltekit-unvalidated-redirect",
+                level: "warning",
+                pattern: r"redirect\s*\([^,]+,\s*(?:url|event\.url|searchParams)",
+                message: "Request-controlled data may reach a redirect target.",
+            },
+        ],
+        "express" => &[
+            Rule {
+                id: "express-trust-proxy-all",
+                level: "warning",
+                pattern: r#"set\s*\(\s*['"]trust proxy['"]\s*,\s*true\s*\)"#,
+                message: "Express trusts every proxy; verify deployment boundaries.",
+            },
+            Rule {
+                id: "express-open-cors",
+                level: "warning",
+                pattern: r#"cors\s*\(\s*(?:\{|\))[\s\S]{0,200}(?:origin\s*:\s*['"]\*['"]|$)"#,
+                message: "Express CORS appears broadly permissive.",
+            },
+            Rule {
+                id: "express-error-leak",
+                level: "warning",
+                pattern: r"res\.(?:send|json)\s*\([^\n]*(?:err\.stack|error\.stack)",
+                message: "Server error stack may be returned to clients.",
+            },
+        ],
+        "fastify" => &[
+            Rule {
+                id: "fastify-open-cors",
+                level: "warning",
+                pattern: r#"register\s*\([^\n]*cors[\s\S]{0,250}origin\s*:\s*(?:true|['"]\*['"])"#,
+                message: "Fastify CORS accepts arbitrary origins.",
+            },
+            Rule {
+                id: "fastify-schema-missing",
+                level: "note",
+                pattern: r#"\.(?:get|post|put|patch|delete)\s*\(\s*['"][^'"]+['"]\s*,\s*(?:async\s*)?\("#,
+                message: "Route declaration has no visible validation schema.",
+            },
+        ],
+        "nest" => &[
+            Rule {
+                id: "nest-open-cors",
+                level: "warning",
+                pattern: r#"enableCors\s*\(\s*(?:\{|\))[\s\S]{0,200}(?:origin\s*:\s*(?:true|['"]\*['"])|$)"#,
+                message: "Nest CORS appears broadly permissive.",
+            },
+            Rule {
+                id: "nest-validation-missing-transform",
+                level: "note",
+                pattern: r"useGlobalPipes\s*\(\s*new\s+ValidationPipe\s*\(\s*\{",
+                message: "Nest ValidationPipe does not visibly enable transformation.",
+            },
+        ],
+        "electron" => &[
+            Rule {
+                id: "electron-node-integration",
+                level: "error",
+                pattern: r"nodeIntegration\s*:\s*true",
+                message: "Electron renderer has Node integration enabled.",
+            },
+            Rule {
+                id: "electron-context-isolation",
+                level: "error",
+                pattern: r"contextIsolation\s*:\s*false",
+                message: "Electron context isolation is disabled.",
+            },
+            Rule {
+                id: "electron-web-security",
+                level: "error",
+                pattern: r"webSecurity\s*:\s*false",
+                message: "Electron web security is disabled.",
+            },
+            Rule {
+                id: "electron-shell-open-external",
+                level: "warning",
+                pattern: r"shell\.openExternal\s*\([^\n]*(?:url|href|input|request)",
+                message: "Potentially untrusted URL reaches shell.openExternal.",
+            },
+        ],
+        "django" => &[
+            Rule {
+                id: "django-debug",
+                level: "error",
+                pattern: r"(?m)^\s*DEBUG\s*=\s*True\b",
+                message: "Django DEBUG is enabled in tracked configuration.",
+            },
+            Rule {
+                id: "django-hosts-all",
+                level: "warning",
+                pattern: r#"(?m)^\s*ALLOWED_HOSTS\s*=\s*\[[^\]]*['"]\*['"]"#,
+                message: "Django accepts every Host header.",
+            },
+            Rule {
+                id: "django-csrf-exempt",
+                level: "warning",
+                pattern: r"@csrf_exempt\b",
+                message: "Django CSRF protection is bypassed for this view.",
+            },
+            Rule {
+                id: "django-mark-safe",
+                level: "warning",
+                pattern: r"\bmark_safe\s*\(",
+                message: "Django output is explicitly marked safe.",
+            },
+        ],
+        "fastapi" => &[
+            Rule {
+                id: "fastapi-open-cors",
+                level: "warning",
+                pattern: r#"allow_origins\s*=\s*\[[^\]]*['"]\*['"]"#,
+                message: "FastAPI CORS accepts every origin.",
+            },
+            Rule {
+                id: "fastapi-no-response-model",
+                level: "note",
+                pattern: r"@(?:app|router)\.(?:get|post|put|patch|delete)\s*\([^\n]*\)\s*\n(?:async\s+)?def\s+",
+                message: "FastAPI route has no visible response_model contract.",
+            },
+        ],
+        "flask" => &[
+            Rule {
+                id: "flask-debug",
+                level: "error",
+                pattern: r"app\.run\s*\([^)]*debug\s*=\s*True",
+                message: "Flask debug mode is enabled.",
+            },
+            Rule {
+                id: "flask-secret-fallback",
+                level: "high",
+                pattern: r#"SECRET_KEY['"]?\s*\]\s*=\s*(?:os\.environ\.get\([^)]*\)\s+or\s+)?['"][^'"]+['"]"#,
+                message: "Flask secret key has a tracked fallback value.",
+            },
+            Rule {
+                id: "flask-render-template-string",
+                level: "warning",
+                pattern: r"render_template_string\s*\([^\n]*(?:request|input|user)",
+                message: "Request-controlled data may reach a Jinja template source.",
+            },
+        ],
+        "spring" => &[
+            Rule {
+                id: "spring-csrf-disabled",
+                level: "warning",
+                pattern: r"csrf\s*\([^)]*\)\s*\.disable\s*\(|(?s)csrf\s*\{[^}]*disable\s*\(",
+                message: "Spring Security CSRF protection is disabled; prove the application is stateless.",
+            },
+            Rule {
+                id: "spring-sensitive-permit-all",
+                level: "error",
+                pattern: r"(?is)requestMatchers\s*\([^)]*(?:admin|internal|actuator)[^)]*\)\s*\.permitAll\s*\(",
+                message: "Sensitive-looking Spring route is configured permitAll.",
+            },
+            Rule {
+                id: "spring-spel-input",
+                level: "error",
+                pattern: r"SpelExpressionParser[\s\S]{0,500}parseExpression\s*\(\s*(?:request|input|value|expression)",
+                message: "Potentially variable input reaches a SpEL parser.",
+            },
+        ],
+        "ktor" => &[
+            Rule {
+                id: "ktor-any-host",
+                level: "warning",
+                pattern: r"anyHost\s*\(\s*\)",
+                message: "Ktor CORS permits any host.",
+            },
+            Rule {
+                id: "ktor-forwarded-headers",
+                level: "note",
+                pattern: r"XForwardedHeaders",
+                message: "Forwarded headers are trusted; verify proxy boundaries.",
+            },
+        ],
+        "rails" => &[
+            Rule {
+                id: "rails-forgery-skip",
+                level: "warning",
+                pattern: r"skip_(?:before_action|before_filter)\s+:verify_authenticity_token|skip_forgery_protection",
+                message: "Rails request forgery protection is bypassed.",
+            },
+            Rule {
+                id: "rails-html-safe",
+                level: "warning",
+                pattern: r"\.html_safe\b|raw\s*\(",
+                message: "Rails output is explicitly marked HTML-safe.",
+            },
+            Rule {
+                id: "rails-constantize-input",
+                level: "error",
+                pattern: r"(?:params|request)[^\n]*\.constantize\b",
+                message: "Request-controlled value may select a Ruby constant.",
+            },
+        ],
+        "phoenix" => &[
+            Rule {
+                id: "phoenix-check-origin-disabled",
+                level: "warning",
+                pattern: r"check_origin:\s*false",
+                message: "Phoenix origin checks are disabled.",
+            },
+            Rule {
+                id: "phoenix-raw-html",
+                level: "warning",
+                pattern: r"raw\s*\(",
+                message: "Phoenix template emits raw HTML.",
+            },
+        ],
+        "flutter" => &[
+            Rule {
+                id: "flutter-bad-cert-callback",
+                level: "error",
+                pattern: r"badCertificateCallback\s*=\s*[^;]*=>\s*true",
+                message: "Flutter/Dart accepts every TLS certificate.",
+            },
+            Rule {
+                id: "flutter-webview-js-unrestricted",
+                level: "warning",
+                pattern: r"JavaScriptMode\.unrestricted",
+                message: "Flutter WebView enables unrestricted JavaScript.",
+            },
+        ],
+        "go-web" => &[
+            Rule {
+                id: "go-http-no-timeouts",
+                level: "warning",
+                pattern: r"http\.Server\s*\{",
+                message: "Go HTTP server has no visible timeout configuration.",
+            },
+            Rule {
+                id: "go-template-html",
+                level: "warning",
+                pattern: r"template\.HTML\s*\([^\n]*(?:request|input|user)",
+                message: "Potentially untrusted content is cast to trusted template HTML.",
+            },
+        ],
+        "rust-web" => &[
+            Rule {
+                id: "rust-web-unbounded-body",
+                level: "note",
+                pattern: r"(?:axum|actix_web|warp|rocket)[\s\S]{0,800}(?:Bytes|String|Json)<|web::Payload",
+                message: "Request body handling should have an explicit size bound.",
+            },
+            Rule {
+                id: "rust-web-command-input",
+                level: "error",
+                pattern: r"Command::new\s*\([^)]*\)[\s\S]{0,200}arg\s*\([^\n]*(?:query|path|body|input)",
+                message: "Request-derived data may reach a process argument.",
+            },
+        ],
         _ => &[],
     }
 }
@@ -147,20 +442,36 @@ fn family_applies_to(family: &str, path: &str) -> bool {
     allowed.contains(&ext.as_str())
 }
 
-fn matches_rule(rule: Rule, text: &str) -> bool {
-    let lower = text.to_ascii_lowercase();
-    let needle = rule.needle.to_ascii_lowercase();
-    if rule.id == "next-public-secret" {
-        return occurrences_ascii_case_insensitive(text, "NEXT_PUBLIC_")
-            .iter()
-            .any(|offset| {
-                let tail = &text[*offset..text.len().min(*offset + 100)].to_ascii_uppercase();
-                ["SECRET", "TOKEN", "KEY", "PASSWORD"]
-                    .iter()
-                    .any(|word| tail.contains(word))
-            });
+fn find_rule_match(rule: Rule, text: &str) -> Option<usize> {
+    let regex = regex::Regex::new(rule.pattern).ok()?;
+    if rule.id == "nest-validation-missing-transform" {
+        let transform = regex::Regex::new(r"transform\s*:\s*true").ok()?;
+        for found in regex.find_iter(text) {
+            let tail = text.get(found.end()..)?;
+            let transform_in_window = transform
+                .find_iter(tail)
+                .any(|token| tail[..token.start()].encode_utf16().count() <= 200);
+            if !transform_in_window {
+                return Some(found.start());
+            }
+        }
+        return None;
     }
-    lower.contains(&needle)
+    if rule.id == "go-http-no-timeouts" {
+        let timeout =
+            regex::Regex::new(r"ReadHeaderTimeout|ReadTimeout|WriteTimeout|IdleTimeout").ok()?;
+        for found in regex.find_iter(text) {
+            let tail = text.get(found.end()..)?;
+            let timeout_in_window = timeout
+                .find_iter(tail)
+                .any(|field| tail[..field.start()].encode_utf16().count() <= 500);
+            if !timeout_in_window {
+                return Some(found.start());
+            }
+        }
+        return None;
+    }
+    regex.find(text).map(|found| found.start())
 }
 
 pub fn run_framework_suite(input: &ProviderInput<'_>) -> Result<Value, crate::error::AuditError> {
@@ -209,14 +520,8 @@ pub fn run_framework_suite(input: &ProviderInput<'_>) -> Result<Value, crate::er
         let mut rows = Vec::new();
         for (file, text) in family_files {
             for rule in rules(&family) {
-                if matches_rule(*rule, &text) {
-                    let line = line_at(
-                        &text,
-                        occurrences_ascii_case_insensitive(&text, rule.needle)
-                            .first()
-                            .copied()
-                            .unwrap_or(0),
-                    );
+                if let Some(offset) = find_rule_match(*rule, &text) {
+                    let line = line_at(&text, offset);
                     rows.push(json!({"id":digest_text(&format!("{}\0{}\0{}", rule.id, file, line)),"ruleId":rule.id,"severityHint":if matches!(rule.level,"error"|"high"){"high"}else if rule.level=="warning"{"medium"}else{"low"},"claim":rule.message,"file":file,"line":line}));
                 }
             }
@@ -302,7 +607,7 @@ pub fn execute(
 
 #[cfg(test)]
 mod tests {
-    use super::family_name;
+    use super::{family_name, find_rule_match, rules};
 
     #[test]
     fn jvm_framework_markers_follow_coordinate_groups_and_exact_plugin_ids() {
@@ -317,5 +622,282 @@ mod tests {
         assert_eq!(family_name("io.ktor:ktor-server-core"), Some("ktor"));
         assert_eq!(family_name("io.ktor.plugin"), Some("ktor"));
         assert_eq!(family_name("io.ktorevil:ktor-server-core"), None);
+    }
+
+    #[test]
+    fn legacy_framework_rule_shapes_preserve_context_and_formatting() {
+        let positive_fixtures = [
+            ("next", "next-public-secret", "NEXT_PUBLIC_API_SECRET"),
+            (
+                "next",
+                "next-unsafe-html",
+                "dangerouslySetInnerHTML \t= value",
+            ),
+            (
+                "next",
+                "next-unvalidated-redirect",
+                "redirect (path, request.url)",
+            ),
+            ("vue", "vue-v-html", "<div v-html \t=\"value\">"),
+            (
+                "nuxt",
+                "nuxt-public-secret",
+                "public : {\n apiToken : value }",
+            ),
+            ("nuxt", "nuxt-ssr-disabled", "ssr : false"),
+            (
+                "angular",
+                "angular-trust-bypass",
+                "bypassSecurityTrustResourceUrl (value)",
+            ),
+            ("angular", "angular-inner-html", "[innerHTML] \t= value"),
+            ("svelte", "svelte-raw-html", "{@html\n value}"),
+            (
+                "sveltekit",
+                "sveltekit-public-env-secret",
+                "$env/static/public\nAPI_SECRET",
+            ),
+            (
+                "sveltekit",
+                "sveltekit-unvalidated-redirect",
+                "redirect(303, event.url)",
+            ),
+            (
+                "express",
+                "express-trust-proxy-all",
+                "app.set (\"trust proxy\", true)",
+            ),
+            ("express", "express-open-cors", "cors({ origin : '*' })"),
+            (
+                "express",
+                "express-error-leak",
+                "res.json({ error: err.stack })",
+            ),
+            (
+                "fastify",
+                "fastify-open-cors",
+                "app.register(cors, { origin : true })",
+            ),
+            (
+                "fastify",
+                "fastify-schema-missing",
+                "app.get ('/health', async () => {})",
+            ),
+            ("nest", "nest-open-cors", "app.enableCors({ origin: '*' })"),
+            (
+                "nest",
+                "nest-validation-missing-transform",
+                "useGlobalPipes(new ValidationPipe({ whitelist: true }))",
+            ),
+            (
+                "electron",
+                "electron-node-integration",
+                "nodeIntegration : true",
+            ),
+            (
+                "electron",
+                "electron-context-isolation",
+                "contextIsolation : false",
+            ),
+            ("electron", "electron-web-security", "webSecurity : false"),
+            (
+                "electron",
+                "electron-shell-open-external",
+                "shell.openExternal (request.url)",
+            ),
+            ("django", "django-debug", "  DEBUG \t= True"),
+            (
+                "django",
+                "django-hosts-all",
+                "ALLOWED_HOSTS = ['*', 'example.com']",
+            ),
+            ("django", "django-csrf-exempt", "@csrf_exempt"),
+            ("django", "django-mark-safe", "mark_safe (value)"),
+            ("fastapi", "fastapi-open-cors", "allow_origins = ['*']"),
+            (
+                "fastapi",
+                "fastapi-no-response-model",
+                "@router.get('/health')\ndef check(): pass",
+            ),
+            (
+                "flask",
+                "flask-debug",
+                "app.run (host='0.0.0.0', debug = True)",
+            ),
+            (
+                "flask",
+                "flask-secret-fallback",
+                "app.config['SECRET_KEY'] = 'tracked-fallback'",
+            ),
+            (
+                "flask",
+                "flask-render-template-string",
+                "render_template_string(template, user.name)",
+            ),
+            (
+                "spring",
+                "spring-csrf-disabled",
+                "http.csrf (config).disable ()",
+            ),
+            (
+                "spring",
+                "spring-sensitive-permit-all",
+                "requestMatchers('/admin/**').permitAll()",
+            ),
+            (
+                "spring",
+                "spring-spel-input",
+                "SpelExpressionParser().parseExpression(request.value)",
+            ),
+            ("ktor", "ktor-any-host", "anyHost ( )"),
+            ("ktor", "ktor-forwarded-headers", "XForwardedHeaders"),
+            (
+                "rails",
+                "rails-forgery-skip",
+                "skip_before_action :verify_authenticity_token",
+            ),
+            ("rails", "rails-html-safe", "value.html_safe"),
+            (
+                "rails",
+                "rails-constantize-input",
+                "params[:type].constantize",
+            ),
+            (
+                "phoenix",
+                "phoenix-check-origin-disabled",
+                "check_origin: false",
+            ),
+            ("phoenix", "phoenix-raw-html", "raw (value)"),
+            (
+                "flutter",
+                "flutter-bad-cert-callback",
+                "badCertificateCallback = (cert) => true",
+            ),
+            (
+                "flutter",
+                "flutter-webview-js-unrestricted",
+                "JavaScriptMode.unrestricted",
+            ),
+            (
+                "go-web",
+                "go-http-no-timeouts",
+                "server := http.Server { Handler: mux }",
+            ),
+            ("go-web", "go-template-html", "template.HTML(userInput)"),
+            (
+                "rust-web",
+                "rust-web-unbounded-body",
+                "axum::body::Bytes<Body>",
+            ),
+            (
+                "rust-web",
+                "rust-web-command-input",
+                "Command::new(program).arg(query)",
+            ),
+        ];
+        for (family, id, source) in positive_fixtures {
+            let rule = rules(family).iter().find(|rule| rule.id == id).unwrap();
+            assert!(find_rule_match(*rule, source).is_some(), "{id}: {source}");
+        }
+    }
+
+    #[test]
+    fn legacy_framework_rules_do_not_flag_safe_contexts_or_unrelated_tokens() {
+        let negative_fixtures = [
+            ("next", "next-public-secret", "NEXT_PUBLIC_API_BASE_URL"),
+            (
+                "next",
+                "next-unvalidated-redirect",
+                "redirect('/home', { permanent: true })",
+            ),
+            ("nuxt", "nuxt-public-secret", "public: { siteName: 'Acme' }"),
+            (
+                "sveltekit",
+                "sveltekit-public-env-secret",
+                "$env/static/private/API_SECRET",
+            ),
+            (
+                "express",
+                "express-trust-proxy-all",
+                "app.set('trust proxy', 1)",
+            ),
+            (
+                "fastify",
+                "fastify-open-cors",
+                "app.register(cors, { origin: ['https://app.example'] })",
+            ),
+            (
+                "nest",
+                "nest-validation-missing-transform",
+                "useGlobalPipes(new ValidationPipe({ transform: true }))",
+            ),
+            ("django", "django-debug", "logger.info('DEBUG = True')"),
+            ("flask", "flask-debug", "app.run(debug=False)"),
+            (
+                "spring",
+                "spring-sensitive-permit-all",
+                "requestMatchers('/public/**').permitAll()",
+            ),
+            (
+                "go-web",
+                "go-http-no-timeouts",
+                "http.Server{ ReadHeaderTimeout: time.Second }",
+            ),
+            ("go-web", "go-template-html", "template.HTML(staticMarkup)"),
+            (
+                "rust-web",
+                "rust-web-command-input",
+                "Command::new(program).arg(staticName)",
+            ),
+        ];
+        for (family, id, source) in negative_fixtures {
+            let rule = rules(family).iter().find(|rule| rule.id == id).unwrap();
+            assert!(find_rule_match(*rule, source).is_none(), "{id}: {source}");
+        }
+    }
+
+    #[test]
+    fn legacy_context_windows_are_unicode_safe_and_allow_tokens_to_cross_boundary() {
+        let nest = rules("nest")
+            .iter()
+            .find(|rule| rule.id == "nest-validation-missing-transform")
+            .unwrap();
+        let go = rules("go-web")
+            .iter()
+            .find(|rule| rule.id == "go-http-no-timeouts")
+            .unwrap();
+
+        // The old JavaScript regex window counts UTF-16 code units. A token
+        // may start at the last in-window position and finish beyond it.
+        let unicode_prefix = "😀".repeat(100);
+        let nest_transform_crossing = format!(
+            "useGlobalPipes(new ValidationPipe({{{}transform: true",
+            unicode_prefix
+        );
+        assert!(find_rule_match(*nest, &nest_transform_crossing).is_none());
+
+        let go_timeout_crossing = format!(
+            "http.Server{{ {}ReadHeaderTimeout: time.Second",
+            "x".repeat(499)
+        );
+        assert!(find_rule_match(*go, &go_timeout_crossing).is_none());
+
+        let go_timeout_unicode = format!(
+            "http.Server{{{}ReadHeaderTimeout: time.Second",
+            "😀".repeat(250)
+        );
+        assert!(find_rule_match(*go, &go_timeout_unicode).is_none());
+
+        let nest_transform_outside = format!(
+            "useGlobalPipes(new ValidationPipe({{{}xtransform: true",
+            unicode_prefix
+        );
+        assert!(find_rule_match(*nest, &nest_transform_outside).is_some());
+
+        let go_timeout_outside = format!(
+            "http.Server{{ {}xReadHeaderTimeout: time.Second",
+            "x".repeat(500)
+        );
+        assert!(find_rule_match(*go, &go_timeout_outside).is_some());
     }
 }

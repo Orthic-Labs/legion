@@ -9,9 +9,10 @@ use std::{
 
 use legion_application::{NativeApplication, NativeApplicationConfig};
 use legion_contracts::{
-    AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ComputePosture, ContextUsage,
-    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, RoleDecision, Route,
-    RouteOutcomeTrace, SemanticRequirement, TaskId, TraceId,
+    AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ChildLifecycleEvent,
+    ChildLifecycleObservation, ComputePosture, ContextUsage, CostUsage, EffectClass, EffectRequest,
+    HookActorContext, OutcomeResult, RequestId, RoleDecision, Route, RouteOutcomeTrace,
+    SemanticRequirement, TaskId, TraceId,
 };
 use serde_json::{Map, Value};
 
@@ -109,7 +110,8 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
         Err(_) => return policy_unavailable_response(request.event_type),
     };
 
-    authorize_effect(request.event_type, &effect, &application)
+    let actor = resolve_hook_actor_context(&request);
+    authorize_effect(request.event_type, &effect, actor, &application)
 }
 
 fn deterministic_arcane_control(request: &HookRequest) -> Option<HookResponse> {
@@ -658,9 +660,10 @@ fn stop_reentry_exhausted(payload: &Value) -> bool {
 fn authorize_effect(
     event_type: String,
     effect: &EffectRequest,
+    actor: HookActorContext,
     application: &NativeApplication,
 ) -> HookResponse {
-    match application.authorize_hook(effect) {
+    match application.authorize_hook(effect, actor) {
         Ok(()) => {
             if matches!(
                 effect.effect_class,
@@ -700,6 +703,15 @@ fn authorize_effect(
             HookResponse::denied(event_type, "ARC_POLICY_DENIED", &message, "strong")
         }
     }
+}
+
+/// Codex exposes the parent session id to subagent tool hooks, but its
+/// PreToolUse event has no child id or agent type. Therefore this transport
+/// cannot authenticate the active role from the event it received. Keep that
+/// state explicit; never promote caller-supplied `requested_by` or effect
+/// fields into authority identity.
+fn resolve_hook_actor_context(_request: &HookRequest) -> HookActorContext {
+    HookActorContext::Unavailable
 }
 
 fn response_for_error(event_type: String, error: HookError) -> HookResponse {
@@ -1119,6 +1131,7 @@ fn parse_effect_class(
     let tool = tool_name.unwrap_or_default();
     match tool {
         "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => Some(EffectClass::FILE_WRITE),
+        "Read" | "Glob" | "Grep" => Some(EffectClass::MCP_KNOWN_OBSERVATION),
         "WebFetch" | "WebSearch" => Some(EffectClass::NETWORK_EGRESS),
         // First-party host session tools (mcp__ccd_*) are host dispatch even
         // when their names contain a verb like "send": the verb allowlist
@@ -2647,15 +2660,15 @@ pub struct TraceMetrics {
     /// challenged, evidence-available traces ending in NARROW or REVISE /
     /// materially assumption-dependent traces.
     pub avoidable_user_challenge_rate: MetricValue,
-    /// Launched role decisions / labelled eligible=true role decisions.
-    pub role_adoption_rate: MetricValue,
-    pub labelled_role_eligibility: usize,
-    pub selected_roles: usize,
-    pub bound_roles: usize,
-    pub launched_roles: usize,
-    pub skipped_roles: usize,
-    pub unnecessary_role_launches: usize,
-    pub unknown_role_launches: usize,
+    /// Unavailable until declarations can join host lifecycle by session/child/role.
+    pub observed_role_adoption_rate: MetricValue,
+    pub labelled_role_eligibility_declarations: usize,
+    pub selected_role_declarations: usize,
+    pub bound_role_declarations: usize,
+    pub eligible_launch_declarations: usize,
+    pub skipped_role_declarations: usize,
+    pub unnecessary_launch_declarations: usize,
+    pub unknown_launch_declarations: usize,
 }
 
 /// Fold route traces into the tracker rates without inspecting prose or
@@ -2726,7 +2739,7 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 )
         })
         .count();
-    let adoption = legion_contracts::fold_role_adoption(traces);
+    let declarations = legion_contracts::fold_role_decision_declarations(traces);
 
     TraceMetrics {
         sage_dispatch_rate: MetricValue::ratio(sage_dispatches, traces.len()),
@@ -2737,17 +2750,14 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
             avoidable_challenges,
             assumption_dependent,
         ),
-        role_adoption_rate: MetricValue::ratio(
-            adoption.eligible_launches,
-            adoption.labelled_eligible,
-        ),
-        labelled_role_eligibility: adoption.labelled_eligible,
-        selected_roles: adoption.pending_selected,
-        bound_roles: adoption.pending_bound,
-        launched_roles: adoption.eligible_launches,
-        skipped_roles: adoption.eligible_skips,
-        unnecessary_role_launches: adoption.unnecessary_launches,
-        unknown_role_launches: adoption.unknown_launches,
+        observed_role_adoption_rate: MetricValue::NotEnoughData,
+        labelled_role_eligibility_declarations: declarations.labelled_eligible,
+        selected_role_declarations: declarations.pending_selected,
+        bound_role_declarations: declarations.pending_bound,
+        eligible_launch_declarations: declarations.declared_eligible_launches,
+        skipped_role_declarations: declarations.eligible_skips,
+        unnecessary_launch_declarations: declarations.declared_unnecessary_launches,
+        unknown_launch_declarations: declarations.declared_unknown_launches,
     }
 }
 
@@ -2778,23 +2788,23 @@ fn emit_route_trace(
     }
 }
 
-/// Hook-observed child launch counters. Unlike `roleDecisions` (host/lead
-/// supplied) the launch counters come from SubagentStart/SubagentStop frames
-/// the hook received, keyed by the host's child id.
+/// Hook-observed lifecycle counters. `roleDecisions` are caller declarations;
+/// lifecycle events are observations and never prove launch approval or task
+/// success.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ChildLaunchCounters {
-    /// Role decisions in state selected, bound or launched (latest per request+role).
-    pub selected: usize,
-    /// Distinct child ids for which a SubagentStart frame reached the hook.
-    pub attempted_launch: usize,
-    /// Distinct attempted child ids whose start the hook accepted.
-    pub accepted_launch: usize,
-    /// Distinct accepted child ids that later produced a SubagentStop.
-    pub completed: usize,
-    /// Distinct attempted child ids never accepted (start refused).
-    pub rejected: usize,
-    /// Role decisions in state skipped (latest per request+role).
-    pub explicitly_skipped: usize,
+    /// Caller-declared role decisions in selected/bound/launched states.
+    pub selected_declarations: usize,
+    /// Distinct typed (session, child, role) SubagentStart observations.
+    pub observed_starts: usize,
+    /// Start observations whose hook callback returned an acknowledgement.
+    pub start_hook_acknowledged: usize,
+    /// Distinct start tuples later seen in a matching SubagentStop observation.
+    pub paired_stop_observations: usize,
+    /// Start callbacks whose hook response was not an acknowledgement.
+    pub start_hook_unacknowledged: usize,
+    /// Caller-declared role decisions in skipped state.
+    pub skipped_declarations: usize,
 }
 
 fn child_lifecycle_event(event_type: &str) -> Option<&'static str> {
@@ -2805,10 +2815,18 @@ fn child_lifecycle_event(event_type: &str) -> Option<&'static str> {
     }
 }
 
+fn consistent_host_field(payload: &Map<String, Value>, keys: &[&str]) -> Option<String> {
+    let mut values = keys
+        .iter()
+        .filter_map(|key| first_string(payload, &[*key]))
+        .filter(|value| !value.trim().is_empty());
+    let first = values.next()?;
+    values.all(|value| value == first).then_some(first)
+}
+
 fn child_id_from_payload(payload: &Map<String, Value>) -> Option<String> {
-    let source = trace_source(payload);
-    first_string(
-        source,
+    consistent_host_field(
+        payload,
         &[
             "agent_id",
             "agentId",
@@ -2816,61 +2834,48 @@ fn child_id_from_payload(payload: &Map<String, Value>) -> Option<String> {
             "childId",
             "subagent_id",
             "subagentId",
-            "request_id",
-            "requestId",
-            "tool_use_id",
-            "toolUseId",
         ],
     )
-    .or_else(|| {
-        first_string(
-            payload,
-            &[
-                "agent_id",
-                "agentId",
-                "child_id",
-                "childId",
-                "subagent_id",
-                "subagentId",
-                "request_id",
-                "requestId",
-                "tool_use_id",
-                "toolUseId",
-            ],
-        )
-    })
+}
+
+fn authority_kind_from_host_payload(payload: &Map<String, Value>) -> Option<AuthorityKind> {
+    match consistent_host_field(
+        payload,
+        &["agent_type", "agentType", "subagent_type", "subagentType"],
+    )?
+    .as_str()
+    {
+        "sage" => Some(AuthorityKind::Sage),
+        "alchemist" => Some(AuthorityKind::Alchemist),
+        "oracle" => Some(AuthorityKind::Oracle),
+        _ => None,
+    }
 }
 
 fn child_lifecycle_record(request: &HookRequest, response: &HookResponse) -> Option<Value> {
     let event = child_lifecycle_event(request.event_type.as_str())?;
     let payload = request.payload.as_object()?;
     let child_id = child_id_from_payload(payload)?;
-    let mut record = Map::new();
-    record.insert("schemaVersion".into(), Value::from(1));
-    record.insert("kind".into(), Value::from("legion-child-lifecycle"));
-    record.insert("event".into(), Value::from(event));
-    record.insert("childId".into(), Value::from(child_id));
-    record.insert("accepted".into(), Value::Bool(response.allowed));
-    if let Some(agent) = first_string(
-        payload,
-        &[
-            "agent_type",
-            "agentType",
-            "subagent_type",
-            "subagentType",
-            "role",
-        ],
-    ) {
-        record.insert("agentType".into(), Value::from(agent));
-    }
-    if let Some(session) = first_string(payload, &["session_id", "sessionId"]) {
-        record.insert("sessionId".into(), Value::from(session));
-    }
-    record.insert(
-        "observedAtUnixMs".into(),
-        Value::from((unix_nanos() / 1_000_000).min(u64::MAX as u128) as u64),
-    );
-    Some(Value::Object(record))
+    let session_id = consistent_host_field(payload, &["session_id", "sessionId"])?;
+    let role = authority_kind_from_host_payload(payload)?;
+    let event = match event {
+        "SubagentStart" => ChildLifecycleEvent::SubagentStart,
+        "SubagentStop" => ChildLifecycleEvent::SubagentStop,
+        _ => return None,
+    };
+    let observation = ChildLifecycleObservation {
+        schema_version: 2,
+        kind: "legion-child-lifecycle".into(),
+        event,
+        session_id,
+        child_id,
+        role,
+        event_observed: true,
+        hook_acknowledged: response.allowed,
+        observed_at_unix_ms: (unix_nanos() / 1_000_000).min(u64::MAX as u128) as u64,
+    };
+    observation.validate().ok()?;
+    serde_json::to_value(observation).ok()
 }
 
 /// Test builds never fall back to the per-user receipts directory.
@@ -2928,34 +2933,46 @@ fn append_json_line(path: &Path, value: &Value) -> Result<(), ()> {
     file.write_all(&line).map_err(|_| ())
 }
 
-/// Fold hook-observed child lifecycle records and route traces into the
-/// separate launch counters. Records that are not well-formed are ignored.
+/// Fold typed hook-observed lifecycle events and caller-declared role
+/// decisions. Only matching session, child, and role tuples pair start/stop;
+/// stop means observed stop, never successful work.
 pub fn fold_child_launch_counters(
     records: &[Value],
     traces: &[RouteOutcomeTrace],
 ) -> ChildLaunchCounters {
     use std::collections::BTreeSet;
-    let mut attempted = BTreeSet::new();
-    let mut accepted = BTreeSet::new();
-    let mut stopped = BTreeSet::new();
+    let mut starts = BTreeSet::new();
+    let mut acknowledged_starts = BTreeSet::new();
+    let mut unacknowledged_starts = BTreeSet::new();
+    let mut stops = BTreeSet::new();
     for record in records {
-        let Some(object) = record.as_object() else {
+        if !record.is_object() {
+            continue;
+        }
+        let Ok(observation) = serde_json::from_value::<ChildLifecycleObservation>(record.clone())
+        else {
             continue;
         };
-        let Some(id) = object.get("childId").and_then(Value::as_str) else {
+        if observation.validate().is_err() {
             continue;
-        };
-        match object.get("event").and_then(Value::as_str) {
-            Some("SubagentStart") => {
-                attempted.insert(id.to_owned());
-                if object.get("accepted").and_then(Value::as_bool) == Some(true) {
-                    accepted.insert(id.to_owned());
+        }
+        let identity = (
+            observation.session_id,
+            observation.child_id,
+            observation.role,
+        );
+        match observation.event {
+            ChildLifecycleEvent::SubagentStart => {
+                starts.insert(identity.clone());
+                if observation.hook_acknowledged {
+                    acknowledged_starts.insert(identity.clone());
+                } else {
+                    unacknowledged_starts.insert(identity);
                 }
             }
-            Some("SubagentStop") => {
-                stopped.insert(id.to_owned());
+            ChildLifecycleEvent::SubagentStop => {
+                stops.insert(identity);
             }
-            _ => {}
         }
     }
     let mut latest: Vec<(
@@ -2982,12 +2999,12 @@ pub fn fold_child_launch_counters(
         .filter(|(_, _, state)| *state == legion_contracts::RoleDecisionState::Skipped)
         .count();
     ChildLaunchCounters {
-        selected: latest.len() - skipped,
-        attempted_launch: attempted.len(),
-        accepted_launch: accepted.len(),
-        completed: stopped.intersection(&accepted).count(),
-        rejected: attempted.difference(&accepted).count(),
-        explicitly_skipped: skipped,
+        selected_declarations: latest.len() - skipped,
+        observed_starts: starts.len(),
+        start_hook_acknowledged: acknowledged_starts.intersection(&starts).count(),
+        paired_stop_observations: stops.intersection(&starts).count(),
+        start_hook_unacknowledged: unacknowledged_starts.intersection(&starts).count(),
+        skipped_declarations: skipped,
     }
 }
 
@@ -3938,7 +3955,10 @@ mod tests {
             metrics.avoidable_user_challenge_rate,
             MetricValue::NotEnoughData
         );
-        assert_eq!(metrics.role_adoption_rate, MetricValue::NotEnoughData);
+        assert_eq!(
+            metrics.observed_role_adoption_rate,
+            MetricValue::NotEnoughData
+        );
     }
 
     #[test]
@@ -4173,7 +4193,12 @@ mod tests {
         assert_eq!(send_effect.effect_class, EffectClass::EXTERNAL_SIDE_EFFECT);
         let application = NativeApplicationConfig::default_for_repository("test-repository")
             .expect("canonical default native application builds");
-        let response = authorize_effect("PreToolUse".into(), &send_effect, &application);
+        let response = authorize_effect(
+            "PreToolUse".into(),
+            &send_effect,
+            HookActorContext::Unavailable,
+            &application,
+        );
         assert!(!response.allowed, "MCP sends must remain policy denied");
         assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
 
@@ -4271,8 +4296,12 @@ mod tests {
             EffectClass::COMMAND_EXEC,
             EffectClass::FILE_DELETE,
         ] {
-            let response =
-                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            let response = authorize_effect(
+                "PreToolUse".into(),
+                &effect(effect_class),
+                HookActorContext::Unavailable,
+                &application,
+            );
             assert!(response.allowed, "ordinary effect denied: {effect_class:?}");
             assert!(response.code.is_none());
             assert_eq!(response.enforcement_health, "strong");
@@ -4288,8 +4317,12 @@ mod tests {
             EffectClass::CREDENTIAL_ACCESS,
             EffectClass::EXTERNAL_SIDE_EFFECT,
         ] {
-            let response =
-                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            let response = authorize_effect(
+                "PreToolUse".into(),
+                &effect(effect_class),
+                HookActorContext::Unavailable,
+                &application,
+            );
             assert!(
                 !response.allowed,
                 "reserved effect allowed: {effect_class:?}"
@@ -4306,6 +4339,30 @@ mod tests {
     #[test]
     fn a_known_read_only_mcp_tool_is_allowed_and_an_unknown_one_is_not() {
         assert!(is_known_read_only_tool("mcp__membrane__membrane_context"));
+        for tool in ["Read", "Glob", "Grep"] {
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: "PreToolUse".into(),
+                payload: json!({"tool_name": tool}),
+            };
+            let effect = effect_request(&request).unwrap().unwrap();
+            assert_eq!(effect.effect_class, EffectClass::MCP_KNOWN_OBSERVATION);
+        }
+        let opaque_command = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "PreToolUse".into(),
+            payload: json!({"tool_name":"Bash", "tool_input":{"command":"cat file.txt"}}),
+        };
+        assert_eq!(
+            effect_request(&opaque_command)
+                .unwrap()
+                .unwrap()
+                .effect_class,
+            EffectClass::COMMAND_EXEC,
+            "a command that happens to read must not claim typed read-only status"
+        );
         for tool in [
             "mcp__scheduled-tasks__list_tasks",
             "mcp__scheduled-tasks__list_task_runs",
@@ -4338,18 +4395,47 @@ mod tests {
         let known = authorize_effect(
             "PreToolUse".into(),
             &effect(EffectClass::MCP_KNOWN_OBSERVATION),
+            HookActorContext::Unavailable,
             &application,
         );
         assert!(known.allowed, "a recognised read-only tool must be allowed");
         let unknown = authorize_effect(
             "PreToolUse".into(),
             &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
+            HookActorContext::Unavailable,
             &application,
         );
         assert!(
             unknown.allowed,
             "an unknown MCP tool must follow host permissions"
         );
+    }
+
+    #[test]
+    fn authenticated_read_only_roles_are_narrowed_without_granting_alchemist_more() {
+        let application = NativeApplicationConfig::default_for_repository("test-repository")
+            .expect("canonical default native application builds");
+        let sage_write = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::FILE_WRITE),
+            HookActorContext::Authenticated(AuthorityKind::Sage),
+            &application,
+        );
+        assert!(!sage_write.allowed);
+        let oracle_opaque_mcp = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
+            HookActorContext::Authenticated(AuthorityKind::Oracle),
+            &application,
+        );
+        assert!(!oracle_opaque_mcp.allowed);
+        let alchemist_write = authorize_effect(
+            "PreToolUse".into(),
+            &effect(EffectClass::FILE_WRITE),
+            HookActorContext::Authenticated(AuthorityKind::Alchemist),
+            &application,
+        );
+        assert!(alchemist_write.allowed);
     }
 
     #[test]
@@ -4364,8 +4450,12 @@ mod tests {
             EffectClass::NETWORK_EGRESS,
             EffectClass::PROCESS_SPAWN,
         ] {
-            let response =
-                authorize_effect("PreToolUse".into(), &effect(effect_class), &application);
+            let response = authorize_effect(
+                "PreToolUse".into(),
+                &effect(effect_class),
+                HookActorContext::Unavailable,
+                &application,
+            );
             assert!(
                 response.allowed,
                 "reversible effect denied: {effect_class:?}"
@@ -4426,6 +4516,7 @@ mod tests {
         let response = authorize_effect(
             "PreToolUse".into(),
             &effect(EffectClass::CREDENTIAL_ACCESS),
+            HookActorContext::Unavailable,
             &application,
         );
         assert!(
@@ -4607,6 +4698,7 @@ mod tests {
                 payload: json!({
                     "agent_id": child,
                     "agent_type": "alchemist",
+                    "session_id": "session-1",
                     "stateRoot": root.to_string_lossy(),
                 }),
             })
@@ -4623,38 +4715,83 @@ mod tests {
         assert_eq!(records.len(), 3);
         assert_eq!(records[0]["event"], "SubagentStart");
         assert_eq!(records[0]["childId"], "child-1");
+        assert_eq!(records[0]["sessionId"], "session-1");
+        assert_eq!(records[0]["role"], "alchemist");
+        assert_eq!(records[0]["eventObserved"], true);
+        assert_eq!(records[0]["hookAcknowledged"], true);
         assert_eq!(records[2]["event"], "SubagentStop");
         let counters = fold_child_launch_counters(&records, &[]);
-        assert_eq!(counters.attempted_launch, 2);
-        assert_eq!(counters.accepted_launch, 2);
-        assert_eq!(counters.completed, 1);
-        assert_eq!(counters.rejected, 0);
+        assert_eq!(counters.observed_starts, 2);
+        assert_eq!(counters.start_hook_acknowledged, 2);
+        assert_eq!(counters.paired_stop_observations, 1);
+        assert_eq!(counters.start_hook_unacknowledged, 0);
         // The route-outcome trace file is untouched by child lifecycle frames.
         assert!(!root.join("receipts").join(TRACE_FILE_NAME).exists());
         fs::remove_dir_all(root).expect("remove test state");
     }
 
     #[test]
+    fn lifecycle_requires_consistent_host_session_child_and_role_fields() {
+        let make = |payload| HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SubagentStart".into(),
+            payload,
+        };
+        let response = HookResponse::allowed("SubagentStart", "acknowledged");
+        assert!(child_lifecycle_record(
+            &make(json!({
+                "session_id":"session-1",
+                "request_id":"not-a-child-id",
+                "tool_use_id":"also-not-a-child-id",
+                "agent_type":"sage"
+            })),
+            &response
+        )
+        .is_none());
+        assert!(child_lifecycle_record(
+            &make(json!({
+                "session_id":"session-1",
+                "agent_id":"child-1",
+                "child_id":"child-2",
+                "agent_type":"sage"
+            })),
+            &response
+        )
+        .is_none());
+        assert!(child_lifecycle_record(
+            &make(json!({
+                "session_id":"session-1",
+                "agent_id":"child-1",
+                "agent_type":"other-profile"
+            })),
+            &response
+        )
+        .is_none());
+    }
+
+    #[test]
     fn child_counters_separate_rejected_stop_without_start_and_skips() {
         let records = vec![
-            json!({"event":"SubagentStart","childId":"a","accepted":true}),
-            json!({"event":"SubagentStart","childId":"a","accepted":true}),
-            json!({"event":"SubagentStart","childId":"b","accepted":false}),
-            json!({"event":"SubagentStop","childId":"b"}),
-            json!({"event":"SubagentStop","childId":"a"}),
-            json!({"event":"SubagentStop","childId":"never-started"}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":false}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"never-started","role":"oracle","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"other-session","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
             json!({"event":"garbage"}),
         ];
         let counters = fold_child_launch_counters(&records, &[]);
         assert_eq!(
             counters,
             ChildLaunchCounters {
-                selected: 0,
-                attempted_launch: 2,
-                accepted_launch: 1,
-                completed: 1,
-                rejected: 1,
-                explicitly_skipped: 0,
+                selected_declarations: 0,
+                observed_starts: 2,
+                start_hook_acknowledged: 1,
+                paired_stop_observations: 2,
+                start_hook_unacknowledged: 1,
+                skipped_declarations: 0,
             }
         );
     }
@@ -4676,9 +4813,9 @@ mod tests {
         let trace = route_trace_from_request(&request, &response, Duration::from_millis(1), None)
             .expect("v2 trace with role decisions");
         let counters = fold_child_launch_counters(&[], &[trace]);
-        assert_eq!(counters.selected, 1);
-        assert_eq!(counters.explicitly_skipped, 1);
-        assert_eq!(counters.attempted_launch, 0);
+        assert_eq!(counters.selected_declarations, 1);
+        assert_eq!(counters.skipped_declarations, 1);
+        assert_eq!(counters.observed_starts, 0);
     }
 
     #[test]

@@ -1,5 +1,7 @@
 //! Grades supplied observations, never routes prose or fabricates model runs.
-use legion_contracts::{fold_role_adoption, AuthorityKind, RoleDecisionState, RouteOutcomeTrace};
+use legion_contracts::{
+    fold_role_decision_declarations, AuthorityKind, RoleDecisionState, RouteOutcomeTrace,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
@@ -151,9 +153,7 @@ fn evaluate(cases: Vec<Case>, observations: Vec<Observation>) -> Result<Value, S
                 .or_default() += 1;
         }
     }
-    let metrics = fold_role_adoption(&labelled_traces);
-    let rate = (metrics.labelled_eligible != 0)
-        .then(|| metrics.eligible_launches as f64 / metrics.labelled_eligible as f64);
+    let metrics = fold_role_decision_declarations(&labelled_traces);
     let mut roles = serde_json::Map::new();
     for role in [
         AuthorityKind::Sage,
@@ -172,13 +172,15 @@ fn evaluate(cases: Vec<Case>, observations: Vec<Observation>) -> Result<Value, S
             .collect::<Vec<_>>();
         roles.insert(
             serde_json::to_value(role).unwrap().as_str().unwrap().into(),
-            serde_json::to_value(fold_role_adoption(&traces)).unwrap(),
+            serde_json::to_value(fold_role_decision_declarations(&traces)).unwrap(),
         );
     }
     Ok(
         json!({"schemaVersion":1,"kind":"legion-authority-replay","labelSource":"independent-cases",
         "cases":cases.len(),"observedCases":by_case.len(),"missingCases":missing_cases,
-        "unobservedDecisions":unknown_decisions,"failures":failures,"metrics":metrics,"adoptionRate":rate,
+        "unobservedDecisions":unknown_decisions,"failures":failures,
+        "decisionDeclarations":metrics,"observedAdoptionRate":null,
+        "adoptionEvidence":"unavailable: role decisions carry no host session/child identity for lifecycle joining",
         "roles":roles,"outcomes":results,"valid":!cases.is_empty() && missing_cases.is_empty() && failures.is_empty()}),
     )
 }
@@ -225,11 +227,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(report["valid"], true);
-        assert_eq!(report["metrics"]["eligible_skips"], 0);
-        assert_eq!(report["metrics"]["unnecessary_launches"], 0);
-        assert_eq!(report["roles"]["sage"]["eligible_launches"], 2);
+        assert_eq!(report["decisionDeclarations"]["eligible_skips"], 0);
+        assert_eq!(
+            report["decisionDeclarations"]["declared_unnecessary_launches"],
+            0
+        );
+        assert_eq!(report["roles"]["sage"]["declared_eligible_launches"], 2);
         assert_eq!(report["roles"]["alchemist"]["pending_bound"], 1);
-        assert!(report["adoptionRate"].as_f64().unwrap() <= 1.0);
+        assert!(report["observedAdoptionRate"].is_null());
     }
 
     #[test]
@@ -240,7 +245,10 @@ mod tests {
         decision.eligible = Some(true);
         let report = evaluate(json_lines(CASES).unwrap(), observations).unwrap();
         assert_eq!(report["valid"], false);
-        assert_eq!(report["metrics"]["unnecessary_launches"], 1);
+        assert_eq!(
+            report["decisionDeclarations"]["declared_unnecessary_launches"],
+            1
+        );
     }
 
     #[test]
@@ -252,7 +260,7 @@ mod tests {
         observations.pop();
         let report = evaluate(cases, observations).unwrap();
         assert_eq!(report["valid"], false);
-        assert_eq!(report["metrics"]["eligible_skips"], 0);
+        assert_eq!(report["decisionDeclarations"]["eligible_skips"], 0);
         assert!(report["unobservedDecisions"].as_u64().unwrap() > 0);
         assert!(!report["missingCases"].as_array().unwrap().is_empty());
     }
@@ -265,11 +273,14 @@ mod tests {
         decision.reason = Some("Host gate prevented launch".into());
         let report = evaluate(json_lines(CASES).unwrap(), observations).unwrap();
         assert_eq!(report["valid"], false);
-        assert_eq!(report["metrics"]["eligible_skips"], 1);
-        assert_eq!(report["metrics"]["pending_selected"], 0);
-        assert_eq!(report["metrics"]["pending_bound"], 1);
-        assert_eq!(report["metrics"]["unknown_launches"], 1);
-        assert_eq!(report["metrics"]["labelled_eligible"], 6);
+        assert_eq!(report["decisionDeclarations"]["eligible_skips"], 1);
+        assert_eq!(report["decisionDeclarations"]["pending_selected"], 0);
+        assert_eq!(report["decisionDeclarations"]["pending_bound"], 1);
+        assert_eq!(
+            report["decisionDeclarations"]["declared_unknown_launches"],
+            1
+        );
+        assert_eq!(report["decisionDeclarations"]["labelled_eligible"], 6);
     }
 
     #[test]

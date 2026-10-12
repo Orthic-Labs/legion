@@ -58,6 +58,18 @@ Run this internally after the growth lever is identified and before producing th
 
 Output standard: measurable hypothesis, target metric, constraint/risk, smallest test, and decision rule.
 
+For an optional multi-channel bet comparison, use a compact table when it improves the decision:
+
+| Channel / bet | Mechanism | Baseline | Spend cap | Window | Primary metric | Guardrails | Decision rule |
+|---|---|---:|---:|---|---|---|---|
+| … | Why this channel should change the outcome | Current value or unavailable | Authorized bound | Start/end or observation period | Defined event and value rule | Risks such as lead quality, margin, or support load | Pre-set stop / hold / scale conditions |
+
+Set each bet's stop, hold, and scale conditions before spend, using the available baseline,
+measurement delay, and downside limits; do not impose a universal percentage or spend split. Keep
+the comparison optional for single-channel work. If channel metrics use different events, value
+rules, attribution windows, or models, show those differences and avoid ranking them as directly
+comparable.
+
 ## Workflow
 
 1. Run `/brand <brand-code>` or read the relevant brand rules for branded work.

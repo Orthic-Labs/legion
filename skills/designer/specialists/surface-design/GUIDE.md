@@ -10,12 +10,28 @@ designs — the name is the workflow, not a precondition.
 
 ## Step 0 — Mode gate (before anything else)
 
-Declare **draft** or **ship** per the mode table in `../../references/manual.md`. **Draft mode runs
-only:** brand card + Phase 0 truth sentence -> exemplar-first build (Step "Phase 4" craft rules +
-`../../references/components/`) with motion register declared inline from `../motion/GUIDE.md` -> detector structure scan
-(Phase 5 structure gate commands) -> human eyes. Phases 0.5-3, the artifact files, motion-plan/gate
-files, and the QA multi-gate are **ship-mode only**. Promoting an approved draft to production =
-running the remaining spine on it. Everything below describes ship mode unless marked otherwise.
+Choose **exploration**, **deliverable**, or **ship** per the mode table in `../../references/manual.md`;
+one-shot wording alone does not select exploration. **Exploration** is explicitly rough or
+direction-seeking: use the requested fidelity, label it exploratory, and omit production artifacts.
+**Deliverable** means a finished standalone page or app surface: use the selected branch's craft
+rules, render at requested/target dimensions, inspect relevant states and included interactions,
+check fit/clipping/overflow, and perform a separate qualitative critique. For responsive surfaces,
+inspect desktop and mobile target sizes unless the brief narrows the viewport; sample near breakpoint
+transitions and stress long or minimum-width content because endpoint sizes alone do not prove
+intermediate fit. For apps, inspect the
+states and workflows in the declared acceptance. Show actual candidate designs at comparable
+fidelity when the work is non-trivial or options are requested; prose labels alone do not count.
+The full ship spine is not required.
+**Ship** means production integration/deployment and runs the applicable spine below. Phases 0.5–3,
+production artifacts, motion gates, and QA multi-gate are ship-mode requirements. Promoting an
+exploration draft to production means running the remaining ship spine. Everything below describes
+ship mode unless marked otherwise.
+
+**Deliverable completion check:** For non-trivial work, verify that concrete candidate designs exist
+at fidelity suited to the decision and that a separate critique was performed. Prose labels or
+parameter vectors alone do not count. If either is missing, report partial and continue the needed
+work; use `../../references/manual.md` for its candidate count and divergence rule. Keep trivial
+work proportionate, and keep explicit exploration at requested fidelity.
 
 Route away first:
 

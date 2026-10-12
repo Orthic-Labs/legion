@@ -41,12 +41,17 @@ enum Command {
     /// Structural gate for `skills/**/evals/*.json`; model-graded cases are
     /// reported as `requires-model`, never as passed.
     CheckSkillEvals,
-    /// Execute skill-eval routing cases deterministically. The only native
-    /// router is explicit slash-alias resolution; natural-language cases are
-    /// `requires-model` and never fail. Nonzero exit on any mismatch.
+    /// Compare optional source-bound six-dimension observations with expectations.
+    /// This command never invokes a model; absent observations remain `requires-model`.
     RunSkillEvals {
         #[arg(long = "bundle")]
         bundles: Vec<String>,
+        #[arg(
+            long,
+            value_name = "JSON",
+            help = "Read source-bound legion-skill-routing-observations/v1 input; does not invoke a model"
+        )]
+        observations: Option<std::path::PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -223,9 +228,16 @@ fn main() -> ExitCode {
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
         Command::CheckSkillReferences => checks::skill_references::run(&root),
         Command::CheckSkillEvals => checks::skill_evals::run(&root),
-        Command::RunSkillEvals { bundles, json } => {
-            checks::run_skill_evals::run(&root, &bundles, json)
-        }
+        Command::RunSkillEvals {
+            bundles,
+            observations,
+            json,
+        } => checks::run_skill_evals::run_with_observations(
+            &root,
+            &bundles,
+            json,
+            observations.as_deref(),
+        ),
         Command::PrepareSkillEval {
             input,
             case_id,

@@ -63,14 +63,19 @@ Before anything runs, capture `git status --short` and `HEAD`. They are the read
    the user's request **verbatim** in `userIntent.verbatim`; the implementer's restatement goes in
    `interpretedSuccessCriteria`, where it is visibly the author's claim and can be disputed. Council
    never creates a prerequisite authority route. State the phase boundary in the request's
-   `constraints` and `nonGoals` so the panel judges the phase, not the whole roadmap. Run
-   `legion script council/digest <request.json|->` and store the printed digest as `packetDigest`.
+   `constraints` and `nonGoals` so the panel judges the phase, not the whole roadmap. Finish the
+   request content before computing its digest.
 2. **Self-review.** The convener reviews the artifact first and records what it found in the
    request's `knownWeaknesses`, each labelled `self-review`. A self-review is the author's own pass,
-   never a seat, and never counts toward independence.
-3. **Council positions.** Launch three seats in parallel, one per stance: `improvement-path`,
-   `scope-alternatives`, `user-outcome`, each with one role card (seat mix below). Each gives a
-   **blind opening position** (`round: POSITION`): no seat sees another's.
+   never a seat, and never counts toward independence. Then run
+   `legion script council/digest <request.json|->` and store the printed digest as `packetDigest`.
+   The command excludes only the request's top-level `packetDigest` field, so digest stays stable
+   after insertion; any nested field named `packetDigest` remains covered. Recompute `packetDigest`
+   after any later request change; if seats already received the old request, relaunch them against
+   the new digest before accepting their results.
+3. **Council positions.** Launch three seats in parallel, each in a distinct seat context, one per
+   stance: `improvement-path`, `scope-alternatives`, `user-outcome`, each with one role card (seat
+   mix below). Each gives a **blind opening position** (`round: POSITION`): no seat sees another's.
 4. **Peer debate (one round only).** Re-launch each Council seat once. Each receives the packet, its
    own position, and the other two seats' positions. For each of its own findings it may **sustain**,
    **revise**, or **withdraw** it, and it may **contest** or endorse any other seat's finding, citing
@@ -101,7 +106,7 @@ Before anything runs, capture `git status --short` and `HEAD`. They are the read
    dispositions, votes, or preferred verdict**, because the Jury must come to it unprimed. Record
    `revisionSubjectId` and `revisionDigest` on the Council record; set `freshVerdictRecordId` only
    once `dispositionState` is COMPLETE.
-8. **Jury.** Launch four fresh seats in parallel, one per stance: `red-team`, `minimize`,
+8. **Jury.** Launch four fresh seats in distinct contexts in parallel, one per stance: `red-team`, `minimize`,
    `security-ops`, `user-outcome`. Each gets one role card and the artifact's rubric, on the revised
    packet only. Jurors never see each other, and no Council seat is reused: a seat that saw the first
    round is not fresh. Each returns a position, a 1-10 score, per-dimension scores, `top_concern`,

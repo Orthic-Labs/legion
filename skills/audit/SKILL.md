@@ -50,9 +50,13 @@ overrides it.
    Blueprint generation, denominators, & reasoning contracts freeze together. The native binary
    is the only runner; there is no Node or Python runner. `legion verify <run-dir>` re-checks the run
    and `legion report <run-dir>/report.json --format md` renders it.
-   Its plan must contain full selected provider set plus applicable reasoning lenses. `providers: []`, `lensesRan: []` when lenses were
-   required, `native-provider-composition-partial`, or `fullAudit: false` is control-plane
-   degradation — never Audit evidence & never “no findings.” Continue with the native runner; if it is
+   Its plan must contain the full provider set selected for this run plus applicable reasoning lenses.
+   Filters are explicit partial scope: report the original applicable provider universe and excluded
+   applicable providers. `planComplete` means the selected frozen plan reconciled; `fullScope` means
+   no applicable provider was excluded. Providers with empty denominators or checked conditional
+   triggers that did not fire are not omissions. `providers: []`, `lensesRan: []` when lenses were
+   required, or `native-provider-composition-partial` is control-plane degradation — never Audit
+   evidence & never “no findings.” Continue with the native runner; if it is
    unavailable, execute deterministic scanners & applicable lenses directly, record
    `audit-runner-unavailable`, & keep result incomplete.
    If resident & one-shot paths both genuinely fail or are unavailable, record exact typed

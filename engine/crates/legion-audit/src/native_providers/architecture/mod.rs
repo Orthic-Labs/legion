@@ -142,7 +142,7 @@ impl ProviderExecutorAdapter {
             other => {
                 return Err(AuditError::Provider(format!(
                     "unsupported native provider: {other}"
-                )))
+                )));
             }
         }
         .map_err(AuditError::Provider)?;

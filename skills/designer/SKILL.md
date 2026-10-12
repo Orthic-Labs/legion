@@ -31,13 +31,13 @@ REQUIRED_READS:
 - `../_shared/parametric-design.md` for any visual direction work
 - The platform reference (`references/website.md`, `app.md`, or `native-app.md`) when a platform is named
 - `../_shared/anti-slop.md` for any prose output (microcopy, copy)
-- `references/manual.md` for mixed, production, or unfamiliar work
+- `references/manual.md` for mixed, production, unfamiliar, or non-trivial work requiring candidate comparison
 - `engine/reference/critique.md` for qualitative critique; load `references/visual-qa-capture.md` when rendered evidence is needed
 - `references/animations.md` when a critique assesses motion; platform-specific motion guidance remains canonical for design/implementation
-PRECEDENCE: The selected specialist's REQUIRED_READS override this router's budget; draft mode may skip the edit pass only when the user says draft.
+PRECEDENCE: The selected specialist's REQUIRED_READS override this router's budget; exploration mode may omit completion work only when the user explicitly asks for exploration or a draft.
 TERMINAL: Rendered acceptance proven.
 
-Load `/brand` when branded. Choose draft for exploration or ship for production.
+Load `/brand` when branded. Choose exploration for explicitly rough work, deliverable for a finished standalone artifact, or ship for production work. A one-shot request does not imply exploration.
 
 - Web or app: `specialists/surface-design/GUIDE.md`, then `references/website.md`, `app.md`, or `native-app.md`.
 - Static or print: `specialists/static-creative/GUIDE.md`.
@@ -45,4 +45,6 @@ Load `/brand` when branded. Choose draft for exploration or ship for production.
 - Slides or motion render: `engine/huashu/GUIDE.md`.
 - Motion: `specialists/motion/GUIDE.md`; glass: `specialists/glass/GUIDE.md`; illustration direction: `specialists/illustration/GUIDE.md`.
 
-Read one branch plus its REQUIRED_READS. Read `references/manual.md` for mixed, production, or unfamiliar work. Freeze content, truth, platform, states, dimensions, accessibility, & acceptance. Build one exemplar before scaling. Reuse existing tokens & components. Inspect rendered states at target sizes. Designer owns qualitative critique & remediation. Route deterministic rendered-state coverage/regression evidence to Audit Visual, functional/runtime checks to QA, & identity creation to Brand Identity.
+Read one branch plus its REQUIRED_READS. Read `references/manual.md` for mixed, production, or unfamiliar work. Freeze content, truth, platform, states, dimensions, accessibility, & acceptance. Build one exemplar before scaling. Reuse existing tokens & components. Inspect rendered states at target sizes and verify labels, controls, and artwork fit without clipping. Designer owns qualitative critique & remediation. Route deterministic rendered-state coverage/regression evidence to Audit Visual, functional/runtime checks to QA, & identity creation to Brand Identity.
+
+**Completion check:** For non-trivial design work, confirm concrete candidate evidence exists at fidelity suited to the decision and a separate critique exists. Labels or parameter vectors alone are not evidence. If either is missing, report partial and continue; follow `references/manual.md` for candidate count and divergence. Keep trivial work proportionate; explicit exploration stays exploratory at requested fidelity.

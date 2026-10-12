@@ -1,4 +1,4 @@
-//! Bounded Cargo test execution over an owner-only byte copy of Audit's frozen
+//! Bounded test execution over an owner-only byte copy of Audit's frozen
 //! materialized inventory. This is an explicit source-integrity assurance; it
 //! does not claim an OS filesystem or network sandbox.
 
@@ -14,11 +14,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use super::attested_runs::{self, AdapterEnrollment, AttestedRunsEnrollment};
 use legion_contracts::{Coverage, FindingId, FindingRef, ProviderStatus};
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
 
@@ -28,9 +29,8 @@ use crate::{
 };
 
 use super::{
-    AuditScratch, LegacyCheckExecution, LegacyCheckInput, LegacyCheckOutput,
-    LegacyCheckProcessState, ResolvedCommand, audit_environment, empty_output,
-    test_declaration_location,
+    audit_environment, empty_output, test_declaration_location, AuditScratch, LegacyCheckExecution,
+    LegacyCheckInput, LegacyCheckOutput, LegacyCheckProcessState, ResolvedCommand,
 };
 
 const MAX_FILES: usize = 100_000;
@@ -44,6 +44,8 @@ static COPY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 struct PreparedCopy {
     path: PathBuf,
     cwd: PathBuf,
+    workspace_root: PathBuf,
+    input_modes: BTreeMap<String, u32>,
     source_digest: String,
     copy_digest: String,
     file_count: usize,
@@ -79,18 +81,32 @@ fn sha(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
+fn file_mode(path: &Path) -> Result<u32, CopyError> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| CopyError::Io(error.to_string()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(CopyError::UnsafePath(path.display().to_string()));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        Ok(metadata.permissions().mode() & 0o7777)
+    }
+    #[cfg(windows)]
+    {
+        let _ = metadata;
+        Ok(0)
+    }
+}
+
 fn safe_relative(path: &str) -> Result<PathBuf, CopyError> {
     if path.is_empty() || path.contains('\\') || path.contains(':') || path.contains('\0') {
         return Err(CopyError::UnsafePath(path.to_owned()));
     }
     let relative = Path::new(path);
     if relative.is_absolute()
-        || relative.components().any(|part| {
-            !matches!(part, Component::Normal(_))
-                || part.as_os_str() == ".git"
-                || part.as_os_str() == "target"
-                || part.as_os_str() == "node_modules"
-        })
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
     {
         return Err(CopyError::UnsafePath(path.to_owned()));
     }
@@ -361,7 +377,7 @@ fn prepare_copy(
     root: &Path,
     inventory: &InventoryEnvelope,
     scratch: &AuditScratch,
-    cargo_manifest: &str,
+    test_declaration: &str,
     deadline: std::time::Instant,
     cancellation: &CancellationToken,
 ) -> Result<PreparedCopy, CopyError> {
@@ -397,10 +413,11 @@ fn prepare_copy(
     check_cargo_boundaries(&source_root, inventory)?;
 
     let sequence = COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let copy_root = scratch.root().join(format!("cargo-copy-{sequence}"));
+    let copy_root = scratch.root().join(format!("test-copy-{sequence}"));
     super::make_private_dir(&copy_root).map_err(|error| CopyError::Io(error.to_string()))?;
     let mut source_records = Vec::with_capacity(inventory.entries.len());
     let mut copied_records = Vec::with_capacity(inventory.entries.len());
+    let mut input_modes = BTreeMap::new();
     let mut total = 0_u64;
     let mut sorted = inventory.entries.iter().collect::<Vec<_>>();
     sorted.sort_by(|left, right| left.path.cmp(&right.path));
@@ -417,6 +434,8 @@ fn prepare_copy(
             return Err(CopyError::Limit("inventory exceeds 4 GiB".into()));
         }
         let relative = safe_relative(&entry.path)?;
+        let mode = file_mode(&source_root.join(&relative))?;
+        input_modes.insert(entry.path.clone(), mode);
         let destination = copy_root.join(&relative);
         let parent = destination
             .parent()
@@ -437,7 +456,7 @@ fn prepare_copy(
                 .map_err(|error| CopyError::Io(error.to_string()))?;
             fs::set_permissions(
                 &destination,
-                fs::Permissions::from_mode(metadata.mode() & 0o777),
+                fs::Permissions::from_mode(metadata.mode() & 0o7777),
             )
             .map_err(|error| CopyError::Io(error.to_string()))?;
             let src = fs::metadata(source_root.join(&relative))
@@ -458,16 +477,46 @@ fn prepare_copy(
     }
     let source_digest = inventory_digest(&source_records);
     let copy_digest = inventory_digest(&copied_records);
-    let manifest = copy_root.join(cargo_manifest);
-    let cwd = manifest.parent().unwrap_or(&copy_root).to_path_buf();
+    let declaration = copy_root.join(test_declaration);
+    let cwd = if test_declaration.ends_with("Cargo.toml") {
+        declaration.parent().unwrap_or(&copy_root).to_path_buf()
+    } else {
+        copy_root.clone()
+    };
     Ok(PreparedCopy {
-        path: copy_root,
+        path: copy_root.clone(),
         cwd,
+        workspace_root: copy_root,
+        input_modes,
         source_digest,
         copy_digest,
         file_count: source_records.len(),
         total_bytes: total,
     })
+}
+
+fn bind_copy_workspace_root(
+    source_root: &Path,
+    source: &Value,
+    copy: &mut PreparedCopy,
+) -> Result<(), String> {
+    let source_workspace = source
+        .get("workspaceRoot")
+        .and_then(Value::as_str)
+        .ok_or("resolver-workspace-root-missing")?;
+    let source_root = fs::canonicalize(source_root).map_err(|error| error.to_string())?;
+    let source_workspace = fs::canonicalize(source_workspace).map_err(|error| error.to_string())?;
+    let relative = source_workspace
+        .strip_prefix(&source_root)
+        .map_err(|_| "resolver-workspace-root-outside-source")?;
+    let copy_root = fs::canonicalize(&copy.path).map_err(|error| error.to_string())?;
+    let copy_workspace =
+        fs::canonicalize(copy_root.join(relative)).map_err(|error| error.to_string())?;
+    if !copy_workspace.starts_with(&copy_root) {
+        return Err("resolver-workspace-root-outside-copy".into());
+    }
+    copy.workspace_root = copy_workspace;
+    Ok(())
 }
 
 fn request_id(stderr: &[u8]) -> Result<String, String> {
@@ -489,6 +538,10 @@ fn request_id(stderr: &[u8]) -> Result<String, String> {
         return Err("request-id-invalid".into());
     }
     Ok(id.into())
+}
+
+fn id_suffix(value: &str) -> String {
+    hex::encode(Sha256::digest(value.as_bytes()))
 }
 
 fn array_empty(receipt: &Value, key: &str) -> bool {
@@ -515,14 +568,39 @@ fn valid_broker_digest(value: Option<&Value>) -> bool {
     })
 }
 
-fn is_cargo_test_command(value: Option<&str>) -> bool {
-    value.is_some_and(|command| command == "cargo test" || command.starts_with("cargo test "))
+fn is_expected_test_command(value: Option<&str>, expected: &str) -> bool {
+    value == Some(expected)
+}
+
+fn is_known_cargo_argv_normalization(
+    receipt: &Value,
+    expected_command: &str,
+    expected_argv: &[String],
+    actual_argv: &[String],
+) -> bool {
+    if expected_command != "cargo test"
+        || expected_argv.len() != 1
+        || expected_argv[0] != "test"
+        || actual_argv.len() != 5
+        || actual_argv[0] != "test"
+        || actual_argv[1] != "--target"
+        || actual_argv[2].is_empty()
+        || actual_argv[3] != "--target-dir"
+        || !Path::new(&actual_argv[4]).is_absolute()
+        || receipt.get("targetTriple").and_then(Value::as_str) != Some(actual_argv[2].as_str())
+        || receipt.pointer("/target/path").and_then(Value::as_str) != Some(actual_argv[4].as_str())
+    {
+        return false;
+    }
+    let expected_effective_command = format!("cargo {}", actual_argv.join(" "));
+    receipt.get("command").and_then(Value::as_str) == Some(&expected_effective_command)
 }
 
 fn validate_status(
     status: &Value,
     id: &str,
     copy: &PreparedCopy,
+    expected_command: &str,
     expected_argv: &[String],
 ) -> Result<i32, String> {
     let receipt = status
@@ -561,9 +639,13 @@ fn validate_status(
                 .ok_or("receipt-argv-invalid")
         })
         .collect::<Result<Vec<_>, _>>()?;
-    if argv != expected_argv
-        || !is_cargo_test_command(receipt.get("command").and_then(Value::as_str))
-    {
+    let command = receipt.get("command").and_then(Value::as_str);
+    if argv != expected_argv || !is_expected_test_command(command, expected_command) {
+        if is_known_cargo_argv_normalization(receipt, expected_command, expected_argv, &argv) {
+            return Err(
+                "managed-test-request-provenance-unavailable:cargo-target-normalization".into(),
+            );
+        }
         return Err("receipt-argv-mismatch".into());
     }
     let input = receipt
@@ -618,51 +700,235 @@ fn validate_status(
     Ok(exit as i32)
 }
 
-fn cleanup_proven(status: &Value, id: &str, copy: &PreparedCopy) -> bool {
-    let Some(receipt) = status.get("receipt").filter(|value| value.is_object()) else {
-        return false;
-    };
-    if status.get("id").and_then(Value::as_str) != Some(id)
-        || receipt.get("id").and_then(Value::as_str) != Some(id)
-    {
-        return false;
-    }
-    let workspace_bound = receipt
-        .get("workspace")
-        .and_then(Value::as_str)
-        .and_then(|path| fs::canonicalize(path).ok())
-        .as_deref()
-        == Some(copy.cwd.as_path());
-    let repository_bound = receipt
-        .get("repository")
-        .and_then(Value::as_str)
-        .and_then(|path| fs::canonicalize(path).ok())
-        .is_some_and(|path| path == copy.cwd || path == copy.path);
-    let terminal = status
-        .get("state")
-        .or_else(|| status.get("status"))
-        .and_then(Value::as_str)
-        .is_some_and(|state| matches!(state, "SUCCEEDED" | "FAILED"));
-    let invocation_bound = is_cargo_test_command(receipt.get("command").and_then(Value::as_str))
-        && receipt
-            .get("argv")
-            .and_then(Value::as_array)
-            .is_some_and(|argv| argv.len() == 1 && argv[0].as_str() == Some("test"))
-        && receipt.get("exitCode").and_then(Value::as_i64).is_some()
-        && status
-            .get("exitCode")
-            .and_then(Value::as_i64)
-            .is_none_or(|outer| Some(outer) == receipt.get("exitCode").and_then(Value::as_i64));
-    terminal
-        && invocation_bound
-        && workspace_bound
-        && repository_bound
-        && receipt.pointer("/reap/status").and_then(Value::as_str) == Some("REAPED")
-        && receipt.pointer("/reap/reaped").and_then(Value::as_bool) == Some(true)
-        && no_survivors(receipt)
+fn valid_hex_digest(value: Option<&Value>) -> bool {
+    value.and_then(Value::as_str).is_some_and(|value| {
+        value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
 }
 
-fn incomplete(input: &LegacyCheckInput, message: String, details: Value) -> LegacyCheckExecution {
+fn validate_attested_payload(
+    payload: &Value,
+    status: &Value,
+    id: &str,
+    nonce: &str,
+    request_digest: &str,
+    copy: &PreparedCopy,
+    enrollment: &AttestedRunsEnrollment,
+    family: &str,
+    runner: &str,
+    adapter: Option<&super::attested_runs::AdapterEnrollment>,
+    requested_argv: &[String],
+    outputs: &[PathBuf],
+    submitted_exit: i32,
+) -> Result<i32, String> {
+    let request = payload
+        .get("request")
+        .filter(|value| value.is_object())
+        .ok_or("provenance-request-missing")?;
+    let shim = if family == "rust-rightkit" {
+        "cargo"
+    } else {
+        "adapter"
+    };
+    let expected_kind = if shim == "cargo" { "cargo" } else { "adapter" };
+    let expected_adapter = adapter.map(|item| item.broker_adapter_id.as_str());
+    if payload.get("host").and_then(Value::as_str) != Some(enrollment.host.as_str())
+        || payload.get("keyId").and_then(Value::as_str) != Some(enrollment.key_id.as_str())
+        || payload
+            .pointer("/broker/brokerDigest")
+            .and_then(Value::as_str)
+            != Some(enrollment.broker_digest.as_str())
+        || payload.get("jobId").and_then(Value::as_str) != Some(id)
+        || payload.get("nonce").and_then(Value::as_str) != Some(nonce)
+        || payload.get("requestDigest").and_then(Value::as_str) != Some(request_digest)
+    {
+        return Err("provenance-top-level-binding-mismatch".into());
+    }
+    if request.get("kind").and_then(Value::as_str) != Some(expected_kind)
+        || request.get("shim").and_then(Value::as_str) != Some(shim)
+        || request.get("adapter").and_then(Value::as_str) != expected_adapter
+        || request
+            .get("requestedArgv")
+            .and_then(Value::as_array)
+            .is_none_or(|values| {
+                values
+                    .iter()
+                    .map(Value::as_str)
+                    .collect::<Option<Vec<_>>>()
+                    .is_none_or(|values| {
+                        values
+                            != requested_argv
+                                .iter()
+                                .map(String::as_str)
+                                .collect::<Vec<_>>()
+                    })
+            })
+        || request.get("workspace").and_then(Value::as_str)
+            != Some(copy.cwd.to_string_lossy().as_ref())
+        || request.get("workspaceRoot").and_then(Value::as_str)
+            != Some(copy.workspace_root.to_string_lossy().as_ref())
+        || payload
+            .pointer("/broker/clientDigest")
+            .and_then(Value::as_str)
+            != Some(enrollment.client_digest.as_str())
+    {
+        return Err("provenance-request-binding-mismatch".into());
+    }
+    let expected_outputs = outputs
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    if request
+        .get("outputs")
+        .and_then(Value::as_array)
+        .is_none_or(|values| {
+            values
+                .iter()
+                .map(Value::as_str)
+                .collect::<Option<Vec<_>>>()
+                .is_none_or(|values| {
+                    values
+                        != expected_outputs
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                })
+        })
+        || !valid_hex_digest(request.get("manifestDigest"))
+        || request
+            .get("effectiveArgv")
+            .and_then(Value::as_array)
+            .is_none()
+        || request
+            .get("transformations")
+            .and_then(Value::as_array)
+            .is_none()
+    {
+        return Err("provenance-effective-request-evidence-invalid".into());
+    }
+    let executable = payload
+        .get("executable")
+        .filter(|value| value.is_object())
+        .ok_or("provenance-executable-missing")?;
+    if executable
+        .get("path")
+        .and_then(Value::as_str)
+        .is_none_or(|path| !Path::new(path).is_absolute())
+        || !valid_hex_digest(executable.get("sha256"))
+        || !matches!(
+            executable.get("kind").and_then(Value::as_str),
+            Some("native" | "interpreter")
+        )
+    {
+        return Err("provenance-executable-identity-invalid".into());
+    }
+    if let Some(script) = executable.get("script") {
+        if script
+            .get("path")
+            .and_then(Value::as_str)
+            .is_none_or(|path| !Path::new(path).is_absolute())
+            || !valid_hex_digest(script.get("sha256"))
+        {
+            return Err("provenance-script-identity-invalid".into());
+        }
+        if executable
+            .get("argsPrefix")
+            .and_then(Value::as_array)
+            .is_some_and(|prefix| !prefix.is_empty())
+        {
+            return Err("provenance-script-combined-with-prefix".into());
+        }
+    } else if executable.get("argsPrefix").is_some() {
+        if executable.get("prefixAttested").and_then(Value::as_bool) != Some(false)
+            || executable
+                .get("argsPrefix")
+                .and_then(Value::as_array)
+                .is_none()
+        {
+            return Err("provenance-native-prefix-invalid".into());
+        }
+    }
+    let descendants = payload
+        .get("descendants")
+        .filter(|value| value.is_object())
+        .ok_or("provenance-descendants-missing")?;
+    if descendants.get("status").and_then(Value::as_str) != Some("tree-contained") {
+        return Err("broker-descendants-not-contained".into());
+    }
+    if descendants
+        .get("survivors")
+        .is_some_and(|survivors| !survivors.as_array().is_some_and(Vec::is_empty))
+    {
+        return Err("broker-known-survivors".into());
+    }
+    let result = payload
+        .get("result")
+        .filter(|value| value.is_object())
+        .ok_or("provenance-result-missing")?;
+    if !matches!(
+        result.get("status").and_then(Value::as_str),
+        Some("SUCCEEDED" | "FAILED")
+    ) || result.pointer("/reap/status").and_then(Value::as_str) != Some("REAPED")
+        || result.pointer("/reap/reaped").and_then(Value::as_bool) != Some(true)
+        || result.get("signal").is_some_and(|signal| !signal.is_null())
+    {
+        return Err("broker-terminal-result-unconfirmed".into());
+    }
+    let boundary = payload
+        .get("inputBoundary")
+        .filter(|value| value.is_object())
+        .ok_or("provenance-input-boundary-missing")?;
+    if boundary.get("status").and_then(Value::as_str) != Some("intact")
+        || !["changed", "deleted", "added"]
+            .iter()
+            .all(|key| array_empty(boundary, key))
+    {
+        return Err("broker-input-boundary-not-intact".into());
+    }
+    let exit = result
+        .get("exitCode")
+        .and_then(Value::as_i64)
+        .ok_or("provenance-exit-code-missing")?;
+    if status
+        .get("exitCode")
+        .and_then(Value::as_i64)
+        .is_some_and(|outer| outer != exit)
+        || status.get("id").and_then(Value::as_str) != Some(id)
+        || status
+            .get("state")
+            .or_else(|| status.get("status"))
+            .and_then(Value::as_str)
+            != result.get("status").and_then(Value::as_str)
+        || (exit == 0 && result.get("status").and_then(Value::as_str) != Some("SUCCEEDED"))
+        || (exit != 0 && result.get("status").and_then(Value::as_str) != Some("FAILED"))
+        || !valid_hex_digest(payload.get("outputDigest"))
+    {
+        return Err("status-provenance-terminal-mismatch".into());
+    }
+    match_submit_to_attested_exit(submitted_exit, exit)?;
+    let _ = runner;
+    Ok(exit as i32)
+}
+
+fn cleanup_proven(
+    status: &Value,
+    id: &str,
+    copy: &PreparedCopy,
+    expected_command: &str,
+    expected_argv: &[String],
+) -> bool {
+    let _ = (status, id, copy, expected_command, expected_argv);
+    false
+}
+
+pub(super) fn incomplete(
+    input: &LegacyCheckInput,
+    message: String,
+    details: Value,
+) -> LegacyCheckExecution {
     let reason = format!("disposable-copy-incomplete:{message}");
     let mut output = empty_output(vec![reason.clone()]);
     output.coverage = Some(Coverage {
@@ -687,6 +953,153 @@ fn incomplete(input: &LegacyCheckInput, message: String, details: Value) -> Lega
     }
 }
 
+fn validate_runner_binding(
+    source: &Value,
+    family: &str,
+    invocation: &[String],
+    enrollment: &AttestedRunsEnrollment,
+) -> Result<(), String> {
+    let runner = source.get("runner").and_then(Value::as_str);
+    match family {
+        "rust-rightkit" if invocation.iter().map(String::as_str).eq(["cargo", "test"]) => Ok(()),
+        "registered-adapter" => {
+            let runner = runner.ok_or("test-runner-name-missing")?;
+            if invocation.first().map(String::as_str) != Some(runner) {
+                return Err("test-runner-name-or-argv-mismatch".into());
+            }
+            if enrollment.adapter(runner).is_none() {
+                return Err(format!("managed-test-runner-not-registered:{runner}"));
+            }
+            Ok(())
+        }
+        _ => Err("test-runner-family-not-allowlisted".into()),
+    }
+}
+
+fn validate_required_runner_version(
+    runner: &str,
+    required: Option<&str>,
+    adapter: Option<&AdapterEnrollment>,
+) -> Result<(), String> {
+    let Some(required) = required else {
+        return Ok(());
+    };
+    match adapter.and_then(|item| item.qualified_version.as_deref()) {
+        Some(qualified) if qualified == required => Ok(()),
+        Some(_) => Err(format!("managed-test-runner-version-mismatch:{runner}")),
+        None => Err(format!("managed-test-runner-version-unqualified:{runner}")),
+    }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InputFile {
+    path: String,
+    kind: &'static str,
+    sha256: String,
+    mode: u32,
+    size: u64,
+}
+
+fn input_manifest(root: &Path) -> Result<Value, String> {
+    let root = fs::canonicalize(root).map_err(|error| error.to_string())?;
+    let mut entries = Vec::new();
+    let mut total = 0u64;
+    for item in walkdir::WalkDir::new(&root).follow_links(false) {
+        let item = item.map_err(|error| error.to_string())?;
+        if item.path() == root {
+            continue;
+        }
+        let metadata = fs::symlink_metadata(item.path()).map_err(|error| error.to_string())?;
+        if metadata.is_dir() {
+            continue;
+        }
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
+            return Err(format!(
+                "input-manifest-unsupported-entry:{}",
+                item.path().display()
+            ));
+        }
+        total = total.saturating_add(metadata.len());
+        if entries.len() >= MAX_FILES || total > MAX_TOTAL_BYTES {
+            return Err("input-manifest-bound-exceeded".into());
+        }
+        let relative = item
+            .path()
+            .strip_prefix(&root)
+            .map_err(|error| error.to_string())?
+            .to_str()
+            .ok_or("input-manifest-path-not-utf8")?
+            .replace('\\', "/");
+        let bytes = fs::read(item.path()).map_err(|error| error.to_string())?;
+        #[cfg(unix)]
+        let mode = {
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode() & 0o7777
+        };
+        #[cfg(windows)]
+        let mode = 0;
+        entries.push(InputFile {
+            path: relative,
+            kind: "file",
+            sha256: hex::encode(Sha256::digest(&bytes)),
+            mode,
+            size: bytes.len() as u64,
+        });
+    }
+    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(json!({"root":root,"entries":entries}))
+}
+
+fn approved_outputs(copy: &PreparedCopy, family: &str, runner: &str) -> Vec<PathBuf> {
+    let names: &[&str] = match (family, runner) {
+        ("rust-rightkit", _) => &[],
+        ("registered-adapter", "npm" | "pnpm" | "yarn" | "bun") => &["node_modules"],
+        ("registered-adapter", "pytest") => &[".pytest_cache"],
+        ("registered-adapter", "swift") => &[".build"],
+        ("registered-adapter", "mvn") => &["target"],
+        ("registered-adapter", "gradle") => &[".gradle", "build"],
+        ("registered-adapter", "dotnet") => &["bin", "obj"],
+        ("registered-adapter", "flutter") => &[".dart_tool", "build"],
+        ("registered-adapter", "mix") => &["_build", "deps"],
+        _ => &[],
+    };
+    if family == "rust-rightkit" {
+        vec![copy.workspace_root.join("target")]
+    } else {
+        names.iter().map(|name| copy.path.join(name)).collect()
+    }
+}
+
+fn observed_rust_environment(environment: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    const KEYS: &[&str] = &[
+        "CARGO_HOME",
+        "CARGO_TARGET_DIR",
+        "CARGO_BUILD_TARGET",
+        "CARGO_BUILD_TARGET_DIR",
+        "CARGO_BUILD_BUILD_DIR",
+        "CARGO_BUILD_RUSTC",
+        "CARGO_BUILD_RUSTDOC",
+        "CARGO_BUILD_RUSTC_WRAPPER",
+        "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+        "CARGO_BUILD_RUSTFLAGS",
+        "CARGO_ENCODED_RUSTFLAGS",
+        "CARGO_INSTALL_ROOT",
+        "RUSTUP_HOME",
+        "RUSTC",
+        "RUSTDOC",
+        "RUSTFLAGS",
+        "RUSTDOCFLAGS",
+        "RUSTC_WRAPPER",
+        "RUSTC_WORKSPACE_WRAPPER",
+    ];
+    environment
+        .iter()
+        .filter(|(key, _)| KEYS.iter().any(|managed| key.eq_ignore_ascii_case(managed)))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect()
+}
+
 fn artifact_bytes(
     receipt: &ExecutionReceipt,
     stderr: bool,
@@ -702,33 +1115,55 @@ fn artifact_bytes(
     )
 }
 
+fn trusted_cli_response<'a>(receipt: &ExecutionReceipt, response: &'a Value) -> Option<&'a Value> {
+    (receipt.complete
+        && receipt.state == ExecutionState::Completed
+        && receipt.exit_code == Some(0)
+        && receipt.process_tree.reaped)
+        .then_some(response)
+}
+
+fn submit_process_exit(receipt: &ExecutionReceipt) -> Option<i32> {
+    if receipt.complete && receipt.state == ExecutionState::Completed && receipt.process_tree.reaped
+    {
+        receipt.exit_code
+    } else {
+        None
+    }
+}
+
+fn match_submit_to_attested_exit(submitted_exit: i32, attested_exit: i64) -> Result<(), String> {
+    if i64::from(submitted_exit) == attested_exit {
+        Ok(())
+    } else {
+        Err("submit-exit-does-not-match-attested-job-exit".into())
+    }
+}
+
 fn external_request(
     base: &ExternalToolRequest,
-    command: &[&str],
+    command: &[String],
     cwd: &Path,
     environment: BTreeMap<String, String>,
     allowlist: BTreeSet<String>,
     timeout_ms: u64,
 ) -> ExternalToolRequest {
     let mut request = base.clone();
-    let operation = match command {
-        ["cargo", "test"] => "submit",
-        ["cancel", _] => "cancel",
-        ["status", _] => "status",
-        _ => "control",
+    let operation = match command.first().map(String::as_str) {
+        Some("cancel") => "cancel",
+        Some("status") => "status",
+        _ => "submit",
     };
     request.request_id = format!(
         "{}-{operation}-{}",
         base.request_id,
         COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
     );
-    request.args = command.iter().map(|item| (*item).to_owned()).collect();
+    request.args = command.to_vec();
     request.cwd = cwd.to_string_lossy().into_owned();
     request.environment = environment;
     request.environment_allowlist = allowlist;
     request.expected_digest = base.expected_digest.clone();
-    request.version_args = vec!["cargo".into(), "--version".into()];
-    request.version_requirement = None;
     request.timeout_ms = timeout_ms;
     request.accepted_exit_codes = (0..=255).collect();
     request.requires_network_sandbox = false;
@@ -746,7 +1181,7 @@ fn id_request(
     let (environment, allowlist) = audit_environment_for_request(base);
     external_request(
         base,
-        &[operation, id],
+        &[operation.to_owned(), id.to_owned()],
         cwd,
         environment,
         allowlist,
@@ -769,19 +1204,14 @@ fn copied_request(
     copy: &PreparedCopy,
     timeout_ms: u64,
     request_id: String,
+    command: &[String],
 ) -> ExternalToolRequest {
     let (mut environment, mut allowlist) =
         (base.environment.clone(), base.environment_allowlist.clone());
     environment.insert(CANCEL_ON_DISCONNECT.into(), "1".into());
     allowlist.insert(CANCEL_ON_DISCONNECT.into());
-    let mut request = external_request(
-        base,
-        &["cargo", "test"],
-        &copy.cwd,
-        environment,
-        allowlist,
-        timeout_ms,
-    );
+    let mut request =
+        external_request(base, command, &copy.cwd, environment, allowlist, timeout_ms);
     request.request_id = request_id;
     request
 }
@@ -799,29 +1229,89 @@ pub(super) async fn execute(
     scratch: &AuditScratch,
     cancellation: CancellationToken,
     timeout_ms: u64,
+    enrollment: Option<&AttestedRunsEnrollment>,
 ) -> LegacyCheckExecution {
-    let cargo_manifest = source
-        .get("sources")
-        .and_then(Value::as_array)
-        .and_then(|items| {
-            items.iter().find_map(|item| {
-                let path = item.get("path")?.as_str()?;
-                path.ends_with("Cargo.toml").then(|| path.to_owned())
-            })
-        });
-    let Some(cargo_manifest) = cargo_manifest else {
+    let Some(enrollment) = enrollment else {
         return incomplete(
             input,
-            "frozen-cargo-manifest-missing".into(),
+            "managed-test-trust-not-configured".into(),
+            json!({"assurance":"attested-runs-required"}),
+        );
+    };
+    let test_declaration = source
+        .get("testDeclarationPath")
+        .and_then(Value::as_str)
+        .or_else(|| {
+            source
+                .get("sources")
+                .and_then(Value::as_array)
+                .and_then(|items| {
+                    items.iter().find_map(|item| {
+                        let path = item.get("path")?.as_str()?;
+                        path.ends_with("Cargo.toml").then_some(path)
+                    })
+                })
+        })
+        .map(ToOwned::to_owned);
+    let Some(test_declaration) = test_declaration else {
+        return incomplete(
+            input,
+            "frozen-test-declaration-missing".into(),
             json!({"assurance":"disposable-copy-before-after"}),
         );
     };
+    let family = source.get("family").and_then(Value::as_str).unwrap_or("");
+    if !matches!(family, "rust-rightkit" | "registered-adapter") {
+        return incomplete(
+            input,
+            "test-runner-family-not-supported-in-disposable-copy".into(),
+            json!({"assurance":"disposable-copy-before-after","family":family}),
+        );
+    }
+    let invocation = command.args.clone();
+    let Some(runner) = invocation.first() else {
+        return incomplete(
+            input,
+            "frozen-test-argv-empty".into(),
+            json!({"assurance":"disposable-copy-before-after"}),
+        );
+    };
+    if let Err(message) = validate_runner_binding(source, family, &invocation, enrollment) {
+        return incomplete(
+            input,
+            message,
+            json!({"assurance":"disposable-copy-before-after","family":family}),
+        );
+    }
+    let pinned_client = fs::canonicalize(&enrollment.client_executable).ok();
+    let enrollment_meta = fs::symlink_metadata(&enrollment.client_executable).ok();
+    let selected_client = fs::canonicalize(&command.executable).ok();
+    let selected_bytes = selected_client
+        .as_ref()
+        .and_then(|path| fs::read(path).ok());
+    let selected_digest = selected_bytes
+        .as_ref()
+        .map(|bytes| hex::encode(Sha256::digest(bytes)));
+    if pinned_client.is_none()
+        || enrollment_meta
+            .as_ref()
+            .is_none_or(|metadata| metadata.file_type().is_symlink() || !metadata.is_file())
+        || selected_client != pinned_client
+        || selected_digest.as_deref() != Some(enrollment.client_digest.as_str())
+        || command.digest != format!("sha256:{}", enrollment.client_digest)
+    {
+        return incomplete(
+            input,
+            "managed-test-attestation-cli-unavailable".into(),
+            json!({"assurance":"attested-runs-required","reason":"pinned-client-unavailable-or-mismatched"}),
+        );
+    }
     let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
-    let copy = match prepare_copy(
+    let mut copy = match prepare_copy(
         root,
         inventory,
         scratch,
-        &cargo_manifest,
+        &test_declaration,
         deadline,
         &cancellation,
     ) {
@@ -845,8 +1335,11 @@ pub(super) async fn execute(
             );
         }
     };
-    if !verify_source_unchanged(root, inventory, deadline, &cancellation)
-        || !verify_copy_unchanged(&copy, inventory, deadline, &cancellation)
+    if let Err(message) = bind_copy_workspace_root(root, source, &mut copy) {
+        return retain_incomplete(scratch, &copy, input, &message);
+    }
+    if !verify_source_unchanged(root, inventory, &copy.input_modes, deadline, &cancellation)
+        || !verify_copy_unchanged(&copy, inventory, &[], deadline, &cancellation)
     {
         let _ = fs::remove_dir_all(&copy.path);
         return incomplete(
@@ -884,11 +1377,193 @@ pub(super) async fn execute(
         executable: command.executable.to_string_lossy().into_owned(),
         cwd: copy.cwd.to_string_lossy().into_owned(),
         expected_digest: Some(command.digest.clone()),
+        // Never probe a test runner with `--version`: that runs project code
+        // outside an attested request. The pinned rightkit CLI itself is
+        // checked against enrollment above.
+        version_args: Vec::new(),
+        version_requirement: None,
         ..ExternalToolRequest::default()
     };
     let (mut environment, mut allowlist) = audit_environment(scratch);
     environment.insert(CANCEL_ON_DISCONNECT.into(), "1".into());
     allowlist.insert(CANCEL_ON_DISCONNECT.into());
+    let runner_label = if family == "rust-rightkit" {
+        "cargo"
+    } else {
+        source.get("runner").and_then(Value::as_str).unwrap_or("")
+    };
+    let adapter = enrollment.adapter(runner_label);
+    if family == "registered-adapter" && adapter.is_none() {
+        return incomplete(
+            input,
+            format!("managed-test-runner-not-registered:{runner_label}"),
+            json!({"assurance":"attested-runs-required","runner":runner_label}),
+        );
+    }
+    let required_runner_version = source.get("requiredRunnerVersion").and_then(Value::as_str);
+    if let Err(reason) =
+        validate_required_runner_version(runner_label, required_runner_version, adapter)
+    {
+        return incomplete(
+            input,
+            reason,
+            json!({"assurance":"attested-runs-required","requiredVersion":required_runner_version}),
+        );
+    }
+    let outputs = approved_outputs(&copy, family, runner_label);
+    let manifest_paths = match input_manifest(&copy.path) {
+        Ok(value) => value
+            .get("entries")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                entry
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .collect::<Vec<_>>(),
+        Err(message) => return retain_incomplete(scratch, &copy, input, &message),
+    };
+    let mut output_relatives = Vec::new();
+    for output in &outputs {
+        let Ok(relative) = output.strip_prefix(&copy.path) else {
+            return retain_incomplete(scratch, &copy, input, "approved-output-root-invalid");
+        };
+        let relative = relative.to_string_lossy().replace('\\', "/");
+        if relative.is_empty()
+            || manifest_paths.iter().any(|path| {
+                path == &relative
+                    || path.starts_with(&format!("{relative}/"))
+                    || relative.starts_with(&format!("{path}/"))
+            })
+            || output_relatives.iter().any(|prior: &String| {
+                prior == &relative
+                    || prior.starts_with(&format!("{relative}/"))
+                    || relative.starts_with(&format!("{prior}/"))
+            })
+        {
+            return retain_incomplete(
+                scratch,
+                &copy,
+                input,
+                "approved-output-overlaps-frozen-input",
+            );
+        }
+        output_relatives.push(relative);
+        if let Err(error) = fs::create_dir_all(output) {
+            return retain_incomplete(
+                scratch,
+                &copy,
+                input,
+                &format!("output-root-create-failed:{error}"),
+            );
+        }
+    }
+    let nonce = match attested_runs::fresh_nonce() {
+        Ok(nonce) => nonce,
+        Err(message) => return retain_incomplete(scratch, &copy, input, &message),
+    };
+    let manifest = match input_manifest(&copy.path) {
+        Ok(manifest) => manifest,
+        Err(message) => return retain_incomplete(scratch, &copy, input, &message),
+    };
+    let manifest_path = scratch
+        .root()
+        .join(format!("attested-manifest-{}", id_suffix(&base.request_id)));
+    let core_path = scratch
+        .root()
+        .join(format!("attested-core-{}", id_suffix(&base.request_id)));
+    let output_strings = outputs
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    let requested_argv = invocation.iter().skip(1).cloned().collect::<Vec<_>>();
+    let shim = if family == "rust-rightkit" {
+        "cargo"
+    } else {
+        "adapter"
+    };
+    let core = json!({
+        "adapter":adapter.map(|item| item.broker_adapter_id.as_str()),
+        "env":{},
+        "inputManifest":manifest.clone(),
+        "nonce":nonce,
+        "observedEnv":if shim == "cargo" { json!(observed_rust_environment(&environment)) } else { json!({}) },
+        "outputs":output_strings,
+        "requestedArgv":requested_argv,
+        "shim":shim,
+        "workspace":copy.cwd.to_string_lossy(),
+    });
+    if fs::write(&core_path, serde_json::to_vec(&core).unwrap_or_default()).is_err() {
+        return retain_incomplete(scratch, &copy, input, "request-core-write-failed");
+    }
+    if remaining_ms() == 0 {
+        return retain_incomplete(scratch, &copy, input, "deadline-expired-before-cli-probe");
+    }
+    let probe_env = environment.clone();
+    let probe_allowlist = allowlist.clone();
+    let probe = external_request(
+        &base,
+        &[
+            "request-digest".into(),
+            "--core".into(),
+            core_path.to_string_lossy().into_owned(),
+        ],
+        &copy.cwd,
+        probe_env,
+        probe_allowlist,
+        remaining_ms(),
+    );
+    let probe_receipt = tokio::select! {
+        _ = cancellation.cancelled() => return retain_incomplete(scratch, &copy, input, "cancelled-before-cli-probe"),
+        result = tool.execute(probe, cancellation.clone()) => result,
+    };
+    let probe_bytes = artifact_bytes(&probe_receipt, false, scratch).unwrap_or_default();
+    let probe_json: Value = serde_json::from_slice(&probe_bytes).unwrap_or(Value::Null);
+    let request_digest = probe_json
+        .get("requestDigest")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if trusted_cli_response(&probe_receipt, &probe_json).is_none()
+        || !request_digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || request_digest.len() != 64
+    {
+        if !probe_receipt.process_tree.reaped {
+            return retain_incomplete(scratch, &copy, input, "request-digest-process-unreaped");
+        }
+        return incomplete(
+            input,
+            "managed-test-attestation-cli-unavailable".into(),
+            json!({"assurance":"attested-runs-required","phase":"request-digest","clientState":format!("{:?}", probe_receipt.state)}),
+        );
+    }
+    let manifest_envelope = json!({"root":manifest["root"],"entries":manifest["entries"]});
+    if fs::write(
+        &manifest_path,
+        serde_json::to_vec(&manifest_envelope).unwrap_or_default(),
+    )
+    .is_err()
+    {
+        return retain_incomplete(scratch, &copy, input, "input-manifest-write-failed");
+    }
+    environment.insert("RIGHTKIT_ATTEST_NONCE".into(), nonce.clone());
+    environment.insert(
+        "RIGHTKIT_INPUT_MANIFEST".into(),
+        manifest_path.to_string_lossy().into_owned(),
+    );
+    environment.insert(
+        "RIGHTKIT_OUTPUT_ROOTS".into(),
+        output_strings.join(if cfg!(windows) { ";" } else { ":" }),
+    );
+    allowlist.extend([
+        "RIGHTKIT_ATTEST_NONCE".into(),
+        "RIGHTKIT_INPUT_MANIFEST".into(),
+        "RIGHTKIT_OUTPUT_ROOTS".into(),
+    ]);
     if remaining_ms() == 0 {
         let _ = fs::remove_dir_all(&copy.path);
         return incomplete(
@@ -906,7 +1581,23 @@ pub(super) async fn execute(
         &copy,
         remaining_ms(),
         base.request_id.clone(),
+        &{
+            if family == "rust-rightkit" {
+                invocation.clone()
+            } else {
+                let mut args = vec![
+                    "run".into(),
+                    adapter.unwrap().broker_adapter_id.clone(),
+                    "--".into(),
+                ];
+                args.extend(invocation.iter().skip(1).cloned());
+                args
+            }
+        },
     );
+    // From launch onward, scratch survives unless authenticated terminal
+    // evidence and local integrity checks prove cleanup is safe.
+    scratch.begin_attested_request();
     let submitted = tokio::select! {
         _ = cancellation.cancelled() => {
             // execute may already have launched the broker request. Without a
@@ -918,7 +1609,7 @@ pub(super) async fn execute(
     let raw_stderr = artifact_bytes(&submitted, true, scratch).unwrap_or_default();
     let id = match request_id(&raw_stderr) {
         Ok(id) => id,
-        Err(message) => return retain_incomplete(scratch, &copy, input, message),
+        Err(message) => return retain_incomplete(scratch, &copy, input, &message),
     };
     if cancellation.is_cancelled()
         || remaining_ms() == 0
@@ -931,45 +1622,29 @@ pub(super) async fn execute(
         let cleanup_token = CancellationToken::new();
         let _ = tool.execute(cancel, cleanup_token.clone()).await;
         let status = id_request(&submit, "status", &id, &copy.cwd, remaining_ms().max(1));
-        let final_status = tool.execute(status, cleanup_token).await;
-        if status_json(&final_status, scratch).is_some_and(|raw| cleanup_proven(&raw, &id, &copy)) {
-            let _ = fs::remove_dir_all(&copy.path);
-            let mut execution = incomplete(
-                input,
-                "cancelled-or-timed-out-after-confirmed-reap".into(),
-                json!({"requestId":id}),
-            );
-            attach_status_artifact(&mut execution, &final_status);
-            return execution;
-        } else {
-            scratch.retain_after_drop();
-        }
+        let _final_status = tool.execute(status, cleanup_token).await;
+        // Unsigned cleanup/status fields cannot authorize deleting the copy.
+        scratch.retain_after_drop();
         return retain_incomplete(scratch, &copy, input, "cancelled-or-timed-out");
     }
-    if !submitted.complete
-        || submitted.state != ExecutionState::Completed
-        || !submitted.process_tree.reaped
-    {
+    let Some(submitted_exit) = submit_process_exit(&submitted) else {
         return retain_incomplete(scratch, &copy, input, "rightkit-submit-process-unconfirmed");
-    }
+    };
     let status_request = id_request(&submit, "status", &id, &copy.cwd, remaining_ms());
     let status_receipt = tokio::select! {
         _ = cancellation.cancelled() => {
             let cancel = id_request(&submit, "cancel", &id, &copy.cwd, remaining_ms().max(1));
             let cleanup_token = CancellationToken::new();
             let _ = tool.execute(cancel, cleanup_token.clone()).await;
-            let final_status = tool.execute(id_request(&submit, "status", &id, &copy.cwd, remaining_ms().max(1)), cleanup_token).await;
-            if status_json(&final_status, scratch).is_some_and(|raw| cleanup_proven(&raw, &id, &copy)) {
-                let _ = fs::remove_dir_all(&copy.path);
-                let mut execution = incomplete(input, "cancelled-during-status-after-confirmed-reap".into(), json!({"requestId":id}));
-                attach_status_artifact(&mut execution, &final_status);
-                return execution;
-            }
+            let _ = tool.execute(id_request(&submit, "status", &id, &copy.cwd, remaining_ms().max(1)), cleanup_token).await;
             scratch.retain_after_drop();
             return retain_incomplete(scratch, &copy, input, "cancelled-during-status");
         },
         result = tool.execute(status_request, CancellationToken::new()) => result,
     };
+    if trusted_cli_response(&status_receipt, &Value::Null).is_none() {
+        return retain_incomplete(scratch, &copy, input, "broker-status-process-unconfirmed");
+    }
     let Some(status_json) = status_json(&status_receipt, scratch) else {
         scratch.retain_after_drop();
         let mut execution =
@@ -977,51 +1652,131 @@ pub(super) async fn execute(
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
     };
-    let exit = match validate_status(&status_json, &id, &copy, &["test".into()]) {
-        Ok(exit) => exit,
-        Err(message) => {
-            let cleanup_proven = cleanup_proven(&status_json, &id, &copy);
-            let source_unchanged =
-                verify_source_unchanged(root, inventory, deadline, &cancellation);
-            let copy_unchanged = verify_copy_unchanged(&copy, inventory, deadline, &cancellation);
-            let mut execution = if cleanup_proven {
-                let _ = fs::remove_dir_all(&copy.path);
-                incomplete(
-                    input,
-                    message.into(),
-                    json!({"assurance":"disposable-copy-before-after","osSandbox":false,"networkIsolation":"not-enforced","requestId":id,"sourceDigest":copy.source_digest,"copyDigest":copy.copy_digest,"fileCount":copy.file_count,"bytes":copy.total_bytes,"copyRemovedAfterReap":true,"sourceUnchanged":source_unchanged,"copyUnchanged":copy_unchanged}),
-                )
-            } else {
-                retain_incomplete(scratch, &copy, input, &message)
-            };
-            attach_status_artifact(&mut execution, &status_receipt);
-            return execution;
-        }
+    let receipt_path = scratch
+        .root()
+        .join(format!("attested-receipt-{}", id_suffix(&id)));
+    if fs::write(
+        &receipt_path,
+        serde_json::to_vec(&status_json).unwrap_or_default(),
+    )
+    .is_err()
+    {
+        return retain_incomplete(
+            scratch,
+            &copy,
+            input,
+            "receipt-copy-for-verification-failed",
+        );
+    }
+    let verify_args = vec![
+        "verify-receipt".into(),
+        "--receipt".into(),
+        receipt_path.to_string_lossy().into_owned(),
+        "--public-key".into(),
+        enrollment.public_key.clone(),
+        "--key-id".into(),
+        enrollment.key_id.clone(),
+        "--host".into(),
+        enrollment.host.clone(),
+        "--broker-digest".into(),
+        enrollment.broker_digest.clone(),
+        "--nonce".into(),
+        nonce.clone(),
+        "--request-digest".into(),
+        request_digest.to_owned(),
+        "--job-id".into(),
+        id.clone(),
+    ];
+    let verify_request = external_request(
+        &submit,
+        &verify_args,
+        &copy.cwd,
+        submit.environment.clone(),
+        submit.environment_allowlist.clone(),
+        remaining_ms(),
+    );
+    let verified = tokio::select! {
+        _ = cancellation.cancelled() => return retain_incomplete(scratch, &copy, input, "cancelled-during-receipt-verification"),
+        result = tool.execute(verify_request, CancellationToken::new()) => result,
     };
-    if submitted.exit_code != Some(exit) {
-        scratch.retain_after_drop();
+    let verify_bytes = artifact_bytes(&verified, false, scratch).unwrap_or_default();
+    let verify_json: Value = serde_json::from_slice(&verify_bytes).unwrap_or(Value::Null);
+    let Some(verify_json) = trusted_cli_response(&verified, &verify_json) else {
+        return retain_incomplete(
+            scratch,
+            &copy,
+            input,
+            "receipt-verifier-process-unconfirmed",
+        );
+    };
+    let Some(payload) = verify_json
+        .get("payload")
+        .filter(|_| verify_json.get("ok").and_then(Value::as_bool) == Some(true))
+    else {
         let mut execution = retain_incomplete(
             scratch,
             &copy,
             input,
-            "submit-exit-does-not-match-broker-receipt",
+            "managed-test-attestation-verification-failed",
         );
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
-    }
-    let final_source = verify_source_unchanged(root, inventory, deadline, &cancellation);
-    let final_copy = verify_copy_unchanged(&copy, inventory, deadline, &cancellation);
+    };
+    let expected_adapter = adapter;
+    let exit = match validate_attested_payload(
+        payload,
+        &status_json,
+        &id,
+        &nonce,
+        request_digest,
+        &copy,
+        enrollment,
+        family,
+        runner_label,
+        expected_adapter,
+        &requested_argv,
+        &outputs,
+        submitted_exit,
+    ) {
+        Ok(exit) => exit,
+        Err(message) => {
+            let source_unchanged = verify_source_unchanged(
+                root,
+                inventory,
+                &copy.input_modes,
+                deadline,
+                &cancellation,
+            );
+            let copy_unchanged =
+                verify_copy_unchanged(&copy, inventory, &outputs, deadline, &cancellation);
+            let mut execution = retain_incomplete(scratch, &copy, input, &message);
+            attach_status_artifact(&mut execution, &status_receipt);
+            if let Some(output) = execution.output.as_mut() {
+                output.details.insert(
+                    "sourceIntegrityAfterReceipt".into(),
+                    json!({"sourceUnchanged":source_unchanged,"copyUnchanged":copy_unchanged}),
+                );
+            }
+            return execution;
+        }
+    };
+    let final_source =
+        verify_source_unchanged(root, inventory, &copy.input_modes, deadline, &cancellation);
+    let final_copy = verify_copy_unchanged(&copy, inventory, &outputs, deadline, &cancellation);
     if !final_source || !final_copy {
-        let _ = fs::remove_dir_all(&copy.path);
-        let mut execution = incomplete(
-            input,
-            "source-or-copy-drift-after-test".into(),
-            json!({"requestId":id,"sourceUnchanged":final_source,"copyUnchanged":final_copy}),
-        );
+        let mut execution =
+            retain_incomplete(scratch, &copy, input, "source-or-copy-drift-after-test");
+        if let Some(output) = execution.output.as_mut() {
+            output.details.insert(
+                "integrityCheck".into(),
+                json!({"requestId":id,"sourceUnchanged":final_source,"copyUnchanged":final_copy}),
+            );
+        }
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
     }
     let _ = fs::remove_dir_all(&copy.path);
+    scratch.finish_attested_request();
     let mut output = empty_output(Vec::new());
     output.coverage = Some(Coverage {
         denominator_digest: input.denominator.digest.clone(),
@@ -1033,6 +1788,10 @@ pub(super) async fn execute(
         .details
         .insert("testCommandSource".into(), source.clone());
     output.details.insert("disposableCopy".into(), json!({"assurance":"disposable-copy-before-after","osSandbox":false,"networkIsolation":"not-enforced","sourceDigest":copy.source_digest,"copyDigest":copy.copy_digest,"fileCount":copy.file_count,"bytes":copy.total_bytes,"sourceUnchanged":true,"copyUnchanged":true,"requestId":id}));
+    output.details.insert(
+        "attestedRuns".into(),
+        json!({"verified":true,"host":enrollment.host,"keyId":enrollment.key_id,"qualifiedRunnerVersion":adapter.and_then(|item| item.qualified_version.as_deref()),"trustScope":"trusted local-key provenance; same-user hostile code is outside this boundary"}),
+    );
     output.status = ProviderStatus::Ok;
     output.complete = true;
     if exit == 0 {
@@ -1110,17 +1869,6 @@ fn attach_status_artifact(execution: &mut LegacyCheckExecution, receipt: &Execut
     }
 }
 
-fn excluded_inventory_directory(path: &Path) -> bool {
-    path.components()
-        .take(path.components().count().saturating_sub(1))
-        .any(|component| {
-            matches!(
-                component.as_os_str().to_str(),
-                Some(".git" | ".audit" | ".legion-cache" | "node_modules" | "target")
-            )
-        })
-}
-
 fn source_inventory_paths(
     root: &Path,
     deadline: Instant,
@@ -1131,13 +1879,7 @@ fn source_inventory_paths(
     let mut child = command
         .arg("-C")
         .arg(root)
-        .args([
-            "ls-files",
-            "-z",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-        ])
+        .args(["ls-files", "-z", "--cached", "--others"])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -1255,9 +1997,7 @@ fn source_inventory_paths(
             .filter(|path| !path.is_empty())
         {
             let path = String::from_utf8_lossy(path).replace('\\', "/");
-            if !excluded_inventory_directory(Path::new(&path)) {
-                paths.push(path);
-            }
+            paths.push(path);
             if paths.len() > MAX_FILES {
                 return Err(CopyError::Limit("inventory exceeds 100000 files".into()));
             }
@@ -1266,18 +2006,7 @@ fn source_inventory_paths(
     } else {
         let mut paths = Vec::new();
         let mut path_bytes = 0_usize;
-        for item in walkdir::WalkDir::new(root)
-            .follow_links(false)
-            .into_iter()
-            .filter_entry(|entry| {
-                entry.depth() == 0
-                    || !entry.file_type().is_dir()
-                    || !matches!(
-                        entry.file_name().to_str(),
-                        Some(".git" | ".audit" | ".legion-cache" | "node_modules" | "target")
-                    )
-            })
-        {
+        for item in walkdir::WalkDir::new(root).follow_links(false) {
             if cancellation.is_cancelled() {
                 return Err(CopyError::Cancelled);
             }
@@ -1379,6 +2108,7 @@ fn bounded_digest(
 fn verify_source_unchanged(
     root: &Path,
     inventory: &InventoryEnvelope,
+    input_modes: &BTreeMap<String, u32>,
     deadline: Instant,
     cancellation: &CancellationToken,
 ) -> bool {
@@ -1423,7 +2153,10 @@ fn verify_source_unchanged(
             return false;
         };
         hashed_total = hashed_total.saturating_add(bytes);
-        if digest != expected || hashed_total > MAX_TOTAL_BYTES {
+        if digest != expected
+            || file_mode(&root.join(&entry.path)).ok() != input_modes.get(&entry.path).copied()
+            || hashed_total > MAX_TOTAL_BYTES
+        {
             return false;
         }
     }
@@ -1433,6 +2166,7 @@ fn verify_source_unchanged(
 fn verify_copy_unchanged(
     copy: &PreparedCopy,
     inventory: &InventoryEnvelope,
+    outputs: &[PathBuf],
     deadline: Instant,
     cancellation: &CancellationToken,
 ) -> bool {
@@ -1440,51 +2174,82 @@ fn verify_copy_unchanged(
         .entries
         .iter()
         .filter_map(|entry| {
-            entry
-                .digest
-                .as_deref()
-                .map(|digest| (entry.path.clone(), digest.to_owned()))
+            entry.digest.as_deref().map(|digest| {
+                (
+                    entry.path.clone(),
+                    (
+                        digest.to_owned(),
+                        copy.input_modes.get(&entry.path).copied(),
+                    ),
+                )
+            })
         })
         .collect::<BTreeMap<_, _>>();
+    if expected.len() != inventory.entries.len() {
+        return false;
+    }
+    let mut frozen_directories = BTreeSet::new();
+    for path in expected.keys() {
+        let mut parent = Path::new(path).parent();
+        while let Some(directory) = parent.filter(|path| !path.as_os_str().is_empty()) {
+            frozen_directories.insert(directory.to_path_buf());
+            parent = directory.parent();
+        }
+    }
+    if outputs.iter().any(|path| {
+        path.strip_prefix(&copy.path).is_err()
+            || fs::symlink_metadata(path)
+                .map_or(true, |meta| meta.file_type().is_symlink() || !meta.is_dir())
+    }) {
+        return false;
+    }
+    let allowed_output = |path: &Path| outputs.iter().any(|root| path.starts_with(root));
     let mut actual_paths = Vec::new();
-    for item in walkdir::WalkDir::new(&copy.path)
-        .follow_links(false)
-        .into_iter()
-        .filter_entry(|entry| {
-            entry.depth() == 0
-                || !entry.file_type().is_dir()
-                || !matches!(
-                    entry.file_name().to_str(),
-                    Some(".git" | ".audit" | ".legion-cache" | "node_modules" | "target")
-                )
-        })
-    {
+    let mut visited = 0_usize;
+    for item in walkdir::WalkDir::new(&copy.path).follow_links(false) {
         if cancellation.is_cancelled() || Instant::now() >= deadline {
             return false;
         }
         let Ok(item) = item else { return false };
-        if item.depth() == 0 || item.file_type().is_dir() {
+        if item.depth() == 0 {
             continue;
         }
-        if !item.file_type().is_file() {
+        visited = visited.saturating_add(1);
+        if visited > MAX_FILES {
             return false;
         }
         let Ok(relative) = item.path().strip_prefix(&copy.path) else {
             return false;
         };
+        if item.file_type().is_symlink() {
+            // Generated output contents are outside the attested input
+            // comparison. WalkDir never follows links; links anywhere else
+            // could redirect a frozen input or workspace boundary.
+            if allowed_output(item.path()) {
+                continue;
+            }
+            return false;
+        }
+        if item.file_type().is_dir() {
+            if !frozen_directories.contains(relative) && !allowed_output(item.path()) {
+                return false;
+            }
+            continue;
+        }
+        if !item.file_type().is_file() {
+            return false;
+        }
         actual_paths.push(relative.to_string_lossy().replace('\\', "/"));
         if actual_paths.len() > MAX_FILES {
             return false;
         }
     }
     actual_paths.sort();
-    if actual_paths.len() != expected.len()
-        || !expected.keys().all(|path| {
-            actual_paths
-                .binary_search_by(|item| item.as_str().cmp(path.as_str()))
-                .is_ok()
-        })
-        || cancellation.is_cancelled()
+    if !expected.keys().all(|path| {
+        actual_paths
+            .binary_search_by(|item| item.as_str().cmp(path.as_str()))
+            .is_ok()
+    }) || cancellation.is_cancelled()
         || Instant::now() >= deadline
     {
         return false;
@@ -1514,11 +2279,18 @@ fn verify_copy_unchanged(
             return false;
         };
         hashed_total = hashed_total.saturating_add(bytes);
-        if hashed_total > MAX_TOTAL_BYTES
-            || expected
-                .get(path)
-                .is_none_or(|expected| expected != &digest)
-        {
+        if hashed_total > MAX_TOTAL_BYTES {
+            return false;
+        }
+        let file = copy.path.join(path);
+        if let Some((expected_digest, expected_mode)) = expected.get(path) {
+            if expected_digest != &digest
+                || expected_mode.is_none()
+                || file_mode(&file).ok() != *expected_mode
+            {
+                return false;
+            }
+        } else if !allowed_output(&file) {
             return false;
         }
     }
@@ -1589,11 +2361,96 @@ mod tests {
         let first = id_request(&base, "status", "job-1", &cwd, 100);
         let second = id_request(&base, "status", "job-1", &cwd, 100);
         assert_ne!(first.request_id, second.request_id);
-        assert!(
-            first
-                .request_id
-                .bytes()
-                .all(|byte| { byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_') })
+        assert!(first
+            .request_id
+            .bytes()
+            .all(|byte| { byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_') }));
+    }
+
+    fn cli_receipt(
+        complete: bool,
+        state: ExecutionState,
+        exit_code: Option<i32>,
+        reaped: bool,
+    ) -> ExecutionReceipt {
+        let mut receipt =
+            ExecutionReceipt::failure(&ExternalToolRequest::default(), state, "fixture");
+        receipt.complete = complete;
+        receipt.exit_code = exit_code;
+        receipt.process_tree.reaped = reaped;
+        receipt
+    }
+
+    #[test]
+    fn structured_cli_json_cannot_replace_successful_reaped_process_receipt() {
+        let response = json!({"ok":true,"requestDigest":"a".repeat(64),"payload":{}});
+        assert!(trusted_cli_response(
+            &cli_receipt(true, ExecutionState::Completed, Some(0), true),
+            &response
+        )
+        .is_some());
+        for receipt in [
+            cli_receipt(true, ExecutionState::Completed, Some(9), true),
+            cli_receipt(false, ExecutionState::Completed, Some(0), true),
+            cli_receipt(true, ExecutionState::Failed, Some(0), true),
+            cli_receipt(true, ExecutionState::Completed, Some(0), false),
+        ] {
+            assert!(trusted_cli_response(&receipt, &response).is_none());
+        }
+    }
+
+    #[test]
+    fn nonzero_submit_exit_requires_matching_attested_job_exit() {
+        let submitted = cli_receipt(true, ExecutionState::Completed, Some(1), true);
+        assert_eq!(submit_process_exit(&submitted), Some(1));
+        assert!(match_submit_to_attested_exit(1, 1).is_ok());
+        assert!(match_submit_to_attested_exit(1, 0).is_err());
+        assert_eq!(
+            submit_process_exit(&cli_receipt(true, ExecutionState::Completed, None, true)),
+            None
+        );
+        assert_eq!(
+            submit_process_exit(&cli_receipt(
+                false,
+                ExecutionState::Completed,
+                Some(1),
+                true
+            )),
+            None
+        );
+        assert_eq!(
+            submit_process_exit(&cli_receipt(
+                true,
+                ExecutionState::Completed,
+                Some(1),
+                false
+            )),
+            None
+        );
+    }
+
+    #[test]
+    fn package_manager_pin_requires_exact_enrolled_runner_qualification() {
+        let matching = AdapterEnrollment {
+            broker_adapter_id: "npm-adapter".into(),
+            qualified_version: Some("10.2.0".into()),
+        };
+        let unqualified = AdapterEnrollment {
+            broker_adapter_id: "npm-adapter".into(),
+            qualified_version: None,
+        };
+        let mismatch = AdapterEnrollment {
+            broker_adapter_id: "npm-adapter".into(),
+            qualified_version: Some("10.1.0".into()),
+        };
+        assert!(validate_required_runner_version("npm", Some("10.2.0"), Some(&matching)).is_ok());
+        assert_eq!(
+            validate_required_runner_version("npm", Some("10.2.0"), Some(&unqualified)),
+            Err("managed-test-runner-version-unqualified:npm".into())
+        );
+        assert_eq!(
+            validate_required_runner_version("npm", Some("10.2.0"), Some(&mismatch)),
+            Err("managed-test-runner-version-mismatch:npm".into())
         );
     }
 
@@ -1607,6 +2464,8 @@ mod tests {
         let copy = PreparedCopy {
             path: temp.clone(),
             cwd: temp.clone(),
+            workspace_root: temp.clone(),
+            input_modes: BTreeMap::new(),
             source_digest: String::new(),
             copy_digest: String::new(),
             file_count: 0,
@@ -1617,58 +2476,146 @@ mod tests {
                 &receipt(&temp, "id-1", "SUCCEEDED", 0),
                 "id-1",
                 &copy,
+                "cargo test",
                 &["test".into()]
             )
             .unwrap(),
             0
         );
         let mut targeted = receipt(&temp, "id-1", "SUCCEEDED", 0);
-        targeted["receipt"]["command"] =
-            json!("cargo test --target x86_64-unknown-linux-gnu --target-dir target");
+        targeted["receipt"]["command"] = json!("cargo test");
         assert_eq!(
-            validate_status(&targeted, "id-1", &copy, &["test".into()]).unwrap(),
+            validate_status(&targeted, "id-1", &copy, "cargo test", &["test".into()]).unwrap(),
             0
         );
         let failed = receipt(&temp, "id-1", "FAILED", 101);
         assert_eq!(
-            validate_status(&failed, "id-1", &copy, &["test".into()]).unwrap(),
+            validate_status(&failed, "id-1", &copy, "cargo test", &["test".into()]).unwrap(),
             101
         );
+        let target_dir = temp.join("target");
+        let mut normalized = receipt(&temp, "id-1", "SUCCEEDED", 0);
+        normalized["receipt"]["argv"] = json!([
+            "test",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--target-dir",
+            target_dir
+        ]);
+        normalized["receipt"]["command"] = json!(format!(
+            "cargo test --target x86_64-unknown-linux-gnu --target-dir {}",
+            target_dir.display()
+        ));
+        normalized["receipt"]["targetTriple"] = json!("x86_64-unknown-linux-gnu");
+        normalized["receipt"]["target"] = json!({"path":target_dir});
+        assert_eq!(
+            validate_status(&normalized, "id-1", &copy, "cargo test", &["test".into()])
+                .unwrap_err(),
+            "managed-test-request-provenance-unavailable:cargo-target-normalization"
+        );
+        normalized["receipt"]["targetTriple"] = json!("a-different-triple");
+        assert_eq!(
+            validate_status(&normalized, "id-1", &copy, "cargo test", &["test".into()])
+                .unwrap_err(),
+            "receipt-argv-mismatch"
+        );
         let mut foreign = receipt(&temp, "foreign", "SUCCEEDED", 0);
-        assert!(validate_status(&foreign, "id-1", &copy, &["test".into()]).is_err());
+        assert!(validate_status(&foreign, "id-1", &copy, "cargo test", &["test".into()]).is_err());
         foreign["receipt"]["inputClosure"]["changed"] = json!(["Cargo.toml"]);
-        assert!(validate_status(&foreign, "foreign", &copy, &["test".into()]).is_err());
+        assert!(
+            validate_status(&foreign, "foreign", &copy, "cargo test", &["test".into()]).is_err()
+        );
         let mut unverified = receipt(&temp, "id-1", "SUCCEEDED", 0);
         unverified["receipt"]["inputClosure"]["status"] = json!("unverified");
-        assert!(validate_status(&unverified, "id-1", &copy, &["test".into()]).is_err());
-        assert!(cleanup_proven(&unverified, "id-1", &copy));
+        assert!(
+            validate_status(&unverified, "id-1", &copy, "cargo test", &["test".into()]).is_err()
+        );
+        assert!(!cleanup_proven(
+            &unverified,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        ));
         let mut changed_closure = receipt(&temp, "id-1", "SUCCEEDED", 0);
         changed_closure["receipt"]["inputClosure"]["changed"] = json!(["Cargo.toml"]);
-        assert!(validate_status(&changed_closure, "id-1", &copy, &["test".into()]).is_err());
-        assert!(cleanup_proven(&changed_closure, "id-1", &copy));
+        assert!(validate_status(
+            &changed_closure,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        )
+        .is_err());
+        assert!(!cleanup_proven(
+            &changed_closure,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        ));
         let mut prefixed_digest = receipt(&temp, "id-1", "SUCCEEDED", 0);
         prefixed_digest["receipt"]["inputClosure"]["preDigest"] =
             json!("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        assert!(validate_status(&prefixed_digest, "id-1", &copy, &["test".into()]).is_err());
+        assert!(validate_status(
+            &prefixed_digest,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        )
+        .is_err());
         let mut survivors_missing = receipt(&temp, "id-1", "SUCCEEDED", 0);
         survivors_missing["receipt"]
             .as_object_mut()
             .unwrap()
             .remove("survivors");
         assert_eq!(
-            validate_status(&survivors_missing, "id-1", &copy, &["test".into()]).unwrap(),
+            validate_status(
+                &survivors_missing,
+                "id-1",
+                &copy,
+                "cargo test",
+                &["test".into()]
+            )
+            .unwrap(),
             0
         );
-        assert!(cleanup_proven(&survivors_missing, "id-1", &copy));
+        assert!(!cleanup_proven(
+            &survivors_missing,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        ));
         survivors_missing["receipt"]["survivors"] = json!(null);
-        assert!(validate_status(&survivors_missing, "id-1", &copy, &["test".into()]).is_err());
-        assert!(!cleanup_proven(&survivors_missing, "id-1", &copy));
+        assert!(validate_status(
+            &survivors_missing,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        )
+        .is_err());
+        assert!(!cleanup_proven(
+            &survivors_missing,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        ));
         unverified["receipt"]["reap"]["status"] = json!("REAP_PENDING");
-        assert!(!cleanup_proven(&unverified, "id-1", &copy));
+        assert!(!cleanup_proven(
+            &unverified,
+            "id-1",
+            &copy,
+            "cargo test",
+            &["test".into()]
+        ));
         let mut unreaped = receipt(&temp, "id-1", "FAILED", 101);
         unreaped["receipt"]["reap"]["status"] = json!("REAP_PENDING");
         unreaped["receipt"]["survivors"] = json!([{"pid":42}]);
-        assert!(validate_status(&unreaped, "id-1", &copy, &["test".into()]).is_err());
+        assert!(validate_status(&unreaped, "id-1", &copy, "cargo test", &["test".into()]).is_err());
         let _ = fs::remove_dir_all(temp);
     }
 
@@ -1735,6 +2682,7 @@ mod tests {
         assert!(!verify_source_unchanged(
             &root,
             &inventory,
+            &copy.input_modes,
             deadline,
             &cancellation
         ));
@@ -1742,15 +2690,87 @@ mod tests {
         assert!(!verify_copy_unchanged(
             &copy,
             &inventory,
+            &[],
+            deadline,
+            &cancellation
+        ));
+        fs::remove_file(copy.path.join("added.rs")).unwrap();
+        let generated_root = copy.path.join("target");
+        fs::create_dir_all(&generated_root).unwrap();
+        fs::write(generated_root.join("generated.bin"), b"approved output").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            symlink(
+                "/outside-approved-output",
+                generated_root.join("generated-link"),
+            )
+            .unwrap();
+            assert!(verify_copy_unchanged(
+                &copy,
+                &inventory,
+                &[generated_root.clone()],
+                deadline,
+                &cancellation
+            ));
+            fs::remove_file(generated_root.join("generated-link")).unwrap();
+            symlink(
+                "/outside-frozen-input",
+                copy.path.join("src/generated-link"),
+            )
+            .unwrap();
+            assert!(!verify_copy_unchanged(
+                &copy,
+                &inventory,
+                &[generated_root.clone()],
+                deadline,
+                &cancellation
+            ));
+            fs::remove_file(copy.path.join("src/generated-link")).unwrap();
+        }
+        assert!(verify_copy_unchanged(
+            &copy,
+            &inventory,
+            &[generated_root.clone()],
             deadline,
             &cancellation
         ));
         #[cfg(unix)]
         {
-            use std::os::unix::fs::MetadataExt;
+            use std::os::unix::fs::{MetadataExt, PermissionsExt};
             let source = fs::metadata(root.join("src/lib.rs")).unwrap();
             let copied = fs::metadata(copy.path.join("src/lib.rs")).unwrap();
             assert_ne!((source.dev(), source.ino()), (copied.dev(), copied.ino()));
+            let original_mode = source.permissions().mode() & 0o7777;
+            fs::set_permissions(
+                root.join("src/lib.rs"),
+                fs::Permissions::from_mode(original_mode ^ 0o100),
+            )
+            .unwrap();
+            assert!(!verify_source_unchanged(
+                &root,
+                &inventory,
+                &copy.input_modes,
+                deadline,
+                &cancellation
+            ));
+            fs::set_permissions(
+                root.join("src/lib.rs"),
+                fs::Permissions::from_mode(original_mode),
+            )
+            .unwrap();
+            fs::set_permissions(
+                copy.path.join("src/lib.rs"),
+                fs::Permissions::from_mode((copied.permissions().mode() & 0o7777) ^ 0o100),
+            )
+            .unwrap();
+            assert!(!verify_copy_unchanged(
+                &copy,
+                &inventory,
+                &[generated_root],
+                deadline,
+                &cancellation
+            ));
         }
         fs::remove_dir_all(root).unwrap();
         fs::remove_dir_all(scratch_root).unwrap();
@@ -1784,17 +2804,15 @@ mod tests {
         )
         .unwrap();
         let scratch = AuditScratch::with_scratch_dir(&root, scratch_root.join("audit")).unwrap();
-        assert!(
-            prepare_copy(
-                &root,
-                &inventory,
-                &scratch,
-                "Cargo.toml",
-                std::time::Instant::now() + std::time::Duration::from_secs(5),
-                &CancellationToken::new()
-            )
-            .is_err()
-        );
+        assert!(prepare_copy(
+            &root,
+            &inventory,
+            &scratch,
+            "Cargo.toml",
+            std::time::Instant::now() + std::time::Duration::from_secs(5),
+            &CancellationToken::new()
+        )
+        .is_err());
         fs::remove_dir_all(root).unwrap();
         fs::remove_dir_all(scratch_root).unwrap();
     }

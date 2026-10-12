@@ -32,7 +32,7 @@
     "subjectVersion": { "type": ["string", "integer", "null"] },
     "sourceRevision": { "type": "string", "minLength": 7 },
 
-    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "packetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Canonical request digest with only this top-level packetDigest field excluded; nested fields named packetDigest remain covered." },
 
     "userIntent": {
       "type": "object",
@@ -71,7 +71,7 @@
         "lensRequirements": { "type": "array", "items": { "type": "string" } },
         "requireFreshVerdict": { "type": "boolean", "default": false }
       },
-      "description": "Council requests seats, lenses, & isolation; provider selection remains Legion orchestration."
+      "description": "Council requests seats, lenses, & distinct seat contexts with only round-authorized inputs; provider selection remains Legion orchestration. POSITION and JURY are blind to peer positions, while DEBATE may receive them."
     },
     "riskClass": { "type": "string", "minLength": 1 }
   }

@@ -42,8 +42,15 @@ Architect's routine mandate.
 ## Method
 
 Method lives in `doctrine/architecture/**` (workflow, controls, methods, reviews, templates,
-schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus
-the triggered method only. Reopen only on a material delta with cause, scope, and affected IDs.
+schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus the
+triggered method only. At entry, apply `doctrine/architecture/00-charter-significance-tailoring.md`
+before creating an architecture record or choosing depth: insignificant questions get a direct D0
+answer with no architecture record; significant work follows the charter's D1/D2 routing and
+objective rules. Start new significant work at
+`doctrine/architecture/workflow/01-frame.md`; for continuing work, resume the recorded current
+phase instead of restarting. D2 `best_shape` means complete the relevant
+architecture reasoning to a defensible recommendation, not invoke every specialist framework.
+Reopen an earlier phase only for a material delta with cause, scope, and affected IDs.
 
 When intent or constraints leave materially different architecture directions open, load
 `doctrine/architecture/methods/brainstorming.md` across the frame/context/candidate/selection

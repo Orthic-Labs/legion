@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/research",
-      "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading."
+      "\"Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading.\""
     ],
     "outputs": [
       "references/assurance/README.md",
@@ -74,7 +74,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:970b498d1f2ede78655c1db065176d47f1da4eb17a8a26a59562262bf2c5dd0e"
+      "digest": "sha256:de8fe50ba2b15669b24828dfbca926b5d1e7bdf407c8cd00d5c6dbfdc56100b6"
     },
     {
       "path": "agents/openai.yaml",
@@ -184,7 +184,7 @@
     {
       "path": "references/methods/scholarly.md",
       "uri": "legion-skill://research/references/methods/scholarly.md",
-      "digest": "sha256:0d3e2b201a41fabbad6a5473c725ffc74f77a936c5f2b5a118db4c13de196f08"
+      "digest": "sha256:30352ffef50b1b717a99d8d83e7c11a4606ab73fa29330fda96081c1f7636559"
     },
     {
       "path": "references/methods/search-discipline.md",
@@ -204,7 +204,7 @@
     {
       "path": "references/providers/notebooklm.md",
       "uri": "legion-skill://research/references/providers/notebooklm.md",
-      "digest": "sha256:c6faca5c20b603a88d65a01cd7d3d6b66dd6b3e415131256174be961b623e6bb"
+      "digest": "sha256:cd9ec3ff1a1574531a3bbc1dbe8932b4e3f1669c6e884e8bcd23e97d3100e981"
     },
     {
       "path": "references/route-gates.md",
@@ -224,7 +224,7 @@
     {
       "path": "references/router.md",
       "uri": "legion-skill://research/references/router.md",
-      "digest": "sha256:a2b42ef43a2316a17756e378f10de09e7e13d3a719c8edc5b3c1bb264ff7439b"
+      "digest": "sha256:91fdb0d7941cf8c50845394969fb4746639b4a745371864cd9041af8ff8c22de"
     },
     {
       "path": "references/scale/README.md",

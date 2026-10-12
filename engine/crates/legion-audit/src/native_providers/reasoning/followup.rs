@@ -3,8 +3,9 @@
 //! `legacy.security.variant-analysis` is selected by `confirmedSecurityFinding`,
 //! which is empty when the parent plan is frozen: the confirmed findings only
 //! exist after the adjudication lens is ingested. This module compiles and
-//! freezes a SECOND plan, scoped to the variant-analysis provider, over the
-//! files of the confirmed findings, and binds it to the parent run:
+//! freezes a SECOND plan over confirmed seed files plus deterministic
+//! in-inventory sibling, caller, and root-cause context, then binds it to the
+//! parent run:
 //!
 //! * the follow-up plan carries `bounds.followup` = parent plan digest, the
 //!   digest of the confirmed findings (their verdict digests) and the confirmed
@@ -20,7 +21,7 @@
 //! complete AND the whole chain verifies.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -61,6 +62,7 @@ pub struct FollowupPlanned {
     pub plan_digest: String,
     pub parent_plan_digest: String,
     pub confirmed_paths: Vec<String>,
+    pub analysis_paths: Vec<String>,
     pub seeds: usize,
     pub provider: String,
     /// The variant lens packet files: one unnumbered packet, or every
@@ -90,6 +92,7 @@ pub struct FollowupDone {
     pub plan_digest: String,
     pub parent_plan_digest: String,
     pub confirmed_paths: Vec<String>,
+    pub analysis_paths: Vec<String>,
     pub findings: Vec<Finding>,
 }
 
@@ -105,6 +108,7 @@ impl FollowupState {
                 "planDigest": done.plan_digest,
                 "parentPlanDigest": done.parent_plan_digest,
                 "confirmedPaths": done.confirmed_paths,
+                "analysisPaths": done.analysis_paths,
                 "findings": done.findings.len(),
             }),
         }
@@ -139,6 +143,187 @@ fn scoped_paths(confirmed: &[ConfirmedSecurityFinding]) -> Result<Vec<String>, A
         return Err(invalid("no confirmed security finding to analyse"));
     }
     Ok(paths)
+}
+
+/// Deterministic review scope: confirmed files, their source siblings, and
+/// first-party source files with a lexical reference to the seed module stem.
+/// Every path comes from the frozen inventory; relationships are separately
+/// recorded so seeds are never confused with context candidates.
+fn expanded_scope(
+    root: &Path,
+    inventory: &crate::inventory::InventoryEnvelope,
+    confirmed_paths: &[String],
+    variant_seeds: &[Value],
+) -> Result<(Vec<String>, Value), AuditError> {
+    let seeds = confirmed_paths.iter().cloned().collect::<BTreeSet<_>>();
+    let mut relations = BTreeMap::<String, BTreeSet<String>>::new();
+    for seed in &seeds {
+        if !inventory.entries.iter().any(|entry| &entry.path == seed) {
+            return Err(AuditError::SourceDrift(
+                "a confirmed finding path is not part of the frozen inventory".into(),
+            ));
+        }
+        relations
+            .entry(seed.clone())
+            .or_default()
+            .insert("confirmed-seed".into());
+    }
+
+    let parents = seeds
+        .iter()
+        .map(|path| {
+            (
+                path.clone(),
+                Path::new(path)
+                    .parent()
+                    .map(|parent| parent.to_string_lossy().replace('\\', "/"))
+                    .unwrap_or_default(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let stems = seeds
+        .iter()
+        .map(|path| {
+            (
+                path.clone(),
+                Path::new(path)
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .unwrap_or_default()
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let canonical_root = fs::canonicalize(root).map_err(|error| {
+        io(
+            error,
+            "could not resolve the Audit root for variant analysis",
+        )
+    })?;
+    let mut source_contents = BTreeMap::<String, String>::new();
+    for entry in inventory.entries.iter().filter(|entry| entry.source_file) {
+        let candidate_parent = Path::new(&entry.path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_default();
+        for (seed, parent) in &parents {
+            if entry.path == *seed {
+                continue;
+            }
+            if candidate_parent == *parent {
+                relations
+                    .entry(entry.path.clone())
+                    .or_default()
+                    .insert(format!("sibling-of:{seed}"));
+            }
+        }
+
+        let candidate = root.join(&entry.path);
+        let canonical = fs::canonicalize(&candidate)
+            .map_err(|error| io(error, "could not resolve a frozen variant source path"))?;
+        if !canonical.starts_with(&canonical_root) {
+            return Err(invalid(format!(
+                "variant source path {} escapes the Audit root",
+                entry.path
+            )));
+        }
+        let bytes = fs::read(canonical)
+            .map_err(|error| io(error, "could not read a frozen variant source path"))?;
+        let contents = String::from_utf8_lossy(&bytes).into_owned();
+        source_contents.insert(entry.path.clone(), contents.clone());
+        for (seed, stem) in &stems {
+            if contains_identifier(&contents, stem) {
+                relations
+                    .entry(entry.path.clone())
+                    .or_default()
+                    .insert(format!("caller-reference:{seed}"));
+            }
+        }
+    }
+
+    let mut root_cause_token_files = BTreeMap::<String, Vec<String>>::new();
+    for seed in variant_seeds {
+        let seed_path = seed
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("variant seed has no path"))?;
+        let excerpt = seed
+            .get("evidenceExcerpt")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        for token in identifier_tokens(excerpt) {
+            let matches = source_contents
+                .iter()
+                .filter(|(_, contents)| contains_identifier(contents, &token))
+                .map(|(path, _)| path.clone())
+                .collect::<Vec<_>>();
+            // A token seen in only the seed has no sibling variant; an
+            // ubiquitous token is too noisy to define useful search scope.
+            if !(2..=16).contains(&matches.len()) {
+                continue;
+            }
+            for path in matches {
+                if path == seed_path {
+                    continue;
+                }
+                relations
+                    .entry(path.clone())
+                    .or_default()
+                    .insert(format!("root-cause-token:{seed_path}:{token}"));
+                root_cause_token_files
+                    .entry(token.clone())
+                    .or_default()
+                    .push(path);
+            }
+        }
+    }
+
+    let paths = relations.keys().cloned().collect::<Vec<_>>();
+    let relation_values = relations
+        .into_iter()
+        .map(|(path, reasons)| {
+            json!({
+                "path": path,
+                "relations": reasons.into_iter().collect::<Vec<_>>(),
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok((
+        paths,
+        json!({
+            "paths": relation_values,
+            "rootCauseSearch": {
+                "status": "examined-frozen-source-files",
+                "seedTokenMatches": root_cause_token_files,
+            }
+        }),
+    ))
+}
+
+fn identifier_tokens(source: &str) -> BTreeSet<String> {
+    const STOPWORDS: &[&str] = &[
+        "async", "await", "const", "else", "error", "false", "fn", "function", "let", "match",
+        "null", "return", "self", "string", "true", "type", "value", "var",
+    ];
+    source
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .filter(|token| token.len() >= 4 && !STOPWORDS.contains(token))
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn contains_identifier(source: &str, token: &str) -> bool {
+    if token.is_empty() {
+        return false;
+    }
+    source.match_indices(token).any(|(start, _)| {
+        let end = start + token.len();
+        let identifier = |character: Option<char>| {
+            character.is_some_and(|character| character.is_ascii_alphanumeric() || character == '_')
+        };
+        !identifier(source[..start].chars().next_back())
+            && !identifier(source[end..].chars().next())
+    })
 }
 
 /// One seed per confirmed finding: scanner rule/location plus the adjudicator's
@@ -287,10 +472,6 @@ pub fn compile_followup(
     let parent_digest = seal_digest(&parent_plan, "plan.json")?;
     let dir = parent_run.join(FOLLOWUP_DIR);
 
-    if let Some(existing) = reuse(&dir, &parent_digest, &digest_of_confirmed, &paths) {
-        return Ok(Some(existing));
-    }
-
     let root = PathBuf::from(
         parent_plan
             .get("repository")
@@ -319,6 +500,19 @@ pub fn compile_followup(
             "the working tree no longer matches the frozen revision; rerun the audit".into(),
         ));
     }
+    let variant_seeds = seeds(parent_run, &confirmed)?;
+    let (analysis_paths, scope_relations) =
+        expanded_scope(&root, &inventory, &paths, &variant_seeds)?;
+    if let Some(existing) = reuse(
+        &dir,
+        &parent_digest,
+        &digest_of_confirmed,
+        &paths,
+        &analysis_paths,
+        &scope_relations,
+    ) {
+        return Ok(Some(existing));
+    }
 
     // A fresh epoch for the follow-up run (also clears stale receipts); the
     // plan is signed with its key.
@@ -329,6 +523,8 @@ pub fn compile_followup(
         &inventory,
         variant_spec,
         &paths,
+        &analysis_paths,
+        &scope_relations,
         &parent_digest,
         &digest_of_confirmed,
     )?
@@ -354,21 +550,23 @@ pub fn compile_followup(
             "the follow-up plan produced no variant lens packet",
         ));
     }
-    let seeds = seeds(parent_run, &confirmed)?;
-    let seed_count = seeds.len();
+    let seed_count = variant_seeds.len();
     for work in works.iter_mut() {
         let packet = work
             .request
             .packet
             .as_object_mut()
             .ok_or_else(|| invalid("variant lens packet is not an object"))?;
-        packet.insert("variantSeeds".into(), Value::Array(seeds.clone()));
+        packet.insert("variantSeeds".into(), Value::Array(variant_seeds.clone()));
+        packet.insert("variantScope".into(), scope_relations.clone());
         packet.insert(
             "followup".into(),
             json!({
                 "parentPlanDigest": parent_digest,
                 "confirmedDigest": digest_of_confirmed,
                 "confirmedPaths": paths,
+                "analysisPaths": analysis_paths,
+                "scopeRelations": scope_relations,
             }),
         );
         let request_id = expected_request_id(&*work)?;
@@ -414,6 +612,7 @@ pub fn compile_followup(
             "parentPlanDigest": parent_digest,
             "confirmedDigest": digest_of_confirmed,
             "confirmedPaths": paths,
+            "analysisPaths": analysis_paths,
         },
     });
     let to_bytes = |value: &Value| {
@@ -444,6 +643,7 @@ pub fn compile_followup(
         plan_digest: plan.digest().to_owned(),
         parent_plan_digest: parent_digest,
         confirmed_paths: paths,
+        analysis_paths,
         seeds: seed_count,
         provider: VARIANT_PROVIDER_ID.into(),
         packets,
@@ -458,6 +658,8 @@ fn reuse(
     parent_digest: &str,
     confirmed_digest: &str,
     paths: &[String],
+    analysis_paths: &[String],
+    scope_relations: &Value,
 ) -> Option<FollowupPlanned> {
     let plan_json = read_json(&dir.join("plan.json")).ok()?;
     let frozen: AuditPlan =
@@ -466,6 +668,9 @@ fn reuse(
     let matches = binding.get("parentPlanDigest").and_then(Value::as_str) == Some(parent_digest)
         && binding.get("confirmedDigest").and_then(Value::as_str) == Some(confirmed_digest)
         && binding.get("confirmedPaths") == Some(&json!(paths))
+        && binding.get("analysisPaths") == Some(&json!(analysis_paths))
+        && binding.get("scopeRelations") == Some(scope_relations)
+        && binding.get("scopeVersion").and_then(Value::as_u64) == Some(2)
         && crate::integrity::plan_digest(&frozen).ok().as_deref()
             == plan_json.pointer("/seal/digest").and_then(Value::as_str);
     if !matches {
@@ -489,6 +694,7 @@ fn reuse(
         plan_digest: seal_digest(&plan_json, "plan.json").ok()?,
         parent_plan_digest: parent_digest.to_owned(),
         confirmed_paths: paths.to_vec(),
+        analysis_paths: analysis_paths.to_vec(),
         seeds,
         provider: VARIANT_PROVIDER_ID.into(),
         packets: packets.into_iter().map(|(path, _)| path).collect(),
@@ -511,11 +717,12 @@ pub fn evaluate(
     if !dir.join("plan.json").is_file() {
         return FollowupState::Absent;
     }
-    check(&dir, parent_plan, parent_execution, confirmed)
+    check(run_dir, &dir, parent_plan, parent_execution, confirmed)
         .unwrap_or_else(|error| FollowupState::Invalid(error.to_string()))
 }
 
 fn check(
+    run_dir: &Path,
     dir: &Path,
     parent_plan: &Value,
     parent_execution: &ExecutionReport,
@@ -529,6 +736,33 @@ fn check(
     }
     let paths = scoped_paths(confirmed)?;
     let digest_of_confirmed = confirmed_digest(confirmed)?;
+    let root = PathBuf::from(
+        parent_plan
+            .get("repository")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("parent plan.json has no repository root"))?,
+    );
+    let parent_revision = parent_plan
+        .pointer("/binding/repositoryRevision")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("parent plan.json has no repository revision"))?;
+    let parent_inventory_digest = parent_plan
+        .pointer("/binding/inventoryDigest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("parent plan.json has no inventory digest"))?;
+    let inventory = FilesystemInventorySource::new(&root)?.inventory(
+        parent_plan
+            .get("repository")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("parent plan.json has no repository root"))?,
+    )?;
+    if inventory.generation != parent_revision || inventory.digest != parent_inventory_digest {
+        return Err(AuditError::SourceDrift(
+            "the working tree no longer matches the frozen revision; rerun the audit".into(),
+        ));
+    }
+    let (expected_analysis_paths, expected_scope_relations) =
+        expanded_scope(&root, &inventory, &paths, &seeds(run_dir, confirmed)?)?;
 
     let plan_json = read_json(&dir.join("plan.json"))?;
     let frozen: AuditPlan = serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE))?)
@@ -564,6 +798,14 @@ fn check(
             "follow-up plan is not scoped to the confirmed finding paths",
         ));
     }
+    if binding.get("scopeVersion").and_then(Value::as_u64) != Some(2)
+        || binding.get("analysisPaths") != Some(&json!(expected_analysis_paths))
+        || binding.get("scopeRelations") != Some(&expected_scope_relations)
+    {
+        return Err(invalid(
+            "follow-up plan does not match the deterministic sibling and caller scope",
+        ));
+    }
     let [provider] = frozen.providers.as_slice() else {
         return Err(invalid("follow-up plan must hold exactly one provider"));
     };
@@ -583,15 +825,19 @@ fn check(
             .and_then(|selector| selector.get("op"))
             .and_then(Value::as_str)
             != Some("confirmedSecurityFinding")
-        || frozen_paths != paths.iter().map(String::as_str).collect::<BTreeSet<_>>()
+        || frozen_paths
+            != expected_analysis_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>()
         || provider
             .configuration
             .get("denominatorCount")
             .and_then(Value::as_u64)
-            != Some(paths.len() as u64)
+            != Some(expected_analysis_paths.len() as u64)
     {
         return Err(invalid(
-            "follow-up provider is not the variant analysis over the confirmed paths",
+            "follow-up provider is not the variant analysis over its frozen sibling and caller paths",
         ));
     }
 
@@ -641,6 +887,7 @@ fn check(
         plan_digest: digest,
         parent_plan_digest: parent_digest,
         confirmed_paths: paths,
+        analysis_paths: expected_analysis_paths,
         findings: recomputed.report.findings,
     }))
 }

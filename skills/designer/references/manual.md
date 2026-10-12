@@ -15,12 +15,14 @@ guide. Do not load the surface, static, and deep-craft branches together by defa
 
 | Mode | When | What runs |
 |---|---|---|
-| **draft** (default for explorations, one-shot pages, options, internal tests, "show me something") | No ship claim will be made | Brand card + truth sentence -> build exemplar-first from `references/components/` with the craft rules + ONE banned list (`references/website.md` §Banned defaults) -> detector structure scan -> human eyes. No gate artifacts, no competitor analysis, no registry work. |
-| **ship** (branded production work going live) | The output will be deployed or delivered | The full phase spine in `specialists/surface-design/GUIDE.md` (all hard gates + artifacts + QA multi-gate). |
+| **exploration** (draft, rough direction, options, internal test) | The user explicitly asks to explore, see a rough draft, or compare directions; output is labeled exploratory | Use the relevant branch and requested fidelity. Do not imply completion. Run the parametric contract for non-trivial choices and any requested alternatives or critique. No production claim, registry work, or ship artifacts. |
+| **deliverable** (finished one-shot artifact) | The user asks for a finished artifact or something ready to use or hand off, even when it will not be deployed | Use a bounded craft path: apply the selected branch's design constraints, render at requested/target dimensions, inspect relevant states and interactions, check fit/clipping/overflow, and run a separate qualitative critique. For non-trivial work or requested options, show materially distinct candidate designs (at comparable fidelity to the decision) and score them against the brief before selecting. Do only acceptance checks that fit the artifact; no automatic competitor, registry, or full production spine. |
+| **ship** (production work going live) | The output will be integrated, deployed, or released as a production surface | Run the full phase spine in `specialists/surface-design/GUIDE.md` (applicable hard gates, artifacts, and QA multi-gate). |
 
-Draft exists so generation quality gets the model's full attention; ship exists so nothing ships
-unaudited. A draft the user approves gets promoted by running the ship spine on it — the gates are
-deferred, never skipped for shipped work. State the mode out loud when starting.
+Choose by requested finish state, not by whether deployment is mentioned: “one-shot” alone does not
+mean exploration. An explicitly rough draft can stay exploratory; a finished standalone page or
+graphic uses deliverable mode and receives proportionate craft, render, fit, state, and critique
+checks. Production ship mode retains its full spine. State the mode out loud when starting.
 
 ## Route
 
@@ -73,10 +75,15 @@ not one-shot vibes-to-final. Full axis tables, fingerprints, and phase tagging: 
 2. Hard vs soft: brand tokens/palette/fonts, a11y floors, banned vocabulary are hard constraints —
    reject on violation. Tone/density/risk are soft — score down. Brand rules (the consuming project's
    brand token source) are always hard.
-3. Generate k >= 3 variants differing on >= 2 named axes (e.g. hero_pattern x visual_density) —
-   never near-duplicates.
-4. Critique in a separate pass from generation; cap refine loops at 2-4; the generator never
-   certifies itself.
+3. For non-trivial work, generate k >= 3 concrete candidates differing on >= 2 named axes (e.g.
+   hero_pattern x visual_density) — never near-duplicates. Show actual comparable design material
+   for non-trivial choices and whenever the user asks for options (rendered variants, component
+   studies, or wireframes at a fidelity suited to the decision); three prose labels or parameter
+   vectors alone are not alternatives. For a simple or explicitly exploratory request, keep the
+   comparison proportional.
+4. Critique separately from generation. Score candidates against the brief and hard constraints in
+   a distinct critic pass; when the user asks for a critique, include specific evidence and
+   actionable findings. Cap refine loops at 2-4; the generator never certifies itself.
 5. Penalize proximity to the default-region fingerprint (centered hero + 3 cards + gradient blob,
    and equivalents per domain) even on an otherwise clean build.
 6. State the winning parameter vector alongside the deliverable. A later "make it bolder" is a

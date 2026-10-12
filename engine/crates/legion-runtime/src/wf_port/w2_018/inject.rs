@@ -64,6 +64,175 @@ pub struct InjectConfig {
     pub comment_syntax: String,
 }
 
+/// Structured result of removing the live browser injection from the current
+/// project. `payload` retains per-file detail for both CLI output and the
+/// live-server stop outcome; `ok` is false if any target failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovalReport {
+    pub ok: bool,
+    pub payload: serde_json::Value,
+}
+
+fn removal_report(payload: serde_json::Value) -> RemovalReport {
+    let ok = payload.get("ok").and_then(serde_json::Value::as_bool) == Some(true);
+    RemovalReport { ok, payload }
+}
+
+fn removal_target(cwd: &Path, rel_file: &str) -> Result<PathBuf, &'static str> {
+    let target =
+        sveltekit_adapter::project_mutation_target(cwd, Path::new(rel_file)).map_err(|err| {
+            match err.kind() {
+                std::io::ErrorKind::PermissionDenied => "path_outside_project",
+                std::io::ErrorKind::NotFound => "file_not_found",
+                _ => "file_unreadable",
+            }
+        })?;
+    match fs::symlink_metadata(&target) {
+        Ok(_) => Ok(target),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Err("file_not_found"),
+        Err(_) => Err("file_unreadable"),
+    }
+}
+
+fn remove_configured_files(
+    cwd: &Path,
+    resolved_files: &[String],
+    config_files: &[String],
+    svelte_kit: bool,
+) -> RemovalReport {
+    if svelte_kit {
+        match sveltekit_adapter::remove_sveltekit_live_adapter(cwd, Some(config_files)) {
+            Ok(Some(r)) => {
+                return removal_report(json!({
+                    "ok": true,
+                    "adapter": "sveltekit",
+                    "results": [{
+                        "file": r.file,
+                        "removed": r.removed,
+                        "appHtmlUntouched": r.app_html_untouched,
+                        "rootComponent": r.root_component,
+                    }],
+                }));
+            }
+            Err(err) => {
+                return removal_report(json!({
+                    "ok": false,
+                    "error": "io_error",
+                    "message": err.to_string(),
+                    "results": [],
+                }));
+            }
+            Ok(None) => {} // Detection can race a project edit; use configured file removal.
+        }
+    }
+
+    let mut results = Vec::new();
+    let mut targets = Vec::new();
+    if resolved_files.is_empty() {
+        results.push(json!({ "error": "no_files_resolved" }));
+    }
+    for rel_file in resolved_files {
+        match removal_target(cwd, rel_file) {
+            Ok(path) => targets.push((rel_file, path)),
+            Err(error) => {
+                results.push(json!({ "file": rel_file, "error": error }));
+            }
+        }
+    }
+    if !results.is_empty() {
+        return removal_report(json!({ "ok": false, "results": results }));
+    }
+    for (rel_file, abs_file) in targets {
+        let content = match fs::read_to_string(&abs_file) {
+            Ok(c) => c,
+            Err(err) => {
+                results.push(json!({ "file": rel_file, "error": err.to_string() }));
+                continue;
+            }
+        };
+        let detagged = remove_tag(&content);
+        let updated = revert_csp_meta(&detagged);
+        if updated == content {
+            results.push(json!({ "file": rel_file, "removed": false, "note": "no tag present" }));
+            continue;
+        }
+        if let Err(err) = fs::write(&abs_file, &updated) {
+            results.push(json!({ "file": rel_file, "error": err.to_string() }));
+            continue;
+        }
+        results.push(json!({
+            "file": rel_file,
+            "removed": detagged != content,
+            "cspReverted": updated != detagged,
+        }));
+    }
+    let ok = results.iter().all(|result| result.get("error").is_none());
+    removal_report(json!({ "ok": ok, "results": results }))
+}
+
+/// Resolve config against only `cwd` and remove that project's injection.
+/// The running server record is intentionally not an input: it may already
+/// have disappeared when a caller retries cleanup.
+pub fn remove_project_injection(
+    cwd: &Path,
+    scripts_dir: Option<&Path>,
+    env_live_config: Option<&str>,
+) -> RemovalReport {
+    let config_path =
+        impeccable_paths::resolve_live_config_path(cwd, cwd, scripts_dir, env_live_config);
+    if !config_path.exists() {
+        // Preserve default SvelteKit cleanup when config was deleted before a
+        // stop retry. Configured entry files are used whenever config remains.
+        if sveltekit_adapter::detect_sveltekit_project(cwd, None).is_some() {
+            return remove_configured_files(cwd, &[], &[], true);
+        }
+        return removal_report(json!({
+            "ok": false,
+            "error": "config_missing",
+            "path": config_path.to_string_lossy(),
+            "results": [],
+        }));
+    }
+    let raw = match fs::read_to_string(&config_path) {
+        Ok(raw) => raw,
+        Err(err) => {
+            return removal_report(json!({
+                "ok": false,
+                "error": "config_invalid",
+                "message": err.to_string(),
+                "path": config_path.to_string_lossy(),
+                "results": [],
+            }));
+        }
+    };
+    let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            return removal_report(json!({
+                "ok": false,
+                "error": "config_invalid",
+                "message": err.to_string(),
+                "path": config_path.to_string_lossy(),
+                "results": [],
+            }));
+        }
+    };
+    let config = parse_inject_config(&parsed);
+    if let Err(err) = validate_config(&config) {
+        return removal_report(json!({
+            "ok": false,
+            "error": "config_invalid",
+            "message": format!("{err:?}"),
+            "path": config_path.to_string_lossy(),
+            "results": [],
+        }));
+    }
+    let resolved_files = resolve_files(cwd, &config);
+    let svelte_kit =
+        sveltekit_adapter::detect_sveltekit_project(cwd, Some(&config.files)).is_some();
+    remove_configured_files(cwd, &resolved_files, &config.files, svelte_kit)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigError {
     FilesRequired,
@@ -609,42 +778,82 @@ fn escape_regexp(value: &str) -> String {
     regex::escape(value)
 }
 
-fn resolve_git_info_exclude_path(cwd: &Path) -> Option<PathBuf> {
-    let dot_git = cwd.join(".git");
-    if !dot_git.exists() {
-        return None;
-    }
-    let meta = fs::metadata(&dot_git).ok()?;
+fn resolve_git_info_exclude_path(cwd: &Path) -> std::io::Result<Option<PathBuf>> {
+    let root = cwd.canonicalize()?;
+    let dot_git = root.join(".git");
+    let dot_git_target = sveltekit_adapter::project_mutation_target(&root, Path::new(".git"))?;
+    let link_meta = match fs::symlink_metadata(&dot_git_target) {
+        Ok(meta) => meta,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => return Err(err),
+    };
+    let meta = if link_meta.file_type().is_symlink() {
+        fs::metadata(&dot_git_target)?
+    } else {
+        link_meta
+    };
     if meta.is_dir() {
-        return Some(dot_git.join("info").join("exclude"));
+        return Ok(Some(sveltekit_adapter::project_mutation_target(
+            &root,
+            Path::new(".git/info/exclude"),
+        )?));
     }
     if !meta.is_file() {
-        return None;
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            ".git is neither a directory nor a gitdir file",
+        ));
     }
-    let body = fs::read_to_string(&dot_git).ok()?.trim().to_string();
+    let body = fs::read_to_string(&dot_git)?.trim().to_string();
     let re = Regex::new(r"(?i)^gitdir:\s*(.+)$").unwrap();
-    let caps = re.captures(&body)?;
-    let raw = caps.get(1)?.as_str();
+    let caps = re.captures(&body).ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid .git gitdir file")
+    })?;
+    let raw = caps.get(1).expect("capture group exists").as_str();
     let git_dir = if Path::new(raw).is_absolute() {
         PathBuf::from(raw)
     } else {
-        cwd.join(raw)
+        root.join(raw)
     };
-    Some(git_dir.join("info").join("exclude"))
+    let canonical_git_dir = git_dir.canonicalize()?;
+    if !canonical_git_dir.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            ".git gitdir target is not a directory",
+        ));
+    }
+    if !canonical_git_dir.starts_with(&root) {
+        return Ok(None);
+    }
+    let relative_git_dir = canonical_git_dir.strip_prefix(&root).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "gitdir escapes project")
+    })?;
+    let relative_exclude = relative_git_dir.join("info").join("exclude");
+    Ok(Some(sveltekit_adapter::project_mutation_target(
+        &root,
+        &relative_exclude,
+    )?))
 }
 
-fn resolve_ignore_target(cwd: &Path) -> (PathBuf, &'static str) {
-    if let Some(p) = resolve_git_info_exclude_path(cwd) {
-        (p, "git-info-exclude")
+fn resolve_ignore_target(cwd: &Path) -> std::io::Result<(PathBuf, &'static str)> {
+    if let Some(path) = resolve_git_info_exclude_path(cwd)? {
+        Ok((path, "git-info-exclude"))
     } else {
-        (cwd.join(".gitignore"), "gitignore")
+        Ok((
+            sveltekit_adapter::project_mutation_target(cwd, Path::new(".gitignore"))?,
+            "gitignore",
+        ))
     }
 }
 
 /// Mirrors `ensureLiveGitIgnores(cwd)`.
 pub fn ensure_live_gitignores(cwd: &Path) -> std::io::Result<GitIgnoreResult> {
-    let (target_path, mode) = resolve_ignore_target(cwd);
-    let existing = fs::read_to_string(&target_path).unwrap_or_default();
+    let (target_path, mode) = resolve_ignore_target(cwd)?;
+    let existing = match fs::read_to_string(&target_path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(err) => return Err(err),
+    };
 
     let mut block_lines = vec![IGNORE_MARKER_OPEN.to_string()];
     block_lines.extend(LIVE_IGNORE_PATTERNS.iter().map(|s| s.to_string()));
@@ -856,70 +1065,15 @@ pub fn run(
     }
 
     let resolved_files = resolve_files(cwd, &config);
-    let svelte_kit = sveltekit_adapter::detect_sveltekit_project(cwd, Some(&config.files));
-
     if args.iter().any(|a| a == "--remove") {
-        if svelte_kit.is_some() {
-            let adapter_result =
-                match sveltekit_adapter::remove_sveltekit_live_adapter(cwd, Some(&config.files)) {
-                    Ok(r) => r,
-                    Err(err) => {
-                        eprintln!(
-                            "{}",
-                            json!({ "ok": false, "error": "io_error", "message": err.to_string() })
-                        );
-                        return 1;
-                    }
-                };
-            let result_json = adapter_result.map(|r| {
-                json!({
-                    "file": r.file,
-                    "adapter": "sveltekit",
-                    "removed": r.removed,
-                    "appHtmlUntouched": r.app_html_untouched,
-                    "rootComponent": r.root_component,
-                })
-            });
-            println!(
-                "{}",
-                json!({ "ok": true, "adapter": "sveltekit", "results": [result_json] })
-            );
-            return 0;
-        }
-        let mut results = Vec::new();
-        for rel_file in &resolved_files {
-            let abs_file = cwd.join(rel_file);
-            if !abs_file.exists() {
-                results.push(json!({ "file": rel_file, "error": "file_not_found" }));
-                continue;
-            }
-            let content = match fs::read_to_string(&abs_file) {
-                Ok(c) => c,
-                Err(err) => {
-                    results.push(json!({ "file": rel_file, "error": err.to_string() }));
-                    continue;
-                }
-            };
-            let detagged = remove_tag(&content);
-            let updated = revert_csp_meta(&detagged);
-            if updated == content {
-                results
-                    .push(json!({ "file": rel_file, "removed": false, "note": "no tag present" }));
-                continue;
-            }
-            if let Err(err) = fs::write(&abs_file, &updated) {
-                results.push(json!({ "file": rel_file, "error": err.to_string() }));
-                continue;
-            }
-            results.push(json!({
-                "file": rel_file,
-                "removed": detagged != content,
-                "cspReverted": updated != detagged,
-            }));
-        }
-        println!("{}", json!({ "ok": true, "results": results }));
-        return 0;
+        let svelte_kit =
+            sveltekit_adapter::detect_sveltekit_project(cwd, Some(&config.files)).is_some();
+        let report = remove_configured_files(cwd, &resolved_files, &config.files, svelte_kit);
+        println!("{}", report.payload);
+        return if report.ok { 0 } else { 1 };
     }
+
+    let svelte_kit = sveltekit_adapter::detect_sveltekit_project(cwd, Some(&config.files));
 
     // Insert mode — need --port.
     let port: Option<u32> = args
@@ -931,6 +1085,46 @@ pub fn run(
         eprintln!("{}", json!({ "ok": false, "error": "missing_port" }));
         return 1;
     };
+
+    let mut insert_targets = Vec::new();
+    if let Some(detected) = &svelte_kit {
+        for relative in [
+            Path::new(&detected.layout_file),
+            Path::new(sveltekit_adapter::SVELTE_LIVE_ROOT_COMPONENT),
+        ] {
+            if let Err(err) = sveltekit_adapter::project_mutation_target(cwd, relative) {
+                eprintln!(
+                    "{}",
+                    json!({ "ok": false, "error": "path_outside_project", "message": err.to_string() })
+                );
+                return 1;
+            }
+        }
+    } else {
+        let mut target_errors = Vec::new();
+        for rel_file in &resolved_files {
+            match sveltekit_adapter::project_mutation_target(cwd, Path::new(rel_file)) {
+                Ok(target) => match fs::symlink_metadata(&target) {
+                    Ok(_) => insert_targets.push(target),
+                    Err(err) => target_errors.push(json!({
+                        "file": rel_file,
+                        "error": if err.kind() == std::io::ErrorKind::NotFound { "file_not_found" } else { "file_unreadable" },
+                    })),
+                },
+                Err(err) => target_errors.push(json!({
+                    "file": rel_file,
+                    "error": if err.kind() == std::io::ErrorKind::PermissionDenied { "path_outside_project" } else { "file_unreadable" },
+                })),
+            }
+        }
+        if !target_errors.is_empty() || resolved_files.is_empty() {
+            if resolved_files.is_empty() {
+                target_errors.push(json!({ "error": "no_files_resolved" }));
+            }
+            eprintln!("{}", json!({ "ok": false, "results": target_errors }));
+            return 1;
+        }
+    }
 
     let git_ignore = match ensure_live_gitignores(cwd) {
         Ok(r) => r,
@@ -977,12 +1171,7 @@ pub fn run(
 
     let mut results = Vec::new();
     let mut any_inserted = false;
-    for rel_file in &resolved_files {
-        let abs_file = cwd.join(rel_file);
-        if !abs_file.exists() {
-            results.push(json!({ "file": rel_file, "error": "file_not_found" }));
-            continue;
-        }
+    for (rel_file, abs_file) in resolved_files.iter().zip(insert_targets) {
         let content = match fs::read_to_string(&abs_file) {
             Ok(c) => c,
             Err(err) => {
@@ -1028,6 +1217,239 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn removal_scratch_root(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "legion-live-remove-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    fn write_removal_config(root: &Path, files: &[&str]) {
+        let path = root.join(".impeccable/live/config.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            path,
+            serde_json::json!({
+                "files": files,
+                "insertAfter": "</body>",
+                "commentSyntax": "html"
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn project_removal_is_idempotent_when_no_tag_is_present() {
+        let root = removal_scratch_root("idempotent");
+        fs::create_dir_all(&root).unwrap();
+        write_removal_config(&root, &["index.html"]);
+        fs::write(root.join("index.html"), "<html><body>ok</body></html>").unwrap();
+
+        let first = remove_project_injection(&root, None, None);
+        let second = remove_project_injection(&root, None, None);
+
+        assert!(first.ok, "{}", first.payload);
+        assert!(second.ok, "{}", second.payload);
+        assert_eq!(second.payload["results"][0]["note"], "no tag present");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn project_removal_cleans_svelte_adapter_after_config_disappears() {
+        let root = removal_scratch_root("svelte-retry");
+        fs::create_dir_all(root.join("src/routes")).unwrap();
+        write_removal_config(&root, &["src/app.html"]);
+        fs::write(
+            root.join("src/app.html"),
+            "<html>%sveltekit.head%<body>%sveltekit.body%</body></html>",
+        )
+        .unwrap();
+        fs::write(root.join("svelte.config.js"), "export default {};\n").unwrap();
+        fs::write(
+            root.join("src/routes/+layout.svelte"),
+            "<script>let { children } = $props();</script>{@render children?.()}",
+        )
+        .unwrap();
+        sveltekit_adapter::apply_sveltekit_live_adapter(&root, 8400, None).unwrap();
+        fs::remove_dir_all(root.join(".impeccable")).unwrap();
+
+        let report = remove_project_injection(&root, None, None);
+
+        assert!(report.ok, "{}", report.payload);
+        assert_eq!(report.payload["adapter"], "sveltekit");
+        assert!(!root
+            .join("src/lib/designer/ImpeccableLiveRoot.svelte")
+            .exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn project_removal_uses_custom_svelte_app_html_from_config() {
+        let root = removal_scratch_root("svelte-custom-entry");
+        fs::create_dir_all(root.join("custom")).unwrap();
+        fs::create_dir_all(root.join("src/routes")).unwrap();
+        write_removal_config(&root, &["custom/app.html"]);
+        fs::write(
+            root.join("custom/app.html"),
+            "<html>%sveltekit.head%<body>%sveltekit.body%</body></html>",
+        )
+        .unwrap();
+        fs::write(root.join("svelte.config.js"), "export default {};\n").unwrap();
+        fs::write(
+            root.join("src/routes/+layout.svelte"),
+            "<script>let { children } = $props();</script>{@render children?.()}",
+        )
+        .unwrap();
+        sveltekit_adapter::apply_sveltekit_live_adapter(
+            &root,
+            8400,
+            Some(&["custom/app.html".to_string()]),
+        )
+        .unwrap();
+
+        let report = remove_project_injection(&root, None, None);
+
+        assert!(report.ok, "{}", report.payload);
+        assert_eq!(report.payload["adapter"], "sveltekit");
+        assert!(!root
+            .join("src/lib/designer/ImpeccableLiveRoot.svelte")
+            .exists());
+        assert!(!fs::read_to_string(root.join("src/routes/+layout.svelte"))
+            .unwrap()
+            .contains(sveltekit_adapter::SVELTE_LAYOUT_MARKER_OPEN));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn project_removal_reports_missing_targets_as_failure() {
+        let root = removal_scratch_root("missing-target");
+        fs::create_dir_all(&root).unwrap();
+        write_removal_config(&root, &["missing.html"]);
+
+        let report = remove_project_injection(&root, None, None);
+
+        assert!(!report.ok);
+        assert_eq!(report.payload["ok"], false);
+        assert_eq!(report.payload["results"][0]["error"], "file_not_found");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn project_removal_refuses_paths_outside_current_project() {
+        let root = removal_scratch_root("path-boundary");
+        fs::create_dir_all(&root).unwrap();
+        let outside_name = format!(
+            "{}-outside.html",
+            root.file_name().unwrap().to_string_lossy()
+        );
+        let outside = root.parent().unwrap().join(&outside_name);
+        let outside_contents = format!(
+            "<!-- {MARKER_OPEN_TEXT} -->\n<script src=\"http://localhost/live.js\"></script>\n<!-- {MARKER_CLOSE_TEXT} -->"
+        );
+        fs::write(&outside, &outside_contents).unwrap();
+        write_removal_config(&root, &[&format!("../{outside_name}")]);
+
+        let report = remove_project_injection(&root, None, None);
+
+        assert!(!report.ok);
+        assert_eq!(
+            report.payload["results"][0]["error"],
+            "path_outside_project"
+        );
+        assert_eq!(fs::read_to_string(&outside).unwrap(), outside_contents);
+        let _ = fs::remove_file(outside);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn project_removal_preflights_every_target_before_writing() {
+        use std::os::unix::fs::symlink;
+
+        let root = removal_scratch_root("preflight-all");
+        let outside = removal_scratch_root("preflight-outside");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        let original = format!(
+            "<!-- {MARKER_OPEN_TEXT} -->\n<script src=\"http://localhost/live.js\"></script>\n<!-- {MARKER_CLOSE_TEXT} -->"
+        );
+        fs::write(root.join("index.html"), &original).unwrap();
+        fs::write(outside.join("other.html"), &original).unwrap();
+        symlink(outside.join("other.html"), root.join("other.html")).unwrap();
+        write_removal_config(&root, &["index.html", "other.html"]);
+
+        let report = remove_project_injection(&root, None, None);
+
+        assert!(!report.ok);
+        assert_eq!(
+            fs::read_to_string(root.join("index.html")).unwrap(),
+            original
+        );
+        assert_eq!(
+            fs::read_to_string(outside.join("other.html")).unwrap(),
+            original
+        );
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn outside_gitdir_file_uses_project_gitignore_fallback() {
+        let root = removal_scratch_root("outside-gitdir");
+        let external_git = removal_scratch_root("external-gitdir");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&external_git).unwrap();
+        fs::write(
+            root.join(".git"),
+            format!("gitdir: {}", external_git.display()),
+        )
+        .unwrap();
+
+        let result = ensure_live_gitignores(&root).unwrap();
+
+        assert_eq!(result.mode, "gitignore");
+        assert_eq!(result.file, ".gitignore");
+        assert!(!external_git.join("info/exclude").exists());
+        assert!(root.join(".gitignore").exists());
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(external_git);
+    }
+
+    #[test]
+    fn invalid_utf8_gitignore_is_not_overwritten() {
+        let root = removal_scratch_root("invalid-utf8-ignore");
+        fs::create_dir_all(&root).unwrap();
+        let original = [0xff, 0xfe, b'\n'];
+        fs::write(root.join(".gitignore"), original).unwrap();
+
+        assert!(ensure_live_gitignores(&root).is_err());
+        assert_eq!(fs::read(root.join(".gitignore")).unwrap(), original);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_git_info_symlink_is_rejected_before_write() {
+        use std::os::unix::fs::symlink;
+
+        let root = removal_scratch_root("external-info-link");
+        let outside = removal_scratch_root("external-info-target");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, root.join(".git/info")).unwrap();
+
+        assert!(ensure_live_gitignores(&root).is_err());
+        assert!(!outside.join("exclude").exists());
+        assert!(!root.join(".gitignore").exists());
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(outside);
+    }
 
     fn cfg(insert_before: Option<&str>, insert_after: Option<&str>) -> InjectConfig {
         InjectConfig {

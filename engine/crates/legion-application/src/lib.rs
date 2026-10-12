@@ -16,9 +16,10 @@ use legion_audit::{
 use legion_catalog::{Catalog, CatalogError};
 use legion_contracts::task::RequestEnvelope;
 use legion_contracts::{
-    AgentDefinition, AgentId, BudgetCeiling, Coverage, EffectRequest, InvocationGrant,
-    InvocationId, Latitude, PolicyPack, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
-    ReportId, ReportStatus, ReportV1, RequestId, RoutingCeiling, TaskSpec, TaskStatus, ToolCeiling,
+    AgentDefinition, AgentId, BudgetCeiling, Coverage, EffectRequest, HookActorContext,
+    InvocationGrant, InvocationId, Latitude, PolicyPack, ProviderId, ProviderResult, ProviderSpec,
+    ProviderStatus, ReportId, ReportStatus, ReportV1, RequestId, RoutingCeiling, TaskSpec,
+    TaskStatus, ToolCeiling,
 };
 use legion_provider_sdk::{
     EffectInterface, ExternalProjectTool, ImplementationRegistry, Provider, ProviderContext,
@@ -2124,7 +2125,17 @@ pub struct NativeApplication {
 
 impl NativeApplication {
     /// Authorize one typed effect through the injected policy boundary.
-    pub fn authorize_hook(&self, request: &EffectRequest) -> Result<(), NativeApplicationError> {
+    pub fn authorize_hook(
+        &self,
+        request: &EffectRequest,
+        actor: HookActorContext,
+    ) -> Result<(), NativeApplicationError> {
+        if !actor.permits_effect(request.effect_class) {
+            return Err(RuntimeError::Policy(
+                "authenticated Sage/Oracle actor is restricted to positively identified read-only effects".into(),
+            )
+            .into());
+        }
         self.engine
             .authorize_effect(request)
             .map_err(NativeApplicationError::from)

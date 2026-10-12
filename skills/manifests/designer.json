@@ -78,7 +78,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://designer/SKILL.md",
-      "digest": "sha256:e9e118a2047a17578dac9d9cda67fd671f1350fc59b00b8b3417c77d9e14b9f3"
+      "digest": "sha256:f8ab421695d629d3e6101b2e267e9df6ebfd9e2d5c652e9e4cecc75b7f110ffc"
     },
     {
       "path": "agents/openai.yaml",
@@ -573,7 +573,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://designer/references/manual.md",
-      "digest": "sha256:6863594f13f3a4d041c95ca07f11d34919bcfd4156a255ab5d08903546c8c09e"
+      "digest": "sha256:da766f2f5981ab03a61eb1816616de0f017e54333b8388e6018514c0a729d5ef"
     },
     {
       "path": "references/motion-standards.md",
@@ -753,7 +753,7 @@
     {
       "path": "specialists/static-creative/GUIDE.md",
       "uri": "legion-skill://designer/specialists/static-creative/GUIDE.md",
-      "digest": "sha256:6f5b12543310c501cb0a03c80f4bf873b3bece954205b3a3cb2df62fe050f084"
+      "digest": "sha256:6995c7f1c4c444c7cbbae64ffb14e8c2c155d223891ffb6fc9f05e8526ff888f"
     },
     {
       "path": "specialists/static-creative/evals/evals.json",
@@ -783,7 +783,7 @@
     {
       "path": "specialists/surface-design/GUIDE.md",
       "uri": "legion-skill://designer/specialists/surface-design/GUIDE.md",
-      "digest": "sha256:e32bca484558df1283af71948328b23efb770b8d278dd02e0a2693bab6beb55c"
+      "digest": "sha256:f6b8c2d6b0a4e40fffc94c7ee8d0dad8fb830384127ed86b4315e85a74cc8ce3"
     }
   ]
 }

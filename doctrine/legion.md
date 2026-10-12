@@ -56,9 +56,12 @@ argument. Keep roster tiers vendor-neutral; never silently downgrade required ju
 requested authority to satisfy a host gate. Surface a rejected launch with its observed reason,
 repair compatible configuration when authorized, then retry within existing bounds.
 
-Codex projections preserve explicit role model/settings. Otherwise each role takes its tier's
-`codex` model from `src/config/model-tiers.json` (Council seats use `deliberation`), falling back to
-configured parent/subagent defaults only when a tier has no entry. Exact model names live in that
+Codex projections preserve explicit role model/settings. Sage & Oracle receive a generated
+`read-only` sandbox setting, which constrains local filesystem effects; runtime or parent
+overrides may reapply, and this setting does not establish that MCP tools are denied, so Guard
+remains responsible for typed effect gates. Otherwise each role takes its tier's `codex` model
+from `src/config/model-tiers.json` (Council seats use `deliberation`), falling back to configured
+parent/subagent defaults only when a tier has no entry. Exact model names live in that
 file & host configuration, never in roster prose; configuration alone still proves neither model
 availability nor tier compatibility.
 

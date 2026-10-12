@@ -26,6 +26,10 @@ The `legion script tasklist/validate-tasklist` route defaults to typed JSON `aut
 
 Select one mode from what the user requests. Modes compose when the work both needs a plan and will run a command or automation.
 
+For every plan mode, resolve required inputs, setup, & decisions before dependent implementation;
+show conditional dependencies on each step they can change; trace outputs into downstream inputs;
+place final checks after all steps that contribute to them.
+
 ## Inline tasklist mode
 
 Use for ordinary same-agent work. Freeze the requested outcome, scope, constraints, & useful completion check, then give concise numbered actions. Each action names its dependency (`START` or a prior step) & an observable check when useful. Include exact paths when known; parallelize independent work. Start the first step when execution was requested.

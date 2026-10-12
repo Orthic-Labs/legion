@@ -40,7 +40,7 @@ use super::{
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
     REASONING_RECEIPT_SCHEMA_VERSION,
 };
-use crate::plan::AuditPlan;
+use crate::plan::{AuditPlan, PROVIDER_UNIVERSE_BOUND};
 
 const VISUAL_PROVIDER_ID: &str = "legacy.visual.core";
 const VISUAL_PLAN_BINDING_UNAVAILABLE: &str = "visual-plan-binding-unavailable";
@@ -300,6 +300,22 @@ fn evidence_covers(evidence: &[Value], path: &str, line: u64) -> bool {
             _ => false,
         }
     })
+}
+
+fn ensure_variant_anchor_in_scope(
+    provider_id: &str,
+    denominator_paths: &[String],
+    anchor_path: &str,
+    label: &str,
+) -> Result<(), AuditError> {
+    if provider_id == followup::VARIANT_PROVIDER_ID
+        && !denominator_paths.iter().any(|path| path == anchor_path)
+    {
+        return Err(invalid(format!(
+            "{label}: variant anchor {anchor_path} is outside the frozen analysis scope"
+        )));
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -808,6 +824,7 @@ pub fn ingest_lens_result(
             return Err(invalid(format!("{label}: duplicate finding id")));
         }
         let (path, line) = frozen.check(&label, finding.get("anchor"))?;
+        ensure_variant_anchor_in_scope(provider_id, &request.denominator_paths, &path, &label)?;
         let evidence = finding
             .get("evidence")
             .and_then(Value::as_array)
@@ -862,7 +879,8 @@ pub fn ingest_lens_result(
         let label = format!("{who} withdrawn {id}");
         string_field(entry, "reason", &label)?;
         // A withdrawal is only accepted with the verbatim line that disproves the claim.
-        frozen.check(&label, entry.get("disproof"))?;
+        let (path, _) = frozen.check(&label, entry.get("disproof"))?;
+        ensure_variant_anchor_in_scope(provider_id, &request.denominator_paths, &path, &label)?;
         anchors_verified += 1;
     }
 
@@ -888,8 +906,8 @@ pub fn ingest_lens_result(
                     });
                     if request.packet.get("candidateWorkItems") != Some(&expected_child_binding) {
                         return Err(invalid(format!(
-                                "{who}: isolated candidate work items do not match the batch candidates and parent packet digest"
-                            )));
+                            "{who}: isolated candidate work items do not match the batch candidates and parent packet digest"
+                        )));
                     }
                     for (index, verdict) in submitted_verdicts.iter().enumerate() {
                         let candidate_id = verdict
@@ -916,8 +934,8 @@ pub fn ingest_lens_result(
                                 != Some(expected_packet_digest.as_str())
                         {
                             return Err(invalid(format!(
-                                    "{who}: verdict for {candidate_id} is not bound to its isolated work item"
-                                )));
+                                "{who}: verdict for {candidate_id} is not bound to its isolated work item"
+                            )));
                         }
                     }
                     parent_packet_digest
@@ -966,7 +984,7 @@ pub fn ingest_lens_result(
             Some(_) => {
                 return Err(invalid(format!(
                     "{who}: scannerCandidates must be an array or null"
-                )))
+                )));
             }
             None if submitted_verdicts.is_empty() => {
                 if request
@@ -982,7 +1000,7 @@ pub fn ingest_lens_result(
             _ => {
                 return Err(invalid(format!(
                     "{who}: verdicts submitted but the packet carries no scanner candidates"
-                )))
+                )));
             }
         }
     } else if !submitted_verdicts.is_empty() {
@@ -1835,7 +1853,7 @@ fn load_receipts(
                         return Err(invalid(format!(
                             "{} records an invalid part number",
                             file.display()
-                        )))
+                        )));
                     }
                 };
                 if name != format!("{provider}.part-{number:04}.json") {
@@ -1854,7 +1872,7 @@ fn load_receipts(
                 return Err(invalid(format!(
                     "{} records an invalid part",
                     file.display()
-                )))
+                )));
             }
         }
     }
@@ -2069,6 +2087,8 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let plan = read_json(&run_dir.join("plan.json"))?;
     crate::verify::validate_effect_artifacts(run_dir, &plan, &stored, &execution)?;
     let native_plan = verify_persisted_native_plan(&plan, &execution, run_dir)?;
+    let provider_coverage =
+        verify_provider_selection_claim(&plan, &stored, &execution, native_plan.as_ref(), run_dir)?;
     verify_or_degrade_visual(&mut execution, native_plan.as_ref(), &plan, &stored)?;
     let loaded = load_receipts(run_dir, &plan, &execution, None)?;
     let lens_parts: BTreeMap<String, PartsProgress> = loaded
@@ -2225,7 +2245,13 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         ReportStatus::Findings => "findings",
         _ => "incomplete",
     };
-    let full_audit = report.gaps.is_empty();
+    let plan_complete = report.gaps.is_empty();
+    set_derived_provider_coverage(
+        &mut report,
+        provider_coverage,
+        plan_complete,
+        next.results.len(),
+    );
     report.claims.insert("auditStatus".into(), json!(label));
     report.claims.insert(
         "qualityGate".into(),
@@ -2275,9 +2301,6 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
             }
         }
     }
-    if let Some(Value::Object(coverage)) = report.claims.get_mut("providerCoverage") {
-        coverage.insert("fullAudit".into(), json!(full_audit));
-    }
     report.validate()?;
     Ok(Recomputed {
         report,
@@ -2287,6 +2310,24 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         ingested: ingested.into_iter().collect(),
         lens_parts,
     })
+}
+
+fn set_derived_provider_coverage(
+    report: &mut ReportV1,
+    coverage: Option<Value>,
+    plan_complete: bool,
+    executed_providers: usize,
+) {
+    // Stored report claims are presentation data, not an authority source.
+    // Rebuild the claim from verified plans or omit it for legacy runs.
+    report.claims.remove("providerCoverage");
+    if let Some(mut coverage) = coverage {
+        if let Some(object) = coverage.as_object_mut() {
+            object.insert("planComplete".into(), json!(plan_complete));
+            object.insert("executedProviders".into(), json!(executed_providers));
+        }
+        report.claims.insert("providerCoverage".into(), coverage);
+    }
 }
 
 fn verify_persisted_native_plan(
@@ -2318,6 +2359,7 @@ fn verify_persisted_native_plan(
             .ok_or_else(|| invalid("nativePlan body is missing"))?,
     )
     .map_err(|error| invalid(format!("nativePlan body is invalid: {error}")))?;
+    reject_provider_universe_execution_plan(&plan)?;
     let provider_ids = plan
         .providers
         .iter()
@@ -2354,6 +2396,297 @@ fn verify_persisted_native_plan(
     };
     crate::integrity::verify(&plan, digest, Some(signature), Some(&key))?;
     Ok(Some(plan))
+}
+
+fn verify_provider_selection_claim(
+    outer: &Value,
+    stored_report: &ReportV1,
+    execution: &ExecutionReport,
+    executed_plan: Option<&AuditPlan>,
+    run_dir: &Path,
+) -> Result<Option<Value>, AuditError> {
+    let Some(selection) = outer.get("providerSelection") else {
+        return Ok(None);
+    };
+    if selection.get("complete").and_then(Value::as_bool) != Some(true) {
+        return Err(invalid("provider selection universe is incomplete"));
+    }
+    let scope_plan = selection
+        .get("scopePlan")
+        .ok_or_else(|| invalid("provider selection has no signed scope plan"))?;
+    let digest = scope_plan
+        .get("digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("provider selection scope-plan digest is missing"))?;
+    let signature = scope_plan
+        .get("signature")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("provider selection scope-plan signature is missing"))?;
+    let frozen: AuditPlan = serde_json::from_value(
+        scope_plan
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| invalid("provider selection scope-plan body is missing"))?,
+    )
+    .map_err(|error| invalid(format!("provider selection scope-plan is invalid: {error}")))?;
+    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
+        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
+        _ => load_epoch(run_dir)?.0,
+    };
+    crate::integrity::verify(&frozen, digest, Some(signature), Some(&key))?;
+    if frozen.inventory_generation != execution.generation
+        || frozen.inventory_digest != execution.inventory_digest
+        || outer.get("repository").and_then(Value::as_str) != Some(frozen.repository_id.as_str())
+        || selection.get("inventoryDigest").and_then(Value::as_str)
+            != Some(execution.inventory_digest.as_str())
+    {
+        return Err(invalid(
+            "provider selection scope plan differs from the executed inventory",
+        ));
+    }
+    if !verify_provider_universe_binding(&frozen, digest, signature, &key, &execution.plan_digest)?
+    {
+        // Old, correctly signed scope plans did not distinguish full-universe
+        // purpose from an ordinary selected plan. Their coverage is unknown;
+        // never upgrade their unsigned selection fields into a full-scope claim.
+        return Ok(None);
+    }
+    let applicable = applicable_provider_ids(&frozen);
+    let executed_plan = executed_plan.ok_or_else(|| {
+        invalid("provider selection cannot be reconciled without a verified native plan")
+    })?;
+    let signed_executed = executed_plan
+        .providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<BTreeSet<_>>();
+    let planned_provider_order = provider_ids_in_plan_order(executed_plan);
+    let signed_nonfiring = executed_plan
+        .excluded_conditional_providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<BTreeSet<_>>();
+    let full_universe = frozen
+        .providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<BTreeSet<_>>();
+    let full_nonfiring = frozen
+        .excluded_conditional_providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<BTreeSet<_>>();
+    let selected_specs = outer
+        .get("providerSpecs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("outer provider specifications are missing"))?
+        .iter()
+        .map(|value| {
+            value
+                .get("id")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| invalid("outer provider specification has no id"))
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let signed_selected = verify_precompile_provider_selection(
+        selection,
+        &selected_specs,
+        &signed_executed,
+        &signed_nonfiring,
+        &full_universe,
+        &full_nonfiring,
+    )?;
+    let (selected_applicable, excluded) = derive_provider_scope(&applicable, &signed_selected);
+    let full_scope = excluded.is_empty();
+    if selection.get("applicableProviders") != Some(&json!(applicable))
+        || selection.get("selectedApplicableProviders") != Some(&json!(selected_applicable))
+        || selection.get("excludedApplicableProviders") != Some(&json!(excluded))
+        || selection.get("fullScope").and_then(Value::as_bool) != Some(full_scope)
+        || selection.get("excludedConditionalProviders")
+            != Some(&json!(frozen.excluded_conditional_providers))
+    {
+        return Err(invalid(
+            "provider selection scope does not reconcile to the signed provider universe",
+        ));
+    }
+    if let Some(report_coverage) = stored_report.claims.get("providerCoverage") {
+        let Some(report_coverage) = report_coverage.as_object() else {
+            return Err(invalid("stored provider coverage claim is not an object"));
+        };
+        for (field, expected) in [
+            ("fullScope", json!(full_scope)),
+            ("applicableProviders", json!(applicable)),
+            ("selectedApplicableProviders", json!(selected_applicable)),
+            ("excludedApplicableProviders", json!(excluded)),
+        ] {
+            if report_coverage
+                .get(field)
+                .is_some_and(|actual| actual != &expected)
+            {
+                return Err(invalid(format!(
+                    "stored provider coverage {field} differs from verified scope"
+                )));
+            }
+        }
+    }
+    Ok(Some(json!({
+        "scope": "frozen-native-provider-plan",
+        "fullScope": full_scope,
+        "applicableProviders": applicable,
+        "selectedApplicableProviders": selected_applicable,
+        "excludedApplicableProviders": excluded,
+        "requestedOnly": selection.get("requestedOnly").cloned().unwrap_or(json!([])),
+        "requestedSkip": selection.get("requestedSkip").cloned().unwrap_or(json!([])),
+        "plannedProviders": planned_provider_order,
+        "sourcePort": [
+            "tools/audit/audit-complete.mjs",
+            "tools/audit/audit-run.mjs",
+            "tools/audit/audit-finalize.mjs"
+        ],
+    })))
+}
+
+fn provider_ids_in_plan_order(plan: &AuditPlan) -> Vec<String> {
+    plan.providers
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect()
+}
+
+/// Verify both the signed universe purpose and its binding to the selected
+/// plan whose providers actually ran. Returns `false` only for an older signed
+/// scope plan with no purpose marker; present-but-invalid markers fail closed.
+fn verify_provider_universe_binding(
+    scope_plan: &AuditPlan,
+    digest: &str,
+    signature: &str,
+    key: &[u8],
+    selected_plan_digest: &str,
+) -> Result<bool, AuditError> {
+    crate::integrity::verify(scope_plan, digest, Some(signature), Some(key))?;
+    let Some(binding) = scope_plan.bounds.get(PROVIDER_UNIVERSE_BOUND) else {
+        return Ok(false);
+    };
+    let object = binding
+        .as_object()
+        .ok_or_else(|| invalid("provider universe marker is not an object"))?;
+    if object.len() != 3
+        || binding.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || binding.get("purpose").and_then(Value::as_str) != Some("audit-provider-universe")
+    {
+        return Err(invalid(
+            "provider universe marker is malformed or unsupported",
+        ));
+    }
+    let bound_selected_digest = binding
+        .get("selectedPlanDigest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("provider universe selected-plan binding is missing"))?;
+    if !is_sha256_digest(bound_selected_digest) || bound_selected_digest != selected_plan_digest {
+        return Err(invalid(
+            "provider universe is not bound to the verified selected plan",
+        ));
+    }
+    Ok(true)
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
+}
+
+fn reject_provider_universe_execution_plan(plan: &AuditPlan) -> Result<(), AuditError> {
+    if plan.bounds.contains_key(PROVIDER_UNIVERSE_BOUND) {
+        return Err(invalid(
+            "native execution plan carries a provider-universe purpose marker",
+        ));
+    }
+    Ok(())
+}
+
+fn derive_provider_scope(
+    applicable: &BTreeSet<String>,
+    selected: &BTreeSet<String>,
+) -> (Vec<String>, Vec<String>) {
+    (
+        applicable.intersection(selected).cloned().collect(),
+        applicable.difference(selected).cloned().collect(),
+    )
+}
+
+/// Check the duplicated selection claim against provider IDs from the already
+/// verified native plan. Coverage is always derived from that signed plan,
+/// never from the outer report's unsigned provider lists.
+fn verify_precompile_provider_selection(
+    selection: &Value,
+    outer_provider_specs: &BTreeSet<String>,
+    signed_executed: &BTreeSet<String>,
+    signed_nonfiring_conditionals: &BTreeSet<String>,
+    full_universe: &BTreeSet<String>,
+    full_nonfiring_conditionals: &BTreeSet<String>,
+) -> Result<BTreeSet<String>, AuditError> {
+    let claimed = selection
+        .get("selectedProviderIds")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("provider selection has no selected provider ids"))?
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| invalid("selected provider id is invalid"))
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if !signed_executed.is_disjoint(signed_nonfiring_conditionals) {
+        return Err(invalid(
+            "verified plan lists a conditional provider as both executed and nonfiring",
+        ));
+    }
+    if !signed_executed.is_subset(full_universe)
+        || !signed_nonfiring_conditionals.is_subset(full_nonfiring_conditionals)
+    {
+        return Err(invalid(
+            "executed or nonfiring provider ids fall outside the signed full universe",
+        ));
+    }
+    let expected_precompile = signed_executed
+        .union(signed_nonfiring_conditionals)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if claimed != expected_precompile || outer_provider_specs != &expected_precompile {
+        return Err(invalid(
+            "precompile provider ids do not reconcile to verified execution and nonfiring conditionals",
+        ));
+    }
+    Ok(signed_executed.clone())
+}
+
+fn applicable_provider_ids(plan: &AuditPlan) -> BTreeSet<String> {
+    plan.providers
+        .iter()
+        .filter(|provider| {
+            let declared = provider
+                .configuration
+                .get("hostDeclaration")
+                .and_then(|value| value.get("declared"))
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            let denominator_count = provider
+                .configuration
+                .get("denominatorCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let selector = provider.configuration.get("selector");
+            let always = selector.is_some_and(|selector| {
+                selector.as_str() == Some("always")
+                    || selector.get("op").and_then(Value::as_str) == Some("always")
+            });
+            declared && (denominator_count > 0 || always)
+        })
+        .map(|provider| provider.id.clone())
+        .collect()
 }
 
 fn verify_or_degrade_visual(
@@ -2479,6 +2812,364 @@ fn mark_visual_unproven(slot: &mut crate::execution::ProviderExecution) -> Resul
         json!({"status":"unproven","reason":VISUAL_PLAN_BINDING_UNAVAILABLE}),
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod provider_universe_binding_tests {
+    use super::{
+        derive_provider_scope, provider_ids_in_plan_order, reject_provider_universe_execution_plan,
+        verify_provider_universe_binding,
+    };
+    use crate::plan::{AuditPlan, AuditProvider, ProviderKind, PROVIDER_UNIVERSE_BOUND};
+    use serde_json::{json, Value};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    const KEY: &[u8] = b"provider-universe-test-key";
+
+    fn plan(bounds: BTreeMap<String, Value>) -> AuditPlan {
+        AuditPlan {
+            schema_version: 1,
+            repository_id: "/repo".into(),
+            inventory_generation: "generation-1".into(),
+            inventory_digest: format!("sha256:{}", "a".repeat(64)),
+            providers: Vec::new(),
+            bounds,
+            excluded_conditional_providers: Vec::new(),
+        }
+    }
+
+    fn signed(plan: &AuditPlan) -> (String, String) {
+        (
+            crate::integrity::plan_digest(plan).unwrap(),
+            crate::integrity::sign(plan, KEY).unwrap(),
+        )
+    }
+
+    fn marked_plan(selected_plan_digest: &str) -> AuditPlan {
+        plan(BTreeMap::from([(
+            PROVIDER_UNIVERSE_BOUND.into(),
+            json!({
+                "schemaVersion": 1,
+                "purpose": "audit-provider-universe",
+                "selectedPlanDigest": selected_plan_digest,
+            }),
+        )]))
+    }
+
+    #[test]
+    fn signed_universe_marker_prevents_filtered_plan_substitution() {
+        let selected = plan(BTreeMap::new());
+        let selected_digest = crate::integrity::plan_digest(&selected).unwrap();
+        let substituted = selected.clone();
+        let (digest, signature) = signed(&substituted);
+        assert!(!verify_provider_universe_binding(
+            &substituted,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .unwrap());
+
+        let universe = marked_plan(&selected_digest);
+        let (digest, signature) = signed(&universe);
+        assert!(verify_provider_universe_binding(
+            &universe,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn changed_marker_signature_or_selected_plan_binding_is_rejected() {
+        let selected = plan(BTreeMap::new());
+        let selected_digest = crate::integrity::plan_digest(&selected).unwrap();
+        let universe = marked_plan(&selected_digest);
+        let (digest, signature) = signed(&universe);
+
+        let mut changed = universe.clone();
+        changed.bounds.get_mut(PROVIDER_UNIVERSE_BOUND).unwrap()["purpose"] =
+            json!("ordinary-plan");
+        assert!(verify_provider_universe_binding(
+            &changed,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .is_err());
+        assert!(verify_provider_universe_binding(
+            &universe,
+            &digest,
+            &format!("hmac-sha256:{}", "0".repeat(64)),
+            KEY,
+            &selected_digest,
+        )
+        .is_err());
+
+        let unsupported = plan(BTreeMap::from([(
+            PROVIDER_UNIVERSE_BOUND.into(),
+            json!({
+                "schemaVersion": 2,
+                "purpose": "audit-provider-universe",
+                "selectedPlanDigest": selected_digest,
+            }),
+        )]));
+        let (digest, signature) = signed(&unsupported);
+        assert!(verify_provider_universe_binding(
+            &unsupported,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .is_err());
+
+        let wrong_binding = marked_plan(&format!("sha256:{}", "b".repeat(64)));
+        let (digest, signature) = signed(&wrong_binding);
+        assert!(verify_provider_universe_binding(
+            &wrong_binding,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn legacy_scope_is_unknown_and_full_or_narrow_coverage_is_derived_from_signed_sets() {
+        let selected = plan(BTreeMap::new());
+        let selected_digest = crate::integrity::plan_digest(&selected).unwrap();
+        let (digest, signature) = signed(&selected);
+        assert!(!verify_provider_universe_binding(
+            &selected,
+            &digest,
+            &signature,
+            KEY,
+            &selected_digest,
+        )
+        .unwrap());
+
+        let applicable =
+            BTreeSet::from(["security.source".to_owned(), "security.secrets".to_owned()]);
+        let full_selected = applicable.clone();
+        let (full, omitted) = derive_provider_scope(&applicable, &full_selected);
+        assert_eq!(full, vec!["security.secrets", "security.source"]);
+        assert!(omitted.is_empty());
+
+        let narrow_selected = BTreeSet::from(["security.source".to_owned()]);
+        let (selected, omitted) = derive_provider_scope(&applicable, &narrow_selected);
+        assert_eq!(selected, vec!["security.source"]);
+        assert_eq!(omitted, vec!["security.secrets"]);
+    }
+
+    #[test]
+    fn universe_purpose_marker_cannot_be_reused_as_an_execution_plan() {
+        let ordinary = plan(BTreeMap::new());
+        assert!(reject_provider_universe_execution_plan(&ordinary).is_ok());
+
+        let universe = marked_plan(&format!("sha256:{}", "a".repeat(64)));
+        assert!(reject_provider_universe_execution_plan(&universe).is_err());
+    }
+
+    #[test]
+    fn planned_provider_coverage_keeps_signed_dag_order() {
+        let provider = |id: &str, dependencies: &[&str]| AuditProvider {
+            id: id.into(),
+            version: "1".into(),
+            role: "scanner".into(),
+            phase: "scan".into(),
+            lens_ids: Vec::new(),
+            dependencies: dependencies
+                .iter()
+                .map(|dependency| (*dependency).into())
+                .collect(),
+            kind: ProviderKind::BuiltIn,
+            configuration: BTreeMap::new(),
+            bounds: BTreeMap::new(),
+            clean_claim: "none".into(),
+            benchmark_status: "not-required".into(),
+            benchmark_required_for_clean_claim: false,
+            qualification_digest: None,
+            required: true,
+        };
+        let mut signed_plan = plan(BTreeMap::new());
+        signed_plan.providers = vec![provider("zeta", &[]), provider("alpha", &["zeta"])];
+
+        assert_eq!(
+            provider_ids_in_plan_order(&signed_plan),
+            vec!["zeta".to_owned(), "alpha".to_owned()]
+        );
+    }
+}
+
+#[cfg(test)]
+mod variant_anchor_scope_tests {
+    use super::{
+        ensure_variant_anchor_in_scope, set_derived_provider_coverage,
+        verify_precompile_provider_selection,
+    };
+    use legion_contracts::ReportV1;
+    use serde_json::json;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn variant_anchors_must_be_inside_frozen_analysis_paths() {
+        let denominator = vec!["src/db.rs".to_owned(), "src/db_sibling.rs".to_owned()];
+        assert!(ensure_variant_anchor_in_scope(
+            super::followup::VARIANT_PROVIDER_ID,
+            &denominator,
+            "src/db_sibling.rs",
+            "variant finding",
+        )
+        .is_ok());
+        assert!(ensure_variant_anchor_in_scope(
+            super::followup::VARIANT_PROVIDER_ID,
+            &denominator,
+            "src/unrelated.rs",
+            "variant finding",
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn other_lenses_keep_their_own_anchor_contract() {
+        assert!(ensure_variant_anchor_in_scope(
+            "reasoning.security",
+            &["src/db.rs".to_owned()],
+            "src/unrelated.rs",
+            "security finding",
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn legacy_ingest_drops_unbound_provider_coverage_claim() {
+        let mut report: ReportV1 = serde_json::from_value(json!({
+            "schema_version": 1,
+            "report_id": "scope-claim-test",
+            "status": "incomplete",
+            "findings": [],
+            "gaps": [],
+            "claims": {
+                "providerCoverage": {
+                    "fullAudit": true,
+                    "fullScope": false,
+                    "excludedApplicableProviders": ["security.secret-scan"]
+                }
+            },
+            "targets": []
+        }))
+        .unwrap();
+
+        set_derived_provider_coverage(&mut report, None, true, 1);
+
+        assert!(report.claims.get("providerCoverage").is_none());
+    }
+
+    #[test]
+    fn ingest_rebuilds_provider_coverage_from_verified_scope() {
+        let mut report: ReportV1 = serde_json::from_value(json!({
+            "schema_version": 1,
+            "report_id": "scope-claim-test",
+            "status": "incomplete",
+            "findings": [],
+            "gaps": [],
+            "claims": {
+                "providerCoverage": {"fullAudit": true, "fullScope": true}
+            },
+            "targets": []
+        }))
+        .unwrap();
+
+        set_derived_provider_coverage(
+            &mut report,
+            Some(json!({
+                "scope": "frozen-native-provider-plan",
+                "fullScope": false,
+                "excludedApplicableProviders": ["security.secret-scan"]
+            })),
+            true,
+            2,
+        );
+
+        let coverage = &report.claims["providerCoverage"];
+        assert_eq!(coverage["planComplete"], json!(true));
+        assert_eq!(coverage["fullScope"], json!(false));
+        assert_eq!(coverage["executedProviders"], json!(2));
+        assert_eq!(
+            coverage["excludedApplicableProviders"],
+            json!(["security.secret-scan"])
+        );
+        assert!(coverage.get("fullAudit").is_none());
+    }
+
+    #[test]
+    fn checked_nonfiring_conditional_is_not_a_scope_omission() {
+        let signed_executed = BTreeSet::from(["security.source".to_owned()]);
+        let signed_nonfiring = BTreeSet::from(["reasoning.a11y".to_owned()]);
+        let full_universe = BTreeSet::from(["security.source".to_owned()]);
+        let full_nonfiring = BTreeSet::from(["reasoning.a11y".to_owned()]);
+        let expected_precompile =
+            BTreeSet::from(["security.source".to_owned(), "reasoning.a11y".to_owned()]);
+        let selection = json!({
+            "selectedProviderIds": ["reasoning.a11y", "security.source"],
+            "fullScope": false,
+            "excludedApplicableProviders": ["security.secret-scan"]
+        });
+        assert_eq!(
+            verify_precompile_provider_selection(
+                &selection,
+                &expected_precompile,
+                &signed_executed,
+                &signed_nonfiring,
+                &full_universe,
+                &full_nonfiring,
+            )
+            .unwrap(),
+            signed_executed.clone()
+        );
+        let applicable = BTreeSet::from(["security.source".to_owned()]);
+        assert!(applicable.difference(&signed_executed).next().is_none());
+    }
+
+    #[test]
+    fn tampered_outer_provider_lists_cannot_expand_signed_selection_scope() {
+        let signed_executed = BTreeSet::from(["security.source".to_owned()]);
+        let signed_nonfiring = BTreeSet::from(["reasoning.a11y".to_owned()]);
+        let full_universe = BTreeSet::from(["security.source".to_owned()]);
+        let full_nonfiring = BTreeSet::from(["reasoning.a11y".to_owned()]);
+        let mut selection = json!({
+            "selectedProviderIds": ["reasoning.a11y", "security.source"],
+            "fullScope": false,
+            "excludedApplicableProviders": ["security.secret-scan"]
+        });
+        // An attacker editing both unsigned copies to claim a full run still
+        // cannot add a provider absent from the signed execution or checked
+        // nonfiring conditional set.
+        selection["selectedProviderIds"] =
+            json!(["reasoning.a11y", "security.source", "security.secret-scan"]);
+        selection["fullScope"] = json!(true);
+        selection["excludedApplicableProviders"] = json!([]);
+        let tampered_outer_specs = BTreeSet::from([
+            "reasoning.a11y".to_owned(),
+            "security.source".to_owned(),
+            "security.secret-scan".to_owned(),
+        ]);
+        assert!(verify_precompile_provider_selection(
+            &selection,
+            &tampered_outer_specs,
+            &signed_executed,
+            &signed_nonfiring,
+            &full_universe,
+            &full_nonfiring,
+        )
+        .is_err());
+    }
 }
 
 #[cfg(test)]

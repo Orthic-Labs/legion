@@ -5,6 +5,7 @@
 //! package metadata, then bounded local-bin/PATH lookup, and seals the bytes
 //! of the selected executable before it reaches `legion-effects`.
 
+use super::attested_runs::AttestedRunsEnrollment;
 use super::contracts::CommandShape;
 use crate::inventory::InventoryEnvelope;
 use serde_json::{json, Value};
@@ -49,7 +50,7 @@ pub fn resolve_command(
         CommandShape::Native { .. } => {
             return Err(ResolveError::Unavailable(
                 "native command has no external executable".into(),
-            ))
+            ));
         }
         CommandShape::Fixed { executable, args } => (
             resolve_named_path(root, executable)?,
@@ -75,7 +76,7 @@ pub fn resolve_request(
         "project-test" => {
             return Err(ResolveError::Unavailable(
                 "project-test requires frozen inventory metadata".into(),
-            ))
+            ));
         }
         "project-lint" => project_lint_dynamic(root, args)?,
         "project-types" => project_types_dynamic(root, args)?,
@@ -116,6 +117,14 @@ pub fn resolve_test_command(
     root: &Path,
     inventory: &InventoryEnvelope,
 ) -> Result<(ResolvedCommand, Value), ResolveError> {
+    resolve_test_command_with_enrollment(root, inventory, None)
+}
+
+pub fn resolve_test_command_with_enrollment(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    enrollment: Option<&AttestedRunsEnrollment>,
+) -> Result<(ResolvedCommand, Value), ResolveError> {
     let root = fs::canonicalize(root).map_err(|error| {
         ResolveError::Unavailable(format!("test-source-root-unavailable: {error}"))
     })?;
@@ -131,109 +140,293 @@ pub fn resolve_test_command(
             .and_then(Value::as_object)
             .is_some_and(|scripts| scripts.contains_key("test"));
         if has_test {
-            let mut version_requirement = None;
-            let manager = if let Some(value) =
-                package_json.get("packageManager").and_then(Value::as_str)
-            {
-                let (manager, version) = value.split_once('@').ok_or_else(|| {
-                    ResolveError::Unavailable("test-package-manager-pin-invalid".into())
-                })?;
-                if version.is_empty() {
-                    return Err(ResolveError::Unavailable(
-                        "test-package-manager-pin-invalid".into(),
-                    ));
-                }
-                if !is_exact_semver_pin(version) {
-                    return Err(ResolveError::Unavailable(
-                        "test-package-manager-pin-invalid".into(),
-                    ));
-                }
-                let pinned_version = version.split('+').next().unwrap_or(version);
-                version_requirement = Some(pinned_version.to_owned());
-                manager.to_ascii_lowercase()
-            } else {
-                let mut selected = None;
-                for (path, manager) in [
-                    ("pnpm-lock.yaml", "pnpm"),
-                    ("yarn.lock", "yarn"),
-                    ("package-lock.json", "npm"),
-                    ("bun.lockb", "bun"),
-                ] {
-                    if let Some((_, digest)) = frozen_source_file(&root, inventory, path)? {
-                        sources.push(json!({"path":path,"digest":digest}));
-                        if selected.is_none() {
-                            selected = Some(manager);
+            let (manager, required_version) =
+                if let Some(value) = package_json.get("packageManager").and_then(Value::as_str) {
+                    let (manager, version) = value.split_once('@').ok_or_else(|| {
+                        ResolveError::Unavailable("test-package-manager-pin-invalid".into())
+                    })?;
+                    if version.is_empty() {
+                        return Err(ResolveError::Unavailable(
+                            "test-package-manager-pin-invalid".into(),
+                        ));
+                    }
+                    if !is_exact_semver_pin(version) {
+                        return Err(ResolveError::Unavailable(
+                            "test-package-manager-pin-invalid".into(),
+                        ));
+                    }
+                    (manager.to_ascii_lowercase(), Some(version.to_owned()))
+                } else {
+                    let mut selected = None;
+                    for (path, manager) in [
+                        ("pnpm-lock.yaml", "pnpm"),
+                        ("yarn.lock", "yarn"),
+                        ("package-lock.json", "npm"),
+                        ("bun.lockb", "bun"),
+                    ] {
+                        if let Some((_, digest)) = frozen_source_file(&root, inventory, path)? {
+                            sources.push(json!({"path":path,"digest":digest}));
+                            if selected.is_none() {
+                                selected = Some(manager);
+                            }
                         }
                     }
-                }
-                selected
-                    .ok_or_else(|| {
-                        ResolveError::NotConfigured(
-                            "test package script has no pinned package manager or lockfile".into(),
-                        )
-                    })?
-                    .to_owned()
-            };
+                    (
+                        selected
+                            .ok_or_else(|| {
+                                ResolveError::NotConfigured(
+                                    "test package script has no pinned package manager or lockfile"
+                                        .into(),
+                                )
+                            })?
+                            .to_owned(),
+                        None,
+                    )
+                };
             if !matches!(manager.as_str(), "npm" | "pnpm" | "yarn" | "bun") {
-                return Err(ResolveError::Unavailable(format!(
-                    "test-package-manager-unsupported:{manager}"
-                )));
+                return Err(ResolveError::NotConfigured(managed_runner_gap(&manager)));
             }
-            let executable = resolve_named_path(&root, &manager)?;
-            let args = package_script_argv(&manager, "test", std::iter::empty::<String>());
-            let resolved = seal(&root, executable, args)?;
-            let source = json!({
-                "family":"package-script",
-                "inventoryDigest":inventory.digest,
-                "sources":sources,
-                "executable":resolved.executable.to_string_lossy(),
-                "executableDigest":resolved.digest,
-                "versionRequirement":version_requirement,
-                "argv":resolved.args,
-                "cwd":resolved.cwd.to_string_lossy(),
-            });
+            let (resolved, runner_source) = resolve_frozen_test_runner(
+                &root,
+                inventory,
+                &manager,
+                vec!["test".into()],
+                "package.json",
+                &[],
+                enrollment,
+                required_version.as_deref(),
+            )?;
+            sources.extend(
+                runner_source["sources"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+            let mut source = runner_source;
+            source["inventoryDigest"] = json!(inventory.digest);
+            source["packageMetadata"] = json!(sources);
             return Ok((resolved, source));
         }
     }
 
-    let mut cargo_manifest = None;
-    for path in ["Cargo.toml", "src-tauri/Cargo.toml"] {
-        if frozen_source_file(&root, inventory, path)?.is_some() {
-            cargo_manifest = Some(path);
-            break;
+    let cargo_manifest = ["Cargo.toml", "src-tauri/Cargo.toml"]
+        .into_iter()
+        .find_map(|path| match frozen_source_file(&root, inventory, path) {
+            Ok(Some(_)) => Some(Ok(path)),
+            Ok(None) => None,
+            Err(error) => Some(Err(error)),
+        })
+        .transpose()?;
+    if let Some(cargo_manifest) = cargo_manifest {
+        let (_, manifest_digest) = frozen_source_file(&root, inventory, cargo_manifest)?
+            .ok_or_else(|| ResolveError::Unavailable("frozen Cargo manifest disappeared".into()))?;
+        sources.push(json!({"path":cargo_manifest,"digest":manifest_digest}));
+        let cargo_lock = cargo_manifest
+            .strip_suffix("Cargo.toml")
+            .unwrap_or_default()
+            .to_owned()
+            + "Cargo.lock";
+        if let Some((_, digest)) = frozen_source_file(&root, inventory, &cargo_lock)? {
+            sources.push(json!({"path":cargo_lock,"digest":digest}));
+        }
+        let cwd = if cargo_manifest == "src-tauri/Cargo.toml" {
+            root.join("src-tauri")
+        } else {
+            root.clone()
+        };
+        let executable = resolve_attestation_cli(&root, enrollment)?;
+        let client_digest = enrollment
+            .map(|enrollment| enrollment.client_digest.as_str())
+            .ok_or_else(|| {
+                ResolveError::NotConfigured("managed-test-trust-not-configured".into())
+            })?;
+        let args = vec!["cargo".into(), "test".into()];
+        let resolved = ResolvedCommand {
+            executable,
+            args,
+            digest: format!("sha256:{client_digest}"),
+            cwd: cwd.clone(),
+        };
+        let source = json!({
+            "family":"rust-rightkit",
+            "inventoryDigest":inventory.digest,
+            "sources":sources,
+            "executable":resolved.executable.to_string_lossy(),
+            "executableDigest":resolved.digest,
+            "argv":resolved.args,
+            "cwd":resolved.cwd.to_string_lossy(),
+            "workspaceRoot":cwd.to_string_lossy(),
+        });
+        return Ok((resolved, source));
+    }
+
+    if let Some((runner, args, manifest, companion_paths)) = native_test_spec(&root, inventory)? {
+        return resolve_frozen_test_runner(
+            &root,
+            inventory,
+            &runner,
+            args,
+            &manifest,
+            &companion_paths,
+            enrollment,
+            None,
+        );
+    }
+    Err(ResolveError::NotConfigured(
+        "test runner is not configured".into(),
+    ))
+}
+
+type NativeTestSpec = (String, Vec<String>, String, Vec<String>);
+
+fn native_test_spec(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+) -> Result<Option<NativeTestSpec>, ResolveError> {
+    let has = |path: &str| -> Result<bool, ResolveError> {
+        frozen_source_file(root, inventory, path).map(|value| value.is_some())
+    };
+    let python_declaration = ["pyproject.toml", "pytest.ini", "tox.ini", "setup.cfg"]
+        .into_iter()
+        .find_map(|path| match frozen_source_file(root, inventory, path) {
+            Ok(Some((bytes, _))) => Some(Ok((path, bytes))),
+            Ok(None) => None,
+            Err(error) => Some(Err(error)),
+        })
+        .transpose()?;
+    let has_python_tests = inventory.entries.iter().any(|entry| {
+        let path = entry.path.as_str();
+        (path.starts_with("tests/") || path.starts_with("test/"))
+            && (path.ends_with(".py") || path.ends_with(".pyi"))
+            || (path.starts_with("test_") && path.ends_with(".py"))
+    });
+    let python_declaration = python_declaration.or_else(|| {
+        inventory
+            .entries
+            .iter()
+            .find(|entry| {
+                ((entry.path.starts_with("tests/") || entry.path.starts_with("test/"))
+                    && (entry.path.ends_with(".py") || entry.path.ends_with(".pyi")))
+                    || (entry.path.starts_with("test_") && entry.path.ends_with(".py"))
+            })
+            .map(|entry| (entry.path.as_str(), Vec::new()))
+    });
+    if let Some((declaration, bytes)) = python_declaration {
+        let text = String::from_utf8_lossy(&bytes);
+        if has_python_tests || text.contains("pytest") {
+            return Ok(Some((
+                "pytest".into(),
+                Vec::new(),
+                declaration.into(),
+                Vec::new(),
+            )));
         }
     }
-    let cargo_manifest = cargo_manifest
-        .ok_or_else(|| ResolveError::NotConfigured("test runner is not configured".into()))?;
-    let (_, manifest_digest) = frozen_source_file(&root, inventory, cargo_manifest)?
-        .ok_or_else(|| ResolveError::Unavailable("frozen Cargo manifest disappeared".into()))?;
-    sources.push(json!({"path":cargo_manifest,"digest":manifest_digest}));
-    let cargo_lock = cargo_manifest
-        .strip_suffix("Cargo.toml")
-        .unwrap_or_default()
-        .to_owned()
-        + "Cargo.lock";
-    if let Some((_, digest)) = frozen_source_file(&root, inventory, &cargo_lock)? {
-        sources.push(json!({"path":cargo_lock,"digest":digest}));
-    }
-    let cwd = if cargo_manifest == "src-tauri/Cargo.toml" {
-        root.join("src-tauri")
+    let dotnet_solutions = inventory
+        .entries
+        .iter()
+        .filter(|entry| entry.path.ends_with(".sln"))
+        .map(|entry| entry.path.as_str())
+        .collect::<Vec<_>>();
+    let dotnet_projects = inventory
+        .entries
+        .iter()
+        .filter(|entry| {
+            [".csproj", ".fsproj", ".vbproj"]
+                .iter()
+                .any(|suffix| entry.path.ends_with(suffix))
+        })
+        .map(|entry| entry.path.as_str())
+        .collect::<Vec<_>>();
+    let dotnet_declaration = if dotnet_solutions.len() == 1 {
+        Some(dotnet_solutions[0])
+    } else if dotnet_solutions.len() > 1 {
+        return Err(ResolveError::NotConfigured(
+            "dotnet-test-solution-scope-ambiguous".into(),
+        ));
+    } else if dotnet_projects.len() == 1 {
+        Some(dotnet_projects[0])
+    } else if dotnet_projects.len() > 1 {
+        return Err(ResolveError::NotConfigured(
+            "dotnet-test-solution-required-for-multiple-projects".into(),
+        ));
     } else {
-        root.clone()
+        None
     };
-    let executable = resolve_named_path(&root, "rightkit")?;
-    let args = vec!["cargo".into(), "test".into()];
-    let resolved = seal(&cwd, executable, args)?;
-    let source = json!({
-        "family":"rust-rightkit",
-        "inventoryDigest":inventory.digest,
-        "sources":sources,
-        "executable":resolved.executable.to_string_lossy(),
-        "executableDigest":resolved.digest,
-        "argv":resolved.args,
-        "cwd":resolved.cwd.to_string_lossy(),
-    });
-    Ok((resolved, source))
+    let selected = if has("Package.swift")? {
+        Some(("swift", vec!["test".into()], "Package.swift", vec![]))
+    } else if has("pom.xml")? {
+        Some(("mvn", vec!["test".into()], "pom.xml", vec![]))
+    } else if has("build.gradle")? || has("build.gradle.kts")? {
+        let manifest = if has("build.gradle")? {
+            "build.gradle"
+        } else {
+            "build.gradle.kts"
+        };
+        Some((
+            "gradle",
+            vec!["test".into()],
+            manifest,
+            vec!["gradle.lockfile"],
+        ))
+    } else if let Some(path) = dotnet_declaration {
+        Some(("dotnet", vec!["test".into(), path.into()], path, vec![]))
+    } else if has("go.mod")? {
+        Some((
+            "go",
+            vec!["test".into(), "./...".into()],
+            "go.mod",
+            vec!["go.sum"],
+        ))
+    } else if has("Gemfile")? {
+        let has_rspec_tests = inventory
+            .entries
+            .iter()
+            .any(|entry| entry.path.starts_with("spec/") && entry.path.ends_with("_spec.rb"));
+        let has_ruby_unit_tests = inventory.entries.iter().any(|entry| {
+            entry.path.starts_with("test/")
+                && (entry.path.ends_with("_test.rb") || entry.path.ends_with("_tests.rb"))
+        });
+        if has_rspec_tests {
+            Some((
+                "bundle",
+                vec!["exec".into(), "rspec".into()],
+                "Gemfile",
+                vec!["Gemfile.lock"],
+            ))
+        } else if has_ruby_unit_tests && has("Rakefile")? {
+            Some((
+                "bundle",
+                vec!["exec".into(), "rake".into(), "test".into()],
+                "Gemfile",
+                vec!["Gemfile.lock", "Rakefile"],
+            ))
+        } else {
+            None
+        }
+    } else if has("pubspec.yaml")? {
+        let pubspec =
+            frozen_source_file(root, inventory, "pubspec.yaml")?.expect("checked frozen pubspec");
+        let text = String::from_utf8_lossy(&pubspec.0);
+        let (runner, args) = if text.lines().any(|line| line.trim() == "flutter:") {
+            ("flutter", vec!["test".into()])
+        } else {
+            ("dart", vec!["test".into()])
+        };
+        Some((runner, args, "pubspec.yaml", vec!["pubspec.lock"]))
+    } else if has("mix.exs")? {
+        Some(("mix", vec!["test".into()], "mix.exs", vec!["mix.lock"]))
+    } else {
+        None
+    };
+    Ok(selected.map(|(runner, args, manifest, companions)| {
+        (
+            runner.to_owned(),
+            args,
+            manifest.to_owned(),
+            companions.into_iter().map(str::to_owned).collect(),
+        )
+    }))
 }
 
 fn is_exact_semver_pin(value: &str) -> bool {
@@ -273,6 +466,86 @@ fn is_exact_semver_pin(value: &str) -> bool {
     };
     prerelease.map_or(true, |value| valid_identifiers(value, true))
         && build.map_or(true, |value| valid_identifiers(value, false))
+}
+
+fn resolve_frozen_test_runner(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    runner: &str,
+    args: Vec<String>,
+    declaration: &str,
+    companions: &[String],
+    enrollment: Option<&AttestedRunsEnrollment>,
+    required_version: Option<&str>,
+) -> Result<(ResolvedCommand, Value), ResolveError> {
+    let executable = resolve_attestation_cli(root, enrollment)?;
+    let client_digest = enrollment
+        .map(|enrollment| enrollment.client_digest.as_str())
+        .ok_or_else(|| ResolveError::NotConfigured("managed-test-trust-not-configured".into()))?;
+    let mut invocation = vec![runner.to_owned()];
+    invocation.extend(args);
+    let resolved = ResolvedCommand {
+        executable,
+        args: invocation.clone(),
+        digest: format!("sha256:{client_digest}"),
+        cwd: root.to_path_buf(),
+    };
+    let mut sources = vec![
+        json!({"path":declaration,"digest":frozen_source_file(root, inventory, declaration)?.map(|(_,digest)|digest)}),
+    ];
+    for path in companions {
+        if let Some((_, digest)) = frozen_source_file(root, inventory, path)? {
+            sources.push(json!({"path":path,"digest":digest}));
+        }
+    }
+    let source = json!({
+        "family":"registered-adapter",
+        "runner":runner,
+        "inventoryDigest":inventory.digest,
+        "sources":sources,
+        "argv":invocation,
+        "executable":resolved.executable.to_string_lossy(),
+        "executableDigest":resolved.digest,
+        "cwd":resolved.cwd.to_string_lossy(),
+        "testDeclarationPath":declaration,
+        "requiredRunnerVersion":required_version,
+        "workspaceRoot":root.to_string_lossy(),
+    });
+    Ok((resolved, source))
+}
+
+fn resolve_attestation_cli(
+    _root: &Path,
+    enrollment: Option<&AttestedRunsEnrollment>,
+) -> Result<PathBuf, ResolveError> {
+    let Some(enrollment) = enrollment else {
+        return Err(ResolveError::NotConfigured(
+            "managed-test-trust-not-configured".into(),
+        ));
+    };
+    let path = &enrollment.client_executable;
+    let metadata = fs::symlink_metadata(path).map_err(|_| {
+        ResolveError::NotConfigured("managed-test-attestation-cli-unavailable".into())
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(ResolveError::NotConfigured(
+            "managed-test-attestation-cli-unavailable".into(),
+        ));
+    }
+    let canonical = fs::canonicalize(path).map_err(|_| {
+        ResolveError::NotConfigured("managed-test-attestation-cli-unavailable".into())
+    })?;
+    let digest = digest_file(&canonical)?;
+    if digest != format!("sha256:{}", enrollment.client_digest) {
+        return Err(ResolveError::NotConfigured(
+            "managed-test-attestation-cli-unavailable".into(),
+        ));
+    }
+    Ok(canonical)
+}
+
+fn managed_runner_gap(runner: &str) -> String {
+    format!("managed-test-runner-not-registered:{runner}")
 }
 
 fn frozen_source_file(
@@ -777,18 +1050,23 @@ fn seal(
     executable: PathBuf,
     args: Vec<String>,
 ) -> Result<ResolvedCommand, ResolveError> {
-    let bytes = fs::read(&executable).map_err(|error| {
-        ResolveError::Unavailable(format!(
-            "could not read executable {}: {error}",
-            executable.display()
-        ))
-    })?;
+    let digest = digest_file(&executable)?;
     Ok(ResolvedCommand {
         executable,
         args,
-        digest: format!("sha256:{}", hex::encode(Sha256::digest(bytes))),
+        digest,
         cwd: cwd.to_path_buf(),
     })
+}
+
+fn digest_file(path: &Path) -> Result<String, ResolveError> {
+    let bytes = fs::read(path).map_err(|error| {
+        ResolveError::Unavailable(format!(
+            "could not read executable {}: {error}",
+            path.display()
+        ))
+    })?;
+    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }
 
 #[cfg(test)]
@@ -797,7 +1075,7 @@ mod test_command_resolution_tests {
     use crate::inventory::{FilesystemInventorySource, InventorySource};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn root() -> PathBuf {
+    fn fixture_root() -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -810,7 +1088,7 @@ mod test_command_resolution_tests {
         root
     }
 
-    fn inventory(root: &Path) -> InventoryEnvelope {
+    fn make_inventory(root: &Path) -> InventoryEnvelope {
         FilesystemInventorySource::new(root)
             .unwrap()
             .inventory("fixture")
@@ -829,8 +1107,191 @@ mod test_command_resolution_tests {
     }
 
     #[test]
-    fn package_script_uses_frozen_manifest_and_pinned_manager() {
-        let root = root();
+    fn unregistered_or_unbound_managed_test_runners_stay_typed_gaps() {
+        for runner in [
+            "pytest", "mvn", "gradle", "dotnet", "go", "bundle", "flutter", "dart", "mix", "yarn",
+            "bun",
+        ] {
+            assert_eq!(
+                managed_runner_gap(runner),
+                format!("managed-test-runner-not-registered:{runner}")
+            );
+        }
+    }
+
+    #[test]
+    fn native_test_families_have_frozen_fixed_argv_fixtures() {
+        let fixtures: &[(&str, &[(&str, &str)], &str, &[&str])] = &[
+            (
+                "pytest",
+                &[
+                    ("pyproject.toml", "[tool.pytest.ini_options]\n"),
+                    ("tests/test_app.py", "def test_ok(): pass\n"),
+                ],
+                "pyproject.toml",
+                &[],
+            ),
+            (
+                "swift",
+                &[("Package.swift", "// swift-tools-version: 5.9\n")],
+                "Package.swift",
+                &["test"],
+            ),
+            ("mvn", &[("pom.xml", "<project/>\n")], "pom.xml", &["test"]),
+            (
+                "gradle",
+                &[("build.gradle.kts", "plugins {}\n")],
+                "build.gradle.kts",
+                &["test"],
+            ),
+            (
+                "dotnet",
+                &[("tests/App.Tests.csproj", "<Project/>\n")],
+                "tests/App.Tests.csproj",
+                &["test", "tests/App.Tests.csproj"],
+            ),
+            (
+                "go",
+                &[
+                    ("go.mod", "module fixture\n"),
+                    ("app_test.go", "package app\n"),
+                ],
+                "go.mod",
+                &["test", "./..."],
+            ),
+            (
+                "bundle",
+                &[
+                    ("Gemfile", "source 'https://example.invalid'\n"),
+                    ("Rakefile", "task :test\n"),
+                    ("test/app_test.rb", "class AppTest; end\n"),
+                ],
+                "Gemfile",
+                &["exec", "rake", "test"],
+            ),
+            (
+                "dart",
+                &[
+                    ("pubspec.yaml", "name: fixture\n"),
+                    ("test/app_test.dart", "void main() {}\n"),
+                ],
+                "pubspec.yaml",
+                &["test"],
+            ),
+            (
+                "flutter",
+                &[
+                    (
+                        "pubspec.yaml",
+                        "name: fixture\ndependencies:\n  flutter:\n    sdk: flutter\n",
+                    ),
+                    ("test/app_test.dart", "void main() {}\n"),
+                ],
+                "pubspec.yaml",
+                &["test"],
+            ),
+            (
+                "mix",
+                &[("mix.exs", "defmodule Fixture.MixProject do end\n")],
+                "mix.exs",
+                &["test"],
+            ),
+        ];
+        for (expected_runner, files, expected_declaration, expected_args) in fixtures {
+            let root = fixture_root();
+            for (relative, contents) in *files {
+                let path = root.join(relative);
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(path, contents).unwrap();
+            }
+            let inventory = make_inventory(&root);
+            let (runner, args, declaration, _) =
+                native_test_spec(&root, &inventory).unwrap().unwrap();
+            assert_eq!(&runner, expected_runner);
+            assert_eq!(&declaration, expected_declaration);
+            assert_eq!(
+                args.iter().map(String::as_str).collect::<Vec<_>>(),
+                *expected_args
+            );
+            let resolution = resolve_frozen_test_runner(
+                &root,
+                &inventory,
+                expected_runner,
+                args.clone(),
+                &declaration,
+                &[],
+                None,
+                None,
+            );
+            match resolution {
+                Ok((resolved, source)) => {
+                    let expected_argv = std::iter::once(*expected_runner)
+                        .chain(expected_args.iter().copied())
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>();
+                    assert_eq!(resolved.args, expected_argv);
+                    assert_eq!(source["family"], "registered-adapter");
+                }
+                Err(ResolveError::NotConfigured(reason)) => {
+                    assert_eq!(reason, "managed-test-trust-not-configured")
+                }
+                Err(error) => panic!("unexpected frozen runner resolution error: {error}"),
+            }
+            fs::remove_dir_all(root).unwrap();
+        }
+
+        let root = fixture_root();
+        fs::write(root.join("Gemfile"), "source 'https://example.invalid'\n").unwrap();
+        fs::create_dir_all(root.join("spec")).unwrap();
+        fs::write(root.join("spec/app_spec.rb"), "describe 'app' do end\n").unwrap();
+        let inventory = make_inventory(&root);
+        let (runner, args, declaration, _) = native_test_spec(&root, &inventory).unwrap().unwrap();
+        assert_eq!(runner, "bundle");
+        assert_eq!(declaration, "Gemfile");
+        assert_eq!(args, ["exec", "rspec"]);
+        fs::remove_dir_all(root).unwrap();
+
+        let root = fixture_root();
+        for path in ["App.sln", "src/App.csproj", "tests/App.Tests.csproj"] {
+            let file = root.join(path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, "fixture\n").unwrap();
+        }
+        let inventory = make_inventory(&root);
+        let (runner, args, declaration, _) = native_test_spec(&root, &inventory).unwrap().unwrap();
+        assert_eq!(runner, "dotnet");
+        assert_eq!(declaration, "App.sln");
+        assert_eq!(args, ["test", "App.sln"]);
+        fs::remove_dir_all(root).unwrap();
+
+        let root = fixture_root();
+        for path in ["src/App.csproj", "tests/App.Tests.csproj"] {
+            let file = root.join(path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, "fixture\n").unwrap();
+        }
+        let inventory = make_inventory(&root);
+        let error = native_test_spec(&root, &inventory).unwrap_err();
+        assert!(error
+            .message()
+            .contains("dotnet-test-solution-required-for-multiple-projects"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn native_test_manifest_drift_is_not_reselected() {
+        let root = fixture_root();
+        fs::write(root.join("go.mod"), "module frozen\n").unwrap();
+        let inventory = make_inventory(&root);
+        fs::write(root.join("go.mod"), "module changed\n").unwrap();
+        let error = native_test_spec(&root, &inventory).unwrap_err();
+        assert!(error.message().contains("test-source-input-drift:go.mod"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn package_script_requires_authenticated_registered_runner_identity() {
+        let root = fixture_root();
         fs::write(
             root.join("package.json"),
             r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
@@ -839,43 +1300,38 @@ mod test_command_resolution_tests {
         fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
         fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
         fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
-        let inventory = inventory(&root);
-        let (resolved, source) = resolve_test_command(&root, &inventory).unwrap();
+        let inventory = make_inventory(&root);
+        let error = resolve_test_command(&root, &inventory).unwrap_err();
+        match error {
+            ResolveError::NotConfigured(reason) => {
+                assert_eq!(reason, "managed-test-trust-not-configured")
+            }
+            other => panic!("unexpected package runner resolution error: {other}"),
+        }
+
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"npm@10.0.0","scripts":{"test":"node test.js"}}"#,
+        )
+        .unwrap();
+        let npm_inventory = make_inventory(&root);
+        let npm_error = resolve_test_command(&root, &npm_inventory).unwrap_err();
+        match npm_error {
+            ResolveError::NotConfigured(reason) => {
+                assert_eq!(reason, "managed-test-trust-not-configured")
+            }
+            other => panic!("unexpected npm runner resolution error: {other}"),
+        }
+
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"unsupported@1.2.3","scripts":{"test":"node test.js"}}"#,
+        )
+        .unwrap();
+        let unsupported_inventory = make_inventory(&root);
         assert_eq!(
-            resolved.args,
-            ["--config.verify-deps-before-run=false", "run", "test"]
-        );
-        assert_eq!(
-            source["argv"],
-            json!(["--config.verify-deps-before-run=false", "run", "test"])
-        );
-        assert_eq!(resolved.cwd, fs::canonicalize(&root).unwrap());
-        assert_eq!(source["family"], "package-script");
-        assert_eq!(
-            source["inventoryDigest"].as_str(),
-            Some(inventory.digest.as_str())
-        );
-        assert_eq!(source["versionRequirement"], "9.1.0");
-        assert_eq!(source["sources"][0]["path"], "package.json");
-        assert_eq!(
-            source["sources"][0]["digest"].as_str(),
-            inventory
-                .entries
-                .iter()
-                .find(|entry| entry.path == "package.json")
-                .and_then(|entry| entry.digest.as_deref())
-        );
-        assert_eq!(
-            source["executableDigest"].as_str(),
-            Some(resolved.digest.as_str())
-        );
-        assert_eq!(
-            source["executable"].as_str(),
-            Some(resolved.executable.to_string_lossy().as_ref())
-        );
-        assert_eq!(
-            source["cwd"].as_str(),
-            Some(resolved.cwd.to_string_lossy().as_ref())
+            resolve_test_command(&root, &unsupported_inventory).unwrap_err(),
+            ResolveError::NotConfigured("managed-test-runner-not-registered:unsupported".into())
         );
 
         fs::remove_dir_all(root).unwrap();
@@ -901,7 +1357,7 @@ mod test_command_resolution_tests {
 
     #[test]
     fn static_and_dynamic_package_build_resolvers_use_pnpm_preflight_override() {
-        let root = root();
+        let root = fixture_root();
         fs::write(
             root.join("package.json"),
             r#"{"packageManager":"pnpm@11.24.0","scripts":{"build":"build"}}"#,
@@ -928,7 +1384,7 @@ mod test_command_resolution_tests {
 
     #[test]
     fn manifest_drift_does_not_fall_back_to_cargo() {
-        let root = root();
+        let root = fixture_root();
         fs::write(
             root.join("package.json"),
             r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
@@ -938,7 +1394,7 @@ mod test_command_resolution_tests {
         fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
         fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
         fs::write(root.join("node_modules/.bin/rightkit"), "fixture rightkit").unwrap();
-        let inventory = inventory(&root);
+        let inventory = make_inventory(&root);
         fs::write(root.join("package.json"), r#"{"scripts":{}}"#).unwrap();
         let error = resolve_test_command(&root, &inventory).unwrap_err();
         assert!(error
@@ -949,28 +1405,50 @@ mod test_command_resolution_tests {
 
     #[test]
     fn rust_test_command_is_routed_through_rightkit() {
-        let root = root();
+        let root = fixture_root();
         fs::create_dir_all(root.join("src-tauri")).unwrap();
         fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::create_dir_all(root.join("trusted-bin")).unwrap();
         fs::write(
             root.join("src-tauri/Cargo.toml"),
             "[package]\nname='fixture'\n",
         )
         .unwrap();
         fs::write(root.join("src-tauri/Cargo.lock"), "# fixture\n").unwrap();
-        fs::write(root.join("node_modules/.bin/rightkit"), "fixture rightkit").unwrap();
-        let inventory = inventory(&root);
-        let (resolved, source) = resolve_test_command(&root, &inventory).unwrap();
+        fs::write(
+            root.join("node_modules/.bin/rightkit"),
+            "untrusted local cli",
+        )
+        .unwrap();
+        let enrolled_client = root.join("trusted-bin/rightkit");
+        fs::write(&enrolled_client, "fixture rightkit").unwrap();
+        let enrollment = AttestedRunsEnrollment {
+            schema_version: 1,
+            host: "fixture-host".into(),
+            key_id: "a".repeat(64),
+            public_key: "04".to_owned() + &"b".repeat(128),
+            broker_digest: "c".repeat(64),
+            client_executable: fs::canonicalize(&enrolled_client).unwrap(),
+            client_digest: hex::encode(Sha256::digest(b"fixture rightkit")),
+            adapters: std::collections::BTreeMap::new(),
+        };
+        let inventory = make_inventory(&root);
+        let (resolved, source) =
+            resolve_test_command_with_enrollment(&root, &inventory, Some(&enrollment)).unwrap();
         assert_eq!(resolved.args, ["cargo", "test"]);
         assert_eq!(
             resolved.executable,
-            fs::canonicalize(root.join("node_modules/.bin/rightkit")).unwrap()
+            fs::canonicalize(enrolled_client).unwrap()
         );
         assert_eq!(
             resolved.cwd,
             fs::canonicalize(root.join("src-tauri")).unwrap()
         );
         assert_eq!(source["family"], "rust-rightkit");
+        assert_eq!(
+            source["workspaceRoot"],
+            root.join("src-tauri").to_string_lossy().as_ref()
+        );
         assert_eq!(source["sources"][0]["path"], "src-tauri/Cargo.toml");
         fs::remove_dir_all(root).unwrap();
     }

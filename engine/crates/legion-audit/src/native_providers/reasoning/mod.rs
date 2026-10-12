@@ -367,7 +367,7 @@ impl ReasoningProviderExecutor {
                             &denominator,
                             format!("reasoning-host-degraded:{reason}"),
                             "host-degraded",
-                        )?)
+                        )?);
                     }
                     ReasoningHostError::Invocation(reason) => {
                         return Ok(failure_result(
@@ -375,7 +375,7 @@ impl ReasoningProviderExecutor {
                             &denominator,
                             format!("reasoning-host-invocation-failed:{reason}"),
                             "host-invocation-failed",
-                        )?)
+                        )?);
                     }
                 };
                 return Ok(failure_result(provider, &denominator, gap, degradation)?);
@@ -856,7 +856,9 @@ pub(crate) fn verify_response(
             for (index, finding) in detail_findings.iter().enumerate() {
                 if let Some(id) = finding.get("id").and_then(Value::as_str) {
                     if !top_level_ids.contains(id) {
-                        return Err(format!("reasoning result for lens {lens} detail finding {index} is absent from top-level findings"));
+                        return Err(format!(
+                            "reasoning result for lens {lens} detail finding {index} is absent from top-level findings"
+                        ));
                     }
                 }
             }

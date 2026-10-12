@@ -345,7 +345,7 @@ fn council_validate_external_review_packet(args: &[String]) -> i32 {
 }
 
 const COUNCIL_DIGEST_HELP: &str = "usage: legion script council/digest <file|->\nPrint the canonical sha256 digest of a Council request JSON document.";
-const COUNCIL_VALIDATE_RECORD_HELP: &str = "usage: legion script council/validate-record <record.json> [--request <req.json>]\nValidate a Council record against its schema and field rules (exit 0 valid, 1 defects, 2 usage/IO).";
+const COUNCIL_VALIDATE_RECORD_HELP: &str = "usage: legion script council/validate-record <record.json> [--request <req.json>]\nValidate a Council record against its schema and recomputed request digest; without --request digest verification fails (exit 0 valid, 1 defects, 2 usage/IO).";
 
 fn council_read_json(path: &str) -> Result<serde_json::Value, String> {
     let text = if path == "-" {
@@ -370,7 +370,7 @@ fn council_digest(args: &[String]) -> i32 {
     };
     match council_read_json(path) {
         Ok(value) => {
-            println!("{}", p9_skills::council::digest_value(&value));
+            println!("{}", p9_skills::council::request_digest(&value));
             0
         }
         Err(e) => {
@@ -416,7 +416,7 @@ fn council_validate_record(args: &[String]) -> i32 {
         }
     };
     let request = match request_path {
-        Some(p) => match council_read_json(p) {
+        Some(path) => match council_read_json(path) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("error: {e}");
@@ -789,10 +789,19 @@ fn designer_live_accept(args: &[String]) -> i32 {
 fn designer_live_server(args: &[String]) -> i32 {
     let root = cwd();
     match r24::run(args, &root) {
-        r24::RunOutcome::HelpPrinted | r24::RunOutcome::Stopped | r24::RunOutcome::ServerExited => {
-            0
+        r24::RunOutcome::HelpPrinted | r24::RunOutcome::ServerExited => 0,
+        r24::RunOutcome::Stopped { server, injection } => {
+            let server_ok = matches!(
+                server,
+                r24::StopServerState::Confirmed { .. } | r24::StopServerState::NotRunning { .. }
+            );
+            let injection_ok = !matches!(injection, r24::InjectionCleanupState::Failed(_));
+            if server_ok && injection_ok {
+                0
+            } else {
+                1
+            }
         }
-        r24::RunOutcome::StopFailedNoServer => 1,
         r24::RunOutcome::AlreadyRunning { port, pid } => {
             println!("already running: pid={pid} port={port}");
             0

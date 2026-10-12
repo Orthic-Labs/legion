@@ -54,6 +54,11 @@ use crate::{error::AuditError, native_providers::availability, plan::AuditProvid
 pub(super) const UNAVAILABLE_URL: &str = "runtime-url-not-supplied";
 
 const MAX_EXTRA_SURFACES: usize = 32;
+const MAX_INTERACTIONS: usize = 8;
+const MAX_ACTIONS_PER_INTERACTION: usize = 8;
+const MAX_INTERACTION_ACTIONS: usize = 32;
+const MAX_INTERACTION_STRING: usize = 2048;
+const MAX_FROZEN_INTERACTION_CONFIG_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIMENSION: u64 = 16_384;
 const DEFAULT_WIDTH: u32 = 1280;
 const DEFAULT_HEIGHT: u32 = 800;
@@ -89,7 +94,24 @@ struct RuntimeParams {
     width: u32,
     height: u32,
     unsupported: Vec<String>,
+    interactions: Vec<InteractionProbe>,
     artifact_dir: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct InteractionProbe {
+    id: String,
+    surface_label: String,
+    surface_url: String,
+    fixture_id: String,
+    fixture_source_digest: String,
+    fixture_inventory_digest: String,
+    fixture_files: Vec<Value>,
+    probe_id: String,
+    actions_digest: String,
+    isolation_binding_id: String,
+    expires_after_ms: u64,
+    actions: Vec<Value>,
 }
 
 impl RuntimeParams {
@@ -139,6 +161,7 @@ impl RuntimeParams {
                 .map(str::to_owned)
                 .collect(),
         };
+        let interactions = parse_interactions(object.get("interactions"), &url, &surfaces)?;
         let artifact_dir = match object.get("artifactDir") {
             None | Some(Value::Null) => None,
             Some(value) => {
@@ -159,6 +182,7 @@ impl RuntimeParams {
             width,
             height,
             unsupported,
+            interactions,
             artifact_dir,
         }))
     }
@@ -181,6 +205,23 @@ impl RuntimeParams {
         all
     }
 
+    fn fixture_bound_surface_urls(&self) -> BTreeSet<String> {
+        self.interactions
+            .iter()
+            .map(|probe| probe.surface_url.clone())
+            .collect()
+    }
+
+    fn live_surfaces(&self) -> Vec<(usize, String, String)> {
+        let fixture_urls = self.fixture_bound_surface_urls();
+        self.all_surfaces()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, (_, url))| !fixture_urls.contains(url))
+            .map(|(index, (label, url))| (index, label, url))
+            .collect()
+    }
+
     fn to_value(&self) -> Value {
         json!({
             "url": self.url,
@@ -188,9 +229,434 @@ impl RuntimeParams {
             "height": self.height,
             "surfaces": self.surfaces.iter().map(|(label, url)| json!({"label": label, "url": url})).collect::<Vec<_>>(),
             "unsupportedSurfaces": self.unsupported,
+            "interactions": self.interactions.iter().map(InteractionProbe::to_value).collect::<Vec<_>>(),
             "artifactDir": self.artifact_dir.as_ref().map(|path| path.to_string_lossy().into_owned()),
         })
     }
+}
+
+impl InteractionProbe {
+    fn to_value(&self) -> Value {
+        json!({
+            "id": self.id,
+            "surface": {"label": self.surface_label, "url": self.surface_url},
+            "fixture": {
+                "id": self.fixture_id,
+                "sourceDigest": self.fixture_source_digest,
+                "inventoryDigest": self.fixture_inventory_digest,
+                "files": self.fixture_files,
+            },
+            "probe": {"id": self.probe_id, "actionsDigest": self.actions_digest},
+            "isolationBindingId": self.isolation_binding_id,
+            "expiresAfterMs": self.expires_after_ms,
+            "actions": self.actions,
+        })
+    }
+
+    fn result_value(&self) -> Value {
+        let mut value = self.to_value();
+        value["fixture"] = json!({
+            "id": self.fixture_id,
+            "sourceDigest": self.fixture_source_digest,
+            "inventoryDigest": self.fixture_inventory_digest,
+            "fileCount": self.fixture_files.len(),
+        });
+        value["status"] = json!("unavailable");
+        value["reason"] = json!("rightkit-fixture-api-unavailable");
+        value
+    }
+}
+
+fn valid_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+fn exact_keys(value: &Value, required: &[&str], optional: &[&str]) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    required.iter().all(|key| object.contains_key(*key))
+        && object
+            .keys()
+            .all(|key| required.contains(&key.as_str()) || optional.contains(&key.as_str()))
+}
+
+fn json_encoded_len(value: &Value) -> Option<usize> {
+    match value {
+        Value::Null => Some(4),
+        Value::Bool(value) => Some(if *value { 4 } else { 5 }),
+        Value::Number(value) => Some(value.to_string().len()),
+        Value::String(value) => serde_json::to_string(value).ok().map(|text| text.len()),
+        Value::Array(values) => values.iter().try_fold(
+            2usize.saturating_add(values.len().saturating_sub(1)),
+            |size, value| size.checked_add(json_encoded_len(value)?),
+        ),
+        Value::Object(values) => values.iter().try_fold(
+            2usize.saturating_add(values.len().saturating_sub(1)),
+            |size, (key, value)| {
+                size.checked_add(serde_json::to_string(key).ok()?.len())?
+                    .checked_add(1)?
+                    .checked_add(json_encoded_len(value)?)
+            },
+        ),
+    }
+}
+
+fn action_string(action: &Value, key: &str) -> Option<&str> {
+    action
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty() && value.len() <= MAX_INTERACTION_STRING)
+}
+
+fn valid_probe_action(action: &Value) -> bool {
+    let Some(kind) = action.get("type").and_then(Value::as_str) else {
+        return false;
+    };
+    match kind {
+        "click" => {
+            exact_keys(action, &["type", "selector"], [])
+                && action_string(action, "selector").is_some()
+        }
+        "type" => {
+            exact_keys(action, &["type", "text"], []) && action_string(action, "text").is_some()
+        }
+        "press" => {
+            exact_keys(action, &["type", "key"], [])
+                && action
+                    .get("key")
+                    .and_then(Value::as_str)
+                    .is_some_and(|key| {
+                        matches!(
+                            key,
+                            "Tab" | "Escape" | "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"
+                        )
+                    })
+        }
+        "assertVisible" => {
+            exact_keys(action, &["type", "selector"], &["timeout"])
+                && action_string(action, "selector").is_some()
+                && action.get("timeout").is_none_or(|timeout| {
+                    timeout
+                        .as_u64()
+                        .is_some_and(|value| (1..=5000).contains(&value))
+                })
+        }
+        "assertText" => {
+            exact_keys(action, &["type", "selector", "text"], [])
+                && action_string(action, "selector").is_some()
+                && action_string(action, "text").is_some()
+        }
+        _ => false,
+    }
+}
+
+fn valid_fixture_source_path(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_INTERACTION_STRING
+        && !value.contains('\\')
+        && !std::path::Path::new(value).is_absolute()
+        && std::path::Path::new(value)
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+        && std::path::Path::new(value)
+            .to_string_lossy()
+            .replace('\\', "/")
+            == value
+}
+
+fn valid_fixture_url_path(value: &str) -> bool {
+    value.starts_with('/')
+        && value.len() <= MAX_INTERACTION_STRING
+        && value.is_ascii()
+        && !value
+            .chars()
+            .any(|character| matches!(character, '\\' | '?' | '#' | '%') || character.is_control())
+        && !value
+            .split('/')
+            .skip(1)
+            .any(|segment| segment.is_empty() || matches!(segment, "." | ".."))
+        && value.bytes().all(|byte| {
+            byte == b'/' || byte.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=@:".contains(&byte)
+        })
+}
+
+fn exact_fixture_url_path(value: &str) -> Option<&str> {
+    let remainder = value.strip_prefix("http://")?;
+    let authority_end = remainder.find('/').unwrap_or(remainder.len());
+    let authority = &remainder[..authority_end];
+    let port = authority.strip_prefix("127.0.0.1:")?;
+    if port.is_empty() || !port.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let port_number = port.parse::<u16>().ok()?;
+    if port_number == 0 {
+        return None;
+    }
+    let raw_path = if authority_end == remainder.len() {
+        "/"
+    } else {
+        &remainder[authority_end..]
+    };
+    if !valid_fixture_url_path(raw_path) {
+        return None;
+    }
+    Some(raw_path)
+}
+
+fn validate_frozen_fixture_files(files: &[Value], expected_digest: &str) -> Result<(), String> {
+    if files.is_empty() || files.len() > 64 {
+        return Err("runtime-interaction-fixture-file-count-invalid".into());
+    }
+    let mut url_paths = BTreeSet::new();
+    let mut source_paths = BTreeSet::new();
+    let mut total_bytes = 0usize;
+    let mut digest_files = Vec::with_capacity(files.len());
+    for file in files {
+        if !exact_keys(
+            file,
+            &["sourcePath", "sourceDigest", "path", "contentType", "body"],
+            &[],
+        ) {
+            return Err("runtime-interaction-fixture-file-invalid".into());
+        }
+        let source_path = file.get("sourcePath").and_then(Value::as_str).unwrap_or("");
+        let source_digest = file
+            .get("sourceDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let path = file.get("path").and_then(Value::as_str).unwrap_or("");
+        let content_type = file
+            .get("contentType")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if !valid_fixture_source_path(source_path)
+            || !valid_sha256(source_digest)
+            || !valid_fixture_url_path(path)
+            || content_type.trim().is_empty()
+            || content_type.len() > MAX_INTERACTION_STRING
+            || !content_type.is_ascii()
+            || content_type
+                .chars()
+                .any(|character| matches!(character, '\r' | '\n'))
+            || !url_paths.insert(path.to_owned())
+            || !source_paths.insert(source_path.to_owned())
+        {
+            return Err("runtime-interaction-fixture-file-invalid".into());
+        }
+        let body = file
+            .get("body")
+            .and_then(Value::as_array)
+            .ok_or("runtime-interaction-fixture-body-invalid")?;
+        if body
+            .iter()
+            .any(|value| value.as_u64().is_none_or(|byte| byte > u8::MAX as u64))
+        {
+            return Err("runtime-interaction-fixture-body-invalid".into());
+        }
+        total_bytes = total_bytes
+            .checked_add(body.len())
+            .ok_or("runtime-interaction-fixture-byte-count-overflow")?;
+        if total_bytes > 16 * 1024 * 1024 {
+            return Err("runtime-interaction-fixture-byte-limit-exceeded".into());
+        }
+        let bytes = body
+            .iter()
+            .map(|value| value.as_u64().unwrap_or_default() as u8)
+            .collect::<Vec<_>>();
+        if sha256_label(&bytes) != source_digest {
+            return Err("runtime-interaction-fixture-source-digest-mismatch".into());
+        }
+        digest_files.push(json!({"body":body,"contentType":content_type,"path":path}));
+    }
+    digest_files.sort_by(|left, right| {
+        left.get("path")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .as_bytes()
+            .cmp(
+                right
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .as_bytes(),
+            )
+    });
+    let actual_digest = legion_contracts::canonical_digest(&json!({"files":digest_files}))
+        .map_err(|error| format!("runtime-interaction-fixture-canonical:{error}"))?;
+    if actual_digest != expected_digest {
+        return Err("runtime-interaction-fixture-digest-mismatch".into());
+    }
+    Ok(())
+}
+
+fn parse_interactions(
+    value: Option<&Value>,
+    entry_url: &str,
+    surfaces: &[(String, String)],
+) -> Result<Vec<InteractionProbe>, String> {
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    let items = value
+        .as_array()
+        .ok_or_else(|| "runtime-interactions-not-an-array".to_owned())?;
+    if items.len() > MAX_INTERACTIONS {
+        return Err("runtime-too-many-interactions".into());
+    }
+    let serialized_size =
+        json_encoded_len(value).ok_or("runtime-interactions-serialization-failed")?;
+    if serialized_size > MAX_FROZEN_INTERACTION_CONFIG_BYTES {
+        return Err("runtime-interactions-expanded-config-too-large".into());
+    }
+    let known_surfaces = std::iter::once(("entry".to_owned(), entry_url.to_owned()))
+        .chain(surfaces.iter().cloned())
+        .collect::<BTreeSet<_>>();
+    let mut ids = BTreeSet::new();
+    let mut total_actions = 0usize;
+    let mut probes = Vec::with_capacity(items.len());
+    for item in items {
+        if !exact_keys(
+            item,
+            &[
+                "id",
+                "surface",
+                "fixture",
+                "probe",
+                "isolationBindingId",
+                "expiresAfterMs",
+                "actions",
+            ],
+            &[],
+        ) {
+            return Err("runtime-interaction-shape-invalid".into());
+        }
+        let get_id = |field: &str| {
+            item.get(field)
+                .and_then(Value::as_str)
+                .filter(|value| valid_id(value))
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| format!("runtime-interaction-{field}-invalid"))
+        };
+        let id = get_id("id")?;
+        if !ids.insert(id.clone()) {
+            return Err("runtime-interaction-id-duplicate".into());
+        }
+        let surface = item
+            .get("surface")
+            .ok_or("runtime-interaction-surface-missing")?;
+        if !exact_keys(surface, &["label", "url"], &[]) {
+            return Err("runtime-interaction-surface-invalid".into());
+        }
+        let label = surface.get("label").and_then(Value::as_str).unwrap_or("");
+        let url = surface.get("url").and_then(Value::as_str).unwrap_or("");
+        let exact_path =
+            exact_fixture_url_path(url).ok_or("runtime-interaction-surface-url-not-loopback")?;
+        if !known_surfaces.contains(&(label.to_owned(), url.to_owned())) {
+            return Err("runtime-interaction-surface-not-frozen".into());
+        }
+        let fixture = item
+            .get("fixture")
+            .ok_or("runtime-interaction-fixture-missing")?;
+        if !exact_keys(
+            fixture,
+            &["id", "sourceDigest", "inventoryDigest", "files"],
+            &[],
+        ) {
+            return Err("runtime-interaction-fixture-invalid".into());
+        }
+        let fixture_id = fixture.get("id").and_then(Value::as_str).unwrap_or("");
+        let fixture_source_digest = fixture
+            .get("sourceDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let fixture_inventory_digest = fixture
+            .get("inventoryDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let fixture_files = fixture
+            .get("files")
+            .and_then(Value::as_array)
+            .ok_or("runtime-interaction-fixture-files-invalid")?;
+        if !valid_id(fixture_id)
+            || !valid_sha256(fixture_source_digest)
+            || !valid_sha256(fixture_inventory_digest)
+        {
+            return Err("runtime-interaction-fixture-identity-invalid".into());
+        }
+        validate_frozen_fixture_files(fixture_files, fixture_source_digest)?;
+        if !fixture_files
+            .iter()
+            .any(|file| file.get("path").and_then(Value::as_str) == Some(exact_path))
+        {
+            return Err("runtime-interaction-fixture-url-path-mismatch".into());
+        }
+        let probe = item
+            .get("probe")
+            .ok_or("runtime-interaction-probe-missing")?;
+        if !exact_keys(probe, &["id", "actionsDigest"], &[]) {
+            return Err("runtime-interaction-probe-invalid".into());
+        }
+        let probe_id = probe.get("id").and_then(Value::as_str).unwrap_or("");
+        let actions_digest = probe
+            .get("actionsDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if !valid_id(probe_id) || !valid_sha256(actions_digest) {
+            return Err("runtime-interaction-probe-identity-invalid".into());
+        }
+        let isolation_binding_id = get_id("isolationBindingId")?;
+        let expires_after_ms = item
+            .get("expiresAfterMs")
+            .and_then(Value::as_u64)
+            .filter(|expiry| (1..=30_000).contains(expiry))
+            .ok_or("runtime-interaction-expiry-invalid")?;
+        let actions = item
+            .get("actions")
+            .and_then(Value::as_array)
+            .ok_or("runtime-interaction-actions-invalid")?;
+        total_actions = total_actions.saturating_add(actions.len());
+        if actions.is_empty()
+            || actions.len() > MAX_ACTIONS_PER_INTERACTION
+            || total_actions > MAX_INTERACTION_ACTIONS
+            || !actions.iter().all(valid_probe_action)
+        {
+            return Err("runtime-interaction-actions-invalid".into());
+        }
+        let actual_actions_digest = legion_contracts::canonical_digest(actions)
+            .map_err(|error| format!("runtime-interaction-actions-canonical:{error}"))?;
+        if actual_actions_digest != actions_digest {
+            return Err("runtime-interaction-actions-digest-mismatch".into());
+        }
+        probes.push(InteractionProbe {
+            id,
+            surface_label: label.to_owned(),
+            surface_url: url.to_owned(),
+            fixture_id: fixture_id.to_owned(),
+            fixture_source_digest: fixture_source_digest.to_owned(),
+            fixture_inventory_digest: fixture_inventory_digest.to_owned(),
+            fixture_files: fixture_files.clone(),
+            probe_id: probe_id.to_owned(),
+            actions_digest: actions_digest.to_owned(),
+            isolation_binding_id,
+            expires_after_ms,
+            actions: actions.clone(),
+        });
+    }
+    Ok(probes)
 }
 
 fn check_url(url: &str) -> Result<(), String> {
@@ -206,6 +672,58 @@ fn check_url(url: &str) -> Result<(), String> {
         return Err("url-malformed".into());
     }
     Ok(())
+}
+
+fn check_loopback_url(url: &str) -> Result<(), String> {
+    check_url(url)?;
+    let lower = url.to_ascii_lowercase();
+    let authority = if lower.starts_with("http://") {
+        &url[7..]
+    } else if lower.starts_with("https://") {
+        &url[8..]
+    } else {
+        return Err("runtime-interaction-surface-url-invalid".into());
+    };
+    let authority = authority.split(['/', '?', '#']).next().unwrap_or_default();
+    if authority.is_empty() || authority.contains('@') {
+        return Err("runtime-interaction-surface-url-not-loopback".into());
+    }
+    let (host, port) = if let Some(bracketed) = authority.strip_prefix('[') {
+        let end = bracketed
+            .find(']')
+            .ok_or_else(|| "runtime-interaction-surface-url-invalid".to_owned())?;
+        let suffix = &bracketed[end + 1..];
+        let port = if suffix.is_empty() {
+            None
+        } else if let Some(port) = suffix.strip_prefix(':') {
+            Some(port)
+        } else {
+            return Err("runtime-interaction-surface-url-invalid".into());
+        };
+        (&bracketed[..end], port)
+    } else {
+        match authority.split_once(':') {
+            Some((host, port)) if !port.contains(':') => (host, Some(port)),
+            Some(_) => return Err("runtime-interaction-surface-url-invalid".into()),
+            None => (authority, None),
+        }
+    };
+    if port.is_some_and(|port| {
+        port.is_empty()
+            || !port.bytes().all(|byte| byte.is_ascii_digit())
+            || port.parse::<u16>().is_err()
+    }) {
+        return Err("runtime-interaction-surface-url-invalid".into());
+    }
+    let loopback = matches!(
+        host.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1" | "::1"
+    );
+    if loopback {
+        Ok(())
+    } else {
+        Err("runtime-interaction-surface-url-not-loopback".into())
+    }
 }
 
 fn dimension(value: Option<&Value>, default: u32, name: &str) -> Result<u32, String> {
@@ -874,6 +1392,117 @@ fn unavailable_result(
     Ok(result)
 }
 
+fn unavailable_with_interactions(
+    executor: &NativeLegacyCheckExecutor,
+    provider: &AuditProvider,
+    input: &LegacyCheckInput,
+    plan_digest: &str,
+    params: &RuntimeParams,
+    reason: &str,
+) -> Result<ProviderResult, AuditError> {
+    let mut result = unavailable_result(executor, provider, input, plan_digest, reason)?;
+    if params.interactions.is_empty() {
+        return Ok(result);
+    }
+    let interaction_gaps = params
+        .interactions
+        .iter()
+        .map(|probe| {
+            format!(
+                "runtime-probe-unavailable:{}:rightkit-fixture-api-unavailable",
+                probe.id
+            )
+        })
+        .collect::<Vec<_>>();
+    result
+        .coverage_gaps
+        .extend(interaction_gaps.iter().cloned());
+    if let Some(coverage) = result.coverage.as_mut() {
+        coverage.gaps.extend(interaction_gaps.iter().cloned());
+    }
+    let fixture_surfaces = params
+        .interactions
+        .iter()
+        .map(|probe| {
+            json!({
+                "label": probe.surface_label,
+                "url": probe.surface_url,
+                "status": "fixture-probe-unavailable",
+                "coverage": "not-live-surface-evidence",
+            })
+        })
+        .collect::<Vec<_>>();
+    result.details.insert(
+        "runtime".into(),
+        json!({
+            "schemaVersion": 1,
+            "kind": "audit-runtime",
+            "url": params.url,
+            "status": "unproven",
+            "complete": false,
+            "incomplete": true,
+            "surfaces": [],
+            "fixtureBoundSurfaces": fixture_surfaces,
+            "interactions": params.interactions.iter().map(InteractionProbe::result_value).collect::<Vec<_>>(),
+            "interactionCoverage": {
+                "expected": params.interactions.len(),
+                "examined": 0,
+                "gaps": interaction_gaps,
+                "reason": "rightkit-fixture-api-unavailable",
+            },
+            "denominator": {
+                "kind": "runtime-surfaces-and-probes",
+                "expected": params.live_surfaces().len() + params.unsupported.len() + params.interactions.len(),
+                "examined": 0,
+            },
+        }),
+    );
+    result.coverage_gaps.sort();
+    result.coverage_gaps.dedup();
+    if let Some(coverage) = result.coverage.as_mut() {
+        coverage.gaps.sort();
+        coverage.gaps.dedup();
+    }
+    result
+        .validate()
+        .map_err(|error| AuditError::Provider(error.to_string()))?;
+    Ok(result)
+}
+
+fn accessibility_summary(accessibility: &[&Value]) -> (&'static str, Option<u64>, Option<u64>) {
+    let ran = accessibility
+        .iter()
+        .filter(|result| result.get("status").and_then(Value::as_str) == Some("ran"))
+        .collect::<Vec<_>>();
+    let all_ran = !accessibility.is_empty() && ran.len() == accessibility.len();
+    let observed_total = (!ran.is_empty()).then(|| {
+        ran.iter()
+            .map(|result| {
+                result
+                    .get("totalViolations")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0)
+            })
+            .sum()
+    });
+    let any_error = accessibility
+        .iter()
+        .any(|result| result.get("status").and_then(Value::as_str) == Some("error"));
+    let status = if all_ran {
+        "ran"
+    } else if !ran.is_empty() {
+        "partial"
+    } else if any_error {
+        "error"
+    } else if accessibility.is_empty() {
+        "not-run"
+    } else {
+        "unavailable"
+    };
+    let total = all_ran.then_some(observed_total).flatten();
+    (status, total, observed_total)
+}
+
 /// Attach runtime observation metadata to a finding without promoting the
 /// captured artifact into a repository source location or anchor.
 fn push_runtime_finding(
@@ -933,11 +1562,12 @@ pub(super) async fn execute(
         }
     };
     let Some(tool) = executor.external_project_tool.clone() else {
-        return unavailable_result(
+        return unavailable_with_interactions(
             executor,
             provider,
             input,
             &plan_digest,
+            &params,
             "external-project-tool-capability-unavailable",
         );
     };
@@ -978,8 +1608,8 @@ pub(super) async fn execute(
         cancellation: &cancellation,
     };
     let mut outcomes = Vec::new();
-    for (index, (label, url)) in params.all_surfaces().iter().enumerate() {
-        outcomes.push(capture_surface(&ctx, index, label, url).await);
+    for (index, label, url) in params.live_surfaces() {
+        outcomes.push(capture_surface(&ctx, index, &label, &url).await);
     }
     assemble(provider, input, &params, outcomes, &axe_source_label)
 }
@@ -1006,16 +1636,11 @@ fn assemble(
     let location = safe_location(input, "");
     let mut seen = BTreeSet::new();
     let mut console_total = 0_usize;
-    let a11y_observed_total: u64 = outcomes
+    let accessibility = outcomes
         .iter()
-        .map(|outcome| {
-            outcome
-                .accessibility
-                .get("totalViolations")
-                .and_then(Value::as_u64)
-                .unwrap_or(0)
-        })
-        .sum();
+        .map(|outcome| &outcome.accessibility)
+        .collect::<Vec<_>>();
+    let (a11y_status, a11y_total, a11y_observed_total) = accessibility_summary(&accessibility);
     for outcome in outcomes.iter().filter(|o| o.status == "captured") {
         console_total += outcome.console_errors.len() + outcome.console_warnings.len();
         for entry in &outcome.console_errors {
@@ -1109,6 +1734,17 @@ fn assemble(
     for outcome in &outcomes {
         gaps.extend(outcome.gaps.iter().cloned());
     }
+    let interaction_gaps = params
+        .interactions
+        .iter()
+        .map(|probe| {
+            format!(
+                "runtime-probe-unavailable:{}:rightkit-fixture-api-unavailable",
+                probe.id
+            )
+        })
+        .collect::<Vec<_>>();
+    gaps.extend(interaction_gaps.iter().cloned());
     let mut degradation: Vec<String> = Vec::new();
     for outcome in &outcomes {
         if outcome.status != "captured" || !outcome.receipt_complete {
@@ -1130,28 +1766,13 @@ fn assemble(
     degradation.sort();
     degradation.dedup();
 
-    let all_captured = captured == expected_surfaces && expected_surfaces > 0;
-    let all_a11y_ran = outcomes
-        .iter()
-        .all(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("ran"));
-    let a11y_total = all_a11y_ran.then_some(a11y_observed_total);
-    let any_a11y_ran = outcomes
-        .iter()
-        .any(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("ran"));
-    let any_a11y_error = outcomes
-        .iter()
-        .any(|o| o.accessibility.get("status").and_then(Value::as_str) == Some("error"));
-    let a11y_status = if all_a11y_ran {
-        "ran"
-    } else if any_a11y_ran {
-        "partial"
-    } else if any_a11y_error {
-        "error"
-    } else {
-        "unavailable"
-    };
     let expected = input.denominator.entries.len() as u64;
-    let status = if captured > 0 || unavailable_reason.is_some() {
+    let all_captured = captured == expected_surfaces
+        && expected_surfaces > 0
+        && params.interactions.is_empty()
+        && params.unsupported.is_empty();
+    let status = if captured > 0 || unavailable_reason.is_some() || !params.interactions.is_empty()
+    {
         ProviderStatus::Partial
     } else {
         ProviderStatus::Failed
@@ -1179,6 +1800,18 @@ fn assemble(
             })
         })
         .collect();
+    let fixture_bound_surfaces = params
+        .interactions
+        .iter()
+        .map(|probe| {
+            json!({
+                "label": probe.surface_label,
+                "url": probe.surface_url,
+                "status": "fixture-probe-unavailable",
+                "coverage": "not-live-surface-evidence",
+            })
+        })
+        .collect::<Vec<_>>();
     details.insert(
         "runtime".to_owned(),
         json!({
@@ -1191,10 +1824,18 @@ fn assemble(
             "complete": false,
             "incomplete": true,
             "surfaces": surfaces_json,
+            "fixtureBoundSurfaces": fixture_bound_surfaces,
+            "interactions": params.interactions.iter().map(InteractionProbe::result_value).collect::<Vec<_>>(),
+            "interactionCoverage": {
+                "expected": params.interactions.len(),
+                "examined": 0,
+                "gaps": interaction_gaps,
+                "reason": "rightkit-fixture-api-unavailable",
+            },
             "unsupportedSurfaces": params.unsupported,
             "denominator": {
-                "kind": "runtime-surfaces",
-                "expected": expected_surfaces + params.unsupported.len(),
+                "kind": if params.interactions.is_empty() { "runtime-surfaces" } else { "runtime-surfaces-and-probes" },
+                "expected": expected_surfaces + params.unsupported.len() + params.interactions.len(),
                 "examined": captured,
             },
             "console_total": console_total,
@@ -1306,6 +1947,179 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!((defaults.width, defaults.height), (1280, 800));
+    }
+
+    #[test]
+    fn frozen_interactions_are_digest_bound_and_never_authorize_execution() {
+        let fixture_body = serde_json::to_value(b"<main>fixture</main>").unwrap();
+        let fixture_file = json!({
+            "sourcePath":"index.html",
+            "sourceDigest":sha256_label(b"<main>fixture</main>"),
+            "path":"/index.html",
+            "contentType":"text/html",
+            "body":fixture_body,
+        });
+        let fixture_digest = legion_contracts::canonical_digest(&json!({
+            "files":[{"body":fixture_file["body"],"contentType":"text/html","path":"/index.html"}]
+        }))
+        .unwrap();
+        let fixture = json!({
+            "id":"profile-fixture",
+            "sourceDigest":fixture_digest,
+            "inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "files":[fixture_file],
+        });
+        let actions = json!([
+            {"type":"click","selector":"button.save"},
+            {"type":"type","text":"fixture value"},
+            {"type":"press","key":"Tab"},
+            {"type":"assertText","selector":".status","text":"Saved"}
+        ]);
+        let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
+        let mut descriptor = json!({
+            "id":"profile-save",
+            "surface":{"label":"entry","url":"http://127.0.0.1:1422/index.html"},
+            "fixture":fixture,
+            "probe":{"id":"save-probe","actionsDigest":action_digest},
+            "isolationBindingId":"isolated-profile-fixture",
+            "expiresAfterMs":30000,
+            "actions":actions,
+        });
+        let params = RuntimeParams::from_value(&json!({
+            "url":"http://127.0.0.1:1422/index.html",
+            "interactions":[descriptor.clone()],
+        }))
+        .unwrap()
+        .unwrap();
+        assert_eq!(params.interactions.len(), 1);
+        assert!(params.live_surfaces().is_empty());
+        let result = params.interactions[0].result_value();
+        assert_eq!(result["status"], "unavailable");
+        assert_eq!(result["reason"], "rightkit-fixture-api-unavailable");
+        assert_eq!(
+            params.to_value()["interactions"][0]["fixture"]["files"][0]["body"],
+            fixture_body
+        );
+
+        let mut invalid_expiry = descriptor.clone();
+        invalid_expiry["expiresAfterMs"] = json!(0);
+        assert_eq!(
+            RuntimeParams::from_value(&json!({
+                "url":"http://127.0.0.1:1422/index.html",
+                "interactions":[invalid_expiry],
+            })),
+            Err("runtime-interaction-expiry-invalid".into())
+        );
+
+        let mut path_mismatch = descriptor.clone();
+        path_mismatch["surface"] =
+            json!({"label":"other","url":"http://127.0.0.1:1422/other.html"});
+        assert_eq!(
+            RuntimeParams::from_value(&json!({
+                "url":"http://127.0.0.1:1422/index.html",
+                "surfaces":[{"label":"other","url":"http://127.0.0.1:1422/other.html"}],
+                "interactions":[path_mismatch],
+            })),
+            Err("runtime-interaction-fixture-url-path-mismatch".into())
+        );
+
+        descriptor["actions"] = json!([{"type":"eval","expression":"fetch('/mutate')"}]);
+        descriptor["probe"]["actionsDigest"] =
+            json!(legion_contracts::canonical_digest(&descriptor["actions"]).unwrap());
+        let eval = RuntimeParams::from_value(&json!({
+            "url":"http://127.0.0.1:1422/index.html",
+            "interactions":[descriptor],
+        }));
+        assert_eq!(eval, Err("runtime-interaction-actions-invalid".into()));
+
+        let mut non_loopback = json!({
+            "id":"external",
+            "surface":{"label":"entry","url":"https://example.test/"},
+            "fixture":fixture,
+            "probe":{"id":"p","actionsDigest":action_digest},
+            "isolationBindingId":"binding",
+            "expiresAfterMs":30000,
+            "actions":[{"type":"click","selector":"button"}],
+        });
+        let one_action = json!([{"type":"click","selector":"button"}]);
+        non_loopback["probe"]["actionsDigest"] =
+            json!(legion_contracts::canonical_digest(&one_action).unwrap());
+        assert_eq!(
+            RuntimeParams::from_value(&json!({
+                "url":"http://127.0.0.1:1422/index.html",
+                "interactions":[non_loopback],
+            })),
+            Err("runtime-interaction-surface-url-not-loopback".into())
+        );
+
+        for url in [
+            "http://127.0.0.2/",
+            "http://localhost:/",
+            "http://[::1]example.test/",
+        ] {
+            assert!(check_loopback_url(url).is_err(), "{url}");
+        }
+        for url in [
+            "http://localhost/",
+            "http://127.0.0.1:8080/",
+            "https://[::1]/",
+        ] {
+            assert!(check_loopback_url(url).is_ok(), "{url}");
+        }
+
+        let action_order_a: Value =
+            serde_json::from_str(r#"[{"type":"click","selector":"button"}]"#).unwrap();
+        let action_order_b: Value =
+            serde_json::from_str(r#"[{"selector":"button","type":"click"}]"#).unwrap();
+        assert_eq!(
+            legion_contracts::canonical_digest(&action_order_a).unwrap(),
+            legion_contracts::canonical_digest(&action_order_b).unwrap()
+        );
+    }
+
+    #[test]
+    fn fixture_exact_url_requires_an_explicit_unencoded_bundle_path() {
+        assert_eq!(
+            exact_fixture_url_path("http://127.0.0.1:1422/index.html"),
+            Some("/index.html")
+        );
+        for url in [
+            "http://127.0.0.1:1422/",
+            "http://127.0.0.1:1422/%69ndex.html",
+            "http://127.0.0.1:1422/index.html?x=1",
+            "http://127.0.0.1:1422/index.html#top",
+            "http://127.0.0.1:0/index.html",
+        ] {
+            assert_eq!(exact_fixture_url_path(url), None, "{url}");
+        }
+    }
+
+    #[test]
+    fn frozen_interaction_size_limit_counts_repeated_fixture_bodies() {
+        let body = serde_json::to_value(vec![120_u8; 600_000]).unwrap();
+        let file = json!({"body":body,"contentType":"text/html","path":"/index.html"});
+        let interactions = (0..MAX_INTERACTIONS)
+            .map(|index| json!({"id":format!("probe-{index}"),"fixture":{"files":[file.clone()]}}))
+            .collect::<Vec<_>>();
+        assert!(
+            json_encoded_len(&json!(interactions)).unwrap() > MAX_FROZEN_INTERACTION_CONFIG_BYTES
+        );
+    }
+
+    #[test]
+    fn fixture_only_and_mixed_accessibility_are_not_reported_as_clean_zero() {
+        let fixture_only: [&Value; 0] = [];
+        assert_eq!(
+            accessibility_summary(&fixture_only),
+            ("not-run", None, None)
+        );
+
+        let ran = json!({"status":"ran","totalViolations":2});
+        let not_run = json!({"status":"unavailable","reason":"surface-not-captured"});
+        assert_eq!(
+            accessibility_summary(&[&ran, &not_run]),
+            ("partial", None, Some(2))
+        );
     }
 
     #[test]

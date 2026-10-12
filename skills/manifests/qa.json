@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/qa",
-      "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks."
+      "\"Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks.\""
     ],
     "outputs": [
       "references/browser-automation.md",
@@ -79,7 +79,7 @@
     {
       "path": "references/skill-evaluation.md",
       "uri": "legion-skill://qa/references/skill-evaluation.md",
-      "digest": "sha256:2b7e947e3290eac77feb86dca7783dc2dbb3a47e9bd2495141601f48991f69f7"
+      "digest": "sha256:aed22c015addd4a07f7cb964c90486caddf18b22b4278fa0c4ad2d070297883d"
     }
   ]
 }
