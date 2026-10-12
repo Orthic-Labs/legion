@@ -222,6 +222,10 @@ impl RuntimeParams {
             .collect()
     }
 
+    fn fixture_only(&self) -> bool {
+        !self.interactions.is_empty() && self.live_surfaces().is_empty()
+    }
+
     fn to_value(&self) -> Value {
         json!({
             "url": self.url,
@@ -1414,11 +1418,20 @@ fn unavailable_with_interactions(
             )
         })
         .collect::<Vec<_>>();
+    let unsupported_gaps = params
+        .unsupported
+        .iter()
+        .map(|label| format!("runtime-surface-unsupported:{label}"))
+        .collect::<Vec<_>>();
     result
         .coverage_gaps
         .extend(interaction_gaps.iter().cloned());
+    result
+        .coverage_gaps
+        .extend(unsupported_gaps.iter().cloned());
     if let Some(coverage) = result.coverage.as_mut() {
         coverage.gaps.extend(interaction_gaps.iter().cloned());
+        coverage.gaps.extend(unsupported_gaps.iter().cloned());
     }
     let fixture_surfaces = params
         .interactions
@@ -1428,7 +1441,7 @@ fn unavailable_with_interactions(
                 "label": probe.surface_label,
                 "url": probe.surface_url,
                 "status": "fixture-probe-unavailable",
-                "coverage": "not-live-surface-evidence",
+                "coverage": "fixture-only-not-live-surface-evidence",
             })
         })
         .collect::<Vec<_>>();
@@ -1443,6 +1456,7 @@ fn unavailable_with_interactions(
             "incomplete": true,
             "surfaces": [],
             "fixtureBoundSurfaces": fixture_surfaces,
+            "unsupportedSurfaces": params.unsupported,
             "interactions": params.interactions.iter().map(InteractionProbe::result_value).collect::<Vec<_>>(),
             "interactionCoverage": {
                 "expected": params.interactions.len(),
@@ -1561,6 +1575,16 @@ pub(super) async fn execute(
             );
         }
     };
+    if params.fixture_only() {
+        return unavailable_with_interactions(
+            executor,
+            provider,
+            input,
+            &plan_digest,
+            &params,
+            "rightkit-fixture-api-unavailable",
+        );
+    }
     let Some(tool) = executor.external_project_tool.clone() else {
         return unavailable_with_interactions(
             executor,
@@ -2104,6 +2128,118 @@ mod tests {
         assert!(
             json_encoded_len(&json!(interactions)).unwrap() > MAX_FROZEN_INTERACTION_CONFIG_BYTES
         );
+    }
+
+    #[tokio::test]
+    async fn fixture_only_probe_refusal_is_typed_before_live_capture() {
+        let body = serde_json::to_value(b"<main>fixture</main>").unwrap();
+        let file = json!({
+            "sourcePath":"index.html",
+            "sourceDigest":sha256_label(b"<main>fixture</main>"),
+            "path":"/index.html",
+            "contentType":"text/html",
+            "body":body,
+        });
+        let fixture_digest = legion_contracts::canonical_digest(&json!({
+            "files":[{"body":body,"contentType":"text/html","path":"/index.html"}]
+        }))
+        .unwrap();
+        let actions = json!([{"type":"click","selector":"button.save"}]);
+        let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
+        let runtime = RuntimeParams::from_value(&json!({
+            "url":"http://127.0.0.1:1422/index.html",
+            "unsupportedSurfaces":["editor"],
+            "interactions":[{
+                "id":"save",
+                "surface":{"label":"entry","url":"http://127.0.0.1:1422/index.html"},
+                "fixture":{"id":"profile-fixture","sourceDigest":fixture_digest,
+                    "inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "files":[file]},
+                "probe":{"id":"save-probe","actionsDigest":action_digest},
+                "isolationBindingId":"isolated-profile-fixture",
+                "expiresAfterMs":30000,
+                "actions":actions,
+            }]
+        })).unwrap().unwrap();
+        assert!(runtime.fixture_only());
+        assert!(runtime.live_surfaces().is_empty());
+
+        let inventory = crate::InventoryEnvelope::new(
+            "fixture-repo",
+            "generation",
+            vec![crate::InventoryEntry {
+                path: "package.json".into(),
+                symbols: vec![],
+                dependencies: vec![],
+                package_scripts: vec![],
+                source_file: false,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let provider_spec = serde_json::from_value(json!({
+            "schemaVersion":2,"id":"legacy.runtime.app","providerVersion":"2.0.0",
+            "family":"performance","role":"deterministic","phase":"runtime",
+            "lensIds":["runtime"],"dependsOn":[],"consumes":[],"produces":["provider-result"],
+            "selector":{"op":"always"},"denominatorKind":"runnable app",
+            "runner":{"kind":"legacy-check","check":"runtime","runtime":runtime.to_value()},
+            "hostCapabilities":[],"execution":{},"reasoning":{},
+            "benchmark":{"status":"unproven","requiredForCleanClaim":false},
+            "cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
+        }))
+        .unwrap();
+        let plan = crate::AuditPlan::compile(&inventory, &[provider_spec])
+            .unwrap()
+            .freeze(Some(b"fixture-only-test"))
+            .unwrap();
+        let provider = plan.provider("legacy.runtime.app").unwrap();
+        let root = std::env::current_dir().unwrap();
+        let input = super::super::LegacyCheckDispatcher::new()
+            .input(provider, &inventory, &root, None, None, &Value::Null)
+            .unwrap();
+        let result = execute(
+            &NativeLegacyCheckExecutor::new(root),
+            &plan,
+            provider,
+            &input,
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        assert!(!result.complete);
+        assert_eq!(result.status, ProviderStatus::Partial);
+        assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == "unavailable:rightkit-fixture-api-unavailable"));
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == "runtime-surface-unsupported:editor"));
+        assert_eq!(result.details["executionReceipt"]["state"], "blocked");
+        assert_eq!(
+            result.details["executionReceipt"]["processTree"]["started"],
+            false
+        );
+        assert_eq!(
+            result.details["runtime"]["unsupportedSurfaces"],
+            json!(["editor"])
+        );
+        assert_eq!(
+            result.details["runtime"]["fixtureBoundSurfaces"][0]["coverage"],
+            "fixture-only-not-live-surface-evidence"
+        );
+        assert_eq!(
+            result.details["runtime"]["interactions"][0]["reason"],
+            "rightkit-fixture-api-unavailable"
+        );
+        assert_eq!(
+            result.details["runtime"]["interactionCoverage"]["examined"],
+            0
+        );
+        assert_eq!(result.details["runtime"]["denominator"]["expected"], 2);
+        assert_eq!(result.details["runtime"]["denominator"]["examined"], 0);
     }
 
     #[test]

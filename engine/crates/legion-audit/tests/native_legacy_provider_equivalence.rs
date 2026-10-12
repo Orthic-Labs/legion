@@ -710,11 +710,16 @@ fn every_provider_binds_exact_selector_denominator_and_correct_route() {
                 !result.complete,
                 "{id} must not claim external success without capability"
             );
+            let unavailable_reason = if id == "legacy.quality.test" {
+                "unavailable:managed-test-trust-not-configured"
+            } else {
+                "external-project-tool-capability-unavailable"
+            };
             assert!(
                 result
                     .coverage_gaps
                     .iter()
-                    .any(|gap| gap == "external-project-tool-capability-unavailable"),
+                    .any(|gap| gap == unavailable_reason),
                 "{id} unavailable gap"
             );
             assert_eq!(
@@ -726,6 +731,18 @@ fn every_provider_binds_exact_selector_denominator_and_correct_route() {
                 result.details["executionReceipt"]["processTree"]["started"], false,
                 "{id} no process"
             );
+            if id == "legacy.quality.test" {
+                assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+                assert!(result.coverage.as_ref().unwrap().expected > 0);
+                assert_eq!(
+                    result.details["executionReceipt"]["state"],
+                    "missing_executable"
+                );
+                assert_eq!(
+                    result.details["executionReceipt"]["parser"]["attempted"],
+                    false
+                );
+            }
         }
     }
     fs::remove_dir_all(root).unwrap();
@@ -794,11 +811,53 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
         // `legacy.runtime.app` runs one browser invocation per surface and
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
-        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" || id == "legacy.quality.test" {
+        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" {
+            continue;
+        }
+        let provider = plan.provider(id).unwrap();
+        if id == "legacy.quality.test" {
+            let result = runtime
+                .block_on(registry.execute_async(
+                    &plan,
+                    provider,
+                    &inventory,
+                    CancellationToken::new(),
+                ))
+                .unwrap();
+            let coverage = result.coverage.as_ref().unwrap();
+            assert!(!result.complete, "managed tests need enrolled trust");
+            assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+            assert!(coverage.expected > 0);
+            assert_eq!(coverage.examined, 0);
+            assert_eq!(
+                coverage.denominator_digest,
+                provider.configuration["denominatorDigest"]
+                    .as_str()
+                    .unwrap()
+            );
+            assert!(result
+                .coverage_gaps
+                .iter()
+                .any(|gap| gap == "unavailable:managed-test-trust-not-configured"));
+            assert_eq!(
+                result.details["availability"]["reason"],
+                "managed-test-trust-not-configured"
+            );
+            assert_eq!(
+                result.details["executionReceipt"]["state"],
+                "missing_executable"
+            );
+            assert_eq!(
+                result.details["executionReceipt"]["processTree"]["started"],
+                false
+            );
+            assert_eq!(
+                result.details["executionReceipt"]["parser"]["attempted"],
+                false
+            );
             continue;
         }
         checked += 1;
-        let provider = plan.provider(id).unwrap();
         assert_eq!(
             provider.kind,
             ProviderKind::TypedExternalProjectTool,

@@ -17,6 +17,11 @@ Use this bootstrap for each new request:
    a clear driver/scenario basis, credible candidates, decision evidence, and a defensible
    recommendation; it does not require every specialist method or a fixed workshop.
 
+For architecture-significant module or interface decomposition, load
+`../doctrine/architecture/methods/add.md` during candidate design. It adds caller-visible contract,
+deletion, seam, and observable-test checks; it does not apply to D0 work or require alternate
+interfaces, delegation, or test adapters by default.
+
 The charter is the significance and tailoring authority; the README is the ordered workflow and
 resume index. Reopen a prior phase only for a material delta with its cause, scope, and affected IDs.
 
