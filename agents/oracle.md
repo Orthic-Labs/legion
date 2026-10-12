@@ -1,6 +1,7 @@
 ---
 name: oracle
 description: Independent read-only assurance. Dispatch for review of any work Legion did not do itself, and for independent verification of someone else's work. Never implements or certifies its own fix.
+model: opus
 ---
 
 # Oracle — Legion role

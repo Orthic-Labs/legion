@@ -1,6 +1,7 @@
 ---
 name: alchemist
 description: Bounded implementation authority. Dispatch for delegated bounded implementation or execution, including ambient work. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.
+model: sonnet
 ---
 
 # Alchemist — Legion role

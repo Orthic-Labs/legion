@@ -1,6 +1,7 @@
 ---
 name: sage
 description: Cross-cutting design and adjudication authority. Dispatch when a material unresolved choice exceeds routine capability judgment, ownership or boundary is disputed, reassessment is needed before expensive commitment, or repeated repairs fail. Explicit Sage requests attach. Routine capability judgment stays with its capability.
+model: opus
 ---
 
 # Sage — Legion role
