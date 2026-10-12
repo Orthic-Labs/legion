@@ -8,10 +8,10 @@ use std::{
 use async_trait::async_trait;
 use legion_audit::{
     native_providers::legacy_checks::{
-        AttestedRunsEnrollment, AuditExternalProjectTool, AuditScratch,
+        AttestedRunsEnrollment, AuditExternalProjectTool, AuditScratch, NativeLegacyCheckExecutor,
     },
     AuditPlan, FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
-    NativeLegacyCheckExecutor, NativeProviderRegistry,
+    NativeProviderRegistry,
 };
 use legion_effects::{DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence};
 use legion_provider_sdk::{

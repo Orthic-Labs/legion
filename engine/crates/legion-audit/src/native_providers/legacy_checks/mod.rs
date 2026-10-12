@@ -3476,7 +3476,7 @@ mod tests {
                 .any(|gap| gap == "unavailable:managed-test-trust-not-configured"));
             assert!(!result
                 .details
-                .contains_key(super::availability::AVAILABILITY_DETAIL));
+                .contains_key(crate::native_providers::availability::AVAILABILITY_DETAIL));
         }
         let _ = fs::remove_dir_all(root);
     }
