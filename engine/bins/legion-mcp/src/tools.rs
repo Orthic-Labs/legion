@@ -523,7 +523,7 @@ mod tests {
             if self.stale_binding {
                 Err(RuntimeError::StaleInstalledBinding)
             } else {
-                Err(RuntimeError::Policy("private path /secret sentinel".into()))
+                Err(RuntimeError::Policy("value-marker-7f31".into()))
             }
         }
     }
@@ -634,9 +634,7 @@ mod tests {
             backend["structuredContent"]["error"]["code"],
             "BACKEND_UNAVAILABLE"
         );
-        assert!(!backend
-            .to_string()
-            .contains("private path /secret sentinel"));
+        assert!(!backend.to_string().contains("value-marker-7f31"));
     }
 
     #[test]
