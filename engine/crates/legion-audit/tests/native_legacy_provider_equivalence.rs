@@ -612,6 +612,8 @@ fn symbolic_project_tools_resolve_to_sealed_exact_argv() {
     fs::remove_dir_all(root).unwrap();
 
     let root = fixture_root();
+    fs::remove_file(root.join("package.json")).unwrap();
+    fs::remove_file(root.join("package-lock.json")).unwrap();
     write_tool(&root, "cargo");
     let build = resolve_request(&root, "project-build", &[]).unwrap();
     assert_eq!(build.args, ["build"]);
