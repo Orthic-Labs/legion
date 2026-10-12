@@ -2,7 +2,7 @@
 
 # Legion
 
-Legion makes AI-assisted work legible: it routes each request to the right capability, separates decisions from changes from independent checks, & records evidence before claiming delivery. It is one system projected into Claude Code, Codex, or an `AGENTS.md` harness—not a collection of unrelated prompts.
+Legion makes AI-assisted work legible: it routes each request to the right capability, separates decisions from changes from independent checks, & records evidence before claiming delivery. It is one system projected into Claude Code, Codex & other `AGENTS.md` harnesses—not a collection of unrelated prompts.
 
 ```mermaid
 flowchart LR
@@ -15,7 +15,7 @@ flowchart LR
 
 ## What it does
 
-Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect-decision receipts; neither can invent consent.
+Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect decisions (a persisted effect receipt is future work, see `doctrine/guard.md`); neither can invent consent.
 
 Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
@@ -28,7 +28,7 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | **Alchemist** | Apply bounded implementation, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
-| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect-decision receipts | Interpret intent, select capabilities, or attach authority |
+| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect decisions (persisted receipts are future work) | Interpret intent, select capabilities, or attach authority |
 | **Council** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
 Oracle is optional independent assurance authority for Completion Validation; it is never a delivery gate.
@@ -64,15 +64,15 @@ telemetry, upload, or publishing permission. See [packaged skills](docs/architec
 
 ## Harnesses & fidelity
 
-One doctrine & kernel project into harness-native slots. Legion does not pretend every host exposes identical controls.
+One doctrine & kernel project into harness-native slots. Legion does not pretend every host exposes identical controls. The declared surface per host is `engine/crates/legion-runtime/src/p7_host/host_adapters.rs`.
 
 | Capability | Claude Code | Codex | `AGENTS.md` readers |
 |---|---|---|---|
 | Doctrine & routing | yes | yes | yes |
-| Native authority agents | yes | host-dependent | host-dependent |
-| Guard pre-effect interception | when host hooks support it | when host hooks support it | boundary-gated |
-| Receipts | decision returned to host; no persisted effect receipt yet | same | CLI/boundary; no persisted effect receipt yet |
-| Council isolation | engine-owned | engine-owned | engine-owned |
+| Native authority agents | yes (plugin `agents/`) | yes (roster roles projected to `.codex/agents`) | no native subagents declared |
+| Guard pre-effect interception | yes, through blocking plugin hooks | no: Codex exposes lifecycle hooks only, no pre-tool effect hook | no |
+| Receipts | decision returned to host; no persisted effect receipt yet | same | CLI only; no persisted effect receipt yet |
+| Council isolation | isolated seat agents | isolated seat agents | not available without subagents |
 | Oracle Completion Validation | yes | yes | yes |
 
 Run `legion doctor` to inspect current repository, binding, coverage, & host state. Run `legion bind --registrations` to inventory installed hooks across settings & plugins and detect duplicate registrations.
@@ -95,9 +95,9 @@ legion setup --confirm
 legion setup --check
 ```
 
-Setup detects supported clients, previews exact persistent changes, projects canonical skills & MCP integration through registered host adapters, records rollback state, then verifies installed host-visible state. `setup --check` is read-only. `setup remove --confirm` removes Legion-owned projections while preserving user-owned config.
+Setup detects supported clients, previews exact persistent changes, projects canonical skills & MCP integration through registered host adapters, records rollback state, then verifies installed host-visible state. `setup --check` applies no projection changes; if an earlier setup was interrupted, it first completes that setup's rollback journal. `setup remove --confirm` removes Legion-owned projections while preserving user-owned config.
 
-Claude Code receives packaged plugin surfaces. Codex receives canonical Agent Skills under `.agents/skills` plus MCP registration. Portable Agent Plugins receive one documented umbrella `legion` skill that routes internally; this is a fallback surface, not per-skill fidelity.
+Claude Code receives packaged plugin surfaces. Codex receives canonical Agent Skills under `~/.agents/skills` plus MCP registration. Portable Agent Plugins hosts receive the portable core, every public canonical skill plus the MCP declaration, assembled by pinned RightAX tooling; no native hooks or agents are claimed there.
 
 For repository audit:
 
@@ -123,11 +123,11 @@ flowchart LR
 
 ## Repository
 
-- [Architecture & doctrine](doctrine/legion.md)
+- [Doctrine](doctrine/legion.md)
 - [Full manual](references/manual.md)
 - [Provider architecture](references/provider-architecture.md)
 - [Engine interface](references/engine-interface.md)
-- [License](LICENSE)
+- [License](LICENSE): Orthic Labs Source Use License v1.0, source-available, not open source
 
 <sub><b><a href="https://orthic-labs.github.io">Orthic Labs</a></b> — local-first infrastructure for AI-assisted development.</sub>
 
