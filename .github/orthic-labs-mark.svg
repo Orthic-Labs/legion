@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 120 120" role="img" aria-label="Orthic Labs">
+  <path d="M10 64V10H110V110H56" fill="none" stroke="#F2EFE6" stroke-width="24" stroke-linecap="butt" stroke-linejoin="miter"/>
+  <path d="M10 68V110H52" fill="none" stroke="#FF5630" stroke-width="24" stroke-linecap="butt" stroke-linejoin="miter"/>
+</svg>
