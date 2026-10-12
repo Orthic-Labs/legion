@@ -1444,7 +1444,7 @@ async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
         Ok(application) => {
             let native = application
                 .status()
-                .map_err(|error| CommandError::incomplete(error.to_string()))?;
+                .map_err(|error| commands::CommandError::incomplete(error.to_string()))?;
             // installRoot is product root; executable preserves stable current.
             Ok(json!({
                 "schemaVersion": 1,
