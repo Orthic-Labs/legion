@@ -3458,8 +3458,10 @@ mod tests {
             );
             let output = execution.output.as_mut().unwrap();
             if malformed == "missing-schema-version" {
-                output.details["executionReceipt"]
-                    .as_object_mut()
+                output
+                    .details
+                    .get_mut("executionReceipt")
+                    .and_then(Value::as_object_mut)
                     .unwrap()
                     .remove("schemaVersion");
             } else {
