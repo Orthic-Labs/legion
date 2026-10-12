@@ -108,5 +108,8 @@
         { "type": "forbidden_text", "value": "start a new chat automatically" }
       ]
     }
-  ]
+  ],
+  "safety": [],
+  "pressure": [],
+  "compatibility": []
 }
