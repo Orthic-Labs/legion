@@ -3362,8 +3362,8 @@ fn snapshot_claude_cache(
             "Claude native cache path is not absolute; cannot snapshot safely",
         ));
     }
-    let prior_plugin_sha256 =
-        legion_host::plugin_tree_sha256(&source).map_err(CommandError::incomplete)?;
+    let prior_plugin_sha256 = legion_host::marketplace::claude_cache_plugin_tree_sha256(&source)
+        .map_err(CommandError::incomplete)?;
     let transaction_id = format!(
         "{}-{}",
         std::process::id(),
@@ -3387,7 +3387,7 @@ fn snapshot_claude_cache(
     std::fs::create_dir_all(catalog_path.parent().expect("marketplace parent"))
         .map_err(io_error)?;
     std::fs::write(catalog_path, catalog_bytes).map_err(io_error)?;
-    if legion_host::plugin_tree_sha256(&snapshot_root.join("plugin"))
+    if legion_host::marketplace::claude_cache_plugin_tree_sha256(&snapshot_root.join("plugin"))
         .map_err(CommandError::incomplete)?
         != prior_plugin_sha256
     {
@@ -3585,6 +3585,7 @@ async fn inspect_native_marketplace(
         binding_valid.and_then(|()| {
             legion_host::marketplace::verify_cached_release(
                 &native_plugin,
+                binding.client,
                 &binding.plugin_root,
                 &release.release_version,
                 &release.runtime_digest,
@@ -4126,11 +4127,10 @@ async fn rollback_claude_snapshot(
     let cancellation = CancellationToken::new();
     let snapshot_root = PathBuf::from(&transaction.snapshot_root);
     let snapshot_plugin = snapshot_root.join("plugin");
-    if legion_host::plugin_tree_sha256(&snapshot_plugin).map_err(CommandError::incomplete)?
-        != transaction.prior_plugin_sha256
-    {
-        return Err(CommandError::incomplete("rollback snapshot digest changed"));
-    }
+    let prior_payload_sha256 = validated_claude_snapshot_payload_sha256(
+        &snapshot_plugin,
+        &transaction.prior_plugin_sha256,
+    )?;
     let root_result = run_marketplace_cli(
         cli,
         binding.client.marketplace_add_args(&snapshot_root),
@@ -4175,8 +4175,9 @@ async fn rollback_claude_snapshot(
         .ok_or_else(|| CommandError::incomplete("rollback plugin list omitted cache path"))?;
     let installed_path = PathBuf::from(installed_path);
     if installed_path.starts_with(&snapshot_root)
-        || legion_host::plugin_tree_sha256(&installed_path).map_err(CommandError::incomplete)?
-            != transaction.prior_plugin_sha256
+        || legion_host::marketplace::claude_cache_plugin_tree_sha256(&installed_path)
+            .map_err(CommandError::incomplete)?
+            != prior_payload_sha256
         || installed.enabled != transaction.was_enabled
     {
         return Err(CommandError::incomplete(
@@ -4226,9 +4227,9 @@ async fn rollback_claude_snapshot(
         .as_deref()
         .ok_or_else(|| CommandError::incomplete("restored plugin list omitted cache path"))?;
     if Path::new(verified_path).starts_with(&snapshot_root)
-        || legion_host::plugin_tree_sha256(Path::new(verified_path))
+        || legion_host::marketplace::claude_cache_plugin_tree_sha256(Path::new(verified_path))
             .map_err(CommandError::incomplete)?
-            != transaction.prior_plugin_sha256
+            != prior_payload_sha256
         || verified.enabled != transaction.was_enabled
     {
         return Err(CommandError::incomplete(
@@ -4236,6 +4237,21 @@ async fn rollback_claude_snapshot(
         ));
     }
     clear_marketplace_refresh(request, transaction)
+}
+
+fn validated_claude_snapshot_payload_sha256(
+    snapshot_plugin: &Path,
+    recorded_sha256: &str,
+) -> Result<String, CommandError> {
+    let strict_sha256 =
+        legion_host::plugin_tree_sha256(snapshot_plugin).map_err(CommandError::incomplete)?;
+    let payload_sha256 = legion_host::marketplace::claude_cache_plugin_tree_sha256(snapshot_plugin)
+        .map_err(CommandError::incomplete)?;
+    if strict_sha256 == recorded_sha256 || payload_sha256 == recorded_sha256 {
+        Ok(payload_sha256)
+    } else {
+        Err(CommandError::incomplete("rollback snapshot digest changed"))
+    }
 }
 
 fn marketplace_should_register(
@@ -6138,6 +6154,40 @@ mod tests {
             ),
             &install_root,
         ));
+    }
+
+    #[test]
+    fn rollback_snapshot_accepts_legacy_strict_digest_but_refuses_payload_tampering() {
+        let temp = TempRoot::new("legacy-native-snapshot-digest");
+        let snapshot_plugin = temp.0.join("plugin");
+        fs::create_dir_all(snapshot_plugin.join(".in_use")).expect("marker directory");
+        fs::write(snapshot_plugin.join("payload.txt"), b"sealed payload").expect("payload file");
+        fs::write(snapshot_plugin.join(".in_use/33644"), b"pid marker").expect("legacy PID marker");
+
+        let legacy_strict_sha256 = legion_host::plugin_tree_sha256(&snapshot_plugin)
+            .expect("legacy strict snapshot digest");
+        let filtered_sha256 =
+            legion_host::marketplace::claude_cache_plugin_tree_sha256(&snapshot_plugin)
+                .expect("filtered payload digest");
+        assert_ne!(legacy_strict_sha256, filtered_sha256);
+        assert_eq!(
+            validated_claude_snapshot_payload_sha256(&snapshot_plugin, &legacy_strict_sha256)
+                .expect("legacy snapshot validation"),
+            filtered_sha256
+        );
+        assert_eq!(
+            validated_claude_snapshot_payload_sha256(&snapshot_plugin, &filtered_sha256)
+                .expect("current snapshot validation"),
+            filtered_sha256
+        );
+
+        fs::write(snapshot_plugin.join("payload.txt"), b"tampered payload")
+            .expect("tamper payload");
+        assert!(
+            validated_claude_snapshot_payload_sha256(&snapshot_plugin, &legacy_strict_sha256)
+                .is_err(),
+            "legacy transaction digest must refuse a changed snapshot"
+        );
     }
 
     #[test]

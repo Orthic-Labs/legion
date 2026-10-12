@@ -407,6 +407,7 @@ pub fn find_codex_plugin_cache_version(
 /// portable-core files. The host CLI supplies the path; this code only reads.
 pub fn verify_cached_release(
     entry: &NativePluginEntry,
+    client: MarketplaceClient,
     plugin_root: &Path,
     expected_version: &str,
     expected_runtime_sha256: &str,
@@ -458,7 +459,10 @@ pub fn verify_cached_release(
         return Err("native plugin cache portable-core digest differs from active release".into());
     }
     let sealed_plugin_sha256 = directory_sha256(plugin_root)?;
-    let cached_plugin_sha256 = directory_sha256(&cache_root)?;
+    let cached_plugin_sha256 = match client {
+        MarketplaceClient::ClaudeCode => claude_cache_plugin_tree_sha256(&cache_root)?,
+        MarketplaceClient::Codex => directory_sha256(&cache_root)?,
+    };
     if sealed_plugin_sha256 != expected_plugin_sha256
         || cached_plugin_sha256 != expected_plugin_sha256
     {
@@ -478,8 +482,16 @@ fn sha256(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-fn directory_sha256(root: &Path) -> Result<String, String> {
-    fn files_below(root: &Path, directory: &Path, files: &mut Vec<String>) -> Result<(), String> {
+fn directory_sha256_with_claude_markers(
+    root: &Path,
+    ignore_claude_markers: bool,
+) -> Result<String, String> {
+    fn files_below(
+        root: &Path,
+        directory: &Path,
+        files: &mut Vec<String>,
+        ignore_claude_markers: bool,
+    ) -> Result<(), String> {
         let entries = std::fs::read_dir(directory)
             .map_err(|error| format!("cannot read plugin cache directory: {error}"))?;
         let mut entries = entries
@@ -494,7 +506,44 @@ fn directory_sha256(root: &Path) -> Result<String, String> {
                 return Err("plugin tree contains a symbolic link".into());
             }
             if metadata.is_dir() {
-                files_below(root, &path, files)?;
+                let relative = path
+                    .strip_prefix(root)
+                    .map_err(|_| "plugin path escaped its root".to_owned())?;
+                if ignore_claude_markers && relative == Path::new(".in_use") {
+                    let markers = std::fs::read_dir(&path)
+                        .map_err(|error| format!("cannot read Claude cache markers: {error}"))?;
+                    for marker in markers {
+                        let marker = marker.map_err(|error| {
+                            format!("cannot enumerate Claude cache markers: {error}")
+                        })?;
+                        let marker_path = marker.path();
+                        let marker_metadata =
+                            std::fs::symlink_metadata(&marker_path).map_err(|error| {
+                                format!("cannot inspect Claude cache marker: {error}")
+                            })?;
+                        if marker_metadata.file_type().is_symlink() {
+                            return Err("Claude cache marker is a symbolic link".into());
+                        }
+                        if !marker_metadata.is_file() {
+                            return Err("Claude cache marker is not a regular file".into());
+                        }
+                        let name = marker.file_name();
+                        let numeric = name.to_str().is_some_and(|name| {
+                            !name.is_empty() && name.bytes().all(|byte| byte.is_ascii_digit())
+                        });
+                        if !numeric {
+                            files.push(
+                                marker_path
+                                    .strip_prefix(root)
+                                    .map_err(|_| "plugin path escaped its root".to_owned())?
+                                    .to_string_lossy()
+                                    .replace('\\', "/"),
+                            );
+                        }
+                    }
+                } else {
+                    files_below(root, &path, files, ignore_claude_markers)?;
+                }
             } else if metadata.is_file() {
                 let relative = path
                     .strip_prefix(root)
@@ -507,7 +556,7 @@ fn directory_sha256(root: &Path) -> Result<String, String> {
         Ok(())
     }
     let mut files = Vec::new();
-    files_below(root, root, &mut files)?;
+    files_below(root, root, &mut files, ignore_claude_markers)?;
     files.sort();
     let mut hasher = Sha256::new();
     for relative in files {
@@ -519,6 +568,16 @@ fn directory_sha256(root: &Path) -> Result<String, String> {
         hasher.update(bytes);
     }
     Ok(hex::encode(hasher.finalize()))
+}
+
+fn directory_sha256(root: &Path) -> Result<String, String> {
+    directory_sha256_with_claude_markers(root, false)
+}
+
+/// Hash Claude's installed cache payload while excluding only its root PID
+/// marker files. Every other entry remains part of the digest or an error.
+pub fn claude_cache_plugin_tree_sha256(root: &Path) -> Result<String, String> {
+    directory_sha256_with_claude_markers(root, true)
 }
 
 pub fn plugin_tree_sha256(root: &Path) -> Result<String, String> {
@@ -828,6 +887,104 @@ mod tests {
             MarketplaceClient::Codex.plugin_remove_args(),
             ["plugin", "remove", "legion@legion-installed", "--json"]
         );
+    }
+
+    #[test]
+    fn claude_cache_hash_ignores_only_root_numeric_marker_files() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-claude-cache-hash-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let sealed = root.join("sealed");
+        let cache = root.join("cache");
+        std::fs::create_dir_all(sealed.join("skills")).expect("sealed tree");
+        std::fs::create_dir_all(cache.join("skills")).expect("cache tree");
+        for tree in [&sealed, &cache] {
+            std::fs::write(tree.join("payload.txt"), b"payload").expect("payload");
+            std::fs::write(tree.join("skills/example.txt"), b"skill").expect("skill");
+        }
+        std::fs::create_dir_all(cache.join(".in_use")).expect("marker directory");
+        std::fs::write(cache.join(".in_use/33644"), b"pid marker").expect("first marker");
+        std::fs::write(cache.join(".in_use/59856"), b"pid marker").expect("second marker");
+
+        let sealed_digest = directory_sha256(&sealed).expect("sealed digest");
+        assert_eq!(
+            claude_cache_plugin_tree_sha256(&cache).expect("Claude cache digest"),
+            sealed_digest
+        );
+        assert_ne!(
+            plugin_tree_sha256(&cache).expect("strict cache digest"),
+            sealed_digest,
+            "generic digest remains strict"
+        );
+
+        std::fs::write(cache.join("payload.txt"), b"changed").expect("payload drift");
+        assert_ne!(
+            claude_cache_plugin_tree_sha256(&cache).expect("changed payload digest"),
+            sealed_digest,
+            "real payload drift stays visible"
+        );
+        std::fs::write(cache.join("payload.txt"), b"payload").expect("restore payload");
+        std::fs::write(cache.join("unexpected.txt"), b"extra").expect("extra file");
+        assert_ne!(
+            claude_cache_plugin_tree_sha256(&cache).expect("extra file digest"),
+            sealed_digest,
+            "arbitrary extras stay visible"
+        );
+        std::fs::remove_file(cache.join("unexpected.txt")).expect("remove extra");
+        std::fs::write(cache.join(".in_use/not-a-pid"), b"extra").expect("nonnumeric marker");
+        assert_ne!(
+            claude_cache_plugin_tree_sha256(&cache).expect("nonnumeric marker digest"),
+            sealed_digest,
+            "nonnumeric marker files stay visible"
+        );
+        std::fs::remove_file(cache.join(".in_use/not-a-pid")).expect("remove nonnumeric marker");
+        std::fs::create_dir_all(cache.join("skills/.in_use")).expect("nested marker directory");
+        std::fs::write(cache.join("skills/.in_use/123"), b"payload").expect("nested marker");
+        assert_ne!(
+            claude_cache_plugin_tree_sha256(&cache).expect("nested marker digest"),
+            sealed_digest,
+            "nested marker paths stay visible"
+        );
+        std::fs::remove_dir_all(cache.join("skills/.in_use")).expect("remove nested markers");
+        std::fs::remove_dir_all(cache.join(".in_use")).expect("remove marker directory");
+        std::fs::write(cache.join(".in_use"), b"ordinary payload").expect("root marker file");
+        assert_ne!(
+            claude_cache_plugin_tree_sha256(&cache).expect("root marker file digest"),
+            sealed_digest,
+            "a root .in_use file is ordinary payload"
+        );
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn claude_cache_hash_rejects_malformed_marker_shapes() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-claude-cache-marker-shape-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join(".in_use/123")).expect("nested marker directory");
+        assert!(claude_cache_plugin_tree_sha256(&root).is_err());
+        std::fs::remove_dir_all(&root).expect("cleanup nested marker");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            std::fs::create_dir_all(root.join(".in_use")).expect("marker directory");
+            let target = root.join("target");
+            std::fs::write(&target, b"target").expect("target");
+            symlink(&target, root.join(".in_use/123")).expect("marker symlink");
+            assert!(claude_cache_plugin_tree_sha256(&root).is_err());
+            std::fs::remove_dir_all(&root).expect("cleanup marker symlink");
+        }
     }
 
     #[test]
