@@ -592,6 +592,18 @@
       "selectable": true
     },
     {
+      "id": "legacy.quality.test",
+      "providerVersion": "2.0.0",
+      "role": "deterministic",
+      "family": "test-quality",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "legacy.quality.dead-code",
       "providerVersion": "2.0.0",
       "role": "deterministic",

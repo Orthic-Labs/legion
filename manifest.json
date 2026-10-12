@@ -61,6 +61,18 @@
       "benchmark_status": "unproven"
     },
     {
+      "provider": "quality.test",
+      "check": "test",
+      "tool": "project-test",
+      "required_when": "test-runner-declared",
+      "applies": "package test script / root Cargo.toml / src-tauri/Cargo.toml",
+      "parallel": false,
+      "backs": [
+        "test-quality"
+      ],
+      "benchmark_status": "unproven"
+    },
+    {
       "provider": "quality.dead-code",
       "check": "dead_code",
       "tool": "knip",
@@ -852,6 +864,21 @@
       "runner": {
         "kind": "legacy-check",
         "check": "build"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "quality.test",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "test"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,

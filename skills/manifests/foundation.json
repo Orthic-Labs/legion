@@ -73,12 +73,12 @@
     {
       "path": "references/model.md",
       "uri": "legion-skill://foundation/references/model.md",
-      "digest": "sha256:43bcef0d58e2b1d080b76b77ce1d1562fe4188686a4adc2058f430621327677d"
+      "digest": "sha256:f38cde1021c8943d11ffa770091edc14d6e54db6f62b9a4d460c102bdc55d373"
     },
     {
       "path": "references/protocol.md",
       "uri": "legion-skill://foundation/references/protocol.md",
-      "digest": "sha256:134679ec074dd563e36dde0449d7a5c4419859a3239c46f6616f26afa7947657"
+      "digest": "sha256:540a9b14a22bff20a6e55305fa597271e183d7f7dd4598213f9b6c215ad43dd7"
     }
   ]
 }
