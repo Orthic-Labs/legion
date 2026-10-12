@@ -1,6 +1,10 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
-use legion_audit::InventorySource as _;
+use legion_audit::{
+    parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path,
+    InventorySource as _,
+};
+use legion_effects::artifact::ArtifactRecord as EffectArtifactRef;
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -122,21 +126,22 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Gaps the direct route adds when its provider plan could not be bound
     // (for example `unsealed-plan`); empty for every other route.
     let mut direct_gaps: Vec<String> = Vec::new();
-    let (application, context_notices) = if direct {
+    let (application, context_notices, effect_artifact_scratch) = if direct {
         let (application, notices, gaps) = direct_application(&args, &root)?;
         direct_gaps = gaps;
-        (Arc::new(application), notices)
+        (Arc::new(application), notices, None)
     } else if let Some(manifest) = &args.native_rule_manifest {
         let (application, notices) = native_rule_diagnostic_application(&args, &root, manifest)?;
-        (Arc::new(application), notices)
+        (Arc::new(application), notices, None)
     } else if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() {
         (
             super::native_application_for(&root.to_string_lossy())?,
             Vec::new(),
+            None,
         )
     } else {
-        let (application, notices) = native_registry_application(&root)?;
-        (Arc::new(application), notices)
+        let (application, notices, scratch) = native_registry_application(&root)?;
+        (Arc::new(application), notices, Some(scratch))
     };
     let mut selected_specs = application.provider_specs();
     let configured_ids = selected_specs
@@ -285,7 +290,19 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             }
             Ok(output)
         }
-        legion_application::NativeOperationResult::Audit(execution) => {
+        legion_application::NativeOperationResult::Audit(mut execution) => {
+            let effect_artifact_root =
+                if let (Some(out), Some(scratch)) = (&args.out, effect_artifact_scratch.as_ref()) {
+                    let gaps = retain_effect_artifacts(out, scratch, &mut execution);
+                    if !gaps.is_empty() {
+                        execution.gaps.extend(gaps);
+                        execution.gaps.sort();
+                        execution.gaps.dedup();
+                    }
+                    Some("artifacts")
+                } else {
+                    None
+                };
             let mut report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
             let parity_gaps = native_audit_parity_gaps(
@@ -381,6 +398,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "sourcePort": ["tools/audit/audit-complete.mjs", "tools/audit/audit-run.mjs", "tools/audit/audit-finalize.mjs"],
                 }),
             );
+            if let Some(effect_artifact_root) = effect_artifact_root {
+                report
+                    .claims
+                    .insert("effectArtifactsRoot".into(), json!(effect_artifact_root));
+            }
             if !context_notices.is_empty() {
                 report
                     .claims
@@ -440,6 +462,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "providers": execution.planned_providers,
                     "providerSpecs": selected_specs,
                     "nativePlan": native_plan,
+                    "effectArtifactsRoot": effect_artifact_root,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
                 });
                 let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
@@ -498,6 +521,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "facts": out.join("facts.json"),
                     "execution": out.join("execution.json")
                 })),
+                "effectArtifactsRoot": effect_artifact_root,
                 "auditStatus": if !report.gaps.is_empty() { "incomplete" } else { status },
                 "qualityGate": if status == "pass" && report.gaps.is_empty() { "proven" } else { "unproven" },
                 "processExecution": "complete",
@@ -1672,12 +1696,19 @@ pub(super) fn audit_application_for(
     if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
         return super::native_application_for(repository_id);
     }
-    native_registry_application(root).map(|(application, _)| Arc::new(application))
+    native_registry_application(root).map(|(application, _, _scratch)| Arc::new(application))
 }
 
 fn native_registry_application(
     root: &std::path::Path,
-) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
+) -> Result<
+    (
+        legion_application::NativeApplication,
+        Vec<String>,
+        std::sync::Arc<legion_audit::native_providers::legacy_checks::AuditScratch>,
+    ),
+    CommandError,
+> {
     // The command must execute the frozen native provider composition. Do not
     // silently replace it with a one-rule project scan when the release
     // registry is absent: that would make a successful command look like a
@@ -1709,7 +1740,7 @@ fn native_registry_application(
     let external_tool = native_audit_external_tool(&scratch);
     let executor = std::sync::Arc::new(
         legion_audit::NativeProviderRegistry::new(root.to_path_buf())
-            .with_scratch(scratch)
+            .with_scratch(scratch.clone())
             .with_external_project_tool(external_tool),
     );
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
@@ -1720,7 +1751,7 @@ fn native_registry_application(
         Some(root.to_path_buf()),
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, Vec::new()))
+    Ok((application, Vec::new(), scratch))
 }
 
 fn native_audit_external_tool(
@@ -1765,6 +1796,237 @@ fn native_provider_registry_path() -> Option<std::path::PathBuf> {
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     hex::encode(Sha256::digest(bytes))
+}
+
+fn retain_effect_artifacts(
+    out: &std::path::Path,
+    scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
+    execution: &mut legion_audit::ExecutionReport,
+) -> Vec<String> {
+    let mut failures = Vec::new();
+    let mut provider_failures = std::collections::BTreeMap::<usize, Vec<String>>::new();
+    let mut requested =
+        std::collections::BTreeMap::<String, (EffectArtifactRef, Vec<usize>)>::new();
+    let mut conflicting_paths = std::collections::BTreeSet::new();
+
+    for (index, provider) in execution.results.iter().enumerate() {
+        let receipt = provider
+            .result
+            .details
+            .get("executionReceipt")
+            .or_else(|| provider.result.details.get("receipt"));
+        let Some(receipt) = receipt.and_then(Value::as_object) else {
+            continue;
+        };
+        // Native legacy checks report in-memory stream summaries with
+        // `path: null` and `immutable: false`; those summaries are not captured
+        // artifacts and must not be retained as if they were external refs.
+        if receipt.get("kind").and_then(Value::as_str) == Some("native-legacy-check-receipt") {
+            continue;
+        }
+        for stream in ["stdout", "stderr"] {
+            let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) else {
+                continue;
+            };
+            let record = match parse_effect_artifact_ref(value) {
+                Ok(record) => record,
+                Err(reason) => {
+                    record_retention_failure(
+                        &mut failures,
+                        &mut provider_failures,
+                        index,
+                        &provider.provider,
+                        stream,
+                        reason,
+                    );
+                    continue;
+                }
+            };
+            match requested.entry(record.path.clone()) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert((record, vec![index]));
+                }
+                std::collections::btree_map::Entry::Occupied(mut entry) => {
+                    let (existing, owners) = entry.get_mut();
+                    owners.push(index);
+                    if existing != &record {
+                        conflicting_paths.insert(record.path.clone());
+                        for owner in owners.iter().copied() {
+                            let owner_id = &execution.results[owner].provider;
+                            record_retention_failure(
+                                &mut failures,
+                                &mut provider_failures,
+                                owner,
+                                owner_id,
+                                stream,
+                                "conflicting artifact records share one path".into(),
+                            );
+                        }
+                    } else if conflicting_paths.contains(&record.path) {
+                        record_retention_failure(
+                            &mut failures,
+                            &mut provider_failures,
+                            index,
+                            &provider.provider,
+                            stream,
+                            "conflicting artifact records share one path".into(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    let destination_root = match prepare_effect_artifact_root(out) {
+        Ok(root) => Some(root),
+        Err(reason) => {
+            for (record, owners) in requested.values() {
+                let _ = record;
+                for owner in owners.iter().copied() {
+                    let provider = &execution.results[owner].provider;
+                    record_retention_failure(
+                        &mut failures,
+                        &mut provider_failures,
+                        owner,
+                        provider,
+                        "output",
+                        reason.clone(),
+                    );
+                }
+            }
+            None
+        }
+    };
+
+    if let Some(destination_root) = destination_root {
+        let source_root = scratch.artifacts_dir();
+        for (record, owners) in requested.values() {
+            if conflicting_paths.contains(&record.path) {
+                continue;
+            }
+            let copied = read_effect_artifact(&source_root, record)
+                .and_then(|bytes| write_effect_artifact(&destination_root, record, &bytes));
+            if let Err(reason) = copied {
+                for owner in owners.iter().copied() {
+                    let provider = &execution.results[owner].provider;
+                    record_retention_failure(
+                        &mut failures,
+                        &mut provider_failures,
+                        owner,
+                        provider,
+                        "persistence",
+                        reason.clone(),
+                    );
+                }
+            }
+        }
+    }
+
+    for (index, gaps) in provider_failures {
+        let result = &mut execution.results[index].result;
+        result.complete = false;
+        if result.status != legion_contracts::ProviderStatus::Failed {
+            result.status = legion_contracts::ProviderStatus::Partial;
+        }
+        result.coverage_gaps.extend(gaps.iter().cloned());
+        result.coverage_gaps.sort();
+        result.coverage_gaps.dedup();
+        if let Some(coverage) = &mut result.coverage {
+            coverage.gaps.extend(gaps.iter().cloned());
+            coverage.gaps.sort();
+            coverage.gaps.dedup();
+        }
+        result.details.insert(
+            "effectArtifactRetention".into(),
+            json!({"complete":false,"gaps":gaps}),
+        );
+    }
+    failures.sort();
+    failures.dedup();
+    failures
+}
+
+fn prepare_effect_artifact_root(out: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    std::fs::create_dir_all(out).map_err(|error| format!("output root unavailable: {error}"))?;
+    let output_root =
+        std::fs::canonicalize(out).map_err(|error| format!("output root unavailable: {error}"))?;
+    if !std::fs::symlink_metadata(&output_root)
+        .map_err(|error| format!("output root unavailable: {error}"))?
+        .is_dir()
+    {
+        return Err("output root is not a directory".into());
+    }
+    let artifact_root = output_root.join("artifacts");
+    match std::fs::symlink_metadata(&artifact_root) {
+        Ok(metadata) if metadata.file_type().is_dir() => {}
+        Ok(_) => return Err("artifact output root is not a real directory".into()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&artifact_root)
+                .map_err(|error| format!("artifact output root unavailable: {error}"))?;
+        }
+        Err(error) => return Err(format!("artifact output root unavailable: {error}")),
+    }
+    std::fs::canonicalize(&artifact_root)
+        .map_err(|error| format!("artifact output root unavailable: {error}"))
+}
+
+fn write_effect_artifact(
+    root: &std::path::Path,
+    record: &EffectArtifactRef,
+    bytes: &[u8],
+) -> Result<(), String> {
+    let relative = validate_effect_artifact_path(&record.path)?;
+    let components = relative.components().collect::<Vec<_>>();
+    let mut parent = root.to_path_buf();
+    for component in components.iter().take(components.len().saturating_sub(1)) {
+        parent.push(component.as_os_str());
+        match std::fs::symlink_metadata(&parent) {
+            Ok(metadata) if metadata.file_type().is_dir() => {}
+            Ok(_) => return Err("artifact output path contains a non-directory or symlink".into()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                std::fs::create_dir(&parent)
+                    .map_err(|error| format!("artifact output directory unavailable: {error}"))?;
+            }
+            Err(error) => return Err(format!("artifact output directory unavailable: {error}")),
+        }
+    }
+    let destination = root.join(&relative);
+    match std::fs::symlink_metadata(&destination) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                return Err("artifact destination is not a regular file".into());
+            }
+            let existing = read_effect_artifact(root, record)
+                .map_err(|reason| format!("artifact destination collision: {reason}"))?;
+            if existing != bytes {
+                return Err("artifact destination collision".into());
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            legion_effects::ArtifactWriter::new(root)
+                .write_immutable(&record.path, bytes)
+                .map_err(|error| format!("artifact persistence failed: {error}"))?;
+        }
+        Err(error) => return Err(format!("artifact destination unavailable: {error}")),
+    }
+    let persisted = read_effect_artifact(root, record)?;
+    if persisted != bytes {
+        return Err("persisted artifact bytes differ from source".into());
+    }
+    Ok(())
+}
+
+fn record_retention_failure(
+    failures: &mut Vec<String>,
+    provider_failures: &mut std::collections::BTreeMap<usize, Vec<String>>,
+    index: usize,
+    provider: &str,
+    stream: &str,
+    reason: String,
+) {
+    let gap = format!("effect-artifact-retention:{provider}:{stream}:{reason}");
+    failures.push(gap.clone());
+    provider_failures.entry(index).or_default().push(gap);
 }
 
 fn direct_application(
@@ -2832,5 +3094,318 @@ mod sealed_plan_tests {
         let first = sealed_digest("sha256:first");
         assert_eq!(first, sealed_digest("sha256:first"));
         assert_ne!(first, sealed_digest("sha256:second"));
+    }
+}
+
+#[cfg(test)]
+mod effect_artifact_retention_tests {
+    use super::*;
+
+    fn root(label: &str) -> std::path::PathBuf {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "legion-effect-retention-{label}-{}-{suffix}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn record(path: &str, bytes: &[u8]) -> Value {
+        json!({
+            "path": path,
+            "digest": format!("sha256:{}", sha256_hex(bytes)),
+            "bytes": bytes.len(),
+            "immutable": true
+        })
+    }
+
+    fn execution(stdout: Option<Value>, stderr: Option<Value>) -> legion_audit::ExecutionReport {
+        let mut receipt = serde_json::Map::new();
+        if let Some(stdout) = stdout {
+            receipt.insert("stdout".into(), stdout);
+        }
+        if let Some(stderr) = stderr {
+            receipt.insert("stderr".into(), stderr);
+        }
+        let result = legion_contracts::ProviderResult {
+            schema_version: 1,
+            provider: legion_contracts::ProviderId::new("fixture.external").unwrap(),
+            applicable: true,
+            required: true,
+            status: legion_contracts::ProviderStatus::Complete,
+            complete: true,
+            coverage: None,
+            findings: Vec::new(),
+            coverage_gaps: Vec::new(),
+            degradation: Vec::new(),
+            details: std::collections::BTreeMap::from([(
+                "executionReceipt".into(),
+                Value::Object(receipt),
+            )]),
+        };
+        legion_audit::ExecutionReport {
+            results: vec![legion_audit::ProviderExecution {
+                provider: "fixture.external".into(),
+                result,
+                skipped: false,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn scratch(
+        root: &std::path::Path,
+    ) -> legion_audit::native_providers::legacy_checks::AuditScratch {
+        legion_audit::native_providers::legacy_checks::AuditScratch::create(root).unwrap()
+    }
+
+    fn write_source(
+        scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
+        path: &str,
+        bytes: &[u8],
+    ) {
+        legion_effects::ArtifactWriter::new(scratch.artifacts_dir())
+            .write_immutable(path, bytes)
+            .unwrap();
+    }
+
+    #[test]
+    fn referenced_stdout_and_stderr_survive_scratch_cleanup() {
+        let base = root("survive");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let stdout = b"test stdout";
+        let stderr = b"test stderr";
+        let scratch = scratch(&repository);
+        write_source(&scratch, "fixture/stdout", stdout);
+        write_source(&scratch, "fixture/stderr", stderr);
+        let mut execution = execution(
+            Some(record("fixture/stdout", stdout)),
+            Some(record("fixture/stderr", stderr)),
+        );
+
+        assert!(retain_effect_artifacts(&out, &scratch, &mut execution).is_empty());
+        assert!(execution.results[0].result.complete);
+        drop(scratch);
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/stdout")).unwrap(),
+            stdout
+        );
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/stderr")).unwrap(),
+            stderr
+        );
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn failed_process_output_is_retained_with_its_receipt() {
+        let base = root("failed-process");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let scratch = scratch(&repository);
+        let stdout = b"assertion failed";
+        let stderr = b"diagnostic output";
+        write_source(&scratch, "fixture/stdout", stdout);
+        write_source(&scratch, "fixture/stderr", stderr);
+        let mut execution = execution(
+            Some(record("fixture/stdout", stdout)),
+            Some(record("fixture/stderr", stderr)),
+        );
+        execution.results[0].result.complete = false;
+        execution.results[0].result.status = legion_contracts::ProviderStatus::Failed;
+
+        assert!(retain_effect_artifacts(&out, &scratch, &mut execution).is_empty());
+        assert!(!execution.results[0].result.complete);
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/stdout")).unwrap(),
+            stdout
+        );
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/stderr")).unwrap(),
+            stderr
+        );
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn native_summary_streams_are_skipped_while_external_artifacts_are_retained() {
+        let base = root("mixed-receipts");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let scratch = scratch(&repository);
+        let stdout = b"external command output";
+        write_source(&scratch, "fixture/stdout", stdout);
+        let mut execution = execution(Some(record("fixture/stdout", stdout)), None);
+
+        let summary = json!({
+            "kind": "native-legacy-check-receipt",
+            "stdout": {"path": null, "digest": format!("sha256:{}", sha256_hex(b"summary")), "bytes": 7, "immutable": false},
+            "stderr": {"path": null, "digest": format!("sha256:{}", sha256_hex(b"")), "bytes": 0, "immutable": false}
+        });
+        let mut native_result = execution.results[0].result.clone();
+        native_result.provider =
+            legion_contracts::ProviderId::new("legacy.native.fixture").unwrap();
+        native_result
+            .details
+            .insert("executionReceipt".into(), summary);
+        execution.results.push(legion_audit::ProviderExecution {
+            provider: "legacy.native.fixture".into(),
+            result: native_result,
+            skipped: false,
+        });
+
+        assert!(retain_effect_artifacts(&out, &scratch, &mut execution).is_empty());
+        assert!(execution.results.iter().all(|item| item.result.complete));
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/stdout")).unwrap(),
+            stdout
+        );
+        assert!(!out.join("artifacts/null").exists());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn missing_tampered_and_escaped_sources_are_incomplete() {
+        let base = root("source-invalid");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let scratch = scratch(&repository);
+
+        let mut missing = execution(Some(record("missing/stdout", b"expected")), None);
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut missing);
+        assert!(!gaps.is_empty());
+        assert!(!missing.results[0].result.complete);
+
+        write_source(&scratch, "fixture/tampered", b"tamper!!");
+        let mut tampered = execution(Some(record("fixture/tampered", b"expected")), None);
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut tampered);
+        assert!(gaps.iter().any(|gap| gap.contains("digest or size")));
+        assert!(!tampered.results[0].result.complete);
+
+        let mut escaped = execution(Some(record("../outside", b"expected")), None);
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut escaped);
+        assert!(gaps.iter().any(|gap| gap.contains("escapes")));
+        assert!(!escaped.results[0].result.complete);
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn conflicting_destination_is_not_overwritten() {
+        let base = root("collision");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        let scratch = scratch(&repository);
+        let expected = b"expected bytes";
+        write_source(&scratch, "fixture/stdout", expected);
+        let destination = out.join("artifacts/fixture");
+        std::fs::create_dir_all(&destination).unwrap();
+        std::fs::write(destination.join("stdout"), b"preexisting different bytes").unwrap();
+        let mut execution = execution(Some(record("fixture/stdout", expected)), None);
+
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut execution);
+        assert!(gaps.iter().any(|gap| gap.contains("collision")));
+        assert!(!execution.results[0].result.complete);
+        assert_eq!(
+            std::fs::read(destination.join("stdout")).unwrap(),
+            b"preexisting different bytes"
+        );
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn oversized_existing_destination_is_rejected_before_read() {
+        let base = root("oversized-destination");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        let scratch = scratch(&repository);
+        let expected = b"small output";
+        write_source(&scratch, "fixture/stdout", expected);
+        let destination = out.join("artifacts/fixture/stdout");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::File::create(&destination)
+            .unwrap()
+            .set_len(8 * 1024 * 1024 + 1)
+            .unwrap();
+        let mut execution = execution(Some(record("fixture/stdout", expected)), None);
+
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut execution);
+        assert!(gaps.iter().any(|gap| gap.contains("collision")));
+        assert!(!execution.results[0].result.complete);
+        assert_eq!(
+            std::fs::metadata(&destination).unwrap().len(),
+            8 * 1024 * 1024 + 1
+        );
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn every_owner_of_a_conflicting_path_is_incomplete() {
+        let base = root("conflicting-references");
+        let out = base.join("run");
+        std::fs::create_dir_all(&out).unwrap();
+        let scratch = scratch(&base);
+        let mut execution = execution(Some(record("fixture/stdout", b"first")), None);
+
+        let mut conflicting = execution.results[0].clone();
+        conflicting.provider = "fixture.conflicting".into();
+        conflicting.result.provider =
+            legion_contracts::ProviderId::new("fixture.conflicting").unwrap();
+        conflicting.result.details.insert(
+            "executionReceipt".into(),
+            json!({"stdout": record("fixture/stdout", b"second")}),
+        );
+        let mut original_again = execution.results[0].clone();
+        original_again.provider = "fixture.original-again".into();
+        original_again.result.provider =
+            legion_contracts::ProviderId::new("fixture.original-again").unwrap();
+        execution.results.push(conflicting);
+        execution.results.push(original_again);
+
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut execution);
+        assert!(!gaps.is_empty());
+        assert!(execution.results.iter().all(|item| !item.result.complete));
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_output_parent_is_rejected_without_escape() {
+        use std::os::unix::fs::symlink;
+
+        let base = root("containment");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        let outside = base.join("outside");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out.join("artifacts")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        symlink(&outside, out.join("artifacts/fixture")).unwrap();
+        let scratch = scratch(&repository);
+        let expected = b"expected bytes";
+        write_source(&scratch, "fixture/stdout", expected);
+        let mut execution = execution(Some(record("fixture/stdout", expected)), None);
+
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut execution);
+        assert!(gaps.iter().any(|gap| gap.contains("symlink")));
+        assert!(!execution.results[0].result.complete);
+        assert!(!outside.join("stdout").exists());
+        std::fs::remove_dir_all(base).unwrap();
     }
 }

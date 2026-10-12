@@ -180,11 +180,7 @@ pub fn resolve_test_command(
                 )));
             }
             let executable = resolve_named_path(&root, &manager)?;
-            let args = if manager == "yarn" {
-                vec!["test".to_owned()]
-            } else {
-                vec!["run".into(), "test".into()]
-            };
+            let args = package_script_argv(&manager, "test", std::iter::empty::<String>());
             let resolved = seal(&root, executable, args)?;
             let source = json!({
                 "family":"package-script",
@@ -551,16 +547,14 @@ fn package_manager_script(
         ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
-    let mut values = if manager == "yarn" {
-        vec![script.to_owned()]
-    } else {
-        vec!["run".into(), script.to_owned()]
-    };
-    if !extra.is_empty() {
-        values.push("--".into());
-        values.extend(extra.iter().map(|item| (*item).to_owned()));
-    }
-    Ok((path, values))
+    Ok((
+        path,
+        package_script_argv(
+            &manager,
+            script,
+            extra.iter().map(|item| (*item).to_owned()),
+        ),
+    ))
 }
 
 fn package_manager_script_dynamic(
@@ -572,16 +566,32 @@ fn package_manager_script_dynamic(
         ResolveError::NotConfigured("package manager metadata is unavailable".into())
     })?;
     let path = resolve_named_path(root, &manager)?;
-    let mut values = if manager == "yarn" {
-        vec![script.to_owned()]
+    Ok((
+        path,
+        package_script_argv(&manager, script, extra.iter().cloned()),
+    ))
+}
+
+fn package_script_argv(
+    manager: &str,
+    script: &str,
+    extra: impl IntoIterator<Item = String>,
+) -> Vec<String> {
+    let mut values = Vec::new();
+    if manager == "pnpm" {
+        values.push("--config.verify-deps-before-run=false".into());
+    }
+    if manager == "yarn" {
+        values.push(script.to_owned());
     } else {
-        vec!["run".into(), script.to_owned()]
-    };
+        values.extend(["run".into(), script.to_owned()]);
+    }
+    let extra = extra.into_iter().collect::<Vec<_>>();
     if !extra.is_empty() {
         values.push("--".into());
-        values.extend(extra.iter().cloned());
+        values.extend(extra);
     }
-    Ok((path, values))
+    values
 }
 
 /// Symbolic tool name for the runtime capture check. It is never looked up on
@@ -831,11 +841,87 @@ mod test_command_resolution_tests {
         fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
         let inventory = inventory(&root);
         let (resolved, source) = resolve_test_command(&root, &inventory).unwrap();
-        assert_eq!(resolved.args, ["run", "test"]);
+        assert_eq!(
+            resolved.args,
+            ["--config.verify-deps-before-run=false", "run", "test"]
+        );
+        assert_eq!(
+            source["argv"],
+            json!(["--config.verify-deps-before-run=false", "run", "test"])
+        );
         assert_eq!(resolved.cwd, fs::canonicalize(&root).unwrap());
         assert_eq!(source["family"], "package-script");
+        assert_eq!(
+            source["inventoryDigest"].as_str(),
+            Some(inventory.digest.as_str())
+        );
         assert_eq!(source["versionRequirement"], "9.1.0");
         assert_eq!(source["sources"][0]["path"], "package.json");
+        assert_eq!(
+            source["sources"][0]["digest"].as_str(),
+            inventory
+                .entries
+                .iter()
+                .find(|entry| entry.path == "package.json")
+                .and_then(|entry| entry.digest.as_deref())
+        );
+        assert_eq!(
+            source["executableDigest"].as_str(),
+            Some(resolved.digest.as_str())
+        );
+        assert_eq!(
+            source["executable"].as_str(),
+            Some(resolved.executable.to_string_lossy().as_ref())
+        );
+        assert_eq!(
+            source["cwd"].as_str(),
+            Some(resolved.cwd.to_string_lossy().as_ref())
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn package_script_argv_adds_pnpm_preflight_override_for_build_and_test_only() {
+        for script in ["build", "test"] {
+            assert_eq!(
+                package_script_argv("pnpm", script, std::iter::empty()),
+                ["--config.verify-deps-before-run=false", "run", script]
+            );
+            assert_eq!(
+                package_script_argv("npm", script, std::iter::empty()),
+                ["run", script]
+            );
+            assert_eq!(
+                package_script_argv("yarn", script, std::iter::empty()),
+                [script]
+            );
+        }
+    }
+
+    #[test]
+    fn static_and_dynamic_package_build_resolvers_use_pnpm_preflight_override() {
+        let root = root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"pnpm@11.24.0","scripts":{"build":"build"}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
+
+        let frozen = resolve_command(
+            &root,
+            CommandShape::Named {
+                tool: "project-build",
+                args: &[],
+            },
+        )
+        .unwrap();
+        let dynamic = resolve_request(&root, "project-build", &[]).unwrap();
+        let expected = ["--config.verify-deps-before-run=false", "run", "build"];
+        assert_eq!(frozen.args, expected);
+        assert_eq!(dynamic.args, expected);
 
         fs::remove_dir_all(root).unwrap();
     }

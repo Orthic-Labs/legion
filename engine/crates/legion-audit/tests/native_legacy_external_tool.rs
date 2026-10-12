@@ -396,7 +396,10 @@ fn production_adapter_resolves_and_seals_symbolic_request() {
         .block_on(adapter.execute(request, CancellationToken::new()));
     let request = captured.lock().unwrap().clone().unwrap();
     assert!(PathBuf::from(&request.executable).is_absolute());
-    assert_eq!(request.args, ["run", "build"]);
+    assert_eq!(
+        request.args,
+        ["--config.verify-deps-before-run=false", "run", "build"]
+    );
     assert!(request
         .expected_digest
         .as_deref()
@@ -446,9 +449,16 @@ fn declared_tests_complete_with_pass_or_failure_evidence_without_tree_writes() {
         let request = request.as_ref().unwrap();
         if cfg!(target_os = "macos") {
             assert!(request.executable.ends_with("sandbox-exec"));
-            assert!(request.args.ends_with(&["run".into(), "test".into()]));
+            assert!(request.args.ends_with(&[
+                "--config.verify-deps-before-run=false".into(),
+                "run".into(),
+                "test".into()
+            ]));
         } else {
-            assert_eq!(request.args, ["run", "test"]);
+            assert_eq!(
+                request.args,
+                ["--config.verify-deps-before-run=false", "run", "test"]
+            );
         }
         assert!(request.requires_network_sandbox);
         assert_eq!(request.version_requirement.as_deref(), Some("exact:9.1.0"));

@@ -670,6 +670,9 @@ pub fn ingest_lens_result(
     let execution: ExecutionReport =
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
+    let stored_report: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
+        .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
+    crate::verify::validate_effect_artifacts(run_dir, &plan, &stored_report, &execution)?;
     let slot = execution
         .results
         .iter()
@@ -2064,6 +2067,7 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let stored: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
         .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     let plan = read_json(&run_dir.join("plan.json"))?;
+    crate::verify::validate_effect_artifacts(run_dir, &plan, &stored, &execution)?;
     let native_plan = verify_persisted_native_plan(&plan, &execution, run_dir)?;
     verify_or_degrade_visual(&mut execution, native_plan.as_ref(), &plan, &stored)?;
     let loaded = load_receipts(run_dir, &plan, &execution, None)?;

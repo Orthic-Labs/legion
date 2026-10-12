@@ -595,7 +595,10 @@ fn symbolic_project_tools_resolve_to_sealed_exact_argv() {
 
     let build = resolve_request(&root, "project-build", &[]).unwrap();
     assert!(build.executable.is_absolute());
-    assert_eq!(build.args, ["run", "build"]);
+    assert_eq!(
+        build.args,
+        ["--config.verify-deps-before-run=false", "run", "build"]
+    );
     assert!(build.digest.starts_with("sha256:"));
 
     let lint = resolve_request(&root, "project-lint", &["--json".into()]).unwrap();

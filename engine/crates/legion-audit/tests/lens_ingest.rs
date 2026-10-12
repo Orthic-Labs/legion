@@ -259,6 +259,45 @@ fn before_ingest_the_lens_is_pending_and_the_run_is_not_clean() {
 }
 
 #[test]
+fn invalid_retained_output_proof_blocks_ingest_before_any_receipt_write() {
+    let run = setup("invalid-retained-output");
+    let plan_path = run.run.join("plan.json");
+    let report_path = run.run.join("report.json");
+    let execution_path = run.run.join("execution.json");
+    let mut plan: Value = serde_json::from_slice(&fs::read(&plan_path).unwrap()).unwrap();
+    plan["effectArtifactsRoot"] = json!("artifacts");
+    fs::write(&plan_path, serde_json::to_vec(&plan).unwrap()).unwrap();
+    let mut report: Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+    report["claims"]["effectArtifactsRoot"] = json!("artifacts");
+    fs::write(&report_path, serde_json::to_vec(&report).unwrap()).unwrap();
+    let mut execution: Value = serde_json::from_slice(&fs::read(&execution_path).unwrap()).unwrap();
+    execution["results"][0]["result"]["details"]["executionReceipt"] = json!({
+        "stdout": {
+            "path": "original/missing.bin",
+            "digest": format!("sha256:{}", "a".repeat(64)),
+            "bytes": 1,
+            "immutable": true
+        }
+    });
+    let execution_bytes = serde_json::to_vec(&execution).unwrap();
+    fs::write(&execution_path, &execution_bytes).unwrap();
+
+    assert!(
+        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).is_err()
+    );
+    assert!(!run.run.join("lens-receipts").exists());
+    assert_eq!(fs::read(&execution_path).unwrap(), execution_bytes);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(&plan_path).unwrap()).unwrap(),
+        plan
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(&report_path).unwrap()).unwrap(),
+        report
+    );
+}
+
+#[test]
 fn ingest_round_trip_counts_the_lens_as_ran_and_clean_is_reachable() {
     let run = setup("roundtrip");
     let ingested =

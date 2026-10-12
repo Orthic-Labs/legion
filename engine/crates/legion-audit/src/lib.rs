@@ -29,5 +29,8 @@ pub use native_providers::NativeProviderRegistry;
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
 pub use report::canonical_report;
-pub use verify::{verify_binding, verify_execution, verify_source_diagnostic};
+pub use verify::{
+    parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path, verify_binding,
+    verify_execution, verify_source_diagnostic,
+};
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};
