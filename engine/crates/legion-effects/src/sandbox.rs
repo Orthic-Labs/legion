@@ -27,7 +27,9 @@
 //! refusing rather than fabricate a receipt — a typed degradation, not a
 //! silent pass.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(target_os = "macos")]
+use std::path::PathBuf;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SandboxMode {

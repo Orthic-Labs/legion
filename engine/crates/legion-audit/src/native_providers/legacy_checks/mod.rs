@@ -974,7 +974,7 @@ impl NativeLegacyCheckExecutor {
             // unwrapped lets `AuditExternalProjectTool` report the real
             // resolution failure as a typed gap.
             let wrap_target: Option<(String, Vec<String>)> = if cfg!(target_os = "macos") {
-                resolve_request(&self.root, executable, &args)
+                resolve_request(&self.root, &executable, &args)
                     .ok()
                     .map(|resolved| {
                         tool_cwd = Some(resolved.cwd.clone());

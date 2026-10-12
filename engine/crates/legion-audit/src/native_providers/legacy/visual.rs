@@ -176,7 +176,7 @@ fn read_fenced_regular(root: &Path, path: &Path, maximum: usize) -> Result<Vec<u
     if !canonical.starts_with(&canonical_root) {
         return Err("evidence path escapes root".into());
     }
-    let mut file = File::open(&canonical).map_err(|error| error.to_string())?;
+    let file = File::open(&canonical).map_err(|error| error.to_string())?;
     if !file
         .metadata()
         .map_err(|error| error.to_string())?
