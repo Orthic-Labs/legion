@@ -1235,7 +1235,7 @@ mod test_command_resolution_tests {
                 Err(ResolveError::NotConfigured(reason)) => {
                     assert_eq!(reason, "managed-test-trust-not-configured")
                 }
-                Err(error) => panic!("unexpected frozen runner resolution error: {error}"),
+                Err(error) => panic!("unexpected frozen runner resolution error: {error:?}"),
             }
             fs::remove_dir_all(root).unwrap();
         }
@@ -1306,7 +1306,7 @@ mod test_command_resolution_tests {
             ResolveError::NotConfigured(reason) => {
                 assert_eq!(reason, "managed-test-trust-not-configured")
             }
-            other => panic!("unexpected package runner resolution error: {other}"),
+            other => panic!("unexpected package runner resolution error: {other:?}"),
         }
 
         fs::write(
@@ -1320,7 +1320,7 @@ mod test_command_resolution_tests {
             ResolveError::NotConfigured(reason) => {
                 assert_eq!(reason, "managed-test-trust-not-configured")
             }
-            other => panic!("unexpected npm runner resolution error: {other}"),
+            other => panic!("unexpected npm runner resolution error: {other:?}"),
         }
 
         fs::write(

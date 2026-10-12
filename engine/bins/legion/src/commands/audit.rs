@@ -1917,7 +1917,7 @@ fn runtime_sha256(value: &str) -> bool {
         .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
-fn runtime_action_text(action: &Value, key: &str) -> Option<&str> {
+fn runtime_action_text<'a>(action: &'a Value, key: &str) -> Option<&'a str> {
     action
         .get(key)
         .and_then(Value::as_str)
@@ -2137,7 +2137,7 @@ fn provider_selection_coverage(
         .map_err(|error| error.to_string())?;
         let plan = scope_plan.plan();
         let applicable = plan
-            .providers()
+            .providers
             .iter()
             .filter(|provider| {
                 let declared = provider
@@ -3695,7 +3695,7 @@ mod closure_tests {
         let source_path = dir.join("index.html");
         let body_bytes = b"<main data-testid='ready'>ready</main>";
         std::fs::write(&source_path, body_bytes).unwrap();
-        let body = serde_json::to_value(body_bytes).unwrap();
+        let body = serde_json::to_value(body_bytes.as_slice()).unwrap();
         let fixture_digest = legion_contracts::canonical_digest(&json!({
             "files":[{"body":body,"contentType":"text/html","path":"/index.html"}]
         }))
