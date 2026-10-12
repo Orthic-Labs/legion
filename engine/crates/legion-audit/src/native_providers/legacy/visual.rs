@@ -1402,7 +1402,7 @@ mod tests {
             "deleted visual finding is detected"
         );
         let mut tampered = result.clone();
-        tampered.details["findingEvidence"][&finding_id]["actual"]["digest"] =
+        tampered.details.get_mut("findingEvidence").unwrap()[&finding_id]["actual"]["digest"] =
             json!(format!("sha256:{}", "0".repeat(64)));
         assert!(
             verify_explicit_visual_execution(&root, &signed_provider, "generation", &tampered,)
@@ -1575,25 +1575,29 @@ mod tests {
             let prior = capture.prior_execution.as_mut().unwrap();
             match tamper {
                 "plan" => {
-                    prior.result.details["executionReceipts"][0]["planId"] = json!("other-plan")
+                    prior.result.details.get_mut("executionReceipts").unwrap()[0]["planId"] =
+                        json!("other-plan")
                 }
                 "url" => {
-                    prior.result.details["runtime"]["surfaces"][0]["url"] =
+                    prior.result.details.get_mut("runtime").unwrap()["surfaces"][0]["url"] =
                         json!("https://evil.test/")
                 }
                 "receipt" => {
-                    prior.result.details["executionReceipts"][0]["requestId"] =
+                    prior.result.details.get_mut("executionReceipts").unwrap()[0]["requestId"] =
                         json!("wrong-request")
                 }
                 "digest" => {
-                    prior.result.details["runtime"]["surfaces"][0]["screenshot"]["sha256"] =
-                        json!("sha256:wrong")
+                    prior.result.details.get_mut("runtime").unwrap()["surfaces"][0]["screenshot"]
+                        ["sha256"] = json!("sha256:wrong")
                 }
                 "path" => {
-                    prior.result.details["runtime"]["surfaces"][0]["screenshot"]["path"] =
-                        json!("/tmp/outside/runtime-shot-0.png")
+                    prior.result.details.get_mut("runtime").unwrap()["surfaces"][0]["screenshot"]
+                        ["path"] = json!("/tmp/outside/runtime-shot-0.png")
                 }
-                "index" => prior.result.details["runtime"]["surfaces"][0]["index"] = json!(9),
+                "index" => {
+                    prior.result.details.get_mut("runtime").unwrap()["surfaces"][0]["index"] =
+                        json!(9)
+                }
                 _ => unreachable!(),
             }
             let result = ProviderExecutorAdapter::new(root.clone())

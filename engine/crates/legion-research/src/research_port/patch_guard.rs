@@ -3,7 +3,7 @@
 //! These receipts express integrity for the ambient CLI flow. They do not
 //! attest that a hook ran or grant host-level authority.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt;

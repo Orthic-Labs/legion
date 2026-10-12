@@ -1288,6 +1288,7 @@ mod tests {
     use crate::plan::ProviderKind;
     use crate::{inventory::InventoryEntry, plan::AuditPlan};
     use legion_contracts::{Coverage, FindingId, FindingRef, ProviderSpec};
+    use serde_json::json;
     use std::sync::Mutex;
 
     fn handoff_fixture() -> (FrozenPlan, InventoryEnvelope) {
@@ -1408,13 +1409,14 @@ mod tests {
         };
         assert!(validate_result(&provider, &result, &denominator).is_ok());
 
-        result.details["findingLocations"][finding.id.as_str()] = json!(["src/app.ts"]);
+        result.details.get_mut("findingLocations").unwrap()[finding.id.as_str()] =
+            json!(["src/app.ts"]);
         assert!(validate_result(&provider, &result, &denominator)
             .unwrap_err()
             .contains("source anchor"));
 
-        result.details["findingLocations"][finding.id.as_str()] = json!([]);
-        result.details["findingEvidence"][finding.id.as_str()]["actual"]["path"] =
+        result.details.get_mut("findingLocations").unwrap()[finding.id.as_str()] = json!([]);
+        result.details.get_mut("findingEvidence").unwrap()[finding.id.as_str()]["actual"]["path"] =
             json!("src/app.ts");
         assert!(validate_result(&provider, &result, &denominator)
             .unwrap_err()

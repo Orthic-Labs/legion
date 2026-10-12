@@ -2167,10 +2167,7 @@ mod tests {
 
         assert!(!controller.resolve_deferred("event-1", serde_json::json!({ "status": "done" })));
         assert!(controller.has_timed_out_id("event-1"));
-        assert_eq!(
-            controller.callbacks.acknowledged.lock().unwrap().as_slice(),
-            &[]
-        );
+        assert!(controller.callbacks.acknowledged.lock().unwrap().is_empty());
     }
 
     #[test]

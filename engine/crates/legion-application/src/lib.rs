@@ -577,9 +577,11 @@ fn verify_alias_asset_membership(
     assets: &legion_runtime::DeclarativeAssets,
     alias_path: &Path,
 ) -> Result<(), M1ApplicationError> {
-    let canonical_alias = std::fs::canonicalize(alias_path).map_err(|error| {
-        M1ApplicationError::Configuration(format!("alias catalog path is unavailable: {error}"))
-    })?;
+    let canonical_alias =
+        std::fs::canonicalize(alias_path).map_err(|error| CatalogError::InvalidCatalog {
+            path: alias_path.display().to_string(),
+            reason: format!("alias catalog path is unavailable: {error}"),
+        })?;
     let contained = match assets {
         legion_runtime::DeclarativeAssets::File(path) => {
             std::fs::canonicalize(path).ok().as_ref() == Some(&canonical_alias)
@@ -589,9 +591,11 @@ fn verify_alias_asset_membership(
             .is_some_and(|root| canonical_alias.starts_with(root)),
     };
     if !contained {
-        return Err(M1ApplicationError::Configuration(
-            "alias catalog must be inside release-bound declarative assets".into(),
-        ));
+        return Err(CatalogError::InvalidCatalog {
+            path: alias_path.display().to_string(),
+            reason: "alias catalog must be inside release-bound declarative assets".into(),
+        }
+        .into());
     }
     Ok(())
 }
