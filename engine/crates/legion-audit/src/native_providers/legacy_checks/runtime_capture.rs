@@ -315,7 +315,7 @@ fn json_encoded_len(value: &Value) -> Option<usize> {
     }
 }
 
-fn action_string(action: &Value, key: &str) -> Option<&str> {
+fn action_string<'a>(action: &'a Value, key: &str) -> Option<&'a str> {
     action
         .get(key)
         .and_then(Value::as_str)
@@ -328,14 +328,14 @@ fn valid_probe_action(action: &Value) -> bool {
     };
     match kind {
         "click" => {
-            exact_keys(action, &["type", "selector"], [])
+            exact_keys(action, &["type", "selector"], &[])
                 && action_string(action, "selector").is_some()
         }
         "type" => {
-            exact_keys(action, &["type", "text"], []) && action_string(action, "text").is_some()
+            exact_keys(action, &["type", "text"], &[]) && action_string(action, "text").is_some()
         }
         "press" => {
-            exact_keys(action, &["type", "key"], [])
+            exact_keys(action, &["type", "key"], &[])
                 && action
                     .get("key")
                     .and_then(Value::as_str)
@@ -356,7 +356,7 @@ fn valid_probe_action(action: &Value) -> bool {
                 })
         }
         "assertText" => {
-            exact_keys(action, &["type", "selector", "text"], [])
+            exact_keys(action, &["type", "selector", "text"], &[])
                 && action_string(action, "selector").is_some()
                 && action_string(action, "text").is_some()
         }

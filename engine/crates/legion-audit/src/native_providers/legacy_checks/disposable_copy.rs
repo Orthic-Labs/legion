@@ -1269,13 +1269,13 @@ pub(super) async fn execute(
         );
     }
     let invocation = command.args.clone();
-    let Some(runner) = invocation.first() else {
+    if invocation.is_empty() {
         return incomplete(
             input,
             "frozen-test-argv-empty".into(),
             json!({"assurance":"disposable-copy-before-after"}),
         );
-    };
+    }
     if let Err(message) = validate_runner_binding(source, family, &invocation, enrollment) {
         return incomplete(
             input,
