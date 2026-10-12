@@ -82,10 +82,11 @@ pub fn abs(root: &str, path: &str) -> PathBuf {
     }
 }
 
-/// `needsCdpShot` (qa.mjs line 749): any of throttle/cpu/mobile/session flags force the CDP
-/// screenshot path instead of the fast `--screenshot=` flag.
+/// `needsCdpShot` (qa.mjs line 749): explicit shots and throttle/cpu/mobile/session flags use
+/// the CDP screenshot path instead of the fast `--screenshot=` flag.
 pub fn needs_cdp_shot(args: &Args) -> bool {
-    args.throttle.is_some()
+    args.shot
+        || args.throttle.is_some()
         || args.cpu.is_some()
         || args.mobile
         || args.load_session.is_some()
@@ -611,6 +612,9 @@ mod tests {
     fn needs_cdp_shot_true_for_each_condition() {
         let mut a = Args::default();
         assert!(!needs_cdp_shot(&a));
+        a.shot = true;
+        assert!(needs_cdp_shot(&a));
+        let mut a = Args::default();
         a.throttle = Some("slow-3g".into());
         assert!(needs_cdp_shot(&a));
         let mut a = Args::default();
@@ -689,7 +693,6 @@ mod tests {
     fn plan_run_reflects_needs_server_and_cdp_shot() {
         let mut a = Args::default();
         a.shot = true;
-        a.mobile = true;
         assert_eq!(
             plan(&a),
             Plan::Run {
