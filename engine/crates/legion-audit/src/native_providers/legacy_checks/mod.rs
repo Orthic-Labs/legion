@@ -19,7 +19,9 @@ pub use contracts::{
     REQUEST_KIND,
 };
 pub use registry::{spec, specs, LEGACY_CHECK_SPECS};
-pub use resolver::{resolve_command, resolve_request, ResolveError, ResolvedCommand};
+pub use resolver::{
+    resolve_command, resolve_request, resolve_test_command, ResolveError, ResolvedCommand,
+};
 pub use runtime_capture::runtime_inputs;
 
 use std::{
@@ -527,9 +529,17 @@ impl LegacyCheckDispatcher {
                 .chain(output.degradation.iter())
                 .chain(execution.error.iter().map(|error| &error.message))
                 .any(|gap| gap.contains(SANDBOX_RECEIPT_REQUIRED));
+        let read_only_test_owner_unavailable = execution.state
+            == LegacyCheckProcessState::MissingExecutable
+            && output
+                .details
+                .get("testCommandResolution")
+                .and_then(|resolution| resolution.get("reason"))
+                .and_then(Value::as_str)
+                .is_some_and(|reason| reason.starts_with("read-only-test-owner-unavailable:"));
         let mut gaps = output.coverage_gaps.clone();
         let mut degradation = output.degradation.clone();
-        if !process_ok && !sandbox_refused {
+        if !process_ok && !sandbox_refused && !read_only_test_owner_unavailable {
             gaps.push(format!("external-process:{}", execution.state.as_str()));
             degradation.push(format!("external-process:{}", execution.state.as_str()));
         }
@@ -540,8 +550,10 @@ impl LegacyCheckDispatcher {
         // A tool or project configuration that is simply absent is a typed
         // `unavailable:<reason>` gap, never a failed provider: nothing ran and
         // nothing broke.
-        let unavailable_reason = (execution.state == LegacyCheckProcessState::MissingExecutable)
-            .then(|| {
+        let unavailable_reason = if read_only_test_owner_unavailable {
+            Some("read-only-test-owner-unavailable:test".to_owned())
+        } else {
+            (execution.state == LegacyCheckProcessState::MissingExecutable).then(|| {
                 let gap_text = output
                     .coverage_gaps
                     .iter()
@@ -561,7 +573,8 @@ impl LegacyCheckDispatcher {
                     None => format!("tool-missing:{}", contract.tool),
                 }
             })
-            .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
+        }
+        .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
         if let Some(reason) = &unavailable_reason {
             gaps.push(super::availability::unavailable_gap(reason));
             output.details.insert(
@@ -781,16 +794,124 @@ impl NativeLegacyCheckExecutor {
         if contract.check == "runtime" {
             return runtime_capture::execute(self, plan, provider, &input, cancellation).await;
         }
-        let Some(tool) = &self.external_project_tool else {
+        let mut test_command = None;
+        let mut test_command_source = None;
+        if contract.check == "test" {
+            match resolve_test_command(&self.root, inventory) {
+                Ok((resolved, source)) => {
+                    test_command = Some(resolved);
+                    test_command_source = Some(source);
+                }
+                Err(error) => {
+                    let unavailable = matches!(
+                        &error,
+                        ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_)
+                    );
+                    let state = if unavailable {
+                        LegacyCheckProcessState::MissingExecutable
+                    } else {
+                        LegacyCheckProcessState::Failed
+                    };
+                    let message = if matches!(&error, ResolveError::NotConfigured(_)) {
+                        format!("test runner is not configured: {}", error.message())
+                    } else {
+                        error.message()
+                    };
+                    let gap = if unavailable {
+                        message.clone()
+                    } else {
+                        format!("test-source-input-invalid:{message}")
+                    };
+                    let mut output = empty_output(vec![gap.clone()]);
+                    output.details.insert(
+                        "testCommandResolution".into(),
+                        json!({"status":"unavailable","reason":message.clone()}),
+                    );
+                    output.coverage = Some(Coverage {
+                        denominator_digest: input.denominator.digest.clone(),
+                        expected: input.denominator.entries.len() as u64,
+                        examined: 0,
+                        gaps: vec![gap.clone()],
+                    });
+                    let execution = terminal_execution(
+                        &input,
+                        contract.command,
+                        state,
+                        None,
+                        Vec::new(),
+                        Vec::new(),
+                        output,
+                        vec![gap],
+                        now_ms(),
+                        false,
+                        Some(&message),
+                    );
+                    return dispatcher
+                        .project_result(provider, &input, execution)
+                        .map_err(|error| AuditError::Provider(error.to_string()));
+                }
+            }
+        }
+        if test_command_source
+            .as_ref()
+            .and_then(|source| source.get("family"))
+            .and_then(Value::as_str)
+            == Some("rust-rightkit")
+        {
+            let reason = "read-only-test-owner-unavailable: rightkit broker execution has no source-write containment receipt";
+            let mut output = empty_output(vec![reason.into()]);
+            output.details.insert(
+                "testCommandResolution".into(),
+                json!({"status":"unavailable","reason":reason}),
+            );
+            output.coverage = Some(Coverage {
+                denominator_digest: input.denominator.digest.clone(),
+                expected: input.denominator.entries.len() as u64,
+                examined: 0,
+                gaps: vec![reason.into()],
+            });
+            if let Some(source) = &test_command_source {
+                output
+                    .details
+                    .insert("testCommandSource".into(), source.clone());
+            }
+            let mut execution = terminal_execution(
+                &input,
+                contract.command,
+                LegacyCheckProcessState::MissingExecutable,
+                None,
+                Vec::new(),
+                Vec::new(),
+                output,
+                vec![reason.into()],
+                now_ms(),
+                false,
+                None,
+            );
+            attach_test_command_source(&mut execution, test_command_source.as_ref());
             return dispatcher
-                .project_result(
-                    provider,
-                    &input,
-                    execute_external(&input, contract.command, now_ms()),
-                )
+                .project_result(provider, &input, execution)
+                .map_err(|error| AuditError::Provider(error.to_string()));
+        }
+        let Some(tool) = &self.external_project_tool else {
+            let mut execution = execute_external(&input, contract.command, now_ms());
+            attach_test_command_source(&mut execution, test_command_source.as_ref());
+            return dispatcher
+                .project_result(provider, &input, execution)
                 .map_err(|error| AuditError::Provider(error.to_string()));
         };
-        let (executable, mut args) = command_parts(contract.command);
+        let (executable, mut args) = test_command.as_ref().map_or_else(
+            || {
+                let (executable, args) = command_parts(contract.command);
+                (executable.to_owned(), args)
+            },
+            |resolved| {
+                (
+                    resolved.executable.to_string_lossy().into_owned(),
+                    resolved.args.clone(),
+                )
+            },
+        );
         // `gitleaks git` scans commit history and needs a repository. A tree
         // without `.git` (an exported archive, a fixture) is scanned as a
         // plain directory instead of failing with no report.
@@ -831,7 +952,8 @@ impl NativeLegacyCheckExecutor {
         // Once the sandbox wrapper is the executable the adapter can no longer
         // see the tool it wraps, so the working directory the tool needs (a
         // nested Cargo workspace, `src-tauri`) is resolved here.
-        let mut tool_cwd: Option<PathBuf> = None;
+        let mut tool_cwd: Option<PathBuf> =
+            test_command.as_ref().map(|resolved| resolved.cwd.clone());
         let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
             let profile_dir = scratch.sandbox_dir();
@@ -917,6 +1039,11 @@ impl NativeLegacyCheckExecutor {
         } else {
             (executable.to_string(), args, None, None)
         };
+        if let Some(resolved) = &test_command {
+            // Sandbox wrapping can resolve an absolute executable relative to
+            // the repository root; preserve the frozen runner's selected cwd.
+            tool_cwd = Some(resolved.cwd.clone());
+        }
         // `cargo-outdated` is a cargo subcommand binary: its identity probe
         // is `cargo-outdated outdated --version`, not `cargo-outdated --version`.
         let version_args = if contract.check == "cargo_outdated" {
@@ -949,6 +1076,17 @@ impl NativeLegacyCheckExecutor {
             shell: false,
             expected_digest: None,
             accepted_exit_codes: accepted_exit_codes(contract.check),
+            version_requirement: test_command_source
+                .as_ref()
+                .and_then(|source| source.get("versionRequirement"))
+                .and_then(Value::as_str)
+                .map(|version| {
+                    if contract.check == "test" {
+                        format!("exact:{version}")
+                    } else {
+                        version.to_owned()
+                    }
+                }),
             environment,
             environment_allowlist,
             // Checks in `sandbox_required_check` now carry an authenticated
@@ -993,6 +1131,7 @@ impl NativeLegacyCheckExecutor {
             receipt,
             report_source,
             report_artifact,
+            test_command_source,
         );
         dispatcher
             .project_result(provider, &input, execution)
@@ -1026,6 +1165,7 @@ fn sandbox_required_check(check: &str) -> bool {
     matches!(
         check,
         "build"
+            | "test"
             | "lint"
             | "types"
             | "dead_code"
@@ -1050,9 +1190,11 @@ fn sandbox_required_check(check: &str) -> bool {
 /// database and must keep network access; the sandbox instead denies writes
 /// under the project root so they cannot execute or mutate project code.
 /// Every other sandboxed check executes target-project code, so network is
-/// denied instead.
+/// denied instead. Tests also deny writes beneath the audited root.
 fn sandbox_mode_for_check(check: &str) -> legion_effects::SandboxMode {
-    if matches!(
+    if check == "test" {
+        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+    } else if matches!(
         check,
         "deps_cve" | "py_deps_cve" | "cargo_audit" | "cargo_deny" | "outdated" | "cargo_outdated"
     ) {
@@ -1062,9 +1204,34 @@ fn sandbox_mode_for_check(check: &str) -> legion_effects::SandboxMode {
     }
 }
 
+#[cfg(test)]
+mod sandbox_policy_tests {
+    use super::*;
+
+    #[test]
+    fn project_tests_use_read_only_network_denied_sandbox() {
+        assert_eq!(
+            sandbox_mode_for_check("test"),
+            legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+        );
+        assert!(sandbox_required_check("test"));
+    }
+
+    #[test]
+    fn pinned_manager_versions_match_as_exact_tokens() {
+        assert!(exact_version_token_matches("9.1.0\n", "9.1.0"));
+        assert!(exact_version_token_matches("pnpm v9.1.0\n", "9.1.0"));
+        assert!(!exact_version_token_matches("19.1.0\n", "9.1.0"));
+        assert!(!exact_version_token_matches("9.1.0-rc.1\n", "9.1.0"));
+    }
+}
+
 fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     match check {
         "repo" | "build" => [0].into_iter().collect(),
+        // A normally exited test runner with non-zero code is a completed
+        // test result with a failing-test finding, not a launch failure.
+        "test" => (0..=255).collect(),
         "debt_markers" | "secrets" | "deps_cve" => [0, 1].into_iter().collect(),
         _ => [0, 1, 2].into_iter().collect(),
     }
@@ -1145,6 +1312,7 @@ fn execution_from_receipt(
     receipt: legion_provider_sdk::ExecutionReceipt,
     report_source: ReportSource,
     report_artifact: Option<ReportArtifact>,
+    test_command_source: Option<Value>,
 ) -> LegacyCheckExecution {
     let state = match receipt.state {
         legion_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
@@ -1177,7 +1345,8 @@ fn execution_from_receipt(
         .stderr
         .as_ref()
         .and_then(|a| readable_artifact(roots, a));
-    let mut parsed = false;
+    let mut parsed =
+        input.check == "test" && receipt.complete && state == LegacyCheckProcessState::Completed;
     let parse_bytes: Option<&[u8]> = match report_source {
         ReportSource::Stdout => stdout.as_deref(),
         ReportSource::Stderr => stderr.as_deref(),
@@ -1185,7 +1354,39 @@ fn execution_from_receipt(
             .as_ref()
             .map(|report| report.bytes.as_slice()),
     };
-    if let Some(bytes) = parse_bytes {
+    let exact_test_version_unproven = if input.check == "test" {
+        test_command_source
+            .as_ref()
+            .and_then(|source| source.get("versionRequirement"))
+            .and_then(Value::as_str)
+            .filter(|required| {
+                !receipt
+                    .executable
+                    .as_ref()
+                    .and_then(|identity| identity.version.output.as_deref())
+                    .is_some_and(|output| exact_version_token_matches(output, required))
+            })
+    } else {
+        None
+    };
+    if let Some(required) = exact_test_version_unproven {
+        let reason = "test-runner-version-mismatch:test";
+        let gap = super::availability::unavailable_gap(reason);
+        output.coverage_gaps.push(gap.clone());
+        output.status = ProviderStatus::Partial;
+        output.details.insert(
+            super::availability::AVAILABILITY_DETAIL.into(),
+            super::availability::unavailable_detail(reason),
+        );
+        output.details.insert(
+            "testOutcome".into(),
+            json!({"status":"unavailable","requiredVersion":required}),
+        );
+    } else if input.check == "test" {
+        // Test runners produce human-readable logs, not a required JSON
+        // envelope. A completed receipt is the proof; stdout/stderr digests
+        // remain bound in the receipt below.
+    } else if let Some(bytes) = parse_bytes {
         if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
             parsed = parse_external_value(input, &value, &mut output);
         }
@@ -1235,9 +1436,86 @@ fn execution_from_receipt(
         "stderr": receipt.stderr.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
         "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error}, "gaps": receipt.gaps,
         "requestArgs": args,
+        "testCommandSource": test_command_source,
         "reportSource": match report_source { ReportSource::Stdout => "stdout", ReportSource::Stderr => "stderr", ReportSource::File(_) => "file" },
         "report": report_artifact.as_ref().map(|r| json!({"path":r.name,"digest":r.digest,"bytes":r.bytes.len(),"immutable":true})),
     });
+    if input.check == "test" {
+        if let Some(source) = test_command_source.as_ref() {
+            output
+                .details
+                .insert("testCommandSource".into(), source.clone());
+        }
+        if exact_test_version_unproven.is_none()
+            && state == LegacyCheckProcessState::Completed
+            && receipt.exit_code.is_some_and(|exit_code| exit_code != 0)
+        {
+            let exit_code = receipt.exit_code.unwrap_or_default();
+            let material = format!(
+                "{}\0{}\0{}\0{}",
+                input.provider_id, input.inventory_digest, "test-run-failed", exit_code
+            );
+            let id = format!(
+                "sha256:{}",
+                hex::encode(Sha256::digest(material.as_bytes()))
+            );
+            let finding = FindingRef {
+                id: FindingId::new(id.clone()).expect("derived finding id is valid"),
+                severity: "medium".into(),
+            };
+            output.findings.push(finding);
+            output.details.insert(
+                "findingEvidence".into(),
+                json!({(id.clone()): {
+                    "kind":"project-test-failure",
+                    "exitCode":exit_code,
+                    "inventoryDigest":input.inventory_digest,
+                    "testCommandSource":test_command_source,
+                    "executionReceipt":receipt_value,
+                }}),
+            );
+            output
+                .details
+                .insert("findingLocations".into(), json!({(id.clone()): []}));
+            output.details.insert(
+                "findingTitles".into(),
+                json!({(id.clone()): "Test command exited nonzero"}),
+            );
+            output.details.insert(
+                "findingMessages".into(),
+                json!({(id.clone()): format!("Declared test command exited with code {exit_code}; failure cause is unclassified")}),
+            );
+            if let Some(location) = test_declaration_location(test_command_source.as_ref(), input) {
+                output
+                    .details
+                    .insert("findingLocations".into(), json!({(id.clone()): [location]}));
+                output.status = ProviderStatus::Complete;
+            } else {
+                output.findings.clear();
+                output.details.remove("findingEvidence");
+                output.details.remove("findingTitles");
+                output.details.remove("findingMessages");
+                output
+                    .coverage_gaps
+                    .push("test-command-declaration-outside-denominator".into());
+                output.status = ProviderStatus::Partial;
+                output.complete = false;
+            }
+            output.details.insert(
+                "testOutcome".into(),
+                json!({"passed":false,"exitCode":exit_code,"complete":receipt.complete}),
+            );
+        } else if exact_test_version_unproven.is_none()
+            && state == LegacyCheckProcessState::Completed
+            && receipt.exit_code == Some(0)
+        {
+            output.status = ProviderStatus::Ok;
+            output.details.insert(
+                "testOutcome".into(),
+                json!({"passed":true,"exitCode":0,"complete":receipt.complete}),
+            );
+        }
+    }
     output
         .details
         .insert("executionReceipt".into(), receipt_value);
@@ -1246,7 +1524,10 @@ fn execution_from_receipt(
             .coverage_gaps
             .push("artifact-bytes-unreadable".into());
     }
-    output.complete = receipt.complete && parsed;
+    if let Some(coverage) = output.coverage.as_mut() {
+        coverage.gaps = output.coverage_gaps.clone();
+    }
+    output.complete = receipt.complete && parsed && output.coverage_gaps.is_empty();
     LegacyCheckExecution {
         state,
         exit_code: receipt.exit_code,
@@ -1256,6 +1537,30 @@ fn execution_from_receipt(
         output: Some(output),
         error: None,
     }
+}
+
+fn exact_version_token_matches(output: &str, required: &str) -> bool {
+    output
+        .split(|character: char| {
+            !(character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '+' | '_'))
+        })
+        .any(|token| token == required || token.strip_prefix('v') == Some(required))
+}
+
+fn test_declaration_location(source: Option<&Value>, input: &LegacyCheckInput) -> Option<String> {
+    let sources = source?.get("sources")?.as_array()?;
+    sources
+        .iter()
+        .filter_map(|source| source.get("path")?.as_str())
+        .find(|path| {
+            (*path == "package.json" || path.ends_with("Cargo.toml"))
+                && input
+                    .denominator
+                    .entries
+                    .iter()
+                    .any(|entry| entry.path == *path)
+        })
+        .map(ToOwned::to_owned)
 }
 
 /// Checks whose tool always prints one JSON document on a healthy run. Empty
@@ -1567,6 +1872,25 @@ fn command_parts(command: CommandShape) -> (&'static str, Vec<String>) {
             executable,
             args.iter().map(|arg| (*arg).to_owned()).collect(),
         ),
+    }
+}
+
+fn attach_test_command_source(execution: &mut LegacyCheckExecution, source: Option<&Value>) {
+    let Some(source) = source else {
+        return;
+    };
+    let Some(output) = execution.output.as_mut() else {
+        return;
+    };
+    output
+        .details
+        .insert("testCommandSource".into(), source.clone());
+    if let Some(receipt) = output
+        .details
+        .get_mut("executionReceipt")
+        .and_then(Value::as_object_mut)
+    {
+        receipt.insert("testCommandSource".into(), source.clone());
     }
 }
 

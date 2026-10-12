@@ -1523,8 +1523,12 @@ p.write_text('x')""#
         ) -> Vec<Finding> {
             self.findings.clone()
         }
-        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
-            Vec::new()
+        fn detect_html(
+            &self,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Result<Vec<Finding>, crate::wf_port::r14::DetectorError> {
+            Ok(Vec::new())
         }
     }
 

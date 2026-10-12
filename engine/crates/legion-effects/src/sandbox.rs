@@ -14,6 +14,8 @@
 //! - `DenyNetwork`: for checks that execute target-project code (build,
 //!   lint, types, ...). Network access is denied; project files stay
 //!   read/write so the tool can operate normally.
+//! - `DenyNetworkDenyProjectWrite`: for project test execution. Network access
+//!   and writes under the audited project root are denied.
 //! - `AllowNetworkDenyProjectWrite`: for advisory checks that must reach a
 //!   registry or vulnerability database (cargo_audit, cargo_deny, deps_cve,
 //!   py_deps_cve, outdated, cargo_outdated). Network is allowed; writes
@@ -30,6 +32,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SandboxMode {
     DenyNetwork,
+    DenyNetworkDenyProjectWrite,
     AllowNetworkDenyProjectWrite,
 }
 
@@ -117,6 +120,9 @@ fn render_profile(mode: SandboxMode, cwd: &str) -> String {
         SandboxMode::DenyNetwork => format!(
             "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* file-write* (subpath \"{escaped}\"))\n"
         ),
+        SandboxMode::DenyNetworkDenyProjectWrite => format!(
+            "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"{escaped}\"))\n(deny file-write* (subpath \"{escaped}\"))\n"
+        ),
         SandboxMode::AllowNetworkDenyProjectWrite => format!(
             "(version 1)\n(allow default)\n(allow network*)\n(allow file-read* (subpath \"{escaped}\"))\n(deny file-write* (subpath \"{escaped}\"))\n"
         ),
@@ -152,6 +158,103 @@ mod tests {
         assert!(auth.wrapped_executable.ends_with("sandbox-exec"));
         assert!(auth.wrapped_args.contains(&"/bin/echo".to_string()));
         assert!(auth.network);
+    }
+
+    #[test]
+    fn read_only_test_profile_blocks_project_writes() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-effects-sandbox-read-only-test-{}",
+            std::process::id()
+        ));
+        let scratch = root.with_extension("scratch");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&scratch).unwrap();
+        std::fs::write(root.join("relative-overwrite"), b"original").unwrap();
+        std::fs::write(root.join("absolute-overwrite"), b"original").unwrap();
+        std::fs::write(root.join("relative-delete"), b"preserve").unwrap();
+        std::fs::write(root.join("absolute-delete"), b"preserve").unwrap();
+        let profile_dir = root.join("profiles");
+        let run = |program: &str, args: &[String], cwd: &Path| {
+            let auth = authenticate(
+                program,
+                args,
+                &root.to_string_lossy(),
+                SandboxMode::DenyNetworkDenyProjectWrite,
+                &profile_dir,
+            )
+            .expect("sandbox-exec is present on supported macOS hosts");
+            std::process::Command::new(&auth.wrapped_executable)
+                .args(&auth.wrapped_args)
+                .current_dir(cwd)
+                .output()
+                .unwrap()
+        };
+        for path in [
+            "relative-create".to_owned(),
+            root.join("absolute-create").to_string_lossy().into_owned(),
+        ] {
+            let relative = !Path::new(&path).is_absolute();
+            let output = run(
+                "/usr/bin/touch",
+                &[path.clone()],
+                if relative { &root } else { Path::new("/") },
+            );
+            assert!(!output.status.success());
+            let target = if relative {
+                root.join(path)
+            } else {
+                PathBuf::from(path)
+            };
+            assert!(!target.exists());
+        }
+        for path in [
+            "relative-overwrite".to_owned(),
+            root.join("absolute-overwrite")
+                .to_string_lossy()
+                .into_owned(),
+        ] {
+            let relative = !Path::new(&path).is_absolute();
+            let output = run(
+                "/usr/bin/tee",
+                &[path.clone()],
+                if relative { &root } else { Path::new("/") },
+            );
+            assert!(!output.status.success());
+            let target = if relative {
+                root.join(path)
+            } else {
+                PathBuf::from(path)
+            };
+            assert_eq!(std::fs::read(target).unwrap(), b"original");
+        }
+        for path in [
+            "relative-delete".to_owned(),
+            root.join("absolute-delete").to_string_lossy().into_owned(),
+        ] {
+            let relative = !Path::new(&path).is_absolute();
+            let output = run(
+                "/bin/rm",
+                &[path.clone()],
+                if relative { &root } else { Path::new("/") },
+            );
+            assert!(!output.status.success());
+            let target = if relative {
+                root.join(path)
+            } else {
+                PathBuf::from(path)
+            };
+            assert_eq!(std::fs::read(target).unwrap(), b"preserve");
+        }
+        let scratch_file = scratch.join("allowed-write");
+        let output = run(
+            "/usr/bin/touch",
+            &[scratch_file.to_string_lossy().into_owned()],
+            Path::new("/"),
+        );
+        assert!(output.status.success());
+        assert!(scratch_file.is_file());
+        let _ = std::fs::remove_dir_all(root);
+        let _ = std::fs::remove_dir_all(scratch);
     }
 
     #[test]

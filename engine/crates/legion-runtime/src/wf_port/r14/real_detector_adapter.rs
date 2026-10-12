@@ -14,7 +14,7 @@
 use std::cell::RefCell;
 use std::path::Path;
 
-use super::{DesignSystemInfo, Detector as R14Detector, Finding, ScanOptions};
+use super::{DesignSystemInfo, Detector as R14Detector, DetectorError, Finding, ScanOptions};
 use crate::wf_port::r05::design_system_loader::load_design_system_for_cwd;
 use crate::wf_port::r05::output::CliFinding;
 use crate::wf_port::r05::real_detectors::{detect_html, detect_text};
@@ -71,17 +71,19 @@ impl R14Detector for RealHookDetector {
             .collect()
     }
 
-    fn detect_html(&self, file_path: &str, scan_options: &ScanOptions) -> Vec<Finding> {
+    fn detect_html(
+        &self,
+        file_path: &str,
+        scan_options: &ScanOptions,
+    ) -> Result<Vec<Finding>, DetectorError> {
         let design_system = if scan_options.design_system.is_some() {
             self.cached.borrow().clone()
         } else {
             None
         };
-        detect_html(file_path, design_system.as_ref())
-            .unwrap_or_default()
-            .into_iter()
-            .map(cli_finding_to_finding)
-            .collect()
+        let findings = detect_html(file_path, design_system.as_ref())
+            .map_err(|error| DetectorError::from_html_io(file_path, error))?;
+        Ok(findings.into_iter().map(cli_finding_to_finding).collect())
     }
 
     fn load_design_system_for_cwd(&self, project_cwd: &Path) -> Option<DesignSystemInfo> {
@@ -91,5 +93,33 @@ impl R14Detector for RealHookDetector {
         found.then_some(DesignSystemInfo {
             md_newer_than_json: false,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn html_read_failure_propagates_as_typed_error() {
+        let missing = std::env::temp_dir().join(format!(
+            "legion-hook-missing-{}-{}.html",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let detector = RealHookDetector::new();
+        let error = detector
+            .detect_html(missing.to_str().unwrap(), &ScanOptions::default())
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            DetectorError::Read {
+                kind: std::io::ErrorKind::NotFound,
+                ..
+            }
+        ));
     }
 }

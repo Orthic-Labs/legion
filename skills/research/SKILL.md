@@ -35,9 +35,11 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
 1. Freeze `references/route-schema.json` through native `legion research --query <query>`, with
    optional `--domain` (`general` default, `market`, `technical`, `scientific`, `medical`, `legal`)
    and `--sensitivity` (`public` default, `private`, `highly-sensitive`). The CLI does not classify
-   the query; the caller chooses the domain. Run `references/route-gates.md`; resume only on
-   recorded approval receipts. Medical and legal routes need subject fields the CLI cannot supply,
-   so validation refuses them — see `references/router.md`.
+   the query; the caller chooses the domain. Supply complete typed medical or legal subject context
+   with `--route-json <route.json>` when needed; route JSON must bind the same query, and explicit
+   convenience flags must agree. Anonymous medical and jurisdiction-complete legal routes are
+   reachable. Personal medical routes retain their existing history and approval gates; typed
+   input does not grant approvals or perform stateful/external effects. See `references/router.md`.
 2. Supply host-opened evidence as `--source-record <record.json>` inputs; native route validation
    enforces provider denominator & resource bounds.
 3. Execute only through installed `legion research`; Python product runtime is retired. Do not

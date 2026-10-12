@@ -25,7 +25,9 @@ use crate::wf_port::w2_020::browser_script_parts::{
     assemble_live_browser_script, read_live_browser_script_parts,
     resolve_live_browser_script_parts, LIVE_BROWSER_SCRIPT_PARTS,
 };
-use crate::wf_port::w2_021::manual_apply::ManualApplyController;
+use crate::wf_port::w2_021::manual_apply::{
+    validate_manual_apply_result_message, ManualApplyController,
+};
 use crate::wf_port::w2_021::manual_edit_routes::{handle_manual_edit_route, ManualEditRequest};
 use crate::wf_port::w2_022::vocabulary::live_commands;
 
@@ -367,6 +369,86 @@ fn poll_reply_broadcast(body: &Value, id: &str) -> Value {
         }
     }
     Value::Object(out)
+}
+
+enum PollReplyOutcome {
+    Acknowledged(bool),
+    Rejected(u16, Value),
+}
+
+fn reject_timed_out_manual_apply<C: crate::wf_port::w2_021::manual_apply::ManualApplyCallbacks>(
+    controller: &ManualApplyController<C>,
+    id: &str,
+) -> PollReplyOutcome {
+    let Some(_mutation) = controller.try_begin_timeout_rollback() else {
+        return PollReplyOutcome::Rejected(409, json!({ "error": "manual_edit_busy" }));
+    };
+    let rollback = controller.rollback_timed_out_reply(id);
+    PollReplyOutcome::Rejected(
+        410,
+        json!({
+            "error": "manual_apply_timed_out",
+            "rolledBackFiles": rollback.rolled_back_files,
+            "rollbackFailures": rollback.rollback_failures,
+        }),
+    )
+}
+
+/// Settles controller-owned manual-apply work before acknowledging its queue
+/// event. Other poll replies retain the ordinary queue acknowledgement path.
+fn settle_poll_reply<'a>(
+    queue: &QueueState,
+    controller: &ManualApplyController<QueueCallbacks<'a>>,
+    message: &Value,
+    id: &str,
+) -> PollReplyOutcome {
+    if let Some(event) = queue.find_pending_event_by_id(id) {
+        if event.get("type").and_then(Value::as_str) == Some("manual_edit_apply") {
+            let Some(batch) = controller.get_deferred_batch(id) else {
+                if controller.has_timed_out_id(id) {
+                    return reject_timed_out_manual_apply(controller, id);
+                }
+                return PollReplyOutcome::Rejected(
+                    409,
+                    json!({ "error": "stale_manual_apply_reply" }),
+                );
+            };
+            if message.get("id").and_then(Value::as_str) != Some(id) {
+                return PollReplyOutcome::Rejected(
+                    400,
+                    json!({ "error": "manual_apply_reply_id_mismatch" }),
+                );
+            }
+            let result = match validate_manual_apply_result_message(message, Some(id), Some(&batch))
+            {
+                Ok(result) => result,
+                Err(error) => {
+                    let body = error.get("body").cloned().unwrap_or(error);
+                    return PollReplyOutcome::Rejected(400, body);
+                }
+            };
+            if !controller.resolve_deferred(id, result) {
+                if controller.has_timed_out_id(id) {
+                    return reject_timed_out_manual_apply(controller, id);
+                }
+                return PollReplyOutcome::Rejected(
+                    409,
+                    json!({ "error": "stale_manual_apply_reply" }),
+                );
+            }
+            // The synchronous commit waiter now owns final source verification,
+            // rollback, and buffer clearing. Ack only after delivery succeeds.
+            return PollReplyOutcome::Acknowledged(queue.acknowledge_pending_event(id).is_some());
+        }
+    } else if controller.has_timed_out_id(id) {
+        return reject_timed_out_manual_apply(controller, id);
+    }
+
+    if queue.acknowledge_pending_event(id).is_some() {
+        PollReplyOutcome::Acknowledged(true)
+    } else {
+        PollReplyOutcome::Acknowledged(false)
+    }
 }
 
 fn mtime_ms(path: &Path) -> Option<u128> {
@@ -717,14 +799,29 @@ fn handle_request<'a>(
                 .and_then(|v| v.get("id").and_then(Value::as_str).map(str::to_owned));
             match id {
                 Some(id) => {
-                    let acked = queue.acknowledge_pending_event(&id);
-                    if acked.is_some() {
-                        // Forward the agent's reply to the browser via SSE.
-                        if let Some(body) = parsed.as_ref() {
-                            queue.publish_sse(poll_reply_broadcast(body, &id));
+                    let Some(body) = parsed.as_ref() else {
+                        unreachable!("id was extracted from parsed JSON")
+                    };
+                    match settle_poll_reply(queue, manual_apply_controller, body, &id) {
+                        PollReplyOutcome::Acknowledged(acked) => {
+                            // Forward only replies whose queue/controller state
+                            // was successfully settled.
+                            if acked {
+                                queue.publish_sse(poll_reply_broadcast(body, &id));
+                            }
+                            write_json(&mut stream, 200, "OK", &json!({ "ok": acked }));
+                        }
+                        PollReplyOutcome::Rejected(status, body) => {
+                            let reason = match status {
+                                400 => "Bad Request",
+                                404 => "Not Found",
+                                409 => "Conflict",
+                                410 => "Gone",
+                                _ => "Bad Request",
+                            };
+                            write_json(&mut stream, status, reason, &body);
                         }
                     }
-                    write_json(&mut stream, 200, "OK", &json!({ "ok": acked.is_some() }));
                 }
                 None => {
                     write_json(
@@ -928,6 +1025,55 @@ fn handle_request<'a>(
             // (from the JSON body for POST routes, from the query string for
             // the GET route), matching the JS `createManualEditRoutes`
             // handlers exactly — no separate check needed here.
+            if req.path == "/manual-edit-commit" && request_token_matches(&req, token) {
+                let mode = std::env::var("IMPECCABLE_LIVE_COPY_AGENT")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_ascii_lowercase();
+                let polling = queue.agent_polling_connected();
+                let unavailable = match mode.as_str() {
+                    "codex" | "claude" => Some(format!(
+                        "{mode} manual-edit provider is not supported by the live server"
+                    )),
+                    "" | "auto" | "chat" if !polling => {
+                        Some("authenticated agent polling is not connected".to_string())
+                    }
+                    "" | "auto" | "chat" => None,
+                    _ => Some(format!("unsupported manual-edit provider: {mode}")),
+                };
+                if let Some(message) = unavailable {
+                    write_json(
+                        &mut stream,
+                        503,
+                        "Service Unavailable",
+                        &json!({ "error": "unavailable", "message": message }),
+                    );
+                    return true;
+                }
+            }
+            let is_mutating_manual_route = req.method == "POST"
+                && matches!(
+                    req.path.as_str(),
+                    "/manual-edit-stash"
+                        | "/manual-edit-commit"
+                        | "/manual-edit-repair-decision"
+                        | "/manual-edit-discard"
+                );
+            let _mutation_guard = if is_mutating_manual_route && request_token_matches(&req, token)
+            {
+                let Some(guard) = manual_apply_controller.try_begin_mutation() else {
+                    write_json(
+                        &mut stream,
+                        409,
+                        "Conflict",
+                        &json!({ "error": "manual_edit_busy" }),
+                    );
+                    return true;
+                };
+                Some(guard)
+            } else {
+                None
+            };
             let body: Option<Result<Value, String>> = if req.body.is_empty() {
                 None
             } else {
@@ -946,6 +1092,7 @@ fn handle_request<'a>(
             let deps = LiveServerManualEditDeps {
                 token: token.to_string(),
                 project_root: project_root.to_path_buf(),
+                queue,
                 controller: manual_apply_controller,
             };
             match handle_manual_edit_route(&deps, &manual_req) {
@@ -956,8 +1103,10 @@ fn handle_request<'a>(
                         400 => "Bad Request",
                         401 => "Unauthorized",
                         404 => "Not Found",
+                        409 => "Conflict",
                         410 => "Gone",
                         500 => "Internal Server Error",
+                        503 => "Service Unavailable",
                         _ => "",
                     };
                     write_json(&mut stream, resp.status, reason, &resp.body);
@@ -1221,6 +1370,315 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("\"ok\":true"));
         assert_eq!(queue.len(), 0);
+    }
+
+    #[test]
+    fn manual_apply_reply_is_validated_and_resolves_waiter_before_ack() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-manual-apply-poll-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &queue });
+        let batch = json!({
+            "entries": [{
+                "id": "entry-1",
+                "pageUrl": "http://localhost/page",
+                "ops": [{ "file": "src/page.html", "type": "replace", "selector": "#hero", "value": "Updated" }]
+            }]
+        });
+
+        std::thread::scope(|scope| {
+            let waiter = scope.spawn(|| {
+                controller.push_batch_in_chunks_and_wait(
+                    &batch,
+                    Some("http://localhost/page"),
+                    None,
+                )
+            });
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            let event = loop {
+                if let Some(event) = queue.find_available_pending_event().map(|e| e.event) {
+                    break event;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "manual apply event not queued"
+                );
+                thread::sleep(Duration::from_millis(1));
+            };
+            let id = event["id"].as_str().unwrap().to_string();
+            let malformed = json!({
+                "id": id.clone(),
+                "data": { "status": "unknown", "appliedEntryIds": [], "failed": [], "files": [], "notes": [] }
+            });
+            let malformed_req = Request {
+                method: "POST".into(),
+                path: "/poll".into(),
+                query: [("token".to_string(), "tok".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: malformed.to_string().into_bytes(),
+                content_type: "application/json".into(),
+            };
+            let mut malformed_out = Vec::new();
+            handle_request(
+                malformed_req,
+                &mut malformed_out,
+                "tok",
+                &queue,
+                &root,
+                0,
+                &controller,
+                &root,
+            );
+            assert!(String::from_utf8(malformed_out)
+                .unwrap()
+                .contains("400 Bad Request"));
+            assert!(controller.get_deferred_batch(&id).is_some());
+            assert_eq!(queue.len(), 1);
+
+            let reply = json!({
+                "id": id.clone(),
+                "data": {
+                    "status": "done",
+                    "appliedEntryIds": ["entry-1"],
+                    "failed": [],
+                    "files": ["src/page.html"],
+                    "notes": []
+                }
+            });
+            let reply_req = Request {
+                method: "POST".into(),
+                path: "/poll".into(),
+                query: [("token".to_string(), "tok".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: reply.to_string().into_bytes(),
+                content_type: "application/json".into(),
+            };
+            let mut reply_out = Vec::new();
+            handle_request(
+                reply_req,
+                &mut reply_out,
+                "tok",
+                &queue,
+                &root,
+                0,
+                &controller,
+                &root,
+            );
+            let reply_text = String::from_utf8(reply_out).unwrap();
+            assert!(reply_text.contains("200 OK"), "{reply_text}");
+            assert!(reply_text.contains("\"ok\":true"), "{reply_text}");
+            assert_eq!(queue.len(), 0);
+            assert!(controller.get_deferred_batch(&id).is_none());
+            assert_eq!(waiter.join().unwrap()["status"], "done");
+        });
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn manual_stash_is_rejected_before_mutation_when_project_is_busy() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-manual-edit-busy-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &queue });
+        queue.poll_started();
+        let buffer = root
+            .join(".impeccable")
+            .join("live")
+            .join("pending-manual-edits.json");
+        let _active_mutation = controller.try_begin_mutation().unwrap();
+        let requests = [
+            Request {
+                method: "POST".into(),
+                path: "/manual-edit-stash".into(),
+                query: Default::default(),
+                body: json!({
+                    "token": "tok",
+                    "id": "entry-1",
+                    "pageUrl": "http://localhost/page",
+                    "element": { "tag": "button" },
+                    "ops": [{ "type": "setText", "value": "Updated" }]
+                })
+                .to_string()
+                .into_bytes(),
+                content_type: "application/json".into(),
+            },
+            Request {
+                method: "POST".into(),
+                path: "/manual-edit-commit".into(),
+                query: [("token".to_string(), "tok".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: vec![],
+                content_type: String::new(),
+            },
+            Request {
+                method: "POST".into(),
+                path: "/manual-edit-repair-decision".into(),
+                query: Default::default(),
+                body: json!({ "token": "tok", "action": "rollback" })
+                    .to_string()
+                    .into_bytes(),
+                content_type: "application/json".into(),
+            },
+            Request {
+                method: "POST".into(),
+                path: "/manual-edit-discard".into(),
+                query: [("token".to_string(), "tok".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: vec![],
+                content_type: String::new(),
+            },
+        ];
+        for req in requests {
+            let mut out = Vec::new();
+            handle_request(req, &mut out, "tok", &queue, &root, 0, &controller, &root);
+            let text = String::from_utf8(out).unwrap();
+            assert!(text.contains("409 Conflict"));
+            assert!(text.contains("manual_edit_busy"));
+            assert!(
+                !buffer.exists(),
+                "busy mutation must not write the edit buffer"
+            );
+        }
+        queue.poll_finished();
+        drop(_active_mutation);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn late_manual_apply_reply_rolls_back_and_returns_gone() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-manual-apply-timeout-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let queue = QueueState::new();
+        let controller = ManualApplyController::with_timeouts(
+            root.clone(),
+            QueueCallbacks { queue: &queue },
+            Duration::from_millis(20),
+            20,
+        );
+        let batch = json!({
+            "entries": [{
+                "id": "entry-timeout",
+                "ops": [{ "file": "src/page.html", "type": "replace", "selector": "#hero", "value": "Updated" }]
+            }]
+        });
+        std::thread::scope(|scope| {
+            let waiter =
+                scope.spawn(|| controller.push_batch_in_chunks_and_wait(&batch, None, None));
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            let id = loop {
+                if let Some(event) = queue.find_available_pending_event() {
+                    break event.event["id"].as_str().unwrap().to_string();
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "manual apply event not queued"
+                );
+                thread::sleep(Duration::from_millis(1));
+            };
+            assert_eq!(waiter.join().unwrap()["status"], "error");
+            assert!(controller.has_timed_out_id(&id));
+            let late_reply = json!({ "id": id.clone() });
+            let late_request = || Request {
+                method: "POST".into(),
+                path: "/poll".into(),
+                query: [("token".to_string(), "tok".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: late_reply.to_string().into_bytes(),
+                content_type: "application/json".into(),
+            };
+            let _busy_guard = controller.try_begin_timeout_rollback().unwrap();
+            let mut late_out = Vec::new();
+            handle_request(
+                late_request(),
+                &mut late_out,
+                "tok",
+                &queue,
+                &root,
+                0,
+                &controller,
+                &root,
+            );
+            assert!(String::from_utf8(late_out)
+                .unwrap()
+                .contains("409 Conflict"));
+            assert!(controller.has_timed_out_id(&id));
+            drop(_busy_guard);
+            let mut late_out = Vec::new();
+            handle_request(
+                late_request(),
+                &mut late_out,
+                "tok",
+                &queue,
+                &root,
+                0,
+                &controller,
+                &root,
+            );
+            assert!(String::from_utf8(late_out).unwrap().contains("410 Gone"));
+            assert!(!controller.has_timed_out_id(&id));
+        });
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn orphan_manual_apply_reply_is_rejected_without_queue_ack() {
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(
+            std::path::PathBuf::from("."),
+            QueueCallbacks { queue: &queue },
+        );
+        queue.enqueue_event(json!({ "id": "orphan-1", "type": "manual_edit_apply" }));
+        let entry = queue.find_available_pending_event().unwrap();
+        queue.lease_event(entry.seq, 30_000);
+        let req = Request {
+            method: "POST".into(),
+            path: "/poll".into(),
+            query: [("token".to_string(), "tok".to_string())]
+                .into_iter()
+                .collect(),
+            body: br#"{"id":"orphan-1"}"#.to_vec(),
+            content_type: "application/json".into(),
+        };
+        let mut out = Vec::new();
+        handle_request(
+            req,
+            &mut out,
+            "tok",
+            &queue,
+            Path::new("."),
+            0,
+            &controller,
+            Path::new("."),
+        );
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("409 Conflict"), "{text}");
+        assert_eq!(queue.len(), 1);
     }
 
     #[test]

@@ -85,10 +85,27 @@ impl ExecutableIdentity {
     pub fn version_qualified(&self, requirement: Option<&str>) -> bool {
         self.version.qualified
             && requirement.is_none_or(|required| {
-                self.version
-                    .output
-                    .as_deref()
-                    .is_some_and(|output| output.contains(required))
+                self.version.output.as_deref().is_some_and(|output| {
+                    if let Some(exact) = required.strip_prefix("exact:") {
+                        let versions = output
+                            .split(|character: char| {
+                                !(character.is_ascii_alphanumeric()
+                                    || matches!(character, '.' | '-' | '+' | '_'))
+                            })
+                            .filter(|token| {
+                                let version = token.strip_prefix('v').unwrap_or(token);
+                                version.contains('.')
+                                    && version.as_bytes().first().is_some_and(u8::is_ascii_digit)
+                            })
+                            .collect::<Vec<_>>();
+                        !exact.is_empty()
+                            && versions.len() == 1
+                            && (versions[0] == exact
+                                || versions[0].strip_prefix('v') == Some(exact))
+                    } else {
+                        output.contains(required)
+                    }
+                })
             })
     }
 }
@@ -105,4 +122,35 @@ fn hex_encode(bytes: &[u8]) -> String {
         output.push(HEX[(byte & 0xf) as usize] as char);
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn identity(output: &str) -> ExecutableIdentity {
+        ExecutableIdentity {
+            requested_path: "/test/runner".into(),
+            canonical_path: Some(PathBuf::from("/test/runner")),
+            digest: Some("sha256:test".into()),
+            digest_state: DigestState::Sealed,
+            signature: SignatureState::Unknown,
+            version: VersionProbeEvidence {
+                args: vec!["--version".into()],
+                output: Some(output.into()),
+                exit_code: Some(0),
+                qualified: true,
+            },
+        }
+    }
+
+    #[test]
+    fn exact_version_mode_is_opt_in_and_rejects_substrings() {
+        assert!(identity("pnpm v9.1.0").version_qualified(Some("exact:9.1.0")));
+        assert!(!identity("pnpm 19.1.0").version_qualified(Some("exact:9.1.0")));
+        assert!(!identity("pnpm 9.1.0-rc.1").version_qualified(Some("exact:9.1.0")));
+        assert!(!identity("pnpm 19.1.0, expected 9.1.0").version_qualified(Some("exact:9.1.0")));
+        assert!(!identity("pnpm 19.1.0").version_qualified(Some("exact:")));
+        assert!(identity("pnpm 19.1.0").version_qualified(Some("9.1.0")));
+    }
 }

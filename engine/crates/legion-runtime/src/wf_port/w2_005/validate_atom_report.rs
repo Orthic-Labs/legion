@@ -350,9 +350,21 @@ pub fn parse_table(text: &str, expected_header: &[&str]) -> Result<Vec<Row>, Par
 pub trait ReportFs {
     fn read_to_string(&self, path: &str) -> std::io::Result<String>;
     fn is_file(&self, path: &str) -> bool;
-    /// Resolves `path` to an absolute, `.`/`..`-collapsed form (Python's
-    /// `Path.resolve()`), used for the evidence-path containment check.
+    /// Resolves existing paths to canonical absolute paths (including symlinks),
+    /// and collapses missing paths lexically, for evidence containment checks.
     fn resolve(&self, path: &str) -> String;
+    /// Returns the checked-out commit and whether tracked/untracked worktree
+    /// changes are absent. Implementations that cannot inspect Git may keep
+    /// the default; strict revision binding will reject the unavailable source.
+    fn revision_snapshot(&self, _root: &str) -> Result<RevisionSnapshot, String> {
+        Err("repository revision snapshot unavailable".to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RevisionSnapshot {
+    pub commit: String,
+    pub clean: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -363,6 +375,10 @@ pub struct Manifest {
     pub scope_repos: BTreeMap<String, Vec<String>>,
     /// `repo -> scope -> platforms` (`repo_targets`).
     pub repo_targets: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    /// Exact full Git commit IDs for repositories in the frozen corpus.
+    pub repo_revisions: BTreeMap<String, String>,
+    /// Whether the current product root was explicitly supplied by the caller.
+    pub product_root_declared: bool,
 }
 
 /// Options mirroring the CLI flags (`--expected-rows`, `--max-repeat`,
@@ -378,6 +394,9 @@ pub struct ValidateOptions {
     pub canon: Option<String>,
     /// `--ledgers`: repo-ledger table paths, read for the canon provenance checks.
     pub ledgers: Option<Vec<String>>,
+    /// Refuse PASS unless every source root used by this report is pinned to
+    /// its declared commit and has a clean tracked/untracked worktree.
+    pub require_revisions: bool,
 }
 
 /// Historical 11-column `final` header (`267bae38`). The current 8-column form stays accepted.
@@ -435,6 +454,19 @@ pub fn finish_manifest(
     let product_root_declared = current_product_root.is_some();
     if let Some(root) = current_product_root {
         manifest.repo_roots.insert(manifest.product.clone(), root);
+        manifest.product_root_declared = true;
+    }
+    for (repo, revision) in &manifest.repo_revisions {
+        if !manifest.repo_roots.contains_key(repo) {
+            return Err(format!(
+                "REVISION_UNPROVEN: repo_revisions references unknown repository `{repo}`"
+            ));
+        }
+        if !valid_commit_id(revision) {
+            return Err(format!(
+                "REVISION_UNPROVEN: repo_revisions has invalid full commit ID for `{repo}`"
+            ));
+        }
     }
     for (scope, repos) in &manifest.scope_repos {
         for repo in repos {
@@ -457,6 +489,12 @@ pub fn finish_manifest(
         }
     }
     Ok(manifest)
+}
+
+fn valid_commit_id(commit: &str) -> bool {
+    matches!(commit.len(), 40 | 64)
+        && commit == commit.to_ascii_lowercase()
+        && commit.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn platforms_nonempty(manifest: &Manifest, repo: &str, scope: &str) -> bool {
@@ -702,7 +740,9 @@ pub fn validate(
                 let candidate_str = format!("{}/{}", root.trim_end_matches('/'), relative);
                 let candidate = fs.resolve(&candidate_str);
                 let root_resolved = fs.resolve(root);
-                if !candidate.starts_with(&root_resolved) {
+                if !std::path::Path::new(&candidate)
+                    .starts_with(std::path::Path::new(&root_resolved))
+                {
                     errors.push(format!(
                         "line {line_number}: evidence path escapes `{repo}` root: {relative}"
                     ));
@@ -792,6 +832,50 @@ fn extract_evidence_citations(cell: &str) -> Vec<(String, String)> {
         }
     }
     out
+}
+
+fn provenance_entries(cell: &str) -> Vec<&str> {
+    cell.split("<br>").collect()
+}
+
+fn collect_referenced_roots(
+    rows: &[Row],
+    header: &[&str],
+    manifest: &Manifest,
+    roots: &mut BTreeSet<String>,
+) {
+    if let Some(column) = header.iter().position(|name| *name == "Repository") {
+        for (_, cells) in rows {
+            let repo = cells[column].trim();
+            if manifest.repo_roots.contains_key(repo) {
+                roots.insert(repo.to_string());
+            }
+        }
+    }
+    if let Some(column) = header.iter().position(|name| *name == "Source evidence") {
+        for (_, cells) in rows {
+            for (repo, _) in extract_evidence_citations(&cells[column]) {
+                if manifest.repo_roots.contains_key(&repo) {
+                    roots.insert(repo);
+                }
+            }
+        }
+    }
+    if let Some(column) = header
+        .iter()
+        .position(|name| *name == "Repository provenance")
+    {
+        for (_, cells) in rows {
+            for entry in provenance_entries(&cells[column]) {
+                if let Some((repo, _)) = entry.split_once(':') {
+                    let repo = repo.trim();
+                    if manifest.repo_roots.contains_key(repo) {
+                        roots.insert(repo.to_string());
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Splits on `;` boundaries the way the Python regex's `(?:^|;\s*)` anchor
@@ -915,7 +999,7 @@ fn validate_citation(
     let root = root.trim_end_matches('/');
     let candidate = fs.resolve(&format!("{root}/{relative}"));
     let root_resolved = fs.resolve(root);
-    if candidate != root_resolved && !candidate.starts_with(&format!("{root_resolved}/")) {
+    if !std::path::Path::new(&candidate).starts_with(std::path::Path::new(&root_resolved)) {
         errors.push(format!(
             "line {line_number}: evidence path escapes `{repo}` root: {relative}"
         ));
@@ -1153,7 +1237,7 @@ pub fn validate_table_mode(
                     errors.push(format!("line {line}: invalid atom ID `{atom_id}`"));
                 }
                 let provenance_text = c("Repository provenance");
-                let entries: Vec<&str> = provenance_text.split("<br>").collect();
+                let entries = provenance_entries(&provenance_text);
                 if entries.iter().any(|entry| !entry.contains(':')) {
                     errors.push(format!(
                         "line {line}: repository provenance lacks `Repository:Behavior ID`"
@@ -1516,6 +1600,188 @@ pub fn validate_table_mode(
 pub struct RunOutcome {
     pub stdout: String,
     pub code: i32,
+    pub revision_bound: bool,
+    pub declared_revisions: BTreeMap<String, String>,
+    pub observed_revisions: BTreeMap<String, RevisionSnapshot>,
+}
+
+struct RevisionBinding {
+    errors: Vec<String>,
+    revision_bound: bool,
+    declared_revisions: BTreeMap<String, String>,
+    observed_revisions: BTreeMap<String, RevisionSnapshot>,
+}
+
+fn revision_unproven(reason: impl Into<String>) -> String {
+    format!("REVISION_UNPROVEN: {}", reason.into())
+}
+
+fn bind_report_revisions(
+    rows: &[Row],
+    header: &[&str],
+    mode: &str,
+    opts: &ValidateOptions,
+    fs: &dyn ReportFs,
+) -> RevisionBinding {
+    let mut binding = RevisionBinding {
+        errors: Vec::new(),
+        revision_bound: false,
+        declared_revisions: BTreeMap::new(),
+        observed_revisions: BTreeMap::new(),
+    };
+    let Some(manifest) = opts.manifest.as_ref() else {
+        if opts.require_revisions {
+            binding
+                .errors
+                .push(revision_unproven("--require-revisions requires --manifest"));
+        }
+        return binding;
+    };
+
+    let mut roots = BTreeSet::new();
+    let mut scope_mapping_complete = true;
+    if mode == "repo-ledger" {
+        if let Some(repo) = opts.repository.as_ref() {
+            roots.insert(repo.clone());
+        }
+    } else {
+        let scope_column = header
+            .iter()
+            .position(|name| *name == "Scope" || *name == "Platform");
+        if let Some(scope_column) = scope_column {
+            for (_, cells) in rows {
+                let scope = &cells[scope_column];
+                match manifest.scope_repos.get(scope) {
+                    Some(repositories) if !repositories.is_empty() => {
+                        roots.extend(repositories.iter().cloned());
+                    }
+                    Some(_) => {
+                        scope_mapping_complete = false;
+                        if opts.require_revisions {
+                            binding.errors.push(revision_unproven(format!(
+                                "manifest has no source repositories for report scope `{scope}`"
+                            )));
+                        }
+                    }
+                    None => {
+                        scope_mapping_complete = false;
+                        if opts.require_revisions {
+                            binding.errors.push(revision_unproven(format!(
+                                "manifest lacks source repository mapping for report scope `{scope}`"
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if manifest.product_root_declared {
+        roots.insert(manifest.product.clone());
+    }
+    collect_referenced_roots(rows, header, manifest, &mut roots);
+
+    match mode {
+        "canon" => {
+            if let Some(ledgers) = opts.ledgers.as_ref() {
+                let ledger_header = headers("repo-ledger").unwrap_or(&[]);
+                for ledger in ledgers {
+                    if let Ok(ledger_rows) = read_table_file(fs, ledger, ledger_header) {
+                        collect_referenced_roots(&ledger_rows, ledger_header, manifest, &mut roots);
+                    }
+                }
+            }
+        }
+        "mechanism-cards" | "final" => {
+            if let Some(canon_path) = opts.canon.as_deref() {
+                let canon_header = headers("canon").unwrap_or(&[]);
+                if let Ok(canon_rows) = read_table_file(fs, canon_path, canon_header) {
+                    collect_referenced_roots(&canon_rows, canon_header, manifest, &mut roots);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    if opts.require_revisions && roots.is_empty() {
+        binding.errors.push(revision_unproven(
+            "--require-revisions found no source roots used by the report",
+        ));
+        return binding;
+    }
+
+    let strict = opts.require_revisions;
+    let mut all_bound = !roots.is_empty() && scope_mapping_complete;
+    for repo in roots {
+        let root = manifest.repo_roots.get(&repo);
+        let declared = manifest.repo_revisions.get(&repo);
+        if let Some(revision) = declared {
+            binding
+                .declared_revisions
+                .insert(repo.clone(), revision.clone());
+            if !valid_commit_id(revision) {
+                binding.errors.push(revision_unproven(format!(
+                    "manifest has invalid full commit ID for `{repo}`"
+                )));
+                all_bound = false;
+                continue;
+            }
+        } else if strict {
+            binding.errors.push(revision_unproven(format!(
+                "manifest lacks exact repository revision for `{repo}`"
+            )));
+            all_bound = false;
+            continue;
+        } else {
+            all_bound = false;
+            continue;
+        }
+
+        let Some(root) = root else {
+            binding.errors.push(revision_unproven(format!(
+                "manifest lacks source root for revision-bound repository `{repo}`"
+            )));
+            all_bound = false;
+            continue;
+        };
+        let snapshot = match fs.revision_snapshot(root) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                binding.errors.push(revision_unproven(format!(
+                    "could not inspect repository snapshot for `{repo}`: {error}"
+                )));
+                all_bound = false;
+                continue;
+            }
+        };
+        binding
+            .observed_revisions
+            .insert(repo.clone(), snapshot.clone());
+        if !valid_commit_id(&snapshot.commit) {
+            binding.errors.push(revision_unproven(format!(
+                "source snapshot returned invalid full commit ID for `{repo}`"
+            )));
+            all_bound = false;
+            continue;
+        }
+        if !snapshot.commit.eq_ignore_ascii_case(declared.unwrap()) {
+            binding.errors.push(revision_unproven(format!(
+                "repository `{repo}` revision mismatch: manifest declares {}, source is {}",
+                declared.unwrap(),
+                snapshot.commit
+            )));
+            all_bound = false;
+        }
+        if !snapshot.clean {
+            if strict {
+                binding.errors.push(revision_unproven(format!(
+                    "repository `{repo}` source snapshot has tracked or untracked changes"
+                )));
+            }
+            all_bound = false;
+        }
+    }
+    binding.revision_bound = all_bound && binding.errors.is_empty();
+    binding
 }
 
 /// Port of `main()`: parse the report, run [`validate`], and format the
@@ -1533,6 +1799,9 @@ pub fn run(
         return RunOutcome {
             stdout: format!("FAIL: unknown mode `{mode}`"),
             code: 1,
+            revision_bound: false,
+            declared_revisions: BTreeMap::new(),
+            observed_revisions: BTreeMap::new(),
         };
     };
     let rows = match parse_table(report_text, header) {
@@ -1541,15 +1810,20 @@ pub fn run(
             return RunOutcome {
                 stdout: format!("FAIL: {e}"),
                 code: 1,
+                revision_bound: false,
+                declared_revisions: BTreeMap::new(),
+                observed_revisions: BTreeMap::new(),
             }
         }
     };
+    let revision_binding = bind_report_revisions(&rows, header, mode, opts, fs);
     let historical_final = mode == "final" && header == FINAL_HISTORICAL_HEADER;
-    let errors = if is_table_mode(mode) || historical_final {
+    let mut errors = if is_table_mode(mode) || historical_final {
         validate_table_mode(mode, &rows, header, opts, fs)
     } else {
         validate(&rows, header, opts, fs)
     };
+    errors.extend(revision_binding.errors.iter().cloned());
     if !errors.is_empty() {
         let mut out = format!("FAIL: {} issue(s)\n", errors.len());
         for issue in &errors {
@@ -1558,11 +1832,17 @@ pub fn run(
         return RunOutcome {
             stdout: out.trim_end().to_string(),
             code: 1,
+            revision_bound: revision_binding.revision_bound,
+            declared_revisions: revision_binding.declared_revisions,
+            observed_revisions: revision_binding.observed_revisions,
         };
     }
     RunOutcome {
         stdout: format!("PASS: {report_path} ({} rows, mode={mode})", rows.len()),
         code: 0,
+        revision_bound: revision_binding.revision_bound,
+        declared_revisions: revision_binding.declared_revisions,
+        observed_revisions: revision_binding.observed_revisions,
     }
 }
 
@@ -1581,6 +1861,323 @@ mod tests {
         fn resolve(&self, path: &str) -> String {
             path.to_string()
         }
+    }
+
+    struct SnapshotFs {
+        snapshot: RevisionSnapshot,
+    }
+    impl ReportFs for SnapshotFs {
+        fn read_to_string(&self, _path: &str) -> std::io::Result<String> {
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "n/a"))
+        }
+        fn is_file(&self, _path: &str) -> bool {
+            false
+        }
+        fn resolve(&self, path: &str) -> String {
+            path.to_string()
+        }
+        fn revision_snapshot(&self, root: &str) -> Result<RevisionSnapshot, String> {
+            if root != "/repo/a" {
+                return Err("unexpected repository root".to_string());
+            }
+            Ok(self.snapshot.clone())
+        }
+    }
+
+    struct SnapshotMapFs(BTreeMap<String, RevisionSnapshot>);
+    impl ReportFs for SnapshotMapFs {
+        fn read_to_string(&self, _path: &str) -> std::io::Result<String> {
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "n/a"))
+        }
+        fn is_file(&self, _path: &str) -> bool {
+            false
+        }
+        fn resolve(&self, path: &str) -> String {
+            path.to_string()
+        }
+        fn revision_snapshot(&self, root: &str) -> Result<RevisionSnapshot, String> {
+            self.0
+                .get(root)
+                .cloned()
+                .ok_or_else(|| format!("unexpected repository root {root}"))
+        }
+    }
+
+    struct ContainmentFs;
+    impl ReportFs for ContainmentFs {
+        fn read_to_string(&self, _path: &str) -> std::io::Result<String> {
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "n/a"))
+        }
+        fn is_file(&self, _path: &str) -> bool {
+            false
+        }
+        fn resolve(&self, path: &str) -> String {
+            let mut resolved = std::path::PathBuf::new();
+            for component in std::path::Path::new(path).components() {
+                match component {
+                    std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir => {
+                        resolved.pop();
+                    }
+                    other => resolved.push(other.as_os_str()),
+                }
+            }
+            resolved.to_string_lossy().to_string()
+        }
+    }
+
+    fn revision_test_opts(
+        require_revisions: bool,
+        repo_revisions: BTreeMap<String, String>,
+    ) -> ValidateOptions {
+        ValidateOptions {
+            manifest: Some(Manifest {
+                product: "Product".to_string(),
+                repo_roots: BTreeMap::from([("repoA".to_string(), "/repo/a".to_string())]),
+                scope_repos: BTreeMap::from([("S1".to_string(), vec!["repoA".to_string()])]),
+                repo_targets: BTreeMap::new(),
+                repo_revisions,
+                product_root_declared: false,
+            }),
+            require_revisions,
+            ..Default::default()
+        }
+    }
+
+    const REVISION_REPORT: &str = "\
+| Platform | Domain | Atom | Definition / boundary | Source evidence |
+| --- | --- | --- | --- | --- |
+| S1 | Paste | Clipboard transaction | boundary text | some/path.rs |
+";
+
+    #[test]
+    fn strict_revision_binding_accepts_matching_clean_snapshot() {
+        let commit = "a".repeat(40);
+        let fs = SnapshotFs {
+            snapshot: RevisionSnapshot {
+                commit: commit.clone(),
+                clean: true,
+            },
+        };
+        let opts = revision_test_opts(true, BTreeMap::from([("repoA".to_string(), commit)]));
+
+        let outcome = run(REVISION_REPORT, "inventory", &opts, &fs, "inventory.md");
+
+        assert_eq!(outcome.code, 0, "{}", outcome.stdout);
+        assert!(outcome.revision_bound);
+        assert!(outcome.observed_revisions.contains_key("repoA"));
+    }
+
+    #[test]
+    fn revision_binding_includes_cross_repository_source_citations() {
+        let revision_a = "a".repeat(40);
+        let revision_b = "b".repeat(40);
+        let fs = SnapshotMapFs(BTreeMap::from([
+            (
+                "/repo/a".to_string(),
+                RevisionSnapshot {
+                    commit: revision_a.clone(),
+                    clean: true,
+                },
+            ),
+            (
+                "/repo/b".to_string(),
+                RevisionSnapshot {
+                    commit: revision_b.clone(),
+                    clean: true,
+                },
+            ),
+        ]));
+        let mut opts = revision_test_opts(
+            true,
+            BTreeMap::from([
+                ("repoA".to_string(), revision_a),
+                ("repoB".to_string(), revision_b.clone()),
+            ]),
+        );
+        opts.manifest
+            .as_mut()
+            .unwrap()
+            .repo_roots
+            .insert("repoB".to_string(), "/repo/b".to_string());
+        opts.manifest
+            .as_mut()
+            .unwrap()
+            .repo_roots
+            .insert("repoC".to_string(), "/repo/c".to_string());
+        let report = REVISION_REPORT.replace("some/path.rs", "repoB: `src/mechanism.rs#save`");
+        let rows = parse_table(&report, headers("inventory").unwrap()).unwrap();
+
+        let binding = bind_report_revisions(
+            &rows,
+            headers("inventory").unwrap(),
+            "inventory",
+            &opts,
+            &fs,
+        );
+
+        assert!(binding.revision_bound, "{:?}", binding.errors);
+        assert!(binding.observed_revisions.contains_key("repoB"));
+        assert_eq!(
+            binding
+                .observed_revisions
+                .keys()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["repoA", "repoB"])
+        );
+
+        opts.manifest
+            .as_mut()
+            .unwrap()
+            .repo_revisions
+            .remove("repoB");
+        let binding = bind_report_revisions(
+            &rows,
+            headers("inventory").unwrap(),
+            "inventory",
+            &opts,
+            &fs,
+        );
+        assert!(!binding.revision_bound);
+        assert!(binding
+            .errors
+            .iter()
+            .any(|error| { error.contains("REVISION_UNPROVEN") && error.contains("repoB") }));
+    }
+
+    #[test]
+    fn revision_binding_includes_canon_provenance_repositories() {
+        let revision_a = "a".repeat(40);
+        let revision_b = "b".repeat(40);
+        let fs = SnapshotMapFs(BTreeMap::from([
+            (
+                "/repo/a".to_string(),
+                RevisionSnapshot {
+                    commit: revision_a.clone(),
+                    clean: true,
+                },
+            ),
+            (
+                "/repo/b".to_string(),
+                RevisionSnapshot {
+                    commit: revision_b.clone(),
+                    clean: true,
+                },
+            ),
+        ]));
+        let mut opts = revision_test_opts(
+            true,
+            BTreeMap::from([
+                ("repoA".to_string(), revision_a),
+                ("repoB".to_string(), revision_b),
+            ]),
+        );
+        opts.manifest
+            .as_mut()
+            .unwrap()
+            .repo_roots
+            .insert("repoB".to_string(), "/repo/b".to_string());
+        let report = "\
+| Scope | Domain | Atom ID | Atom | Boundary | Repository provenance |
+| --- | --- | --- | --- | --- | --- |
+| S1 | State | core.state.persist | Persist state | State persists | repoB:behavior.save.01 |
+";
+        let canon_header = headers("canon").unwrap();
+        let rows = parse_table(report, canon_header).unwrap();
+
+        let binding = bind_report_revisions(&rows, canon_header, "canon", &opts, &fs);
+
+        assert!(binding.revision_bound, "{:?}", binding.errors);
+        assert!(binding.observed_revisions.contains_key("repoB"));
+    }
+
+    #[test]
+    fn strict_revision_binding_rejects_mismatch_and_missing_revision() {
+        let fs = SnapshotFs {
+            snapshot: RevisionSnapshot {
+                commit: "a".repeat(40),
+                clean: true,
+            },
+        };
+        let mismatch = revision_test_opts(
+            true,
+            BTreeMap::from([("repoA".to_string(), "b".repeat(40))]),
+        );
+        let outcome = run(REVISION_REPORT, "inventory", &mismatch, &fs, "inventory.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome.stdout.contains("revision mismatch"));
+
+        let missing = revision_test_opts(true, BTreeMap::new());
+        let outcome = run(REVISION_REPORT, "inventory", &missing, &fs, "inventory.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome.stdout.contains("lacks exact repository revision"));
+    }
+
+    #[test]
+    fn strict_revision_binding_rejects_dirty_worktree() {
+        let commit = "a".repeat(40);
+        let fs = SnapshotFs {
+            snapshot: RevisionSnapshot {
+                commit: commit.clone(),
+                clean: false,
+            },
+        };
+        let opts = revision_test_opts(true, BTreeMap::from([("repoA".to_string(), commit)]));
+        let outcome = run(REVISION_REPORT, "inventory", &opts, &fs, "inventory.md");
+        assert_eq!(outcome.code, 1);
+        assert!(outcome
+            .stdout
+            .contains("source snapshot has tracked or untracked changes"));
+        assert!(!outcome.revision_bound);
+    }
+
+    #[test]
+    fn structural_pass_without_revision_gate_is_not_revision_bound() {
+        let fs = SnapshotFs {
+            snapshot: RevisionSnapshot {
+                commit: "a".repeat(40),
+                clean: true,
+            },
+        };
+        let opts = revision_test_opts(false, BTreeMap::new());
+        let outcome = run(REVISION_REPORT, "inventory", &opts, &fs, "inventory.md");
+        assert_eq!(outcome.code, 0, "{}", outcome.stdout);
+        assert!(!outcome.revision_bound);
+        assert!(outcome.declared_revisions.is_empty());
+        assert!(outcome.observed_revisions.is_empty());
+    }
+
+    #[test]
+    fn evidence_paths_cannot_escape_declared_repository_root() {
+        let mut errors = Vec::new();
+        validate_citation(
+            &mut errors,
+            3,
+            "repoA",
+            "../outside.rs#fn leaked",
+            "/repo/a",
+            &ContainmentFs,
+        );
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("evidence path escapes `repoA` root")));
+    }
+
+    #[test]
+    fn evidence_paths_cannot_escape_to_sibling_prefix_root() {
+        let mut errors = Vec::new();
+        validate_citation(
+            &mut errors,
+            3,
+            "repoA",
+            "../ab/leaked.rs#fn leaked",
+            "/repo/a",
+            &ContainmentFs,
+        );
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("evidence path escapes `repoA` root")));
     }
 
     #[test]
@@ -1710,6 +2307,8 @@ mod tests {
                         BTreeMap::from([("S1".to_string(), vec!["macOS".to_string()])]),
                     ),
                 ]),
+                repo_revisions: BTreeMap::new(),
+                product_root_declared: false,
             }),
             canon: Some("/canon/c.md".to_string()),
             ledgers: Some(vec!["/ledger/a.md".to_string()]),
@@ -2125,6 +2724,8 @@ mod tests {
             repo_roots: BTreeMap::new(),
             scope_repos: BTreeMap::from([("S1".to_string(), vec!["x".to_string()])]),
             repo_targets: BTreeMap::new(),
+            repo_revisions: BTreeMap::new(),
+            product_root_declared: false,
         };
         let err = finish_manifest(manifest, None).unwrap_err();
         assert_eq!(err, "scope `S1` references unknown repository `x`");
@@ -2137,9 +2738,28 @@ mod tests {
             repo_roots: BTreeMap::new(),
             scope_repos: BTreeMap::from([("S1".to_string(), Vec::new())]),
             repo_targets: BTreeMap::new(),
+            repo_revisions: BTreeMap::new(),
+            product_root_declared: false,
         };
         let err = finish_manifest(manifest, Some("/p".to_string())).unwrap_err();
         assert_eq!(err, "repo_targets lacks non-empty `P` / `S1` platform list");
+    }
+
+    #[test]
+    fn finish_manifest_rejects_invalid_revision_ids() {
+        let manifest = Manifest {
+            product: "Product".to_string(),
+            repo_roots: BTreeMap::from([("repoA".to_string(), "/repo/a".to_string())]),
+            scope_repos: BTreeMap::new(),
+            repo_targets: BTreeMap::new(),
+            repo_revisions: BTreeMap::from([("repoA".to_string(), "main".to_string())]),
+            product_root_declared: false,
+        };
+        let err = finish_manifest(manifest, None).unwrap_err();
+        assert_eq!(
+            err,
+            "REVISION_UNPROVEN: repo_revisions has invalid full commit ID for `repoA`"
+        );
     }
 
     #[test]

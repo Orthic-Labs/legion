@@ -25,8 +25,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use std::sync::Mutex;
-use std::time::Duration;
+use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
@@ -1389,6 +1389,7 @@ pub struct PendingEventEntry {
 /// Port of one `pendingApplyDeferreds` map value.
 struct DeferredApply {
     sender: mpsc::Sender<DeferredOutcome>,
+    deadline: Instant,
     event: Value,
     batch: Value,
     page_url: Option<String>,
@@ -1421,6 +1422,7 @@ struct ControllerState {
 /// `cwd = () => process.cwd()` option) and a [`ManualApplyCallbacks`] impl.
 pub struct ManualApplyController<C: ManualApplyCallbacks> {
     state: Mutex<ControllerState>,
+    mutation_gate: Mutex<()>,
     callbacks: C,
     cwd: PathBuf,
     hard_timeout: Duration,
@@ -1449,10 +1451,31 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                 pending_apply_deferreds: HashMap::new(),
                 timed_out_apply_ids: HashMap::new(),
             }),
+            mutation_gate: Mutex::new(()),
             callbacks,
             cwd,
             hard_timeout,
             soft_deadline_ms,
+        }
+    }
+
+    /// Acquires exclusive project mutation ownership without waiting. Starting
+    /// a new mutation also fences rollback snapshots from older timed-out
+    /// applies; their IDs remain available for late-reply rejection.
+    pub(crate) fn try_begin_mutation(&self) -> Option<MutexGuard<'_, ()>> {
+        let guard = self.try_begin_timeout_rollback()?;
+        for details in self.state.lock().unwrap().timed_out_apply_ids.values_mut() {
+            details.rollback_snapshot.clear();
+        }
+        Some(guard)
+    }
+
+    /// Exclusively owns the project while rolling back one timed-out apply.
+    /// Unlike a new user mutation, this preserves the selected snapshot.
+    pub(crate) fn try_begin_timeout_rollback(&self) -> Option<MutexGuard<'_, ()>> {
+        match self.mutation_gate.try_lock() {
+            Ok(guard) => Some(guard),
+            Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => return None,
         }
     }
 
@@ -1468,6 +1491,32 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
             if let Some(oldest) = state.timed_out_apply_ids.keys().next().cloned() {
                 state.timed_out_apply_ids.remove(&oldest);
             }
+        }
+    }
+
+    fn classify_receive_timeout(
+        &self,
+        event_id: &str,
+        rx: &mpsc::Receiver<DeferredOutcome>,
+    ) -> (bool, Option<DeferredOutcome>) {
+        let mut state = self.state.lock().unwrap();
+        if let Some(deferred) = state.pending_apply_deferreds.remove(event_id) {
+            Self::tombstone_timed_out_apply_id(
+                &mut state,
+                event_id,
+                TimedOutDetails {
+                    batch: deferred.batch,
+                    rollback_snapshot: deferred.rollback_snapshot,
+                    cwd: deferred.cwd,
+                    reason: None,
+                },
+            );
+            (true, None)
+        } else {
+            // Resolve/reject sends and removes under this same state lock. If
+            // it won the race with recv_timeout, consume its queued result so
+            // caller agrees with HTTP route's delivery decision.
+            (false, rx.try_recv().ok())
         }
     }
 
@@ -1527,6 +1576,7 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
                 event_id.clone(),
                 DeferredApply {
                     sender: tx,
+                    deadline: Instant::now() + self.hard_timeout,
                     event: event.clone(),
                     batch: batch.clone(),
                     page_url: page_url.map(str::to_string),
@@ -1541,36 +1591,31 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
             Ok(DeferredOutcome::Resolve(body)) => Ok(body),
             Ok(DeferredOutcome::Reject(reason)) => Err(reason),
             Err(_timeout) => {
-                let mut state = self.state.lock().unwrap();
-                // Remove regardless of whether it is still present: if
-                // `resolve_deferred`/`reject_deferred` raced us and already
-                // removed it, this is a no-op, matching JS's
-                // fire-and-forget `setTimeout` (it always fires once
-                // scheduled, even if the promise settled just before).
-                state.pending_apply_deferreds.remove(&event_id);
-                Self::tombstone_timed_out_apply_id(
-                    &mut state,
-                    &event_id,
-                    TimedOutDetails {
-                        batch: batch.clone(),
-                        rollback_snapshot,
-                        cwd: self.cwd.clone(),
-                        reason: None,
-                    },
-                );
-                drop(state);
+                let (newly_timed_out, delivered_outcome) =
+                    self.classify_receive_timeout(&event_id, &rx);
+                if let Some(outcome) = delivered_outcome {
+                    return match outcome {
+                        DeferredOutcome::Resolve(body) => Ok(body),
+                        DeferredOutcome::Reject(reason) => Err(reason),
+                    };
+                }
+                if newly_timed_out {
+                    remove_manual_apply_evidence(event["evidencePath"].as_str(), &self.cwd);
+                    self.callbacks.record_manual_edit_activity(
+                        "manual_edit_apply_timeout",
+                        serde_json::json!({
+                            "id": event_id,
+                            "pageUrl": page_url,
+                            "chunk": chunk,
+                            "entryCount": batch.get("entries").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
+                            "opCount": count_manual_apply_ops(batch),
+                        }),
+                    );
+                }
+                // Timeout still retires the transport event even when another
+                // path already classified/consumed its tombstone. This is
+                // cleanup, not acceptance of a result.
                 self.callbacks.acknowledge_pending_event(&event_id);
-                remove_manual_apply_evidence(event["evidencePath"].as_str(), &self.cwd);
-                self.callbacks.record_manual_edit_activity(
-                    "manual_edit_apply_timeout",
-                    serde_json::json!({
-                        "id": event_id,
-                        "pageUrl": page_url,
-                        "chunk": chunk,
-                        "entryCount": batch.get("entries").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
-                        "opCount": count_manual_apply_ops(batch),
-                    }),
-                );
                 Err("chat_agent_timeout".to_string())
             }
         }
@@ -1793,38 +1838,68 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
 
     /// Port of `resolveDeferred(eventId, body)`.
     pub fn resolve_deferred(&self, event_id: &str, body: Value) -> bool {
-        let deferred = {
+        let (deferred, delivered) = {
             let mut state = self.state.lock().unwrap();
-            state.pending_apply_deferreds.remove(event_id)
-        };
-        let Some(deferred) = deferred else {
-            return false;
+            let Some(pending) = state.pending_apply_deferreds.get(event_id) else {
+                return false;
+            };
+            let deadline_passed = Instant::now() >= pending.deadline;
+            let delivered =
+                !deadline_passed && pending.sender.send(DeferredOutcome::Resolve(body)).is_ok();
+            let deferred = state.pending_apply_deferreds.remove(event_id).unwrap();
+            if !delivered {
+                Self::tombstone_timed_out_apply_id(
+                    &mut state,
+                    event_id,
+                    TimedOutDetails {
+                        batch: deferred.batch.clone(),
+                        rollback_snapshot: deferred.rollback_snapshot.clone(),
+                        cwd: deferred.cwd.clone(),
+                        reason: None,
+                    },
+                );
+            }
+            (deferred, delivered)
         };
         remove_manual_apply_evidence(
             deferred.event.get("evidencePath").and_then(Value::as_str),
             &deferred.cwd,
         );
-        let _ = deferred.sender.send(DeferredOutcome::Resolve(body));
-        true
+        if !delivered {
+            self.callbacks.record_manual_edit_activity(
+                "manual_edit_apply_timeout",
+                serde_json::json!({
+                    "id": event_id,
+                    "pageUrl": deferred.page_url,
+                    "entryCount": deferred.batch.get("entries").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
+                    "opCount": count_manual_apply_ops(&deferred.batch),
+                }),
+            );
+        }
+        delivered
     }
 
     /// Port of `rejectDeferred(eventId, reason)`.
     pub fn reject_deferred(&self, event_id: &str, reason: Option<&str>) -> bool {
-        let deferred = {
+        let (deferred, delivered) = {
             let mut state = self.state.lock().unwrap();
-            state.pending_apply_deferreds.remove(event_id)
-        };
-        let Some(deferred) = deferred else {
-            return false;
+            let Some(pending) = state.pending_apply_deferreds.get(event_id) else {
+                return false;
+            };
+            let delivered = pending
+                .sender
+                .send(DeferredOutcome::Reject(
+                    reason.unwrap_or("chat_agent_error").to_string(),
+                ))
+                .is_ok();
+            let deferred = state.pending_apply_deferreds.remove(event_id).unwrap();
+            (deferred, delivered)
         };
         remove_manual_apply_evidence(
             deferred.event.get("evidencePath").and_then(Value::as_str),
             &deferred.cwd,
         );
-        let _ = deferred.sender.send(DeferredOutcome::Reject(
-            reason.unwrap_or("chat_agent_error").to_string(),
-        ));
-        true
+        delivered
     }
 
     /// Port of `referencedManualApplyEvidencePaths(cwd)`.
@@ -2032,5 +2107,162 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
     pub fn validate_result_message(&self, msg: &Value, event_id: &str) -> Result<Value, Value> {
         let batch = self.get_deferred_batch(event_id);
         validate_manual_apply_result_message(msg, Some(event_id), batch.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct TestCallbacks {
+        acknowledged: Mutex<Vec<String>>,
+    }
+
+    impl ManualApplyCallbacks for TestCallbacks {
+        fn enqueue_event(&self, _event: &Value) {}
+
+        fn acknowledge_pending_event(&self, event_id: &str) {
+            self.acknowledged.lock().unwrap().push(event_id.to_string());
+        }
+
+        fn flush_pending_polls(&self) {}
+
+        fn record_manual_edit_activity(&self, _kind: &str, _data: Value) {}
+    }
+
+    fn deferred_with(sender: mpsc::Sender<DeferredOutcome>, deadline: Instant) -> DeferredApply {
+        DeferredApply {
+            sender,
+            deadline,
+            event: serde_json::json!({ "id": "event-1" }),
+            batch: serde_json::json!({ "entries": [] }),
+            page_url: None,
+            rollback_snapshot: HashMap::new(),
+            cwd: PathBuf::from("."),
+        }
+    }
+
+    #[test]
+    fn resolve_delivery_failure_is_not_reported_as_success() {
+        let callbacks = TestCallbacks::default();
+        let controller = ManualApplyController::with_timeouts(
+            PathBuf::from("."),
+            callbacks,
+            Duration::from_secs(1),
+            1_000,
+        );
+        let (sender, receiver) = mpsc::channel();
+        drop(receiver);
+        controller
+            .state
+            .lock()
+            .unwrap()
+            .pending_apply_deferreds
+            .insert(
+                "event-1".to_string(),
+                deferred_with(sender, Instant::now() + Duration::from_secs(1)),
+            );
+
+        assert!(!controller.resolve_deferred("event-1", serde_json::json!({ "status": "done" })));
+        assert!(controller.has_timed_out_id("event-1"));
+        assert_eq!(
+            controller.callbacks.acknowledged.lock().unwrap().as_slice(),
+            &[]
+        );
+    }
+
+    #[test]
+    fn resolve_after_hard_deadline_tombstones_without_delivery() {
+        let callbacks = TestCallbacks::default();
+        let controller = ManualApplyController::with_timeouts(
+            PathBuf::from("."),
+            callbacks,
+            Duration::from_secs(1),
+            1_000,
+        );
+        let (sender, receiver) = mpsc::channel();
+        controller
+            .state
+            .lock()
+            .unwrap()
+            .pending_apply_deferreds
+            .insert(
+                "event-1".to_string(),
+                deferred_with(sender, Instant::now() - Duration::from_millis(1)),
+            );
+
+        assert!(!controller.resolve_deferred("event-1", serde_json::json!({ "status": "done" })));
+        assert!(receiver.try_recv().is_err());
+        assert!(controller.has_timed_out_id("event-1"));
+    }
+
+    #[test]
+    fn timeout_classification_consumes_result_sent_before_state_lock() {
+        let controller = ManualApplyController::with_timeouts(
+            PathBuf::from("."),
+            TestCallbacks::default(),
+            Duration::from_secs(1),
+            1_000,
+        );
+        let (sender, receiver) = mpsc::channel();
+        controller
+            .state
+            .lock()
+            .unwrap()
+            .pending_apply_deferreds
+            .insert(
+                "event-1".to_string(),
+                deferred_with(sender, Instant::now() + Duration::from_secs(1)),
+            );
+
+        let result = serde_json::json!({ "status": "done" });
+        assert!(controller.resolve_deferred("event-1", result.clone()));
+        let (newly_timed_out, outcome) = controller.classify_receive_timeout("event-1", &receiver);
+        assert!(!newly_timed_out);
+        assert!(matches!(outcome, Some(DeferredOutcome::Resolve(body)) if body == result));
+        assert!(!controller.has_timed_out_id("event-1"));
+    }
+
+    #[test]
+    fn new_mutation_fences_old_timeout_rollback_but_keeps_late_id() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-timeout-fence-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let source = root.join("src/page.html");
+        std::fs::write(&source, "new contents").unwrap();
+        let controller = ManualApplyController::new(root.clone(), TestCallbacks::default());
+        let batch = serde_json::json!({
+            "entries": [{ "ops": [{ "file": "src/page.html" }] }]
+        });
+        controller.state.lock().unwrap().timed_out_apply_ids.insert(
+            "event-1".to_string(),
+            TimedOutDetails {
+                batch,
+                rollback_snapshot: HashMap::from([(
+                    "src/page.html".to_string(),
+                    SnapshotFile {
+                        exists: true,
+                        content: "old contents".to_string(),
+                    },
+                )]),
+                cwd: root.clone(),
+                reason: None,
+            },
+        );
+
+        let _mutation = controller.try_begin_mutation().unwrap();
+        assert!(controller.has_timed_out_id("event-1"));
+        controller.rollback_timed_out_reply("event-1");
+        assert_eq!(std::fs::read_to_string(source).unwrap(), "new contents");
+        drop(_mutation);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

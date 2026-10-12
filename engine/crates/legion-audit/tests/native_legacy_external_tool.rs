@@ -7,9 +7,11 @@ use std::{
 
 use async_trait::async_trait;
 use legion_audit::{
-    native_providers::legacy_checks::AuditExternalProjectTool, AuditPlan, InventoryEntry,
-    InventoryEnvelope, NativeProviderRegistry,
+    native_providers::legacy_checks::AuditExternalProjectTool, AuditPlan,
+    FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
+    NativeProviderRegistry,
 };
+use legion_effects::{DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence};
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
@@ -106,6 +108,59 @@ impl ExternalProjectTool for FakeTool {
     }
 }
 
+struct TestRunTool {
+    exit_code: i32,
+    request: Arc<Mutex<Option<ExternalToolRequest>>>,
+    version_output: Option<String>,
+}
+
+#[async_trait]
+impl ExternalProjectTool for TestRunTool {
+    async fn execute(
+        &self,
+        request: ExternalToolRequest,
+        _cancellation: CancellationToken,
+    ) -> ExecutionReceipt {
+        *self.request.lock().unwrap() = Some(request.clone());
+        let mut receipt = ExecutionReceipt::failure(
+            &request,
+            ExecutionState::Completed,
+            "fixture test runner exited normally",
+        );
+        receipt.gaps.clear();
+        receipt.complete = true;
+        receipt.exit_code = Some(self.exit_code);
+        receipt.process_tree.started = true;
+        receipt.process_tree.terminated = true;
+        receipt.process_tree.reaped = true;
+        receipt.executable = Some(ExecutableIdentity {
+            requested_path: request.executable.clone(),
+            canonical_path: Some(PathBuf::from(&request.executable)),
+            digest: request.expected_digest.clone(),
+            digest_state: if request.expected_digest.is_some() {
+                DigestState::Sealed
+            } else {
+                DigestState::Unchecked
+            },
+            signature: SignatureState::Unknown,
+            version: VersionProbeEvidence {
+                args: request.version_args.clone(),
+                output: self.version_output.clone().or_else(|| {
+                    request.version_requirement.as_deref().map(|requirement| {
+                        requirement
+                            .strip_prefix("exact:")
+                            .unwrap_or(requirement)
+                            .to_owned()
+                    })
+                }),
+                exit_code: Some(0),
+                qualified: true,
+            },
+        });
+        receipt
+    }
+}
+
 fn plan_for(
     inventory: &InventoryEnvelope,
     id: &str,
@@ -113,7 +168,7 @@ fn plan_for(
     role: &str,
 ) -> legion_audit::FrozenPlan {
     AuditPlan::compile(inventory, &[serde_json::from_value(json!({
-        "schemaVersion":2,"id":id,"providerVersion":"2.0.0","family":"legacy","role":role,"phase":"source","lensIds":[if role == "candidate-generator" { "security" } else { "installer-hygiene" }],"dependsOn":[],"consumes":["repository-inventory"],"produces":["provider-result"],"selector":{"op":"always"},"denominatorKind":"repository-inventory","runner":{"kind":"legacy-check","check":check},"hostCapabilities":[],"execution":{},"reasoning":{},"benchmark":{"status":"unproven","requiredForCleanClaim":false},"cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
+        "schemaVersion":2,"id":id,"providerVersion":"2.0.0","family":"legacy","role":role,"phase":"source","lensIds":[if role == "candidate-generator" { "security" } else { "installer-hygiene" }],"dependsOn":[],"consumes":["repository-inventory"],"produces":["provider-result"],"selector":if id == "legacy.quality.test" { json!({"op":"any","selectors":[{"op":"anyPackageScript","names":["test"]},{"op":"anyPath","patterns":["package.json","Cargo.toml","src-tauri/Cargo.toml"]}]}) } else { json!({"op":"always"}) },"denominatorKind":"repository-inventory","runner":{"kind":"legacy-check","check":check},"hostCapabilities":[],"execution":{},"reasoning":{},"benchmark":{"status":"unproven","requiredForCleanClaim":false},"cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
     })).unwrap()]).unwrap().freeze(Some(b"test-key")).unwrap()
 }
 
@@ -346,6 +401,211 @@ fn production_adapter_resolves_and_seals_symbolic_request() {
         .as_deref()
         .is_some_and(|digest| digest.starts_with("sha256:")));
     assert!(request.request_id.starts_with("legion-audit/"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn declared_tests_complete_with_pass_or_failure_evidence_without_tree_writes() {
+    for exit_code in [0, 1] {
+        let root = root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
+        fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+        let before = fs::read(root.join("package.json")).unwrap();
+        let inventory = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("fixture")
+            .unwrap();
+        let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+        let request = Arc::new(Mutex::new(None));
+        let registry =
+            NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
+                exit_code,
+                request: Arc::clone(&request),
+                version_output: None,
+            }));
+        let report = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(legion_audit::execute_with_cancellation(
+                &plan,
+                &inventory,
+                &registry,
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        let result = &report.results[0].result;
+        assert!(result.complete, "{exit_code}: {:?}", result.coverage_gaps);
+        assert_eq!(result.findings.len(), usize::from(exit_code != 0));
+        let request = request.lock().unwrap();
+        let request = request.as_ref().unwrap();
+        if cfg!(target_os = "macos") {
+            assert!(request.executable.ends_with("sandbox-exec"));
+            assert!(request.args.ends_with(&["run".into(), "test".into()]));
+        } else {
+            assert_eq!(request.args, ["run", "test"]);
+        }
+        assert!(request.requires_network_sandbox);
+        assert_eq!(request.version_requirement.as_deref(), Some("exact:9.1.0"));
+        assert_eq!(
+            result.details["testCommandSource"]["family"],
+            "package-script"
+        );
+        if exit_code == 1 {
+            let finding_id = result.findings[0].id.to_string();
+            assert_eq!(
+                result.details["findingEvidence"][&finding_id]["kind"],
+                "project-test-failure"
+            );
+            assert_eq!(
+                result.details["findingLocations"][&finding_id],
+                json!(["package.json"])
+            );
+        }
+        assert_eq!(fs::read(root.join("package.json")).unwrap(), before);
+        assert_eq!(
+            fs::read_to_string(root.join("pnpm-lock.yaml")).unwrap(),
+            "lockfileVersion: '9.0'\n"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
+fn package_manager_pin_mismatch_stays_typed_incomplete() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+    fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
+    fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
+            exit_code: 0,
+            request: Arc::new(Mutex::new(None)),
+            version_output: Some("19.1.0\n".into()),
+        }));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert!(!result.complete);
+    assert!(result.findings.is_empty());
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "unavailable:test-runner-version-mismatch:test"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn missing_declared_test_runner_stays_incomplete_and_typed() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
+            exit_code: 0,
+            request: Arc::new(Mutex::new(None)),
+            version_output: None,
+        }));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| { gap.starts_with("unavailable:tool-missing:pnpm") }));
+    assert_eq!(
+        result.details["testCommandResolution"]["status"],
+        "unavailable"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn rust_tests_without_owner_containment_receipt_stay_incomplete() {
+    let root = root();
+    fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+    fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").unwrap();
+    fs::write(root.join("node_modules/.bin/rightkit"), "fixture rightkit").unwrap();
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let request = Arc::new(Mutex::new(None));
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
+            exit_code: 0,
+            request: Arc::clone(&request),
+            version_output: None,
+        }));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("read-only-test-owner-unavailable")));
+    assert_eq!(
+        result.details["testCommandSource"]["family"],
+        "rust-rightkit"
+    );
+    assert_eq!(
+        result.details["testCommandSource"]["argv"],
+        json!(["cargo", "test"])
+    );
+    assert!(request.lock().unwrap().is_none());
+    assert!(fs::read_dir(&root).unwrap().all(|entry| {
+        !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("target")
+    }));
     fs::remove_dir_all(root).unwrap();
 }
 

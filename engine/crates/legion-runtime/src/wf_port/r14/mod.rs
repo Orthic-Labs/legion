@@ -1508,12 +1508,62 @@ pub trait Detector {
         file_path: &str,
         scan_options: &ScanOptions,
     ) -> Vec<Finding>;
-    fn detect_html(&self, file_path: &str, scan_options: &ScanOptions) -> Vec<Finding>;
+    fn detect_html(
+        &self,
+        file_path: &str,
+        scan_options: &ScanOptions,
+    ) -> Result<Vec<Finding>, DetectorError>;
     /// `None` means "no design-system sidecar" (mirrors a `null` return).
     fn load_design_system_for_cwd(&self, _project_cwd: &Path) -> Option<DesignSystemInfo> {
         None
     }
 }
+
+/// A detector could not produce trustworthy HTML findings. `Unavailable`
+/// covers missing browser/evaluator capabilities; `Read` preserves the file
+/// path and I/O kind for callers that need to distinguish unreadable input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DetectorError {
+    Unavailable {
+        message: String,
+    },
+    Read {
+        file_path: String,
+        kind: std::io::ErrorKind,
+        message: String,
+    },
+}
+
+impl DetectorError {
+    pub fn from_html_io(file_path: &str, error: std::io::Error) -> Self {
+        if error.kind() == std::io::ErrorKind::Other {
+            Self::Unavailable {
+                message: error.to_string(),
+            }
+        } else {
+            Self::Read {
+                file_path: file_path.to_string(),
+                kind: error.kind(),
+                message: error.to_string(),
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for DetectorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unavailable { message } => write!(f, "detector unavailable: {message}"),
+            Self::Read {
+                file_path,
+                kind,
+                message,
+            } => write!(f, "could not read HTML {file_path} ({kind:?}): {message}"),
+        }
+    }
+}
+
+impl std::error::Error for DetectorError {}
 
 #[derive(Debug, Clone, Default)]
 pub struct DesignSystemInfo {
@@ -1574,41 +1624,41 @@ pub struct RunHookDeps<'a> {
     pub detector: &'a dyn Detector,
 }
 
-/// Mirrors `runHook(deps)`. Never panics on malformed input; all error
-/// paths return `exit_code: 0` with a descriptive `audit` entry, matching
-/// the JS "never break a turn" contract.
-pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
+/// Mirrors `runHook(deps)`. Malformed input keeps the JS soft-skip behavior;
+/// detector failures propagate as typed errors so callers cannot mistake an
+/// unavailable HTML scan for a clean result.
+pub fn run_hook(deps: RunHookDeps<'_>) -> Result<HookResult, DetectorError> {
     let mut audit = serde_json::json!({ "ts": chrono_ish_now_iso8601(), "event": "PostToolUse" });
 
     if depth_is_set(deps.env.get("IMPECCABLE_HOOK_DEPTH").map(|s| s.as_str()))
         || depth_is_set(deps.env.get("CLAUDE_HOOK_DEPTH").map(|s| s.as_str()))
     {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "reentrant": true, "durationMs": 0 }),
-        );
+        ));
     }
     if truthy(deps.env.get("IMPECCABLE_HOOK_DISABLED").map(|s| s.as_str())) {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "skipped": "env-disabled", "durationMs": 0 }),
-        );
+        ));
     }
 
     let event: Value = match serde_json::from_str(deps.stdin_json) {
         Ok(v) => v,
         Err(_) => {
-            return audit_result(
+            return Ok(audit_result(
                 audit,
                 serde_json::json!({ "skipped": "stdin-malformed", "durationMs": 0 }),
-            );
+            ));
         }
     };
     if !event.is_object() {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "skipped": "stdin-empty", "durationMs": 0 }),
-        );
+        ));
     }
 
     let harness = resolve_harness(&deps.env, Some(&event));
@@ -1641,12 +1691,18 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
     }
 
     if target_files.is_empty() {
-        return audit_result(audit, serde_json::json!({ "skipped": "no-file-path" }));
+        return Ok(audit_result(
+            audit,
+            serde_json::json!({ "skipped": "no-file-path" }),
+        ));
     }
 
     let config = read_config(&project_cwd);
     if !config.enabled {
-        return audit_result(audit, serde_json::json!({ "skipped": "config-disabled" }));
+        return Ok(audit_result(
+            audit,
+            serde_json::json!({ "skipped": "config-disabled" }),
+        ));
     }
 
     let mut cache = read_cache(&project_cwd);
@@ -1713,13 +1769,13 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
             }
         }
 
-        let Ok(content) = fs::read_to_string(file_path) else {
-            last_skip = "file-missing".to_string();
-            continue;
-        };
         let findings = if ext == ".html" || ext == ".htm" {
-            deps.detector.detect_html(file_path, &scan_options)
+            deps.detector.detect_html(file_path, &scan_options)?
         } else {
+            let Ok(content) = fs::read_to_string(file_path) else {
+                last_skip = "file-missing".to_string();
+                continue;
+            };
             deps.detector
                 .detect_text(&content, file_path, &scan_options)
         };
@@ -1768,18 +1824,18 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         audit["freshFiles"] = Value::from(fresh_groups.len());
         audit["freshFindings"] = Value::from(all_findings);
         audit["chars"] = Value::from(text.chars().count());
-        return HookResult {
+        return Ok(HookResult {
             exit_code: 0,
             stdout: w2_015_payload(&text, "PostToolUse", harness),
             audit,
-        };
+        });
     }
 
     if truthy(deps.env.get("IMPECCABLE_HOOK_QUIET").map(|s| s.as_str())) || config.quiet {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "emitted": false, "quiet": true }),
-        );
+        ));
     }
 
     if let Some((file_path, known)) = &pending_winner {
@@ -1793,11 +1849,11 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
             audit["kind"] = Value::String("pending".to_string());
             audit["pending"] = Value::from(known.len());
             audit["chars"] = Value::from(text.chars().count());
-            return HookResult {
+            return Ok(HookResult {
                 exit_code: 0,
                 stdout: w2_015_payload(&text, "PostToolUse", harness),
                 audit,
-            };
+            });
         }
     }
 
@@ -1806,11 +1862,11 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         audit["file"] = Value::String(file_path.clone());
         audit["suppressed"] = Value::Bool(true);
         audit["emitted"] = Value::Bool(true);
-        return HookResult {
+        return Ok(HookResult {
             exit_code: 0,
             stdout: w2_015_payload(&text, "PostToolUse", harness),
             audit,
-        };
+        });
     }
 
     if let Some(file_path) = &clean_winner {
@@ -1823,27 +1879,30 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
             audit["emitted"] = Value::Bool(true);
             audit["kind"] = Value::String("clean".to_string());
             audit["chars"] = Value::from(text.chars().count());
-            return HookResult {
+            return Ok(HookResult {
                 exit_code: 0,
                 stdout: w2_015_payload(&text, "PostToolUse", harness),
                 audit,
-            };
+            });
         }
     }
 
     if pending_winner.is_some() || clean_winner.is_some() {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "emitted": false, "skipped": "non-ui-ack" }),
-        );
+        ));
     }
     if suppressed_hit {
-        return audit_result(
+        return Ok(audit_result(
             audit,
             serde_json::json!({ "suppressed": true, "emitted": false }),
-        );
+        ));
     }
-    audit_result(audit, serde_json::json!({ "skipped": last_skip }))
+    Ok(audit_result(
+        audit,
+        serde_json::json!({ "skipped": last_skip }),
+    ))
 }
 
 #[cfg(test)]
@@ -1864,8 +1923,12 @@ mod tests {
         ) -> Vec<Finding> {
             self.text_findings.clone()
         }
-        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
-            self.html_findings.clone()
+        fn detect_html(
+            &self,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Result<Vec<Finding>, DetectorError> {
+            Ok(self.html_findings.clone())
         }
     }
 
@@ -1873,6 +1936,29 @@ mod tests {
         text_findings: Vec<Finding>,
         design_system: Option<DesignSystemInfo>,
         seen_design_system: std::cell::RefCell<Vec<bool>>,
+    }
+
+    struct FailingHtmlDetector;
+
+    impl Detector for FailingHtmlDetector {
+        fn detect_text(
+            &self,
+            _content: &str,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Vec<Finding> {
+            Vec::new()
+        }
+
+        fn detect_html(
+            &self,
+            file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Result<Vec<Finding>, DetectorError> {
+            Err(DetectorError::Unavailable {
+                message: format!("fixture unavailable for {file_path}"),
+            })
+        }
     }
 
     impl Detector for DesignSystemFakeDetector {
@@ -1887,8 +1973,12 @@ mod tests {
                 .push(scan_options.design_system.is_some());
             self.text_findings.clone()
         }
-        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
-            Vec::new()
+        fn detect_html(
+            &self,
+            _file_path: &str,
+            _scan_options: &ScanOptions,
+        ) -> Result<Vec<Finding>, DetectorError> {
+            Ok(Vec::new())
         }
         fn load_design_system_for_cwd(&self, _project_cwd: &Path) -> Option<DesignSystemInfo> {
             self.design_system.clone()
@@ -2033,7 +2123,8 @@ mod tests {
             env: HashMap::new(),
             cwd: dir.clone(),
             detector: &detector,
-        });
+        })
+        .unwrap();
         assert_eq!(result.exit_code, 0);
         assert!(result.stdout.contains("side-tab"));
         assert!(result
@@ -2075,7 +2166,8 @@ mod tests {
             env: HashMap::new(),
             cwd: dir.clone(),
             detector: &detector,
-        });
+        })
+        .unwrap();
         assert_eq!(result.exit_code, 0);
         assert!(result
             .stdout
@@ -2113,11 +2205,35 @@ mod tests {
             env,
             cwd: dir.clone(),
             detector: &detector,
-        });
+        })
+        .unwrap();
         assert_eq!(
             result.audit.get("reentrant").and_then(|v| v.as_bool()),
             Some(true)
         );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn run_hook_propagates_html_detector_unavailability_without_clean_ack() {
+        let dir = tempdir();
+        let file = dir.join("index.html");
+        fs::write(&file, "<html><body><p>Valid</p></body></html>").unwrap();
+        let stdin = serde_json::json!({
+            "tool_name": "Write",
+            "tool_input": { "file_path": file.to_string_lossy() },
+            "cwd": dir.to_string_lossy(),
+            "session_id": "sess-html-error",
+        })
+        .to_string();
+        let error = run_hook(RunHookDeps {
+            stdin_json: &stdin,
+            env: HashMap::new(),
+            cwd: dir.clone(),
+            detector: &FailingHtmlDetector,
+        })
+        .unwrap_err();
+        assert!(matches!(error, DetectorError::Unavailable { .. }));
         cleanup(&dir);
     }
 

@@ -6,7 +6,8 @@
 //! of the selected executable before it reaches `legion-effects`.
 
 use super::contracts::CommandShape;
-use serde_json::Value;
+use crate::inventory::InventoryEnvelope;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     env, fs,
@@ -69,6 +70,13 @@ pub fn resolve_request(
 ) -> Result<ResolvedCommand, ResolveError> {
     let (path, resolved_args) = match executable {
         "project-build" => project_script_dynamic(root, "build", args, true)?,
+        // `project-test` is resolved only through `resolve_test_command`, which
+        // first validates runner metadata against the frozen inventory.
+        "project-test" => {
+            return Err(ResolveError::Unavailable(
+                "project-test requires frozen inventory metadata".into(),
+            ))
+        }
         "project-lint" => project_lint_dynamic(root, args)?,
         "project-types" => project_types_dynamic(root, args)?,
         "package-audit" => package_manager_operation_dynamic(root, "audit", args)?,
@@ -99,6 +107,237 @@ pub fn resolve_request(
         root.to_path_buf()
     };
     seal(&cwd, path, resolved_args)
+}
+
+/// Resolve only explicitly declared test runners whose input metadata still
+/// matches the frozen Audit inventory. This prevents a changed package script
+/// from silently falling back to a different family after plan compilation.
+pub fn resolve_test_command(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+) -> Result<(ResolvedCommand, Value), ResolveError> {
+    let root = fs::canonicalize(root).map_err(|error| {
+        ResolveError::Unavailable(format!("test-source-root-unavailable: {error}"))
+    })?;
+    let mut sources = Vec::new();
+    let package = frozen_source_file(&root, inventory, "package.json")?;
+    if let Some((bytes, digest)) = package {
+        let package_json: Value = serde_json::from_slice(&bytes).map_err(|error| {
+            ResolveError::Unavailable(format!("test-source-package-invalid: {error}"))
+        })?;
+        sources.push(json!({"path":"package.json","digest":digest}));
+        let has_test = package_json
+            .get("scripts")
+            .and_then(Value::as_object)
+            .is_some_and(|scripts| scripts.contains_key("test"));
+        if has_test {
+            let mut version_requirement = None;
+            let manager = if let Some(value) =
+                package_json.get("packageManager").and_then(Value::as_str)
+            {
+                let (manager, version) = value.split_once('@').ok_or_else(|| {
+                    ResolveError::Unavailable("test-package-manager-pin-invalid".into())
+                })?;
+                if version.is_empty() {
+                    return Err(ResolveError::Unavailable(
+                        "test-package-manager-pin-invalid".into(),
+                    ));
+                }
+                if !is_exact_semver_pin(version) {
+                    return Err(ResolveError::Unavailable(
+                        "test-package-manager-pin-invalid".into(),
+                    ));
+                }
+                let pinned_version = version.split('+').next().unwrap_or(version);
+                version_requirement = Some(pinned_version.to_owned());
+                manager.to_ascii_lowercase()
+            } else {
+                let mut selected = None;
+                for (path, manager) in [
+                    ("pnpm-lock.yaml", "pnpm"),
+                    ("yarn.lock", "yarn"),
+                    ("package-lock.json", "npm"),
+                    ("bun.lockb", "bun"),
+                ] {
+                    if let Some((_, digest)) = frozen_source_file(&root, inventory, path)? {
+                        sources.push(json!({"path":path,"digest":digest}));
+                        if selected.is_none() {
+                            selected = Some(manager);
+                        }
+                    }
+                }
+                selected
+                    .ok_or_else(|| {
+                        ResolveError::NotConfigured(
+                            "test package script has no pinned package manager or lockfile".into(),
+                        )
+                    })?
+                    .to_owned()
+            };
+            if !matches!(manager.as_str(), "npm" | "pnpm" | "yarn" | "bun") {
+                return Err(ResolveError::Unavailable(format!(
+                    "test-package-manager-unsupported:{manager}"
+                )));
+            }
+            let executable = resolve_named_path(&root, &manager)?;
+            let args = if manager == "yarn" {
+                vec!["test".to_owned()]
+            } else {
+                vec!["run".into(), "test".into()]
+            };
+            let resolved = seal(&root, executable, args)?;
+            let source = json!({
+                "family":"package-script",
+                "inventoryDigest":inventory.digest,
+                "sources":sources,
+                "executable":resolved.executable.to_string_lossy(),
+                "executableDigest":resolved.digest,
+                "versionRequirement":version_requirement,
+                "argv":resolved.args,
+                "cwd":resolved.cwd.to_string_lossy(),
+            });
+            return Ok((resolved, source));
+        }
+    }
+
+    let mut cargo_manifest = None;
+    for path in ["Cargo.toml", "src-tauri/Cargo.toml"] {
+        if frozen_source_file(&root, inventory, path)?.is_some() {
+            cargo_manifest = Some(path);
+            break;
+        }
+    }
+    let cargo_manifest = cargo_manifest
+        .ok_or_else(|| ResolveError::NotConfigured("test runner is not configured".into()))?;
+    let (_, manifest_digest) = frozen_source_file(&root, inventory, cargo_manifest)?
+        .ok_or_else(|| ResolveError::Unavailable("frozen Cargo manifest disappeared".into()))?;
+    sources.push(json!({"path":cargo_manifest,"digest":manifest_digest}));
+    let cargo_lock = cargo_manifest
+        .strip_suffix("Cargo.toml")
+        .unwrap_or_default()
+        .to_owned()
+        + "Cargo.lock";
+    if let Some((_, digest)) = frozen_source_file(&root, inventory, &cargo_lock)? {
+        sources.push(json!({"path":cargo_lock,"digest":digest}));
+    }
+    let cwd = if cargo_manifest == "src-tauri/Cargo.toml" {
+        root.join("src-tauri")
+    } else {
+        root.clone()
+    };
+    let executable = resolve_named_path(&root, "rightkit")?;
+    let args = vec!["cargo".into(), "test".into()];
+    let resolved = seal(&cwd, executable, args)?;
+    let source = json!({
+        "family":"rust-rightkit",
+        "inventoryDigest":inventory.digest,
+        "sources":sources,
+        "executable":resolved.executable.to_string_lossy(),
+        "executableDigest":resolved.digest,
+        "argv":resolved.args,
+        "cwd":resolved.cwd.to_string_lossy(),
+    });
+    Ok((resolved, source))
+}
+
+fn is_exact_semver_pin(value: &str) -> bool {
+    let (version, build) = match value.split_once('+') {
+        Some((version, build)) if !build.is_empty() && !build.contains('+') => {
+            (version, Some(build))
+        }
+        Some(_) => return false,
+        None => (value, None),
+    };
+    let (core, prerelease) = version
+        .split_once('-')
+        .map_or((version, None), |(core, prerelease)| {
+            (core, Some(prerelease))
+        });
+    let parts = core.split('.').collect::<Vec<_>>();
+    let numeric = |part: &str| {
+        !part.is_empty()
+            && part.bytes().all(|byte| byte.is_ascii_digit())
+            && (part == "0" || !part.starts_with('0'))
+    };
+    if parts.len() != 3 || !parts.iter().all(|part| numeric(part)) {
+        return false;
+    }
+    let valid_identifiers = |value: &str, leading_zero_rule: bool| {
+        !value.is_empty()
+            && value.split('.').all(|identifier| {
+                !identifier.is_empty()
+                    && identifier
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                    && (!leading_zero_rule
+                        || !identifier.bytes().all(|byte| byte.is_ascii_digit())
+                        || identifier == "0"
+                        || !identifier.starts_with('0'))
+            })
+    };
+    prerelease.map_or(true, |value| valid_identifiers(value, true))
+        && build.map_or(true, |value| valid_identifiers(value, false))
+}
+
+fn frozen_source_file(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    relative: &str,
+) -> Result<Option<(Vec<u8>, String)>, ResolveError> {
+    let entry = inventory
+        .entries
+        .iter()
+        .find(|entry| entry.path == relative);
+    let path = root.join(relative);
+    let exists = path.exists();
+    let Some(entry) = entry else {
+        return if exists {
+            Err(ResolveError::Unavailable(format!(
+                "test-source-input-not-in-inventory:{relative}"
+            )))
+        } else {
+            Ok(None)
+        };
+    };
+    if !exists {
+        return Err(ResolveError::Unavailable(format!(
+            "test-source-input-missing:{relative}"
+        )));
+    }
+    let expected = entry.digest.as_deref().ok_or_else(|| {
+        ResolveError::Unavailable(format!("test-source-input-digest-missing:{relative}"))
+    })?;
+    let mut current = root.to_path_buf();
+    for part in Path::new(relative).components() {
+        current.push(part);
+        let metadata = fs::symlink_metadata(&current).map_err(|error| {
+            ResolveError::Unavailable(format!("test-source-input-unreadable:{relative}:{error}"))
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() && current == path {
+            return Err(ResolveError::Unavailable(format!(
+                "test-source-input-not-regular:{relative}"
+            )));
+        }
+    }
+    let metadata = fs::metadata(&path).map_err(|error| {
+        ResolveError::Unavailable(format!("test-source-input-unreadable:{relative}:{error}"))
+    })?;
+    const MAX_TEST_METADATA_BYTES: u64 = 1_048_576;
+    if metadata.len() > MAX_TEST_METADATA_BYTES {
+        return Err(ResolveError::Unavailable(format!(
+            "test-source-input-too-large:{relative}"
+        )));
+    }
+    let bytes = fs::read(&path).map_err(|error| {
+        ResolveError::Unavailable(format!("test-source-input-unreadable:{relative}:{error}"))
+    })?;
+    let actual = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    if actual != expected {
+        return Err(ResolveError::Unavailable(format!(
+            "test-source-input-drift:{relative}"
+        )));
+    }
+    Ok(Some((bytes, actual)))
 }
 
 fn resolve_named_command(
@@ -540,4 +779,113 @@ fn seal(
         digest: format!("sha256:{}", hex::encode(Sha256::digest(bytes))),
         cwd: cwd.to_path_buf(),
     })
+}
+
+#[cfg(test)]
+mod test_command_resolution_tests {
+    use super::*;
+    use crate::inventory::{FilesystemInventorySource, InventorySource};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn root() -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "legion-test-command-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn inventory(root: &Path) -> InventoryEnvelope {
+        FilesystemInventorySource::new(root)
+            .unwrap()
+            .inventory("fixture")
+            .unwrap()
+    }
+
+    #[test]
+    fn package_manager_pin_requires_exact_semver_shape() {
+        assert!(is_exact_semver_pin("9.1.0"));
+        assert!(is_exact_semver_pin("9.1.0-rc.1"));
+        assert!(is_exact_semver_pin("9.1.0+sha224.abc123"));
+        assert!(!is_exact_semver_pin("9.1.0-"));
+        assert!(!is_exact_semver_pin("09.1.0"));
+        assert!(!is_exact_semver_pin("9.1.0+"));
+        assert!(!is_exact_semver_pin("9.1.0-rc..1"));
+    }
+
+    #[test]
+    fn package_script_uses_frozen_manifest_and_pinned_manager() {
+        let root = root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
+        fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+        let inventory = inventory(&root);
+        let (resolved, source) = resolve_test_command(&root, &inventory).unwrap();
+        assert_eq!(resolved.args, ["run", "test"]);
+        assert_eq!(resolved.cwd, fs::canonicalize(&root).unwrap());
+        assert_eq!(source["family"], "package-script");
+        assert_eq!(source["versionRequirement"], "9.1.0");
+        assert_eq!(source["sources"][0]["path"], "package.json");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn manifest_drift_does_not_fall_back_to_cargo() {
+        let root = root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+        )
+        .unwrap();
+        fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").unwrap();
+        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
+        fs::write(root.join("node_modules/.bin/rightkit"), "fixture rightkit").unwrap();
+        let inventory = inventory(&root);
+        fs::write(root.join("package.json"), r#"{"scripts":{}}"#).unwrap();
+        let error = resolve_test_command(&root, &inventory).unwrap_err();
+        assert!(error
+            .message()
+            .contains("test-source-input-drift:package.json"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rust_test_command_is_routed_through_rightkit() {
+        let root = root();
+        fs::create_dir_all(root.join("src-tauri")).unwrap();
+        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+        fs::write(
+            root.join("src-tauri/Cargo.toml"),
+            "[package]\nname='fixture'\n",
+        )
+        .unwrap();
+        fs::write(root.join("src-tauri/Cargo.lock"), "# fixture\n").unwrap();
+        fs::write(root.join("node_modules/.bin/rightkit"), "fixture rightkit").unwrap();
+        let inventory = inventory(&root);
+        let (resolved, source) = resolve_test_command(&root, &inventory).unwrap();
+        assert_eq!(resolved.args, ["cargo", "test"]);
+        assert_eq!(
+            resolved.executable,
+            fs::canonicalize(root.join("node_modules/.bin/rightkit")).unwrap()
+        );
+        assert_eq!(
+            resolved.cwd,
+            fs::canonicalize(root.join("src-tauri")).unwrap()
+        );
+        assert_eq!(source["family"], "rust-rightkit");
+        assert_eq!(source["sources"][0]["path"], "src-tauri/Cargo.toml");
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -53,6 +53,8 @@ pub struct ExternalToolRequest {
     pub expected_digest: Option<String>,
     pub accepted_exit_codes: BTreeSet<i32>,
     pub version_args: Vec<String>,
+    /// Plain values retain substring qualification; `exact:<version>` opts
+    /// into exact version-token matching before the main command is launched.
     pub version_requirement: Option<String>,
     pub environment: BTreeMap<String, String>,
     pub environment_allowlist: BTreeSet<String>,

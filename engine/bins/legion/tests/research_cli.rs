@@ -286,6 +286,7 @@ fn research_step_retraction_without_network_is_a_typed_gap() {
             "retraction",
             "--dois",
             dois.to_str().unwrap(),
+            "--offline",
         ])
         .output()
         .expect("native Legion research must execute");

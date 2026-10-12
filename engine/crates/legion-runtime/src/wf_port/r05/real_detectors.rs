@@ -25,12 +25,18 @@ use super::super::r07::browser::ChromeDriver;
 use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
 use super::super::r07::findings::AntipatternLookup;
 use super::super::r07::visual_lane::visual_contrast_lane;
+use super::super::r07::{find_browser_executable, EnvLookup, FsLookup, Platform};
 use super::super::r08::detect_text_matchers::{
     extract_css_in_js, extract_style_blocks, run_regex_matchers,
 };
 use super::super::r08::sweep_live::{sweep_site, PageFetcher};
 use super::super::r09::{build_static_style_map, collect_static_css_text};
-use super::super::w2_011::design_system::{check_source_design_system, DesignSystem};
+use super::super::w2_011::design_system::{
+    check_source_design_system, merge_design_system_findings, DesignSystem,
+};
+use super::super::w2_011::design_system_dom::{
+    collect_static_design_system_findings, ChromeDesignDomEvaluator, DesignDomEvaluator,
+};
 use super::super::w2_012::detect_text::{
     run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers,
 };
@@ -164,15 +170,54 @@ pub fn detect_text(
 /// builds with `collectStaticCssText` + `buildStaticStyleMap`. Static findings
 /// already emitted by a reduced pass are not repeated.
 ///
-/// Still absent: `collectStaticDesignSystemFindings`, the DOM-walking
-/// design-system pass. It needs the design-system token maps passed to the
-/// rule engine, which this port does not supply here; the source-text design
-/// check above is the only design-system coverage.
 pub fn detect_html(
     file_path: &str,
     design_system: Option<&DesignSystem>,
 ) -> std::io::Result<Vec<CliFinding>> {
     let html = std::fs::read_to_string(file_path)?;
+    if design_system.is_some_and(|ds| ds.present && (ds.has_fonts || ds.has_colors || ds.has_radii))
+    {
+        let executable = find_html_browser_executable().map_err(|error| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("unavailable: design-system DOM scan: {error}"),
+            )
+        })?;
+        let evaluator = ChromeDesignDomEvaluator::new(executable);
+        detect_html_contents(file_path, &html, design_system, Some(&evaluator))
+    } else {
+        detect_html_contents(file_path, &html, design_system, None)
+    }
+}
+
+fn find_html_browser_executable() -> Result<std::path::PathBuf, String> {
+    struct ProcessEnv;
+    impl EnvLookup for ProcessEnv {
+        fn get(&self, key: &str) -> Option<String> {
+            std::env::var(key).ok()
+        }
+    }
+    struct RealFs;
+    impl FsLookup for RealFs {
+        fn exists(&self, path: &str) -> bool {
+            Path::new(path).exists()
+        }
+    }
+
+    let platform = if cfg!(target_os = "windows") {
+        Platform::Windows
+    } else {
+        Platform::Other
+    };
+    find_browser_executable(platform, &ProcessEnv, &RealFs)
+}
+
+fn detect_html_contents(
+    file_path: &str,
+    html: &str,
+    design_system: Option<&DesignSystem>,
+    design_dom_evaluator: Option<&dyn DesignDomEvaluator>,
+) -> std::io::Result<Vec<CliFinding>> {
     let document = scraper::Html::parse_document(&html);
 
     let mut findings: Vec<CliFinding> = Vec::new();
@@ -181,7 +226,25 @@ pub fn detect_html(
     }
 
     if let Some(ds) = design_system {
-        for df in check_source_design_system(&html, file_path, Some(ds)) {
+        let mut design_findings = check_source_design_system(html, file_path, Some(ds));
+        if ds.present && (ds.has_fonts || ds.has_colors || ds.has_radii) {
+            let evaluator = design_dom_evaluator.ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "unavailable: design-system DOM evaluator was not supplied",
+                )
+            })?;
+            let dom_findings =
+                collect_static_design_system_findings(evaluator, html, file_path, Some(ds))
+                    .map_err(|error| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("unavailable: design-system DOM scan: {error}"),
+                        )
+                    })?;
+            design_findings.extend(dom_findings);
+        }
+        for df in merge_design_system_findings(vec![design_findings]) {
             let mut f = CliFinding::new(df.antipattern, df.file, df.line, df.snippet);
             f.ignore_value = if df.ignore_value.is_empty() {
                 None
@@ -469,6 +532,30 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::wf_port::w2_011::design_system::{normalize_design_system, parse_frontmatter};
+    use crate::wf_port::w2_011::design_system_dom::ElementStyleObservation;
+
+    struct FakeDesignDom(Vec<ElementStyleObservation>);
+    impl DesignDomEvaluator for FakeDesignDom {
+        fn observe(&self, _html: &str) -> Result<Vec<ElementStyleObservation>, String> {
+            Ok(self.0.clone())
+        }
+    }
+
+    struct FailedDesignDom;
+    impl DesignDomEvaluator for FailedDesignDom {
+        fn observe(&self, _html: &str) -> Result<Vec<ElementStyleObservation>, String> {
+            Err("fixture evaluator failure".to_string())
+        }
+    }
+
+    fn design_system_with_tokens() -> DesignSystem {
+        let frontmatter = parse_frontmatter(
+            "---\ntypography:\n  body:\n    fontFamily: Inter\ncolors:\n  brand: '#336699'\nrounded:\n  sm: 4px\n---\n",
+        )
+        .unwrap();
+        normalize_design_system(&frontmatter, None, None, false)
+    }
 
     #[test]
     fn detect_text_matches_and_dedupes() {
@@ -541,6 +628,74 @@ mod tests {
             .count();
         assert_eq!(broken, 1, "{findings:?}");
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn detect_html_design_dom_pass_flags_undeclared_token() {
+        let path = write_temp_html("design-token", "<html><body><p>Hello</p></body></html>");
+        let observed = FakeDesignDom(vec![ElementStyleObservation {
+            tag: "p".to_string(),
+            sample_text: "Hello".to_string(),
+            has_direct_text: true,
+            font_family: Some("Comic Sans MS, sans-serif".to_string()),
+            ..Default::default()
+        }]);
+        let html = std::fs::read_to_string(&path).unwrap();
+        let findings = detect_html_contents(
+            path.to_str().unwrap(),
+            &html,
+            Some(&design_system_with_tokens()),
+            Some(&observed),
+        )
+        .unwrap();
+        assert!(findings.iter().any(|finding| {
+            finding.antipattern == "design-system-font"
+                && finding.ignore_value.as_deref() == Some("comic sans ms")
+        }));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn detect_html_design_dom_pass_accepts_valid_html_without_token_findings() {
+        let path = write_temp_html("design-clean", "<html><body><p>Hello</p></body></html>");
+        let observed = FakeDesignDom(Vec::new());
+        let html = std::fs::read_to_string(&path).unwrap();
+        let findings = detect_html_contents(
+            path.to_str().unwrap(),
+            &html,
+            Some(&design_system_with_tokens()),
+            Some(&observed),
+        )
+        .unwrap();
+        assert!(findings
+            .iter()
+            .all(|finding| { !finding.antipattern.starts_with("design-system-") }));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn detect_html_design_dom_evaluator_errors_are_unavailable() {
+        let path = write_temp_html("design-error", "<html><body><p>Hello</p></body></html>");
+        let html = std::fs::read_to_string(&path).unwrap();
+        let error = detect_html_contents(
+            path.to_str().unwrap(),
+            &html,
+            Some(&design_system_with_tokens()),
+            Some(&FailedDesignDom),
+        )
+        .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::Other);
+        assert!(error
+            .to_string()
+            .starts_with("unavailable: design-system DOM scan:"));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn detect_html_propagates_missing_file_error() {
+        let path = std::env::temp_dir().join(format!("missing-html-{}.html", std::process::id()));
+        let error = detect_html(path.to_str().unwrap(), None).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
 
     #[test]

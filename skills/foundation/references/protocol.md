@@ -24,8 +24,18 @@ Persist applicability in a run-local JSON manifest:
 
 ```json
 {
-  "repo_roots": {"Repository name": "/absolute/source/root"},
-  "scope_repos": {"Scope label": ["Repository name"]}
+  "product": "Product",
+  "current_product_root": "/absolute/product/source/root",
+  "repo_roots": {"Reference repository": "/absolute/reference/source/root"},
+  "repo_revisions": {
+    "Product": "0123456789abcdef0123456789abcdef01234567",
+    "Reference repository": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "scope_repos": {"Scope label": ["Reference repository"]},
+  "repo_targets": {
+    "Product": {"Scope label": ["macOS"]},
+    "Reference repository": {"Scope label": ["macOS"]}
+  }
 }
 ```
 
@@ -121,8 +131,12 @@ Run the validator with the corpus manifest so it verifies expected repository na
 
 ```bash
 # native Rust validator:
-legion script foundation/validate-atom-report REPORT.md --mode stage2 --expected-rows N --manifest corpus.json
+legion script foundation/validate-atom-report REPORT.md --mode stage2 --expected-rows N --manifest corpus.json --require-revisions
 ```
+
+Use `--require-revisions` for creation/comparison validation & PASS receipts. It requires an exact
+full lowercase commit object ID for each source root used by report scopes, verifies Git `HEAD`, and refuses dirty
+tracked or untracked worktrees. Keep generated reports outside corpus roots or ignored by Git.
 
 The validator removes the atom label from recommendations before high-risk semantic-signature checks; quoting or prefixing the atom name cannot satisfy the gate. Extend `SEMANTIC_SIGNATURES` when the canon adds a high-risk atom whose wrong category template could still read plausibly. Then adversarially inspect semantic samples from every platform/domain. Structural PASS with semantic failure is failure.
 

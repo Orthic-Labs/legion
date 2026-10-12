@@ -12,6 +12,9 @@ pub struct ResearchArgs {
     /// Route query for the host-injected search. Not required with `--step`.
     #[arg(long, required_unless_present = "step")]
     pub query: Option<String>,
+    /// Complete ResearchRoute v2 JSON file; its subject.query must equal --query.
+    #[arg(long = "route-json")]
+    pub route_json: Option<PathBuf>,
     /// Run one Research step instead of a search: `ledger-check`,
     /// `ledger-render`, `citecheck`, `meter`, `retraction`, `issue-patch`, or `apply-patch`.
     #[arg(long)]
@@ -53,10 +56,12 @@ pub struct ResearchArgs {
     /// Let unknown retraction status pass instead of blocking.
     #[arg(long = "allow-unknown")]
     pub allow_unknown: bool,
-    /// JSON map of DOI to pre-fetched retraction metadata. A DOI the map does
-    /// not resolve needs a network fetch, which this command does not perform.
+    /// JSON map of DOI to pre-fetched retraction metadata; selecting this keeps the step offline.
     #[arg(long = "retraction-fixture")]
     pub retraction_fixture: Option<PathBuf>,
+    /// Do not use public metadata endpoints for missing retraction fixtures.
+    #[arg(long)]
+    pub offline: bool,
     /// JSON budget/usage state for `meter`. The updated state is reported, not written.
     #[arg(long = "meter-state")]
     pub meter_state: Option<PathBuf>,
@@ -77,14 +82,12 @@ pub struct ResearchArgs {
     pub source_records: Vec<PathBuf>,
     #[arg(long, default_value_t = 2)]
     pub min_independent_providers: usize,
-    /// Route domain. The medical and legal gates are only reachable when the
-    /// route names them; a route frozen at `general` can never reach either,
-    /// so a sensitive query was silently answered as an ordinary one.
-    #[arg(long, default_value = "general")]
-    pub domain: String,
-    /// Route sensitivity. Bound with the domain because the gates read both.
-    #[arg(long, default_value = "public")]
-    pub sensitivity: String,
+    /// Convenience route domain (default: general); conflicts with --route-json are refused.
+    #[arg(long)]
+    pub domain: Option<String>,
+    /// Convenience route sensitivity (default: public); conflicts with --route-json are refused.
+    #[arg(long)]
+    pub sensitivity: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -170,10 +173,11 @@ fn terminal_cancelled(
             stage: legion_research::WorkflowStage::Created,
             completed: true,
             detail: Some(format!(
-                "route_frozen:{};allowed_effects:{};effect_grant:{};approval_receipts:not-required;selected_provider_denominator:{}",
+                "route_frozen:{};allowed_effects:{};effect_grant:{};approval_receipts:{};selected_provider_denominator:{}",
                 route.digest().map_err(|error| super::CommandError::incomplete(error.to_string()))?,
                 route.allowed_effects.join(","),
                 authorization.effect_grant.join(","),
+                if route.human_gates.is_empty() { "not-required" } else { "missing" },
                 selected_provider_denominator
             )),
         },
@@ -209,19 +213,124 @@ fn terminal_cancelled(
     }))
 }
 
+fn validate_route_input(
+    query: &str,
+    route: legion_research::ResearchRoute,
+    domain: Option<&str>,
+    sensitivity: Option<&str>,
+) -> Result<legion_research::ResearchRoute, super::CommandError> {
+    if route.subject.query.as_deref() != Some(query) {
+        return Err(super::CommandError::usage(
+            "--route-json subject.query must exactly match --query",
+        ));
+    }
+    if domain.is_some_and(|value| value != route.domain) {
+        return Err(super::CommandError::usage(
+            "--domain conflicts with --route-json domain",
+        ));
+    }
+    if sensitivity.is_some_and(|value| value != route.sensitivity) {
+        return Err(super::CommandError::usage(
+            "--sensitivity conflicts with --route-json sensitivity",
+        ));
+    }
+    route
+        .validate()
+        .map_err(|error| super::CommandError::usage(error.to_string()))?;
+    Ok(route)
+}
+
+fn route_unavailable_reason(route: &legion_research::ResearchRoute) -> Option<&'static str> {
+    if route.operation == "manage-corpus" || route.operation == "generate-artifact" {
+        return Some(
+            "stateful research operation is not implemented by this host-opened-record command",
+        );
+    }
+    if route.provider != "local-corpus" {
+        return Some("requested provider execution is unavailable; this command consumes host-opened source records only");
+    }
+    if route.allowed_effects.iter().any(|effect| {
+        matches!(
+            effect.as_str(),
+            "upload-notebooklm" | "create-artifact" | "patch-sourced-draft" | "spawn-worker"
+        )
+    }) {
+        return Some(
+            "requested stateful effect is not implemented by this host-opened-record command",
+        );
+    }
+    None
+}
+
+fn terminal_route_unavailable(
+    query: String,
+    reason: &str,
+    route: &legion_research::ResearchRoute,
+    authorization: &legion_research::ResearchAuthorization,
+    selected_provider_denominator: usize,
+) -> CommandResult {
+    let mut result = terminal_unproven(
+        query,
+        vec![legion_research::SourceFailure {
+            provider: route.provider.clone(),
+            stage: legion_research::WorkflowStage::Discovering,
+            reason: reason.to_string(),
+        }],
+        0,
+        0,
+        1,
+        0,
+        route,
+        authorization,
+        selected_provider_denominator,
+    )?;
+    if let Value::Object(fields) = &mut result {
+        fields.insert("status".into(), Value::String("unavailable".into()));
+        fields.insert("verdict".into(), Value::String("UNAVAILABLE".into()));
+        fields.insert("reason".into(), Value::String(reason.into()));
+    }
+    Ok(result)
+}
+
+fn resolve_route(
+    query: &str,
+    args: &ResearchArgs,
+) -> Result<legion_research::ResearchRoute, super::CommandError> {
+    if let Some(path) = &args.route_json {
+        let bytes = std::fs::read(path).map_err(|error| {
+            super::CommandError::usage(format!("cannot read --route-json: {error}"))
+        })?;
+        let route: legion_research::ResearchRoute =
+            serde_json::from_slice(&bytes).map_err(|error| {
+                super::CommandError::usage(format!("invalid --route-json: {error}"))
+            })?;
+        return validate_route_input(
+            query,
+            route,
+            args.domain.as_deref(),
+            args.sensitivity.as_deref(),
+        );
+    }
+    let route = legion_research::ResearchRoute::host_injected_with(
+        query,
+        args.domain.as_deref().unwrap_or("general"),
+        args.sensitivity.as_deref().unwrap_or("public"),
+    );
+    route
+        .validate()
+        .map_err(|error| super::CommandError::usage(error.to_string()))?;
+    Ok(route)
+}
+
 pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult {
     if let Some(step) = args.step.clone() {
-        return run_step(&step, &args);
+        return run_step(&step, &args, &cancellation);
     }
     let query = args
         .query
         .clone()
         .ok_or_else(|| super::CommandError::usage("--query is required unless --step is given"))?;
-    let route =
-        legion_research::ResearchRoute::host_injected_with(&query, &args.domain, &args.sensitivity);
-    route
-        .validate()
-        .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
+    let route = resolve_route(&query, &args)?;
     let authorization = legion_research::ResearchAuthorization::full(&route)
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
     let requested_provider_denominator = args
@@ -230,6 +339,15 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         .max(1);
+    if let Some(reason) = route_unavailable_reason(&route) {
+        return terminal_route_unavailable(
+            query,
+            reason,
+            &route,
+            &authorization,
+            requested_provider_denominator,
+        );
+    }
     if cancellation.is_cancelled() {
         return terminal_cancelled(
             query,
@@ -474,13 +592,13 @@ impl legion_research::SourceClient for RecordSource {
 
 /// Dispatches one pure Research step. Every step returns JSON; a status outside
 /// `ok` maps to a non-zero exit in the CLI (`failed` 2, `unavailable` 2).
-fn run_step(step: &str, args: &ResearchArgs) -> CommandResult {
+fn run_step(step: &str, args: &ResearchArgs, cancellation: &CancellationToken) -> CommandResult {
     match step {
         "ledger-check" => step_ledger_check(args),
         "ledger-render" => step_ledger_render(args),
         "citecheck" => step_citecheck(args),
         "meter" => step_meter(args),
-        "retraction" => step_retraction(args),
+        "retraction" => step_retraction(args, cancellation),
         "issue-patch" => step_issue_patch(args),
         "apply-patch" => step_apply_patch(args),
         other => Err(super::CommandError::usage(format!(
@@ -614,7 +732,21 @@ fn step_meter(args: &ResearchArgs) -> CommandResult {
     Ok(step_envelope("meter", status, result))
 }
 
-fn step_retraction(args: &ResearchArgs) -> CommandResult {
+fn step_retraction(args: &ResearchArgs, cancellation_token: &CancellationToken) -> CommandResult {
+    if cancellation_token.is_cancelled() {
+        return Ok(step_envelope(
+            "retraction",
+            "failed",
+            json!({
+                "dois_checked": 0,
+                "results": [],
+                "block_brief": true,
+                "unknown_count": 0,
+                "terminal_failure": true,
+                "reason": "research workflow cancelled",
+            }),
+        ));
+    }
     let dois = read_lines(required_path(&args.dois, "--dois")?)?;
     let disclosed = match &args.disclosed {
         Some(path) => read_lines(path)?,
@@ -636,16 +768,79 @@ fn step_retraction(args: &ResearchArgs) -> CommandResult {
         }
         None => None,
     };
-    let result = retraction::sweep(
-        &dois,
-        &disclosed,
-        !args.allow_unknown,
-        fixture.as_ref(),
-        &retraction::network_unavailable,
-    );
+    let use_live_network = fixture.is_none() && !args.offline;
+    let thread_token = cancellation_token.clone();
+    let allow_unknown = args.allow_unknown;
+    let (mut result, budget) = std::thread::Builder::new()
+        .name("legion-research-retraction".into())
+        .spawn(move || {
+            use std::cell::RefCell;
+            let cancellation =
+                legion_research::Cancellation::from_probe(move || thread_token.is_cancelled());
+            let budget = RefCell::new(legion_research::BudgetAccount::from_timeout(
+                legion_research::BudgetLimits::default(),
+                Duration::from_secs(30),
+            ));
+            let seen_sources = RefCell::new(std::collections::BTreeSet::new());
+            let client = use_live_network.then(retraction::live_client);
+            let fetch = |verifier, doi: &str| {
+                if !use_live_network {
+                    return retraction::network_unavailable(verifier, doi);
+                }
+                let client = match client.as_ref() {
+                    Some(Ok(client)) => client,
+                    Some(Err(error)) => return Err(error.clone().into()),
+                    None => return Err("HTTP client unavailable".into()),
+                };
+                if !seen_sources.borrow().contains(doi) {
+                    budget
+                        .borrow_mut()
+                        .reserve_source(&cancellation)
+                        .map_err(|error| retraction::FetchError {
+                            message: error.to_string(),
+                            terminal: true,
+                        })?;
+                    seen_sources.borrow_mut().insert(doi.to_owned());
+                }
+                retraction::fetch_live(
+                    client,
+                    verifier,
+                    doi,
+                    &mut budget.borrow_mut(),
+                    &cancellation,
+                )
+            };
+            let result =
+                retraction::sweep(&dois, &disclosed, !allow_unknown, fixture.as_ref(), &fetch);
+            (result, budget.into_inner().snapshot())
+        })
+        .map_err(|error| {
+            super::CommandError::internal(format!("cannot start retraction worker: {error}"))
+        })?
+        .join()
+        .map_err(|_| super::CommandError::internal("retraction worker panicked"))?;
+    if let Value::Object(fields) = &mut result {
+        fields.insert(
+            "budget".into(),
+            serde_json::to_value(budget).map_err(super::io_error)?,
+        );
+        fields.insert(
+            "fetch_mode".into(),
+            Value::String(if use_live_network {
+                "live".into()
+            } else if args.retraction_fixture.is_some() {
+                "fixture-offline".into()
+            } else {
+                "offline".into()
+            }),
+        );
+    }
     let gap = retraction::has_unavailable_gap(&result);
     let blocked = result["block_brief"].as_bool().unwrap_or(true);
-    let status = if gap {
+    let terminal_failure = retraction::has_terminal_failure(&result);
+    let status = if terminal_failure {
+        "failed"
+    } else if gap {
         "unavailable"
     } else if blocked {
         "failed"
@@ -658,6 +853,16 @@ fn step_retraction(args: &ResearchArgs) -> CommandResult {
             map.insert(
                 "reason".to_string(),
                 Value::String(retraction::UNAVAILABLE_NETWORK.to_string()),
+            );
+        }
+    }
+    if terminal_failure {
+        if let Value::Object(map) = &mut envelope {
+            map.insert(
+                "reason".to_string(),
+                Value::String(
+                    "retraction verification stopped on cancellation, deadline, or budget".into(),
+                ),
             );
         }
     }
@@ -725,4 +930,55 @@ fn step_apply_patch(args: &ResearchArgs) -> CommandResult {
             "assurance": patch_guard::ASSURANCE,
         }),
     ))
+}
+
+#[cfg(test)]
+mod route_tests {
+    use super::*;
+
+    #[test]
+    fn typed_route_accepts_anonymous_medical_and_complete_legal_context() {
+        let mut medical = legion_research::ResearchRoute::host_injected_with(
+            "general dosing evidence",
+            "medical",
+            "public",
+        );
+        medical.subject.issue = Some("evidence for typical adult dosing".into());
+        medical.subject.patient = Some(legion_research::ResearchPatient {
+            kind: "anonymous".into(),
+            ..Default::default()
+        });
+        assert!(validate_route_input("general dosing evidence", medical, None, None).is_ok());
+
+        let mut legal = legion_research::ResearchRoute::host_injected_with(
+            "tenant notice rules",
+            "legal",
+            "public",
+        );
+        legal.subject.country = Some(legion_research::NullableString::Value("IN".into()));
+        legal.subject.area = Some(legion_research::NullableString::Value("consumer".into()));
+        legal.subject.issue = Some("notice before consumer complaint".into());
+        assert!(validate_route_input("tenant notice rules", legal, None, None).is_ok());
+    }
+
+    #[test]
+    fn typed_route_rejects_query_mismatch_and_explicit_flag_conflicts() {
+        let route = legion_research::ResearchRoute::host_injected("bound query");
+        assert!(validate_route_input("other query", route.clone(), None, None).is_err());
+        assert!(validate_route_input("bound query", route.clone(), Some("medical"), None).is_err());
+        assert!(validate_route_input("bound query", route, None, Some("private")).is_err());
+    }
+
+    #[test]
+    fn unsupported_stateful_route_is_marked_unavailable() {
+        let mut route = legion_research::ResearchRoute::host_injected("query");
+        route.operation = "manage-corpus".into();
+        assert!(route_unavailable_reason(&route).is_some());
+        route.operation = "discover".into();
+        route.allowed_effects.push("create-artifact".into());
+        assert!(route_unavailable_reason(&route).is_some());
+        route.allowed_effects.pop();
+        route.provider = "notebooklm".into();
+        assert!(route_unavailable_reason(&route).is_some());
+    }
 }

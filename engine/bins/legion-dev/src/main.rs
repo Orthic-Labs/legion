@@ -50,6 +50,24 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Prepare one host-native spec-consistency review packet from a skill-eval case.
+    PrepareSkillEval {
+        #[arg(long)]
+        input: std::path::PathBuf,
+        #[arg(long = "case")]
+        case_id: String,
+        #[arg(long)]
+        output: std::path::PathBuf,
+    },
+    /// Ingest indexed pass/fail/unverified judgments for a prepared skill-eval packet.
+    IngestSkillEval {
+        #[arg(long)]
+        packet: std::path::PathBuf,
+        #[arg(long)]
+        results: std::path::PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Every path deleted under skills/, scripts/, hooks/, doctrine/,
     /// docs/agent-rules*, or engine/bins/*/src/commands/ since the baseline
     /// commit needs a row in `docs/provenance/retirements.md`.
@@ -208,6 +226,16 @@ fn main() -> ExitCode {
         Command::RunSkillEvals { bundles, json } => {
             checks::run_skill_evals::run(&root, &bundles, json)
         }
+        Command::PrepareSkillEval {
+            input,
+            case_id,
+            output,
+        } => checks::skill_eval_judging::prepare(&root, &input, &case_id, &output),
+        Command::IngestSkillEval {
+            packet,
+            results,
+            json,
+        } => checks::skill_eval_judging::ingest_files(&packet, &results, json),
         Command::CheckRetirements => checks::retirements::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
         Command::EvaluateAuthorityReplay {

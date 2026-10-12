@@ -415,3 +415,122 @@ fn combined_probe_output(stdout: &[u8], stderr: &[u8]) -> String {
     combined.push_str(&stderr);
     combined
 }
+
+#[cfg(test)]
+mod exact_version_gate_tests {
+    use super::*;
+    use crate::{
+        artifact::ArtifactWriter,
+        platform::{ProcessFuture, ProcessOutput},
+        receipt::ProcessTreeEvidence,
+        request::ExternalToolRequest,
+    };
+    use sha2::{Digest, Sha256};
+    use std::{
+        fs,
+        path::PathBuf,
+        sync::{Arc, Mutex},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    struct ProbePlatform {
+        marker: PathBuf,
+        launches: Arc<Mutex<Vec<Vec<String>>>>,
+    }
+
+    impl PlatformProcess for ProbePlatform {
+        fn run<'a>(&'a self, launch: ProcessLaunch) -> ProcessFuture<'a> {
+            let marker = self.marker.clone();
+            let launches = Arc::clone(&self.launches);
+            Box::pin(async move {
+                launches.lock().unwrap().push(launch.args.clone());
+                let is_probe = launch.args.as_slice() == ["--version"];
+                if !is_probe {
+                    fs::write(marker, b"main command launched").unwrap();
+                }
+                Ok(ProcessOutput {
+                    stdout: if is_probe {
+                        b"pnpm 19.1.0\n".to_vec()
+                    } else {
+                        Vec::new()
+                    },
+                    stderr: Vec::new(),
+                    exit_code: Some(0),
+                    signal: None,
+                    timed_out: false,
+                    cancelled: false,
+                    output_limited: false,
+                    kill_succeeded: true,
+                    process_tree: ProcessTreeEvidence {
+                        started: true,
+                        terminated: true,
+                        hard_killed: false,
+                        reaped: true,
+                        detail: None,
+                    },
+                    started_at_ms: 1,
+                    completed_at_ms: 2,
+                })
+            })
+        }
+    }
+
+    #[test]
+    fn exact_pinned_mismatch_is_rejected_before_test_command_launch() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "legion-effects-exact-version-{}-{nonce}",
+            std::process::id()
+        ));
+        let artifacts = root.join("artifacts");
+        fs::create_dir_all(&artifacts).unwrap();
+        let executable = root.join("pnpm");
+        fs::write(&executable, b"sealed fixture executable").unwrap();
+        let expected_digest = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(b"sealed fixture executable"))
+        );
+        let marker = root.join("main-launched.marker");
+        let launches = Arc::new(Mutex::new(Vec::new()));
+        let executor = EffectExecutor::new(
+            ProbePlatform {
+                marker: marker.clone(),
+                launches: Arc::clone(&launches),
+            },
+            ArtifactWriter::new(&artifacts),
+            StaticPolicy {
+                decision: PolicyDecision {
+                    allowed: true,
+                    policy_id: "test".into(),
+                    policy_version: 1,
+                    policy_digest: "sha256:test".into(),
+                    reason: None,
+                },
+            },
+        );
+        let request = ExternalToolRequest {
+            request_id: "request-test".into(),
+            provider_id: "legacy.quality.test".into(),
+            plan_id: "plan-test".into(),
+            policy_id: "test".into(),
+            executable: executable.to_string_lossy().into_owned(),
+            args: vec!["run".into(), "test".into()],
+            cwd: root.to_string_lossy().into_owned(),
+            expected_digest: Some(expected_digest),
+            version_requirement: Some("exact:9.1.0".into()),
+            ..ExternalToolRequest::default()
+        };
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let receipt = runtime.block_on(executor.execute(&request));
+        assert_eq!(receipt.state, ExecutionState::UnsealedExecutable);
+        assert_eq!(
+            launches.lock().unwrap().as_slice(),
+            &[vec!["--version".to_owned()]]
+        );
+        assert!(!marker.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+}

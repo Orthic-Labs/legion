@@ -23,7 +23,10 @@ the source checkout and `SKILL.md` calls it retired. The only thing that ships a
 the native `legion research` command (`legion-research` crate). Use `legion research --help`
 for its real, current contract: `--query`, `--provider`, `--max-hits`,
 `--source-record <record.json>` (host-opened evidence you supply), `--min-independent-providers`,
-`--domain`, and `--sensitivity` (defined in `engine/bins/legion/src/commands/research.rs`).
+`--domain`, and `--sensitivity` (defined in `engine/bins/legion/src/commands/research.rs`). A
+complete ResearchRoute v2 can be supplied with `--route-json <route.json>`; its `subject.query`
+must exactly match `--query`. Explicit `--domain` or `--sensitivity` values must agree with route
+JSON. Route JSON is validated before source records are admitted.
 
 **Domain and sensitivity flags:** `--domain` defaults to `general` and accepts `general`,
 `market`, `technical`, `scientific`, `medical`, `legal`. `--sensitivity` defaults to `public`
@@ -32,18 +35,17 @@ and validated (`ResearchRoute::host_injected_with` in
 `engine/crates/legion-research/src/workflow.rs`); an undeclared value is refused. The CLI has
 no query classifier, so the caller chooses the domain.
 
-**Medical and legal routes are refused by the CLI.** `--domain medical` requires
-`subject.patient.kind`, and `--domain legal` requires `subject.country` (ISO alpha-2) and
-`subject.area`, plus an issue. The CLI has no flags for those subject fields, so validation
-fails closed and the route never reaches a provider. The gates for these routes
-(`gates_satisfied`, `medical_effects_satisfied`) are enforced in the native run path but cannot
-be satisfied from the command line. Do not tell a user the installed skill can run a medical
-or legal route; route them to a human or a host that supplies the subject context.
+**Medical and legal routes require complete typed context.** Route JSON can supply an anonymous
+medical subject with an issue, or a legal subject with ISO alpha-2 country, recognized area, and
+issue. Personal medical routes still require their existing gate/history conditions. The native
+command consumes host-opened source records and returns an evidence report; accepting a typed
+route does not create approvals or perform its declared external/stateful effects. Unsupported
+providers, corpus-management/artifact operations, and upload/artifact/patch/worker effects return
+`unavailable` with the requested route retained in output. NotebookLM answers remain leads, not
+evidence.
 
-The sections below describe the prototype's design: its query classifier, two-stage flow, and
-medical/legal context rules. The native CLI implements none of the classifier and cannot supply
-the subject context those rules need. The sections are kept for anyone working from a source
-checkout; they do not describe the current native runtime.
+The sections below describe the prototype's query classifier and approval flow. The native CLI
+does not classify queries or create approval receipts; callers provide typed context directly.
 
 ## Stage 1 — route only (prototype design, not shipped)
 

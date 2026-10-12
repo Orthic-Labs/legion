@@ -6,19 +6,20 @@
 //! `ManualEditRoutesDeps` + `ManualApplyCallbacks` glue between them and
 //! this server's `QueueState`/token/project root.
 //!
-//! Two pieces remain genuinely out of reach: `buildManualEditEvidence`
-//! (`../live-manual-edit-evidence.mjs`) and `commitManualEdits`
-//! (`../live-commit-manual-edits.mjs`) are both outside every packet ported
-//! so far (they shell an LLM copy-edit agent) — `build_manual_edit_evidence`
-//! and `commit_manual_edits` below return an explicit `not_implemented`
-//! error naming the missing file, exactly like this server's other 501
-//! routes, rather than fabricating a result.
+//! The evidence builder is reused from `w2_018`; commit orchestration stays
+//! in `r18`, with its chat-agent boundary injected through this server's
+//! authenticated `/poll` queue.
 
 use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
 use super::queue::QueueState;
+use crate::wf_port::r18::commit_cli::{
+    commit_manual_edits_with_chat_apply, CommitOptions, NativeChatApply,
+};
+use crate::wf_port::w2_018::copy_edit_agent::SystemProcessRunner;
+use crate::wf_port::w2_018::evidence::build_manual_edit_evidence;
 use crate::wf_port::w2_020::event_validation::validate_event;
 use crate::wf_port::w2_021::manual_apply::{ManualApplyCallbacks, ManualApplyController};
 use crate::wf_port::w2_021::manual_edit_routes::{
@@ -61,6 +62,7 @@ impl ManualApplyCallbacks for QueueCallbacks<'_> {
 pub struct LiveServerManualEditDeps<'a> {
     pub token: String,
     pub project_root: PathBuf,
+    pub queue: &'a QueueState,
     pub controller: &'a ManualApplyController<QueueCallbacks<'a>>,
 }
 
@@ -74,10 +76,15 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     }
 
     fn copy_agent_mode(&self) -> String {
-        std::env::var("IMPECCABLE_LIVE_COPY_AGENT")
+        let mode = std::env::var("IMPECCABLE_LIVE_COPY_AGENT")
             .unwrap_or_default()
             .trim()
-            .to_ascii_lowercase()
+            .to_ascii_lowercase();
+        if mode.is_empty() {
+            "auto".to_string()
+        } else {
+            mode
+        }
     }
 
     fn copy_agent_timeout_ms(&self) -> i64 {
@@ -88,11 +95,9 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     }
 
     fn chat_agent_likely_active(&self) -> bool {
-        // `chatAgentLikelyActive` in JS inspects live session-store state
-        // (`live/session-store.mjs`) that isn't ported (same gap as the
-        // `/annotation` route); false is the same "no chat agent" default
-        // the JS falls back to when no session is recorded.
-        false
+        // Only token-authenticated GET /poll requests affect this state.
+        // This is transport availability, not host/session attestation.
+        self.queue.agent_polling_connected()
     }
 
     fn record_manual_edit_activity(&self, _event: &str, _payload: Value) {}
@@ -130,18 +135,114 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
     }
 
     fn cancel_pending_events(&self, page_url: Option<&str>) -> Vec<Value> {
-        self.controller
-            .cancel_pending_events(page_url, "manual_edit_commit")
+        let canceled = self
+            .controller
+            .cancel_pending_events(page_url, "manual_edit_commit");
+        for event in &canceled {
+            if let Some(id) = event.get("id").and_then(Value::as_str) {
+                self.queue.acknowledge_pending_event(id);
+            }
+        }
+        canceled
     }
 
-    fn build_manual_edit_evidence(&self, _page_url: Option<&str>) -> Value {
-        json!({
-            "error": "not_implemented",
-            "message": "buildManualEditEvidence depends on live-manual-edit-evidence, which is not available in the native build.",
-        })
+    fn build_manual_edit_evidence(&self, page_url: Option<&str>) -> Value {
+        build_manual_edit_evidence(
+            &self.project_root,
+            &self.project_root.join(".impeccable").join("live"),
+            page_url,
+        )
     }
 
-    fn commit_manual_edits(&self, _args: CommitManualEditsArgs) -> Result<Value, String> {
-        Err("unavailable: manual-edit commit is not implemented".to_string())
+    fn commit_manual_edits(&self, args: CommitManualEditsArgs) -> Result<Value, String> {
+        let mode = args.provider.as_deref().unwrap_or("");
+        if matches!(mode, "codex" | "claude") {
+            return Err(format!(
+                "unavailable: {mode} manual-edit provider is not supported by the live server"
+            ));
+        }
+        if !args.use_chat_route || !self.queue.agent_polling_connected() {
+            return Err("unavailable: authenticated agent polling is not connected".to_string());
+        }
+
+        let env: std::collections::HashMap<String, String> = std::env::vars().collect();
+        let timeout_ms = u64::try_from(args.timeout_ms)
+            .ok()
+            .filter(|value| *value > 0);
+        let callback = |batch: &Value, page_url: Option<&str>, repair: Option<&Value>| {
+            self.controller
+                .push_batch_in_chunks_and_wait(batch, page_url, repair)
+        };
+        let native_chat_apply: &NativeChatApply<'_> = &callback;
+        let result = commit_manual_edits_with_chat_apply(
+            CommitOptions {
+                cwd: self.project_root.clone(),
+                page_url: args.page_url,
+                provider: Some("chat".to_string()),
+                env: &env,
+                timeout_ms,
+                repair_only: args.repair_only,
+                transaction_id: args.transaction_id,
+                batch: args.batch,
+            },
+            &SystemProcessRunner,
+            Some(native_chat_apply),
+        );
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn cancel_pending_manual_apply_removes_external_queue_event() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-manual-edit-cancel-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &queue });
+        let deps = LiveServerManualEditDeps {
+            token: "tok".to_string(),
+            project_root: root.clone(),
+            queue: &queue,
+            controller: &controller,
+        };
+        let batch = json!({
+            "entries": [{
+                "id": "entry-cancel",
+                "pageUrl": "http://localhost/page",
+                "ops": [{ "file": "src/page.html", "type": "replace", "selector": "#hero", "value": "Updated" }]
+            }]
+        });
+        thread::scope(|scope| {
+            let waiter = scope.spawn(|| {
+                controller.push_apply_event_and_wait(
+                    &batch,
+                    Some("http://localhost/page"),
+                    None,
+                    None,
+                )
+            });
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while queue.len() == 0 {
+                assert!(Instant::now() < deadline, "manual apply event not queued");
+                thread::sleep(Duration::from_millis(1));
+            }
+            let canceled = deps.cancel_pending_events(None);
+            assert_eq!(canceled.len(), 1);
+            assert_eq!(queue.len(), 0);
+            assert_eq!(waiter.join().unwrap().unwrap_err(), "manual_edit_commit");
+        });
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

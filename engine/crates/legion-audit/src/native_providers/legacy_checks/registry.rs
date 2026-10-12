@@ -61,6 +61,18 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         },
     },
     LegacyCheckSpec {
+        provider_id: "legacy.quality.test",
+        check: "test",
+        phase: "source",
+        role: "deterministic",
+        tool: "project-test",
+        selector: r#"{"op":"any","selectors":[{"op":"anyPackageScript","names":["test"]},{"op":"anyPath","patterns":["package.json","Cargo.toml","src-tauri/Cargo.toml"]}]}"#,
+        command: CommandShape::Named {
+            tool: "project-test",
+            args: &[],
+        },
+    },
+    LegacyCheckSpec {
         provider_id: "legacy.quality.dead-code",
         check: "dead_code",
         phase: "source",

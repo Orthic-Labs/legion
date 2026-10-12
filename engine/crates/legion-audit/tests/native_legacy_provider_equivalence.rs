@@ -75,6 +75,12 @@ const NODE_BEHAVIOR: &[NodeBehavior] = &[
         readiness: "build script or Cargo.toml",
     },
     NodeBehavior {
+        id: "legacy.quality.test",
+        check: "test",
+        tool: "project-test",
+        readiness: "declared package test script or root/src-tauri Cargo.toml",
+    },
+    NodeBehavior {
         id: "legacy.quality.dead-code",
         check: "dead_code",
         tool: "knip",

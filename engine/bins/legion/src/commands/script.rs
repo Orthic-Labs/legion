@@ -926,7 +926,8 @@ fn read_stdin_to_string() -> String {
 /// the `IMPECCABLE_HOOK_DEPTH` re-entrancy guard, same ordering as the JS
 /// (the guard must reflect the parent's value, not the value this process
 /// is about to export for any child it might spawn), always writes the
-/// audit log, and always exits 0 — never breaks the caller's turn.
+/// audit log, and always exits 0 — never breaks the caller's turn. Typed
+/// detector failures are logged and reported on stderr without a clean ack.
 fn designer_hook(_args: &[String]) -> i32 {
     let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();
     env.entry("IMPECCABLE_HOOK_DEPTH".to_string())
@@ -943,10 +944,30 @@ fn designer_hook(_args: &[String]) -> i32 {
         detector: &detector,
     });
 
-    r14::write_audit_log(&env, &result.audit, &cwd, None);
-
-    print_cli_outcome(result.exit_code, &result.stdout, "");
-    0
+    match result {
+        Ok(result) => {
+            r14::write_audit_log(&env, &result.audit, &cwd, None);
+            print_cli_outcome(result.exit_code, &result.stdout, "")
+        }
+        Err(error) => {
+            let (kind, message) = match &error {
+                r14::DetectorError::Unavailable { message } => ("unavailable", message.clone()),
+                r14::DetectorError::Read {
+                    file_path,
+                    kind,
+                    message,
+                } => ("read", format!("{file_path} ({kind:?}): {message}")),
+            };
+            let audit = json!({
+                "event": "PostToolUse",
+                "scanUnavailable": true,
+                "emitted": false,
+                "error": { "kind": kind, "message": message.clone() },
+            });
+            r14::write_audit_log(&env, &audit, &cwd, None);
+            print_cli_outcome(0, "", &format!("designer hook {kind}: {message}\n"))
+        }
+    }
 }
 
 /// Port of `hook-before-edit.mjs`: Cursor `preToolUse` write gate over
@@ -2331,8 +2352,11 @@ impl w2_005::validate_atom_report::ReportFs for RealReportFs {
         } else {
             std::env::current_dir().unwrap_or_default().join(p)
         };
+        if let Ok(canonical) = std::fs::canonicalize(&abs) {
+            return canonical.to_string_lossy().to_string();
+        }
         // Collapse `.`/`..` components the way Python's `Path.resolve()`
-        // does, without requiring the path to exist.
+        // does for a missing path, without requiring the path to exist.
         let mut out = std::path::PathBuf::new();
         for comp in abs.components() {
             match comp {
@@ -2345,6 +2369,50 @@ impl w2_005::validate_atom_report::ReportFs for RealReportFs {
         }
         out.to_string_lossy().to_string()
     }
+    fn revision_snapshot(
+        &self,
+        root: &str,
+    ) -> Result<w2_005::validate_atom_report::RevisionSnapshot, String> {
+        use std::process::Command;
+
+        let git = |args: &[&str]| {
+            Command::new("git")
+                .arg("-C")
+                .arg(root)
+                .args(args.iter().copied())
+                .output()
+                .map_err(|error| error.to_string())
+        };
+        let commit = git(&["rev-parse", "HEAD"])?;
+        if !commit.status.success() {
+            return Err("git rev-parse HEAD failed".to_string());
+        }
+        let commit = String::from_utf8_lossy(&commit.stdout).trim().to_string();
+        if !matches!(commit.len(), 40 | 64) || !commit.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err("git returned an invalid full commit ID".to_string());
+        }
+
+        let root_path = std::fs::canonicalize(root).map_err(|error| error.to_string())?;
+        let top = git(&["rev-parse", "--show-toplevel"])?;
+        if !top.status.success() {
+            return Err("git rev-parse --show-toplevel failed".to_string());
+        }
+        let top = String::from_utf8_lossy(&top.stdout).trim().to_string();
+        let top_path = std::fs::canonicalize(top).map_err(|error| error.to_string())?;
+        if root_path != top_path {
+            return Err("declared source root is not the repository root".to_string());
+        }
+
+        let status = git(&["status", "--porcelain", "--untracked-files=all"])?;
+        if !status.status.success() {
+            return Err("git status --porcelain failed".to_string());
+        }
+        Ok(w2_005::validate_atom_report::RevisionSnapshot {
+            commit,
+            clean: status.stdout.is_empty(),
+        })
+    }
 }
 
 fn sha256_hex_file(path: &str) -> std::io::Result<String> {
@@ -2355,6 +2423,24 @@ fn sha256_hex_file(path: &str) -> std::io::Result<String> {
 /// `legion script foundation/validate-atom-report <report> --mode <mode>
 /// [--expected-rows N] [--max-repeat N] [--manifest <path>]
 /// [--write-receipt <path>]`, port of `validate_atom_report.py`.
+fn parse_revision_map(
+    value: &serde_json::Value,
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let Some(revisions) = value.as_object() else {
+        return Err("REVISION_UNPROVEN: repo_revisions must be an object".to_string());
+    };
+    let mut parsed = std::collections::BTreeMap::new();
+    for (repo, revision) in revisions {
+        let Some(revision) = revision.as_str().filter(|value| !value.trim().is_empty()) else {
+            return Err(format!(
+                "REVISION_UNPROVEN: repo_revisions.{repo} must be a non-empty commit ID string"
+            ));
+        };
+        parsed.insert(repo.clone(), revision.to_string());
+    }
+    Ok(parsed)
+}
+
 fn foundation_validate_atom_report(args: &[String]) -> i32 {
     let mut report: Option<String> = None;
     let mut mode: Option<String> = None;
@@ -2365,6 +2451,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     let mut repository: Option<String> = None;
     let mut canon_path: Option<String> = None;
     let mut ledgers: Option<Vec<String>> = None;
+    let mut require_revisions = false;
 
     let mut i = 0;
     while i < args.len() {
@@ -2408,6 +2495,10 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                 write_receipt = args.get(i + 1).cloned();
                 i += 2;
             }
+            "--require-revisions" => {
+                require_revisions = true;
+                i += 1;
+            }
             other => {
                 if report.is_none() && !other.starts_with("--") {
                     report = Some(other.to_string());
@@ -2418,7 +2509,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
     }
 
     let (Some(report), Some(mode)) = (report, mode) else {
-        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <inventory|stage2|stage3|final|repo-ledger|canon|mechanism-cards|handoff> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--repository <name>] [--canon <canon.md>] [--ledgers <ledger.md> ...] [--write-receipt <path>]");
+        eprintln!("usage: legion script foundation/validate-atom-report <report> --mode <inventory|stage2|stage3|final|repo-ledger|canon|mechanism-cards|handoff> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--require-revisions] [--repository <name>] [--canon <canon.md>] [--ledgers <ledger.md> ...] [--write-receipt <path>]");
         return 1;
     };
 
@@ -2473,6 +2564,16 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                     .collect()
             })
             .unwrap_or_default();
+        let repo_revisions = match value.get("repo_revisions") {
+            None => std::collections::BTreeMap::new(),
+            Some(revisions) => match parse_revision_map(revisions) {
+                Ok(parsed) => parsed,
+                Err(error) => {
+                    println!("FAIL: {error}");
+                    return 1;
+                }
+            },
+        };
         for key in ["repo_roots", "scope_repos", "repo_targets"] {
             if value.get(key).is_none() {
                 println!("FAIL: invalid manifest: '{key}'");
@@ -2527,6 +2628,8 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
             repo_roots,
             scope_repos,
             repo_targets,
+            repo_revisions,
+            product_root_declared: false,
         };
         match w2_005::validate_atom_report::finish_manifest(built, product_root) {
             Ok(checked) => manifest = Some(checked),
@@ -2544,6 +2647,7 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
         repository,
         canon: canon_path,
         ledgers,
+        require_revisions,
     };
     let fs = RealReportFs;
     let outcome = w2_005::validate_atom_report::run(&report_text, &mode, &opts, &fs, &report);
@@ -2585,6 +2689,11 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
                 .unwrap_or(0),
                 "report": { "path": report, "sha256": report_hash },
                 "manifest": manifest_json,
+                "revisionBound": outcome.revision_bound,
+                "declaredRevisions": outcome.declared_revisions,
+                "observedRevisions": outcome.observed_revisions.iter().map(|(repo, snapshot)| {
+                    (repo.clone(), json!({ "commit": snapshot.commit, "clean": snapshot.clean }))
+                }).collect::<serde_json::Map<String, serde_json::Value>>(),
                 "argv": args,
             });
             if let Err(e) = std::fs::write(
@@ -2601,6 +2710,62 @@ fn foundation_validate_atom_report(args: &[String]) -> i32 {
         }
     }
     outcome.code
+}
+
+#[cfg(test)]
+mod foundation_revision_manifest_tests {
+    use super::parse_revision_map;
+
+    #[test]
+    fn malformed_revision_map_shapes_are_typed_unproven() {
+        let non_object = serde_json::json!(["not", "an object"]);
+        assert_eq!(
+            parse_revision_map(&non_object).unwrap_err(),
+            "REVISION_UNPROVEN: repo_revisions must be an object"
+        );
+
+        for malformed in [
+            serde_json::json!(null),
+            serde_json::json!(""),
+            serde_json::json!(17),
+        ] {
+            let value = serde_json::json!({"repoA": malformed});
+            assert_eq!(
+                parse_revision_map(&value).unwrap_err(),
+                "REVISION_UNPROVEN: repo_revisions.repoA must be a non-empty commit ID string"
+            );
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod foundation_evidence_resolution_tests {
+    use super::RealReportFs;
+    use legion_runtime::wf_port::w2_005::validate_atom_report::ReportFs;
+    use std::os::unix::fs::symlink;
+
+    #[test]
+    fn existing_evidence_symlink_resolves_outside_declared_root() {
+        let base = std::env::temp_dir().join(format!(
+            "legion-foundation-evidence-link-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("repo");
+        let outside = base.join("outside.rs");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(&outside, "fn outside() {}\n").unwrap();
+        let evidence = root.join("evidence.rs");
+        symlink(&outside, &evidence).unwrap();
+
+        let fs = RealReportFs;
+        let resolved_root = fs.resolve(root.to_str().unwrap());
+        let resolved_evidence = fs.resolve(evidence.to_str().unwrap());
+        assert!(!std::path::Path::new(&resolved_evidence)
+            .starts_with(std::path::Path::new(&resolved_root)));
+
+        std::fs::remove_dir_all(base).unwrap();
+    }
 }
 
 /// `legion script foundation/export-analytics --canon <canon.md> --cards <card.md> [<card.md> ...]

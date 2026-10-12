@@ -9,7 +9,8 @@ operations:
 effects:
   - source-read
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - legion
 ---
 
 # Session

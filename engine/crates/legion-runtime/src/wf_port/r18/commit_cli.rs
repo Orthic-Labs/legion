@@ -57,6 +57,10 @@ pub struct CommitOptions<'a> {
     pub batch: Option<Value>,
 }
 
+/// Optional in-process route for the host's authenticated chat session.
+/// Kept outside `CommitOptions` so the existing CLI/API contract stays the same.
+pub(crate) type NativeChatApply<'a> = dyn Fn(&Value, Option<&str>, Option<&Value>) -> Value + 'a;
+
 fn live_dir(cwd: &Path) -> PathBuf {
     cwd.join(".impeccable").join("live")
 }
@@ -109,6 +113,8 @@ fn run_agent(
     provider: Option<Provider>,
     runner: &dyn ProcessRunner,
     timeout_ms: Option<u64>,
+    page_url: Option<&str>,
+    native_chat_apply: Option<&NativeChatApply<'_>>,
 ) -> Result<Value, String> {
     let provider = provider.ok_or_else(|| {
         describe_no_provider_error(
@@ -117,6 +123,11 @@ fn run_agent(
             env.contains_key("CLAUDE_CODE_OAUTH_TOKEN"),
         )
     })?;
+    if provider == Provider::Chat {
+        if let Some(apply) = native_chat_apply {
+            return Ok(apply(batch, page_url, batch.get("repair")));
+        }
+    }
     let result_dir = std::env::temp_dir().join(format!(
         "impeccable-copy-batch-{}-{}",
         std::process::id(),
@@ -162,6 +173,7 @@ fn repair_post_apply_validation(
     env: &HashMap<String, String>,
     timeout_ms: Option<u64>,
     runner: &dyn ProcessRunner,
+    native_chat_apply: Option<&NativeChatApply<'_>>,
     transaction_id: Option<&str>,
     applied_entry_ids: &[String],
     files: &[String],
@@ -210,6 +222,8 @@ fn repair_post_apply_validation(
             resolved_provider,
             runner,
             timeout_ms,
+            page_url,
+            native_chat_apply,
         ) {
             Ok(r) => r,
             Err(err) => {
@@ -379,6 +393,17 @@ fn merge_counts(out: &mut Value, counts: &Value) {
 /// Port of `commitManualEdits({ cwd, pageUrl, provider, env, timeoutMs,
 /// repairOnly, transactionId, batch })`.
 pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> Value {
+    commit_manual_edits_with_chat_apply(opts, runner, None)
+}
+
+/// Same commit orchestration as [`commit_manual_edits`], with an optional
+/// host-provided in-process chat callback. All source verification, rollback,
+/// post-apply checks, and buffer clearing remain in this module.
+pub(crate) fn commit_manual_edits_with_chat_apply(
+    opts: CommitOptions,
+    runner: &dyn ProcessRunner,
+    native_chat_apply: Option<&NativeChatApply<'_>>,
+) -> Value {
     let cwd = &opts.cwd;
     let page_url = opts.page_url.as_deref();
 
@@ -443,6 +468,8 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
             resolve_provider(opts.provider.as_deref(), opts.env),
             runner,
             opts.timeout_ms,
+            page_url,
+            native_chat_apply,
         )
     };
 
@@ -658,6 +685,7 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
             opts.env,
             opts.timeout_ms,
             runner,
+            native_chat_apply,
             opts.transaction_id.as_deref(),
             &reported_applied_ids,
             &result_files,
@@ -802,6 +830,7 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
             opts.env,
             opts.timeout_ms,
             runner,
+            native_chat_apply,
             opts.transaction_id.as_deref(),
             &reported_applied_ids,
             &result_files,
@@ -864,6 +893,7 @@ pub fn commit_manual_edits(opts: CommitOptions, runner: &dyn ProcessRunner) -> V
             opts.env,
             opts.timeout_ms,
             runner,
+            native_chat_apply,
             opts.transaction_id.as_deref(),
             &applied_ids_for_repair,
             &result_files,
@@ -1160,6 +1190,63 @@ mod tests {
         let runner = NullRunner;
         let result = commit_manual_edits(opts, &runner);
         assert_eq!(result["reason"], "manual_edit_buffer_invalid");
+    }
+
+    #[test]
+    fn native_chat_callback_keeps_source_verification_and_clears_only_applied_entry() {
+        let dir = temp_dir();
+        let live = dir.join(".impeccable").join("live");
+        let source = dir.join("src").join("page.html");
+        std::fs::create_dir_all(&live).unwrap();
+        std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+        std::fs::write(&source, "<h1 id=\"hero\">Old headline</h1>\n").unwrap();
+        let entry = json!({
+            "id": "entry-1",
+            "pageUrl": "http://localhost/page",
+            "ops": [{
+                "ref": "hero",
+                "originalText": "Old headline",
+                "newText": "Updated headline",
+                "sourceHint": { "file": "src/page.html", "line": 1 }
+            }]
+        });
+        std::fs::write(
+            live.join("pending-manual-edits.json"),
+            json!({ "version": 1, "entries": [entry.clone()] }).to_string(),
+        )
+        .unwrap();
+        let batch = json!({ "entries": [entry], "candidates": [] });
+        let env = HashMap::new();
+        let opts = CommitOptions {
+            cwd: dir.clone(),
+            page_url: Some("http://localhost/page".to_string()),
+            provider: Some("chat".to_string()),
+            env: &env,
+            timeout_ms: None,
+            repair_only: false,
+            transaction_id: None,
+            batch: Some(batch),
+        };
+        let callback = |_batch: &Value, _page_url: Option<&str>, _repair: Option<&Value>| {
+            std::fs::write(&source, "<h1 id=\"hero\">Updated headline</h1>\n").unwrap();
+            json!({
+                "status": "done",
+                "appliedEntryIds": ["entry-1"],
+                "failed": [],
+                "files": ["src/page.html"],
+                "notes": []
+            })
+        };
+        let result = commit_manual_edits_with_chat_apply(opts, &NullRunner, Some(&callback));
+        assert_eq!(result["applied"][0]["id"], "entry-1");
+        assert_eq!(result["failed"], json!([]));
+        assert_eq!(result["cleared"], 1);
+        let remaining: Value = serde_json::from_str(
+            &std::fs::read_to_string(live.join("pending-manual-edits.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(remaining["entries"], json!([]));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
