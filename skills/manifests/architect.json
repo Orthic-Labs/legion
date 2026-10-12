@@ -228,7 +228,7 @@
     {
       "path": "doctrine/architecture/methods/add.md",
       "uri": "legion-skill://architect/doctrine/architecture/methods/add.md",
-      "digest": "sha256:8d4cea92af7fac4edad119ca5d33910ed0a283d26dbbedc087ffaf2b2974f850"
+      "digest": "sha256:d5a77d25ba44bfe347658c0ea66baa5397055e04fbe042cc307b4a26319ce1e7"
     },
     {
       "path": "doctrine/architecture/methods/assurance-case.md",
@@ -573,7 +573,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://architect/references/manual.md",
-      "digest": "sha256:7a33acd6bcda125503400510fcdd0c550bb8d20d30530c2ac80d4a1e53a0b565"
+      "digest": "sha256:2965e58c3fd75072e7a0fb0dcda9fab2b8f6f8f4d2610216a9fc03910a7bd8f2"
     }
   ]
 }
