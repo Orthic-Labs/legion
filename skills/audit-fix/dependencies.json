@@ -4,11 +4,11 @@
   "resources": [
     {
       "class": "HOST_CAPABILITY",
-      "capability": "blueprint-graph"
+      "capability": "legion"
     },
     {
-      "class": "HOST_CAPABILITY",
-      "capability": "legion"
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/route-resources.json"
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "methods": {
+    "blueprint-grounding": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "blueprint-graph"
+      }
+    ],
+    "durable-knowledge-emit": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "skill-emit"
+      }
+    ],
+    "okf-bundle": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "okf"
+      }
+    ]
+  },
+  "schema_version": 2
+}

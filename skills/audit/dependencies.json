@@ -4,19 +4,11 @@
   "resources": [
     {
       "class": "HOST_CAPABILITY",
-      "capability": "blueprint-graph"
-    },
-    {
-      "class": "HOST_CAPABILITY",
       "capability": "legion"
     },
     {
-      "class": "HOST_CAPABILITY",
-      "capability": "skill-emit"
-    },
-    {
-      "class": "HOST_CAPABILITY",
-      "capability": "okf"
+      "class": "PACKAGE_INTERNAL",
+      "path": "references/route-resources.json"
     }
   ]
 }

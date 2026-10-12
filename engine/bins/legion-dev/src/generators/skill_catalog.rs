@@ -404,6 +404,58 @@ mod tests {
     }
 
     #[test]
+    fn canonical_audit_host_capabilities_are_bound_to_methods() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../")
+            .canonicalize()
+            .expect("repository root should resolve");
+        let (catalog, _) = super::build_skill_catalog(&root).expect("skill catalog should build");
+        let bundles = catalog["bundles"].as_array().unwrap();
+        let bundle = |id: &str| {
+            bundles
+                .iter()
+                .find(|bundle| bundle["id"].as_str() == Some(id))
+                .unwrap_or_else(|| panic!("missing canonical {id} bundle"))
+        };
+
+        let audit = bundle("audit");
+        assert_eq!(audit["hostRequirements"], json!(["legion"]));
+        let audit_scopes = audit["scopedRequirementDetails"].as_array().unwrap();
+        for (scope, capability) in [
+            ("method:blueprint-grounding", "blueprint-graph"),
+            ("method:durable-knowledge-emit", "skill-emit"),
+            ("method:okf-bundle", "okf"),
+        ] {
+            assert!(
+                audit_scopes.iter().any(|requirement| {
+                    requirement["scope"].as_str() == Some(scope)
+                        && requirement["id"].as_str() == Some(capability)
+                }),
+                "missing {capability} binding for {scope}"
+            );
+        }
+
+        for id in ["audit-fix", "audit-visual"] {
+            let routed = bundle(id);
+            assert_eq!(routed["hostRequirements"], json!(["legion"]));
+            assert!(routed["scopedRequirementDetails"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|requirement| {
+                    requirement["scope"].as_str() == Some("method:blueprint-grounding")
+                        && requirement["id"].as_str() == Some("blueprint-graph")
+                }));
+        }
+
+        assert!(bundle("blueprint")["hostRequirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|requirement| requirement.as_str() == Some("blueprint-graph")));
+    }
+
+    #[test]
     fn tool_and_hook_alias_targets_are_rejected() {
         for target in ["tool:execution-preflight", "hook:brief"] {
             let document = json!({"aliases": {"/legacy": target}});

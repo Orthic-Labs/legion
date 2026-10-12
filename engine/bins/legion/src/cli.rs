@@ -1230,7 +1230,10 @@ impl legion_mcp::NativeApi for M1McpApi {
             "legion_m1_status" => {
                 // The application can prove its native M1 slice, but it has
                 // no evidence for the product-wide Codex/host surfaces.
-                Ok(m1_product_status_value(&application.status()))
+                let status = application
+                    .status()
+                    .map_err(|error| legion_runtime::RuntimeError::Policy(error.to_string()))?;
+                Ok(m1_product_status_value(&status))
             }
             "legion_m1_invoke" => {
                 if !valid_m1_invocation_shape(arguments) {
@@ -1430,7 +1433,9 @@ impl legion_mcp::ReleaseBindingGate for M1BindingGate {
 async fn native_m1_status(args: M1ConfigArgs) -> CommandResult {
     match load_m1_application(&args) {
         Ok(application) => {
-            let native = application.status();
+            let native = application
+                .status()
+                .map_err(|error| CommandError::incomplete(error.to_string()))?;
             // installRoot is product root; executable preserves stable current.
             Ok(json!({
                 "schemaVersion": 1,

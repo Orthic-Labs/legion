@@ -1,0 +1,11 @@
+{
+  "methods": {
+    "blueprint-grounding": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "blueprint-graph"
+      }
+    ]
+  },
+  "schema_version": 2
+}

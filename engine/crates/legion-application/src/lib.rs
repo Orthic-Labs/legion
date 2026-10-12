@@ -261,6 +261,8 @@ pub struct M1InvocationResult {
 pub enum M1ApplicationError {
     #[error("release binding failed: {0}")]
     ReleaseBinding(#[from] legion_runtime::ReleaseBindingError),
+    #[error("installed M1 binding is stale: {reason}; reconnect the MCP host")]
+    StaleInstalledBinding { reason: String },
     #[error("catalog operation failed: {0}")]
     Catalog(#[from] legion_catalog::CatalogError),
     #[error("Arcane policy pack failed validation: {0}")]
@@ -276,6 +278,8 @@ pub enum M1ApplicationError {
 #[derive(Debug)]
 pub struct M1Application {
     binding: legion_runtime::VerifiedReleaseBinding,
+    installed_inputs: Option<M1ApplicationInputs>,
+    installed_body_hashes: Option<BTreeMap<String, String>>,
     catalog: legion_catalog::CompactCatalog,
     command_resolver: legion_catalog::ExplicitCommandResolver,
     evaluator: PolicyEvaluator,
@@ -348,17 +352,34 @@ impl M1Application {
             Some(path) => legion_catalog::ExplicitCommandResolver::load(path, &catalog)?,
             None => legion_catalog::ExplicitCommandResolver::empty(),
         };
+        let installed_body_hashes = matches!(
+            &origin.origin,
+            legion_runtime::release_binding::RuntimeOrigin::Installed
+        )
+        .then(|| snapshot_installed_bodies(&catalog))
+        .transpose()
+        .map_err(|reason| M1ApplicationError::StaleInstalledBinding { reason })?;
+        let installed_inputs = matches!(
+            &origin.origin,
+            legion_runtime::release_binding::RuntimeOrigin::Installed
+        )
+        .then(|| inputs.clone());
         let evaluator = PolicyEvaluator::new(inputs.policy_pack)?;
-        Ok(Self {
+        let application = Self {
             binding,
+            installed_inputs,
+            installed_body_hashes,
             catalog,
             command_resolver,
             evaluator,
             origin,
-        })
+        };
+        application.verify_installed_binding()?;
+        Ok(application)
     }
 
-    pub fn status(&self) -> M1Status {
+    pub fn status(&self) -> Result<M1Status, M1ApplicationError> {
+        self.verify_installed_binding()?;
         let mut host_requirements = BTreeMap::new();
         let capabilities = self
             .catalog
@@ -402,7 +423,7 @@ impl M1Application {
             .collect::<Vec<_>>();
         let degraded_count = capabilities.iter().filter(|entry| entry.degraded).count();
         let host_requirements = host_requirements.into_values().collect::<Vec<_>>();
-        M1Status {
+        let status = M1Status {
             release_version: self.binding.release_version().into(),
             origin: self.origin.origin.clone(),
             executable: self.origin.executable.clone(),
@@ -414,7 +435,9 @@ impl M1Application {
             degraded_count,
             host_requirements,
             capabilities,
-        }
+        };
+        self.verify_installed_binding()?;
+        Ok(status)
     }
 
     /// Exposes the complete identity already verified at composition time for
@@ -429,6 +452,7 @@ impl M1Application {
         &self,
         request: M1InvocationRequest,
     ) -> Result<M1InvocationResult, M1ApplicationError> {
+        self.verify_installed_binding()?;
         self.invoke_resolved(&request.capability_id, request.policy_context, None)
     }
 
@@ -438,6 +462,7 @@ impl M1Application {
         &self,
         request: M1CommandRequest,
     ) -> Result<M1InvocationResult, M1ApplicationError> {
+        self.verify_installed_binding()?;
         let (resolved, _) = self.resolve_command(&request.command, request.arguments)?;
         let capability_id = resolved.capability_id.clone();
         self.invoke_resolved(&capability_id, request.policy_context, Some(resolved))
@@ -455,6 +480,7 @@ impl M1Application {
         ),
         M1ApplicationError,
     > {
+        self.verify_installed_binding()?;
         let resolved = self
             .command_resolver
             .resolve(&self.catalog, command, arguments)?;
@@ -464,12 +490,14 @@ impl M1Application {
                 reason: "unknown compact catalog id".into(),
             }
         })?;
-        let body = self.catalog.resolve_body(&resolved.capability_id)?;
+        let body = self.read_capability_body(&resolved.capability_id)?;
         let capability = DeterministicCapabilityResult {
             capability_id: entry.canonical_id.clone(),
             source_path: entry.source_path.clone(),
             body_sha256: legion_catalog::hex_digest(&body),
         };
+        self.verify_installed_body(&resolved.capability_id, &body)?;
+        self.verify_installed_binding()?;
         Ok((resolved, capability))
     }
 
@@ -479,13 +507,16 @@ impl M1Application {
         policy_context: PolicyContext,
         resolved_command: Option<legion_catalog::ResolvedExplicitCommand>,
     ) -> Result<M1InvocationResult, M1ApplicationError> {
+        self.verify_installed_binding()?;
         let entry = self.catalog.get(capability_id).ok_or_else(|| {
             legion_catalog::CatalogError::InvalidCatalog {
                 path: capability_id.to_owned(),
                 reason: "unknown compact catalog id".into(),
             }
         })?;
-        let body = self.catalog.resolve_body(capability_id)?;
+        let body = self.read_capability_body(capability_id)?;
+        self.verify_installed_body(capability_id, &body)?;
+        self.verify_installed_binding()?;
         let capability = DeterministicCapabilityResult {
             capability_id: entry.canonical_id.clone(),
             source_path: entry.source_path.clone(),
@@ -495,13 +526,97 @@ impl M1Application {
         let policy_receipt = policy_evaluation.receipt.clone();
         let invocation_receipt =
             self.invocation_receipt(&capability, &policy_evaluation, resolved_command.as_ref())?;
+        self.verify_installed_binding()?;
         Ok(M1InvocationResult {
-            status: self.status(),
+            status: self.status()?,
             capability,
             policy_evaluation,
             policy_receipt,
             invocation_receipt,
             resolved_command,
+        })
+    }
+
+    fn verify_installed_binding(&self) -> Result<(), M1ApplicationError> {
+        self.verify_installed_binding_inner()
+            .map_err(|reason| M1ApplicationError::StaleInstalledBinding { reason })
+    }
+
+    fn verify_installed_binding_inner(&self) -> Result<(), String> {
+        let Some(inputs) = &self.installed_inputs else {
+            return Ok(());
+        };
+        let check = || -> Result<(), String> {
+            legion_runtime::release_binding::verify_stable_current_binding(
+                &self.origin,
+                &inputs.release_manifest_path,
+                &inputs.release_binding_inputs,
+            )
+            .map_err(|error| error.to_string())?;
+            legion_runtime::release_binding::verify_stable_current_path(
+                &self.origin,
+                &inputs.catalog_root,
+                "stable current catalog root",
+            )
+            .map_err(|error| error.to_string())?;
+            if let Some(alias_path) = &inputs.alias_catalog_path {
+                legion_runtime::release_binding::verify_stable_current_path(
+                    &self.origin,
+                    alias_path,
+                    "stable current alias catalog",
+                )
+                .map_err(|error| error.to_string())?;
+            }
+            let manifest = legion_runtime::load_release_manifest(&inputs.release_manifest_path)
+                .map_err(|error| error.to_string())?;
+            if &manifest != self.binding.manifest() {
+                return Err("release manifest changed after M1 composition".into());
+            }
+            legion_runtime::verify_release_binding(
+                self.binding.manifest(),
+                &inputs.release_binding_inputs,
+            )
+            .map_err(|error| error.to_string())?;
+            Ok(())
+        };
+        check()
+    }
+
+    fn verify_installed_body(
+        &self,
+        capability_id: &str,
+        body: &[u8],
+    ) -> Result<(), M1ApplicationError> {
+        let Some(expected) = &self.installed_body_hashes else {
+            return Ok(());
+        };
+        let expected = expected.get(capability_id).ok_or_else(|| {
+            M1ApplicationError::StaleInstalledBinding {
+                reason: format!(
+                    "capability {capability_id} was absent from installed body snapshot"
+                ),
+            }
+        })?;
+        let actual = legion_catalog::hex_digest(body);
+        if &actual != expected {
+            return Err(M1ApplicationError::StaleInstalledBinding {
+                reason: format!(
+                    "capability {capability_id} body changed after installed composition"
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    fn read_capability_body(&self, capability_id: &str) -> Result<Vec<u8>, M1ApplicationError> {
+        self.catalog.resolve_body(capability_id).map_err(|error| {
+            if self.installed_body_hashes.is_some() {
+                M1ApplicationError::StaleInstalledBinding {
+                    reason: format!("capability {capability_id} body is unavailable: {error}"),
+                }
+            } else {
+                M1ApplicationError::Catalog(error)
+            }
         })
     }
 
@@ -571,6 +686,27 @@ impl M1Application {
         receipt.validate()?;
         Ok(receipt)
     }
+}
+
+fn snapshot_installed_bodies(
+    catalog: &legion_catalog::CompactCatalog,
+) -> Result<BTreeMap<String, String>, String> {
+    catalog
+        .entries
+        .iter()
+        .map(|entry| {
+            let body = catalog.resolve_body(&entry.canonical_id).map_err(|error| {
+                format!(
+                    "could not snapshot installed capability {} body: {error}",
+                    entry.canonical_id
+                )
+            })?;
+            Ok((
+                entry.canonical_id.clone(),
+                legion_catalog::hex_digest(&body),
+            ))
+        })
+        .collect()
 }
 
 fn verify_alias_asset_membership(
@@ -2263,11 +2399,17 @@ mod m1_tests {
     };
     use std::{
         collections::BTreeSet,
+        ffi::OsString,
         fs,
         path::{Path, PathBuf},
-        sync::atomic::{AtomicU64, Ordering},
+        sync::{
+            atomic::{AtomicU64, Ordering},
+            Mutex,
+        },
         time::{SystemTime, UNIX_EPOCH},
     };
+
+    static INSTALLED_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn temp_root() -> PathBuf {
         // Tests in this module run concurrently in one process, and coarse
@@ -2286,6 +2428,81 @@ mod m1_tests {
         ));
         fs::create_dir_all(root.join("registry")).expect("registry directory");
         root
+    }
+
+    struct InstalledEnv {
+        previous_data_root: Option<OsString>,
+        data_root_variable: &'static str,
+    }
+
+    impl Drop for InstalledEnv {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous_data_root.take() {
+                std::env::set_var(self.data_root_variable, previous);
+            } else {
+                std::env::remove_var(self.data_root_variable);
+            }
+        }
+    }
+
+    struct InstalledFixture {
+        root: PathBuf,
+        _env: InstalledEnv,
+        inputs: M1ApplicationInputs,
+        origin: legion_runtime::release_binding::RuntimeOriginEvidence,
+    }
+
+    impl Drop for InstalledFixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn installed_fixture() -> InstalledFixture {
+        #[cfg(windows)]
+        let data_root_variable = "LOCALAPPDATA";
+        #[cfg(target_os = "macos")]
+        let data_root_variable = "HOME";
+        #[cfg(all(not(windows), not(target_os = "macos")))]
+        let data_root_variable = "XDG_DATA_HOME";
+
+        let root = temp_root();
+        let previous_data_root = std::env::var_os(data_root_variable);
+        std::env::set_var(data_root_variable, &root);
+        let env = InstalledEnv {
+            previous_data_root,
+            data_root_variable,
+        };
+        let product_root = legion_runtime::release_binding::stable_product_root()
+            .expect("fixture stable product root");
+        let current = product_root.join("current");
+        fs::create_dir_all(&current).expect("current generation");
+        fs::create_dir_all(current.join("registry")).expect("current registry directory");
+        let mut inputs = inputs(&current, true);
+        let executable = current.join("bin").join(if cfg!(windows) {
+            "legion.exe"
+        } else {
+            "legion"
+        });
+        fs::create_dir_all(executable.parent().unwrap()).expect("executable directory");
+        fs::copy(&inputs.release_binding_inputs.runtime_path, &executable)
+            .expect("fixture executable");
+        inputs.release_binding_inputs.runtime_path = executable.clone();
+        let manifest_path = current.join("share/legion/release.json");
+        fs::create_dir_all(manifest_path.parent().unwrap()).expect("manifest directory");
+        fs::rename(&inputs.release_manifest_path, &manifest_path).expect("move manifest");
+        inputs.release_manifest_path = manifest_path;
+        let origin = legion_runtime::release_binding::RuntimeOriginEvidence::installed(
+            executable,
+            product_root,
+            "fixture-generation",
+        );
+        InstalledFixture {
+            root,
+            _env: env,
+            inputs,
+            origin,
+        }
     }
 
     fn values<T: Ord>(values: impl IntoIterator<Item = T>) -> BTreeSet<T> {
@@ -2501,6 +2718,161 @@ mod m1_tests {
     }
 
     #[test]
+    fn installed_binding_accepts_repeated_status_and_invocation_for_one_identity() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        let fixture = installed_fixture();
+        let app =
+            M1Application::from_inputs_with_origin(fixture.inputs.clone(), fixture.origin.clone())
+                .expect("valid installed fixture");
+
+        assert_eq!(app.status().unwrap(), app.status().unwrap());
+        assert_eq!(
+            app.invoke(request()).unwrap(),
+            app.invoke(request()).unwrap()
+        );
+    }
+
+    #[test]
+    fn installed_binding_rejects_same_version_manifest_replacement() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        let fixture = installed_fixture();
+        let app =
+            M1Application::from_inputs_with_origin(fixture.inputs.clone(), fixture.origin.clone())
+                .expect("valid installed fixture");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&fixture.inputs.release_manifest_path).unwrap())
+                .unwrap();
+        let original_version = manifest["releaseVersion"].clone();
+        manifest["capabilityCatalogSha256"] =
+            serde_json::json!(format!("sha256:{}", "0".repeat(64)));
+        assert_eq!(manifest["releaseVersion"], original_version);
+        fs::write(
+            &fixture.inputs.release_manifest_path,
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        assert!(matches!(
+            app.status(),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+        assert!(matches!(
+            app.invoke(request()),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+    }
+
+    #[test]
+    fn installed_binding_transition_after_body_read_fails_before_receipt_return() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        let fixture = installed_fixture();
+        let app =
+            M1Application::from_inputs_with_origin(fixture.inputs.clone(), fixture.origin.clone())
+                .expect("valid installed fixture");
+
+        let body = app.catalog.resolve_body("demo").expect("selected body");
+        assert_eq!(body, b"deterministic body");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&fixture.inputs.release_manifest_path).unwrap())
+                .unwrap();
+        manifest["capabilityCatalogSha256"] =
+            serde_json::json!(format!("sha256:{}", "1".repeat(64)));
+        fs::write(
+            &fixture.inputs.release_manifest_path,
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        assert!(matches!(
+            app.verify_installed_binding(),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+    }
+
+    #[test]
+    fn installed_body_snapshot_rejects_changed_skill_before_result_or_receipt() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        let fixture = installed_fixture();
+        let app =
+            M1Application::from_inputs_with_origin(fixture.inputs.clone(), fixture.origin.clone())
+                .expect("valid installed fixture");
+        let manifest_before = fs::read(&fixture.inputs.release_manifest_path).unwrap();
+        fs::write(
+            fixture.inputs.catalog_root.join("skills/demo/SKILL.md"),
+            "changed body with same release manifest",
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(&fixture.inputs.release_manifest_path).unwrap(),
+            manifest_before
+        );
+
+        assert!(matches!(
+            app.resolve_command("/demo", vec![]),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+        assert!(matches!(
+            app.invoke(request()),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+
+        fs::remove_file(fixture.inputs.catalog_root.join("skills/demo/SKILL.md")).unwrap();
+        assert!(matches!(
+            app.invoke(request()),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+    }
+
+    #[test]
+    fn installed_composition_rejects_missing_capability_body() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        let fixture = installed_fixture();
+        fs::remove_file(fixture.inputs.catalog_root.join("skills/demo/SKILL.md")).unwrap();
+
+        assert!(matches!(
+            M1Application::from_inputs_with_origin(fixture.inputs.clone(), fixture.origin.clone()),
+            Err(M1ApplicationError::StaleInstalledBinding { .. })
+        ));
+    }
+
+    #[test]
+    fn installed_binding_rejects_catalog_alias_and_missing_assets_changes() {
+        let _lock = INSTALLED_ENV_LOCK.lock().unwrap();
+        for path_kind in [
+            "catalog",
+            "alias",
+            "manifest-missing",
+            "catalog-missing",
+            "alias-missing",
+        ] {
+            let fixture = installed_fixture();
+            let app = M1Application::from_inputs_with_origin(
+                fixture.inputs.clone(),
+                fixture.origin.clone(),
+            )
+            .expect("valid installed fixture");
+            let path = match path_kind {
+                "manifest-missing" => &fixture.inputs.release_manifest_path,
+                "catalog" | "catalog-missing" => {
+                    &fixture.inputs.release_binding_inputs.catalog_path
+                }
+                _ => fixture.inputs.alias_catalog_path.as_ref().unwrap(),
+            };
+            if path_kind.ends_with("missing") {
+                fs::remove_file(path).unwrap();
+            } else {
+                fs::write(path, br#"{"schemaVersion":2,"bundles":[]}"#).unwrap();
+            }
+            assert!(matches!(
+                app.status(),
+                Err(M1ApplicationError::StaleInstalledBinding { .. })
+            ));
+            drop(app);
+            drop(fixture);
+        }
+    }
+
+    #[test]
     fn explicit_alias_modes_and_arguments_bind_to_invocation_identity() {
         let root = temp_root();
         let app = M1Application::from_inputs(inputs(&root, true)).expect("application");
@@ -2578,7 +2950,7 @@ mod m1_tests {
             r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture","scopedRequirementDetails":[{"scope":"adapter:demo-worker","scopeKind":"adapter","id":"demo-executor","degradation":"adapter down","remedy":"install it","probe":{"kind":"command","command":"__legion_requirement_is_not_installed__"}},{"scope":"provider:demo-search","scopeKind":"provider","id":"demo-search","degradation":"unprobeable","remedy":"","probe":null}]}]}"#,
         ))
         .expect("application");
-        let status = app.status();
+        let status = app.status().expect("M1 status");
         let capability = status
             .capabilities
             .iter()

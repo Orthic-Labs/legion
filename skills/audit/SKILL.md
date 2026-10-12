@@ -14,10 +14,7 @@ effects:
   - process-exec
   - artifact-write
 hostRequirements:
-  - blueprint-graph
   - legion
-  - skill-emit
-  - okf
 metadata:
   legion:
     provenance: legion-authored
@@ -42,8 +39,10 @@ TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 overrides it.
 
 1. Freeze repository root, scope, revision, dirty state, & requested mode.
-2. Read [provider architecture](references/provider-architecture.md); route repository discovery
-   through the Blueprint host capability (`blueprint-graph`) — never build a parallel registry.
+2. Read [provider architecture](references/provider-architecture.md). When graph grounding is
+   used, route it through the optional `blueprint-grounding` method in
+   [route resources](references/route-resources.json); never build a parallel registry. Without
+   that host capability, continue standalone-safe checks & leave graph-dependent claims unproven.
    The provider uses resident Hub transport when available, otherwise a bounded one-shot for
    supplied root. Enrollment controls resident watcher operation only; `project is not enrolled`
    must fall through to one-shot.

@@ -15,7 +15,6 @@ effects:
   - repository-write
   - process-exec
 hostRequirements:
-  - blueprint-graph
   - legion
 metadata:
   legion:
@@ -46,12 +45,14 @@ writes (authority is not inferred from `repository-write`). Its actual effects r
 Guard-gated.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
-2. Verify repository binding, Blueprint host capability (`blueprint-graph`) evidence, provider set, & denominators
-   before editing with `legion verify <run-dir>`. The engine writes `seal.authenticity` as `unsigned` when the
+2. Verify repository binding, provider set, & denominators before editing with
+   `legion verify <run-dir>`. If the source plan used Blueprint grounding, preserve and verify its
+   evidence binding; use the optional `blueprint-grounding` method in
+   [route resources](references/route-resources.json) only when fresh graph impact is needed. The engine writes `seal.authenticity` as `unsigned` when the
    plan has no signature; such a plan still runs every provider but records an `unsigned-plan` gap, so its
    verdict is not clean and fixes cannot be verified against it. The provider uses resident Blueprint
-   transport when available and otherwise a bounded one-shot for the supplied root; the one-shot path does
-   not depend on enrollment. Stop on drift & create a new `/audit` plan.
+   transport when that method is used and otherwise a bounded one-shot for the supplied root; the one-shot
+   path does not depend on enrollment. Stop on drift & create a new `/audit` plan.
 3. Fix only unambiguous findings. Never auto-fix manual findings, unadjudicated security findings,
    or visual findings lacking acceptance evidence.
 4. Do not install tools, fetch mutable rules, or alter provider selection.

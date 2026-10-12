@@ -14,7 +14,6 @@ effects:
   - artifact-write
   - process-exec
 hostRequirements:
-  - blueprint-graph
   - legion
 metadata:
   legion:
@@ -42,9 +41,10 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 
 `/audit-visual` uses client-native capture tools plus Legion's shared frozen Audit plan.
 
-1. Freeze repository, Blueprint generation, routes/screens, viewports, states, themes, locales,
-   platforms (each shipped OS is its own dimension per `references/platform-fidelity.md`),
-   interactions, references, & acceptance criteria.
+1. Freeze repository, routes/screens, viewports, states, themes, locales, platforms (each shipped
+   OS is its own dimension per `references/platform-fidelity.md`), interactions, references, &
+   acceptance criteria. Bind a Blueprint generation only when graph grounding is used through the
+   optional `blueprint-grounding` method in [route resources](references/route-resources.json).
 2. Use an explicit visual specification when comparing against baselines or asserting richer matrix
    dimensions; never invent evidence.
 3. Capture specified states through host browser tools, following `references/visual-qa-capture.md`.
