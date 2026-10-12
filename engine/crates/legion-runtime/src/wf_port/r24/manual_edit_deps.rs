@@ -51,11 +51,8 @@ impl ManualApplyCallbacks for QueueCallbacks<'_> {
         // No-op: see doc comment above.
     }
 
-    fn record_manual_edit_activity(&self, _kind: &str, _data: Value) {
-        // `recordManualEditActivity` in JS appends to an in-memory activity
-        // log surfaced only by the unported `/status` route's fuller
-        // fields; dropped here rather than fabricated (see queue.rs's
-        // `status_summary` doc comment for the same boundary).
+    fn record_manual_edit_activity(&self, kind: &str, data: Value) {
+        self.queue.publish_manual_edit_activity(kind, data);
     }
 }
 
@@ -100,7 +97,9 @@ impl ManualEditRoutesDeps for LiveServerManualEditDeps<'_> {
         self.queue.agent_polling_connected()
     }
 
-    fn record_manual_edit_activity(&self, _event: &str, _payload: Value) {}
+    fn record_manual_edit_activity(&self, event: &str, payload: Value) {
+        self.queue.publish_manual_edit_activity(event, payload);
+    }
 
     fn manual_edit_status(&self) -> PendingManualEditBatchSummaryTotals {
         let counts = count_by_page(&self.project_root);
@@ -197,6 +196,46 @@ mod tests {
     use super::*;
     use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn manual_edit_callbacks_publish_flattened_sse_in_call_order() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-manual-edit-activity-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &queue });
+        let deps = LiveServerManualEditDeps {
+            token: "tok".to_string(),
+            project_root: root,
+            queue: &queue,
+            controller: &controller,
+        };
+        let cursor = queue.sse_cursor();
+
+        QueueCallbacks { queue: &queue }.record_manual_edit_activity(
+            "manual_edit_apply_dispatched",
+            json!({ "type": "overridden", "id": "apply-1", "pageUrl": "/page" }),
+        );
+        deps.record_manual_edit_activity(
+            "manual_edit_commit_done",
+            json!({ "type": "overridden", "appliedCount": 1 }),
+        );
+
+        let events = queue.sse_messages_after(cursor);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].1["type"], "manual_edit_apply_dispatched");
+        assert_eq!(events[0].1["id"], "apply-1");
+        assert_eq!(events[0].1["pageUrl"], "/page");
+        assert!(events[0].1.get("data").is_none());
+        assert_eq!(events[1].1["type"], "manual_edit_commit_done");
+        assert_eq!(events[1].1["appliedCount"], 1);
+        assert!(events[1].1.get("data").is_none());
+    }
 
     #[test]
     fn cancel_pending_manual_apply_removes_external_queue_event() {

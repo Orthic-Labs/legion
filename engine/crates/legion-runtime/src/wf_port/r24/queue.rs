@@ -149,6 +149,17 @@ impl QueueState {
         }
     }
 
+    /// Publish activity using the browser's flattened SSE event shape.
+    /// The activity kind owns `type`, even if payload contains that key.
+    pub fn publish_manual_edit_activity(&self, kind: &str, payload: Value) {
+        let mut event = match payload {
+            Value::Object(fields) => fields,
+            _ => serde_json::Map::new(),
+        };
+        event.insert("type".to_string(), Value::String(kind.to_string()));
+        self.publish_sse(Value::Object(event));
+    }
+
     /// Cursor value meaning "everything published so far has been seen".
     pub fn sse_cursor(&self) -> u64 {
         self.sse_log.lock().unwrap().last_seq

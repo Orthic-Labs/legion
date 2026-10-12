@@ -6,9 +6,8 @@
 //! the AU20 planted-defect bench fixtures ported from `bench/manifest.json`.
 //! For every bench class this asserts: the positive fixture is detected, and
 //! the negative-control fixture produces zero findings. A class with no
-//! native provider mapping, or whose external tool is missing, FAILS the test.
-//! The only exception is a class listed in `allowed_skips()` with a reason —
-//! coverage is never faked and a skip is never silent.
+//! benchmark detector mapping, or whose external tool is missing, FAILS the
+//! test. Coverage is never faked and a skip is never silent.
 
 use std::{
     collections::BTreeMap,
@@ -36,28 +35,11 @@ fn provider_for_class(class: &str) -> Option<&'static str> {
         "dead_code" => Some("legacy.quality.dead-code"),
         "duplication" => Some("legacy.quality.duplication"),
         "type_error" => Some("legacy.quality.types"),
-        // "drift" (doc-drift) has no deterministic legacy-check contract;
-        // the only registry entry for it is `reasoning.doc-drift`, an
-        // LLM-adjudicated provider, not a recall-bench-eligible detector.
+        // Drift has no deterministic production provider. Its benchmark-only
+        // comparator is handled directly from manifest doc_file/file pairs.
         "drift" => None,
         _ => None,
     }
-}
-
-/// Classes allowed to skip instead of failing, each with the reason. Every
-/// other uncovered or tool-missing class fails the gate.
-fn allowed_skips() -> &'static [(&'static str, &'static str)] {
-    &[(
-        "drift",
-        "detector removed; see docs/provenance/retirements.md",
-    )]
-}
-
-fn allowed_skip_reason(class: &str) -> Option<&'static str> {
-    allowed_skips()
-        .iter()
-        .find(|(allowed, _)| *allowed == class)
-        .map(|(_, reason)| *reason)
 }
 
 fn registry_lens_ids(id: &str) -> Vec<String> {
@@ -261,6 +243,7 @@ struct BenchEntry {
     class: String,
     planted: bool,
     file: String,
+    doc_file: Option<String>,
 }
 
 fn manifest_entries() -> Vec<BenchEntry> {
@@ -274,6 +257,7 @@ fn manifest_entries() -> Vec<BenchEntry> {
             class: entry["class"].as_str().unwrap().to_string(),
             planted: entry["planted"].as_bool().unwrap(),
             file: entry["file"].as_str().unwrap().to_string(),
+            doc_file: entry["doc_file"].as_str().map(ToOwned::to_owned),
         })
         .collect()
 }
@@ -296,6 +280,9 @@ enum ClassOutcome {
 }
 
 fn run_class(class: &str) -> ClassOutcome {
+    if class == "drift" {
+        return run_drift_class();
+    }
     let Some(provider_id) = provider_for_class(class) else {
         return ClassOutcome::Uncovered;
     };
@@ -379,31 +366,268 @@ fn run_class(class: &str) -> ClassOutcome {
     }
 }
 
+/// The historical AU20 comparator is deliberately limited to one claim
+/// shape. It is benchmark evidence only; production doc-drift remains the
+/// reasoning provider `reasoning.doc-drift`.
+fn run_drift_class() -> ClassOutcome {
+    let entries = manifest_entries();
+    let positive = entries
+        .iter()
+        .find(|e| e.class == "drift" && e.planted)
+        .unwrap_or_else(|| panic!("bench manifest missing positive drift entry"));
+    let negative = entries
+        .iter()
+        .find(|e| e.class == "drift" && !e.planted)
+        .unwrap_or_else(|| panic!("bench manifest missing negative drift entry"));
+
+    let mut positive_hit = false;
+    let mut negative_clean = false;
+    for (entry, want_hit) in [(positive, true), (negative, false)] {
+        let doc_file = entry
+            .doc_file
+            .as_deref()
+            .unwrap_or_else(|| panic!("{} drift entry missing doc_file", entry.id));
+        let fixture_dir = fixture_dir_of(&entry.file);
+        let code_relative = fixture_relative_path(&entry.file, &fixture_dir);
+        let doc_relative = fixture_relative_path(doc_file, &fixture_dir);
+        let root = temp_root(&entry.id);
+        stage_fixture(&root, &fixture_dir);
+        let doc_path = root.join(doc_relative);
+        let code_path = root.join(code_relative);
+        let doc = fs::read_to_string(&doc_path)
+            .unwrap_or_else(|e| panic!("read drift doc fixture {doc_path:?}: {e}"));
+        let code = fs::read_to_string(&code_path)
+            .unwrap_or_else(|e| panic!("read drift code fixture {code_path:?}: {e}"));
+        let hit = scan_retry_claim_drift(&doc, &code).is_some();
+        if want_hit {
+            positive_hit = hit;
+        } else {
+            negative_clean = !hit;
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+    ClassOutcome::Recall {
+        positive_hit,
+        negative_clean,
+    }
+}
+
+fn fixture_relative_path<'a>(path: &'a str, fixture_dir: &str) -> &'a str {
+    let prefix = format!("fixtures/{fixture_dir}/");
+    path.strip_prefix(&prefix).unwrap_or_else(|| {
+        panic!("bench path {path:?} is outside declared fixture {fixture_dir:?}")
+    })
+}
+
+/// Extracts the first supported `up to N times` claim and first
+/// `MAX_RETRIES = N` assignment, matching the retired deterministic bench
+/// comparator's intentionally narrow contract.
+fn scan_retry_claim_drift(doc: &str, code: &str) -> Option<(f64, f64)> {
+    let doc_claim = first_retry_claim(doc)?;
+    let code_value = first_max_retries(code)?;
+    (doc_claim != code_value).then_some((doc_claim, code_value))
+}
+
+fn first_retry_claim(source: &str) -> Option<f64> {
+    let lower = source.to_ascii_lowercase();
+    let mut search_from = 0;
+    while let Some(offset) = lower[search_from..].find("up to ") {
+        let start = search_from + offset + "up to ".len();
+        let mut cursor = start;
+        for _ in 0..2 {
+            if source.as_bytes().get(cursor) == Some(&b'*') {
+                cursor += 1;
+            } else {
+                break;
+            }
+        }
+        let digits_start = cursor;
+        while source
+            .as_bytes()
+            .get(cursor)
+            .is_some_and(u8::is_ascii_digit)
+        {
+            cursor += 1;
+        }
+        if digits_start != cursor {
+            let digits_end = cursor;
+            for _ in 0..2 {
+                if source.as_bytes().get(cursor) == Some(&b'*') {
+                    cursor += 1;
+                } else {
+                    break;
+                }
+            }
+            if lower[cursor..].starts_with(" times") {
+                if let Ok(value) = source[digits_start..digits_end].parse() {
+                    return Some(value);
+                }
+            }
+        }
+        search_from = start;
+    }
+    None
+}
+
+fn first_max_retries(source: &str) -> Option<f64> {
+    let mut search_from = 0;
+    while let Some(offset) = source[search_from..].find("MAX_RETRIES") {
+        let start = search_from + offset;
+        let mut cursor = start + "MAX_RETRIES".len();
+        cursor = skip_js_whitespace(source, cursor);
+        if source.as_bytes().get(cursor) == Some(&b'=') {
+            cursor += 1;
+            cursor = skip_js_whitespace(source, cursor);
+            let digits_start = cursor;
+            while source
+                .as_bytes()
+                .get(cursor)
+                .is_some_and(u8::is_ascii_digit)
+            {
+                cursor += 1;
+            }
+            if digits_start != cursor {
+                if let Ok(value) = source[digits_start..cursor].parse() {
+                    return Some(value);
+                }
+            }
+        }
+        search_from = start + "MAX_RETRIES".len();
+    }
+    None
+}
+
+fn skip_js_whitespace(source: &str, mut cursor: usize) -> usize {
+    while let Some(ch) = source[cursor..].chars().next() {
+        if matches!(
+            ch,
+            '\u{0009}'..='\u{000d}'
+                | '\u{0020}'
+                | '\u{00a0}'
+                | '\u{1680}'
+                | '\u{2000}'..='\u{200a}'
+                | '\u{2028}'..='\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
+        ) {
+            cursor += ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    cursor
+}
+
+#[cfg(test)]
+mod drift_comparator_tests {
+    use super::{fixture_relative_path, scan_retry_claim_drift};
+
+    #[test]
+    fn takes_first_supported_claim() {
+        assert_eq!(
+            scan_retry_claim_drift(
+                "up to 3 times; later up to 9 times",
+                "const MAX_RETRIES = 9;"
+            ),
+            Some((3.0, 9.0))
+        );
+    }
+
+    #[test]
+    fn accepts_zero_one_or_two_markdown_emphasis_stars() {
+        for stars in ["", "*", "**"] {
+            let doc = format!("up to {stars}3{stars} times");
+            assert_eq!(
+                scan_retry_claim_drift(&doc, "MAX_RETRIES = 4"),
+                Some((3.0, 4.0)),
+                "star count {stars:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn absent_claim_or_code_value_has_no_comparison() {
+        assert_eq!(
+            scan_retry_claim_drift("no retry count", "MAX_RETRIES = 4"),
+            None
+        );
+        assert_eq!(
+            scan_retry_claim_drift("up to 3 times", "no retry constant"),
+            None
+        );
+    }
+
+    #[test]
+    fn equal_values_are_clean() {
+        assert_eq!(
+            scan_retry_claim_drift("up to **4** times", "MAX_RETRIES = 4"),
+            None
+        );
+    }
+
+    #[test]
+    fn code_assignment_allows_whitespace_around_equals() {
+        assert_eq!(
+            scan_retry_claim_drift("up to 3 times", "MAX_RETRIES \n =\t 4"),
+            Some((3.0, 4.0))
+        );
+    }
+
+    #[test]
+    fn code_assignment_matches_javascript_unicode_whitespace() {
+        assert_eq!(
+            scan_retry_claim_drift("up to 3 times", "MAX_RETRIES\u{00a0}=\u{feff}4"),
+            Some((3.0, 4.0))
+        );
+    }
+
+    #[test]
+    fn code_assignment_rejects_nel_as_javascript_whitespace() {
+        assert_eq!(
+            scan_retry_claim_drift("up to 3 times", "MAX_RETRIES\u{0085}=4"),
+            None
+        );
+    }
+
+    #[test]
+    fn oversized_first_number_still_wins_over_later_match() {
+        let oversized = "9".repeat(400);
+        let doc = format!("up to {oversized} times; later up to 3 times");
+        assert!(scan_retry_claim_drift(&doc, "MAX_RETRIES = 3").is_some());
+    }
+
+    #[test]
+    fn fixture_paths_strip_only_declared_directory_and_keep_nested_path() {
+        assert_eq!(
+            fixture_relative_path("fixtures/011-doc-drift/nested/README.md", "011-doc-drift"),
+            "nested/README.md"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "outside declared fixture")]
+    fn fixture_paths_reject_a_different_directory() {
+        fixture_relative_path("fixtures/012-other/README.md", "011-doc-drift");
+    }
+}
+
 macro_rules! bench_class_test {
     ($name:ident, $class:literal) => {
         #[test]
         #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the macOS CI bench job with --ignored"]
         fn $name() {
             match run_class($class) {
-                ClassOutcome::Uncovered => match allowed_skip_reason($class) {
-                    Some(reason) => eprintln!("ALLOWED SKIP: class '{}': {reason}", $class),
-                    None => panic!(
-                        "class '{}' has no native Rust provider and is not in allowed_skips(); \
-                         the bench recall gate cannot claim coverage for it",
-                        $class
-                    ),
-                },
-                ClassOutcome::ToolMissing(reason) => match allowed_skip_reason($class) {
-                    Some(allowed) => {
-                        eprintln!("ALLOWED SKIP: class '{}': {allowed} ({reason})", $class)
-                    }
-                    None => panic!(
-                        "class '{}' provider could not run because its external tool is \
-                         unavailable and the class is not in allowed_skips(): {reason}. \
-                         Provision the tool in the environment running this gate.",
-                        $class
-                    ),
-                },
+                ClassOutcome::Uncovered => panic!(
+                    "class '{}' has no benchmark detector; the recall gate cannot claim coverage",
+                    $class
+                ),
+                ClassOutcome::ToolMissing(reason) => panic!(
+                    "class '{}' provider could not run because its external tool is \
+                     unavailable: {reason}. Provision the tool in the environment running this gate.",
+                    $class
+                ),
                 ClassOutcome::Recall {
                     positive_hit,
                     negative_clean,
@@ -429,7 +653,24 @@ bench_class_test!(bench_recall_dependency_cve, "dependency_cve");
 bench_class_test!(bench_recall_dead_code, "dead_code");
 bench_class_test!(bench_recall_duplication, "duplication");
 bench_class_test!(bench_recall_type_error, "type_error");
-bench_class_test!(bench_recall_drift, "drift");
+
+#[test]
+fn bench_recall_drift() {
+    match run_class("drift") {
+        ClassOutcome::Recall {
+            positive_hit,
+            negative_clean,
+        } => {
+            assert!(positive_hit, "AU20-011 doc/code mismatch was not detected");
+            assert!(
+                negative_clean,
+                "AU20-012 matching doc/code pair was flagged"
+            );
+        }
+        ClassOutcome::Uncovered => panic!("drift comparator was not bound"),
+        ClassOutcome::ToolMissing(reason) => panic!("local drift comparator unavailable: {reason}"),
+    }
+}
 
 /// Emits a qualification receipt shaped like the bench's
 /// `references/audit-provider-benchmarks.schema.json` so the recall gate's
@@ -460,7 +701,13 @@ fn bench_recall_qualification_receipt() {
                 } else {
                     "recall-failure"
                 },
-                format!("positive_hit={positive_hit} negative_clean={negative_clean}"),
+                if class == "drift" {
+                    format!(
+                        "qualification=bench-local-comparator positive_hit={positive_hit} negative_clean={negative_clean}"
+                    )
+                } else {
+                    format!("positive_hit={positive_hit} negative_clean={negative_clean}")
+                },
             ),
         };
         results.push(json!({"class": class, "status": status, "detail": detail}));
@@ -479,18 +726,14 @@ fn bench_recall_qualification_receipt() {
         out_dir.join("bench_recall_receipt.json"),
         serde_json::to_string_pretty(&receipt).unwrap(),
     );
-    // The receipt is a gate, not a log: every class must pass unless it is
-    // explicitly allowed to skip.
+    // The receipt is a gate, not a log: every class must pass.
     let failing = results
         .iter()
-        .filter(|row| {
-            let class = row["class"].as_str().unwrap_or_default();
-            row["status"] != "pass" && allowed_skip_reason(class).is_none()
-        })
+        .filter(|row| row["status"] != "pass")
         .map(|row| format!("{} ({})", row["class"], row["status"]))
         .collect::<Vec<_>>();
     assert!(
         failing.is_empty(),
-        "bench classes neither passing nor in allowed_skips(): {failing:?}"
+        "bench classes without a passing result: {failing:?}"
     );
 }

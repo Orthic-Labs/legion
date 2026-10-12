@@ -5,7 +5,10 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use super::validate::{normalized_path, storage_errors, validate};
+use super::validate::{
+    normalized_path, physical_path_string, resolve_physical_existing, resolve_physical_receipt,
+    storage_errors, validate,
+};
 
 fn is_windows() -> bool {
     cfg!(windows)
@@ -32,7 +35,14 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                     return 2;
                 }
                 i += 1;
-                write_receipt = argv.get(i).map(PathBuf::from);
+                match argv.get(i) {
+                    Some(v) => write_receipt = Some(PathBuf::from(v)),
+                    None => {
+                        let _ =
+                            writeln!(err, "FAIL: argument --write-receipt: expected one argument");
+                        return 2;
+                    }
+                }
             }
             "--verify-receipt" => {
                 if write_receipt.is_some() {
@@ -43,7 +53,16 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                     return 2;
                 }
                 i += 1;
-                verify_receipt = argv.get(i).map(PathBuf::from);
+                match argv.get(i) {
+                    Some(v) => verify_receipt = Some(PathBuf::from(v)),
+                    None => {
+                        let _ = writeln!(
+                            err,
+                            "FAIL: argument --verify-receipt: expected one argument"
+                        );
+                        return 2;
+                    }
+                }
             }
             other if handoff.is_none() && !other.starts_with("--") => {
                 handoff = Some(PathBuf::from(other));
@@ -62,6 +81,17 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             return 2;
         }
     };
+
+    // Template self-check skips storage and content-authority gates, so it must
+    // never be combined with a receipt mode (it could mint or bless a normal
+    // authoritative receipt). Rejected before any artifact I/O.
+    if template_self_check && (write_receipt.is_some() || verify_receipt.is_some()) {
+        let _ = writeln!(
+            err,
+            "FAIL: invalid combination: --template-self-check cannot be used with --write-receipt or --verify-receipt"
+        );
+        return 2;
+    }
 
     if !handoff.is_file() {
         let _ = writeln!(err, "FAIL: handoff file not found: {}", handoff.display());
@@ -109,7 +139,17 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
 
     let digest = hex::encode(Sha256::digest(&raw_bytes));
     if let Some(verify_receipt) = &verify_receipt {
-        if !verify_receipt.is_file() {
+        // Physical identity only; resolution failure is fatal (no lexical
+        // fallback). Point-in-time: not a TOCTOU/confinement guarantee.
+        let (physical_handoff, physical_receipt) = match physical_identity(&handoff, verify_receipt)
+        {
+            Ok(p) => p,
+            Err(e) => {
+                let _ = writeln!(out, "FAIL: {e}");
+                return 1;
+            }
+        };
+        if !physical_receipt.is_file() {
             let _ = writeln!(
                 out,
                 "FAIL: receipt file not found: {}",
@@ -117,7 +157,7 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             );
             return 2;
         }
-        let receipt_text = match std::fs::read_to_string(verify_receipt) {
+        let receipt_text = match std::fs::read_to_string(&physical_receipt) {
             Ok(t) => t,
             Err(e) => {
                 let _ = writeln!(out, "FAIL: invalid receipt: {e}");
@@ -143,7 +183,7 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             let _ = writeln!(out, "FAIL: handoff bytes do not match receipt");
             return 1;
         }
-        let handoff_name = handoff
+        let handoff_name = physical_handoff
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
@@ -151,9 +191,10 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             let _ = writeln!(out, "FAIL: handoff filename does not match receipt");
             return 1;
         }
-        let resolved = resolve(&handoff);
-        if normalized_path(&get_str("artifact_path"), is_windows())
-            != normalized_path(&resolved.display().to_string(), is_windows())
+        if normalized_path(
+            &physical_path_string_of(&get_str("artifact_path")),
+            is_windows(),
+        ) != normalized_path(&physical_path_string(&physical_handoff), is_windows())
         {
             let _ = writeln!(out, "FAIL: handoff path does not match receipt");
             return 1;
@@ -161,29 +202,31 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         let _ = writeln!(out, "RECEIPT_PASS: sha256={digest}");
     }
     if let Some(write_receipt) = &write_receipt {
-        let handoff_name = handoff
+        // The receipt parent must already resolve physically (it is the
+        // artifact's directory in the non-template path); no directories are
+        // created and no lexical fallback is used on resolution failure.
+        let (physical_handoff, physical_receipt) = match physical_identity(&handoff, write_receipt)
+        {
+            Ok(p) => p,
+            Err(e) => {
+                let _ = writeln!(out, "FAIL: {e}");
+                return 1;
+            }
+        };
+        let handoff_name = physical_handoff
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let resolved = resolve(&handoff);
         let receipt = serde_json::json!({
             "schema_version": 1,
             "artifact_name": handoff_name,
-            "artifact_path": resolved.display().to_string(),
+            "artifact_path": physical_path_string(&physical_handoff),
             "sha256": digest,
             "validated_at": iso8601_now_utc(),
             "validator": "handoff/validate-handoff",
         });
-        if let Some(parent) = write_receipt.parent() {
-            if !parent.as_os_str().is_empty() {
-                if let Err(e) = std::fs::create_dir_all(parent) {
-                    let _ = writeln!(out, "FAIL: {e}");
-                    return 1;
-                }
-            }
-        }
         let body = format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap());
-        if let Err(e) = std::fs::write(write_receipt, body) {
+        if let Err(e) = std::fs::write(&physical_receipt, body) {
             let _ = writeln!(out, "FAIL: {e}");
             return 1;
         }
@@ -228,6 +271,198 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-fn resolve(p: &Path) -> PathBuf {
-    p.canonicalize().unwrap_or_else(|_| p.to_path_buf())
+/// Physical (canonical) identity of the handoff artifact and its receipt
+/// sidecar: existing artifact canonicalized; receipt canonicalized if present,
+/// else canonical parent + basename. Any resolution failure is an error; there
+/// is no lexical fallback for authority decisions.
+fn physical_identity(handoff: &Path, receipt: &Path) -> Result<(PathBuf, PathBuf), String> {
+    let physical_handoff = resolve_physical_existing(handoff)?;
+    let physical_receipt = resolve_physical_receipt(receipt)?;
+    Ok((physical_handoff, physical_receipt))
+}
+
+/// Verbatim-prefix stripping for a path string read from a receipt, so receipts
+/// written with `\\?\C:\...` still compare equal to the physical spelling.
+fn physical_path_string_of(value: &str) -> String {
+    super::validate::strip_verbatim_prefix(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::validate::test_support::{link_dir, write_file, TestRoot};
+    use super::*;
+
+    #[test]
+    fn physical_identity_resolves_existing_artifact_and_new_adjacent_receipt() {
+        let root = TestRoot::new("cli-normal");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        let receipt = root.join("handoffs/h.receipt.json");
+        let (a, r) = physical_identity(&artifact, &receipt).unwrap();
+        assert_eq!(physical_path_string(&a), physical_path_string(&artifact));
+        assert_eq!(physical_path_string(&r), physical_path_string(&receipt));
+        assert_eq!(a.parent(), r.parent());
+    }
+
+    #[test]
+    fn physical_identity_follows_symlink_to_forbidden_target() {
+        let root = TestRoot::new("cli-link");
+        write_file(&root.join("cache/real/h.md"), "body");
+        link_dir(&root.join("stable"), &root.join("cache/real"));
+        let (a, r) = physical_identity(
+            &root.join("stable/h.md"),
+            &root.join("stable/h.receipt.json"),
+        )
+        .unwrap();
+        // The identity used for authority is the real location, not the
+        // clean-looking link spelling.
+        assert_eq!(
+            physical_path_string(&a),
+            physical_path_string(&root.join("cache/real/h.md"))
+        );
+        assert_eq!(
+            physical_path_string(&r),
+            physical_path_string(&root.join("cache/real/h.receipt.json"))
+        );
+    }
+
+    #[test]
+    fn physical_identity_fails_closed_on_missing_artifact_or_receipt_parent() {
+        let root = TestRoot::new("cli-missing");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+
+        let missing_artifact = root.join("handoffs/nope.md");
+        let err = physical_identity(&missing_artifact, &root.join("handoffs/nope.receipt.json"))
+            .unwrap_err();
+        assert!(err.contains("cannot resolve existing path"), "{err}");
+
+        let err =
+            physical_identity(&artifact, &root.join("absent-dir/h.receipt.json")).unwrap_err();
+        assert!(err.contains("cannot resolve receipt parent"), "{err}");
+    }
+
+    #[test]
+    fn physical_path_string_of_strips_windows_verbatim_prefix_only() {
+        assert_eq!(physical_path_string_of(r"\\?\C:\a\h.md"), r"C:\a\h.md");
+        assert_eq!(physical_path_string_of("/a/h.md"), "/a/h.md");
+    }
+
+    #[test]
+    fn run_rejects_missing_handoff_file_with_exit_2() {
+        let root = TestRoot::new("cli-run-missing");
+        let argv = vec![root.join("absent.md").to_string_lossy().into_owned()];
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        assert_eq!(run(&argv, &mut out, &mut err), 2);
+        assert!(String::from_utf8_lossy(&err).contains("handoff file not found"));
+    }
+
+    fn run_capture(argv: &[String]) -> (i32, String, String) {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = run(argv, &mut out, &mut err);
+        (
+            code,
+            String::from_utf8_lossy(&out).into_owned(),
+            String::from_utf8_lossy(&err).into_owned(),
+        )
+    }
+
+    #[test]
+    fn template_self_check_with_receipt_flag_is_rejected_before_artifact_io() {
+        let root = TestRoot::new("cli-selfcheck-combo");
+        let receipt = root.join("h.receipt.json");
+        // Artifact intentionally absent: the combination error must win over
+        // any file lookup, proving no artifact I/O happened first.
+        let missing = root.join("absent.md").to_string_lossy().into_owned();
+        for flag in ["--write-receipt", "--verify-receipt"] {
+            let argv = vec![
+                missing.clone(),
+                "--template-self-check".to_string(),
+                flag.to_string(),
+                receipt.to_string_lossy().into_owned(),
+            ];
+            let (code, out, err) = run_capture(&argv);
+            assert_eq!(code, 2, "{flag}");
+            assert!(err.contains("invalid combination"), "{flag}: {err}");
+            assert!(!err.contains("not found"), "{flag}: {err}");
+            assert!(out.is_empty(), "{flag}: {out}");
+            assert!(!receipt.exists(), "{flag}");
+        }
+    }
+
+    #[test]
+    fn template_self_check_combo_never_writes_receipt_for_existing_artifact() {
+        let root = TestRoot::new("cli-selfcheck-existing");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&artifact, "not a handoff");
+        // Flag order must not matter.
+        let argv = vec![
+            "--write-receipt".to_string(),
+            receipt.to_string_lossy().into_owned(),
+            artifact.to_string_lossy().into_owned(),
+            "--template-self-check".to_string(),
+        ];
+        let (code, _out, err) = run_capture(&argv);
+        assert_eq!(code, 2);
+        assert!(err.contains("invalid combination"), "{err}");
+        assert!(!receipt.exists());
+    }
+
+    #[test]
+    fn template_self_check_without_receipt_flags_still_runs_validation() {
+        let root = TestRoot::new("cli-selfcheck-alone");
+        let artifact = root.join("t.md");
+        write_file(&artifact, "not a template");
+        let argv = vec![
+            artifact.to_string_lossy().into_owned(),
+            "--template-self-check".to_string(),
+        ];
+        let (code, out, err) = run_capture(&argv);
+        // Reaches validation (defects, exit 1), not the combination guard.
+        assert_eq!(code, 1, "{out} {err}");
+        assert!(out.contains("handoff defect(s)"), "{out}");
+        assert!(!err.contains("invalid combination"), "{err}");
+    }
+
+    #[test]
+    fn receipt_flag_without_value_is_rejected() {
+        let argv = vec![
+            "h.md".to_string(),
+            "--template-self-check".to_string(),
+            "--write-receipt".to_string(),
+        ];
+        let (code, _out, err) = run_capture(&argv);
+        assert_eq!(code, 2);
+        assert!(err.contains("expected one argument"), "{err}");
+    }
+
+    #[test]
+    fn run_non_template_fails_closed_when_storage_is_physically_forbidden() {
+        // Content is not a valid handoff, so validation also fails; the point
+        // is that the storage defect for the physical cache location is
+        // reported and no receipt is written through the clean-looking link.
+        let root = TestRoot::new("cli-run-forbidden");
+        write_file(&root.join("cache/real/h.md"), "not a handoff");
+        link_dir(&root.join("stable"), &root.join("cache/real"));
+        let artifact = root.join("stable/h.md");
+        let receipt = root.join("stable/h.receipt.json");
+        let argv = vec![
+            artifact.to_string_lossy().into_owned(),
+            "--write-receipt".to_string(),
+            receipt.to_string_lossy().into_owned(),
+        ];
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        assert_eq!(run(&argv, &mut out, &mut err), 1);
+        let stdout = String::from_utf8_lossy(&out);
+        assert!(
+            stdout.contains("canonical handoff cannot use temporary/cache/review-run storage"),
+            "{stdout}"
+        );
+        assert!(
+            stdout.contains("handoff receipt cannot use temporary/cache/review-run storage"),
+            "{stdout}"
+        );
+        assert!(!root.join("cache/real/h.receipt.json").exists());
+    }
 }

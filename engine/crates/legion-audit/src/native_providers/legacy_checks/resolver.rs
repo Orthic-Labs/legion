@@ -195,7 +195,7 @@ pub fn resolve_test_command_with_enrollment(
                 &root,
                 inventory,
                 &manager,
-                vec!["test".into()],
+                frozen_package_test_argv(&manager),
                 "package.json",
                 &[],
                 enrollment,
@@ -551,6 +551,14 @@ fn resolve_attestation_cli(
 
 fn managed_runner_gap(runner: &str) -> String {
     format!("managed-test-runner-not-registered:{runner}")
+}
+
+fn frozen_package_test_argv(manager: &str) -> Vec<String> {
+    if manager == "npm" {
+        vec!["run".into(), "test".into()]
+    } else {
+        vec!["test".into()]
+    }
 }
 
 fn frozen_source_file(
@@ -1343,6 +1351,64 @@ mod test_command_resolution_tests {
     }
 
     #[test]
+    fn frozen_npm_test_argv_matches_registered_adapter_request_contract() {
+        let root = fixture_root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"npm@11.19.0","scripts":{"test":"node test.js"}}"#,
+        )
+        .unwrap();
+        fs::write(root.join("test.js"), "process.exit(0);\n").unwrap();
+        let enrolled_client = root.join("trusted-bin/rightkit");
+        fs::create_dir_all(enrolled_client.parent().unwrap()).unwrap();
+        fs::write(&enrolled_client, "fixture rightkit").unwrap();
+        let public_key = "04".to_owned() + &"b".repeat(128);
+        let enrollment = AttestedRunsEnrollment {
+            schema_version: 1,
+            host: "fixture-host".into(),
+            key_id: hex::encode(Sha256::digest(hex::decode(&public_key).unwrap())),
+            public_key,
+            broker_digest: "c".repeat(64),
+            client_executable: fs::canonicalize(&enrolled_client).unwrap(),
+            client_digest: hex::encode(Sha256::digest(b"fixture rightkit")),
+            adapters: std::collections::BTreeMap::from([(
+                "npm".into(),
+                super::super::AdapterEnrollment {
+                    broker_adapter_id: "legion-npm-test".into(),
+                    qualified_version: Some("11.19.0".into()),
+                },
+            )]),
+        };
+        let inventory = make_inventory(&root);
+        let (resolved, source) =
+            resolve_test_command_with_enrollment(&root, &inventory, Some(&enrollment)).unwrap();
+
+        assert_eq!(resolved.args, ["npm", "run", "test"]);
+        assert_eq!(source["argv"], json!(["npm", "run", "test"]));
+        assert_eq!(source["requiredRunnerVersion"], "11.19.0");
+        let requested_argv = resolved.args.iter().skip(1).cloned().collect::<Vec<_>>();
+        let broker_core = json!({
+            "adapter":"legion-npm-test",
+            "requestedArgv":requested_argv,
+            "shim":"adapter"
+        });
+        assert_eq!(
+            broker_core,
+            json!({
+                "adapter":"legion-npm-test",
+                "requestedArgv":["run", "test"],
+                "shim":"adapter"
+            })
+        );
+        let client_argv = ["run", "legion-npm-test", "--"]
+            .into_iter()
+            .chain(requested_argv.iter().map(String::as_str))
+            .collect::<Vec<_>>();
+        assert_eq!(client_argv, ["run", "legion-npm-test", "--", "run", "test"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn malformed_public_enrollment_is_rejected_before_root_resolution() {
         let root = fixture_root();
         let inventory = make_inventory(&root);
@@ -1373,6 +1439,10 @@ mod test_command_resolution_tests {
 
     #[test]
     fn package_script_argv_adds_pnpm_preflight_override_for_build_and_test_only() {
+        assert_eq!(frozen_package_test_argv("npm"), ["run", "test"]);
+        for manager in ["pnpm", "yarn", "bun"] {
+            assert_eq!(frozen_package_test_argv(manager), ["test"]);
+        }
         for script in ["build", "test"] {
             assert_eq!(
                 package_script_argv("pnpm", script, std::iter::empty()),

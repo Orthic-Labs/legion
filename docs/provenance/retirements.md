@@ -20,9 +20,9 @@ restoration is planned in the audit recovery plan (phase named).
 | `scripts/check-authority-parity.mjs` | `ebb349ae` | `legion-dev check-authority-parity` via `pnpm legion:check` | successor |
 | `shipped-skill-paths.test.mjs` (no shipped skill may name `src/`, `docs/`, `tools/`, `bench/`, `qualification/`, `tests/` paths) | `ebb349ae` | none yet; `legion-dev check-dependency-closure` covers only script paths | dropped, restoration pending (audit phase 2 dangling-path gate) |
 | Hooks `arcane-hook.mjs`, `src/lib/host/arcane/*`, six Python hooks | `ebb349ae` | `engine/bins/legion-hook`, `legion-arcane`, `legion-policy` | successor |
-| `bench/detectors/*`, `run-bench` | `ebb349ae` | `legion-audit/tests/bench_recall.rs` | successor (drift class has no native provider) |
+| `bench/detectors/*`, `run-bench` | `ebb349ae` | `legion-audit/tests/bench_recall.rs` | successor (drift uses a benchmark-local comparator; no production detector) |
 | `bench/real-scan.mjs` | `ebb349ae` | none | intentionally dropped |
-| Deterministic `drift` (doc-drift) detector and bench class | `ebb349ae` | none | dropped, restoration pending (audit phase 4) |
+| Deterministic `drift` (doc-drift) detector and bench class | `ebb349ae` | `engine/crates/legion-audit/tests/bench_recall.rs` compares the first supported `up to N times` doc claim with first `MAX_RETRIES = N` code value for manifest `doc_file`/`file` pairs | successor (benchmark-local single-claim comparator implemented; native CI qualification pending; production `reasoning.doc-drift` remains reasoning based) |
 | Alchemist worker stack (`run-worker.*`, tray, start-stack, model catalog) | see audit (2026-10-03) | host-native agents | intentionally dropped (by design) |
 | `skills/content` | see audit (2026-08-18) | workspace skill outside this package | intentionally dropped (by design) |
 | `skills/compshop` | see audit (2026-08-18) | `/foundation compare` | successor |

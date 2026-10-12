@@ -1588,7 +1588,13 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
         self.callbacks.enqueue_event(&event);
 
         match rx.recv_timeout(self.hard_timeout) {
-            Ok(DeferredOutcome::Resolve(body)) => Ok(body),
+            Ok(DeferredOutcome::Resolve(body)) => {
+                // `resolve_deferred_with_activity` sends while holding this
+                // lock, publishes accepted activity, then releases it. This
+                // barrier keeps route completion behind that publication.
+                drop(self.state.lock().unwrap());
+                Ok(body)
+            }
             Ok(DeferredOutcome::Reject(reason)) => Err(reason),
             Err(_timeout) => {
                 let (newly_timed_out, delivered_outcome) =
@@ -1838,6 +1844,22 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
 
     /// Port of `resolveDeferred(eventId, body)`.
     pub fn resolve_deferred(&self, event_id: &str, body: Value) -> bool {
+        self.resolve_deferred_inner(event_id, body, None)
+    }
+
+    /// Resolve a valid manual-apply reply & publish its receipt atomically
+    /// with controller acceptance. The activity callback runs under the
+    /// controller state lock and must not re-enter this controller.
+    pub fn resolve_deferred_with_activity(
+        &self,
+        event_id: &str,
+        body: Value,
+        activity: Value,
+    ) -> bool {
+        self.resolve_deferred_inner(event_id, body, Some(activity))
+    }
+
+    fn resolve_deferred_inner(&self, event_id: &str, body: Value, activity: Option<Value>) -> bool {
         let (deferred, delivered) = {
             let mut state = self.state.lock().unwrap();
             let Some(pending) = state.pending_apply_deferreds.get(event_id) else {
@@ -1846,6 +1868,12 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
             let deadline_passed = Instant::now() >= pending.deadline;
             let delivered =
                 !deadline_passed && pending.sender.send(DeferredOutcome::Resolve(body)).is_ok();
+            if delivered {
+                if let Some(activity) = activity {
+                    self.callbacks
+                        .record_manual_edit_activity("manual_edit_apply_reply_received", activity);
+                }
+            }
             let deferred = state.pending_apply_deferreds.remove(event_id).unwrap();
             if !delivered {
                 Self::tombstone_timed_out_apply_id(
@@ -2118,6 +2146,7 @@ mod tests {
     #[derive(Default)]
     struct TestCallbacks {
         acknowledged: Mutex<Vec<String>>,
+        activities: Mutex<Vec<(String, Value)>>,
     }
 
     impl ManualApplyCallbacks for TestCallbacks {
@@ -2129,7 +2158,12 @@ mod tests {
 
         fn flush_pending_polls(&self) {}
 
-        fn record_manual_edit_activity(&self, _kind: &str, _data: Value) {}
+        fn record_manual_edit_activity(&self, kind: &str, data: Value) {
+            self.activities
+                .lock()
+                .unwrap()
+                .push((kind.to_string(), data));
+        }
     }
 
     fn deferred_with(sender: mpsc::Sender<DeferredOutcome>, deadline: Instant) -> DeferredApply {
@@ -2165,9 +2199,20 @@ mod tests {
                 deferred_with(sender, Instant::now() + Duration::from_secs(1)),
             );
 
-        assert!(!controller.resolve_deferred("event-1", serde_json::json!({ "status": "done" })));
+        assert!(!controller.resolve_deferred_with_activity(
+            "event-1",
+            serde_json::json!({ "status": "done" }),
+            serde_json::json!({ "id": "event-1", "status": "done" }),
+        ));
         assert!(controller.has_timed_out_id("event-1"));
         assert!(controller.callbacks.acknowledged.lock().unwrap().is_empty());
+        assert!(!controller
+            .callbacks
+            .activities
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(kind, _)| kind == "manual_edit_apply_reply_received"));
     }
 
     #[test]
@@ -2190,9 +2235,20 @@ mod tests {
                 deferred_with(sender, Instant::now() - Duration::from_millis(1)),
             );
 
-        assert!(!controller.resolve_deferred("event-1", serde_json::json!({ "status": "done" })));
+        assert!(!controller.resolve_deferred_with_activity(
+            "event-1",
+            serde_json::json!({ "status": "done" }),
+            serde_json::json!({ "id": "event-1", "status": "done" }),
+        ));
         assert!(receiver.try_recv().is_err());
         assert!(controller.has_timed_out_id("event-1"));
+        assert!(!controller
+            .callbacks
+            .activities
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(kind, _)| kind == "manual_edit_apply_reply_received"));
     }
 
     #[test]
@@ -2215,11 +2271,25 @@ mod tests {
             );
 
         let result = serde_json::json!({ "status": "done" });
-        assert!(controller.resolve_deferred("event-1", result.clone()));
+        let activity = serde_json::json!({ "id": "event-1", "status": "done" });
+        assert!(controller.resolve_deferred_with_activity(
+            "event-1",
+            result.clone(),
+            activity.clone(),
+        ));
+        assert!(!controller.resolve_deferred_with_activity(
+            "event-1",
+            result.clone(),
+            activity.clone(),
+        ));
         let (newly_timed_out, outcome) = controller.classify_receive_timeout("event-1", &receiver);
         assert!(!newly_timed_out);
         assert!(matches!(outcome, Some(DeferredOutcome::Resolve(body)) if body == result));
         assert!(!controller.has_timed_out_id("event-1"));
+        assert_eq!(
+            *controller.callbacks.activities.lock().unwrap(),
+            vec![("manual_edit_apply_reply_received".to_string(), activity)]
+        );
     }
 
     #[test]
