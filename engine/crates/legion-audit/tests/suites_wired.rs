@@ -257,14 +257,14 @@ fn framework_families_are_selectable_by_their_real_dependency_names() {
             "go.mod",
             "github.com/labstack/echo/v4",
             "main.go",
-            "x := template.HTML(body)\n",
+            "x := template.HTML(requestBody)\n",
             "go-template-html",
         ),
         (
             "Cargo.toml",
             "axum",
             "src/main.rs",
-            "Command::new(program);\n",
+            "Command::new(program).arg(request.query);\n",
             "rust-web-command-input",
         ),
     ];

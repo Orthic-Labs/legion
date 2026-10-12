@@ -848,7 +848,8 @@ fn resolve_ignore_target(cwd: &Path) -> std::io::Result<(PathBuf, &'static str)>
 
 /// Mirrors `ensureLiveGitIgnores(cwd)`.
 pub fn ensure_live_gitignores(cwd: &Path) -> std::io::Result<GitIgnoreResult> {
-    let (target_path, mode) = resolve_ignore_target(cwd)?;
+    let canonical_cwd = cwd.canonicalize()?;
+    let (target_path, mode) = resolve_ignore_target(&canonical_cwd)?;
     let existing = match fs::read_to_string(&target_path) {
         Ok(content) => content,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -894,7 +895,7 @@ pub fn ensure_live_gitignores(cwd: &Path) -> std::io::Result<GitIgnoreResult> {
     }
 
     let file = target_path
-        .strip_prefix(cwd)
+        .strip_prefix(&canonical_cwd)
         .unwrap_or(&target_path)
         .to_string_lossy()
         .replace(std::path::MAIN_SEPARATOR, "/");

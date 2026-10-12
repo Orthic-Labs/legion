@@ -125,6 +125,11 @@ pub fn resolve_test_command_with_enrollment(
     inventory: &InventoryEnvelope,
     enrollment: Option<&AttestedRunsEnrollment>,
 ) -> Result<(ResolvedCommand, Value), ResolveError> {
+    if let Some(enrollment) = enrollment {
+        enrollment.validate().map_err(|error| {
+            ResolveError::Unavailable(format!("test-enrollment-invalid:{error}"))
+        })?;
+    }
     let root = fs::canonicalize(root).map_err(|error| {
         ResolveError::Unavailable(format!("test-source-root-unavailable: {error}"))
     })?;
@@ -1338,6 +1343,35 @@ mod test_command_resolution_tests {
     }
 
     #[test]
+    fn malformed_public_enrollment_is_rejected_before_root_resolution() {
+        let root = fixture_root();
+        let inventory = make_inventory(&root);
+        let enrollment = AttestedRunsEnrollment {
+            schema_version: 2,
+            host: "fixture-host".into(),
+            key_id: "a".repeat(64),
+            public_key: "04".to_owned() + &"b".repeat(128),
+            broker_digest: "c".repeat(64),
+            client_executable: PathBuf::from("relative-rightkit"),
+            client_digest: "d".repeat(64),
+            adapters: std::collections::BTreeMap::new(),
+        };
+        let error = resolve_test_command_with_enrollment(
+            &root.join("missing-root"),
+            &inventory,
+            Some(&enrollment),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ResolveError::Unavailable(reason)
+                if reason.starts_with("test-enrollment-invalid:")
+                    && reason.contains("unsupported schemaVersion")
+        ));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn package_script_argv_adds_pnpm_preflight_override_for_build_and_test_only() {
         for script in ["build", "test"] {
             assert_eq!(
@@ -1422,11 +1456,13 @@ mod test_command_resolution_tests {
         .unwrap();
         let enrolled_client = root.join("trusted-bin/rightkit");
         fs::write(&enrolled_client, "fixture rightkit").unwrap();
+        let public_key = "04".to_owned() + &"b".repeat(128);
+        let key_id = hex::encode(Sha256::digest(hex::decode(&public_key).unwrap()));
         let enrollment = AttestedRunsEnrollment {
             schema_version: 1,
             host: "fixture-host".into(),
-            key_id: "a".repeat(64),
-            public_key: "04".to_owned() + &"b".repeat(128),
+            key_id,
+            public_key,
             broker_digest: "c".repeat(64),
             client_executable: fs::canonicalize(&enrolled_client).unwrap(),
             client_digest: hex::encode(Sha256::digest(b"fixture rightkit")),
@@ -1447,7 +1483,10 @@ mod test_command_resolution_tests {
         assert_eq!(source["family"], "rust-rightkit");
         assert_eq!(
             source["workspaceRoot"],
-            root.join("src-tauri").to_string_lossy().as_ref()
+            fs::canonicalize(root.join("src-tauri"))
+                .unwrap()
+                .to_string_lossy()
+                .as_ref()
         );
         assert_eq!(source["sources"][0]["path"], "src-tauri/Cargo.toml");
         fs::remove_dir_all(root).unwrap();

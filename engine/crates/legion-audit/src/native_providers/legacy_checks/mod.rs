@@ -546,7 +546,8 @@ impl LegacyCheckDispatcher {
             state: LegacyCheckProcessState::Failed,
             message: error.to_string(),
         })?;
-        let mut output = execution.output.unwrap_or_default();
+        let mut execution = execution;
+        let mut output = execution.output.take().unwrap_or_default();
         let process_ok = execution.state == LegacyCheckProcessState::Completed;
         // The network-sandbox refusal reaches here as `unauthorized_effect`
         // (the effect layer's `SandboxMissing` state maps to `Unauthorized`).
@@ -574,14 +575,30 @@ impl LegacyCheckDispatcher {
                 .and_then(|resolution| resolution.get("reason"))
                 .and_then(Value::as_str)
                 .is_some_and(|reason| reason.starts_with("read-only-test-owner-unavailable:"));
-        let managed_test_runner_unavailable = execution.state
-            == LegacyCheckProcessState::MissingExecutable
-            && output
+        let managed_test_runner_unavailable =
+            managed_test_refusal(&provider.id, &execution, &output);
+        let managed_test_unavailable_claim = output
+            .details
+            .get("testCommandResolution")
+            .and_then(|resolution| resolution.get("reason"))
+            .and_then(Value::as_str)
+            .is_some_and(|reason| reason.starts_with("managed-test-"));
+        if managed_test_unavailable_claim && !managed_test_runner_unavailable {
+            output
                 .details
-                .get("testCommandResolution")
-                .and_then(|resolution| resolution.get("reason"))
-                .and_then(Value::as_str)
-                .is_some_and(|reason| reason.starts_with("managed-test-runner-"));
+                .remove(super::availability::AVAILABILITY_DETAIL);
+            output
+                .coverage_gaps
+                .retain(|gap| !gap.starts_with("unavailable:managed-test-"));
+            if let Some(coverage) = output.coverage.as_mut() {
+                coverage
+                    .gaps
+                    .retain(|gap| !gap.starts_with("unavailable:managed-test-"));
+            }
+            output
+                .degradation
+                .retain(|gap| !gap.starts_with("unavailable:managed-test-"));
+        }
         let mut gaps = output.coverage_gaps.clone();
         let mut degradation = output.degradation.clone();
         if !process_ok
@@ -609,28 +626,28 @@ impl LegacyCheckDispatcher {
                 .and_then(Value::as_str)
                 .map(ToOwned::to_owned)
         } else {
-            (execution.state == LegacyCheckProcessState::MissingExecutable).then(|| {
-                let gap_text = output
-                    .coverage_gaps
-                    .iter()
-                    .chain(output.degradation.iter())
-                    .find(|gap| {
-                        gap.starts_with("missing executable: ")
-                            || gap.contains("is not configured")
-                            || gap.starts_with("managed-test-runner-")
-                            || gap.starts_with("no configured project")
-                            || gap.contains("metadata is unavailable")
-                    })
-                    .cloned();
-                match gap_text {
-                    Some(gap) if gap.starts_with("missing executable: ") => {
-                        format!("tool-missing:{}", &gap["missing executable: ".len()..])
+            (execution.state == LegacyCheckProcessState::MissingExecutable
+                && !managed_test_unavailable_claim)
+                .then(|| {
+                    let gap_text = output
+                        .coverage_gaps
+                        .iter()
+                        .chain(output.degradation.iter())
+                        .find(|gap| {
+                            gap.starts_with("missing executable: ")
+                                || gap.contains("is not configured")
+                                || gap.starts_with("no configured project")
+                                || gap.contains("metadata is unavailable")
+                        })
+                        .cloned();
+                    match gap_text {
+                        Some(gap) if gap.starts_with("missing executable: ") => {
+                            format!("tool-missing:{}", &gap["missing executable: ".len()..])
+                        }
+                        Some(_) => format!("not-configured:{}", contract.check),
+                        None => format!("tool-missing:{}", contract.tool),
                     }
-                    Some(gap) if gap.starts_with("managed-test-runner-") => gap,
-                    Some(_) => format!("not-configured:{}", contract.check),
-                    None => format!("tool-missing:{}", contract.tool),
-                }
-            })
+                })
         }
         .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
         if let Some(reason) = &unavailable_reason {
@@ -861,13 +878,24 @@ impl NativeLegacyCheckExecutor {
         if contract.check == "runtime" {
             return runtime_capture::execute(self, plan, provider, &input, cancellation).await;
         }
+        if contract.check == "test" {
+            if let Some(enrollment) = self.attested_runs.as_deref() {
+                if let Err(error) = enrollment.validate() {
+                    let execution =
+                        invalid_test_enrollment(&input, contract.command, &error.to_string());
+                    return dispatcher
+                        .project_result(provider, &input, execution)
+                        .map_err(|error| AuditError::Provider(error.to_string()));
+                }
+            }
+        }
         let mut test_command = None;
         let mut test_command_source = None;
         if contract.check == "test" {
             if self.attested_runs.is_none() {
-                let execution = disposable_copy::incomplete(
+                let execution = unavailable_test_refusal(
                     &input,
-                    "managed-test-trust-not-configured".into(),
+                    "managed-test-trust-not-configured",
                     json!({"assurance":"attested-runs-required"}),
                 );
                 return dispatcher
@@ -884,6 +912,18 @@ impl NativeLegacyCheckExecutor {
                     test_command_source = Some(source);
                 }
                 Err(error) => {
+                    if let ResolveError::NotConfigured(reason) = &error {
+                        if reason.starts_with("managed-test-") {
+                            let execution = unavailable_test_refusal(
+                                &input,
+                                reason,
+                                json!({"assurance":"attested-runs-required","source":"frozen-test-command-resolution"}),
+                            );
+                            return dispatcher
+                                .project_result(provider, &input, execution)
+                                .map_err(|error| AuditError::Provider(error.to_string()));
+                        }
+                    }
                     let unavailable = matches!(
                         &error,
                         ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_)
@@ -1229,7 +1269,29 @@ impl NativeLegacyCheckExecutor {
                 &Value::Null,
             )
             .map_err(|error| AuditError::Provider(error.to_string()))?;
-        let execution = execute_input(&input, spec(&provider.id).expect("validated above"));
+        let contract = spec(&provider.id).expect("validated above");
+        let execution = if contract.check == "test" {
+            match self
+                .attested_runs
+                .as_deref()
+                .map(AttestedRunsEnrollment::validate)
+                .transpose()
+            {
+                Err(error) => invalid_test_enrollment(&input, contract.command, &error.to_string()),
+                Ok(None) => unavailable_test_refusal(
+                    &input,
+                    "managed-test-trust-not-configured",
+                    json!({"assurance":"attested-runs-required","entry":"native-sync"}),
+                ),
+                Ok(Some(())) => unavailable_test_refusal(
+                    &input,
+                    "managed-test-attested-executor-unavailable",
+                    json!({"assurance":"attested-runs-required","entry":"native-sync"}),
+                ),
+            }
+        } else {
+            execute_input(&input, contract)
+        };
         dispatcher
             .project_result(provider, &input, execution)
             .map_err(|error| AuditError::Provider(error.to_string()))
@@ -1840,6 +1902,201 @@ fn execute_external(
         receipt["parser"]["attempted"] = json!(false);
     }
     execution
+}
+
+/// A managed test runner that cannot be safely enrolled is a pre-start
+/// capability gap, not a failed or unclean process. Keep one receipt shape for
+/// refusals at both the registry boundary and disposable-copy boundary.
+pub(super) fn unavailable_test_refusal(
+    input: &LegacyCheckInput,
+    reason: &str,
+    details: Value,
+) -> LegacyCheckExecution {
+    debug_assert!(reason.starts_with("managed-test-"));
+    let gap = super::availability::unavailable_gap(reason);
+    let mut output = empty_output(vec![gap.clone()]);
+    output.coverage = Some(Coverage {
+        denominator_digest: input.denominator.digest.clone(),
+        expected: input.denominator.entries.len() as u64,
+        examined: 0,
+        gaps: vec![gap.clone()],
+    });
+    output.details.insert(
+        super::availability::AVAILABILITY_DETAIL.into(),
+        super::availability::unavailable_detail(reason),
+    );
+    output.details.insert(
+        "testCommandResolution".into(),
+        json!({"status":"unavailable","reason":reason}),
+    );
+    output.details.insert("disposableCopy".into(), details);
+    let command = spec(&input.provider_id)
+        .expect("managed test refusal uses a frozen provider contract")
+        .command;
+    let mut execution = terminal_execution(
+        input,
+        command,
+        LegacyCheckProcessState::MissingExecutable,
+        None,
+        Vec::new(),
+        Vec::new(),
+        output,
+        vec![gap],
+        now_ms(),
+        false,
+        None,
+    );
+    if let Some(receipt) = execution
+        .output
+        .as_mut()
+        .and_then(|output| output.details.get_mut("executionReceipt"))
+    {
+        receipt["policy"] = Value::Null;
+        receipt["executable"]["digestState"] = json!("not-checked");
+        receipt["executable"]["version"]["qualified"] = json!(false);
+        receipt["processTree"] = json!({
+            "started":false,
+            "terminated":false,
+            "hardKilled":false,
+            "reaped":false,
+            "detail":"managed test capability unavailable; no process or copy started"
+        });
+        receipt["parser"]["attempted"] = json!(false);
+        receipt["parser"]["succeeded"] = json!(false);
+        receipt["parser"]["error"] = Value::Null;
+    }
+    execution
+}
+
+pub(super) fn invalid_test_enrollment(
+    input: &LegacyCheckInput,
+    command: CommandShape,
+    validation_error: &str,
+) -> LegacyCheckExecution {
+    let message = format!("test-enrollment-invalid:{validation_error}");
+    let gap = message.clone();
+    let mut output = empty_output(vec![gap.clone()]);
+    output.coverage = Some(Coverage {
+        denominator_digest: input.denominator.digest.clone(),
+        expected: input.denominator.entries.len() as u64,
+        examined: 0,
+        gaps: vec![gap.clone()],
+    });
+    output.details.insert(
+        "testCommandResolution".into(),
+        json!({"status":"invalid","reason":message}),
+    );
+    let mut execution = terminal_execution(
+        input,
+        command,
+        LegacyCheckProcessState::Failed,
+        None,
+        Vec::new(),
+        Vec::new(),
+        output,
+        vec![gap],
+        now_ms(),
+        false,
+        Some(&message),
+    );
+    if let Some(receipt) = execution
+        .output
+        .as_mut()
+        .and_then(|output| output.details.get_mut("executionReceipt"))
+    {
+        receipt["parser"]["attempted"] = json!(false);
+        receipt["parser"]["succeeded"] = json!(false);
+        receipt["processTree"] = json!({
+            "started":false,
+            "terminated":false,
+            "hardKilled":false,
+            "reaped":false,
+            "detail":"invalid managed-test enrollment; no process started"
+        });
+    }
+    execution
+}
+
+fn managed_test_refusal(
+    provider_id: &str,
+    execution: &LegacyCheckExecution,
+    output: &LegacyCheckOutput,
+) -> bool {
+    if execution.state != LegacyCheckProcessState::MissingExecutable || execution.error.is_some() {
+        return false;
+    }
+    let Some(reason) = output
+        .details
+        .get("testCommandResolution")
+        .filter(|resolution| {
+            resolution.get("status").and_then(Value::as_str) == Some("unavailable")
+        })
+        .and_then(|resolution| resolution.get("reason"))
+        .and_then(Value::as_str)
+        .filter(|reason| reason.starts_with("managed-test-"))
+    else {
+        return false;
+    };
+    if crate::execution::validate_external_receipt_projection(
+        provider_id,
+        &output.details,
+        output.complete,
+    )
+    .is_err()
+    {
+        return false;
+    }
+    let receipt = output.details.get("executionReceipt");
+    let availability = output.details.get(super::availability::AVAILABILITY_DETAIL);
+    availability
+        .and_then(|detail| detail.get("state"))
+        .and_then(Value::as_str)
+        == Some("unavailable")
+        && availability
+            .and_then(|detail| detail.get("reason"))
+            .and_then(Value::as_str)
+            == Some(reason)
+        && receipt
+            .and_then(|value| value.get("kind"))
+            .and_then(Value::as_str)
+            == Some("external-tool-refusal-receipt")
+        && receipt
+            .and_then(|value| value.get("state"))
+            .and_then(Value::as_str)
+            == Some("missing_executable")
+        && receipt
+            .and_then(|value| value.get("complete"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt
+            .and_then(|value| value.pointer("/processTree/started"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt
+            .and_then(|value| value.pointer("/parser/attempted"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt
+            .and_then(|value| value.pointer("/parser/succeeded"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt
+            .and_then(|value| value.get("policy"))
+            .is_some_and(Value::is_null)
+        && receipt
+            .and_then(|value| value.pointer("/executable/digestState"))
+            .and_then(Value::as_str)
+            == Some("not-checked")
+        && receipt
+            .and_then(|value| value.pointer("/executable/version/qualified"))
+            .and_then(Value::as_bool)
+            == Some(false)
+        && receipt
+            .and_then(|value| value.get("stdout"))
+            .is_some_and(Value::is_null)
+        && receipt
+            .and_then(|value| value.get("stderr"))
+            .is_some_and(Value::is_null)
 }
 
 fn terminal_execution(
@@ -3167,6 +3424,60 @@ mod tests {
             .and_then(Value::as_str)
             .is_some());
         assert!(result.coverage.as_ref().unwrap().expected > 0);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn malformed_managed_refusal_receipts_are_not_projected_as_unavailable() {
+        let root = temp_root();
+        fs::write(root.join("package.json"), "{}\n").unwrap();
+        let inventory = InventoryEnvelope::new(
+            "fixture",
+            "generation",
+            vec![InventoryEntry {
+                path: "package.json".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: false,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let provider = provider("legacy.quality.test", json!({"op":"always"}));
+        let dispatcher = LegacyCheckDispatcher;
+        let input = dispatcher
+            .input(&provider, &inventory, &root, None, None, &Value::Null)
+            .unwrap();
+
+        for malformed in ["missing-schema-version", "missing-receipt"] {
+            let mut execution = unavailable_test_refusal(
+                &input,
+                "managed-test-trust-not-configured",
+                json!({"assurance":"attested-runs-required"}),
+            );
+            let output = execution.output.as_mut().unwrap();
+            if malformed == "missing-schema-version" {
+                output.details["executionReceipt"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("schemaVersion");
+            } else {
+                output.details.remove("executionReceipt");
+            }
+
+            let result = dispatcher
+                .project_result(&provider, &input, execution)
+                .unwrap();
+            assert_eq!(result.status, ProviderStatus::Failed);
+            assert!(!result
+                .coverage_gaps
+                .iter()
+                .any(|gap| gap == "unavailable:managed-test-trust-not-configured"));
+            assert!(!result
+                .details
+                .contains_key(super::availability::AVAILABILITY_DETAIL));
+        }
         let _ = fs::remove_dir_all(root);
     }
 

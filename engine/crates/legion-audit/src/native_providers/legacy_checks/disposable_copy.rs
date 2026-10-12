@@ -415,6 +415,15 @@ fn prepare_copy(
     let sequence = COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let copy_root = scratch.root().join(format!("test-copy-{sequence}"));
     super::make_private_dir(&copy_root).map_err(|error| CopyError::Io(error.to_string()))?;
+    let copy_root = fs::canonicalize(&copy_root).map_err(|error| {
+        let suffix = fs::remove_dir_all(&copy_root)
+            .err()
+            .map(|cleanup_error| format!("; cleanup failed: {cleanup_error}"))
+            .unwrap_or_default();
+        CopyError::Io(format!(
+            "copy root canonicalization failed: {error}{suffix}"
+        ))
+    })?;
     let mut source_records = Vec::with_capacity(inventory.entries.len());
     let mut copied_records = Vec::with_capacity(inventory.entries.len());
     let mut input_modes = BTreeMap::new();
@@ -1231,10 +1240,18 @@ pub(super) async fn execute(
     timeout_ms: u64,
     enrollment: Option<&AttestedRunsEnrollment>,
 ) -> LegacyCheckExecution {
+    if let Some(enrollment) = enrollment {
+        if let Err(error) = enrollment.validate() {
+            let command_shape = super::spec(&input.provider_id)
+                .expect("managed test input has a frozen provider contract")
+                .command;
+            return super::invalid_test_enrollment(input, command_shape, &error.to_string());
+        }
+    }
     let Some(enrollment) = enrollment else {
-        return incomplete(
+        return super::unavailable_test_refusal(
             input,
-            "managed-test-trust-not-configured".into(),
+            "managed-test-trust-not-configured",
             json!({"assurance":"attested-runs-required"}),
         );
     };
@@ -1277,10 +1294,40 @@ pub(super) async fn execute(
         );
     }
     if let Err(message) = validate_runner_binding(source, family, &invocation, enrollment) {
+        if message.starts_with("managed-test-runner-") {
+            return super::unavailable_test_refusal(
+                input,
+                &message,
+                json!({"assurance":"attested-runs-required","family":family}),
+            );
+        }
         return incomplete(
             input,
             message,
             json!({"assurance":"disposable-copy-before-after","family":family}),
+        );
+    }
+    let runner_label = if family == "rust-rightkit" {
+        "cargo"
+    } else {
+        source.get("runner").and_then(Value::as_str).unwrap_or("")
+    };
+    let adapter = enrollment.adapter(runner_label);
+    let required_runner_version = source.get("requiredRunnerVersion").and_then(Value::as_str);
+    if let Err(reason) =
+        validate_required_runner_version(runner_label, required_runner_version, adapter)
+    {
+        if reason.starts_with("managed-test-runner-version-") {
+            return super::unavailable_test_refusal(
+                input,
+                &reason,
+                json!({"assurance":"attested-runs-required","requiredVersion":required_runner_version}),
+            );
+        }
+        return incomplete(
+            input,
+            reason,
+            json!({"assurance":"attested-runs-required","requiredVersion":required_runner_version}),
         );
     }
     let pinned_client = fs::canonicalize(&enrollment.client_executable).ok();
@@ -1300,9 +1347,9 @@ pub(super) async fn execute(
         || selected_digest.as_deref() != Some(enrollment.client_digest.as_str())
         || command.digest != format!("sha256:{}", enrollment.client_digest)
     {
-        return incomplete(
+        return super::unavailable_test_refusal(
             input,
-            "managed-test-attestation-cli-unavailable".into(),
+            "managed-test-attestation-cli-unavailable",
             json!({"assurance":"attested-runs-required","reason":"pinned-client-unavailable-or-mismatched"}),
         );
     }
@@ -1387,29 +1434,6 @@ pub(super) async fn execute(
     let (mut environment, mut allowlist) = audit_environment(scratch);
     environment.insert(CANCEL_ON_DISCONNECT.into(), "1".into());
     allowlist.insert(CANCEL_ON_DISCONNECT.into());
-    let runner_label = if family == "rust-rightkit" {
-        "cargo"
-    } else {
-        source.get("runner").and_then(Value::as_str).unwrap_or("")
-    };
-    let adapter = enrollment.adapter(runner_label);
-    if family == "registered-adapter" && adapter.is_none() {
-        return incomplete(
-            input,
-            format!("managed-test-runner-not-registered:{runner_label}"),
-            json!({"assurance":"attested-runs-required","runner":runner_label}),
-        );
-    }
-    let required_runner_version = source.get("requiredRunnerVersion").and_then(Value::as_str);
-    if let Err(reason) =
-        validate_required_runner_version(runner_label, required_runner_version, adapter)
-    {
-        return incomplete(
-            input,
-            reason,
-            json!({"assurance":"attested-runs-required","requiredVersion":required_runner_version}),
-        );
-    }
     let outputs = approved_outputs(&copy, family, runner_label);
     let manifest_paths = match input_manifest(&copy.path) {
         Ok(value) => value
@@ -2461,6 +2485,7 @@ mod tests {
             COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(&temp).unwrap();
+        let temp = fs::canonicalize(&temp).unwrap();
         let copy = PreparedCopy {
             path: temp.clone(),
             cwd: temp.clone(),

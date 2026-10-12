@@ -794,7 +794,7 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
         // `legacy.runtime.app` runs one browser invocation per surface and
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
-        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" {
+        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" || id == "legacy.quality.test" {
             continue;
         }
         checked += 1;
@@ -829,7 +829,9 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} receipt process authority"
         );
     }
-    assert_eq!(checked, 22);
+    // Managed tests have a separate no-trust/no-launch regression in
+    // `native_legacy_external_tool`; they cannot be a successful FakeTool run.
+    assert_eq!(checked, 21);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -876,14 +878,12 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
         // `legacy.runtime.app` runs one browser invocation per surface and
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
-        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" {
+        if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" || id == "legacy.quality.test" {
             continue;
         }
         checked += 1;
         let provider = plan.provider(id).unwrap();
-        // Test runners are judged from frozen command selection and process
-        // exit status; their ordinary text logs are not a JSON report.
-        if !TEXT_PERMISSIVE_IDS.contains(&id) && id != "legacy.quality.test" {
+        if !TEXT_PERMISSIVE_IDS.contains(&id) {
             let invalid = runtime
                 .block_on(invalid_registry.execute_async(
                     &plan,
@@ -921,6 +921,8 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
             "{id} failed denominator"
         );
     }
-    assert_eq!(checked, 22);
+    // Managed-test no-trust refusal is covered separately; timeout results
+    // here must correspond to an external process that actually started.
+    assert_eq!(checked, 21);
     fs::remove_dir_all(root).unwrap();
 }

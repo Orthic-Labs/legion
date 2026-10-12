@@ -4773,13 +4773,13 @@ mod tests {
     #[test]
     fn child_counters_separate_rejected_stop_without_start_and_skips() {
         let records = vec![
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":false}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":true}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"never-started","role":"oracle","eventObserved":true,"hookAcknowledged":true}),
-            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"other-session","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":1}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":2}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStart","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":false,"observedAtUnixMs":3}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"b","role":"sage","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":4}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":5}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"s","childId":"never-started","role":"oracle","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":6}),
+            json!({"schemaVersion":2,"kind":"legion-child-lifecycle","event":"SubagentStop","sessionId":"other-session","childId":"a","role":"alchemist","eventObserved":true,"hookAcknowledged":true,"observedAtUnixMs":7}),
             json!({"event":"garbage"}),
         ];
         let counters = fold_child_launch_counters(&records, &[]);

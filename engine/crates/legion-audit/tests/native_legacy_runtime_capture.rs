@@ -485,17 +485,34 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
 #[test]
 fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
     let actions = json!([{"type":"click","selector":"button.save"}]);
-    let digest = format!(
-        "sha256:{}",
-        hex::encode(sha2::Sha256::digest(serde_json::to_vec(&actions).unwrap()))
-    );
+    let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
+    let fixture_body = serde_json::to_value(b"<main>fixture</main>").unwrap();
+    let fixture_file = json!({
+        "sourcePath":"index.html",
+        "sourceDigest":format!("sha256:{}", hex::encode(sha2::Sha256::digest(b"<main>fixture</main>"))),
+        "path":"/index.html",
+        "contentType":"text/html",
+        "body":fixture_body,
+    });
+    let fixture_digest = legion_contracts::canonical_digest(&json!({
+        "files":[{"body":fixture_file["body"],"contentType":"text/html","path":"/index.html"}]
+    }))
+    .unwrap();
+    let fixture = json!({
+        "id":"isolated-fixture",
+        "sourceDigest":fixture_digest,
+        "inventoryDigest":format!("sha256:{}", "a".repeat(64)),
+        "files":[fixture_file],
+    });
     let mut runtime = url_inputs(&[], &[]);
+    runtime["url"] = json!("http://127.0.0.1:1422/index.html");
     runtime["interactions"] = json!([{
         "id":"save-probe",
-        "surface":{"label":"entry","url":"http://127.0.0.1:1422/?qa=1"},
-        "fixture":{"id":"isolated-fixture","sourceDigest":format!("sha256:{}", "a".repeat(64))},
-        "probe":{"id":"save","actionsDigest":digest},
+        "surface":{"label":"entry","url":"http://127.0.0.1:1422/index.html"},
+        "fixture":fixture,
+        "probe":{"id":"save","actionsDigest":action_digest},
         "isolationBindingId":"fixture-binding",
+        "expiresAfterMs":30000,
         "actions":actions,
     }]);
     let run = run(
@@ -507,23 +524,24 @@ fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
         true,
     );
     assert_valid_not_rejected(&run.result);
-    assert_eq!(run.calls.len(), 1, "baseline capture still runs once");
+    assert!(
+        run.calls.is_empty(),
+        "fixture-bound URL is not live-captured"
+    );
     let runtime = &run.result.details["runtime"];
-    assert_eq!(runtime["surfaces"][0]["status"], "captured");
-    assert!(runtime["surfaces"][0]["screenshot"].is_object());
+    assert!(runtime["surfaces"].as_array().unwrap().is_empty());
+    assert_eq!(
+        runtime["fixtureBoundSurfaces"][0]["status"],
+        "fixture-probe-unavailable"
+    );
     assert_eq!(runtime["interactions"][0]["status"], "unavailable");
     assert_eq!(
         runtime["interactions"][0]["reason"],
-        "runtime-probe-isolation-not-configured"
+        "rightkit-fixture-api-unavailable"
     );
-    assert!(run
-        .result
-        .coverage_gaps
-        .contains(&"runtime-probe-isolation-not-configured:save-probe".to_owned()));
-    assert!(!run.calls[0]
-        .args
-        .iter()
-        .any(|arg| arg.contains("button.save")));
+    assert!(run.result.coverage_gaps.contains(
+        &"runtime-probe-unavailable:save-probe:rightkit-fixture-api-unavailable".to_owned()
+    ));
 }
 
 #[test]

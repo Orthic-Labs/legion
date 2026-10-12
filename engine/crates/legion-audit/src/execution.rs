@@ -940,10 +940,20 @@ fn validate_external_receipt(
     provider: &AuditProvider,
     result: &ProviderResult,
 ) -> Result<(), String> {
-    let receipt = result
-        .details
+    validate_external_receipt_projection(&provider.id, &result.details, result.complete)
+}
+
+/// Validate the complete external receipt projection before any caller treats
+/// a typed refusal as unavailable. Kept shared with legacy-check projection so
+/// that direct provider projection cannot suppress malformed receipts.
+pub(crate) fn validate_external_receipt_projection(
+    provider_id: &str,
+    details: &BTreeMap<String, Value>,
+    result_complete: bool,
+) -> Result<(), String> {
+    let receipt = details
         .get("executionReceipt")
-        .or_else(|| result.details.get("receipt"))
+        .or_else(|| details.get("receipt"))
         .filter(|value| value.is_object())
         .ok_or_else(|| {
             "typed external project tool result is missing terminal execution receipt".to_owned()
@@ -1006,7 +1016,7 @@ fn validate_external_receipt(
     {
         return Err("malformed external execution receipt projection".into());
     }
-    if object.get("providerId").and_then(Value::as_str) != Some(provider.id.as_str()) {
+    if object.get("providerId").and_then(Value::as_str) != Some(provider_id) {
         return Err("external execution receipt provider identity mismatch".into());
     }
     if !matches!(
@@ -1066,7 +1076,7 @@ fn validate_external_receipt(
             return Err("completed external receipt lacks process termination evidence".into());
         }
     }
-    if result.complete && !receipt_complete {
+    if result_complete && !receipt_complete {
         return Err("external provider cannot complete from an incomplete receipt".into());
     }
     Ok(())

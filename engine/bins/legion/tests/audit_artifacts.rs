@@ -309,6 +309,13 @@ fn sealed_plan_is_accepted_without_an_unsealed_gap() {
         .iter()
         .any(|gap| gap == "unsealed-plan"));
     assert_eq!(summary["auditStatus"], "pass");
+    let plan: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("out/plan.json")).unwrap()).unwrap();
+    assert!(plan.get("providerSelection").is_none());
+    assert!(plan.get("fullScope").is_none());
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("out/report.json")).unwrap()).unwrap();
+    assert!(report["claims"].get("providerCoverage").is_none());
     std::fs::remove_dir_all(root).unwrap();
 }
 

@@ -319,7 +319,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             input_gaps.extend(lens_work_gaps);
             let mut plan_gaps = vec!["plan-only".to_owned()];
             plan_gaps.extend(direct_gaps.iter().cloned());
-            if provider_selection.get("complete").and_then(Value::as_bool) != Some(true) {
+            if provider_scope_claims_allowed(trusted_scope_universe)
+                && provider_selection.get("complete").and_then(Value::as_bool) != Some(true)
+            {
                 plan_gaps.push("provider-scope-universe-unavailable".into());
             }
             let mut output = json!({
@@ -384,7 +386,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report
                 .gaps
                 .extend(native_audit_input_gaps(&args, &declared_input_gaps));
-            if provider_selection.get("complete").and_then(Value::as_bool) != Some(true) {
+            if provider_scope_claims_allowed(trusted_scope_universe)
+                && provider_selection.get("complete").and_then(Value::as_bool) != Some(true)
+            {
                 report
                     .gaps
                     .push("provider-scope-universe-unavailable".into());
@@ -1865,7 +1869,8 @@ fn read_inventory_regular_file(
         }
     }
     let canonical = std::fs::canonicalize(&current).map_err(super::io_error)?;
-    if !canonical.starts_with(root) {
+    let canonical_root = std::fs::canonicalize(root).map_err(super::io_error)?;
+    if !canonical.starts_with(&canonical_root) {
         return Err(CommandError::usage(
             "runtime fixture source resolves outside Audit root",
         ));
@@ -2677,11 +2682,13 @@ mod rightkit_trust_cli_tests {
 
     fn test_root() -> PathBuf {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
-        std::env::temp_dir().join(format!(
-            "legion-rightkit-trust-cli-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ))
+        std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "legion-rightkit-trust-cli-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ))
     }
 
     #[test]

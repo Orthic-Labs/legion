@@ -1,16 +1,17 @@
 use std::{
     fs,
-    path::PathBuf,
-    process::Command,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use async_trait::async_trait;
 use legion_audit::{
-    native_providers::legacy_checks::AuditExternalProjectTool, AuditPlan,
-    FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
-    NativeProviderRegistry,
+    native_providers::legacy_checks::{
+        AttestedRunsEnrollment, AuditExternalProjectTool, AuditScratch,
+    },
+    AuditPlan, FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
+    NativeLegacyCheckExecutor, NativeProviderRegistry,
 };
 use legion_effects::{DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence};
 use legion_provider_sdk::{
@@ -35,6 +36,38 @@ fn root() -> PathBuf {
     ));
     fs::create_dir_all(&root).unwrap();
     root
+}
+
+fn enrollment(root: &Path, schema_version: u32, client_name: &str) -> AttestedRunsEnrollment {
+    enrollment_with(
+        root,
+        schema_version,
+        client_name,
+        "33".repeat(32),
+        json!({}),
+    )
+}
+
+fn enrollment_with(
+    root: &Path,
+    schema_version: u32,
+    client_name: &str,
+    client_digest: String,
+    adapters: serde_json::Value,
+) -> AttestedRunsEnrollment {
+    let public_key = format!("04{}", "11".repeat(64));
+    let key_id = hex::encode(sha2::Sha256::digest(hex::decode(&public_key).unwrap()));
+    serde_json::from_value(json!({
+        "schemaVersion":schema_version,
+        "host":"fixture-host",
+        "keyId":key_id,
+        "publicKey":public_key,
+        "brokerDigest":"22".repeat(32),
+        "clientExecutable":root.join(client_name),
+        "clientDigest":client_digest,
+        "adapters":adapters
+    }))
+    .unwrap()
 }
 
 fn inventory() -> InventoryEnvelope {
@@ -409,157 +442,14 @@ fn production_adapter_resolves_and_seals_symbolic_request() {
 }
 
 #[test]
-fn declared_tests_complete_with_pass_or_failure_evidence_without_tree_writes() {
-    for exit_code in [0, 1] {
-        let root = root();
-        fs::write(
-            root.join("package.json"),
-            r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
-        )
-        .unwrap();
-        fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
-        fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
-        fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
-        let before = fs::read(root.join("package.json")).unwrap();
-        let inventory = FilesystemInventorySource::new(&root)
-            .unwrap()
-            .inventory("fixture")
-            .unwrap();
-        let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
-        let request = Arc::new(Mutex::new(None));
-        let registry =
-            NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
-                exit_code,
-                request: Arc::clone(&request),
-                version_output: None,
-            }));
-        let report = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(legion_audit::execute_with_cancellation(
-                &plan,
-                &inventory,
-                &registry,
-                CancellationToken::new(),
-            ))
-            .unwrap();
-        let result = &report.results[0].result;
-        assert!(result.complete, "{exit_code}: {:?}", result.coverage_gaps);
-        assert_eq!(result.findings.len(), usize::from(exit_code != 0));
-        let request = request.lock().unwrap();
-        let request = request.as_ref().unwrap();
-        if cfg!(target_os = "macos") {
-            assert!(request.executable.ends_with("sandbox-exec"));
-            assert!(request.args.ends_with(&[
-                "--config.verify-deps-before-run=false".into(),
-                "run".into(),
-                "test".into()
-            ]));
-        } else {
-            assert_eq!(
-                request.args,
-                ["--config.verify-deps-before-run=false", "run", "test"]
-            );
-        }
-        assert!(request.requires_network_sandbox);
-        assert_eq!(request.version_requirement.as_deref(), Some("exact:9.1.0"));
-        assert_eq!(
-            result.details["testCommandSource"]["family"],
-            "package-script"
-        );
-        if exit_code == 1 {
-            let finding_id = result.findings[0].id.to_string();
-            assert_eq!(
-                result.details["findingEvidence"][&finding_id]["kind"],
-                "project-test-failure"
-            );
-            assert_eq!(
-                result.details["findingLocations"][&finding_id],
-                json!(["package.json"])
-            );
-        }
-        assert_eq!(fs::read(root.join("package.json")).unwrap(), before);
-        assert_eq!(
-            fs::read_to_string(root.join("pnpm-lock.yaml")).unwrap(),
-            "lockfileVersion: '9.0'\n"
-        );
-        fs::remove_dir_all(root).unwrap();
-    }
-}
-
-#[test]
-fn package_manager_pin_mismatch_stays_typed_incomplete() {
+fn managed_test_without_trust_has_no_start_receipt_or_tree_writes() {
     let root = root();
     fs::write(
         root.join("package.json"),
         r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
     )
     .unwrap();
-    fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
-    fs::write(root.join("node_modules/.bin/pnpm"), "fixture pnpm").unwrap();
-    fs::write(root.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
-    let inventory = FilesystemInventorySource::new(&root)
-        .unwrap()
-        .inventory("fixture")
-        .unwrap();
-    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
-    let registry =
-        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(TestRunTool {
-            exit_code: 0,
-            request: Arc::new(Mutex::new(None)),
-            version_output: Some("19.1.0\n".into()),
-        }));
-    let report = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(legion_audit::execute_with_cancellation(
-            &plan,
-            &inventory,
-            &registry,
-            CancellationToken::new(),
-        ))
-        .unwrap();
-    let result = &report.results[0].result;
-    assert!(!result.complete);
-    assert!(result.findings.is_empty());
-    assert!(result
-        .coverage_gaps
-        .iter()
-        .any(|gap| gap == "unavailable:test-runner-version-mismatch:test"));
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[test]
-fn missing_declared_test_runner_stays_incomplete_and_typed() {
-    let root = root();
-    fs::write(
-        root.join("package.json"),
-        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
-    )
-    .unwrap();
-
-    const CHILD: &str = "LEGION_AUDIT_MISSING_TEST_RUNNER_CHILD";
-    if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
-        // Isolate PATH in a child test process so parallel tests and the CI
-        // host's installed pnpm cannot affect the resolver's missing-tool case.
-        let output = Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "missing_declared_test_runner_stays_incomplete_and_typed",
-                "--nocapture",
-            ])
-            .env(CHILD, "1")
-            .env("PATH", &root)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "isolated missing-runner child failed: {}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        fs::remove_dir_all(root).unwrap();
-        return;
-    }
-
+    let before = fs::read(root.join("package.json")).unwrap();
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
         .inventory("fixture")
@@ -583,23 +473,242 @@ fn missing_declared_test_runner_stays_incomplete_and_typed() {
         .unwrap();
     let result = &report.results[0].result;
     assert!(!result.complete);
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert!(result.findings.is_empty());
     assert!(result
         .coverage_gaps
         .iter()
-        .any(|gap| { gap.starts_with("unavailable:tool-missing:pnpm") }));
+        .any(|gap| gap == "unavailable:managed-test-trust-not-configured"));
     assert_eq!(
-        result.details["testCommandResolution"]["status"],
-        "unavailable"
+        result.details["availability"],
+        json!({"state":"unavailable","reason":"managed-test-trust-not-configured"})
     );
-    assert!(
-        request.lock().unwrap().is_none(),
-        "missing runner launched tool"
-    );
+    assert_eq!(result.details["processState"], "missing_executable");
+    let receipt = &result.details["executionReceipt"];
+    assert_eq!(receipt["kind"], "external-tool-refusal-receipt");
+    assert_eq!(receipt["state"], "missing_executable");
+    assert_eq!(receipt["complete"], false);
+    assert_eq!(receipt["processTree"]["started"], false);
+    assert_eq!(receipt["parser"]["attempted"], false);
+    assert_eq!(receipt["parser"]["succeeded"], false);
+    assert_eq!(receipt["executable"]["digestState"], "not-checked");
+    assert_eq!(receipt["executable"]["version"]["qualified"], false);
+    assert!(receipt["stdout"].is_null());
+    assert!(receipt["stderr"].is_null());
+    assert!(result.details.get("executionError").is_none());
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .all(|gap| !gap.contains("invalid-provider-result")
+            && !gap.contains("external-process:cleanup_unconfirmed")));
+    assert!(request.lock().unwrap().is_none(), "test runner was invoked");
+    assert_eq!(fs::read(root.join("package.json")).unwrap(), before);
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
     fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
-fn rust_tests_without_owner_containment_receipt_stay_incomplete() {
+fn malformed_enrollment_fails_before_copy_or_client_call() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let request = Arc::new(Mutex::new(None));
+    let invalid = enrollment(&root, 2, "missing-rightkit");
+    let registry = NativeProviderRegistry::new(&root)
+        .with_external_project_tool(Arc::new(TestRunTool {
+            exit_code: 0,
+            request: Arc::clone(&request),
+            version_output: None,
+        }))
+        .with_attested_runs(invalid.clone());
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert!(!result.complete);
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Failed);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("test-enrollment-invalid:")));
+    assert_eq!(result.details["testCommandResolution"]["status"], "invalid");
+    assert!(result.details.get("availability").is_none());
+    assert_eq!(result.details["executionReceipt"]["state"], "failed");
+    assert_eq!(
+        result.details["executionReceipt"]["processTree"]["started"],
+        false
+    );
+    assert_eq!(
+        result.details["executionReceipt"]["parser"]["attempted"],
+        false
+    );
+    assert!(request.lock().unwrap().is_none());
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    let sync_result = NativeLegacyCheckExecutor::new(&root)
+        .with_attested_runs(invalid)
+        .execute(plan.provider("legacy.quality.test").unwrap(), &inventory)
+        .unwrap();
+    assert_eq!(sync_result.status, legion_contracts::ProviderStatus::Failed);
+    assert!(sync_result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("test-enrollment-invalid:")));
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn missing_attested_client_is_typed_unavailable_before_copy_or_tool_call() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let request = Arc::new(Mutex::new(None));
+    let registry = NativeProviderRegistry::new(&root)
+        .with_external_project_tool(Arc::new(TestRunTool {
+            exit_code: 0,
+            request: Arc::clone(&request),
+            version_output: None,
+        }))
+        .with_attested_runs(enrollment(&root, 1, "missing-rightkit"));
+    let report = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    let result = &report.results[0].result;
+    assert!(!result.complete);
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| { gap == "unavailable:managed-test-attestation-cli-unavailable" }));
+    assert_eq!(
+        result.details["executionReceipt"]["processTree"]["started"],
+        false
+    );
+    assert_eq!(
+        result.details["executionReceipt"]["parser"]["attempted"],
+        false
+    );
+    assert!(request.lock().unwrap().is_none());
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn enrolled_runner_registration_and_version_gaps_do_not_copy_or_launch() {
+    for (adapters, expected_reason) in [
+        (json!({}), "managed-test-runner-not-registered:pnpm"),
+        (
+            json!({"pnpm":{"brokerAdapterId":"pnpm-test-adapter","qualifiedVersion":"9.0.0"}}),
+            "managed-test-runner-version-mismatch:pnpm",
+        ),
+    ] {
+        let root = root();
+        fs::write(
+            root.join("package.json"),
+            r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+        )
+        .unwrap();
+        let client = root.join("trusted-bin/rightkit");
+        fs::create_dir_all(client.parent().unwrap()).unwrap();
+        let bytes = b"fixture rightkit client";
+        fs::write(&client, bytes).unwrap();
+        let client_digest = hex::encode(sha2::Sha256::digest(bytes));
+        let inventory = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("fixture")
+            .unwrap();
+        let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+        let request = Arc::new(Mutex::new(None));
+        let scratch_path = root.with_file_name(format!(
+            "{}-scratch",
+            root.file_name().unwrap().to_string_lossy()
+        ));
+        let scratch = Arc::new(AuditScratch::with_scratch_dir(&root, &scratch_path).unwrap());
+        let registry = NativeProviderRegistry::new(&root)
+            .with_scratch(Arc::clone(&scratch))
+            .with_external_project_tool(Arc::new(TestRunTool {
+                exit_code: 0,
+                request: Arc::clone(&request),
+                version_output: None,
+            }))
+            .with_attested_runs(enrollment_with(
+                &root,
+                1,
+                "trusted-bin/rightkit",
+                client_digest,
+                adapters,
+            ));
+        let report = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(legion_audit::execute_with_cancellation(
+                &plan,
+                &inventory,
+                &registry,
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        let result = &report.results[0].result;
+        assert!(!result.complete);
+        assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == &format!("unavailable:{expected_reason}")));
+        assert_eq!(
+            result.details["executionReceipt"]["state"],
+            "missing_executable"
+        );
+        assert_eq!(
+            result.details["executionReceipt"]["processTree"]["started"],
+            false
+        );
+        assert_eq!(
+            result.details["executionReceipt"]["parser"]["attempted"],
+            false
+        );
+        assert!(request.lock().unwrap().is_none());
+        assert!(fs::read_dir(&scratch_path).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("test-copy-")
+        }));
+        fs::remove_dir_all(scratch_path).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
+fn rust_managed_tests_without_trust_refuse_before_copy_or_tool_call() {
     let root = root();
     fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
     fs::write(root.join("Cargo.toml"), "[package]\nname='fixture'\n").unwrap();
@@ -630,23 +739,21 @@ fn rust_tests_without_owner_containment_receipt_stay_incomplete() {
     assert!(result
         .coverage_gaps
         .iter()
-        .any(|gap| gap.starts_with("read-only-test-owner-unavailable")));
+        .any(|gap| { gap == "unavailable:managed-test-trust-not-configured" }));
     assert_eq!(
-        result.details["testCommandSource"]["family"],
-        "rust-rightkit"
+        result.details["availability"]["reason"],
+        "managed-test-trust-not-configured"
     );
     assert_eq!(
-        result.details["testCommandSource"]["argv"],
-        json!(["cargo", "test"])
+        result.details["executionReceipt"]["processTree"]["started"],
+        false
+    );
+    assert_eq!(
+        result.details["executionReceipt"]["parser"]["attempted"],
+        false
     );
     assert!(request.lock().unwrap().is_none());
-    assert!(fs::read_dir(&root).unwrap().all(|entry| {
-        !entry
-            .unwrap()
-            .file_name()
-            .to_string_lossy()
-            .starts_with("target")
-    }));
+    assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
     fs::remove_dir_all(root).unwrap();
 }
 
