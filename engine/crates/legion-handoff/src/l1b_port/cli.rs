@@ -299,8 +299,17 @@ mod tests {
         write_file(&artifact, "body");
         let receipt = root.join("handoffs/h.receipt.json");
         let (a, r) = physical_identity(&artifact, &receipt).unwrap();
-        assert_eq!(physical_path_string(&a), physical_path_string(&artifact));
-        assert_eq!(physical_path_string(&r), physical_path_string(&receipt));
+        // Expected values are canonical (native separators / verbatim prefix on
+        // Windows): the existing artifact canonicalized, and for the not-yet
+        // existing receipt the canonical parent joined with the basename.
+        // Lexical `root.join("a/b")` spellings are NOT compared to canonical ones.
+        let expected_artifact = std::fs::canonicalize(&artifact).unwrap();
+        let expected_receipt = std::fs::canonicalize(root.join("handoffs"))
+            .unwrap()
+            .join("h.receipt.json");
+        assert_eq!(a, expected_artifact);
+        assert_eq!(r, expected_receipt);
+        assert!(!receipt.exists());
         assert_eq!(a.parent(), r.parent());
     }
 
@@ -316,14 +325,16 @@ mod tests {
         .unwrap();
         // The identity used for authority is the real location, not the
         // clean-looking link spelling.
-        assert_eq!(
-            physical_path_string(&a),
-            physical_path_string(&root.join("cache/real/h.md"))
+        // Canonical expectation of the REAL target (not the link spelling).
+        let real_dir = std::fs::canonicalize(root.join("cache").join("real")).unwrap();
+        assert_eq!(a, std::fs::canonicalize(real_dir.join("h.md")).unwrap());
+        assert_eq!(r, real_dir.join("h.receipt.json"));
+        assert!(
+            real_dir.components().any(|c| c.as_os_str() == "cache"),
+            "{real_dir:?}"
         );
-        assert_eq!(
-            physical_path_string(&r),
-            physical_path_string(&root.join("cache/real/h.receipt.json"))
-        );
+        assert!(!a.components().any(|c| c.as_os_str() == "stable"), "{a:?}");
+        assert!(!r.components().any(|c| c.as_os_str() == "stable"), "{r:?}");
     }
 
     #[test]

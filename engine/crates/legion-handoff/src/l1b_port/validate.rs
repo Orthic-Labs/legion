@@ -119,21 +119,41 @@ pub fn resolve_physical_existing(path: &Path) -> Result<PathBuf, String> {
         .map_err(|e| format!("cannot resolve existing path {}: {e}", path.display()))
 }
 
-/// Physical identity of a receipt sidecar. If the receipt exists (including as
-/// a link, even a dangling one) it must canonicalize. If it is absent
-/// (`NotFound`), its parent directory must canonicalize and the result is the
-/// canonical parent joined with the basename. Any other failure (missing
-/// parent, dangling link, non-directory parent, permission error, a path with
-/// no basename such as `..`) is an error; there is no lexical fallback.
+/// Physical identity of a receipt sidecar. The path must have a lexical
+/// basename (`Path::file_name`), checked BEFORE any filesystem call, because
+/// some platforms collapse a trailing `..` during lookup and would otherwise
+/// resolve it to a directory. If the receipt exists (including as a link, even
+/// a dangling one) it must canonicalize AND the canonical target must be a
+/// regular file (a directory, or a directory link/junction, is rejected). If it
+/// is absent (`NotFound`), its parent directory must canonicalize and the
+/// result is the canonical parent joined with the basename. Any other failure
+/// (missing parent, dangling link, non-directory parent, permission error, no
+/// basename such as `..`) is an error; there is no lexical fallback.
 ///
 /// Same point-in-time caveat as [`resolve_physical_existing`].
 pub fn resolve_physical_receipt(path: &Path) -> Result<PathBuf, String> {
+    let name = path
+        .file_name()
+        .ok_or_else(|| format!("receipt path {} has no resolvable basename", path.display()))?;
     match std::fs::symlink_metadata(path) {
-        Ok(_) => resolve_physical_existing(path),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            let name = path.file_name().ok_or_else(|| {
-                format!("receipt path {} has no resolvable basename", path.display())
+        Ok(_) => {
+            let canonical = resolve_physical_existing(path)?;
+            let meta = std::fs::metadata(&canonical).map_err(|e| {
+                format!(
+                    "cannot inspect resolved receipt target {}: {e}",
+                    canonical.display()
+                )
             })?;
+            if !meta.is_file() {
+                return Err(format!(
+                    "receipt path {} resolves to a non-file target {}",
+                    path.display(),
+                    canonical.display()
+                ));
+            }
+            Ok(canonical)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let parent = path
                 .parent()
                 .filter(|p| !p.as_os_str().is_empty())
@@ -1707,8 +1727,54 @@ mod tests {
     fn receipt_without_basename_fails_closed() {
         let root = TestRoot::new("receipt-no-basename");
         write_file(&root.join("handoffs/h.md"), "body");
-        let err = resolve_physical_receipt(&root.join("handoffs/missing/..")).unwrap_err();
-        assert!(err.contains("basename"), "{err}");
+        // Lexical basename is checked before any filesystem call, so neither a
+        // nonexistent-component `..` nor an existing-directory `..` (which some
+        // platforms collapse to a directory during lookup) can slip through.
+        for rel in ["handoffs/missing/..", "handoffs/.."] {
+            let err = resolve_physical_receipt(&root.join(rel)).unwrap_err();
+            assert!(err.contains("basename"), "{rel}: {err}");
+        }
+    }
+
+    #[test]
+    fn existing_directory_or_directory_link_receipt_is_rejected() {
+        let root = TestRoot::new("receipt-is-directory");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        // A real directory named like the receipt.
+        let dir_receipt = root.join("handoffs/h.receipt.json");
+        std::fs::create_dir_all(&dir_receipt).unwrap();
+        let err = resolve_physical_receipt(&dir_receipt).unwrap_err();
+        assert!(err.contains("non-file target"), "{err}");
+        let errors = check(&artifact, &dir_receipt);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.starts_with("receipt path cannot be resolved to a physical location")),
+            "{errors:?}"
+        );
+
+        // A directory link/junction whose basename looks like the receipt.
+        std::fs::create_dir_all(root.join("elsewhere")).unwrap();
+        let link_receipt = root.join("handoffs/linked.receipt.json");
+        link_dir(&link_receipt, &root.join("elsewhere"));
+        let err = resolve_physical_receipt(&link_receipt).unwrap_err();
+        assert!(err.contains("non-file target"), "{err}");
+    }
+
+    #[test]
+    fn existing_regular_file_receipt_resolves_to_canonical_file() {
+        let root = TestRoot::new("receipt-regular-file");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&receipt, "{}");
+        let physical = resolve_physical_receipt(&receipt).unwrap();
+        // Expected value built component-wise so separators are native
+        // (canonical Windows paths use backslashes; `join("a/b")` would not).
+        let expected = root.0.join("handoffs").join("h.receipt.json");
+        assert_eq!(
+            physical_path_string(&physical),
+            physical_path_string(&expected)
+        );
     }
 
     #[cfg(unix)]
