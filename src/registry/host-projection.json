@@ -1334,7 +1334,7 @@
   "roles": [
     {
       "id": "alchemist",
-      "description": "Bounded implementation authority. Dispatch for any assignment that writes files, runs commands with effects, or produces an artifact. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.",
+      "description": "Bounded implementation authority. Dispatch for delegated bounded implementation or execution, including ambient work. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.",
       "modelTier": "balanced-executor",
       "source": "src/roster/alchemist.md"
     },
@@ -1346,7 +1346,7 @@
     },
     {
       "id": "sage",
-      "description": "Cross-cutting design and adjudication authority. Dispatch for any design, adjudication, or reassessment: material choices, disputed ownership or boundaries, reassessment before expensive commitment, repeated failed repairs. Not for bounded implementation inside settled criteria.",
+      "description": "Cross-cutting design and adjudication authority. Dispatch when a material unresolved choice exceeds routine capability judgment, ownership or boundary is disputed, reassessment is needed before expensive commitment, or repeated repairs fail. Explicit Sage requests attach. Routine capability judgment stays with its capability.",
       "modelTier": "frontier-judgment",
       "source": "src/roster/sage.md"
     }

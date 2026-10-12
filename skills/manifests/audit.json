@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/audit",
-      "\"Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.\""
+      "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review."
     ],
     "outputs": [
       "references/a11y-checklist.md",

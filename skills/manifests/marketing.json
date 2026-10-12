@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/marketing",
-      "\"Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.\""
+      "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing."
     ],
     "outputs": [
       "references/ad-campaign.md",

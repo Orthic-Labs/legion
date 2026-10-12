@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/qa",
-      "\"Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks.\""
+      "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks."
     ],
     "outputs": [
       "references/browser-automation.md",
