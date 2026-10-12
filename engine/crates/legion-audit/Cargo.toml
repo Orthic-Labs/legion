@@ -22,6 +22,7 @@ thiserror.workspace = true
 walkdir.workspace = true
 tokio-util.workspace = true
 tokio.workspace = true
+toml.workspace = true
 
 [[test]]
 name = "native_audit"

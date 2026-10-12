@@ -1824,7 +1824,7 @@ fn retain_effect_artifacts(
         if receipt.get("kind").and_then(Value::as_str) == Some("native-legacy-check-receipt") {
             continue;
         }
-        for stream in ["stdout", "stderr"] {
+        for stream in ["stdout", "stderr", "brokerStatus"] {
             let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) else {
                 continue;
             };

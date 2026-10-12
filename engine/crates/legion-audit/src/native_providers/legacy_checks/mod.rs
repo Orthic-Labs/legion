@@ -8,6 +8,7 @@
 //! starting a process. Neither a tool name nor parser success is evidence.
 
 mod contracts;
+mod disposable_copy;
 pub(crate) mod parsers;
 mod registry;
 mod resolver;
@@ -231,6 +232,7 @@ static AUDIT_SCRATCH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 pub struct AuditScratch {
     root: PathBuf,
     remove_on_drop: bool,
+    retained: std::sync::atomic::AtomicBool,
 }
 
 impl AuditScratch {
@@ -265,6 +267,7 @@ impl AuditScratch {
                     return Ok(Self {
                         root,
                         remove_on_drop: true,
+                        retained: std::sync::atomic::AtomicBool::new(false),
                     })
                 }
                 Err(error) => last = format!("cannot create {}: {error}", root.display()),
@@ -299,6 +302,7 @@ impl AuditScratch {
         Ok(Self {
             root,
             remove_on_drop: false,
+            retained: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -312,6 +316,10 @@ impl AuditScratch {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    pub(super) fn retain_after_drop(&self) {
+        self.retained.store(true, Ordering::Release);
     }
 
     /// Sandbox profiles.
@@ -339,7 +347,7 @@ impl AuditScratch {
 
 impl Drop for AuditScratch {
     fn drop(&mut self) {
-        if self.remove_on_drop {
+        if self.remove_on_drop && !self.retained.load(Ordering::Acquire) {
             let _ = std::fs::remove_dir_all(&self.root);
         }
     }
@@ -858,37 +866,33 @@ impl NativeLegacyCheckExecutor {
             .and_then(Value::as_str)
             == Some("rust-rightkit")
         {
-            let reason = "read-only-test-owner-unavailable: rightkit broker execution has no source-write containment receipt";
-            let mut output = empty_output(vec![reason.into()]);
-            output.details.insert(
-                "testCommandResolution".into(),
-                json!({"status":"unavailable","reason":reason}),
-            );
-            output.coverage = Some(Coverage {
-                denominator_digest: input.denominator.digest.clone(),
-                expected: input.denominator.entries.len() as u64,
-                examined: 0,
-                gaps: vec![reason.into()],
-            });
-            if let Some(source) = &test_command_source {
-                output
-                    .details
-                    .insert("testCommandSource".into(), source.clone());
-            }
-            let mut execution = terminal_execution(
+            let Some(tool) = &self.external_project_tool else {
+                let mut execution = execute_external(&input, contract.command, now_ms());
+                attach_test_command_source(&mut execution, test_command_source.as_ref());
+                return dispatcher
+                    .project_result(provider, &input, execution)
+                    .map_err(|error| AuditError::Provider(error.to_string()));
+            };
+            let resolved = test_command.as_ref().expect("resolved Rust command");
+            let scratch = self.scratch()?;
+            let timeout = provider
+                .bounds
+                .get("timeoutMs")
+                .and_then(Value::as_u64)
+                .unwrap_or(120_000);
+            let execution = disposable_copy::execute(
+                tool.as_ref(),
+                &self.root,
+                resolved,
+                test_command_source.as_ref().expect("Rust source metadata"),
+                provider,
+                inventory,
                 &input,
-                contract.command,
-                LegacyCheckProcessState::MissingExecutable,
-                None,
-                Vec::new(),
-                Vec::new(),
-                output,
-                vec![reason.into()],
-                now_ms(),
-                false,
-                None,
-            );
-            attach_test_command_source(&mut execution, test_command_source.as_ref());
+                &scratch,
+                cancellation,
+                timeout,
+            )
+            .await;
             return dispatcher
                 .project_result(provider, &input, execution)
                 .map_err(|error| AuditError::Provider(error.to_string()));
