@@ -1136,6 +1136,17 @@ struct M1McpApi {
     application: Option<Arc<legion_application::M1Application>>,
 }
 
+fn m1_mcp_runtime_error(
+    error: legion_application::M1ApplicationError,
+) -> legion_runtime::RuntimeError {
+    match error {
+        legion_application::M1ApplicationError::StaleInstalledBinding { .. } => {
+            legion_runtime::RuntimeError::StaleInstalledBinding
+        }
+        error => legion_runtime::RuntimeError::Policy(error.to_string()),
+    }
+}
+
 impl M1McpApi {
     fn ready(application: Arc<legion_application::M1Application>) -> Self {
         Self {
@@ -1230,9 +1241,7 @@ impl legion_mcp::NativeApi for M1McpApi {
             "legion_m1_status" => {
                 // The application can prove its native M1 slice, but it has
                 // no evidence for the product-wide Codex/host surfaces.
-                let status = application
-                    .status()
-                    .map_err(|error| legion_runtime::RuntimeError::Policy(error.to_string()))?;
+                let status = application.status().map_err(m1_mcp_runtime_error)?;
                 Ok(m1_product_status_value(&status))
             }
             "legion_m1_invoke" => {
@@ -1294,7 +1303,7 @@ impl legion_mcp::NativeApi for M1McpApi {
                 };
                 result
                     .map(m1_invocation_value)
-                    .map_err(|error| legion_runtime::RuntimeError::Policy(error.to_string()))
+                    .map_err(m1_mcp_runtime_error)
             }
             _ => Err(legion_runtime::RuntimeError::InvalidTask(
                 "unknown M1 MCP operation".into(),
@@ -1800,5 +1809,28 @@ fn finish(result: CommandResult) -> i32 {
             eprintln!("{}", error.message);
             error.code
         }
+    }
+}
+
+#[cfg(test)]
+mod m1_mcp_error_tests {
+    use super::m1_mcp_runtime_error;
+
+    #[test]
+    fn stale_binding_maps_to_typed_runtime_error_without_details() {
+        let error = m1_mcp_runtime_error(
+            legion_application::M1ApplicationError::StaleInstalledBinding {
+                reason: "private /secret/path and digest".into(),
+            },
+        );
+        assert!(matches!(
+            error,
+            legion_runtime::RuntimeError::StaleInstalledBinding
+        ));
+        assert_eq!(
+            error.to_string(),
+            "installed binding changed; reconnect the MCP host"
+        );
+        assert!(!error.to_string().contains("/secret"));
     }
 }

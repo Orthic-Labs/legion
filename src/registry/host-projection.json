@@ -195,13 +195,25 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph",
-        "legion",
-        "skill-emit",
-        "okf"
+        "legion"
       ],
       "hostRequirementDetails": [
         {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirements": [
+        {
+          "scope": "method:blueprint-grounding",
+          "scopeKind": "method",
           "id": "blueprint-graph",
           "kind": "graph-engine",
           "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
@@ -213,17 +225,8 @@
           }
         },
         {
-          "id": "legion",
-          "kind": "command-line-tool",
-          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
-          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
-          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
-        },
-        {
+          "scope": "method:durable-knowledge-emit",
+          "scopeKind": "method",
           "id": "skill-emit",
           "kind": "tool",
           "summary": "Host-side emission of generated skill artifacts.",
@@ -232,6 +235,8 @@
           "probe": null
         },
         {
+          "scope": "method:okf-bundle",
+          "scopeKind": "method",
           "id": "okf",
           "kind": "tool",
           "summary": "OKF concept-bundle emission and compression.",
@@ -240,7 +245,6 @@
           "probe": null
         }
       ],
-      "scopedRequirements": [],
       "source": "skills/audit/SKILL.md"
     },
     {
@@ -255,21 +259,9 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph",
         "legion"
       ],
       "hostRequirementDetails": [
-        {
-          "id": "blueprint-graph",
-          "kind": "graph-engine",
-          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
-          "probe": {
-            "kind": "command",
-            "command": "blueprint"
-          }
-        },
         {
           "id": "legion",
           "kind": "command-line-tool",
@@ -282,7 +274,21 @@
           }
         }
       ],
-      "scopedRequirements": [],
+      "scopedRequirements": [
+        {
+          "scope": "method:blueprint-grounding",
+          "scopeKind": "method",
+          "id": "blueprint-graph",
+          "kind": "graph-engine",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/audit-fix/SKILL.md"
     },
     {
@@ -297,21 +303,9 @@
       },
       "domain": "engineering",
       "hostRequirements": [
-        "blueprint-graph",
         "legion"
       ],
       "hostRequirementDetails": [
-        {
-          "id": "blueprint-graph",
-          "kind": "graph-engine",
-          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
-          "probe": {
-            "kind": "command",
-            "command": "blueprint"
-          }
-        },
         {
           "id": "legion",
           "kind": "command-line-tool",
@@ -324,7 +318,21 @@
           }
         }
       ],
-      "scopedRequirements": [],
+      "scopedRequirements": [
+        {
+          "scope": "method:blueprint-grounding",
+          "scopeKind": "method",
+          "id": "blueprint-graph",
+          "kind": "graph-engine",
+          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
+          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
       "source": "skills/audit-visual/SKILL.md"
     },
     {

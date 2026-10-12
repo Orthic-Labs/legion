@@ -31,6 +31,7 @@
     "outputs": [
       "references/manual.md",
       "references/platform-fidelity.md",
+      "references/route-resources.json",
       "references/visual-qa-capture.md"
     ],
     "scripts": [],
@@ -54,7 +55,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-visual/SKILL.md",
-      "digest": "sha256:b774330c34bdd3848ea0371db85772e6304a84706508ac80daff2da909c85888"
+      "digest": "sha256:08dd2daebbc44240c5ff6ced471051eb3659f0d841d7f4a203251ed267557379"
     },
     {
       "path": "agents/openai.yaml",
@@ -64,7 +65,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://audit-visual/dependencies.json",
-      "digest": "sha256:4616002d216af6fffda81793a8b896f13d26836f284b647fdc968889c5ccb7ae"
+      "digest": "sha256:267bdf8d08c312f96bb089696c44e2d9b85ab42b8c5aff86a7a1fee01dc7d14e"
     },
     {
       "path": "evals/evals.json",
@@ -80,6 +81,11 @@
       "path": "references/platform-fidelity.md",
       "uri": "legion-skill://audit-visual/references/platform-fidelity.md",
       "digest": "sha256:362de6e56ad746ee3c5c0a4277175ed9a17d50ba63646f1a91aad6bbca194d02"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://audit-visual/references/route-resources.json",
+      "digest": "sha256:5a401617c19109b7fe5724b5b4850399b97d194048e6661a4d11d1ed67f6bdb7"
     },
     {
       "path": "references/visual-qa-capture.md",

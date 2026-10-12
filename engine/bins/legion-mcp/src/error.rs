@@ -9,6 +9,7 @@ pub enum McpError {
     MethodNotFound,
     InitializationRequired,
     ReleaseBinding(String),
+    StaleInstalledBinding,
     ToolNotFound,
     ScopeDenied,
     Backend,
@@ -22,7 +23,9 @@ impl McpError {
             Self::InvalidRequest => -32600,
             Self::InvalidParams => -32602,
             Self::MethodNotFound => -32601,
-            Self::InitializationRequired | Self::ReleaseBinding(_) => -32000,
+            Self::InitializationRequired
+            | Self::ReleaseBinding(_)
+            | Self::StaleInstalledBinding => -32000,
             Self::ToolNotFound | Self::ScopeDenied | Self::Backend | Self::OutputLimit => -32603,
         }
     }
@@ -35,6 +38,7 @@ impl McpError {
             Self::MethodNotFound => "method not found",
             Self::InitializationRequired => "MCP initialization required",
             Self::ReleaseBinding(repair) => repair,
+            Self::StaleInstalledBinding => "installed binding changed; reconnect the MCP host",
             Self::ToolNotFound => "unknown tool",
             Self::ScopeDenied => "explicit scope required",
             Self::Backend => "native backend failure",
@@ -50,6 +54,7 @@ impl McpError {
             Self::MethodNotFound => "METHOD_NOT_FOUND",
             Self::InitializationRequired => "INITIALIZATION_REQUIRED",
             Self::ReleaseBinding(_) => "RELEASE_BINDING",
+            Self::StaleInstalledBinding => "STALE_INSTALLED_BINDING",
             Self::ToolNotFound => "TOOL_NOT_FOUND",
             Self::ScopeDenied => "SCOPE_DENIED",
             Self::Backend => "BACKEND_UNAVAILABLE",
@@ -64,6 +69,7 @@ impl McpError {
     pub fn remediation(&self) -> &str {
         match self {
             Self::ReleaseBinding(repair) => repair,
+            Self::StaleInstalledBinding => "reconnect the MCP host",
             Self::Parse => "send valid JSON",
             Self::InvalidRequest => "send a valid JSON-RPC 2.0 request",
             Self::InvalidParams => "provide arguments matching the advertised tool schema",
@@ -92,6 +98,7 @@ impl McpError {
             Self::MethodNotFound => "MCP method was not found",
             Self::InitializationRequired => "MCP initialization is required",
             Self::ReleaseBinding(_) => "release binding failed",
+            Self::StaleInstalledBinding => "installed binding changed; reconnect the MCP host",
             Self::ToolNotFound => "tool was not found",
             Self::ScopeDenied => "tool scope was denied",
             Self::Backend => "native backend failed",
@@ -109,7 +116,10 @@ impl fmt::Display for McpError {
 impl std::error::Error for McpError {}
 
 impl From<legion_runtime::RuntimeError> for McpError {
-    fn from(_: legion_runtime::RuntimeError) -> Self {
-        Self::Backend
+    fn from(error: legion_runtime::RuntimeError) -> Self {
+        match error {
+            legion_runtime::RuntimeError::StaleInstalledBinding => Self::StaleInstalledBinding,
+            _ => Self::Backend,
+        }
     }
 }

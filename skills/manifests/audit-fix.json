@@ -28,7 +28,9 @@
       "/audit-fix",
       "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists."
     ],
-    "outputs": [],
+    "outputs": [
+      "references/route-resources.json"
+    ],
     "scripts": [],
     "templates": [],
     "schemas": [],
@@ -50,7 +52,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-fix/SKILL.md",
-      "digest": "sha256:7d2c19139b30ff03acd458facc226b04c9ffb40cc3eba18faba0f9f315d75114"
+      "digest": "sha256:98b3f32f5ea1ce32dd329f77abd4f5bfd707f29e1e0de6386f76ab77cd8e33b0"
     },
     {
       "path": "agents/openai.yaml",
@@ -60,12 +62,17 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://audit-fix/dependencies.json",
-      "digest": "sha256:8100d1ab59f9956ce1bf293f0b43deeae45b12f4f51cd91dd00114e215630875"
+      "digest": "sha256:0a2f7a8f00abe530e18bbea52f8bd10c33a1536e2f91bb2d72138b911c7cca80"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit-fix/evals/evals.json",
       "digest": "sha256:4c72829007993a4006f122a2f4a084c516c61f2d22c39612c58eeb96819f105d"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://audit-fix/references/route-resources.json",
+      "digest": "sha256:5a401617c19109b7fe5724b5b4850399b97d194048e6661a4d11d1ed67f6bdb7"
     }
   ]
 }

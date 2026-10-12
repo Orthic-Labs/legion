@@ -492,6 +492,10 @@ mod tests {
         output: Value,
     }
 
+    struct FailingApi {
+        stale_binding: bool,
+    }
+
     impl NativeApi for TestApi {
         fn tool_definitions(&self) -> Vec<Value> {
             vec![json!({
@@ -503,6 +507,24 @@ mod tests {
 
         fn invoke(&self, _operation: &str, _arguments: &Value) -> Result<Value, RuntimeError> {
             Ok(self.output.clone())
+        }
+    }
+
+    impl NativeApi for FailingApi {
+        fn tool_definitions(&self) -> Vec<Value> {
+            vec![json!({
+                "name": "test",
+                "description": "Use this when testing. Do not use for production.",
+                "inputSchema": {"type":"object","required":[],"additionalProperties":false,"properties":{}}
+            })]
+        }
+
+        fn invoke(&self, _operation: &str, _arguments: &Value) -> Result<Value, RuntimeError> {
+            if self.stale_binding {
+                Err(RuntimeError::StaleInstalledBinding)
+            } else {
+                Err(RuntimeError::Policy("private path /secret sentinel".into()))
+            }
         }
     }
 
@@ -577,6 +599,44 @@ mod tests {
             result["content"][0]["text"],
             "tool output exceeded the configured limit"
         );
+    }
+
+    #[tokio::test]
+    async fn stale_installed_binding_has_fixed_public_error_and_backend_stays_generic() {
+        assert_eq!(McpError::StaleInstalledBinding.code(), -32000);
+        let stale = ToolService::new(Arc::new(FailingApi {
+            stale_binding: true,
+        }))
+        .call("test", &json!({}))
+        .await;
+        assert_eq!(stale["isError"], true);
+        assert_eq!(
+            stale["structuredContent"]["error"]["code"],
+            "STALE_INSTALLED_BINDING"
+        );
+        assert_eq!(
+            stale["structuredContent"]["error"]["remediation"],
+            "reconnect the MCP host"
+        );
+        assert_eq!(stale["structuredContent"]["error"]["retryable"], false);
+        assert_eq!(
+            stale["content"][0]["text"],
+            "installed binding changed; reconnect the MCP host"
+        );
+        assert!(!stale.to_string().contains("/secret"));
+
+        let backend = ToolService::new(Arc::new(FailingApi {
+            stale_binding: false,
+        }))
+        .call("test", &json!({}))
+        .await;
+        assert_eq!(
+            backend["structuredContent"]["error"]["code"],
+            "BACKEND_UNAVAILABLE"
+        );
+        assert!(!backend
+            .to_string()
+            .contains("private path /secret sentinel"));
     }
 
     #[test]

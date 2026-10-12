@@ -43,6 +43,7 @@
       "references/performance-checklist.md",
       "references/ponytail-lens.md",
       "references/provider-architecture.md",
+      "references/route-resources.json",
       "references/rubrics/cargo-toml.md",
       "references/rubrics/github-workflow.md",
       "references/rubrics/rust.md",
@@ -73,7 +74,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:7ba944e9b620afbf5cdf1e755a1c6d6c0f0765eda0fe8d0c7d45be3b06d47df9"
+      "digest": "sha256:6b0c7ef7248a1bae218fae81fd1664b24c3498238816ef4067dee071cd74adb8"
     },
     {
       "path": "agents/openai.yaml",
@@ -83,7 +84,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://audit/dependencies.json",
-      "digest": "sha256:f107d07a0c5a0ee27ab3ac449b0ac82cfa45ed87edcb4e444b1e252f3d1112db"
+      "digest": "sha256:0a2f7a8f00abe530e18bbea52f8bd10c33a1536e2f91bb2d72138b911c7cca80"
     },
     {
       "path": "evals/evals.json",
@@ -159,6 +160,11 @@
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
       "digest": "sha256:6b68886cbd24325b3347167e863d2c40eaf7e06940c1863431c0c9a4442673bf"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://audit/references/route-resources.json",
+      "digest": "sha256:3c9f92c449278d3884ed3a566e80ecf5cf2e3f1c174b05f06afe5c709f9a29b0"
     },
     {
       "path": "references/rubrics/cargo-toml.md",

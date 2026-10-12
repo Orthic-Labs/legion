@@ -14,6 +14,7 @@ pub enum RuntimeError {
     Cancelled,
     DeadlineExceeded,
     Policy(String),
+    StaleInstalledBinding,
     Contract(String),
 }
 
@@ -34,6 +35,9 @@ impl fmt::Display for RuntimeError {
             Self::Cancelled => out.write_str("cancelled"),
             Self::DeadlineExceeded => out.write_str("deadline exceeded"),
             Self::Policy(value) => write!(out, "policy denied: {value}"),
+            Self::StaleInstalledBinding => {
+                out.write_str("installed binding changed; reconnect the MCP host")
+            }
             Self::Contract(value) => write!(out, "contract error: {value}"),
         }
     }
