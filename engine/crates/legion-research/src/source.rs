@@ -162,6 +162,11 @@ impl SourceRecord {
                 "source text must be non-empty".into(),
             ));
         }
+        if is_fetch_error_text(&self.text) {
+            return Err(ResearchError::InvalidSource(
+                "fetch-error-text: source text is a fetch failure, not opened page content".into(),
+            ));
+        }
         if self.is_lead() {
             return Err(ResearchError::InvalidSource(
                 "lead-only source records cannot enter evidence".into(),
@@ -219,6 +224,50 @@ impl SourceRecord {
         }
         Ok(())
     }
+}
+
+/// Conservative detector for host records whose `text` is a fetch failure stub rather than
+/// page content. Only short texts (under 200 characters) are considered, so long genuine
+/// content that merely mentions a status code or phrase is never rejected.
+fn is_fetch_error_text(text: &str) -> bool {
+    const MAX_STUB_CHARS: usize = 200;
+    let trimmed = text.trim();
+    if trimmed.chars().count() >= MAX_STUB_CHARS {
+        return false;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    const PHRASES: [&str; 7] = [
+        "failed to fetch",
+        "403 forbidden",
+        "404 not found",
+        "access denied",
+        "request blocked",
+        "error fetching",
+        "unable to fetch",
+    ];
+    // A phrase counts only when nothing content-like follows it, so an excerpt that merely
+    // opens with "Access denied to minors…" is kept.
+    if let Some(phrase) = PHRASES.iter().find(|phrase| lower.starts_with(**phrase)) {
+        let rest = lower[phrase.len()..].trim_start();
+        return rest.is_empty()
+            || rest
+                .starts_with(|c: char| matches!(c, '.' | ':' | '!' | ',' | '-' | '(' | '|' | '['))
+            || rest.starts_with("http")
+            || rest.starts_with("by ")
+            || rest.starts_with("for ");
+    }
+    // Status-line forms: "HTTP 404", "HTTP/1.1 503 ...", "HTTP error 429", "Error: 500 ...".
+    let mut words = lower.split(|c: char| c.is_whitespace() || c == ':' || c == '/');
+    let first = words.next().unwrap_or_default();
+    let is_status = |w: &str| {
+        w.len() == 3
+            && matches!(w.as_bytes()[0], b'4' | b'5')
+            && w.bytes().all(|b| b.is_ascii_digit())
+    };
+    if first == "http" || first == "error" {
+        return words.take(4).any(is_status);
+    }
+    false
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -471,6 +520,48 @@ mod tests {
         a.metadata
             .insert("canonical_url".into(), "https://cpsc.gov/faq".into());
         assert_eq!(a.independence_key().key, "cpsc.gov");
+    }
+
+    fn with_text(text: &str) -> SourceRecord {
+        let mut record = source();
+        record.text = text.into();
+        record.byte_length = text.len() as u64;
+        record.content_digest = format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes())));
+        record
+    }
+
+    #[test]
+    fn fetch_error_stub_is_rejected() {
+        for stub in [
+            "Failed to fetch https://example.test/source: connection reset",
+            "HTTP 403 Forbidden",
+            "HTTP/1.1 503 Service Unavailable",
+            "403 Forbidden",
+            "Access Denied",
+            "Request blocked by network policy.",
+        ] {
+            let err = with_text(stub).validate().unwrap_err().to_string();
+            assert!(err.contains("fetch-error-text"), "{stub}: {err}");
+        }
+    }
+
+    #[test]
+    fn long_article_mentioning_403_is_accepted() {
+        let mut text = String::from("Guide to HTTP status codes. A 403 Forbidden response means the server refuses access; access denied pages are common. ");
+        text.push_str(&"The status code family is explained in detail here. ".repeat(12));
+        assert!(text.len() > 400);
+        with_text(&text).validate().unwrap();
+        with_text("The 403 response is discussed in this short note.")
+            .validate()
+            .unwrap();
+        with_text("Access denied to minors under 13 without parental consent.")
+            .validate()
+            .unwrap();
+    }
+
+    #[test]
+    fn empty_text_is_rejected() {
+        assert!(with_text("  \n").validate().is_err());
     }
 
     #[test]

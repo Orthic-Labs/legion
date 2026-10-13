@@ -24,6 +24,12 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Assignment states scope, exclusions, exact ownership, evidence, expected result, & next integration action.
 
 1. Start bounded subagents with `fork_turns: "none"`. Give each fresh worker current scope, exclusions, bounded owned paths or modules, bounded evidence pointers, & expected result; never copy the full transcript or inherit turns unless explicitly requested. Bound reads & tool output to relevant excerpts. Split work when one assignment would accumulate excessive context.
+On Codex hosts, spawn a role with the host's agent-spawn tool (`spawn_agent`), passing the role name
+(`oracle`, `sage`, `alchemist`, `sentry`, `council-seat`) as `agent_type`, then wait for it with
+`wait_agent`. A request for independent or fresh-context review is an explicit spawn request. Claim
+independent or fresh-context review only when a child agent actually ran; otherwise say the work was
+not independently reviewed.
+
 2. For ordinary delegation, stop there. One integration owner reconciles output, runs relevant root
 checks, & advances remaining work. Reads may overlap; write ownership may not.
 3. Add contracts, receipts, recovery schemas, dependency waves, or strict return fields only for

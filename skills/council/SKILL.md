@@ -170,7 +170,7 @@ build-and-measure step between loops, is what makes the process converge.
 
 ## Seats
 
-Launch each seat as `subagent_type: legion:council-seat` with `fork_turns: "none"`. The prompt
+Launch each seat as the `council-seat` agent type with the host's agent-spawn tool (Claude: `subagent_type: legion:council-seat`; Codex: `agent_type: council-seat`) and `fork_turns: "none"`. The prompt
 embeds, and nothing else:
 
 - the packet (never another seat's output, except the Council debate round below);

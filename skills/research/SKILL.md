@@ -46,7 +46,7 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    counts; take the next source instead of retrying); (b) write one record per file with Edit
    (replace an empty `{}` stub after Reading it), or Write for a new file; (c) run the route as the
    very next call. Search or fetch more only after the route returns, and only to close the gaps it
-   reports. Shape: `references/source-record.example.json`; unknown keys are rejected. Give each
+   reports. A record must contain the opened page's text, not a fetch error. Shape: `references/source-record.example.json`; unknown keys are rejected. Give each
    record the real page URL in `uri`: independence is counted from its domain, not from `provider`.
    Records without an http(s) URL are reported self-declared and do not meet the default
    requirement. `content_digest` (`sha256:` + hex of `text`) and `byte_length` (UTF-8 byte count of

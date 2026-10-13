@@ -718,6 +718,11 @@ fn codex_hook_state_at(
         .and_then(|value| value.get(plugin_id))
         .and_then(|value| value.get("enabled"))
         .and_then(toml::Value::as_bool);
+    let roles = codex_role_state(
+        codex_home,
+        config_value.as_ref(),
+        plugin_enabled == Some(true),
+    );
     let last_event = last_observed_hook_event(receipt_dirs);
     let trust_recorded = !legion_trust_recorded.is_empty();
     let declared_fidelity = legion_runtime::p7_host::host_adapters::codex_descriptor()["surfaces"]
@@ -775,6 +780,7 @@ fn codex_hook_state_at(
         "pluginEnabled": plugin_enabled,
         "configPresent": !text.is_empty(),
         "state": state,
+        "roles": roles,
         "states": {
             "filePresent": {"observed": file_present, "path": legion_hooks_file},
             "hostRegistered": {"observed": registered, "entries": legion_registered.iter().collect::<Vec<_>>()},
@@ -790,6 +796,61 @@ fn codex_hook_state_at(
         "detail": detail,
         "trusted": trusted.into_iter().collect::<Vec<_>>(),
         "remediation": Value::Null,
+    })
+}
+
+/// Codex role binding state. The plugin ships no role files; `legion bind --write` creates
+/// `[agents.<role>]` entries and `agents/<role>.toml`. Only the `agents` table structure and
+/// file presence are read. Codex child agents inherit the parent sandbox, so a role's
+/// read-only `sandbox_mode` is reported as `unenforced`.
+fn codex_role_state(
+    codex_home: &Path,
+    config: Option<&toml::Value>,
+    plugin_enabled: bool,
+) -> Value {
+    let agents = config
+        .and_then(|value| value.get("agents"))
+        .and_then(toml::Value::as_table);
+    let mut missing = Vec::new();
+    let mut present = Vec::new();
+    for role in ["oracle", "sage", "alchemist"] {
+        let declared = agents
+            .and_then(|table| table.get(role))
+            .is_some_and(toml::Value::is_table);
+        let declared_file = agents
+            .and_then(|table| table.get(role))
+            .and_then(|entry| entry.get("config_file"))
+            .and_then(toml::Value::as_str)
+            .map(|file| codex_home.join(file));
+        let file_ok = declared_file
+            .unwrap_or_else(|| codex_home.join("agents").join(format!("{role}.toml")))
+            .is_file();
+        if declared && file_ok {
+            present.push(role);
+        } else {
+            missing.push(role);
+        }
+    }
+    let state = if !plugin_enabled {
+        "not-applicable"
+    } else if missing.is_empty() {
+        "bound"
+    } else {
+        "roles-unbound"
+    };
+    json!({
+        "state": state,
+        "present": present,
+        "missing": missing,
+        "remediation": if state == "roles-unbound" {
+            json!("Codex plugin is enabled but role entries or role files are missing; run `legion bind --write` to create [agents.<role>] entries and ~/.codex/agents/<role>.toml")
+        } else {
+            Value::Null
+        },
+        "oracleReadOnly": {
+            "state": "unenforced",
+            "reason": "Codex child agents inherit the parent sandbox; a role sandbox_mode of read-only is not applied, so Oracle read-only is prompt-only on Codex",
+        },
     })
 }
 
@@ -1556,6 +1617,49 @@ mod tests {
         std::fs::write(install.join("plugin.json"), r#"{"name":"other"}"#).unwrap();
         assert!(skills_dir_installation(&home, None).is_none());
         let _ = std::fs::remove_dir_all(home);
+    }
+
+    #[test]
+    fn codex_role_state_flags_unbound_roles_and_reports_oracle_read_only_unenforced() {
+        let root = std::env::temp_dir().join(format!("legion-doctor-roles-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let home = root.join("codex");
+        std::fs::create_dir_all(home.join("agents")).unwrap();
+
+        // Plugin not enabled: not applicable.
+        let v = codex_role_state(&home, None, false);
+        assert_eq!(v["state"], "not-applicable");
+        assert_eq!(v["oracleReadOnly"]["state"], "unenforced");
+
+        // Plugin enabled, nothing bound.
+        let v = codex_role_state(&home, None, true);
+        assert_eq!(v["state"], "roles-unbound");
+        assert_eq!(v["missing"].as_array().unwrap().len(), 3);
+
+        // Entries without files remain unbound.
+        let config: toml::Value = toml::from_str(
+            "[agents.oracle]\nconfig_file = \"agents/oracle.toml\"\n[agents.sage]\nconfig_file = \"agents/sage.toml\"\n[agents.alchemist]\nconfig_file = \"agents/alchemist.toml\"\n",
+        )
+        .unwrap();
+        let v = codex_role_state(&home, Some(&config), true);
+        assert_eq!(v["state"], "roles-unbound");
+
+        // Entries and files present: bound.
+        for role in ["oracle", "sage", "alchemist"] {
+            std::fs::write(
+                home.join("agents").join(format!("{role}.toml")),
+                "name = \"x\"\n",
+            )
+            .unwrap();
+        }
+        let v = codex_role_state(&home, Some(&config), true);
+        assert_eq!(v["state"], "bound");
+        assert_eq!(v["oracleReadOnly"]["state"], "unenforced");
+
+        // Files without config entries: still unbound.
+        let v = codex_role_state(&home, None, true);
+        assert_eq!(v["state"], "roles-unbound");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
