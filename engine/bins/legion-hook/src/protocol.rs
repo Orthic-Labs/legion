@@ -162,6 +162,11 @@ pub struct HookResponse {
     pub kind: &'static str,
     pub event_type: String,
     pub allowed: bool,
+    /// When `allowed` is false, a Claude Code PreToolUse frame is answered
+    /// with `permissionDecision: "ask"` (host confirmation) instead of
+    /// `"deny"`. Never set on an allow; Codex has no ask outcome and treats
+    /// it as a denial (exit 2).
+    pub ask: bool,
     pub code: Option<String>,
     pub reason: String,
     pub enforcement_health: &'static str,
@@ -174,6 +179,7 @@ impl HookResponse {
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: false,
+            ask: false,
             code: Some("ARC_NATIVE_POLICY_UNAVAILABLE".into()),
             reason: "native hook enforcement is unavailable; effect is refused".into(),
             enforcement_health: "unsupported",
@@ -186,6 +192,7 @@ impl HookResponse {
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: true,
+            ask: false,
             code: None,
             reason: reason.into(),
             enforcement_health: "strong",
@@ -203,9 +210,24 @@ impl HookResponse {
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: false,
+            ask: false,
             code: Some(code.into()),
             reason: reason.into(),
             enforcement_health: health,
+        }
+    }
+
+    /// An effect the Guard will not grant on its own authority but that the
+    /// host's permission prompt may let the user confirm. This never allows:
+    /// `allowed` stays false, so a host without an ask outcome (Codex) denies.
+    pub fn ask(
+        event_type: impl Into<String>,
+        code: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            ask: true,
+            ..Self::denied(event_type, code, reason, "strong")
         }
     }
 
@@ -231,7 +253,10 @@ impl HookResponse {
         if !self.allowed && matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect") {
             let mut specific = Map::new();
             specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
-            specific.insert("permissionDecision".into(), Value::String("deny".into()));
+            specific.insert(
+                "permissionDecision".into(),
+                Value::String(if self.ask { "ask" } else { "deny" }.into()),
+            );
             specific.insert(
                 "permissionDecisionReason".into(),
                 Value::String(self.reason.clone()),

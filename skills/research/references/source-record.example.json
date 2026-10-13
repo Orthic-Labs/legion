@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "source_id": "src-1",
+  "kind": "web",
+  "provider": "webfetch",
+  "uri": "https://example.org/page-you-opened",
+  "title": "Title of the opened page",
+  "retrieved_at": "2026-01-31",
+  "content_digest": "sha256:1ff2f08f0591d01dc55a902cc8e1dac7c825074204b48a48a4e1de9a8d5ac2a9",
+  "byte_length": 47,
+  "text": "Verbatim passage you read in the opened source.",
+  "metadata": {
+    "locator": "section or heading containing the passage",
+    "request_receipt": "webfetch 2026-01-31 https://example.org/page-you-opened"
+  }
+}

@@ -124,24 +124,26 @@ pub fn verify(
                 .as_deref()
                 .ok_or_else(|| HarnessError::internal("skills path missing"))?;
             let verification = verify_skill_projection(legion_root, &abs(root, path))?;
-            let ok = verification
-                .get("missing")
-                .and_then(Value::as_array)
-                .is_some_and(|items| items.is_empty())
-                && verification
-                    .get("forked")
+            let empty = |key: &str| {
+                verification
+                    .get(key)
                     .and_then(Value::as_array)
-                    .is_some_and(|items| items.is_empty());
+                    .is_some_and(|items| items.is_empty())
+            };
+            let ok =
+                empty("missing") && empty("forked") && empty("sharedMissing") && empty("dangling");
             if !ok {
                 problems.push(json!({
                     "surface": surface,
                     "missing": verification.get("missing").cloned().unwrap_or(Value::Null),
                     "forked": verification.get("forked").cloned().unwrap_or(Value::Null),
+                    "sharedMissing": verification.get("sharedMissing").cloned().unwrap_or(Value::Null),
+                    "danglingReferences": verification.get("dangling").cloned().unwrap_or(Value::Null),
                 }));
             }
             surfaces.insert(
                 surface.to_string(),
-                json!({ "fidelity": fidelity, "ok": ok, "present": verification.get("present"), "total": verification.get("total"), "missing": verification.get("missing"), "forked": verification.get("forked"), "extra": verification.get("extra") }),
+                json!({ "fidelity": fidelity, "ok": ok, "present": verification.get("present"), "total": verification.get("total"), "missing": verification.get("missing"), "forked": verification.get("forked"), "sharedMissing": verification.get("sharedMissing"), "dangling": verification.get("dangling"), "extra": verification.get("extra") }),
             );
         } else if ["instructions", "mcp", "agents"].contains(&surface) && mech.path.is_some() {
             let path = mech.path.as_deref().expect("checked");

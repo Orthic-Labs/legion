@@ -20,8 +20,8 @@ The two-stage route/approve/grant flow and the medical/legal/scientific/technica
 domain classifier described below were built as a Python prototype
 (`src/lib/research-core/`) that is **not part of the installed plugin** — it never leaves
 the source checkout and `SKILL.md` calls it retired. The only thing that ships and runs is
-the native `legion research` command (`legion-research` crate). Use `legion research --help`
-for its real, current contract: `--query`, `--provider`, `--max-hits`,
+the native `legion research` command (`legion-research` crate). Its flags
+are: `--query`, `--provider`, `--max-hits`,
 `--source-record <record.json>` (host-opened evidence you supply), `--min-independent-providers`,
 `--domain`, and `--sensitivity` (defined in `engine/bins/legion/src/commands/research.rs`). A
 complete ResearchRoute v2 can be supplied with `--route-json <route.json>`; its `subject.query`

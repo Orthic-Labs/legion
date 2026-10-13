@@ -686,9 +686,28 @@ fn authorize_effect(
             }
         }
         Err(_) => {
+            // An external side effect is not granted on the hook's authority
+            // and is not refused outright either: it is handed to the host
+            // permission prompt, which shows the exact tool and arguments and
+            // is answered by the user. Authenticated read-only roles keep the
+            // hard denial, and hosts without an ask outcome (Codex) treat the
+            // response as a denial.
+            if matches!(effect.effect_class, EffectClass::EXTERNAL_SIDE_EFFECT)
+                && actor.permits_effect(effect.effect_class)
+                && !matches!(actor, HookActorContext::Conflicting)
+            {
+                return HookResponse::ask(
+                    event_type,
+                    "ARC_USER_CONFIRMATION_REQUIRED",
+                    format!(
+                        "Guard needs your confirmation: '{}' (target '{}') is an external or persistent side effect (write/send/delete/configure). Approve only if you asked for this action.",
+                        effect.operation, effect.target
+                    ),
+                );
+            }
             let message = match effect.effect_class {
                 EffectClass::EXTERNAL_SIDE_EFFECT => format!(
-                    "native policy denied effect: tool '{}' is a positively classified external side effect (write/send/delete) via MCP (fail-closed default; no policy rule allows EXTERNAL_SIDE_EFFECT for this target/operation)",
+                    "native policy denied effect: tool '{}' is a positively classified external side effect (write/send/delete) via MCP and the acting role may not perform it",
                     effect.target
                 ),
                 EffectClass::MCP_UNCLASSIFIED_OBSERVATION => format!(
@@ -1137,6 +1156,10 @@ fn parse_effect_class(
         // when their names contain a verb like "send": the verb allowlist
         // exists because third-party MCP names are untrusted, while the ccd_
         // prefix belongs to the host-registered namespace.
+        // Local persistent configuration (scheduled tasks) and a short exact
+        // list of host-security tools take the host confirmation prompt even
+        // though the ccd_ namespace is otherwise first-party dispatch.
+        name if is_confirmation_required_tool(name) => Some(EffectClass::EXTERNAL_SIDE_EFFECT),
         name if is_mcp_external_tool(name) && !is_first_party_host_tool(name) => {
             Some(EffectClass::EXTERNAL_SIDE_EFFECT)
         }
@@ -1164,6 +1187,37 @@ fn is_first_party_host_tool(tool_name: &str) -> bool {
         || tool_name
             .get(..21)
             .is_some_and(|prefix| prefix.eq_ignore_ascii_case("mcp__Claude_Browser__"))
+}
+
+/// Exact tool names that always take the host confirmation prompt.
+///
+/// Scheduled tasks are standing local configuration that later runs agent
+/// sessions. The `mcp__ccd_*` entries are host-security settings; the rest of
+/// the ccd namespace (including `send_message`) stays first-party dispatch.
+fn is_confirmation_required_tool(tool_name: &str) -> bool {
+    const SCHEDULED_TASK_MUTATORS: [&str; 4] = [
+        "mcp__scheduled-tasks__create_scheduled_task",
+        "mcp__scheduled-tasks__update_scheduled_task",
+        "mcp__scheduled-tasks__delete_scheduled_task",
+        "mcp__scheduled-tasks__run_scheduled_task",
+    ];
+    const CCD_SECURITY_TOOLS: [&str; 5] = [
+        "set_session_permission_mode",
+        "set_setting",
+        "set_auto_merge",
+        "delete_session",
+        "set_remote_control",
+    ];
+    if SCHEDULED_TASK_MUTATORS
+        .iter()
+        .any(|name| tool_name.eq_ignore_ascii_case(name))
+    {
+        return true;
+    }
+    is_first_party_host_tool(tool_name)
+        && tool_name.rsplit("__").next().is_some_and(|operation| {
+            CCD_SECURITY_TOOLS.contains(&operation.to_ascii_lowercase().as_str())
+        })
 }
 
 fn is_mcp_tool(tool_name: &str) -> bool {
@@ -1736,10 +1790,8 @@ fn is_known_read_only_tool(tool_name: &str) -> bool {
         "mcp__membrane__membrane_context"
             | "mcp__legion__legion_m1_status"
             | "mcp__plugin_legion_legion__legion_m1_status"
-            | "mcp__scheduled-tasks__list_tasks"
+            | "mcp__scheduled-tasks__list_scheduled_tasks"
             | "mcp__scheduled-tasks__list_task_runs"
-            | "mcp__scheduled-tasks__get_task"
-            | "mcp__scheduled-tasks__get_task_run"
     )
 }
 
@@ -4199,8 +4251,12 @@ mod tests {
             HookActorContext::Unavailable,
             &application,
         );
-        assert!(!response.allowed, "MCP sends must remain policy denied");
-        assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
+        assert!(!response.allowed, "MCP sends are never granted by the hook");
+        assert!(response.ask, "MCP sends go to the host prompt");
+        assert_eq!(
+            response.code.as_deref(),
+            Some("ARC_USER_CONFIRMATION_REQUIRED")
+        );
 
         let non_mcp = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
@@ -4224,6 +4280,135 @@ mod tests {
         let response = dispatch(explicit_unknown);
         assert!(!response.allowed);
         assert_eq!(response.code.as_deref(), Some("ARC_HOST_EVENT_INVALID"));
+    }
+
+    fn pre_tool_use(tool: &str, input: Value) -> HookRequest {
+        HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "PreToolUse".into(),
+            payload: json!({
+                "tool_name": tool,
+                "tool_input": input,
+                "sourceRevision": "0123456789abcdef0123456789abcdef01234567"
+            }),
+        }
+    }
+
+    fn assert_asks(tool: &str, input: Value) {
+        let response = dispatch(pre_tool_use(tool, input));
+        assert!(!response.allowed, "{tool} must not be allowed by the hook");
+        assert!(response.ask, "{tool} must ask, not hard-deny");
+        assert_eq!(
+            response.code.as_deref(),
+            Some("ARC_USER_CONFIRMATION_REQUIRED"),
+            "{tool}"
+        );
+        assert!(response.reason.contains("confirmation"), "{tool}");
+        let value = response.to_value();
+        assert_eq!(
+            value["hookSpecificOutput"]["permissionDecision"], "ask",
+            "{tool}"
+        );
+        assert_ne!(value["hookSpecificOutput"]["permissionDecision"], "allow");
+        // Codex has no ask outcome: the same response is a denial there.
+        let (exit, output) = codex::project_response(&response);
+        assert_eq!(exit, 2, "{tool} must fail closed on Codex");
+        assert!(output.get("hookSpecificOutput").is_none(), "{tool}");
+    }
+
+    #[test]
+    fn scheduled_task_mutators_ask_instead_of_denying_or_allowing() {
+        for tool in [
+            "mcp__scheduled-tasks__create_scheduled_task",
+            "mcp__scheduled-tasks__update_scheduled_task",
+            "mcp__scheduled-tasks__delete_scheduled_task",
+            "mcp__scheduled-tasks__run_scheduled_task",
+        ] {
+            assert!(is_confirmation_required_tool(tool), "{tool}");
+            assert_asks(tool, json!({"taskId": "daily"}));
+        }
+        let denied = dispatch(pre_tool_use(
+            "mcp__scheduled-tasks__update_scheduled_task",
+            json!({"taskId": "daily"}),
+        ));
+        assert_ne!(denied.code.as_deref(), Some("ARC_POLICY_DENIED"));
+    }
+
+    #[test]
+    fn scheduled_task_listings_are_known_read_only_observations() {
+        for tool in [
+            "mcp__scheduled-tasks__list_scheduled_tasks",
+            "mcp__scheduled-tasks__list_task_runs",
+        ] {
+            let request = pre_tool_use(tool, json!({}));
+            let effect = effect_request(&request).unwrap().unwrap();
+            assert_eq!(effect.effect_class, EffectClass::MCP_KNOWN_OBSERVATION);
+            let response = dispatch(request);
+            assert!(response.allowed && !response.ask, "{tool}");
+        }
+    }
+
+    #[test]
+    fn third_party_external_writes_ask() {
+        assert_asks("mcp__docs__create", json!({"title": "x"}));
+        assert_asks("mcp__mail__send_message", json!({"to": "a"}));
+    }
+
+    #[test]
+    fn ccd_send_message_stays_allowed_and_security_tools_ask() {
+        let send = dispatch(pre_tool_use(
+            "mcp__ccd_session_mgmt__send_message",
+            json!({"message": "hi"}),
+        ));
+        assert!(send.allowed && !send.ask, "{}", send.reason);
+        for tool in [
+            "mcp__ccd_session_mgmt__set_session_permission_mode",
+            "mcp__ccd_settings__set_setting",
+            "mcp__ccd_pr__set_auto_merge",
+            "mcp__ccd_session_mgmt__delete_session",
+            "mcp__ccd_session_mgmt__set_remote_control",
+        ] {
+            assert_asks(tool, json!({"value": "x"}));
+        }
+        let title = dispatch(pre_tool_use(
+            "mcp__ccd_session_mgmt__set_session_title",
+            json!({"title": "x"}),
+        ));
+        assert!(title.allowed && !title.ask);
+    }
+
+    #[test]
+    fn authenticated_read_only_roles_keep_the_hard_denial_for_external_effects() {
+        let application = NativeApplicationConfig::default_for_repository("test-repository")
+            .expect("canonical default native application builds");
+        let request = pre_tool_use("mcp__docs__create", json!({"title": "x"}));
+        let effect = effect_request(&request).unwrap().unwrap();
+        let response = authorize_effect(
+            "PreToolUse".into(),
+            &effect,
+            HookActorContext::Authenticated(AuthorityKind::Oracle),
+            &application,
+        );
+        assert!(!response.allowed && !response.ask);
+        assert_eq!(
+            response.to_value()["hookSpecificOutput"]["permissionDecision"],
+            "deny"
+        );
+    }
+
+    #[test]
+    fn destructive_bash_stays_a_hard_denial_not_an_ask() {
+        let response = dispatch(pre_tool_use("Bash", json!({"command": "rm -rf /tmp/x"})));
+        assert!(!response.allowed && !response.ask);
+        assert_eq!(
+            response.code.as_deref(),
+            Some("ARC_EFFECT_CLASS_UNAUTHORIZED")
+        );
+        assert_eq!(
+            response.to_value()["hookSpecificOutput"]["permissionDecision"],
+            "deny"
+        );
     }
 
     #[test]
@@ -4327,7 +4512,19 @@ mod tests {
                 !response.allowed,
                 "reserved effect allowed: {effect_class:?}"
             );
-            assert_eq!(response.code.as_deref(), Some("ARC_POLICY_DENIED"));
+            // CREDENTIAL_ACCESS is a hard denial; EXTERNAL_SIDE_EFFECT asks.
+            assert_eq!(
+                response.ask,
+                effect_class == EffectClass::EXTERNAL_SIDE_EFFECT
+            );
+            assert_eq!(
+                response.code.as_deref(),
+                Some(if response.ask {
+                    "ARC_USER_CONFIRMATION_REQUIRED"
+                } else {
+                    "ARC_POLICY_DENIED"
+                })
+            );
             assert_eq!(response.enforcement_health, "strong");
         }
     }
@@ -4364,10 +4561,8 @@ mod tests {
             "a command that happens to read must not claim typed read-only status"
         );
         for tool in [
-            "mcp__scheduled-tasks__list_tasks",
+            "mcp__scheduled-tasks__list_scheduled_tasks",
             "mcp__scheduled-tasks__list_task_runs",
-            "mcp__scheduled-tasks__get_task",
-            "mcp__scheduled-tasks__get_task_run",
         ] {
             assert!(is_known_read_only_tool(tool), "{tool}");
             let request = HookRequest {
@@ -4380,9 +4575,14 @@ mod tests {
             assert_eq!(effect.effect_class, EffectClass::MCP_KNOWN_OBSERVATION);
             assert!(dispatch(request).allowed, "{tool}");
         }
-        assert!(!is_known_read_only_tool(
-            "mcp__scheduled-tasks__delete_task"
-        ));
+        for stale in [
+            "mcp__scheduled-tasks__list_tasks",
+            "mcp__scheduled-tasks__get_task",
+            "mcp__scheduled-tasks__get_task_run",
+            "mcp__scheduled-tasks__delete_scheduled_task",
+        ] {
+            assert!(!is_known_read_only_tool(stale), "{stale}");
+        }
         assert!(!is_known_read_only_tool("mcp__membrane__membrane_write"));
         assert!(
             !is_known_read_only_tool("mcp__legion__legion_m1_invoke"),

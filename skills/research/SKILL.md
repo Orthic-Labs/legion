@@ -41,13 +41,29 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    reachable. Personal medical routes retain their existing history and approval gates; typed
    input does not grant approvals or perform stateful/external effects. See `references/router.md`.
 2. Supply host-opened evidence as `--source-record <record.json>` inputs; native route validation
-   enforces provider denominator & resource bounds.
+   enforces provider denominator & resource bounds. Open only the few sources the records need
+   (fetch or Read the real page), then write one record per file with Edit (replace an empty `{}`
+   stub after Reading it); use Write only for a new file. Run the route before researching
+   further. Shape: `references/source-record.example.json`; unknown keys are rejected.
+   `content_digest` (`sha256:` + hex of `text`) and `byte_length` (UTF-8 byte count of `text`)
+   are optional: omit both and the route computes them and flags `digestComputedByRoute`. Never
+   invent either value; a present value that does not match `text` is rejected.
+   Run the route as ONE plain command, binary path and flags exactly as the request or plan gives
+   them: `legion research --query '<query>' --source-record <f1> [--source-record <f2> ...]`.
+   Do not chain (`;` `&&` `|`), prefix `cat`/`ls`/`echo`, or add `--help`; hosts that permit
+   the route often permit only that exact command. The command runs even when records are
+   incomplete and returns a typed result (`unproven` with per-record rejection reasons); report
+   that result verbatim. Never replace the route with web search, and never say it cannot run
+   before issuing it once.
 3. Execute only through installed `legion research`; Python product runtime is retired. Do not
    instruct a reader to run any `src/lib/research-core/**` script — it does not ship.
    NotebookLM stateful work (search, create, upload, generate, download) requires a callable
    `notebooklm` host adapter actually exposed in the current host. The native command only consumes
    host-opened source records; with no callable adapter, preserve the route and report
-   `unavailable`. See `references/providers/notebooklm.md`.
+   `unavailable`. See `references/providers/notebooklm.md`. To record it, write a route JSON
+   (`provider: notebooklm`, matching operation and effects) and run
+   `legion research --query <q> --route-json <route.json>`; the typed `unavailable` result is the
+   evidence.
 4. A hit is a lead; evidence needs an opened source and located passage; preserve atomic
    claims, contradictions, dates, scope, uncertainty.
 5. `verified` adds domain verification, citation-support, DOI retraction checks. Corrections
@@ -56,4 +72,5 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    hunks. Create the key file from OS cryptographic randomness before invoking the CLI.
    This receipt is CLI integrity evidence, not hook attestation.
 
-Routing: `references/router.md`; runtime contract: `legion research --help`.
+Routing: `references/router.md`; source-record contract: `references/source-record.example.json`
+(`legion research --help` lists flags only, not record fields; do not run it to learn them).

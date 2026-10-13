@@ -31,7 +31,56 @@ pub struct SourceRecord {
     pub metadata: BTreeMap<String, String>,
 }
 
+/// Wire shape of a host-written source record. `content_digest` and `byte_length` may be
+/// omitted; the route then computes them from `text` (see [`SourceRecord::from_host_json`]).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceRecordInput {
+    schema_version: u32,
+    source_id: String,
+    kind: SourceKind,
+    provider: String,
+    uri: String,
+    title: Option<String>,
+    retrieved_at: Option<String>,
+    content_digest: Option<String>,
+    byte_length: Option<u64>,
+    text: String,
+    metadata: BTreeMap<String, String>,
+}
+
 impl SourceRecord {
+    /// Parse a host-written record. When `content_digest` and/or `byte_length` are absent they
+    /// are computed from `text`; the returned flag is true if either was computed by the route.
+    /// Present values are kept verbatim so `validate` still rejects mismatches.
+    pub fn from_host_json(bytes: &[u8]) -> Result<(Self, bool), serde_json::Error> {
+        let input: SourceRecordInput = serde_json::from_slice(bytes)?;
+        let computed = input.content_digest.is_none() || input.byte_length.is_none();
+        let content_digest = input.content_digest.unwrap_or_else(|| {
+            format!(
+                "sha256:{}",
+                hex::encode(Sha256::digest(input.text.as_bytes()))
+            )
+        });
+        let byte_length = input.byte_length.unwrap_or(input.text.len() as u64);
+        Ok((
+            Self {
+                schema_version: input.schema_version,
+                source_id: input.source_id,
+                kind: input.kind,
+                provider: input.provider,
+                uri: input.uri,
+                title: input.title,
+                retrieved_at: input.retrieved_at,
+                content_digest,
+                byte_length,
+                text: input.text,
+                metadata: input.metadata,
+            },
+            computed,
+        ))
+    }
+
     /// The smallest stable locator supplied by a host for this opened source.
     ///
     /// Hosts may provide a passage locator in metadata.  A source URI remains a
@@ -263,5 +312,61 @@ mod tests {
             opened.evidence_locator().as_deref(),
             Some("https://example.test/source#passage-1")
         );
+    }
+
+    fn record_json(digest: Option<&str>, byte_length: Option<u64>) -> Vec<u8> {
+        let mut value = serde_json::json!({
+            "schema_version": 1,
+            "source_id": "source-1",
+            "kind": "web",
+            "provider": "browser",
+            "uri": "https://example.test/source",
+            "retrieved_at": "2026-08-26",
+            "text": "opened source text",
+            "metadata": {"request_receipt": "request-1"}
+        });
+        if let Some(digest) = digest {
+            value["content_digest"] = digest.into();
+        }
+        if let Some(length) = byte_length {
+            value["byte_length"] = length.into();
+        }
+        serde_json::to_vec(&value).unwrap()
+    }
+
+    #[test]
+    fn absent_digest_and_length_are_computed_and_flagged() {
+        let (record, computed) = SourceRecord::from_host_json(&record_json(None, None)).unwrap();
+        assert!(computed);
+        assert_eq!(record.byte_length, "opened source text".len() as u64);
+        assert_eq!(record.content_digest, source().content_digest);
+        assert!(record.validate().is_ok());
+    }
+
+    #[test]
+    fn present_correct_values_are_accepted_without_flag() {
+        let good = source();
+        let (record, computed) = SourceRecord::from_host_json(&record_json(
+            Some(&good.content_digest),
+            Some(good.byte_length),
+        ))
+        .unwrap();
+        assert!(!computed);
+        assert!(record.validate().is_ok());
+    }
+
+    #[test]
+    fn present_wrong_values_are_rejected() {
+        let good = source();
+        let (wrong_digest, _) =
+            SourceRecord::from_host_json(&record_json(Some("sha256:00"), None)).unwrap();
+        assert!(wrong_digest.validate().is_err());
+        let (wrong_length, _) =
+            SourceRecord::from_host_json(&record_json(Some(&good.content_digest), Some(1)))
+                .unwrap();
+        assert!(wrong_length.validate().is_err());
+        let (wrong_length_only, _) =
+            SourceRecord::from_host_json(&record_json(None, Some(1))).unwrap();
+        assert!(wrong_length_only.validate().is_err());
     }
 }

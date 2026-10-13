@@ -11,7 +11,7 @@ question:
 
 The current seed is the `legion-hook` binary. It receives host hook frames,
 classifies pre-effect requests, applies hard safety gates, loads a validated
-native policy, and returns a typed allow/deny response. The Guard is a sibling
+native policy, and returns a typed allow, ask, or deny response. The Guard is a sibling
 of the Arcane cognitive plane, not a lower-level implementation of Arcane.
 
 ## Definition
@@ -101,8 +101,9 @@ verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement
 demands one, rather than treating any file write as grounds for mandatory
 assurance. `SubagentStop` is registered as lifecycle observation. `mcp__*`
-write/send/delete tools map to `EXTERNAL_SIDE_EFFECT`; MCP reads remain
-non-effect observations.
+write/send/delete tools map to `EXTERNAL_SIDE_EFFECT`, which asks (see
+Approval boundary); known read-only MCP tools are `MCP_KNOWN_OBSERVATION` and
+other MCP reads remain unclassified observations.
 
 The current hook surface deliberately does not treat `Task` or `Agent`
 dispatch as an effect class. Dispatch is Legion orchestration; the
@@ -176,15 +177,14 @@ VCS_COMMIT       allow
 COMMAND_EXEC     allow
 ```
 
-It explicitly denies by default:
+It also explicitly allows `PUBLISH`, `VCS_PUSH`, `DEPENDENCY_INSTALL`,
+`NETWORK_EGRESS`, `PROCESS_SPAWN`, `MCP_KNOWN_OBSERVATION`, and
+`MCP_UNCLASSIFIED_OBSERVATION` (the host's own permissions still apply). The
+canonical pack has exactly two classes the policy refuses:
 
 ```text
-CREDENTIAL_ACCESS   deny
-PUBLISH              deny
-VCS_PUSH             deny
-DEPENDENCY_INSTALL  deny
-NETWORK_EGRESS      deny
-PROCESS_SPAWN       deny
+CREDENTIAL_ACCESS      deny (hard denial)
+EXTERNAL_SIDE_EFFECT   not grantable by policy; the hook answers "ask"
 ```
 
 The policy matcher requires the effect class and matches both `targets` and
@@ -235,15 +235,42 @@ model judgments and not policy fallbacks.
 
 ## Approval boundary
 
-The contracts contain `ApprovalRequirement`, but the hook adapter currently
-has no target-bound approval store or approval flow. The canonical reserved
-classes therefore deny until that flow exists. A request that asks for
-approval is not converted into an allow, and a policy rule that requires a
-non-`None` approval is refused by the native policy adapter.
+The Guard has three pre-effect outcomes: allow, ask, and deny.
 
-Implementing target-bound user or authority approval is future work. Until
-then, denial is the only honest result for reserved or approval-required
-effects.
+- **Allow** is granted only by a matching policy rule.
+- **Ask** hands the decision to the host permission prompt, which shows the
+  exact tool and arguments and is answered by the user. On Claude Code the hook
+  emits PreToolUse `hookSpecificOutput.permissionDecision: "ask"` with a reason
+  naming the tool and target (code `ARC_USER_CONFIRMATION_REQUIRED`). The hook
+  never emits `"allow"` for these effects and holds no approval store: it
+  declines to grant, it does not record consent. Codex has no ask outcome, so
+  the same response is a denial there (exit 2). An authenticated Sage or Oracle
+  actor never receives ask; its external effects stay denied.
+- **Deny** is a hard refusal: destructive command shapes, rewrite pushes,
+  `CREDENTIAL_ACCESS`, role-restricted effects, and every classification,
+  policy, or configuration failure.
+
+Classes that ask:
+
+- `EXTERNAL_SIDE_EFFECT`: a third-party MCP tool whose name or explicit
+  operation identifies a write, send, or delete (leading verbs such as
+  `create`, `update`, `delete`, `send`, `post`, `run`, `set`).
+- Scheduled-task mutators (`mcp__scheduled-tasks__create_scheduled_task`,
+  `update_scheduled_task`, `delete_scheduled_task`, `run_scheduled_task`):
+  standing local configuration. `list_scheduled_tasks` and `list_task_runs`
+  are known read-only observations.
+- A short exact list of first-party host-security tools: `set_session_permission_mode`,
+  `set_setting`, `set_auto_merge`, `delete_session`, and `set_remote_control`
+  under `mcp__ccd_*`. The rest of the first-party `mcp__ccd_*` and
+  `mcp__Claude_Browser__*` namespace stays host dispatch (`COMMAND_EXEC`),
+  including cross-session `send_message`.
+
+Whether a hook `ask` still prompts under `bypassPermissions` is not stated in
+the Claude Code documentation; verify on the installed build before relying on
+it. A policy rule that requires a non-`None` approval, or a request marked
+`approval_required`, still fails closed in the native policy adapter; the
+`ask` path exists only for `EXTERNAL_SIDE_EFFECT`. A target-bound approval
+store is not implemented.
 
 ## Fail closed and enforcement health
 
@@ -266,7 +293,8 @@ without claiming strong enforcement; a focused regression test pins this
 label.
 
 Codex bridges invoke installed stable `current/bin/legion-hook --host codex`.
-This native transport emits Codex context output & exit 2 for Guard denials;
+This native transport emits Codex context output & exit 2 for Guard denials
+and for ask-class effects (Codex has no ask outcome);
 default transport retains its versioned response envelope. Accepted Stop events
 may notify configured computer-use cleanup with bounded thread/turn identity &
 a 500 ms deadline. Missing, stale, invalid, failed, or timed-out cleanup remains
@@ -299,8 +327,8 @@ make an authorization decision.
 
 Future Guard work includes:
 
-- completing target-bound approval flow, while keeping reserved classes
-  denied until it is real;
+- a target-bound approval flow for the rewrite-push gate, which still returns
+  a hard denial that tells the operator to approve it;
 - emitting and retaining effect receipts;
 - wiring operation-specific destructive `FILE_DELETE` classification; and
 - fuzzing/property-testing malformed, nested, oversized, Unicode, shell,
@@ -315,7 +343,8 @@ router, a task planner, or a ceremony layer.
 1. Missing or invalid policy never means ambient allow.
 2. Ambient permission is always an explicit matching policy decision.
 3. A denial is not approval, and denial never falls through to another
-   executor or model.
+   executor or model. An ask is not approval either: the hook never emits
+   allow for an effect it asked about.
 4. `FILE_DELETE` decisions discriminate target and operation, not class alone.
 5. Unsupported classification is denied and never reported as strong
    authorization.

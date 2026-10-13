@@ -358,6 +358,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     }
     let mut records = BTreeMap::<String, Vec<legion_research::SourceRecord>>::new();
     let mut failures = Vec::new();
+    let mut digest_computed_source_ids = Vec::<String>::new();
     for path in &args.source_records {
         if cancellation.is_cancelled() {
             let selected_provider_denominator = if args.provider.is_empty() {
@@ -375,11 +376,16 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         let source = match std::fs::read(path)
             .map_err(super::io_error)
             .and_then(|bytes| {
-                serde_json::from_slice::<legion_research::SourceRecord>(&bytes).map_err(|error| {
+                legion_research::SourceRecord::from_host_json(&bytes).map_err(|error| {
                     super::CommandError::usage(format!("invalid source record: {error}"))
                 })
             }) {
-            Ok(source) => source,
+            Ok((source, computed)) => {
+                if computed {
+                    digest_computed_source_ids.push(source.source_id.clone());
+                }
+                source
+            }
             Err(error) => {
                 failures.push(legion_research::SourceFailure {
                     provider: path.display().to_string(),
@@ -521,6 +527,8 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         "externalRequests": external_requests,
         "independentProviders": independent_provider_count,
         "requiredIndependentProviders": args.min_independent_providers,
+        "digestComputedByRoute": !digest_computed_source_ids.is_empty(),
+        "digestComputedSourceIds": digest_computed_source_ids,
         "evidence": evidence,
         "claims": claims,
         "failures": failure_values,
