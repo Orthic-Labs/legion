@@ -653,7 +653,7 @@
     {
       "id": "ios-development",
       "name": "ios-development",
-      "description": "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host.",
+      "description": "Build, change, debug, test, or optimize SwiftUI/UIKit app code and Apple-native components for iPhone and iPad, including shared SwiftUI in iOS/macOS packages: views, lists, navigation, accessibility, Swift concurrency, SwiftData/Core Data, SwiftPM/Xcode builds and tests, simulator behavior, and release preparation. Load before editing Swift UI code; preserve an existing cross-platform host.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -885,7 +885,7 @@
     {
       "id": "marketing",
       "name": "marketing",
-      "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",
+      "description": "Decide positioning, offers, pricing, packaging, launches, and go-to-market for a product or business: who it is for, why they would buy, how to reach them, and the cheapest way to validate the idea. Use for any request about how to position, sell, price, or launch something; route paid, search, social, research, and copy execution to Ads, SEO, Social, Research, or Writing.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -1000,7 +1000,7 @@
     {
       "id": "research",
       "name": "research",
-      "description": "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading.",
+      "description": "Research a question from external sources and produce a cited, evidence-backed brief or analysis: current public guidance, market, competitor, technical, scientific, medical, legal, audience, scholarly, or trend questions, or NotebookLM work. Use when the answer requires searching and opening outside sources and recording dated claims and uncertainty. Not for reading local files or transcripts, or summarizing a source the user already supplied.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {
@@ -1333,7 +1333,7 @@
     {
       "id": "writing",
       "name": "writing",
-      "description": "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
+      "description": "Draft, rewrite, or edit any prose a reader will receive: emails, internal updates and announcements, newsletters, scripts, captions, posts, documentation, proposals, specs, FAQs, blog and SEO copy, bios, DMs, product copy, and changelogs. Load before drafting: it applies the skill's voice and anti-filler checks. Use whenever words are the deliverable, even short ones.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {

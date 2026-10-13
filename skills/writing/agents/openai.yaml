@@ -1,6 +1,6 @@
 interface:
   display_name: "Writing"
-  short_description: "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
-  default_prompt: "Use $writing when this request matches: Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+  short_description: "Draft, rewrite, or edit any prose a reader will receive: emails, internal updates and announcements, newsletters, scripts, captions, posts, documentation, proposals, specs, FAQs, blog and SEO copy, bios, DMs, product copy, and changelogs. Load before drafting: it applies the skill's voice and anti-filler checks. Use whenever words are the deliverable, even short ones."
+  default_prompt: "Use $writing when this request matches: Draft, rewrite, or edit any prose a reader will receive: emails, internal updates and announcements, newsletters, scripts, captions, posts, documentation, proposals, specs, FAQs, blog and SEO copy, bios, DMs, product copy, and changelogs. Load before drafting: it applies the skill's voice and anti-filler checks. Use whenever words are the deliverable, even short ones."
 policy:
   allow_implicit_invocation: true

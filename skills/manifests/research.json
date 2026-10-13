@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/research",
-      "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading."
+      "Research a question from external sources and produce a cited, evidence-backed brief or analysis: current public guidance, market, competitor, technical, scientific, medical, legal, audience, scholarly, or trend questions, or NotebookLM work. Use when the answer requires searching and opening outside sources and recording dated claims and uncertainty. Not for reading local files or transcripts, or summarizing a source the user already supplied."
     ],
     "outputs": [
       "references/assurance/README.md",
@@ -74,12 +74,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:de8fe50ba2b15669b24828dfbca926b5d1e7bdf407c8cd00d5c6dbfdc56100b6"
+      "digest": "sha256:ee242e3352a2f176f267f10f42c90c5f0e88af77f0f68347caf4ea7ac4afa1d3"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://research/agents/openai.yaml",
-      "digest": "sha256:443840f7b2651476831a1508308be9f22926ee9e3b52b7e3dbf3c953ff5f2443"
+      "digest": "sha256:93fc18d03065d66d8cc1d4a17b5e63f86760fed94eeb0f87ae993a579855507e"
     },
     {
       "path": "dependencies.json",

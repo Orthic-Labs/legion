@@ -29,7 +29,7 @@
   "parity": {
     "triggers": [
       "/ios-development",
-      "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host."
+      "Build, change, debug, test, or optimize SwiftUI/UIKit app code and Apple-native components for iPhone and iPad, including shared SwiftUI in iOS/macOS packages: views, lists, navigation, accessibility, Swift concurrency, SwiftData/Core Data, SwiftPM/Xcode builds and tests, simulator behavior, and release preparation. Load before editing Swift UI code; preserve an existing cross-platform host."
     ],
     "outputs": [
       "references/architecture/_index.md",
@@ -205,12 +205,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ios-development/SKILL.md",
-      "digest": "sha256:93eba0a3dc2d132a53f29cd694d9a46f04416e7f4e848193cd8e7f92263c42ef"
+      "digest": "sha256:3b56db75938aaf4caa00cc03a1b717cfdb18cac3e5bf4bf213775e0c9575382e"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://ios-development/agents/openai.yaml",
-      "digest": "sha256:bd3617b0f23bc270ba9e49548d8f22b525f77163b3f6ed514f9f83b89935a9fc"
+      "digest": "sha256:c7a235fec116481dcf2c86310f851edea6fcfb545caf9e89b8938e4f255d6041"
     },
     {
       "path": "config/source-manifest.json",

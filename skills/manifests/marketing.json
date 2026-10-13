@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/marketing",
-      "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing."
+      "Decide positioning, offers, pricing, packaging, launches, and go-to-market for a product or business: who it is for, why they would buy, how to reach them, and the cheapest way to validate the idea. Use for any request about how to position, sell, price, or launch something; route paid, search, social, research, and copy execution to Ads, SEO, Social, Research, or Writing."
     ],
     "outputs": [
       "references/ad-campaign.md",
@@ -71,12 +71,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://marketing/SKILL.md",
-      "digest": "sha256:208853322518787a0598a551ac2b20de96e931d024f65dff1cff6d28e2074298"
+      "digest": "sha256:b61fff188050675fc743706fcd7be2fbf0f91e226ab95ef70899c2ad6c709da7"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://marketing/agents/openai.yaml",
-      "digest": "sha256:429d294870d4d17efc43b9f395ffe09b22df1f8b20528d1960006f01c5481301"
+      "digest": "sha256:56bc38f5aca7a548d76d6aa2fc12a29d345dc34a09a58bd464571adc395adba4"
     },
     {
       "path": "dependencies.json",

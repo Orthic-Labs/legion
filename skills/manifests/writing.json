@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/writing",
-      "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable."
+      "Draft, rewrite, or edit any prose a reader will receive: emails, internal updates and announcements, newsletters, scripts, captions, posts, documentation, proposals, specs, FAQs, blog and SEO copy, bios, DMs, product copy, and changelogs. Load before drafting: it applies the skill's voice and anti-filler checks. Use whenever words are the deliverable, even short ones."
     ],
     "outputs": [
       "references/content-repurposer/reference.md",
@@ -59,12 +59,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://writing/SKILL.md",
-      "digest": "sha256:7bea3b23149699fc43d990f16a83a6335580000bf980469f6c322ecb6122a0f1"
+      "digest": "sha256:7752e04d2e770207184a38094f269a9684c35bfde4aad07247c66690c88f7c5b"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://writing/agents/openai.yaml",
-      "digest": "sha256:f59e327010bbe230f5a4bfbdf5facc09758234542efb75eb34074c98414e9dce"
+      "digest": "sha256:5ff7088c23c2593a5b4fae39e6e601a140d46d2860b53277362e0dd233563f25"
     },
     {
       "path": "dependencies.json",
