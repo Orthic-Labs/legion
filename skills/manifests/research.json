@@ -56,7 +56,8 @@
       "references/route-resources.json",
       "references/route-schema.json",
       "references/router.md",
-      "references/scale/README.md"
+      "references/scale/README.md",
+      "references/source-record.example.json"
     ],
     "scripts": [],
     "templates": [],
@@ -74,7 +75,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:ee242e3352a2f176f267f10f42c90c5f0e88af77f0f68347caf4ea7ac4afa1d3"
+      "digest": "sha256:47152489e8a729cfeb710367f8a6925055420353dc8343d6ad5da3abe9d6c7ac"
     },
     {
       "path": "agents/openai.yaml",
@@ -224,12 +225,17 @@
     {
       "path": "references/router.md",
       "uri": "legion-skill://research/references/router.md",
-      "digest": "sha256:91fdb0d7941cf8c50845394969fb4746639b4a745371864cd9041af8ff8c22de"
+      "digest": "sha256:a3ad1b3312a843361f02da84c9c84f9ca9e049c005e894b4e95a15535d7174ac"
     },
     {
       "path": "references/scale/README.md",
       "uri": "legion-skill://research/references/scale/README.md",
       "digest": "sha256:d761a9e3179fb1a4636067783dca3609f032b01f82e439991c38f3195388bf94"
+    },
+    {
+      "path": "references/source-record.example.json",
+      "uri": "legion-skill://research/references/source-record.example.json",
+      "digest": "sha256:b73138578a22c6afa51d2e1fb9e0f506dfb54398b4715d923cc13fdd99f0ed73"
     }
   ]
 }
