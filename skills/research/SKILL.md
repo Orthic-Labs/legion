@@ -41,22 +41,23 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    reachable. Personal medical routes retain their existing history and approval gates; typed
    input does not grant approvals or perform stateful/external effects. See `references/router.md`.
 2. Supply host-opened evidence as `--source-record <record.json>` inputs; native route validation
-   enforces provider denominator & resource bounds. Open only the few sources the records need
-   (fetch or Read the real page), then write one record per file with Edit (replace an empty `{}`
-   stub after Reading it); use Write only for a new file. Run the route before researching
-   further. Shape: `references/source-record.example.json`; unknown keys are rejected. Give each
+   enforces provider denominator & resource bounds. Order is fixed: (a) open the 2 or 3 most
+   authoritative sources from distinct domains, at most 3 fetches in total (an unreadable fetch
+   counts; take the next source instead of retrying); (b) write one record per file with Edit
+   (replace an empty `{}` stub after Reading it), or Write for a new file; (c) run the route as the
+   very next call. Search or fetch more only after the route returns, and only to close the gaps it
+   reports. Shape: `references/source-record.example.json`; unknown keys are rejected. Give each
    record the real page URL in `uri`: independence is counted from its domain, not from `provider`.
-   Records without an http(s) URL are reported self-declared and do not meet the default requirement.
-   `content_digest` (`sha256:` + hex of `text`) and `byte_length` (UTF-8 byte count of `text`)
-   are optional: omit both and the route computes them and flags `digestComputedByRoute`. Never
-   invent either value; a present value that does not match `text` is rejected.
-   Run the route as ONE plain command, binary path and flags exactly as the request or plan gives
-   them: `legion research --query '<query>' --source-record <f1> [--source-record <f2> ...]`.
-   Do not chain (`;` `&&` `|`), prefix `cat`/`ls`/`echo`, or add `--help`; hosts that permit
-   the route often permit only that exact command. The command runs even when records are
-   incomplete and returns a typed result (`unproven` with per-record rejection reasons); report
-   that result verbatim. Never replace the route with web search, and never say it cannot run
-   before issuing it once.
+   Records without an http(s) URL are reported self-declared and do not meet the default
+   requirement. `content_digest` (`sha256:` + hex of `text`) and `byte_length` (UTF-8 byte count of
+   `text`) are optional: omit both and the route computes them and flags `digestComputedByRoute`.
+   Never invent either value; a present value that does not match `text` is rejected. Run the route
+   as ONE plain command, binary path and flags exactly as the request or plan gives them: `legion
+   research --query '<query>' --source-record <f1> [--source-record <f2> ...]`. Do not chain (`;`
+   `&&` `|`), prefix `cat`/`ls`/`echo`, or add `--help`; hosts that permit the route often permit
+   only that exact command. The command runs even when records are incomplete and returns a typed
+   result (`unproven` with per-record rejection reasons); report that result verbatim. Never
+   replace the route with web search, and never say it cannot run before issuing it once.
 3. Execute only through installed `legion research`; Python product runtime is retired. Do not
    instruct a reader to run any `src/lib/research-core/**` script — it does not ship.
    NotebookLM stateful work (search, create, upload, generate, download) requires a callable
