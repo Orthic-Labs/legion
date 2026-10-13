@@ -53,6 +53,10 @@ pub struct ExternalToolRequest {
     pub expected_digest: Option<String>,
     pub accepted_exit_codes: BTreeSet<i32>,
     pub version_args: Vec<String>,
+    /// Opt out of the version probe because the executable identity is pinned
+    /// by `expected_digest` (which stays mandatory and verified). Incompatible
+    /// with `version_requirement`. The receipt records the skip as policy.
+    pub skip_version_probe: bool,
     /// Plain values retain substring qualification; `exact:<version>` opts
     /// into exact version-token matching before the main command is launched.
     pub version_requirement: Option<String>,
@@ -84,6 +88,7 @@ impl Default for ExternalToolRequest {
             expected_digest: None,
             accepted_exit_codes: [0].into_iter().collect(),
             version_args: vec!["--version".into()],
+            skip_version_probe: false,
             version_requirement: None,
             environment: BTreeMap::new(),
             environment_allowlist: BTreeSet::new(),
@@ -137,6 +142,13 @@ impl ExternalToolRequest {
         {
             return Err(EffectError::InvalidRequest(
                 "arguments may not contain NUL".into(),
+            ));
+        }
+        if self.skip_version_probe
+            && (self.expected_digest.is_none() || self.version_requirement.is_some())
+        {
+            return Err(EffectError::InvalidRequest(
+                "skip_version_probe requires a pinned digest and no version requirement".into(),
             ));
         }
         if self.timeout_ms == 0 || self.stdout_limit == 0 || self.stderr_limit == 0 {

@@ -153,77 +153,91 @@ where
             &request.environment_allowlist,
             &request.sensitive_environment_names,
         );
-        let version_launch = ProcessLaunch {
-            executable: identity
-                .canonical_path
-                .as_ref()
-                .expect("resolved executable")
-                .to_string_lossy()
-                .into_owned(),
-            args: request.version_args.clone(),
-            cwd: cwd.to_string_lossy().into_owned(),
-            environment: environment.values.clone(),
-            stdout_limit: request.stdout_limit,
-            stderr_limit: request.stderr_limit,
-            timeout_ms: request.timeout_ms,
-            termination_grace_ms: 2_000,
-            cancellation: cancellation.clone(),
-        };
-        let version_output = match self.platform.run(version_launch).await {
-            Ok(value) => value,
-            Err(error) => {
+        let identity = if request.skip_version_probe && identity.sealed() {
+            // Identity is pinned by a verified digest; the caller opted out of
+            // executing the binary for a version. Record the skip truthfully.
+            identity.with_version_probe(VersionProbeEvidence {
+                args: Vec::new(),
+                output: None,
+                exit_code: None,
+                qualified: false,
+                skipped_by_policy: true,
+            })
+        } else {
+            let version_launch = ProcessLaunch {
+                executable: identity
+                    .canonical_path
+                    .as_ref()
+                    .expect("resolved executable")
+                    .to_string_lossy()
+                    .into_owned(),
+                args: request.version_args.clone(),
+                cwd: cwd.to_string_lossy().into_owned(),
+                environment: environment.values.clone(),
+                stdout_limit: request.stdout_limit,
+                stderr_limit: request.stderr_limit,
+                timeout_ms: request.timeout_ms,
+                termination_grace_ms: 2_000,
+                cancellation: cancellation.clone(),
+            };
+            let version_output = match self.platform.run(version_launch).await {
+                Ok(value) => value,
+                Err(error) => {
+                    return Self::failure_with_policy(
+                        request,
+                        error.state(),
+                        error.to_string(),
+                        Some(identity),
+                        cwd.to_string_lossy().into_owned(),
+                        policy,
+                    )
+                }
+            };
+            let version = VersionProbeEvidence {
+                args: request.version_args.clone(),
+                output: Some(combined_probe_output(
+                    &version_output.stdout,
+                    &version_output.stderr,
+                )),
+                exit_code: version_output.exit_code,
+                qualified: version_output.exit_code == Some(0)
+                    && !version_output.timed_out
+                    && !version_output.cancelled
+                    && !version_output.output_limited
+                    && version_output.kill_succeeded
+                    && version_output.process_tree.started
+                    && version_output.process_tree.terminated
+                    && version_output.process_tree.reaped,
+                skipped_by_policy: false,
+            };
+            let identity = identity.with_version_probe(version);
+            if !identity.version_qualified(request.version_requirement.as_deref()) {
+                let state = if !version_output.kill_succeeded
+                    || !version_output.process_tree.started
+                    || !version_output.process_tree.terminated
+                    || !version_output.process_tree.reaped
+                {
+                    ExecutionState::KillFailed
+                } else if version_output.output_limited {
+                    ExecutionState::OutputLimited
+                } else if version_output.timed_out {
+                    ExecutionState::Timeout
+                } else if version_output.cancelled {
+                    ExecutionState::Cancelled
+                } else {
+                    ExecutionState::UnsealedExecutable
+                };
                 return Self::failure_with_policy(
                     request,
-                    error.state(),
-                    error.to_string(),
+                    state,
+                    "actual executable version probe is not qualified",
                     Some(identity),
                     cwd.to_string_lossy().into_owned(),
                     policy,
-                )
+                );
             }
+            identity
         };
-        let version = VersionProbeEvidence {
-            args: request.version_args.clone(),
-            output: Some(combined_probe_output(
-                &version_output.stdout,
-                &version_output.stderr,
-            )),
-            exit_code: version_output.exit_code,
-            qualified: version_output.exit_code == Some(0)
-                && !version_output.timed_out
-                && !version_output.cancelled
-                && !version_output.output_limited
-                && version_output.kill_succeeded
-                && version_output.process_tree.started
-                && version_output.process_tree.terminated
-                && version_output.process_tree.reaped,
-        };
-        let identity = identity.with_version_probe(version);
-        if !identity.version_qualified(request.version_requirement.as_deref()) {
-            let state = if !version_output.kill_succeeded
-                || !version_output.process_tree.started
-                || !version_output.process_tree.terminated
-                || !version_output.process_tree.reaped
-            {
-                ExecutionState::KillFailed
-            } else if version_output.output_limited {
-                ExecutionState::OutputLimited
-            } else if version_output.timed_out {
-                ExecutionState::Timeout
-            } else if version_output.cancelled {
-                ExecutionState::Cancelled
-            } else {
-                ExecutionState::UnsealedExecutable
-            };
-            return Self::failure_with_policy(
-                request,
-                state,
-                "actual executable version probe is not qualified",
-                Some(identity),
-                cwd.to_string_lossy().into_owned(),
-                policy,
-            );
-        }
         let stdout_path = format!("{}/stdout", request.request_id);
         let stderr_path = format!("{}/stderr", request.request_id);
         if let Err(error) = self.artifacts.reserve(&[&stdout_path, &stderr_path]) {
@@ -532,5 +546,103 @@ mod exact_version_gate_tests {
         );
         assert!(!marker.exists());
         fs::remove_dir_all(root).unwrap();
+    }
+    fn skip_probe_launches(
+        tag: &str,
+        configure: impl FnOnce(&mut ExternalToolRequest, String),
+    ) -> (ExecutionReceipt, Vec<Vec<String>>) {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "legion-effects-skip-probe-{tag}-{}-{nonce}",
+            std::process::id()
+        ));
+        let artifacts = root.join("artifacts");
+        fs::create_dir_all(&artifacts).unwrap();
+        let executable = root.join("multicall");
+        fs::write(&executable, b"sealed multicall executable").unwrap();
+        let digest = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(b"sealed multicall executable"))
+        );
+        let launches = Arc::new(Mutex::new(Vec::new()));
+        let executor = EffectExecutor::new(
+            ProbePlatform {
+                marker: root.join("main-launched.marker"),
+                launches: Arc::clone(&launches),
+            },
+            ArtifactWriter::new(&artifacts),
+            StaticPolicy {
+                decision: PolicyDecision {
+                    allowed: true,
+                    policy_id: "test".into(),
+                    policy_version: 1,
+                    policy_digest: "sha256:test".into(),
+                    reason: None,
+                },
+            },
+        );
+        let mut request = ExternalToolRequest {
+            request_id: "request-skip".into(),
+            provider_id: "legacy.quality.test".into(),
+            plan_id: "plan-test".into(),
+            policy_id: "test".into(),
+            executable: executable.to_string_lossy().into_owned(),
+            args: vec!["request-digest".into()],
+            cwd: root.to_string_lossy().into_owned(),
+            ..ExternalToolRequest::default()
+        };
+        configure(&mut request, digest);
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let receipt = runtime.block_on(executor.execute(&request));
+        let recorded = launches.lock().unwrap().clone();
+        fs::remove_dir_all(root).unwrap();
+        (receipt, recorded)
+    }
+
+    #[test]
+    fn skip_version_probe_runs_only_the_main_command_and_records_policy_skip() {
+        let (receipt, launches) = skip_probe_launches("pinned", |request, digest| {
+            request.expected_digest = Some(digest);
+            request.skip_version_probe = true;
+        });
+        assert_eq!(launches, vec![vec!["request-digest".to_owned()]]);
+        let identity = receipt.executable.expect("identity recorded");
+        assert!(identity.sealed());
+        assert!(identity.version.skipped_by_policy);
+        assert!(!identity.version.qualified);
+        assert!(identity.version.output.is_none());
+    }
+
+    #[test]
+    fn default_request_still_probes_before_the_main_command() {
+        let (_, launches) = skip_probe_launches("default", |request, digest| {
+            request.expected_digest = Some(digest);
+        });
+        assert_eq!(launches.first(), Some(&vec!["--version".to_owned()]));
+    }
+
+    #[test]
+    fn skip_version_probe_never_bypasses_digest_verification() {
+        let (receipt, launches) = skip_probe_launches("mismatch", |request, _| {
+            request.expected_digest = Some(format!("sha256:{}", "0".repeat(64)));
+            request.skip_version_probe = true;
+        });
+        assert!(launches.is_empty());
+        assert_ne!(receipt.state, ExecutionState::Completed);
+        let (receipt, launches) = skip_probe_launches("undigested", |request, _| {
+            request.skip_version_probe = true;
+        });
+        assert!(launches.is_empty());
+        assert_ne!(receipt.state, ExecutionState::Completed);
+        let (receipt, launches) = skip_probe_launches("requirement", |request, digest| {
+            request.expected_digest = Some(digest);
+            request.skip_version_probe = true;
+            request.version_requirement = Some("exact:1.0.0".into());
+        });
+        assert!(launches.is_empty());
+        assert_ne!(receipt.state, ExecutionState::Completed);
     }
 }

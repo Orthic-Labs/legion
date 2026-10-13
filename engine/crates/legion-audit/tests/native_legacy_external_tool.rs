@@ -189,6 +189,7 @@ impl ExternalProjectTool for TestRunTool {
                 }),
                 exit_code: Some(0),
                 qualified: true,
+                skipped_by_policy: false,
             },
         });
         receipt

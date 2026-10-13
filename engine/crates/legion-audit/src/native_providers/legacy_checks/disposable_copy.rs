@@ -1001,7 +1001,7 @@ fn canonical_receipt_json(receipt: &ExecutionReceipt) -> Value {
         "taskId": receipt.task_id,
         "state": receipt.state.as_str(),
         "complete": receipt.complete,
-        "executable": receipt.executable.as_ref().map(|e| json!({"requestedPath":e.requested_path,"canonicalPath":e.canonical_path,"digest":e.digest,"digestState":format!("{:?}", e.digest_state).to_ascii_lowercase(),"signature":format!("{:?}", e.signature).to_ascii_lowercase(),"version":{"args":e.version.args,"output":e.version.output,"exitCode":e.version.exit_code,"qualified":e.version.qualified}})),
+        "executable": receipt.executable.as_ref().map(|e| json!({"requestedPath":e.requested_path,"canonicalPath":e.canonical_path,"digest":e.digest,"digestState":format!("{:?}", e.digest_state).to_ascii_lowercase(),"signature":format!("{:?}", e.signature).to_ascii_lowercase(),"version":{"args":e.version.args,"output":e.version.output,"exitCode":e.version.exit_code,"qualified":e.version.qualified,"skippedByPolicy":e.version.skipped_by_policy}})),
         "command": receipt.command.as_ref().map(|c| json!({"executable":c.executable,"args":c.args,"environmentNames":c.environment_names,"redactedArgumentIndexes":c.redacted_argument_indexes,"redactedEnvironmentNames":c.redacted_environment_names})),
         "cwd": receipt.cwd,
         "environmentNames": receipt.environment_names,
@@ -1201,6 +1201,22 @@ fn match_submit_to_attested_exit(submitted_exit: i32, attested_exit: i64) -> Res
         Ok(())
     } else {
         Err("submit-exit-does-not-match-attested-job-exit".into())
+    }
+}
+
+/// Classify a failed request-digest probe by what the receipt shows.
+/// `...-unreaped` only when the process started and was not reaped; a probe
+/// that never launched reports its real state instead of an unreaped process.
+fn request_digest_process_gap(receipt: &ExecutionReceipt) -> Option<String> {
+    if receipt.process_tree.started && !receipt.process_tree.reaped {
+        Some("request-digest-process-unreaped".into())
+    } else if !receipt.process_tree.started {
+        Some(format!(
+            "request-digest-process-not-started:{}",
+            receipt.state.as_str()
+        ))
+    } else {
+        None
     }
 }
 
@@ -1481,8 +1497,11 @@ pub(super) async fn execute(
         expected_digest: Some(command.digest.clone()),
         // Never probe a test runner with `--version`: that runs project code
         // outside an attested request. The pinned rightkit CLI itself is
-        // checked against enrollment above.
-        version_args: Vec::new(),
+        // checked against enrollment above and sealed by `expected_digest`
+        // (still verified by the executor). It is a multicall binary, so a
+        // bare probe exits 125 and could never qualify; the executor records
+        // the skip as policy. Every request below derives from this base.
+        skip_version_probe: true,
         version_requirement: None,
         ..ExternalToolRequest::default()
     };
@@ -1611,9 +1630,8 @@ pub(super) async fn execute(
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
         || request_digest.len() != 64
     {
-        if !probe_receipt.process_tree.reaped {
-            let mut execution =
-                retain_incomplete(scratch, &copy, input, "request-digest-process-unreaped");
+        if let Some(gap) = request_digest_process_gap(&probe_receipt) {
+            let mut execution = retain_incomplete(scratch, &copy, input, &gap);
             attach_execution_receipt(&mut execution, &probe_receipt);
             return execution;
         }
@@ -2678,6 +2696,47 @@ mod tests {
         ] {
             assert!(trusted_cli_response(&receipt, &response).is_none());
         }
+    }
+
+    #[test]
+    fn request_digest_gap_separates_not_started_from_unreaped() {
+        let mut not_started = cli_receipt(false, ExecutionState::UnsealedExecutable, None, false);
+        not_started.process_tree.started = false;
+        assert_eq!(
+            request_digest_process_gap(&not_started).as_deref(),
+            Some("request-digest-process-not-started:unsealed_executable")
+        );
+        let mut unreaped = cli_receipt(false, ExecutionState::KillFailed, None, false);
+        unreaped.process_tree.started = true;
+        assert_eq!(
+            request_digest_process_gap(&unreaped).as_deref(),
+            Some("request-digest-process-unreaped")
+        );
+        let mut reaped = cli_receipt(true, ExecutionState::Completed, Some(0), true);
+        reaped.process_tree.started = true;
+        assert_eq!(request_digest_process_gap(&reaped), None);
+    }
+
+    #[test]
+    fn derived_requests_inherit_the_pinned_client_probe_skip() {
+        let base = ExternalToolRequest {
+            request_id: "audit-safe".into(),
+            skip_version_probe: true,
+            ..ExternalToolRequest::default()
+        };
+        let cwd = std::env::temp_dir();
+        assert!(id_request(&base, "status", "job-1", &cwd, 100).skip_version_probe);
+        assert!(
+            external_request(
+                &base,
+                &["request-digest".into()],
+                &cwd,
+                BTreeMap::new(),
+                BTreeSet::new(),
+                100
+            )
+            .skip_version_probe
+        );
     }
 
     #[test]

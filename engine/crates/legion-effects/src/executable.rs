@@ -27,6 +27,10 @@ pub struct VersionProbeEvidence {
     pub output: Option<String>,
     pub exit_code: Option<i32>,
     pub qualified: bool,
+    /// True only when the caller opted out of the probe because the
+    /// executable is pinned by digest. `qualified` stays false: no version
+    /// was observed.
+    pub skipped_by_policy: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -70,6 +74,7 @@ impl ExecutableIdentity {
                 output: None,
                 exit_code: None,
                 qualified: false,
+                skipped_by_policy: false,
             },
         })
     }
@@ -140,6 +145,7 @@ mod tests {
                 output: Some(output.into()),
                 exit_code: Some(0),
                 qualified: true,
+                skipped_by_policy: false,
             },
         }
     }
