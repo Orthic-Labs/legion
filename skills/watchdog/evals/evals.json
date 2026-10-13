@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "skill": "watchdog",
-  "route": "workflow:watchdog",
+  "route": "capability:watchdog",
   "should_trigger": [
     {
       "id": "watchdog-explicit-recurring-supervision",
@@ -36,7 +36,9 @@
       "id": "watchdog-no-ordinary-status",
       "prompt": "What is the build worker doing right now?",
       "expected_skill": null,
-      "forbidden_skills": ["watchdog"],
+      "forbidden_skills": [
+        "watchdog"
+      ],
       "expected_behavior": "Answers an ordinary status request from available evidence without starting recurring supervision.",
       "severity": "error",
       "mode": "discovery"
@@ -51,10 +53,22 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        {"type": "required_text", "value": "../../agents/sentry.md"},
-        {"type": "required_text", "value": "embedded Method"},
-        {"type": "required_text", "value": "UNSCHEDULED"},
-        {"type": "forbidden_text", "value": "/Volumes/"}
+        {
+          "type": "required_text",
+          "value": "../../agents/sentry.md"
+        },
+        {
+          "type": "required_text",
+          "value": "embedded Method"
+        },
+        {
+          "type": "required_text",
+          "value": "UNSCHEDULED"
+        },
+        {
+          "type": "forbidden_text",
+          "value": "/Volumes/"
+        }
       ]
     },
     {
@@ -65,10 +79,22 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        {"type": "required_text", "value": "verbatim"},
-        {"type": "required_text", "value": "explicitly authorized destination"},
-        {"type": "required_text", "value": "resulting evidence"},
-        {"type": "required_text", "value": "A response is not resolution"}
+        {
+          "type": "required_text",
+          "value": "verbatim"
+        },
+        {
+          "type": "required_text",
+          "value": "explicitly authorized destination"
+        },
+        {
+          "type": "required_text",
+          "value": "resulting evidence"
+        },
+        {
+          "type": "required_text",
+          "value": "A response is not resolution"
+        }
       ]
     }
   ],
@@ -81,10 +107,22 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        {"type": "required_text", "value": "UNKNOWN"},
-        {"type": "required_text", "value": "full baseline"},
-        {"type": "required_text", "value": "do not infer approval"},
-        {"type": "required_text", "value": "do not ask for fresh approval"}
+        {
+          "type": "required_text",
+          "value": "UNKNOWN"
+        },
+        {
+          "type": "required_text",
+          "value": "full baseline"
+        },
+        {
+          "type": "required_text",
+          "value": "do not infer approval"
+        },
+        {
+          "type": "required_text",
+          "value": "do not ask for fresh approval"
+        }
       ]
     },
     {
@@ -95,10 +133,21 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        {"type": "required_text", "value": "UNSCHEDULED"},
-        {"type": "required_text", "value": "Do not build scheduler"},
-        {"type": "required_text", "value": "no catch-up burst"}
+        {
+          "type": "required_text",
+          "value": "UNSCHEDULED"
+        },
+        {
+          "type": "required_text",
+          "value": "Do not build scheduler"
+        },
+        {
+          "type": "required_text",
+          "value": "no catch-up burst"
+        }
       ]
     }
-  ]
+  ],
+  "pressure": [],
+  "compatibility": []
 }

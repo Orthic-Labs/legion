@@ -3,6 +3,10 @@
   "kind": "legion-skill-dependencies",
   "resources": [
     {
+      "class": "HOST_CAPABILITY",
+      "capability": "host-scheduler"
+    },
+    {
       "class": "PACKAGE_INTERNAL",
       "path": "../../agents/sentry.md"
     }

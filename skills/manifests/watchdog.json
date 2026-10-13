@@ -55,12 +55,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://watchdog/dependencies.json",
-      "digest": "sha256:f4809b15d5dff375158379bc366c73aca43a4d43dbb7ce2c46e828d8a6ab5cda"
+      "digest": "sha256:eb8aa5731d0cbfebe7df3c3d18a81f0c5e6b07118407b5ba921f86c0a40cb7ff"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://watchdog/evals/evals.json",
-      "digest": "sha256:f78d85199a138d9b9aefcf1525caf4f1c1735ad60cbf235302479a28ce0ded39"
+      "digest": "sha256:a691b510a84f3f684040e8288da80558f238ccfcf1546b02404468134303685f"
     }
   ]
 }
