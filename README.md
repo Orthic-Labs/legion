@@ -1,21 +1,51 @@
-<img src=".github/banner.svg" alt="Legion" width="100%">
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/banner-dark.svg"><img src=".github/banner.svg" alt="Legion. Every angle attacked. Every claim proven." style="max-width:100%;height:auto"></picture>
 
 # Legion
 
-Legion makes AI-assisted work legible: it routes each request to the right capability, separates decisions from changes from independent checks, & records evidence before claiming delivery. It is one system projected into Claude Code, Codex & other `AGENTS.md` harnesses—not a collection of unrelated prompts.
+Legion routes AI-assisted engineering, research, editorial, design and commercial work to the right capability, keeps decisions, changes and independent checks separate, and records evidence before anything is called delivered. It is one doctrine projected into Claude Code, Codex or an `AGENTS.md` harness.
 
-```mermaid
-flowchart LR
-  U["User intent"] --> L["Legion<br/>route & coordinate"]
-  L --> C["Semantic capability selection<br/>0..N packaged IDs"]
-  C --> W["Validated work graph"]
-  W --> D["Evidence & delivery"]
-  D --> H["Claude Code · Codex · AGENTS.md"]
+## Set up
+
+Public package-manager installation is not open yet. Current shipping contract is signed native Legion; Node package remains private development tooling. From a source checkout, Node 22.13+, pnpm, & Rust toolchain are required.
+
+```sh
+pnpm install --frozen-lockfile
+cargo build --manifest-path engine/Cargo.toml --release --bin legion
+engine/target/release/legion --version
 ```
 
-## What it does
+After installing a signed release-bound binary through an approved channel:
 
-Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect decisions (a persisted effect receipt is future work, see `doctrine/guard.md`); neither can invent consent.
+```sh
+legion setup --dry-run
+legion setup --confirm
+legion setup --check
+```
+
+Setup detects supported clients, previews exact persistent changes, projects canonical skills & MCP integration through registered host adapters, records rollback state, then verifies installed host-visible state. `setup --check` makes no projection changes, but completes any pending rollback journal. `setup remove --confirm` removes Legion-owned projections while preserving user-owned config.
+
+Claude Code receives packaged plugin surfaces. Codex receives canonical Agent Skills under `~/.agents/skills` plus MCP registration. Portable Agent Plugins receive the portable core, every public canonical skill & MCP declaration, assembled with pinned RightAX tooling.
+
+## Harnesses & fidelity
+
+One doctrine & kernel project into harness-native slots. Legion does not pretend every host exposes identical controls.
+
+| Capability | Claude Code | Codex | `AGENTS.md` readers |
+|---|---|---|---|
+| Doctrine & routing | yes | yes | yes |
+| Native authority agents | yes | yes, via `.codex/agents` | no native subagents declared |
+| Guard pre-effect interception | yes, through blocking plugin hooks | no; lifecycle hooks only | no |
+| Guard decisions & receipts | decision returned to host; persisted receipt future work | decision returned to host; no persisted effect receipt yet | CLI/boundary decisions; persisted receipt future work |
+| Council isolation | isolated seat agents | isolated seat agents | unavailable without subagents |
+| Oracle Completion Validation | yes | yes | yes |
+
+Run `legion doctor` to inspect repository, binding, coverage, & host state. `legion bind --registrations` inventories installed hooks across settings & plugins and detects duplicate registrations.
+
+## How work flows
+
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/flow-dark.svg"><img src=".github/flow.svg" alt="Request to Legion to capability to work to delivery with evidence; Sage, Alchemist and Oracle attach only when needed" style="max-width:100%;height:auto"></picture>
+
+Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect decisions; persisted receipts are future work. Neither can invent consent.
 
 Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
@@ -28,7 +58,7 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | **Alchemist** | Apply bounded implementation, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
-| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect decisions (persisted receipts are future work) | Interpret intent, select capabilities, or attach authority |
+| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect decisions; persisted receipts are future work | Interpret intent, select capabilities, or attach authority |
 | **Council** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
 Oracle is optional independent assurance authority for Completion Validation; it is never a delivery gate.
@@ -62,55 +92,18 @@ by both skills. Loading a skill grants no installation, persistent-access, accou
 telemetry, upload, or publishing permission. See [packaged skills](docs/architecture/skills.md) and
 [third-party notices](docs/THIRD_PARTY_NOTICES.md) for provenance and tool boundaries.
 
-## Harnesses & fidelity
+## Audit engine
 
-One doctrine & kernel project into harness-native slots. Legion does not pretend every host exposes identical controls. The declared surface per host is `engine/crates/legion-runtime/src/p7_host/host_adapters.rs`.
-
-| Capability | Claude Code | Codex | `AGENTS.md` readers |
-|---|---|---|---|
-| Doctrine & routing | yes | yes | yes |
-| Native authority agents | yes (plugin `agents/`) | yes (roster roles projected to `.codex/agents`) | no native subagents declared |
-| Guard pre-effect interception | yes, through blocking plugin hooks | no: Codex exposes lifecycle hooks only, no pre-tool effect hook | no |
-| Receipts | decision returned to host; no persisted effect receipt yet | same | CLI only; no persisted effect receipt yet |
-| Council isolation | isolated seat agents | isolated seat agents | not available without subagents |
-| Oracle Completion Validation | yes | yes | yes |
-
-Run `legion doctor` to inspect current repository, binding, coverage, & host state. Run `legion bind --registrations` to inventory installed hooks across settings & plugins and detect duplicate registrations.
-
-## Install & use
-
-Public package-manager installation is not open yet. Current shipping contract is signed native Legion; Node package remains private development tooling. From a source checkout, Node 22.13+, pnpm, & Rust toolchain are required.
-
-```sh
-pnpm install --frozen-lockfile
-cargo build --manifest-path engine/Cargo.toml --release --bin legion
-engine/target/release/legion --version
-```
-
-After installing a signed release-bound binary through an approved channel:
-
-```sh
-legion setup --dry-run
-legion setup --confirm
-legion setup --check
-```
-
-Setup detects supported clients, previews exact persistent changes, projects canonical skills & MCP integration through registered host adapters, records rollback state, then verifies installed host-visible state. `setup --check` applies no projection changes; if an earlier setup was interrupted, it first completes that setup's rollback journal. `setup remove --confirm` removes Legion-owned projections while preserving user-owned config.
-
-Claude Code receives packaged plugin surfaces. Codex receives canonical Agent Skills under `~/.agents/skills` plus MCP registration. Portable Agent Plugins hosts receive the portable core, every public canonical skill plus the MCP declaration, assembled by pinned RightAX tooling; no native hooks or agents are claimed there.
-
-For repository audit:
+Run an audit & verify its evidence with:
 
 ```sh
 legion audit .
 legion verify .audit/<run>
 ```
 
-Audit freezes a plan before execution, emits machine-readable evidence, & marks incomplete coverage as unproven rather than clean. Use `legion --help` for current commands.
+Audit freezes revision & file inventory, seals a deterministic provider plan, then runs checks. Security candidates remain separate from adjudication. Output includes JSON, SARIF & Markdown; skipped required checks, stale inventory, missing adjudication, or unproven coverage prevent a clean verdict. See `legion --help` for current commands.
 
-## Audit engine
-
-Audit is one product capability inside Legion, not Legion's entire identity. It freezes repository revision & file inventory, selects providers deterministically, seals a plan, runs selected checks, keeps security-candidate generation separate from adjudication, & writes JSON, SARIF, plus Markdown output. A skipped required check, stale inventory, missing adjudication, or unproven coverage prevents a clean verdict.
+The flow makes this evidence chain explicit:
 
 ```mermaid
 flowchart LR
@@ -127,11 +120,19 @@ flowchart LR
 - [Full manual](references/manual.md)
 - [Provider architecture](references/provider-architecture.md)
 - [Engine interface](references/engine-interface.md)
-- [License](LICENSE): Orthic Labs Source Use License v1.0, source-available, not open source
+- [License](LICENSE)
 
-<sub><b><a href="https://orthic-labs.github.io">Orthic Labs</a></b> — local-first infrastructure for AI-assisted development.</sub>
 
 ## Repository truth docs
+
 - [Canonical system architecture](docs/LEGION-CANONICAL-SSOT.md) — ownership boundaries and global invariants
 - [Role architecture](docs/architecture/) — Sage, Alchemist, Oracle, packaged skills
 - [Historical provenance](docs/provenance/) — frozen records that cite deleted code; not authoritative
+
+## License
+
+Source-available under the Orthic Labs Source Use License v1.0. See [LICENSE](LICENSE).
+
+---
+
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/orthic-labs-mark.svg"><img src=".github/orthic-labs-mark-light.svg" alt="Orthic Labs" width="22" style="max-width:100%;height:auto"></picture> **[Orthic Labs](https://orthiclabs.com)** · [github.com/Orthic-Labs](https://github.com/Orthic-Labs) · More: [SellRight](https://github.com/Orthic-Labs/sellright) · [Ember](https://github.com/Orthic-Labs/ember) · [SwiftRight](https://github.com/Orthic-Labs/swiftright) · [Pulse](https://github.com/Orthic-Labs/pulse) · [RightKit](https://github.com/Orthic-Labs/rightkit) · [RustRight](https://github.com/Orthic-Labs/rustright)
