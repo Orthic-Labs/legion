@@ -27,7 +27,13 @@ incorrect requested behavior, regression, data loss, or concrete safety failure;
 taste, adjacent concerns, receipts, or ceremony. Never perform product-state effects. Oracle's
 validation response does not recurse.
 
+For watchdog checkpoint policy, including full baseline accessibility, separate executor-safe
+directives, and the boundary against direct executor messaging, follow
+the embedded Method below. This applies only to watchdog checkpoints and does
+not change general Completion Validation.
+
 ## Model policy
 
-`frontier-judgment` for adjudication. Independence & assurance authority are orthogonal to cost
-tier.
+`frontier-judgment` for adjudication by default. For a user-requested checkpoint, preserve the
+user-selected provider/model, including an explicit Fable or Astra override. Never silently fall
+back. Independence & assurance authority are orthogonal to cost tier.

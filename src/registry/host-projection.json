@@ -1304,6 +1304,32 @@
       "source": "skills/wake/SKILL.md"
     },
     {
+      "id": "watchdog",
+      "description": "Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review.",
+      "kind": "entrypoint",
+      "discoverability": "explicit",
+      "invocation": {
+        "user": true,
+        "model": false
+      },
+      "domain": null,
+      "hostRequirements": [
+        "host-scheduler"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "host-scheduler",
+          "kind": "scheduler",
+          "summary": "Existing embedding-host scheduler that can fire independently of a supervised executor chat.",
+          "degradation": "Report UNSCHEDULED when no existing scheduler can fire outside the supervised executor chat. Do not emulate recurrence with a separate chat, subagent, executor heartbeat, sleep, or polling.",
+          "remedy": "Expose an existing host scheduler that can fire independently of the supervised executor chat; Legion ships no scheduler.",
+          "probe": null
+        }
+      ],
+      "scopedRequirements": [],
+      "source": "skills/watchdog/SKILL.md"
+    },
+    {
       "id": "writing",
       "name": "writing",
       "description": "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
@@ -1349,6 +1375,12 @@
       "description": "Cross-cutting design and adjudication authority. Dispatch when a material unresolved choice exceeds routine capability judgment, ownership or boundary is disputed, reassessment is needed before expensive commitment, or repeated repairs fail. Explicit Sage requests attach. Routine capability judgment stays with its capability.",
       "modelTier": "frontier-judgment",
       "source": "src/roster/sage.md"
+    },
+    {
+      "id": "sentry",
+      "description": "Dispatch for explicitly requested mechanical watchdog checkpoints using independently scheduled wakes, per-target state, and verbatim Oracle directives. No semantic judgment, implementation, or certification.",
+      "modelTier": "mechanical-cheap",
+      "source": "src/roster/sentry.md"
     }
   ],
   "modelTiers": {
@@ -1429,6 +1461,10 @@
     {
       "id": "firecrawl",
       "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+    },
+    {
+      "id": "host-scheduler",
+      "degradation": "Report UNSCHEDULED when no existing scheduler can fire outside the supervised executor chat. Do not emulate recurrence with a separate chat, subagent, executor heartbeat, sleep, or polling."
     },
     {
       "id": "legion",

@@ -72,7 +72,7 @@ fn role_configuration_bounded(
                     .cloned()
             })
     };
-    let entries = ["sage", "alchemist", "oracle"].iter().map(|id| {
+    let entries = ["sage", "alchemist", "oracle", "sentry"].iter().map(|id| {
         let mut row = json!({"role":id,"status":"unregistered","declaredModelTier":role(id).tier,
             "tierCompatibility":"unverified","runtime":{"status":"unknown",
             "reason":"file configuration does not prove role loading, model compatibility or accepted launch"}});
@@ -238,6 +238,10 @@ const ROSTER_ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../src/roster/oracle.md"
 ));
+const ROSTER_SENTRY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../src/roster/sentry.md"
+));
 const DOCTRINE_SAGE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../doctrine/sage.md"
@@ -249,6 +253,10 @@ const DOCTRINE_ALCHEMIST: &str = include_str!(concat!(
 const DOCTRINE_ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../doctrine/oracle.md"
+));
+const DOCTRINE_SENTRY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../doctrine/sentry.md"
 ));
 const COUNCIL_DOCTRINE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -426,7 +434,7 @@ mod role_binding_tests {
 
     #[test]
     fn generated_profiles_satisfy_native_required_fields_and_lead_selects_above_dispatch() {
-        for id in ["sage", "alchemist", "oracle"] {
+        for id in ["sage", "alchemist", "oracle", "sentry"] {
             let parsed: toml::Value = toml::from_str(&codex_agent_content(id)).unwrap();
             for key in ["name", "description", "developer_instructions"] {
                 assert!(!parsed[key].as_str().unwrap().trim().is_empty());
@@ -435,7 +443,7 @@ mod role_binding_tests {
         let lead = agents_target(Path::new("unused")).expected;
         assert!(lead.contains("before selecting Dispatch"));
         assert!(lead.contains("## Role selection reference"));
-        assert_eq!(lead.matches("## Triggers").count(), 3);
+        assert_eq!(lead.matches("## Triggers").count(), 4);
         assert!(lead.contains("never silently downgrade"));
     }
 
@@ -458,6 +466,9 @@ mod role_binding_tests {
             // Effort handling is unchanged: judgment roles take the parent effort.
             assert_eq!(profile["model_reasoning_effort"].as_str(), Some("high"));
         }
+        let sentry: toml::Value = toml::from_str(&content("sentry")).unwrap();
+        assert_eq!(sentry["model"].as_str(), Some("gpt-6-luna"));
+        assert!(sentry.get("sandbox_mode").is_none());
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("gpt-6-luna"));
         f.write(
@@ -475,6 +486,7 @@ mod role_binding_tests {
             ("sage", ROSTER_SAGE, DOCTRINE_SAGE),
             ("alchemist", ROSTER_ALCHEMIST, DOCTRINE_ALCHEMIST),
             ("oracle", ROSTER_ORACLE, DOCTRINE_ORACLE),
+            ("sentry", ROSTER_SENTRY, DOCTRINE_SENTRY),
         ] {
             let projection = role_projection(id);
             let (_, expected_roster) = frontmatter(roster);
@@ -963,6 +975,8 @@ fn role(id: &str) -> Role {
     let source = match id {
         "sage" => ROSTER_SAGE,
         "alchemist" => ROSTER_ALCHEMIST,
+        "oracle" => ROSTER_ORACLE,
+        "sentry" => ROSTER_SENTRY,
         _ => ROSTER_ORACLE,
     };
     let (f, _) = frontmatter(source);
@@ -1024,6 +1038,8 @@ fn role_projection(id: &str) -> String {
     let source = match id {
         "sage" => ROSTER_SAGE,
         "alchemist" => ROSTER_ALCHEMIST,
+        "oracle" => ROSTER_ORACLE,
+        "sentry" => ROSTER_SENTRY,
         _ => ROSTER_ORACLE,
     };
     let (f, b) = frontmatter(source);
@@ -1033,6 +1049,8 @@ fn role_projection(id: &str) -> String {
     let method = match id {
         "sage" => DOCTRINE_SAGE,
         "alchemist" => DOCTRINE_ALCHEMIST,
+        "oracle" => DOCTRINE_ORACLE,
+        "sentry" => DOCTRINE_SENTRY,
         _ => DOCTRINE_ORACLE,
     };
     let (_, method) = frontmatter(method);
@@ -1065,7 +1083,7 @@ fn json_string(v: &str) -> String {
 }
 
 fn gemini_targets(root: &Path) -> Vec<Target> {
-    let ids = ["sage", "alchemist", "oracle"];
+    let ids = ["sage", "alchemist", "oracle", "sentry"];
     let commands = ids
         .iter()
         .map(|id| format!("/legion:{id}"))
@@ -1164,13 +1182,15 @@ fn agents_target(root: &Path) -> Target {
             conflicts,
         };
     }
-    let roles = ["sage", "alchemist", "oracle"]
+    let roles = ["sage", "alchemist", "oracle", "sentry"]
         .iter()
         .map(|id| {
             let r = role(id);
             let source = match *id {
                 "sage" => ROSTER_SAGE,
                 "alchemist" => ROSTER_ALCHEMIST,
+                "oracle" => ROSTER_ORACLE,
+                "sentry" => ROSTER_SENTRY,
                 _ => ROSTER_ORACLE,
             };
             let trigger = markdown_section(&frontmatter(source).1, "Triggers").unwrap_or_default();
@@ -1194,7 +1214,7 @@ fn agents_target(root: &Path) -> Target {
 
 fn codex_targets(root: &Path) -> Vec<Target> {
     let mut out = vec![agents_target(root)];
-    for id in ["sage", "alchemist", "oracle"] {
+    for id in ["sage", "alchemist", "oracle", "sentry"] {
         let content = codex_role_target_content(root, id);
         out.push(target_whole(
             root.join(format!(".codex/agents/{id}.toml")),
@@ -1253,7 +1273,7 @@ fn codex_targets(root: &Path) -> Vec<Target> {
 }
 fn config_inner() -> String {
     let mut t = Vec::new();
-    for id in ["sage", "alchemist", "oracle"] {
+    for id in ["sage", "alchemist", "oracle", "sentry"] {
         let r = role(id);
         t.push(format!(
             "[agents.{id}]\ndescription = {}\nconfig_file = {}\n",
@@ -1273,13 +1293,14 @@ fn config_inner() -> String {
     t.join("\n")
 }
 fn generated_header() -> String {
-    "# Generated by Legion bind.\n# Owned keys: [agents.sage], [agents.alchemist], [agents.oracle], [agents.council-seat].\n# Everything outside the legion:managed-block markers below is the user's file.".into()
+    "# Generated by Legion bind.\n# Owned keys: [agents.sage], [agents.alchemist], [agents.oracle], [agents.sentry], [agents.council-seat].\n# Everything outside the legion:managed-block markers below is the user's file.".into()
 }
 fn owned_headers() -> Vec<String> {
     [
         "[agents.sage]",
         "[agents.alchemist]",
         "[agents.oracle]",
+        "[agents.sentry]",
         "[agents.council-seat]",
         "[mcp_servers.legion]",
     ]
@@ -1292,6 +1313,7 @@ fn legacy_headers() -> HashSet<String> {
         "sage",
         "alchemist",
         "oracle",
+        "sentry",
         "arcane",
         "forge",
         "sorcerer",

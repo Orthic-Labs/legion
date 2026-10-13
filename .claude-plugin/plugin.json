@@ -3,7 +3,7 @@
   "name": "legion",
   "version": "0.3.23",
   "displayName": "Legion",
-  "description": "Legion orchestrates capability selection & authority attachment; Sage offers optional design, reassessment & adjudication, Alchemist performs bounded implementation, Oracle provides optional independent assurance, Arcane shapes cognitive processing & response policy, & Guard gates typed effects. Installs full-fidelity Claude Code binding \u2014 agents, /council skill, Guard pre/post-tool hooks, & legion MCP server.",
+  "description": "Legion orchestrates capability selection & role attachment; Sage offers optional design, reassessment & adjudication, Alchemist performs bounded implementation, Oracle provides independent assurance, Sentry transports requested checkpoints, Arcane shapes cognitive processing & response policy, & Guard gates typed effects. Installs full-fidelity Claude Code binding \u2014 agents, /council skill, Guard pre/post-tool hooks, & legion MCP server.",
   "author": {
     "name": "Orthic Labs"
   },
@@ -17,6 +17,7 @@
     "sage",
     "alchemist",
     "oracle",
+    "sentry",
     "arcane",
     "council",
     "code-review",

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "watchdog",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://watchdog/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/watchdog",
+      "Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://watchdog/SKILL.md",
+      "digest": "sha256:a963c3758d14e0da3c0d59ef832d00fa2d6fc84b7d9897aee0d10071fb09c5f7"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://watchdog/agents/openai.yaml",
+      "digest": "sha256:f576044f82f1a893afe7a8bae57448fec0ec60bb6d360326dbc2edd725388978"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://watchdog/dependencies.json",
+      "digest": "sha256:f4809b15d5dff375158379bc366c73aca43a4d43dbb7ce2c46e828d8a6ab5cda"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://watchdog/evals/evals.json",
+      "digest": "sha256:f78d85199a138d9b9aefcf1525caf4f1c1735ad60cbf235302479a28ce0ded39"
+    }
+  ]
+}

@@ -7,13 +7,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle"];
+pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
 const MODEL_TIERS: &[&str] = &["frontier-judgment", "balanced-executor", "mechanical-cheap"];
 fn route_method(id: &str) -> &'static str {
     match id {
         "sage" => "doctrine/sage.md",
         "alchemist" => "doctrine/alchemist.md",
         "oracle" => "doctrine/oracle.md",
+        "sentry" => "doctrine/sentry.md",
         _ => "",
     }
 }

@@ -8,7 +8,7 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-const ROLES: &[&str] = &["sage", "alchemist", "oracle"];
+const ROLES: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
 const MODEL_HOST: &str = "claude-code";
 
 struct Frontmatter {

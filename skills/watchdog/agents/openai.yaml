@@ -1,0 +1,6 @@
+interface:
+  display_name: "Watchdog"
+  short_description: "Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review."
+  default_prompt: "Use $watchdog when this request matches: Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review."
+policy:
+  allow_implicit_invocation: false

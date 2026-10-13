@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:d483d1fcb3ce604e0d9345a768ca69fb655e93c689a5c5f99a4f18a8c8f358b4",
+  "digest": "sha256:52cb0b356e587bbcf7d7df96995b8a14eaaff116738e238494327b6a81865c1c",
   "counts": {
-    "skills": 29,
-    "agents": 4,
+    "skills": 30,
+    "agents": 5,
     "mcpServers": 1,
     "hookEvents": 9
   },
@@ -39,6 +39,7 @@
       "social",
       "tasklist",
       "wake",
+      "watchdog",
       "writing"
     ],
     "agents": [
@@ -57,6 +58,10 @@
       {
         "file": "agents/sage.md",
         "name": "sage"
+      },
+      {
+        "file": "agents/sentry.md",
+        "name": "sentry"
       }
     ],
     "mcpServers": [

@@ -32,11 +32,12 @@ owned by the canonical sources above.
 ## Role selection reference
 
 Every delegated assignment names its role as the host subagent type (`legion:alchemist`,
-`legion:oracle`, `legion:sage`), never in prose: Alchemist for any assignment that writes files,
+`legion:oracle`, `legion:sage`, `legion:sentry`), never in prose: Alchemist for any assignment that writes files,
 runs commands with effects, or produces an artifact; Oracle for independent review or verification
 of someone else's work; Sage for design, adjudication, or reassessment. Generic agents
 (`general-purpose`, `Explore`) are permitted only for read-only lookup that produces no artifact.
-`legion:council-seat` only while Legion executes `/council`.
+Sentry is only for explicitly requested cadence collection and transport; Oracle retains all
+semantic judgment. `legion:council-seat` only while Legion executes `/council`.
 
 Capability selection is positive: when the requested result is prose for a reader, a visual/UI, a
 repository-quality verdict, or a research synthesis, select `writing`, `designer`, `audit`, or

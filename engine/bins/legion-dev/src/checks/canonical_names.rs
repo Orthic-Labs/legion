@@ -5,7 +5,7 @@
 // `src/config/naming-registry.json` and `src/config/naming-legacy-allowlist.json`.
 //
 // `AUTHORITY_ID` (engine/crates/legion-contracts/src/l2_port/enums.rs) and
-// `ROSTER_ROLE_IDS` (roster role set: sage/alchemist/oracle) are mirrored
+// `ROSTER_ROLE_IDS` (roster role set: sage/alchemist/oracle/sentry) are mirrored
 // here as literals and must be kept in sync by hand if those modules change.
 
 use super::{read_json, read_text, tracked_files};
@@ -24,7 +24,7 @@ const SKIP_PREFIXES: &[&str] = &[
     "node_modules/",
 ];
 const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
-const ROSTER_ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle"];
+const ROSTER_ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
 
 pub struct Issue {
     pub path: String,
@@ -225,7 +225,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     }
     let mut roster_sorted: Vec<String> = ROSTER_ROLE_IDS.iter().map(|s| s.to_string()).collect();
     roster_sorted.sort();
-    if roster_sorted != vec!["alchemist", "oracle", "sage"] {
+    if roster_sorted != vec!["alchemist", "oracle", "sage", "sentry"] {
         issues.push(mk(
             "engine/bins/legion-dev/src/checks/canonical_names.rs",
             "runtime roster differs from naming registry",

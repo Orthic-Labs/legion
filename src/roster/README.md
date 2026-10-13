@@ -1,17 +1,18 @@
 # Legion roster
 
-`roster/{sage,alchemist,oracle}.md` is Legion's sole source for authority identity,
-authority boundary, trigger boundary, & abstract model tiers. `doctrine/council-seat.md`
-remains source for Council seats; Council is not a roster role.
+`roster/{sage,alchemist,oracle,sentry}.md` is Legion's sole source for role identity, authority
+where applicable, trigger boundary, & abstract model tiers. Sentry is a mechanical coordinator,
+not a semantic or effect authority. `doctrine/council-seat.md` remains source for Council seats;
+Council is not a roster role.
 
 Roster files own identity, authority, tier, and trigger boundary (positive trigger first, exclusions only for the genuinely excluded case). Detailed operating method lives in
-delegated doctrine (`doctrine/{sage,alchemist,oracle}.md` and specialist skill references),
+delegated doctrine (`doctrine/{sage,alchemist,oracle,sentry}.md` and specialist skill references),
 which must not recreate a second role identity.
 
 `legion bind --write` projects this roster into Codex, Gemini CLI, & a low-fidelity
 `AGENTS.md` context block. Those generated harness files are outputs: never edit them
 directly. Claude Code is not generated — the plugin package is its install owner, so
-`agents/{sage,alchemist,oracle}.md` is hand-maintained and must be kept in sync with this
+`agents/{sage,alchemist,oracle,sentry}.md` is hand-maintained and must be kept in sync with this
 roster by hand. `pnpm legion:check` verifies that the two agree.
 
 Model policy is capability-tiered: `frontier-judgment`, `balanced-executor`, &

@@ -73,7 +73,7 @@ COUNCIL — optional bounded adversarial challenge beside the work graph
 Primary rules:
 
 1. **Legion is the only always-on orchestrator.** All other components — Sage, Alchemist,
-   Oracle, Council, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
+   Oracle, Sentry, Council, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
    concerns, not peer orchestrators.
 2. **Capabilities describe expertise and method; roles do not contain skills.**
 3. **Capabilities own routine domain judgment. Sage is design,
@@ -96,7 +96,9 @@ Primary rules:
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
 | Oracle identity / authority / tier | `src/roster/oracle.md` | `agents/oracle.md`, doctrine method |
+| Sentry coordination identity / tier | `src/roster/sentry.md` | `agents/sentry.md`, doctrine method |
 | Sage / Alchemist / Oracle role architecture | `docs/architecture/{sage,alchemist,oracle}.md` | role-specific architecture summaries |
+| Sentry coordination architecture | `docs/architecture/sentry.md` | role-specific architecture summary |
 | Council challenge standing | `doctrine/council-seat.md` | `agents/council-seat.md`, entrypoint |
 | Architecture craft | `skills/architect/SKILL.md` + `skills/architect/doctrine/architecture/**` | old Sage Architect bundle |
 | Diagnosis craft | `skills/debugger/SKILL.md` + debugger references | old Sage Diagnose bundle |
@@ -216,15 +218,18 @@ authority owner.
 
 ## 6. Authority model
 
-Authority attaches to work, not to a domain tree or skill parent. The three authority identities
-and their detailed mandate, boundary, inputs, outputs, and interactions are delegated to
-`docs/architecture/{sage,alchemist,oracle}.md`; this SSOT retains their cross-role relationships:
+Authority attaches to work, not to a domain tree or skill parent. The authority identities and
+their detailed mandate, boundary, inputs, outputs, and interactions are delegated to
+`docs/architecture/{sage,alchemist,oracle}.md`; this SSOT retains their cross-role relationships.
+Sentry is a mechanical coordinator without semantic or effect authority; its method is delegated
+to `doctrine/sentry.md`.
 
 | Authority | Cross-role responsibility |
 |---|---|
 | Sage | cross-cutting design, reassessment, and adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
 | Alchemist | controlled bounded transformation of settled meaning; never an independent semantic decision-maker |
 | Oracle | independent, read-only Completion Validation; never an implementer or self-certifier |
+| Sentry | mechanical checkpoint evidence collection and transport; never semantic judge, scope owner, implementer, or certifier |
 
 Sage does not own architecture, debugging, research, design, marketing, SEO, ordinary strategy,
 or contract compilation as a discipline. "Engineering decision authority", "Sage Architect",
@@ -498,7 +503,7 @@ candidate is not a published release.
 
 Model policy is tiered; concrete models are host configuration. Canonical architecture, role
 identity, and generic capability doctrine use abstract model classes/tiers where model strength
-matters; the role-specific policy is delegated to `docs/architecture/{sage,alchemist,oracle}.md`.
+matters; the role-specific policy is delegated to `docs/architecture/{sage,alchemist,oracle,sentry}.md`.
 
 Concrete provider/model IDs belong to host/runtime configuration.
 
@@ -551,9 +556,9 @@ first.
 Legion operational constitution    → AGENTS.md
 Historical capability inventory     → docs/provenance/canon/** (frozen, not authoritative)
 Legion routing reference           → doctrine/legion.md
-Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
-Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md
-Role method                        → doctrine/{sage,alchemist,oracle}.md
+Role identity/authority/tier       → src/roster/{sage,alchemist,oracle,sentry}.md
+Role architecture                  → docs/architecture/{sage,alchemist,oracle,sentry}.md
+Role method                        → doctrine/{sage,alchemist,oracle,sentry}.md
 Council challenge seat             → doctrine/council-seat.md
 Architecture craft                 → skills/architect/SKILL.md + skills/architect/doctrine/architecture/**
 Diagnosis craft                    → skills/debugger/SKILL.md + skills/debugger/references/manual.md

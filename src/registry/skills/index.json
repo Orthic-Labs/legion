@@ -1370,6 +1370,38 @@
       "manifest": "skills/manifests/wake.json"
     },
     {
+      "id": "watchdog",
+      "name": "watchdog",
+      "description": "Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "target": "workflow:watchdog",
+      "domain": null,
+      "operations": [
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [
+        "host-scheduler"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "host-scheduler",
+          "degradation": "Report UNSCHEDULED when no existing scheduler can fire outside the supervised executor chat. Do not emulate recurrence with a separate chat, subagent, executor heartbeat, sleep, or polling.",
+          "remedy": "Expose an existing host scheduler that can fire independently of the supervised executor chat; Legion ships no scheduler.",
+          "probe": null
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/watchdog/SKILL.md",
+      "manifest": "skills/manifests/watchdog.json"
+    },
+    {
       "id": "writing",
       "name": "writing",
       "description": "Route prose deliverables: essays, newsletters, scripts, captions, threads, research articles, documentation, proposals, specs, internal updates, FAQs, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",

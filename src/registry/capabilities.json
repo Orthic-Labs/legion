@@ -222,6 +222,13 @@
         "rightkit"
       ],
       "remedy": "Install RightKit so `rightkit owns --compact` is on PATH."
+    },
+    "host-scheduler": {
+      "kind": "scheduler",
+      "summary": "Existing embedding-host scheduler that can fire independently of a supervised executor chat.",
+      "degradation": "Report UNSCHEDULED when no existing scheduler can fire outside the supervised executor chat. Do not emulate recurrence with a separate chat, subagent, executor heartbeat, sleep, or polling.",
+      "probe": null,
+      "remedy": "Expose an existing host scheduler that can fire independently of the supervised executor chat; Legion ships no scheduler."
     }
   }
 }

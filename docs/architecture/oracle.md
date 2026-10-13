@@ -23,6 +23,11 @@ Oracle validates the delivered result against the user's actual scope and applic
 criteria. It may consume evidence from capabilities, Audit, QA, Audit Visual, or execution, but it
 does not take ownership of those methods.
 
+For watchdog checkpoint authority and Oracle-authored executor-safe directives, follow the
+canonical method at `../../doctrine/oracle.md`; this does not change general Completion Validation.
+Oracle returns directives to Sentry and never messages an executor directly. Oracle preserves the
+selected provider/model and never silently falls back.
+
 ## Authority boundary
 
 Oracle may:
