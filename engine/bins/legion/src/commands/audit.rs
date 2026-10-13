@@ -2889,19 +2889,28 @@ fn retain_effect_artifacts(
             .details
             .get("executionReceipt")
             .or_else(|| provider.result.details.get("receipt"));
-        let Some(receipt) = receipt.and_then(Value::as_object) else {
-            continue;
-        };
         // Native legacy checks report in-memory stream summaries with
         // `path: null` and `immutable: false`; those summaries are not captured
         // artifacts and must not be retained as if they were external refs.
-        if receipt.get("kind").and_then(Value::as_str) == Some("native-legacy-check-receipt") {
-            continue;
+        let receipt = receipt.and_then(Value::as_object).filter(|receipt| {
+            receipt.get("kind").and_then(Value::as_str) != Some("native-legacy-check-receipt")
+        });
+        let mut refs: Vec<(&str, &Value)> = Vec::new();
+        if let Some(receipt) = receipt {
+            for stream in ["stdout", "stderr", "brokerStatus"] {
+                if let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) {
+                    refs.push((stream, value));
+                }
+            }
         }
-        for stream in ["stdout", "stderr", "brokerStatus"] {
-            let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) else {
-                continue;
-            };
+        // Immutable artifact refs the provider records directly in its details
+        // (for example the signed broker status read back after submit).
+        for key in legion_audit::DETAILS_ARTIFACT_REF_KEYS {
+            if let Some(value) = provider.result.details.get(*key).filter(|v| !v.is_null()) {
+                refs.push((*key, value));
+            }
+        }
+        for (stream, value) in refs {
             let record = match parse_effect_artifact_ref(value) {
                 Ok(record) => record,
                 Err(reason) => {
@@ -4696,6 +4705,42 @@ mod effect_artifact_retention_tests {
             stdout
         );
         assert!(!out.join("artifacts/null").exists());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn details_level_broker_status_ref_is_retained() {
+        let base = root("details-status");
+        let repository = base.join("repo");
+        let out = base.join("run");
+        std::fs::create_dir_all(&repository).unwrap();
+        std::fs::create_dir_all(&out).unwrap();
+        let scratch = scratch(&repository);
+        let status = b"signed broker status";
+        write_source(&scratch, "fixture/status", status);
+        let mut present = execution(None, None);
+        present.results[0].result.details.insert(
+            "rustRightBrokerStatus".into(),
+            record("fixture/status", status),
+        );
+
+        assert!(retain_effect_artifacts(&out, &scratch, &mut present).is_empty());
+        assert_eq!(
+            std::fs::read(out.join("artifacts/fixture/status")).unwrap(),
+            status
+        );
+
+        let mut missing = {
+            let mut e = execution(None, None);
+            e.results[0].result.details.insert(
+                "rustRightBrokerStatus".into(),
+                record("missing/status", status),
+            );
+            e
+        };
+        let gaps = retain_effect_artifacts(&out, &scratch, &mut missing);
+        assert!(!gaps.is_empty());
+        assert!(!missing.results[0].result.complete);
         std::fs::remove_dir_all(base).unwrap();
     }
 

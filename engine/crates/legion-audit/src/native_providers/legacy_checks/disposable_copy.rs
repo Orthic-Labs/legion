@@ -528,6 +528,23 @@ fn bind_copy_workspace_root(
     Ok(())
 }
 
+const BROKER_SOCKET_ENV: &str = "RIGHTKIT_BUILD_BROKER_SOCKET";
+
+/// The broker endpoint is a locator, not a secret. Windows never discovers it
+/// implicitly, so pass it through only when the host sets a non-empty
+/// single-line value; nothing else widens the allowlist.
+fn pass_broker_socket(
+    value: Option<String>,
+    environment: &mut BTreeMap<String, String>,
+    allowlist: &mut BTreeSet<String>,
+) {
+    let Some(value) = value.filter(|v| !v.is_empty() && !v.contains(['\n', '\r', '\0'])) else {
+        return;
+    };
+    environment.insert(BROKER_SOCKET_ENV.into(), value);
+    allowlist.insert(BROKER_SOCKET_ENV.into());
+}
+
 fn request_id(stderr: &[u8]) -> Result<String, String> {
     let text = std::str::from_utf8(stderr).map_err(|_| "request-id-stderr-not-utf8".to_owned())?;
     let ids = text
@@ -535,6 +552,9 @@ fn request_id(stderr: &[u8]) -> Result<String, String> {
         .filter_map(|line| line.strip_prefix("rightkit: request "))
         .collect::<Vec<_>>();
     if ids.len() != 1 {
+        if ids.is_empty() && text.contains("RK_BROKER_UNAVAILABLE") {
+            return Err("rustright-broker-unavailable".into());
+        }
         return Err("request-id-line-missing-or-ambiguous".into());
     }
     let id = ids[0];
@@ -1506,6 +1526,11 @@ pub(super) async fn execute(
         ..ExternalToolRequest::default()
     };
     let (mut environment, mut allowlist) = audit_environment(scratch);
+    pass_broker_socket(
+        std::env::var(BROKER_SOCKET_ENV).ok(),
+        &mut environment,
+        &mut allowlist,
+    );
     environment.insert(CANCEL_ON_DISCONNECT.into(), "1".into());
     allowlist.insert(CANCEL_ON_DISCONNECT.into());
     let outputs = approved_outputs(&copy, family, runner_label);
@@ -2638,6 +2663,36 @@ mod tests {
             "inputClosure":{"status":"verified","preDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","postDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","changed":[],"added":[],"removed":[],"extrasChanged":[]},
             "reap":{"status":"REAPED","reaped":true},"survivors":[]
         }})
+    }
+
+    #[test]
+    fn broker_socket_passes_through_only_when_set() {
+        let (mut env, mut allow) = (BTreeMap::new(), BTreeSet::new());
+        pass_broker_socket(None, &mut env, &mut allow);
+        pass_broker_socket(Some(String::new()), &mut env, &mut allow);
+        pass_broker_socket(Some("a\nb".into()), &mut env, &mut allow);
+        assert!(env.is_empty() && allow.is_empty());
+        pass_broker_socket(
+            Some(r"\\.\pipe\rightkit-build-control".into()),
+            &mut env,
+            &mut allow,
+        );
+        assert_eq!(env.len(), 1);
+        assert_eq!(allow.len(), 1);
+        assert!(allow.contains("RIGHTKIT_BUILD_BROKER_SOCKET"));
+    }
+
+    #[test]
+    fn broker_unavailable_stderr_maps_to_precise_gap() {
+        assert_eq!(
+            request_id(b"rightkit: RK_BROKER_UNAVAILABLE: endpoint is not configured\n")
+                .unwrap_err(),
+            "rustright-broker-unavailable"
+        );
+        assert_eq!(
+            request_id(b"garbage\n").unwrap_err(),
+            "request-id-line-missing-or-ambiguous"
+        );
     }
 
     #[test]

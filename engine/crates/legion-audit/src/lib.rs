@@ -31,6 +31,6 @@ pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
 pub use report::canonical_report;
 pub use verify::{
     parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path, verify_binding,
-    verify_execution, verify_source_diagnostic,
+    verify_execution, verify_source_diagnostic, DETAILS_ARTIFACT_REF_KEYS,
 };
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};

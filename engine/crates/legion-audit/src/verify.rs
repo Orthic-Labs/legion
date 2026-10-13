@@ -17,6 +17,10 @@ use crate::{
 
 const MAX_EFFECT_ARTIFACT_BYTES: usize = 8 * 1024 * 1024;
 
+/// Provider `details` keys that hold an immutable `{path,digest,bytes}` artifact
+/// reference outside the execution receipt (disposable-copy broker status).
+pub const DETAILS_ARTIFACT_REF_KEYS: &[&str] = &["rustRightBrokerStatus"];
+
 /// Validates retained stdout/stderr references from a persisted Audit run.
 /// The legacy projection has no marker and is deliberately left untouched.
 pub(crate) fn validate_effect_artifacts(
@@ -56,19 +60,25 @@ pub(crate) fn validate_effect_artifacts(
                     .get("receipt")
                     .filter(|value| !value.is_null())
             });
-        let Some(receipt) = receipt else {
-            continue;
-        };
-        let receipt = receipt
-            .as_object()
-            .ok_or_else(|| AuditError::Invalid("effect execution receipt is malformed".into()))?;
-        if receipt.get("kind").and_then(Value::as_str) == Some("native-legacy-check-receipt") {
-            continue;
+        let mut refs: Vec<&Value> = Vec::new();
+        if let Some(receipt) = receipt {
+            let receipt = receipt.as_object().ok_or_else(|| {
+                AuditError::Invalid("effect execution receipt is malformed".into())
+            })?;
+            if receipt.get("kind").and_then(Value::as_str) != Some("native-legacy-check-receipt") {
+                for stream in ["stdout", "stderr", "brokerStatus"] {
+                    if let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) {
+                        refs.push(value);
+                    }
+                }
+            }
         }
-        for stream in ["stdout", "stderr", "brokerStatus"] {
-            let Some(value) = receipt.get(stream).filter(|value| !value.is_null()) else {
-                continue;
-            };
+        for key in DETAILS_ARTIFACT_REF_KEYS {
+            if let Some(value) = item.result.details.get(*key).filter(|v| !v.is_null()) {
+                refs.push(value);
+            }
+        }
+        for value in refs {
             let record = parse_effect_artifact_ref(value).map_err(AuditError::Invalid)?;
             match references.entry(record.path.clone()) {
                 std::collections::btree_map::Entry::Vacant(entry) => {
@@ -486,6 +496,23 @@ mod effect_artifact_tests {
             .details
             .get_mut("executionReceipt")
             .unwrap()["kind"] = json!("other-receipt");
+        assert!(validate_effect_artifacts(&run, &marked_plan(), &stored, &execution).is_err());
+        fs::remove_dir_all(run).unwrap();
+    }
+
+    #[test]
+    fn details_level_broker_status_ref_must_exist_and_match() {
+        let run = temp_run();
+        let bytes = b"broker status";
+        fs::write(run.join("artifacts/original/stdout.bin"), bytes).unwrap();
+        let stored = report(json!("artifacts"));
+        let mut execution = execution(json!(null));
+        execution.results[0]
+            .result
+            .details
+            .insert("rustRightBrokerStatus".into(), record(bytes));
+        assert!(validate_effect_artifacts(&run, &marked_plan(), &stored, &execution).is_ok());
+        fs::remove_file(run.join("artifacts/original/stdout.bin")).unwrap();
         assert!(validate_effect_artifacts(&run, &marked_plan(), &stored, &execution).is_err());
         fs::remove_dir_all(run).unwrap();
     }
