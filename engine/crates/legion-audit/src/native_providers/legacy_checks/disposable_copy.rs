@@ -2030,7 +2030,13 @@ fn source_inventory_paths(
     let mut child = command
         .arg("-C")
         .arg(root)
-        .args(["ls-files", "-z", "--cached", "--others"])
+        .args([
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -2148,6 +2154,9 @@ fn source_inventory_paths(
             .filter(|path| !path.is_empty())
         {
             let path = String::from_utf8_lossy(path).replace('\\', "/");
+            if crate::inventory::path_in_excluded_directory(&path) {
+                continue;
+            }
             paths.push(path);
             if paths.len() > MAX_FILES {
                 return Err(CopyError::Limit("inventory exceeds 100000 files".into()));
@@ -2157,7 +2166,11 @@ fn source_inventory_paths(
     } else {
         let mut paths = Vec::new();
         let mut path_bytes = 0_usize;
-        for item in walkdir::WalkDir::new(root).follow_links(false) {
+        for item in walkdir::WalkDir::new(root)
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(crate::inventory::included_entry)
+        {
             if cancellation.is_cancelled() {
                 return Err(CopyError::Cancelled);
             }
@@ -3150,5 +3163,112 @@ mod tests {
         assert!(copy.join("Cargo.toml").is_file());
         fs::remove_dir_all(scratch_root).unwrap();
         fs::remove_dir_all(source_root).unwrap();
+    }
+
+    fn git_fixture() -> PathBuf {
+        let root = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "audit-git-src-{}-{}",
+                std::process::id(),
+                COPY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            ));
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("Cargo.toml"), b"[package]\nname='f'\n").unwrap();
+        fs::write(root.join("src/lib.rs"), b"pub fn f() {}\n").unwrap();
+        fs::write(root.join(".gitignore"), b"ignored.log\n").unwrap();
+        let init = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["init", "-q"])
+            .status()
+            .unwrap();
+        assert!(init.success());
+        let add = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["add", "Cargo.toml", "src/lib.rs", ".gitignore"])
+            .status()
+            .unwrap();
+        assert!(add.success());
+        root
+    }
+
+    fn fixture_inventory(root: &Path) -> (InventoryEnvelope, BTreeMap<String, u32>) {
+        use crate::inventory::{FilesystemInventorySource, InventorySource};
+        let inventory = FilesystemInventorySource::new(root)
+            .unwrap()
+            .inventory("fixture")
+            .unwrap();
+        let modes = inventory
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.path.clone(),
+                    file_mode(&root.join(&entry.path)).unwrap(),
+                )
+            })
+            .collect();
+        (inventory, modes)
+    }
+
+    #[test]
+    fn source_inventory_matches_audit_inventory_with_out_dir_under_root() {
+        let root = git_fixture();
+        // Audit output under the repo root, generated and vendored trees, and a
+        // gitignored file: none belong to the audit inventory.
+        fs::create_dir_all(root.join(".audit")).unwrap();
+        fs::write(root.join(".audit/x.json"), b"{}").unwrap();
+        fs::create_dir_all(root.join("target")).unwrap();
+        fs::write(root.join("target/gen.bin"), b"gen").unwrap();
+        fs::create_dir_all(root.join("node_modules/pkg")).unwrap();
+        fs::write(root.join("node_modules/pkg/index.js"), b"x").unwrap();
+        fs::write(root.join("ignored.log"), b"log").unwrap();
+        let (inventory, modes) = fixture_inventory(&root);
+        let deadline = Instant::now() + std::time::Duration::from_secs(10);
+        let cancellation = CancellationToken::new();
+        let mut expected = inventory
+            .entries
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(
+            source_inventory_paths(&root, deadline, &cancellation).unwrap(),
+            expected
+        );
+        assert!(verify_source_unchanged(
+            &root,
+            &inventory,
+            &modes,
+            deadline,
+            &cancellation
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn untracked_input_file_still_counts_as_source_drift() {
+        let root = git_fixture();
+        let (inventory, modes) = fixture_inventory(&root);
+        let deadline = Instant::now() + std::time::Duration::from_secs(10);
+        let cancellation = CancellationToken::new();
+        assert!(verify_source_unchanged(
+            &root,
+            &inventory,
+            &modes,
+            deadline,
+            &cancellation
+        ));
+        fs::write(root.join("src/new_input.rs"), b"pub fn n() {}\n").unwrap();
+        assert!(!verify_source_unchanged(
+            &root,
+            &inventory,
+            &modes,
+            deadline,
+            &cancellation
+        ));
+        let _ = fs::remove_dir_all(root);
     }
 }

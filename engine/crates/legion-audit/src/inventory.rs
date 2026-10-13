@@ -520,14 +520,30 @@ fn git_project_files(root: &Path) -> Option<std::collections::HashSet<String>> {
     )
 }
 
-fn included_entry(entry: &DirEntry) -> bool {
+/// Directory names the audit inventory never descends into, at any depth.
+pub(crate) fn excluded_directory_name(name: &str) -> bool {
+    matches!(
+        name,
+        ".git" | ".audit" | ".legion-cache" | "node_modules" | "target"
+    )
+}
+
+/// True when any parent directory of the `/`-separated relative `path` is an
+/// excluded directory (the file name itself is not considered).
+pub(crate) fn path_in_excluded_directory(path: &str) -> bool {
+    let mut parts = path.split('/').collect::<Vec<_>>();
+    parts.pop();
+    parts.into_iter().any(excluded_directory_name)
+}
+
+pub(crate) fn included_entry(entry: &DirEntry) -> bool {
     if !entry.file_type().is_dir() || entry.depth() == 0 {
         return true;
     }
-    !matches!(
-        entry.file_name().to_str(),
-        Some(".git" | ".audit" | ".legion-cache" | "node_modules" | "target")
-    )
+    !entry
+        .file_name()
+        .to_str()
+        .is_some_and(excluded_directory_name)
 }
 
 impl InventoryEnvelope {
