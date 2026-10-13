@@ -907,6 +907,34 @@ mod session_cleanup_tests {
     }
 
     #[test]
+    fn stop_without_keep_inject_removes_injection_and_reports_removed() {
+        let root = scratch_root("stop-remove-inject");
+        std::fs::create_dir_all(&root).unwrap();
+        write_stop_config(&root);
+        let content = format!(
+            "<html><body><!-- {} --><script src=\"live.js\"></script><!-- {} --></body></html>",
+            crate::wf_port::w2_018::inject::MARKER_OPEN_TEXT,
+            crate::wf_port::w2_018::inject::MARKER_CLOSE_TEXT,
+        );
+        std::fs::write(root.join("index.html"), &content).unwrap();
+
+        let args = vec!["stop".to_string()];
+        let outcome = run(&args, &root);
+
+        assert!(matches!(
+            outcome,
+            RunOutcome::Stopped {
+                injection: InjectionCleanupState::Removed(_),
+                ..
+            }
+        ));
+        let after = std::fs::read_to_string(root.join("index.html")).unwrap();
+        assert!(!after.contains(crate::wf_port::w2_018::inject::MARKER_OPEN_TEXT));
+        assert!(!after.contains("live.js"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn make_session_dir_creates_unique_directory_under_root() {
         let root = scratch_root("mkdtemp");
         let dir = make_session_dir(&root).unwrap();

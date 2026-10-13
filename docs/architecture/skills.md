@@ -71,7 +71,7 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 
 - **Manifest:** [marketing.json](../../skills/manifests/marketing.json)
 - **Kind:** `capability`
-- **Purpose:** Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.
+- **Purpose:** Decide positioning, offers, pricing, packaging, launches, and go-to-market for a product or business: who it is for, why they would buy, how to reach them, and the cheapest way to validate the idea. Use for any request about how to position, sell, price, or launch something; route paid, search, social, research, and copy execution to Ads, SEO, Social, Research, or Writing.
 - **Capability class:** `domain`
 - **Domain:** `commercial`
 - **Operations:** `analyze`, `decide`, `produce`

@@ -951,15 +951,70 @@ pub(super) fn incomplete(
         json!({"status":"incomplete","reason":message}),
     );
     output.details.insert("disposableCopy".into(), details);
-    LegacyCheckExecution {
-        state: LegacyCheckProcessState::CleanupUnconfirmed,
-        exit_code: None,
-        stdout: Vec::new(),
-        stderr: Vec::new(),
-        receipt_id: None,
-        output: Some(output),
-        error: None,
+    let mut execution = super::terminal_execution(
+        input,
+        super::CommandShape::Named {
+            tool: "cargo",
+            args: &[],
+        },
+        LegacyCheckProcessState::CleanupUnconfirmed,
+        None,
+        Vec::new(),
+        Vec::new(),
+        output,
+        vec![format!("preflight-incomplete:{message}")],
+        super::now_ms(),
+        false,
+        None,
+    );
+    // Keep legacy cleanup state separate from canonical terminal state. With
+    // no observation, the full receipt records internal/unknown plus explicit
+    // process-state uncertainty instead of asserting launch or reap facts.
+    if let Some(receipt) = execution
+        .output
+        .as_mut()
+        .and_then(|output| output.details.get_mut("executionReceipt"))
+    {
+        if let Some(object) = receipt.as_object_mut() {
+            object.remove("kind");
+        }
+        receipt["state"] = Value::String("internal".into());
+        receipt["complete"] = Value::Bool(false);
+        receipt["executable"] = Value::Null;
+        receipt["command"] = Value::Null;
+        receipt["gaps"] = json!([format!("preflight-incomplete:{message}")]);
+        receipt["processTree"]["detail"] =
+            Value::String("launch and cleanup state unobserved".into());
     }
+    execution
+}
+
+fn canonical_receipt_json(receipt: &ExecutionReceipt) -> Value {
+    json!({
+        "schemaVersion": receipt.schema_version,
+        "receiptId": receipt.receipt_id,
+        "requestId": receipt.request_id,
+        "providerId": receipt.provider_id,
+        "planId": receipt.plan_id,
+        "policyId": receipt.policy_id,
+        "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
+        "taskId": receipt.task_id,
+        "state": receipt.state.as_str(),
+        "complete": receipt.complete,
+        "executable": receipt.executable.as_ref().map(|e| json!({"requestedPath":e.requested_path,"canonicalPath":e.canonical_path,"digest":e.digest,"digestState":format!("{:?}", e.digest_state).to_ascii_lowercase(),"signature":format!("{:?}", e.signature).to_ascii_lowercase(),"version":{"args":e.version.args,"output":e.version.output,"exitCode":e.version.exit_code,"qualified":e.version.qualified}})),
+        "command": receipt.command.as_ref().map(|c| json!({"executable":c.executable,"args":c.args,"environmentNames":c.environment_names,"redactedArgumentIndexes":c.redacted_argument_indexes,"redactedEnvironmentNames":c.redacted_environment_names})),
+        "cwd": receipt.cwd,
+        "environmentNames": receipt.environment_names,
+        "sandbox": {"required":receipt.sandbox.required,"receiptId":receipt.sandbox.receipt_id,"networkEnabled":receipt.sandbox.network_enabled},
+        "processTree": {"started":receipt.process_tree.started,"terminated":receipt.process_tree.terminated,"hardKilled":receipt.process_tree.hard_killed,"reaped":receipt.process_tree.reaped,"detail":receipt.process_tree.detail},
+        "timing": {"startedAtMs":receipt.timing.started_at_ms,"completedAtMs":receipt.timing.completed_at_ms,"durationMs":receipt.timing.duration_ms},
+        "exitCode": receipt.exit_code,
+        "signal": receipt.signal,
+        "stdout": receipt.stdout.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
+        "stderr": receipt.stderr.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
+        "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error},
+        "gaps": receipt.gaps,
+    })
 }
 
 fn validate_runner_binding(
@@ -1557,13 +1612,18 @@ pub(super) async fn execute(
         || request_digest.len() != 64
     {
         if !probe_receipt.process_tree.reaped {
-            return retain_incomplete(scratch, &copy, input, "request-digest-process-unreaped");
+            let mut execution =
+                retain_incomplete(scratch, &copy, input, "request-digest-process-unreaped");
+            attach_execution_receipt(&mut execution, &probe_receipt);
+            return execution;
         }
-        return incomplete(
+        let mut execution = incomplete(
             input,
             "managed-test-attestation-cli-unavailable".into(),
             json!({"assurance":"attested-runs-required","phase":"request-digest","clientState":format!("{:?}", probe_receipt.state)}),
         );
+        attach_execution_receipt(&mut execution, &probe_receipt);
+        return execution;
     }
     let manifest_envelope = json!({"root":manifest["root"],"entries":manifest["entries"]});
     if fs::write(
@@ -1572,7 +1632,9 @@ pub(super) async fn execute(
     )
     .is_err()
     {
-        return retain_incomplete(scratch, &copy, input, "input-manifest-write-failed");
+        let mut execution = retain_incomplete(scratch, &copy, input, "input-manifest-write-failed");
+        attach_execution_receipt(&mut execution, &probe_receipt);
+        return execution;
     }
     environment.insert("RIGHTKIT_ATTEST_NONCE".into(), nonce.clone());
     environment.insert(
@@ -1590,11 +1652,13 @@ pub(super) async fn execute(
     ]);
     if remaining_ms() == 0 {
         let _ = fs::remove_dir_all(&copy.path);
-        return incomplete(
+        let mut execution = incomplete(
             input,
             "deadline-expired-before-submit".into(),
             json!({"assurance":"disposable-copy-before-after"}),
         );
+        attach_execution_receipt(&mut execution, &probe_receipt);
+        return execution;
     }
     let submit = copied_request(
         &ExternalToolRequest {
@@ -1633,7 +1697,11 @@ pub(super) async fn execute(
     let raw_stderr = artifact_bytes(&submitted, true, scratch).unwrap_or_default();
     let id = match request_id(&raw_stderr) {
         Ok(id) => id,
-        Err(message) => return retain_incomplete(scratch, &copy, input, &message),
+        Err(message) => {
+            let mut execution = retain_incomplete(scratch, &copy, input, &message);
+            attach_execution_receipt(&mut execution, &submitted);
+            return execution;
+        }
     };
     if cancellation.is_cancelled()
         || remaining_ms() == 0
@@ -1649,10 +1717,15 @@ pub(super) async fn execute(
         let _final_status = tool.execute(status, cleanup_token).await;
         // Unsigned cleanup/status fields cannot authorize deleting the copy.
         scratch.retain_after_drop();
-        return retain_incomplete(scratch, &copy, input, "cancelled-or-timed-out");
+        let mut execution = retain_incomplete(scratch, &copy, input, "cancelled-or-timed-out");
+        attach_execution_receipt(&mut execution, &submitted);
+        return execution;
     }
     let Some(submitted_exit) = submit_process_exit(&submitted) else {
-        return retain_incomplete(scratch, &copy, input, "rightkit-submit-process-unconfirmed");
+        let mut execution =
+            retain_incomplete(scratch, &copy, input, "rightkit-submit-process-unconfirmed");
+        attach_execution_receipt(&mut execution, &submitted);
+        return execution;
     };
     let status_request = id_request(&submit, "status", &id, &copy.cwd, remaining_ms());
     let status_receipt = tokio::select! {
@@ -1662,17 +1735,25 @@ pub(super) async fn execute(
             let _ = tool.execute(cancel, cleanup_token.clone()).await;
             let _ = tool.execute(id_request(&submit, "status", &id, &copy.cwd, remaining_ms().max(1)), cleanup_token).await;
             scratch.retain_after_drop();
-            return retain_incomplete(scratch, &copy, input, "cancelled-during-status");
+            let mut execution =
+                retain_incomplete(scratch, &copy, input, "cancelled-during-status");
+            attach_execution_receipt(&mut execution, &submitted);
+            return execution;
         },
         result = tool.execute(status_request, CancellationToken::new()) => result,
     };
     if trusted_cli_response(&status_receipt, &Value::Null).is_none() {
-        return retain_incomplete(scratch, &copy, input, "broker-status-process-unconfirmed");
+        let mut execution =
+            retain_incomplete(scratch, &copy, input, "broker-status-process-unconfirmed");
+        attach_execution_receipt(&mut execution, &submitted);
+        attach_auxiliary_receipt(&mut execution, "rustRightStatusReceipt", &status_receipt);
+        return execution;
     }
     let Some(status_json) = status_json(&status_receipt, scratch) else {
         scratch.retain_after_drop();
         let mut execution =
             retain_incomplete(scratch, &copy, input, "broker-status-artifact-unavailable");
+        attach_execution_receipt(&mut execution, &submitted);
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
     };
@@ -1685,12 +1766,15 @@ pub(super) async fn execute(
     )
     .is_err()
     {
-        return retain_incomplete(
+        let mut execution = retain_incomplete(
             scratch,
             &copy,
             input,
             "receipt-copy-for-verification-failed",
         );
+        attach_execution_receipt(&mut execution, &submitted);
+        attach_status_artifact(&mut execution, &status_receipt);
+        return execution;
     }
     let verify_args = vec![
         "verify-receipt".into(),
@@ -1720,18 +1804,27 @@ pub(super) async fn execute(
         remaining_ms(),
     );
     let verified = tokio::select! {
-        _ = cancellation.cancelled() => return retain_incomplete(scratch, &copy, input, "cancelled-during-receipt-verification"),
+        _ = cancellation.cancelled() => {
+            let mut execution = retain_incomplete(scratch, &copy, input, "cancelled-during-receipt-verification");
+            attach_execution_receipt(&mut execution, &submitted);
+            attach_status_artifact(&mut execution, &status_receipt);
+            return execution;
+        },
         result = tool.execute(verify_request, CancellationToken::new()) => result,
     };
     let verify_bytes = artifact_bytes(&verified, false, scratch).unwrap_or_default();
     let verify_json: Value = serde_json::from_slice(&verify_bytes).unwrap_or(Value::Null);
     let Some(verify_json) = trusted_cli_response(&verified, &verify_json) else {
-        return retain_incomplete(
+        let mut execution = retain_incomplete(
             scratch,
             &copy,
             input,
             "receipt-verifier-process-unconfirmed",
         );
+        attach_execution_receipt(&mut execution, &submitted);
+        attach_auxiliary_receipt(&mut execution, "rustRightVerifyReceipt", &verified);
+        attach_status_artifact(&mut execution, &status_receipt);
+        return execution;
     };
     let Some(payload) = verify_json
         .get("payload")
@@ -1743,6 +1836,7 @@ pub(super) async fn execute(
             input,
             "managed-test-attestation-verification-failed",
         );
+        attach_execution_receipt(&mut execution, &submitted);
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
     };
@@ -1774,6 +1868,7 @@ pub(super) async fn execute(
             let copy_unchanged =
                 verify_copy_unchanged(&copy, inventory, &outputs, deadline, &cancellation);
             let mut execution = retain_incomplete(scratch, &copy, input, &message);
+            attach_execution_receipt(&mut execution, &submitted);
             attach_status_artifact(&mut execution, &status_receipt);
             if let Some(output) = execution.output.as_mut() {
                 output.details.insert(
@@ -1796,6 +1891,7 @@ pub(super) async fn execute(
                 json!({"requestId":id,"sourceUnchanged":final_source,"copyUnchanged":final_copy}),
             );
         }
+        attach_execution_receipt(&mut execution, &submitted);
         attach_status_artifact(&mut execution, &status_receipt);
         return execution;
     }
@@ -1836,14 +1932,26 @@ pub(super) async fn execute(
             output.status = ProviderStatus::Complete;
         }
     }
-    let broker_artifact = status_receipt.stdout.as_ref().map(|artifact| json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable}));
-    output.details.insert("executionReceipt".into(), json!({"schemaVersion":1,"requestId":id,"providerId":provider.id,"state":"completed","complete":true,"exitCode":exit,"processTree":{"started":true,"terminated":true,"hardKilled":false,"reaped":true},"brokerStatus":broker_artifact}));
+    output.details.insert(
+        "executionReceipt".into(),
+        canonical_receipt_json(&submitted),
+    );
+    output.details.insert(
+        "rustRightVerifiedResult".into(),
+        json!({"jobId":id,"status":if exit == 0 {"SUCCEEDED"} else {"FAILED"},"exitCode":exit,"verified":true,"host":enrollment.host,"keyId":enrollment.key_id}),
+    );
+    if let Some(artifact) = status_receipt.stdout.as_ref() {
+        output.details.insert(
+            "rustRightBrokerStatus".into(),
+            json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable}),
+        );
+    }
     LegacyCheckExecution {
         state: LegacyCheckProcessState::Completed,
         exit_code: Some(exit),
-        stdout: Vec::new(),
-        stderr: Vec::new(),
-        receipt_id: Some(id),
+        stdout: artifact_bytes(&submitted, false, scratch).unwrap_or_default(),
+        stderr: artifact_bytes(&submitted, true, scratch).unwrap_or_default(),
+        receipt_id: Some(submitted.receipt_id.clone()),
         output: Some(output),
         error: None,
     }
@@ -1872,24 +1980,43 @@ fn status_json(receipt: &ExecutionReceipt, scratch: &AuditScratch) -> Option<Val
 }
 
 fn attach_status_artifact(execution: &mut LegacyCheckExecution, receipt: &ExecutionReceipt) {
-    let Some(artifact) = receipt.stdout.as_ref() else {
-        return;
-    };
     if let Some(output) = execution.output.as_mut() {
-        output.details.insert(
-            "executionReceipt".into(),
-            json!({
-                "schemaVersion": 1,
-                "state": "cleanup_unconfirmed",
-                "complete": false,
-                "brokerStatus": {
-                    "path": artifact.path,
-                    "digest": artifact.digest,
-                    "bytes": artifact.bytes,
-                    "immutable": artifact.immutable
-                }
-            }),
-        );
+        if let Some(artifact) = receipt.stdout.as_ref() {
+            output.details.insert(
+                "rustRightBrokerStatus".into(),
+                json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable}),
+            );
+        }
+    }
+}
+
+/// Attach the canonical terminal receipt: the request-digest probe before a
+/// submit exists, the submit process afterward. Its exit is bound to the
+/// attested job exit, so it is the receipt consumers read. The legacy cleanup
+/// state and absent exit code stay on the execution; the receipt records only
+/// what that process actually did, and broker attestation stays in separate
+/// details.
+fn attach_execution_receipt(execution: &mut LegacyCheckExecution, receipt: &ExecutionReceipt) {
+    if let Some(output) = execution.output.as_mut() {
+        output
+            .details
+            .insert("executionReceipt".into(), canonical_receipt_json(receipt));
+    }
+    execution.receipt_id = Some(receipt.receipt_id.clone());
+}
+
+/// Preserve an auxiliary CLI process receipt whose own confirmation failed,
+/// under its own key, so its terminal facts are not discarded without
+/// changing which process the canonical receipt describes.
+fn attach_auxiliary_receipt(
+    execution: &mut LegacyCheckExecution,
+    key: &'static str,
+    receipt: &ExecutionReceipt,
+) {
+    if let Some(output) = execution.output.as_mut() {
+        output
+            .details
+            .insert(key.into(), canonical_receipt_json(receipt));
     }
 }
 
@@ -2355,6 +2482,123 @@ fn add_failure_finding(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_input() -> LegacyCheckInput {
+        LegacyCheckInput {
+            provider_id: "legacy.quality.test".into(),
+            check: "test".into(),
+            root: std::env::temp_dir(),
+            inventory_generation: "fixture-generation".into(),
+            inventory_digest: format!("sha256:{}", "a".repeat(64)),
+            denominator: crate::inventory::InventoryDenominator {
+                entries: Vec::new(),
+                digest: format!("sha256:{}", "b".repeat(64)),
+            },
+            binding: None,
+            projection: None,
+            artifacts: Value::Null,
+        }
+    }
+
+    fn test_request() -> ExternalToolRequest {
+        ExternalToolRequest {
+            request_id: "audit-fixture".into(),
+            provider_id: "legacy.quality.test".into(),
+            plan_id: format!("sha256:{}", "a".repeat(64)),
+            policy_id: "attested-runs-fixture".into(),
+            executable: "/usr/bin/true".into(),
+            cwd: std::env::temp_dir().to_string_lossy().into_owned(),
+            ..ExternalToolRequest::default()
+        }
+    }
+
+    #[test]
+    fn preflight_incomplete_receipt_is_full_unknown_and_gapful() {
+        let execution = incomplete(&test_input(), "fixture-no-launch".into(), json!({}));
+        let output = execution.output.unwrap();
+        let receipt = &output.details["executionReceipt"];
+        assert_eq!(receipt["state"], "internal");
+        assert_eq!(receipt["complete"], false);
+        assert_eq!(receipt["processTree"]["started"], false);
+        assert_eq!(receipt["processTree"]["reaped"], false);
+        assert_eq!(
+            receipt["processTree"]["detail"],
+            "launch and cleanup state unobserved"
+        );
+        assert!(!receipt["gaps"].as_array().unwrap().is_empty());
+        assert_eq!(execution.state, LegacyCheckProcessState::CleanupUnconfirmed);
+        assert!(
+            crate::execution::validate_external_receipt_projection(
+                "legacy.quality.test",
+                &output.details,
+                false,
+            )
+            .is_ok(),
+            "synthetic preflight receipt must satisfy the external receipt schema"
+        );
+    }
+
+    #[test]
+    fn unconfirmed_postlaunch_receipt_keeps_observed_process_facts() {
+        let mut receipt = ExecutionReceipt::failure(
+            &test_request(),
+            ExecutionState::KillFailed,
+            "process-tree-cleanup-unconfirmed",
+        );
+        receipt.process_tree.started = true;
+        receipt.process_tree.detail = Some("termination and reap unconfirmed".into());
+        let projected = canonical_receipt_json(&receipt);
+        assert_eq!(projected["state"], "kill_failed");
+        assert_eq!(projected["complete"], false);
+        assert_eq!(projected["processTree"]["started"], true);
+        assert_eq!(projected["processTree"]["terminated"], false);
+        assert_eq!(projected["processTree"]["reaped"], false);
+        assert!(!projected["gaps"].as_array().unwrap().is_empty());
+        let details = BTreeMap::from([("executionReceipt".into(), projected)]);
+        assert!(
+            crate::execution::validate_external_receipt_projection(
+                "legacy.quality.test",
+                &details,
+                false,
+            )
+            .is_ok(),
+            "canonical projection must satisfy the external receipt schema"
+        );
+    }
+
+    #[test]
+    fn verified_success_and_real_test_failure_remain_distinct() {
+        let mut receipt =
+            ExecutionReceipt::failure(&test_request(), ExecutionState::Completed, "fixture");
+        receipt.complete = true;
+        receipt.gaps.clear();
+        receipt.exit_code = Some(0);
+        receipt.process_tree.started = true;
+        receipt.process_tree.terminated = true;
+        receipt.process_tree.reaped = true;
+        receipt.parser.attempted = true;
+        receipt.parser.succeeded = true;
+        let success = canonical_receipt_json(&receipt);
+        assert_eq!(success["state"], "completed");
+        assert_eq!(success["complete"], true);
+        assert!(success["gaps"].as_array().unwrap().is_empty());
+        let details = BTreeMap::from([("executionReceipt".into(), success)]);
+        assert!(
+            crate::execution::validate_external_receipt_projection(
+                "legacy.quality.test",
+                &details,
+                true,
+            )
+            .is_ok(),
+            "completed canonical projection must support a complete result"
+        );
+
+        let mut output = empty_output(Vec::new());
+        add_failure_finding(&test_input(), &json!({}), 101, &mut output);
+        assert_eq!(output.details["testOutcome"]["passed"], false);
+        assert_eq!(output.details["testOutcome"]["exitCode"], 101);
+        assert_eq!(output.findings.len(), 1);
+    }
 
     fn receipt(path: &Path, id: &str, state: &str, exit: i64) -> Value {
         let path = path.to_string_lossy();

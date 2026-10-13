@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading."
+description: "Research a question from external sources and produce a cited, evidence-backed brief or analysis: current public guidance, market, competitor, technical, scientific, medical, legal, audience, scholarly, or trend questions, or NotebookLM work. Use when the answer requires searching and opening outside sources and recording dated claims and uncertainty. Not for reading local files or transcripts, or summarizing a source the user already supplied."
 kind: capability
 capabilityClass: domain
 discoverability: public

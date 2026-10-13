@@ -43,10 +43,13 @@ Architect's routine mandate.
 
 Method lives in `doctrine/architecture/**` (workflow, controls, methods, reviews, templates,
 schemas) and `references/manual.md`. Progressive loading: load the current workflow phase plus the
-triggered method only. At entry, apply `doctrine/architecture/00-charter-significance-tailoring.md`
+triggered method only. At entry, read `references/manual.md`, apply
+`doctrine/architecture/00-charter-significance-tailoring.md`
 before creating an architecture record or choosing depth: insignificant questions get a direct D0
 answer with no architecture record; significant work follows the charter's D1/D2 routing and
-objective rules. Start new significant work at
+objective rules. State the charter result (significance, depth, objective) before answering; assessing or
+improving the shape of an existing subsystem is significant, not D0. For D1/D2 work that reshapes modules,
+interfaces, or ownership, load `doctrine/architecture/methods/add.md` before recommending. Start new significant work at
 `doctrine/architecture/workflow/01-frame.md`; for continuing work, resume the recorded current
 phase instead of restarting. D2 `best_shape` means complete the relevant
 architecture reasoning to a defensible recommendation, not invoke every specialist framework.

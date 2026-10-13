@@ -390,11 +390,14 @@ pub fn execute(
                         let gap = format!("invalid-provider-result:{}:{error}", provider.id);
                         gaps.push(gap.clone());
                         failed.insert(provider.id.clone());
-                        results.push(failed_execution(
+                        results.push(failed_execution_with_diagnostic(
                             provider,
                             gap,
                             "invalid-provider-result",
                             false,
+                            Some(serde_json::to_value(&result).unwrap_or_else(|serialization_error| {
+                                serde_json::json!({"serializationError":serialization_error.to_string()})
+                            })),
                         )?);
                         continue;
                     }
@@ -579,7 +582,15 @@ pub async fn execute_with_cancellation(
                         let gap = format!("invalid-provider-result:{}:{error}", provider.id);
                         gaps.push(gap.clone());
                         failed.insert(provider.id.clone());
-                        failed_execution(provider, gap, "invalid-provider-result", false)?
+                        failed_execution_with_diagnostic(
+                            provider,
+                            gap,
+                            "invalid-provider-result",
+                            false,
+                            Some(serde_json::to_value(&result).unwrap_or_else(|serialization_error| {
+                                serde_json::json!({"serializationError":serialization_error.to_string()})
+                            })),
+                        )?
                     } else {
                         if result.complete
                             && matches!(
@@ -661,6 +672,20 @@ fn failed_execution(
     degradation: &str,
     skipped: bool,
 ) -> Result<ProviderExecution, AuditError> {
+    failed_execution_with_diagnostic(provider, gap, degradation, skipped, None)
+}
+
+fn failed_execution_with_diagnostic(
+    provider: &AuditProvider,
+    gap: String,
+    degradation: &str,
+    skipped: bool,
+    diagnostic: Option<Value>,
+) -> Result<ProviderExecution, AuditError> {
+    let mut details = BTreeMap::new();
+    if let Some(diagnostic) = diagnostic {
+        details.insert("invalidProviderResult".into(), diagnostic);
+    }
     Ok(ProviderExecution {
         provider: provider.id.clone(),
         skipped,
@@ -679,7 +704,7 @@ fn failed_execution(
             findings: Vec::new(),
             coverage_gaps: vec![gap],
             degradation: vec![degradation.into()],
-            details: BTreeMap::new(),
+            details,
         },
     })
 }
@@ -1610,6 +1635,33 @@ mod tests {
             qualification_digest: None,
             required: true,
         }
+    }
+
+    #[test]
+    fn invalid_provider_result_is_quarantined_without_promoting_its_claims() {
+        let diagnostic = serde_json::json!({
+            "status":"ok",
+            "complete":true,
+            "findings":[{"id":"untrusted-finding","severity":"critical"}],
+            "details":{"raw":"preserve me"}
+        });
+        let execution = failed_execution_with_diagnostic(
+            &provider(),
+            "invalid-provider-result:fixture-provider:malformed".into(),
+            "invalid-provider-result",
+            false,
+            Some(diagnostic.clone()),
+        )
+        .unwrap();
+
+        assert_eq!(execution.result.status, ProviderStatus::Failed);
+        assert!(!execution.result.complete);
+        assert!(execution.result.findings.is_empty());
+        assert!(execution.result.coverage_gaps[0].starts_with("invalid-provider-result:"));
+        assert_eq!(
+            execution.result.details["invalidProviderResult"],
+            diagnostic
+        );
     }
 
     fn receipt(state: &str, complete: bool, gaps: Value) -> Value {

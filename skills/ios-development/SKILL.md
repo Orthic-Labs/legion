@@ -1,6 +1,6 @@
 ---
 name: ios-development
-description: "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host."
+description: "Build, change, debug, test, or optimize SwiftUI/UIKit app code and Apple-native components for iPhone and iPad, including shared SwiftUI in iOS/macOS packages: views, lists, navigation, accessibility, Swift concurrency, SwiftData/Core Data, SwiftPM/Xcode builds and tests, simulator behavior, and release preparation. Load before editing Swift UI code; preserve an existing cross-platform host."
 kind: capability
 capabilityClass: domain
 discoverability: public
