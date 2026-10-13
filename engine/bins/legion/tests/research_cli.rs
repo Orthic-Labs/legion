@@ -5,13 +5,13 @@ use std::{collections::BTreeMap, process::Command};
 #[test]
 fn research_consumes_host_injected_sources_with_receipts() {
     let text = "Source-grounded native research evidence.";
-    let source = |id: &str, provider: &str, receipt: &str| {
+    let source = |id: &str, provider: &str, receipt: &str, uri: &str| {
         serde_json::json!({
             "schema_version": 1,
             "source_id": id,
             "kind": "web",
             "provider": provider,
-            "uri": "https://example.test/source",
+            "uri": uri,
             "title": "Fixture source",
             "retrieved_at": "2026-08-25T00:00:00Z",
             "content_digest": format!(
@@ -35,12 +35,24 @@ fn research_consumes_host_injected_sources_with_receipts() {
     ));
     std::fs::write(
         &path_one,
-        serde_json::to_vec(&source("source-1", "host-web-a", "fixture-request-1")).unwrap(),
+        serde_json::to_vec(&source(
+            "source-1",
+            "host-web-a",
+            "fixture-request-1",
+            "https://alpha.example/source",
+        ))
+        .unwrap(),
     )
     .unwrap();
     std::fs::write(
         &path_two,
-        serde_json::to_vec(&source("source-2", "host-web-b", "fixture-request-2")).unwrap(),
+        serde_json::to_vec(&source(
+            "source-2",
+            "host-web-b",
+            "fixture-request-2",
+            "https://beta.example/source",
+        ))
+        .unwrap(),
     )
     .unwrap();
 
@@ -481,4 +493,96 @@ fn research_apply_patch_rejects_wrong_run_and_multifile_diff_without_writes() {
     assert_eq!(multifile.status.code(), Some(4));
     assert_eq!(std::fs::read_to_string(&draft).unwrap(), original);
     let _ = std::fs::remove_dir_all(dir);
+}
+
+fn run_independence(
+    tag: &str,
+    rows: &[(&str, &str)],
+    extra: &[&str],
+) -> (Option<i32>, serde_json::Value) {
+    let text = "Source-grounded native research evidence.";
+    let mut args = vec![
+        "research".to_string(),
+        "--query".into(),
+        "fixture query".into(),
+    ];
+    let mut paths = Vec::new();
+    for (index, (provider, uri)) in rows.iter().enumerate() {
+        let path = std::env::temp_dir().join(format!(
+            "legion-research-indep-{}-{tag}-{index}.json",
+            std::process::id()
+        ));
+        let record = serde_json::json!({
+            "schema_version": 1,
+            "source_id": format!("source-{index}"),
+            "kind": "web",
+            "provider": provider,
+            "uri": uri,
+            "title": "Fixture source",
+            "retrieved_at": "2026-08-25T00:00:00Z",
+            "text": text,
+            "metadata": {"request_receipt": format!("req-{index}")}
+        });
+        std::fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+        args.push("--source-record".into());
+        args.push(path.to_str().unwrap().into());
+        paths.push(path);
+    }
+    args.extend(extra.iter().map(|value| value.to_string()));
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(&args)
+        .output()
+        .expect("native Legion research must execute");
+    for path in paths {
+        let _ = std::fs::remove_file(path);
+    }
+    (
+        output.status.code(),
+        serde_json::from_slice(&output.stdout).unwrap(),
+    )
+}
+
+#[test]
+fn research_independence_ignores_provider_label() {
+    let (code, same_label) = run_independence(
+        "labels-same",
+        &[
+            ("webfetch", "https://alpha.example/a"),
+            ("webfetch", "https://beta.example/b"),
+        ],
+        &["--provider", "webfetch"],
+    );
+    assert_eq!(code, Some(0), "{same_label}");
+    assert_eq!(same_label["independentProviders"], 2);
+
+    let (code, relabeled) = run_independence(
+        "relabel",
+        &[
+            ("one", "https://www.alpha.example/a"),
+            ("two", "https://alpha.example:8443/b"),
+        ],
+        &[],
+    );
+    assert_eq!(code, Some(2));
+    assert_eq!(relabeled["status"], "unproven");
+    assert_eq!(relabeled["independentProviders"], 1);
+}
+
+#[test]
+fn research_independence_without_url_is_self_declared_and_unmet() {
+    let rows = [("one", "corpus/doc-1.txt"), ("two", "corpus/doc-2.txt")];
+    let (code, strict) = run_independence("nourl", &rows, &[]);
+    assert_eq!(code, Some(2));
+    assert_eq!(strict["status"], "unproven");
+    assert_eq!(strict["independentProviders"], 0);
+    assert_eq!(strict["independence"]["selfDeclared"], true);
+
+    let (code, allowed) = run_independence(
+        "nourl-allowed",
+        &rows,
+        &["--allow-self-declared-independence"],
+    );
+    assert_eq!(code, Some(0), "{allowed}");
+    assert_eq!(allowed["independence"]["selfDeclared"], true);
+    assert_eq!(allowed["independence"]["selfDeclaredCounted"], true);
 }

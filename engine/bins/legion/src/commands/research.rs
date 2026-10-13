@@ -82,6 +82,11 @@ pub struct ResearchArgs {
     pub source_records: Vec<PathBuf>,
     #[arg(long, default_value_t = 2)]
     pub min_independent_providers: usize,
+    /// Let records without a usable URL count toward `--min-independent-providers` using their
+    /// self-declared `provider` label. Off by default: independence otherwise rests on source
+    /// identity (registrable domain), never on a label the host controls.
+    #[arg(long)]
+    pub allow_self_declared_independence: bool,
     /// Convenience route domain (default: general); conflicts with --route-json are refused.
     #[arg(long)]
     pub domain: Option<String>,
@@ -97,6 +102,7 @@ fn terminal_unproven(
     available_source_records: usize,
     independent_provider_count: usize,
     required_independent_providers: usize,
+    independence: Value,
     external_requests: usize,
     route: &legion_research::ResearchRoute,
     authorization: &legion_research::ResearchAuthorization,
@@ -149,6 +155,7 @@ fn terminal_unproven(
         "availableSourceRecords": available_source_records,
         "independentProviders": independent_provider_count,
         "requiredIndependentProviders": required_independent_providers,
+        "independence": independence,
         "failures": report.omissions.clone(),
         "externalRequests": receipt.external_requests,
         "report": report,
@@ -279,6 +286,7 @@ fn terminal_route_unavailable(
         0,
         0,
         1,
+        Value::Null,
         0,
         route,
         authorization,
@@ -420,6 +428,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             0,
             0,
             args.min_independent_providers,
+            Value::Null,
             0,
             &route,
             &authorization,
@@ -441,10 +450,15 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>()
     };
-    let independent_provider_count = providers
-        .iter()
-        .filter(|provider| records.contains_key(*provider))
-        .count();
+    let independence = legion_research::summarize_independence(
+        records
+            .iter()
+            .filter(|(provider, _)| providers.contains(*provider))
+            .flat_map(|(_, sources)| sources.iter()),
+    );
+    let independent_provider_count = independence.count(args.allow_self_declared_independence);
+    let independence_basis =
+        independence_basis_json(&independence, args.allow_self_declared_independence);
     if independent_provider_count < args.min_independent_providers {
         failures.push(legion_research::SourceFailure {
             provider: "provider-denominator".into(),
@@ -457,6 +471,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             records.values().flatten().count(),
             independent_provider_count,
             args.min_independent_providers,
+            independence_basis,
             records
                 .values()
                 .flatten()
@@ -527,6 +542,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         "externalRequests": external_requests,
         "independentProviders": independent_provider_count,
         "requiredIndependentProviders": args.min_independent_providers,
+        "independence": independence_basis,
         "digestComputedByRoute": !digest_computed_source_ids.is_empty(),
         "digestComputedSourceIds": digest_computed_source_ids,
         "evidence": evidence,
@@ -535,6 +551,20 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         "budget": outcome.budget,
         "stages": outcome.stages
     }))
+}
+
+/// Truthful independence report: count basis, keys, and whether any key is self-declared.
+fn independence_basis_json(
+    summary: &legion_research::IndependenceSummary,
+    allow_self_declared: bool,
+) -> Value {
+    json!({
+        "basis": "source-identity-registrable-domain",
+        "sourceIdentityKeys": summary.source_identity_keys,
+        "selfDeclaredKeys": summary.self_declared_keys,
+        "selfDeclared": !summary.self_declared_keys.is_empty(),
+        "selfDeclaredCounted": allow_self_declared && !summary.self_declared_keys.is_empty(),
+    })
 }
 
 struct RecordSource {

@@ -15,7 +15,10 @@ pub use error::ResearchError;
 pub use evidence::{Claim, EvidenceKind, EvidenceLedger, EvidenceRecord};
 pub use receipt::ResearchReceipt;
 pub use report::{ReportClaim, ReportStatus, ResearchReport};
-pub use source::{InjectedSource, SourceClient, SourceHit, SourceKind, SourceRecord};
+pub use source::{
+    registrable_domain, summarize_independence, IndependenceBasis, IndependenceKey,
+    IndependenceSummary, InjectedSource, SourceClient, SourceHit, SourceKind, SourceRecord,
+};
 pub use workflow::{
     Cancellation, NullableString, ResearchAuthorization, ResearchNumber, ResearchPatient,
     ResearchRoute, ResearchSubject, ResearchValue, ResearchWorkflow, SourceFailure, StageRecord,

@@ -270,6 +270,140 @@ pub trait SourceClient: Send + Sync {
     ) -> Result<SourceRecord, ResearchError>;
 }
 
+/// How a source's independence key was derived.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IndependenceBasis {
+    /// Derived from the host/registrable domain of the record's canonical URL.
+    SourceIdentity,
+    /// No usable URL: the key is the free-text `provider` label the host supplied.
+    SelfDeclared,
+}
+
+/// Independence key of one source record plus how it was derived.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct IndependenceKey {
+    pub key: String,
+    pub basis: IndependenceBasis,
+}
+
+/// Independence tally over a set of source records.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct IndependenceSummary {
+    /// Distinct keys derived from source identity (domains).
+    pub source_identity_keys: Vec<String>,
+    /// Distinct provider labels used only because a record had no usable URL.
+    pub self_declared_keys: Vec<String>,
+}
+
+impl IndependenceSummary {
+    /// Independent-source count. Self-declared keys count only when explicitly allowed.
+    pub fn count(&self, allow_self_declared: bool) -> usize {
+        self.source_identity_keys.len()
+            + if allow_self_declared {
+                self.self_declared_keys.len()
+            } else {
+                0
+            }
+    }
+}
+
+/// Normalized registrable-domain approximation of an http(s) URL: lowercase, userinfo, port,
+/// path and leading `www.` removed; hosts reduce to their last two labels (three under common
+/// two-letter-country second-level suffixes such as `co.uk`). IP literals are kept whole. The
+/// approximation errs toward merging hosts, so it can under-count but not inflate independence.
+pub fn registrable_domain(uri: &str) -> Option<String> {
+    let trimmed = uri.trim();
+    let (scheme, rest) = trimmed.split_once("://")?;
+    if !matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https") {
+        return None;
+    }
+    let authority = rest.split(['/', '?', '#']).next()?;
+    let authority = authority.rsplit('@').next()?;
+    let host = if let Some(stripped) = authority.strip_prefix('[') {
+        let inner = stripped.split(']').next()?;
+        return (!inner.is_empty()).then(|| format!("[{}]", inner.to_ascii_lowercase()));
+    } else {
+        authority.split(':').next()?
+    };
+    // Alternate spellings of one host (unicode vs punycode, percent-encoding) would
+    // otherwise yield distinct keys; such hosts fall back to self-declared independence.
+    if !host.is_ascii() || host.contains('%') {
+        return None;
+    }
+    let host = host.trim_end_matches('.').to_ascii_lowercase();
+    let host = host.strip_prefix("www.").unwrap_or(&host).to_owned();
+    if host.is_empty() {
+        return None;
+    }
+    if !host.contains('.') {
+        return Some(host);
+    }
+    let labels = host.split('.').collect::<Vec<_>>();
+    if labels
+        .iter()
+        .all(|label| label.chars().all(|c| c.is_ascii_digit()))
+    {
+        return Some(host);
+    }
+    let n = labels.len();
+    if n <= 2 {
+        return Some(host);
+    }
+    let second_level = matches!(
+        labels[n - 2],
+        "co" | "com" | "org" | "net" | "gov" | "edu" | "ac" | "or" | "ne" | "go"
+    );
+    let take = if second_level && labels[n - 1].len() == 2 {
+        3
+    } else {
+        2
+    };
+    Some(labels[n - take.min(n)..].join("."))
+}
+
+impl SourceRecord {
+    /// Independence key from source identity: `metadata.canonical_url` when present, else `uri`,
+    /// reduced to a registrable domain. Falls back to the `provider` label (flagged
+    /// self-declared) only when neither is an http(s) URL.
+    pub fn independence_key(&self) -> IndependenceKey {
+        let canonical = self.metadata.get("canonical_url").map(String::as_str);
+        if let Some(domain) = canonical
+            .and_then(registrable_domain)
+            .or_else(|| registrable_domain(&self.uri))
+        {
+            return IndependenceKey {
+                key: domain,
+                basis: IndependenceBasis::SourceIdentity,
+            };
+        }
+        IndependenceKey {
+            key: self.provider.trim().to_ascii_lowercase(),
+            basis: IndependenceBasis::SelfDeclared,
+        }
+    }
+}
+
+/// Tally independent keys across records. The `provider` label never contributes to a
+/// source-identity key.
+pub fn summarize_independence<'a>(
+    records: impl IntoIterator<Item = &'a SourceRecord>,
+) -> IndependenceSummary {
+    let mut identity = std::collections::BTreeSet::new();
+    let mut declared = std::collections::BTreeSet::new();
+    for record in records {
+        let key = record.independence_key();
+        match key.basis {
+            IndependenceBasis::SourceIdentity => identity.insert(key.key),
+            IndependenceBasis::SelfDeclared => declared.insert(key.key),
+        };
+    }
+    IndependenceSummary {
+        source_identity_keys: identity.into_iter().collect(),
+        self_declared_keys: declared.into_iter().collect(),
+    }
+}
+
 pub type InjectedSource = Arc<dyn SourceClient>;
 
 #[cfg(test)]
@@ -291,6 +425,52 @@ mod tests {
             text: text.into(),
             metadata: BTreeMap::from([("request_receipt".into(), "request-1".into())]),
         }
+    }
+
+    fn rec(provider: &str, uri: &str) -> SourceRecord {
+        let mut record = source();
+        record.provider = provider.into();
+        record.uri = uri.into();
+        record
+    }
+
+    #[test]
+    fn same_label_different_domains_are_independent() {
+        let a = rec("webfetch", "https://www.cpsc.gov/faq");
+        let b = rec("webfetch", "https://helmets.org:443/replace/");
+        let summary = summarize_independence([&a, &b]);
+        assert_eq!(summary.count(false), 2);
+        assert!(summary.self_declared_keys.is_empty());
+    }
+
+    #[test]
+    fn different_labels_same_domain_are_not_independent() {
+        let a = rec("alpha", "https://news.example.co.uk/a");
+        let b = rec("beta", "https://WWW.Example.co.uk:8080/b?x=1");
+        let c = rec("gamma", "https://example.co.uk/c");
+        let summary = summarize_independence([&a, &b, &c]);
+        assert_eq!(summary.count(false), 1);
+        assert_eq!(summary.count(true), 1);
+    }
+
+    #[test]
+    fn missing_url_is_self_declared_and_not_strictly_independent() {
+        let a = rec("one", "urn:corpus:doc-1");
+        let b = rec("two", "corpus/doc-2.txt");
+        let summary = summarize_independence([&a, &b]);
+        assert!(summary.source_identity_keys.is_empty());
+        assert_eq!(summary.self_declared_keys.len(), 2);
+        assert_eq!(summary.count(false), 0);
+        assert_eq!(summary.count(true), 2);
+        assert_eq!(a.independence_key().basis, IndependenceBasis::SelfDeclared);
+    }
+
+    #[test]
+    fn canonical_url_metadata_overrides_uri() {
+        let mut a = rec("x", "https://r.jina.ai/https://cpsc.gov/faq");
+        a.metadata
+            .insert("canonical_url".into(), "https://cpsc.gov/faq".into());
+        assert_eq!(a.independence_key().key, "cpsc.gov");
     }
 
     #[test]

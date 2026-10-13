@@ -44,7 +44,9 @@ TERMINAL: Receipt records route, effects, evidence, gaps, checks, verdict.
    enforces provider denominator & resource bounds. Open only the few sources the records need
    (fetch or Read the real page), then write one record per file with Edit (replace an empty `{}`
    stub after Reading it); use Write only for a new file. Run the route before researching
-   further. Shape: `references/source-record.example.json`; unknown keys are rejected.
+   further. Shape: `references/source-record.example.json`; unknown keys are rejected. Give each
+   record the real page URL in `uri`: independence is counted from its domain, not from `provider`.
+   Records without an http(s) URL are reported self-declared and do not meet the default requirement.
    `content_digest` (`sha256:` + hex of `text`) and `byte_length` (UTF-8 byte count of `text`)
    are optional: omit both and the route computes them and flags `digestComputedByRoute`. Never
    invent either value; a present value that does not match `text` is rejected.

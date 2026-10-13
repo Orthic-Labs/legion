@@ -22,7 +22,8 @@ domain classifier described below were built as a Python prototype
 the source checkout and `SKILL.md` calls it retired. The only thing that ships and runs is
 the native `legion research` command (`legion-research` crate). Its flags
 are: `--query`, `--provider`, `--max-hits`,
-`--source-record <record.json>` (host-opened evidence you supply), `--min-independent-providers`,
+`--source-record <record.json>` (host-opened evidence you supply), `--min-independent-providers`
+(counted by source domain; `--allow-self-declared-independence` admits URL-less records by label),
 `--domain`, and `--sensitivity` (defined in `engine/bins/legion/src/commands/research.rs`). A
 complete ResearchRoute v2 can be supplied with `--route-json <route.json>`; its `subject.query`
 must exactly match `--query`. Explicit `--domain` or `--sensitivity` values must agree with route
