@@ -1377,7 +1377,6 @@
       "capabilityClass": null,
       "discoverability": "explicit",
       "target": "workflow:watchdog",
-      "domain": null,
       "operations": [
         "execute",
         "produce"

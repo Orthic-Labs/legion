@@ -1305,6 +1305,7 @@
     },
     {
       "id": "watchdog",
+      "name": "watchdog",
       "description": "Invoke Legion Sentry for explicitly requested recurring supervision or a due watchdog checkpoint using independent host scheduling and read-only Oracle review.",
       "kind": "entrypoint",
       "discoverability": "explicit",
