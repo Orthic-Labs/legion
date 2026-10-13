@@ -84,7 +84,7 @@ fn claude_third_party_mcp_calls_leave_permissions_with_host() {
 }
 
 #[test]
-fn claude_classified_mcp_effects_remain_denied() {
+fn claude_classified_mcp_effects_require_user_confirmation() {
     for (tool, input) in [
         ("mcp__files__write_file", json!({})),
         ("mcp__mail__send_message", json!({})),
@@ -97,9 +97,11 @@ fn claude_classified_mcp_effects_remain_denied() {
             "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
             "tool_input": input
         }));
+        // External write/send/delete effects are never allowed by the hook;
+        // they go to the host approval prompt (plan v3 A7).
         assert_eq!(result["allowed"], false, "{result}");
-        assert_eq!(result["code"], "ARC_POLICY_DENIED");
-        assert_eq!(result["hookSpecificOutput"]["permissionDecision"], "deny");
+        assert_eq!(result["code"], "ARC_USER_CONFIRMATION_REQUIRED");
+        assert_eq!(result["hookSpecificOutput"]["permissionDecision"], "ask");
     }
 }
 
