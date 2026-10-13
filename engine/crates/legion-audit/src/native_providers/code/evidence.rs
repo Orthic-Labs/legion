@@ -142,6 +142,34 @@ fn extension_of(path: &str) -> String {
     }
 }
 
+fn unsupported_language_coverage(selected: &[&InventoryEntry]) -> Vec<Value> {
+    let mut by_extension: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for entry in selected {
+        let extension = extension_of(&entry.path);
+        let extension = if extension.is_empty() {
+            "(no extension)".to_owned()
+        } else {
+            extension
+        };
+        by_extension
+            .entry(extension)
+            .or_default()
+            .push(entry.path.clone());
+    }
+
+    by_extension
+        .into_iter()
+        .map(|(extension, paths)| {
+            json!({
+                "extension": extension,
+                "pathCount": paths.len(),
+                "samplePaths": paths.into_iter().take(20).collect::<Vec<_>>(),
+            })
+        })
+        .collect()
+}
+
 fn file_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
@@ -919,7 +947,7 @@ pub fn produce(
         }));
     }
 
-    let input = json!({
+    let mut input = json!({
         "files": selected.iter().map(|entry| json!({"path": entry.path})).collect::<Vec<_>>(),
         "context": Value::Object(context),
         "facts": [{
@@ -930,6 +958,9 @@ pub fn produce(
             "rules": rule_ids,
         }],
     });
+    if long_tail {
+        input["unsupportedLanguageCoverage"] = json!(unsupported_language_coverage(&selected));
+    }
 
     Ok(Produced {
         input,

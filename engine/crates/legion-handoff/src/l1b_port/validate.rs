@@ -37,11 +37,15 @@ pub fn clean_path_value(value: &str) -> String {
         .to_string()
 }
 
-/// Mirrors Python's `normalized_path`: does NOT resolve against the real
-/// filesystem for non-drive-letter paths in this port (no `Path.resolve()`
-/// equivalent without an actual cwd/symlink walk); callers on a POSIX-like
-/// absolute path get lexical normalization, matching the common case this
-/// validator is exercised against (already-absolute handoff/receipt paths).
+/// Lexical, metadata-only path normalization: unifies separators and trims a
+/// trailing `/`; for non-drive-letter paths it also collapses `.`/`..`
+/// segments, while drive-letter paths (`C:/...`) are NOT dot-collapsed.
+/// Optional Windows case-folding. It never touches the filesystem and is NOT
+/// a filesystem identity guarantee: symlinks, junctions, and `..` through a
+/// link are not followed. Do not use it alone for an authority decision;
+/// storage authorization goes through [`resolve_physical_existing`] /
+/// [`resolve_physical_receipt`] (see [`storage_errors`]). It remains valid for
+/// comparing declared packet text and for command-string binding.
 pub fn normalized_path(value: &str, windows: bool) -> String {
     let raw = clean_path_value(value).replace('\\', "/");
     let drive_re = drive_re();
@@ -84,6 +88,119 @@ fn drive_re() -> &'static Regex {
     &RE
 }
 
+/// Strips a Windows verbatim prefix (`\\?\C:\x` -> `C:\x`,
+/// `\\?\UNC\srv\sh` -> `\\srv\sh`) that `std::fs::canonicalize` produces on
+/// Windows, so physical paths compare against declared `C:\...` spellings.
+/// Pure string operation; POSIX physical paths never start with `\\?\` and are
+/// returned unchanged.
+pub fn strip_verbatim_prefix(value: &str) -> String {
+    if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else if let Some(rest) = value.strip_prefix(r"\\?\") {
+        rest.to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+/// Physical path as a display string without any Windows verbatim prefix.
+pub fn physical_path_string(path: &Path) -> String {
+    strip_verbatim_prefix(&path.to_string_lossy())
+}
+
+/// Physical identity of an artifact that must already exist: the real
+/// filesystem path with every symlink/junction/`..` followed. Resolution
+/// failure is an error; there is deliberately NO lexical fallback.
+///
+/// This is a point-in-time resolution, not confinement: the filesystem can
+/// change between this call and later reads/writes (TOCTOU).
+pub fn resolve_physical_existing(path: &Path) -> Result<PathBuf, String> {
+    std::fs::canonicalize(path)
+        .map_err(|e| format!("cannot resolve existing path {}: {e}", path.display()))
+}
+
+/// Physical identity of a receipt sidecar. The path must have a lexical
+/// basename (`Path::file_name`), checked BEFORE any filesystem call, because
+/// some platforms collapse a trailing `..` during lookup and would otherwise
+/// resolve it to a directory. If the receipt exists (including as a link, even
+/// a dangling one) it must canonicalize AND the canonical target must be a
+/// regular file (a directory, or a directory link/junction, is rejected). If it
+/// is absent (`NotFound`), its parent directory must canonicalize and the
+/// result is the canonical parent joined with the basename. Any other failure
+/// (missing parent, dangling link, non-directory parent, permission error, no
+/// basename such as `..`) is an error; there is no lexical fallback.
+///
+/// Same point-in-time caveat as [`resolve_physical_existing`].
+pub fn resolve_physical_receipt(path: &Path) -> Result<PathBuf, String> {
+    let name = path
+        .file_name()
+        .ok_or_else(|| format!("receipt path {} has no resolvable basename", path.display()))?;
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => {
+            let canonical = resolve_physical_existing(path)?;
+            let meta = std::fs::metadata(&canonical).map_err(|e| {
+                format!(
+                    "cannot inspect resolved receipt target {}: {e}",
+                    canonical.display()
+                )
+            })?;
+            if !meta.is_file() {
+                return Err(format!(
+                    "receipt path {} resolves to a non-file target {}",
+                    path.display(),
+                    canonical.display()
+                ));
+            }
+            Ok(canonical)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let parent = path
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .ok_or_else(|| {
+                    format!("receipt path {} has no resolvable parent", path.display())
+                })?;
+            let canonical_parent = std::fs::canonicalize(parent).map_err(|e| {
+                format!(
+                    "cannot resolve receipt parent directory {}: {e}",
+                    parent.display()
+                )
+            })?;
+            Ok(canonical_parent.join(name))
+        }
+        Err(e) => Err(format!(
+            "cannot inspect receipt path {}: {e}",
+            path.display()
+        )),
+    }
+}
+
+fn physical_norm(path: &Path, windows: bool) -> String {
+    normalized_path(&physical_path_string(path), windows)
+}
+
+fn has_forbidden_part(normalized_paths: &[&str]) -> bool {
+    normalized_paths.iter().any(|p| {
+        p.split('/')
+            .any(|part| FORBIDDEN_STORAGE_PARTS.contains(&part) || part.starts_with(".validator-"))
+    })
+}
+
+/// Storage authorization for a handoff packet and its sidecar receipt.
+///
+/// Authority decisions (forbidden temp/cache storage, `.md` suffix, receipt
+/// adjacency, receipt basename) are made on PHYSICAL paths: the existing
+/// artifact is canonicalized; the receipt is canonicalized if it exists, else
+/// its parent is canonicalized and the basename appended. If either cannot be
+/// resolved, the result is an error (fail closed, no lexical fallback). The
+/// forbidden-part check also still applies to the lexical spelling, so a path
+/// that looked forbidden before still is.
+///
+/// The declared `Packet path` / `Receipt path` labels are metadata and may
+/// match either the supplied lexical spelling or the physical path.
+///
+/// Canonicalization is point-in-time only; this makes no TOCTOU or
+/// full-confinement claim.
 pub fn storage_errors(
     text: &str,
     artifact: &Path,
@@ -96,33 +213,36 @@ pub fn storage_errors(
         clean_path_value(&label_value(text, "**Packet path:**").unwrap_or_default());
     let declared_receipt =
         clean_path_value(&label_value(text, "**Receipt path:**").unwrap_or_default());
-    let actual_artifact = artifact.to_path_buf();
     let receipt_arg = write_receipt.or(verify_receipt);
 
     if !artifact.is_absolute() {
         errors.push("validator requires absolute handoff file path".to_string());
     }
+    let physical_artifact = match resolve_physical_existing(artifact) {
+        Ok(p) => p,
+        Err(e) => {
+            errors.push(format!(
+                "handoff path cannot be resolved to a physical location: {e}"
+            ));
+            return errors;
+        }
+    };
+    let lexical_artifact = normalized_path(&artifact.to_string_lossy(), windows);
+    let physical_artifact_norm = physical_norm(&physical_artifact, windows);
+
     if !is_absolute_path(&declared_artifact) {
         errors.push("declared handoff packet path must be absolute".to_string());
-    } else if normalized_path(&declared_artifact, windows)
-        != normalized_path(&actual_artifact.to_string_lossy(), windows)
-    {
-        errors.push("declared handoff packet path does not match validated file".to_string());
+    } else {
+        let declared = normalized_path(&declared_artifact, windows);
+        if declared != lexical_artifact && declared != physical_artifact_norm {
+            errors.push("declared handoff packet path does not match validated file".to_string());
+        }
     }
 
-    let artifact_parts: BTreeSet<String> =
-        normalized_path(&actual_artifact.to_string_lossy(), windows)
-            .split('/')
-            .map(|s| s.to_string())
-            .collect();
-    if artifact_parts
-        .iter()
-        .any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
-        || artifact_parts.iter().any(|p| p.starts_with(".validator-"))
-    {
+    if has_forbidden_part(&[lexical_artifact.as_str(), physical_artifact_norm.as_str()]) {
         errors.push("canonical handoff cannot use temporary/cache/review-run storage".to_string());
     }
-    let suffix_is_md = actual_artifact
+    let suffix_is_md = physical_artifact
         .extension()
         .map(|e| e.to_string_lossy().to_lowercase() == "md")
         .unwrap_or(false);
@@ -137,41 +257,47 @@ pub fn storage_errors(
     if !receipt_arg.is_absolute() {
         errors.push("validator requires absolute receipt path".to_string());
     }
+    let physical_receipt = match resolve_physical_receipt(receipt_arg) {
+        Ok(p) => p,
+        Err(e) => {
+            errors.push(format!(
+                "receipt path cannot be resolved to a physical location: {e}"
+            ));
+            return errors;
+        }
+    };
+    let lexical_receipt = normalized_path(&receipt_arg.to_string_lossy(), windows);
+    let physical_receipt_norm = physical_norm(&physical_receipt, windows);
+
     if !is_absolute_path(&declared_receipt) {
         errors.push("declared receipt path must be absolute".to_string());
-    } else if normalized_path(&declared_receipt, windows)
-        != normalized_path(&receipt_arg.to_string_lossy(), windows)
-    {
-        errors.push("declared receipt path does not match validator receipt argument".to_string());
+    } else {
+        let declared = normalized_path(&declared_receipt, windows);
+        if declared != lexical_receipt && declared != physical_receipt_norm {
+            errors.push(
+                "declared receipt path does not match validator receipt argument".to_string(),
+            );
+        }
     }
-    let receipt_parent = receipt_arg.parent().unwrap_or_else(|| Path::new(""));
-    let artifact_parent = actual_artifact.parent().unwrap_or_else(|| Path::new(""));
-    if normalized_path(&receipt_parent.to_string_lossy(), windows)
-        != normalized_path(&artifact_parent.to_string_lossy(), windows)
-    {
+
+    let receipt_parent = physical_receipt.parent().unwrap_or_else(|| Path::new(""));
+    let artifact_parent = physical_artifact.parent().unwrap_or_else(|| Path::new(""));
+    if physical_norm(receipt_parent, windows) != physical_norm(artifact_parent, windows) {
         errors.push("handoff receipt must be adjacent to canonical packet".to_string());
     }
-    let stem = actual_artifact
+    let stem = physical_artifact
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_default();
     let expected_receipt = format!("{stem}.receipt.json");
-    let receipt_name = receipt_arg
+    let receipt_name = physical_receipt
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_default();
     if receipt_name != expected_receipt {
         errors.push(format!("handoff receipt must be named {expected_receipt}"));
     }
-    let receipt_parts: BTreeSet<String> = normalized_path(&receipt_arg.to_string_lossy(), windows)
-        .split('/')
-        .map(|s| s.to_string())
-        .collect();
-    if receipt_parts
-        .iter()
-        .any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p.as_str()))
-        || receipt_parts.iter().any(|p| p.starts_with(".validator-"))
-    {
+    if has_forbidden_part(&[lexical_receipt.as_str(), physical_receipt_norm.as_str()]) {
         errors.push("handoff receipt cannot use temporary/cache/review-run storage".to_string());
     }
     errors
@@ -352,6 +478,195 @@ fn action_re() -> &'static Regex {
 fn placeholder_re() -> &'static Regex {
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{\{[^{}\n]+\}\}").unwrap());
     &RE
+}
+
+/// Minimal whitespace tokenizer for a single documented validator command
+/// line. Single/double quotes group a token (no escapes; backslashes are
+/// literal so Windows paths survive). Returns `None` on an unterminated quote.
+/// This is deliberately NOT a shell parser: operators such as `;`, `&&`, `|`
+/// are just ordinary tokens and therefore fail the exact-shape checks below.
+fn split_command_tokens(command: &str) -> Option<Vec<String>> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_token = false;
+    let mut quote: Option<char> = None;
+    for c in command.chars() {
+        match quote {
+            Some(q) => {
+                if c == q {
+                    quote = None;
+                } else {
+                    current.push(c);
+                }
+            }
+            None => {
+                if c == '\'' || c == '"' {
+                    quote = Some(c);
+                    in_token = true;
+                } else if c.is_whitespace() {
+                    if in_token {
+                        tokens.push(std::mem::take(&mut current));
+                        in_token = false;
+                    }
+                } else {
+                    current.push(c);
+                    in_token = true;
+                }
+            }
+        }
+    }
+    if quote.is_some() {
+        return None;
+    }
+    if in_token {
+        tokens.push(current);
+    }
+    Some(tokens)
+}
+
+fn token_basename(token: &str) -> String {
+    token
+        .replace('\\', "/")
+        .rsplit('/')
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// Legacy interpreter executable kinds.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Interpreter {
+    /// `python`, `python<digits>`, `python<digits>.<digits>` (optional `.exe`).
+    Python,
+    /// Windows `py` launcher: `py` / `py.exe`.
+    PyLauncher,
+}
+
+/// Classifies the executable token by basename (case-insensitive, optional
+/// single `.exe`, any directory prefix). Malformed names such as `python.`,
+/// `python3.`, `python..`, `python3.12.1`, `python3x` are not interpreters.
+fn interpreter_kind(token: &str) -> Option<Interpreter> {
+    let base = token_basename(token).to_lowercase();
+    let base = base.strip_suffix(".exe").unwrap_or(&base);
+    if base == "py" {
+        return Some(Interpreter::PyLauncher);
+    }
+    let version = base.strip_prefix("python")?;
+    let digits = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+    let ok = match version.split_once('.') {
+        None => version.is_empty() || digits(version),
+        Some((major, minor)) => digits(major) && digits(minor),
+    };
+    ok.then_some(Interpreter::Python)
+}
+
+/// Exact `py` launcher selector token: `-2` or `-3`, optionally `.<digits>`,
+/// optionally `-32`, `-64`, or `-arm64` (e.g. `-3`, `-3.11`, `-3.12-64`).
+/// Rejects `-0`, `-0p`, `-V:...`, `--list`, `-3.`, `-4`, `-3-16`, etc.
+fn is_py_launcher_selector(token: &str) -> bool {
+    let Some(body) = token.strip_prefix('-') else {
+        return false;
+    };
+    let (version, arch) = match body.split_once('-') {
+        Some((v, a)) => (v, Some(a)),
+        None => (body, None),
+    };
+    let digits = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+    let mut parts = version.split('.');
+    let major_ok = matches!(parts.next(), Some("2" | "3"));
+    let minor_ok = parts.next().map_or(true, digits);
+    major_ok
+        && minor_ok
+        && parts.next().is_none()
+        && arch.map_or(true, |a| matches!(a, "32" | "64" | "arm64"))
+}
+
+/// Allow-list for interpreter options after the (optional) launcher selector
+/// and before the script: only no-argument file-mode switches, single letters
+/// from `bBdEIOPqRsSuv`, optionally clustered (`-IB`, `-bb`, `-OO`). Everything
+/// else is rejected, notably `-c`/`-m` (and attached forms like `-cprint(1)`,
+/// `-mpkg`, `-Ic`), argument-taking `-W`/`-X`, `-V`/`-h` (which do not run the
+/// script), `-i`, `-x`, `-`, `--`, every `--long` option, and ANY launcher
+/// selector or `-0` form: a selector is not a generic repeatable flag, so it is
+/// only legal immediately after `py` (see [`validator_args`]).
+fn python_flag_is_supported(token: &str) -> bool {
+    let Some(body) = token.strip_prefix('-') else {
+        return false;
+    };
+    !body.is_empty() && body.chars().all(|c| "bBdEIOPqRsSuv".contains(c))
+}
+
+/// Returns the argument tokens after the validator program if (and only if)
+/// the command starts with a recognized validator invocation:
+/// - native: `legion script handoff/validate-handoff ...`
+/// - legacy FILE-MODE, exact grammar:
+///   `[<python-exe> | <py-exe> [SELECTOR]] [NOARG_FLAG...] <path>/validate-handoff.py ...`
+///   - `<python-exe>`: basename `python`, `python<digits>`, or
+///     `python<digits>.<digits>` (optional `.exe`/directory);
+///   - `<py-exe>`: `py`/`py.exe`; only it may carry at most ONE selector,
+///     and only immediately after the executable (see
+///     [`is_py_launcher_selector`]; the real launcher honors only a first-arg
+///     control, and `-0`/`--list`/version/help print and exit);
+///   - then only known no-argument flags ([`python_flag_is_supported`]);
+///   - then the validator script by exact basename.
+///   Any other option returns `None`, because it could stop the script from
+///   being what is actually executed.
+fn validator_args(tokens: &[String]) -> Option<&[String]> {
+    if let [a, b, c, rest @ ..] = tokens {
+        if a == "legion" && b == "script" && c == "handoff/validate-handoff" {
+            return Some(rest);
+        }
+    }
+    let mut idx = 0;
+    if let Some(kind) = tokens.first().and_then(|t| interpreter_kind(t)) {
+        idx = 1;
+        if kind == Interpreter::PyLauncher
+            && tokens.get(idx).is_some_and(|t| is_py_launcher_selector(t))
+        {
+            idx += 1;
+        }
+        while let Some(token) = tokens.get(idx) {
+            if !token.starts_with('-') {
+                break;
+            }
+            if !python_flag_is_supported(token) {
+                return None;
+            }
+            idx += 1;
+        }
+    }
+    let script = tokens.get(idx)?;
+    if token_basename(script) == "validate-handoff.py" {
+        Some(&tokens[idx + 1..])
+    } else {
+        None
+    }
+}
+
+fn same_bound_path(token: &str, declared: &str) -> bool {
+    let token = clean_path_value(token);
+    let declared = clean_path_value(declared);
+    !declared.is_empty() && normalized_path(&token, false) == normalized_path(&declared, false)
+}
+
+/// True iff `command` is exactly one validator invocation (native or legacy)
+/// whose only arguments are the declared packet path and `flag` followed by
+/// the declared receipt path (packet-first or flag-first). Any extra token
+/// (including `--template-self-check`, a second flag, or shell operators),
+/// similarly named program, wrong flag, or unbound/different path is rejected.
+/// Path equality is lexical metadata comparison, not filesystem identity.
+fn command_binds_validator(command: &str, flag: &str, packet: &str, receipt: &str) -> bool {
+    let Some(tokens) = split_command_tokens(command) else {
+        return false;
+    };
+    let Some(args) = validator_args(&tokens) else {
+        return false;
+    };
+    match args {
+        [p, f, r] if f == flag => same_bound_path(p, packet) && same_bound_path(r, receipt),
+        [f, r, p] if f == flag => same_bound_path(p, packet) && same_bound_path(r, receipt),
+        _ => false,
+    }
 }
 
 pub fn label_value(text: &str, label: &str) -> Option<String> {
@@ -691,14 +1006,10 @@ pub fn validate(text: &str, template: bool) -> Vec<String> {
                 "--verify-receipt",
             ),
         ] {
-            let normalized_command = normalized_path(command, false);
-            let ok = command.contains("validate-handoff.py")
-                && command.contains(flag)
-                && normalized_command.contains(&normalized_path(&declared_packet, false))
-                && normalized_command.contains(&normalized_path(&declared_receipt, false));
-            if !ok {
+            if !command_binds_validator(command, flag, &declared_packet, &declared_receipt) {
                 errors.push(format!(
-                    "{label} must execute validate-handoff.py with bound paths and {flag}"
+                    "{label} must execute `legion script handoff/validate-handoff` \
+                     (or legacy validate-handoff.py) with bound packet/receipt paths and {flag}"
                 ));
             }
         }
@@ -772,3 +1083,842 @@ pub fn normalized_pathbuf(value: &Path, windows: bool) -> String {
 
 #[allow(dead_code)]
 fn _unused(_p: PathBuf) {}
+
+/// Test-only scratch directories and link helpers shared with `cli.rs` tests.
+///
+/// Scratch roots live under the test executable's directory (inside the cargo
+/// target dir), NOT the OS temp dir, because `tmp`/`temp` path parts are
+/// forbidden storage and would make "valid path" cases fail on Linux. A root
+/// that still contains a forbidden part panics loudly rather than passing.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use super::{normalized_path, strip_verbatim_prefix, FORBIDDEN_STORAGE_PARTS};
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    pub struct TestRoot(pub PathBuf);
+
+    impl TestRoot {
+        pub fn new(label: &str) -> Self {
+            static NEXT: AtomicUsize = AtomicUsize::new(0);
+            let exe = std::env::current_exe().expect("current_exe");
+            let base = exe
+                .parent()
+                .expect("test exe has a parent dir")
+                .join("l1b-path-identity-tests");
+            let dir = base.join(format!(
+                "{label}-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::SeqCst)
+            ));
+            std::fs::create_dir_all(&dir).expect("create scratch root");
+            let canonical = std::fs::canonicalize(&dir).expect("canonicalize scratch root");
+            let canonical = PathBuf::from(strip_verbatim_prefix(&canonical.to_string_lossy()));
+            let norm = normalized_path(&canonical.to_string_lossy(), cfg!(windows));
+            let bad = norm.split('/').find(|part| {
+                FORBIDDEN_STORAGE_PARTS.contains(part) || part.starts_with(".validator-")
+            });
+            assert!(
+                bad.is_none(),
+                "test scratch root {norm} contains forbidden storage part {bad:?}; \
+                 run tests with a target dir outside temp/cache locations"
+            );
+            TestRoot(canonical)
+        }
+
+        pub fn join(&self, rel: &str) -> PathBuf {
+            self.0.join(rel)
+        }
+    }
+
+    impl Drop for TestRoot {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    pub fn write_file(path: &Path, body: &str) {
+        std::fs::create_dir_all(path.parent().expect("file has parent")).expect("create parent");
+        std::fs::write(path, body).expect("write file");
+    }
+
+    /// Directory symlink (Unix / Windows symlink) with a Windows junction
+    /// fallback when symlink privilege is unavailable. Panics if no link can be
+    /// created, so a platform that cannot link fails visibly instead of passing.
+    pub fn link_dir(link: &Path, target: &Path) {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, link).expect("create directory symlink");
+        }
+        #[cfg(windows)]
+        {
+            if std::os::windows::fs::symlink_dir(target, link).is_err() {
+                let out = std::process::Command::new("cmd")
+                    .args(["/C", "mklink", "/J"])
+                    .arg(link)
+                    .arg(target)
+                    .output()
+                    .expect("spawn cmd for mklink /J");
+                assert!(
+                    out.status.success(),
+                    "cannot create directory symlink or junction: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (link, target);
+            panic!("directory links unsupported on this platform");
+        }
+    }
+
+    #[cfg(unix)]
+    pub fn link_file(link: &Path, target: &Path) {
+        std::os::unix::fs::symlink(target, link).expect("create file symlink");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_support::{link_dir, write_file, TestRoot};
+    use super::*;
+
+    const WIN: bool = cfg!(windows);
+    const FORBIDDEN_ARTIFACT: &str =
+        "canonical handoff cannot use temporary/cache/review-run storage";
+    const FORBIDDEN_RECEIPT: &str = "handoff receipt cannot use temporary/cache/review-run storage";
+    const NOT_ADJACENT: &str = "handoff receipt must be adjacent to canonical packet";
+
+    fn text_for(packet: &Path, receipt: &Path) -> String {
+        format!(
+            "- **Packet path:** `{}`\n- **Receipt path:** `{}`\n",
+            packet.display(),
+            receipt.display()
+        )
+    }
+
+    fn check(artifact: &Path, receipt: &Path) -> Vec<String> {
+        storage_errors(
+            &text_for(artifact, receipt),
+            artifact,
+            Some(receipt),
+            None,
+            WIN,
+        )
+    }
+
+    fn lexical_has_forbidden(path: &Path) -> bool {
+        normalized_path(&path.to_string_lossy(), WIN)
+            .split('/')
+            .any(|p| FORBIDDEN_STORAGE_PARTS.contains(&p))
+    }
+
+    #[test]
+    fn normalized_path_is_lexical_metadata_only() {
+        assert_eq!(normalized_path("/a/b/../c/./d/", false), "/a/c/d");
+        // Drive-letter branch: separators are unified, the trailing `/` is
+        // trimmed, and (with `windows`) case is folded. `.`/`..` are NOT
+        // collapsed here (historical metadata behavior); only the non-drive
+        // branch collapses them.
+        assert_eq!(
+            normalized_path(r"C:\Users\X\..\Y\", true),
+            "c:/users/x/../y"
+        );
+        assert_eq!(
+            normalized_path(r"C:\Users\X\..\Y\", false),
+            "C:/Users/X/../Y"
+        );
+
+        // A link spelling normalizes to itself; the helper never follows it.
+        let root = TestRoot::new("lexical-only");
+        std::fs::create_dir_all(root.join("real")).unwrap();
+        link_dir(&root.join("stable"), &root.join("real"));
+        let link_path = root.join("stable");
+        let normalized = normalized_path(&link_path.to_string_lossy(), WIN);
+        assert!(normalized.ends_with("/stable"), "{normalized}");
+        assert!(!normalized.contains("/real"), "{normalized}");
+        // Physical resolution, by contrast, does follow the link.
+        let physical = resolve_physical_existing(&link_path).unwrap();
+        assert!(
+            physical_path_string(&physical).ends_with("real"),
+            "{physical:?}"
+        );
+    }
+
+    const PKT: &str = "<package-root>/skills/handoff/examples/validated-forward-test.md";
+    const RCP: &str = "<package-root>/skills/handoff/examples/validated-forward-test.receipt.json";
+    const NATIVE: &str = "legion script handoff/validate-handoff";
+
+    #[test]
+    fn documented_native_commands_bind_packet_receipt_and_flag() {
+        // Exact strings from skills/handoff examples/SKILL/manual.
+        let write = format!("{NATIVE} {PKT} --write-receipt {RCP}");
+        let verify = format!("{NATIVE} {PKT} --verify-receipt {RCP}");
+        assert!(command_binds_validator(&write, "--write-receipt", PKT, RCP));
+        assert!(command_binds_validator(
+            &verify,
+            "--verify-receipt",
+            PKT,
+            RCP
+        ));
+        // Same through the real fenced extraction used by validate().
+        let text = format!("- **Validator command:**\n\n```text\n{write}\n```\n");
+        let extracted = fenced_after(&text, "**Validator command:**").unwrap();
+        assert!(command_binds_validator(
+            &extracted,
+            "--write-receipt",
+            PKT,
+            RCP
+        ));
+    }
+
+    #[test]
+    fn legacy_python_invocation_is_still_accepted() {
+        for prefix in [
+            "python3 scripts/validate-handoff.py",
+            "python -I /x/scripts/validate-handoff.py",
+            "py C:\\x\\validate-handoff.py",
+            "/usr/bin/python3.12 -I -B ./validate-handoff.py",
+            "./validate-handoff.py",
+        ] {
+            let cmd = format!("{prefix} {PKT} --verify-receipt {RCP}");
+            assert!(
+                command_binds_validator(&cmd, "--verify-receipt", PKT, RCP),
+                "{cmd}"
+            );
+        }
+        // Flag-first argument order is also a valid argparse spelling.
+        let cmd = format!("{NATIVE} --write-receipt {RCP} {PKT}");
+        assert!(command_binds_validator(&cmd, "--write-receipt", PKT, RCP));
+    }
+
+    #[test]
+    fn supported_python_file_mode_flags_and_launcher_selectors_are_accepted() {
+        for prefix in [
+            "python3 validate-handoff.py",
+            "python3 -I validate-handoff.py",
+            "python3 -B -s validate-handoff.py",
+            "python3 -IB validate-handoff.py",
+            "python3 -bb -OO -vv -u -E -S -q -R -P -d validate-handoff.py",
+            "python3.12.exe -I validate-handoff.py",
+            "py validate-handoff.py",
+            "py -3 validate-handoff.py",
+            "py -3.12 -I validate-handoff.py",
+            "py -3.12-64 validate-handoff.py",
+            "py -3-32 validate-handoff.py",
+            "PY.EXE -3.13-arm64 -B C:\\x\\validate-handoff.py",
+        ] {
+            let cmd = format!("{prefix} {PKT} --write-receipt {RCP}");
+            assert!(
+                command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must accept: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn python_code_module_and_unsupported_options_are_rejected() {
+        // `-c`/`-m` make Python run something other than the script, so the
+        // trailing `validate-handoff.py` would just be an argv string.
+        for prefix in [
+            "python3 -c validate-handoff.py",
+            "python3 -m validate-handoff.py",
+            "python3 -I -c validate-handoff.py",
+            "python3 -c -I validate-handoff.py",
+            "python3 -cprint(1) validate-handoff.py",
+            "python3 -mhttp.server validate-handoff.py",
+            "python3 -Ic validate-handoff.py",
+            "python3 -Im validate-handoff.py",
+            "python3 -Bc validate-handoff.py",
+            "python3 -mI validate-handoff.py",
+            // argument-taking options, separated and attached
+            "python3 -W error validate-handoff.py",
+            "python3 -Werror validate-handoff.py",
+            "python3 -X utf8 validate-handoff.py",
+            "python3 -Xutf8 validate-handoff.py",
+            "python3 -IWignore validate-handoff.py",
+            // options that do not run the script, or change mode
+            "python3 -V validate-handoff.py",
+            "python3 --version validate-handoff.py",
+            "python3 -h validate-handoff.py",
+            "python3 --help validate-handoff.py",
+            "python3 -i validate-handoff.py",
+            "python3 -x validate-handoff.py",
+            "python3 -- validate-handoff.py",
+            "python3 - validate-handoff.py",
+            "python3 --check-hash-based-pycs always validate-handoff.py",
+            // launcher selectors are only valid for `py`, and must be well-formed
+            "python3 -3 validate-handoff.py",
+            "py -3. validate-handoff.py",
+            "py -3.12.1 validate-handoff.py",
+            "py -3-16 validate-handoff.py",
+            "py -V:3.12 validate-handoff.py",
+            "py -c validate-handoff.py",
+            "py -3 -m validate-handoff.py",
+        ] {
+            let cmd = format!("{prefix} {PKT} --write-receipt {RCP}");
+            assert!(
+                !command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must reject: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn interpreter_basename_grammar_is_exact() {
+        for exe in [
+            "python",
+            "python3",
+            "python3.12",
+            "python3.12.exe",
+            "PYTHON3.13.EXE",
+            "/usr/bin/python3",
+            "C:\\Python313\\python.exe",
+            "py",
+            "PY.EXE",
+            "C:\\Windows\\py.exe",
+        ] {
+            let cmd = format!("{exe} validate-handoff.py {PKT} --write-receipt {RCP}");
+            assert!(
+                command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must accept: {cmd}"
+            );
+        }
+        for exe in [
+            "python.",
+            "python3.",
+            "python..",
+            "python.3",
+            "python3..12",
+            "python3.12.",
+            "python3.12.1",
+            "python3.x",
+            "python3x",
+            "pythonw",
+            "python3.exe.exe",
+            "py3",
+            "py.",
+            "pyy",
+            "/usr/bin/python3.",
+        ] {
+            let cmd = format!("{exe} validate-handoff.py {PKT} --write-receipt {RCP}");
+            assert!(
+                !command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must reject: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn py_launcher_selector_is_single_and_immediately_after_executable() {
+        for prefix in [
+            "py -3.11 -I",
+            "py -3",
+            "py -2",
+            "py -2.7",
+            "py -3.11-64 -B -s",
+            "py -3-32",
+            "py.exe -3.13-arm64 -IB",
+            "C:\\Windows\\py.exe -3.12 -E",
+        ] {
+            let cmd = format!("{prefix} validate-handoff.py {PKT} --write-receipt {RCP}");
+            assert!(
+                command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must accept: {cmd}"
+            );
+        }
+        for prefix in [
+            // launcher list/info modes print and exit; never run the script
+            "py -0",
+            "py -0p",
+            "py --list",
+            "py --list-paths",
+            "py -V",
+            "py --version",
+            "py -h",
+            "py --help",
+            "py -V:3.12",
+            // selector after a flag (launcher only honors the first argument)
+            "py -I -3.11",
+            "py -B -3",
+            // duplicate / multiple selectors
+            "py -3.12 -3.11",
+            "py -3 -3",
+            "py -2 -3",
+            "py -3.11 -I -3.12",
+            // selector grammar: only 2/3, optional .digits, optional arch
+            "py -4",
+            "py -1",
+            "py -3.",
+            "py -3.x",
+            "py -3.11.2",
+            "py -3-",
+            "py -3-16",
+            "py -3.11-x64",
+            // selectors are not legal for non-launcher interpreters
+            "python3 -3",
+            "python3 -3.11",
+            "python3 -I -3.11",
+            // malformed interpreter, even with otherwise valid options
+            "python. -I",
+            "python3. -I",
+            "python.. -I",
+            "pythonmalformed -I",
+        ] {
+            let cmd = format!("{prefix} validate-handoff.py {PKT} --write-receipt {RCP}");
+            assert!(
+                !command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must reject: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn quoted_paths_with_spaces_bind_exactly() {
+        let cmd = format!("{NATIVE} \"/a b/h.md\" --write-receipt '/a b/h.receipt.json'");
+        assert!(command_binds_validator(
+            &cmd,
+            "--write-receipt",
+            "/a b/h.md",
+            "/a b/h.receipt.json"
+        ));
+    }
+
+    #[test]
+    fn unrelated_similar_or_unbound_commands_are_rejected() {
+        let bad = [
+            // unrelated program
+            format!("echo {PKT} --write-receipt {RCP}"),
+            format!("legion script handoff/other {PKT} --write-receipt {RCP}"),
+            format!("legion script other/validate-handoff {PKT} --write-receipt {RCP}"),
+            // similar program names
+            format!("legion script handoff/validate-handoff2 {PKT} --write-receipt {RCP}"),
+            format!("legion script handoff/validate-handoff.py {PKT} --write-receipt {RCP}"),
+            format!("python3 not-validate-handoff.py {PKT} --write-receipt {RCP}"),
+            format!("python3 validate-handoff.py.bak {PKT} --write-receipt {RCP}"),
+            format!("pythonx validate-handoff.py {PKT} --write-receipt {RCP}"),
+            // name only appears as an argument / in a larger string
+            format!("echo validate-handoff.py {PKT} --write-receipt {RCP}"),
+            format!("legion script handoff/validate-handoff-extra {PKT} --write-receipt {RCP}"),
+            // missing bound paths
+            format!("{NATIVE} --write-receipt {RCP}"),
+            format!("{NATIVE} {PKT} --write-receipt"),
+            format!("{NATIVE} {PKT}"),
+            NATIVE.to_string(),
+            String::new(),
+            // different paths / suffix-extended path (no substring matching)
+            format!("{NATIVE} {PKT}.bak --write-receipt {RCP}"),
+            format!("{NATIVE} {PKT} --write-receipt {RCP}.bak"),
+            format!("{NATIVE} /other/h.md --write-receipt {RCP}"),
+            format!("{NATIVE} {PKT} --write-receipt /other/h.receipt.json"),
+            // swapped roles
+            format!("{NATIVE} {RCP} --write-receipt {PKT}"),
+            // wrong flag
+            format!("{NATIVE} {PKT} --verify-receipt {RCP}"),
+            // self-check / authority bypass
+            format!("{NATIVE} {PKT} --template-self-check"),
+            format!("{NATIVE} {PKT} --template-self-check --write-receipt {RCP}"),
+            format!("{NATIVE} {PKT} --write-receipt {RCP} --template-self-check"),
+            // extra flag / chained commands / operators
+            format!("{NATIVE} {PKT} --write-receipt {RCP} --verify-receipt {RCP}"),
+            format!("{NATIVE} {PKT} --write-receipt {RCP}; rm -rf /"),
+            format!("{NATIVE} {PKT} --write-receipt {RCP} && echo ok"),
+            format!("echo ok && {NATIVE} {PKT} --write-receipt {RCP}"),
+            format!("echo {NATIVE} {PKT} --write-receipt {RCP}"),
+            // unterminated quote
+            format!("{NATIVE} \"{PKT} --write-receipt {RCP}"),
+        ];
+        for cmd in bad {
+            assert!(
+                !command_binds_validator(&cmd, "--write-receipt", PKT, RCP),
+                "must reject: {cmd}"
+            );
+        }
+        // Empty declared paths can never be bound.
+        let cmd = format!("{NATIVE} \"\" --write-receipt \"\"");
+        assert!(!command_binds_validator(&cmd, "--write-receipt", "", ""));
+    }
+
+    #[test]
+    fn verify_flag_is_enforced_for_receiver_check() {
+        let verify = format!("{NATIVE} {PKT} --verify-receipt {RCP}");
+        assert!(command_binds_validator(
+            &verify,
+            "--verify-receipt",
+            PKT,
+            RCP
+        ));
+        assert!(!command_binds_validator(
+            &verify,
+            "--write-receipt",
+            PKT,
+            RCP
+        ));
+    }
+
+    #[test]
+    fn strip_verbatim_prefix_handles_drive_unc_and_posix() {
+        assert_eq!(strip_verbatim_prefix(r"\\?\C:\a\b.md"), r"C:\a\b.md");
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\UNC\srv\sh\b.md"),
+            r"\\srv\sh\b.md"
+        );
+        assert_eq!(strip_verbatim_prefix("/a/b.md"), "/a/b.md");
+        assert_eq!(strip_verbatim_prefix(r"C:\a\b.md"), r"C:\a\b.md");
+    }
+
+    #[test]
+    fn existing_artifact_with_new_adjacent_receipt_passes() {
+        let root = TestRoot::new("normal-new");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&artifact, "body");
+        assert!(!receipt.exists());
+        let errors = check(&artifact, &receipt);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn existing_artifact_with_existing_receipt_passes() {
+        let root = TestRoot::new("normal-existing");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&artifact, "body");
+        write_file(&receipt, "{}");
+        let errors = check(&artifact, &receipt);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn verify_receipt_argument_is_checked_like_write_receipt() {
+        let root = TestRoot::new("verify-arg");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&artifact, "body");
+        write_file(&receipt, "{}");
+        let errors = storage_errors(
+            &text_for(&artifact, &receipt),
+            &artifact,
+            None,
+            Some(&receipt),
+            WIN,
+        );
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn non_forbidden_alias_resolving_to_same_dir_passes_with_either_declared_spelling() {
+        let root = TestRoot::new("alias-ok");
+        write_file(&root.join("real/h.md"), "body");
+        link_dir(&root.join("alias"), &root.join("real"));
+        let artifact = root.join("alias/h.md");
+        let receipt = root.join("alias/h.receipt.json");
+
+        let lexical_declared = check(&artifact, &receipt);
+        assert!(lexical_declared.is_empty(), "{lexical_declared:?}");
+
+        let physical_artifact = root.join("real/h.md");
+        let physical_receipt = root.join("real/h.receipt.json");
+        let physical_declared = storage_errors(
+            &text_for(&physical_artifact, &physical_receipt),
+            &artifact,
+            Some(&receipt),
+            None,
+            WIN,
+        );
+        assert!(physical_declared.is_empty(), "{physical_declared:?}");
+    }
+
+    #[test]
+    fn symlink_into_forbidden_cache_storage_is_rejected() {
+        let root = TestRoot::new("forbidden-link");
+        write_file(&root.join("cache/real/h.md"), "body");
+        link_dir(&root.join("stable"), &root.join("cache/real"));
+        let artifact = root.join("stable/h.md");
+        let receipt = root.join("stable/h.receipt.json");
+        // Precondition: the supplied spelling looks clean; only the physical
+        // location is forbidden.
+        assert!(!lexical_has_forbidden(&artifact));
+        assert!(!lexical_has_forbidden(&receipt));
+
+        let errors = check(&artifact, &receipt);
+        assert!(errors.iter().any(|e| e == FORBIDDEN_ARTIFACT), "{errors:?}");
+        assert!(errors.iter().any(|e| e == FORBIDDEN_RECEIPT), "{errors:?}");
+    }
+
+    #[test]
+    fn existing_receipt_symlinked_into_forbidden_storage_is_rejected() {
+        let root = TestRoot::new("forbidden-receipt-dir");
+        write_file(&root.join("ok/h.md"), "body");
+        write_file(&root.join("scratch/h.receipt.json"), "{}");
+        link_dir(&root.join("side"), &root.join("scratch"));
+        let artifact = root.join("ok/h.md");
+        let receipt = root.join("side/h.receipt.json");
+        assert!(!lexical_has_forbidden(&receipt));
+
+        let errors = check(&artifact, &receipt);
+        assert!(errors.iter().any(|e| e == FORBIDDEN_RECEIPT), "{errors:?}");
+        assert!(errors.iter().any(|e| e == NOT_ADJACENT), "{errors:?}");
+    }
+
+    #[test]
+    fn lexically_forbidden_path_is_still_rejected() {
+        let root = TestRoot::new("lexical-forbidden");
+        let artifact = root.join("cache/h.md");
+        let receipt = root.join("cache/h.receipt.json");
+        write_file(&artifact, "body");
+        let errors = check(&artifact, &receipt);
+        assert!(errors.iter().any(|e| e == FORBIDDEN_ARTIFACT), "{errors:?}");
+        assert!(errors.iter().any(|e| e == FORBIDDEN_RECEIPT), "{errors:?}");
+    }
+
+    #[test]
+    fn missing_artifact_fails_closed_without_lexical_fallback() {
+        let root = TestRoot::new("missing-artifact");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        // Lexically this would be a perfectly valid pair; it must still fail.
+        let errors = check(&artifact, &receipt);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].starts_with("handoff path cannot be resolved to a physical location"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn relative_artifact_is_rejected_as_not_absolute() {
+        let errors = storage_errors(
+            "- **Packet path:** `/x/h.md`\n- **Receipt path:** `/x/h.receipt.json`\n",
+            Path::new("definitely-missing-l1b-relative/h.md"),
+            Some(Path::new("/x/h.receipt.json")),
+            None,
+            false,
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "validator requires absolute handoff file path"),
+            "{errors:?}"
+        );
+        assert!(
+            errors.iter().any(|e| e.contains("cannot be resolved")),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn receipt_with_missing_parent_fails_closed() {
+        let root = TestRoot::new("missing-receipt-parent");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        let receipt = root.join("handoffs/no-such-dir/h.receipt.json");
+        let errors = check(&artifact, &receipt);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.starts_with("receipt path cannot be resolved to a physical location")),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn receipt_without_basename_fails_closed() {
+        let root = TestRoot::new("receipt-no-basename");
+        write_file(&root.join("handoffs/h.md"), "body");
+        // Lexical basename is checked before any filesystem call, so neither a
+        // nonexistent-component `..` nor an existing-directory `..` (which some
+        // platforms collapse to a directory during lookup) can slip through.
+        for rel in ["handoffs/missing/..", "handoffs/.."] {
+            let err = resolve_physical_receipt(&root.join(rel)).unwrap_err();
+            assert!(err.contains("basename"), "{rel}: {err}");
+        }
+    }
+
+    #[test]
+    fn existing_directory_or_directory_link_receipt_is_rejected() {
+        let root = TestRoot::new("receipt-is-directory");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        // A real directory named like the receipt.
+        let dir_receipt = root.join("handoffs/h.receipt.json");
+        std::fs::create_dir_all(&dir_receipt).unwrap();
+        let err = resolve_physical_receipt(&dir_receipt).unwrap_err();
+        assert!(err.contains("non-file target"), "{err}");
+        let errors = check(&artifact, &dir_receipt);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.starts_with("receipt path cannot be resolved to a physical location")),
+            "{errors:?}"
+        );
+
+        // A directory link/junction whose basename looks like the receipt.
+        std::fs::create_dir_all(root.join("elsewhere")).unwrap();
+        let link_receipt = root.join("handoffs/linked.receipt.json");
+        link_dir(&link_receipt, &root.join("elsewhere"));
+        let err = resolve_physical_receipt(&link_receipt).unwrap_err();
+        assert!(err.contains("non-file target"), "{err}");
+    }
+
+    #[test]
+    fn existing_regular_file_receipt_resolves_to_canonical_file() {
+        let root = TestRoot::new("receipt-regular-file");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&receipt, "{}");
+        let physical = resolve_physical_receipt(&receipt).unwrap();
+        // Expected value built component-wise so separators are native
+        // (canonical Windows paths use backslashes; `join("a/b")` would not).
+        let expected = root.0.join("handoffs").join("h.receipt.json");
+        assert_eq!(
+            physical_path_string(&physical),
+            physical_path_string(&expected)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dangling_receipt_symlink_fails_closed() {
+        use super::test_support::link_file;
+        let root = TestRoot::new("dangling-receipt");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        let receipt = root.join("handoffs/h.receipt.json");
+        link_file(&receipt, &root.join("handoffs/does-not-exist.json"));
+        let errors = check(&artifact, &receipt);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.starts_with("receipt path cannot be resolved to a physical location")),
+            "{errors:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dangling_artifact_symlink_fails_closed() {
+        use super::test_support::link_file;
+        let root = TestRoot::new("dangling-artifact");
+        std::fs::create_dir_all(root.join("handoffs")).unwrap();
+        let artifact = root.join("handoffs/h.md");
+        link_file(&artifact, &root.join("handoffs/gone.md"));
+        let errors = check(&artifact, &root.join("handoffs/h.receipt.json"));
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].starts_with("handoff path cannot be resolved"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn receipt_in_different_directory_is_rejected_as_nonadjacent() {
+        let root = TestRoot::new("plain-nonadjacent");
+        let artifact = root.join("a/h.md");
+        write_file(&artifact, "body");
+        std::fs::create_dir_all(root.join("b")).unwrap();
+        let errors = check(&artifact, &root.join("b/h.receipt.json"));
+        assert!(errors.iter().any(|e| e == NOT_ADJACENT), "{errors:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn artifact_symlink_makes_lexically_adjacent_receipt_nonadjacent() {
+        use super::test_support::link_file;
+        let root = TestRoot::new("artifact-link-nonadjacent");
+        write_file(&root.join("e/h.md"), "body");
+        std::fs::create_dir_all(root.join("d")).unwrap();
+        link_file(&root.join("d/h.md"), &root.join("e/h.md"));
+        let artifact = root.join("d/h.md");
+        let receipt = root.join("d/h.receipt.json");
+        // Same lexical parent, different physical parent.
+        assert_eq!(artifact.parent(), receipt.parent());
+
+        let errors = check(&artifact, &receipt);
+        assert!(errors.iter().any(|e| e == NOT_ADJACENT), "{errors:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dotdot_through_link_is_resolved_physically_not_lexically() {
+        let root = TestRoot::new("dotdot-link");
+        write_file(&root.join("h.md"), "body");
+        std::fs::create_dir_all(root.join("deep/x")).unwrap();
+        link_dir(&root.join("link"), &root.join("deep/x"));
+        // Lexically root/link/../h.receipt.json == root/h.receipt.json (adjacent);
+        // physically it is root/deep/h.receipt.json.
+        let artifact = root.join("h.md");
+        let receipt = root.0.join("link").join("..").join("h.receipt.json");
+        let errors = check(&artifact, &receipt);
+        assert!(errors.iter().any(|e| e == NOT_ADJACENT), "{errors:?}");
+    }
+
+    #[test]
+    fn receipt_basename_and_markdown_suffix_invariants_are_preserved() {
+        let root = TestRoot::new("name-invariants");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        let errors = check(&artifact, &root.join("handoffs/other.receipt.json"));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "handoff receipt must be named h.receipt.json"),
+            "{errors:?}"
+        );
+
+        let txt = root.join("handoffs/h2.txt");
+        write_file(&txt, "body");
+        let errors = check(&txt, &root.join("handoffs/h2.receipt.json"));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "canonical handoff must be Markdown"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn declared_paths_that_match_neither_spelling_are_rejected() {
+        let root = TestRoot::new("declared-mismatch");
+        let artifact = root.join("handoffs/h.md");
+        let receipt = root.join("handoffs/h.receipt.json");
+        write_file(&artifact, "body");
+        let text = text_for(
+            &root.join("handoffs/other.md"),
+            &root.join("handoffs/x.json"),
+        );
+        let errors = storage_errors(&text, &artifact, Some(&receipt), None, WIN);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "declared handoff packet path does not match validated file"),
+            "{errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "declared receipt path does not match validator receipt argument"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn missing_receipt_argument_is_reported() {
+        let root = TestRoot::new("no-receipt-arg");
+        let artifact = root.join("handoffs/h.md");
+        write_file(&artifact, "body");
+        let errors = storage_errors(
+            &text_for(&artifact, &root.join("handoffs/h.receipt.json")),
+            &artifact,
+            None,
+            None,
+            WIN,
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e == "validation must write or verify sidecar receipt"),
+            "{errors:?}"
+        );
+    }
+}

@@ -327,6 +327,57 @@ fn long_tail_reads_unclaimed_source_files() {
     );
     let coverage = result.coverage.as_ref().unwrap();
     assert_eq!((coverage.expected, coverage.examined), (2, 1));
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .contains(&"code.long-tail:missing-language-provider:lua".to_owned()));
+    assert_eq!(
+        result.details["nativeAnalysis"]["coverageGaps"][0]["pathCount"],
+        json!(1)
+    );
+    assert_eq!(
+        result.details["nativeAnalysis"]["coverageGaps"][0]["samplePaths"],
+        json!(["lib/tool.lua"])
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn long_tail_names_unknown_extension_denominator_without_claiming_known_family() {
+    let root = fixture(&[
+        ("unknown/one.xyz", "// TODO: unsupported source\n"),
+        ("unknown/two.xyz", "// FIXME: unsupported source\n"),
+        ("src/lib.rs", "pub fn known() {}\n"),
+    ]);
+    let result = run(
+        &root,
+        &["unknown/one.xyz", "unknown/two.xyz", "src/lib.rs"],
+        "code.long-tail",
+    );
+
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!((coverage.expected, coverage.examined), (3, 2));
+    assert!(!result.complete, "unsupported extension cannot read clean");
+    assert!(result
+        .coverage_gaps
+        .contains(&"code.long-tail:missing-language-provider:xyz".to_owned()));
+    let gaps = result.details["nativeAnalysis"]["coverageGaps"]
+        .as_array()
+        .unwrap();
+    let xyz_gap = gaps
+        .iter()
+        .find(|gap| gap["kind"] == "missing-language-provider" && gap["extension"] == "xyz")
+        .unwrap();
+    assert_eq!(xyz_gap["pathCount"], json!(2));
+    assert_eq!(
+        xyz_gap["samplePaths"],
+        json!(["unknown/one.xyz", "unknown/two.xyz"])
+    );
+    assert!(!gaps
+        .iter()
+        .any(|gap| { gap["kind"] == "missing-language-provider" && gap["extension"] == "rs" }));
+    assert_eq!(result.details["nativeProducer"]["filesExpected"], json!(2));
+    assert_eq!(result.details["nativeProducer"]["filesRead"], json!(2));
     fs::remove_dir_all(root).unwrap();
 }
 

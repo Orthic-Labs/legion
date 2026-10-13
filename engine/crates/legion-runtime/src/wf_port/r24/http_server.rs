@@ -427,7 +427,39 @@ fn settle_poll_reply<'a>(
                     return PollReplyOutcome::Rejected(400, body);
                 }
             };
-            if !controller.resolve_deferred(id, result) {
+            let mut activity = result.as_object().cloned().unwrap_or_default();
+            activity.insert("id".to_string(), Value::String(id.to_string()));
+            for key in ["pageUrl", "chunk", "repair"] {
+                activity.insert(
+                    key.to_string(),
+                    event.get(key).cloned().unwrap_or(Value::Null),
+                );
+            }
+            activity.insert(
+                "appliedCount".to_string(),
+                json!(result
+                    .get("appliedEntryIds")
+                    .and_then(Value::as_array)
+                    .map(Vec::len)
+                    .unwrap_or(0)),
+            );
+            activity.insert(
+                "fileCount".to_string(),
+                json!(result
+                    .get("files")
+                    .and_then(Value::as_array)
+                    .map(Vec::len)
+                    .unwrap_or(0)),
+            );
+            activity.insert(
+                "noteCount".to_string(),
+                json!(result
+                    .get("notes")
+                    .and_then(Value::as_array)
+                    .map(Vec::len)
+                    .unwrap_or(0)),
+            );
+            if !controller.resolve_deferred_with_activity(id, result, Value::Object(activity)) {
                 if controller.has_timed_out_id(id) {
                     return reject_timed_out_manual_apply(controller, id);
                 }
@@ -1439,11 +1471,18 @@ mod tests {
 
         std::thread::scope(|scope| {
             let waiter = scope.spawn(|| {
-                controller.push_batch_in_chunks_and_wait(
+                let result = controller.push_batch_in_chunks_and_wait(
                     &batch,
                     Some("http://localhost/page"),
                     None,
-                )
+                );
+                // The route records its terminal activity only after the
+                // synchronous apply waiter returns to commit orchestration.
+                queue.publish_manual_edit_activity(
+                    "manual_edit_commit_done",
+                    json!({ "pageUrl": "http://localhost/page" }),
+                );
+                result
             });
             let deadline = std::time::Instant::now() + Duration::from_secs(2);
             let event = loop {
@@ -1457,6 +1496,7 @@ mod tests {
                 thread::sleep(Duration::from_millis(1));
             };
             let id = event["id"].as_str().unwrap().to_string();
+            let activity_cursor = queue.sse_cursor();
             let malformed = json!({
                 "id": id.clone(),
                 "data": { "status": "unknown", "appliedEntryIds": [], "failed": [], "files": [], "notes": [] }
@@ -1485,6 +1525,92 @@ mod tests {
                 .unwrap()
                 .contains("400 Bad Request"));
             assert!(controller.get_deferred_batch(&id).is_some());
+            assert_eq!(queue.len(), 1);
+            assert!(!queue
+                .sse_messages_after(activity_cursor)
+                .iter()
+                .any(|(_, event)| event["type"] == "manual_edit_apply_reply_received"));
+
+            let valid_data = json!({
+                "status": "done",
+                "appliedEntryIds": ["entry-1"],
+                "failed": [],
+                "files": ["src/page.html"],
+                "notes": []
+            });
+            let mismatched = settle_poll_reply(
+                &queue,
+                &controller,
+                &json!({ "id": "different-id", "data": valid_data.clone() }),
+                &id,
+            );
+            assert!(matches!(mismatched, PollReplyOutcome::Rejected(400, _)));
+            assert!(matches!(
+                settle_poll_reply(
+                    &queue,
+                    &controller,
+                    &json!({ "id": "unknown-id" }),
+                    "unknown-id",
+                ),
+                PollReplyOutcome::Acknowledged(false)
+            ));
+
+            let stale_queue = QueueState::new();
+            stale_queue.enqueue_event(json!({
+                "id": "stale-id",
+                "type": "manual_edit_apply",
+                "pageUrl": "http://localhost/page"
+            }));
+            let stale_controller = ManualApplyController::new(
+                root.clone(),
+                QueueCallbacks {
+                    queue: &stale_queue,
+                },
+            );
+            let stale_cursor = stale_queue.sse_cursor();
+            assert!(matches!(
+                settle_poll_reply(
+                    &stale_queue,
+                    &stale_controller,
+                    &json!({ "id": "stale-id", "data": valid_data.clone() }),
+                    "stale-id",
+                ),
+                PollReplyOutcome::Rejected(409, _)
+            ));
+            assert!(!stale_queue
+                .sse_messages_after(stale_cursor)
+                .iter()
+                .any(|(_, event)| event["type"] == "manual_edit_apply_reply_received"));
+
+            let token_rejected = Request {
+                method: "POST".into(),
+                path: "/poll".into(),
+                query: [("token".to_string(), "wrong".to_string())]
+                    .into_iter()
+                    .collect(),
+                body: json!({ "id": id.clone(), "data": valid_data })
+                    .to_string()
+                    .into_bytes(),
+                content_type: "application/json".into(),
+            };
+            let mut token_rejected_out = Vec::new();
+            handle_request(
+                token_rejected,
+                &mut token_rejected_out,
+                "tok",
+                &queue,
+                &root,
+                0,
+                &controller,
+                &root,
+            );
+            assert!(String::from_utf8(token_rejected_out)
+                .unwrap()
+                .contains("401 Unauthorized"));
+            assert!(!queue
+                .sse_messages_after(activity_cursor)
+                .iter()
+                .any(|(_, event)| event["type"] == "manual_edit_apply_reply_received"));
             assert_eq!(queue.len(), 1);
 
             let reply = json!({
@@ -1520,9 +1646,34 @@ mod tests {
             let reply_text = String::from_utf8(reply_out).unwrap();
             assert!(reply_text.contains("200 OK"), "{reply_text}");
             assert!(reply_text.contains("\"ok\":true"), "{reply_text}");
+            assert_eq!(waiter.join().unwrap()["status"], "done");
             assert_eq!(queue.len(), 0);
             assert!(controller.get_deferred_batch(&id).is_none());
-            assert_eq!(waiter.join().unwrap()["status"], "done");
+            let activities: Vec<_> = queue
+                .sse_messages_after(activity_cursor)
+                .into_iter()
+                .map(|(_, event)| event)
+                .collect();
+            let received_index = activities
+                .iter()
+                .position(|event| event["type"] == "manual_edit_apply_reply_received")
+                .expect("validated reply activity must reach SSE before waiter completion");
+            let terminal_index = activities
+                .iter()
+                .position(|event| event["type"] == "manual_edit_commit_done")
+                .expect("commit terminal activity follows the apply waiter");
+            assert!(received_index < terminal_index);
+            let activity = &activities[received_index];
+            assert_eq!(activity["id"], id);
+            assert_eq!(activity["pageUrl"], "http://localhost/page");
+            assert_eq!(activity["chunk"], Value::Null);
+            assert_eq!(activity["repair"], Value::Null);
+            assert_eq!(activity["status"], "done");
+            assert_eq!(activity["appliedCount"], 1);
+            assert_eq!(activity["appliedEntryIds"], json!(["entry-1"]));
+            assert_eq!(activity["failed"], json!([]));
+            assert_eq!(activity["fileCount"], 1);
+            assert_eq!(activity["noteCount"], 0);
         });
         let _ = std::fs::remove_dir_all(&root);
     }
