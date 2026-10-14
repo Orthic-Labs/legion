@@ -1,12 +1,13 @@
 # Council rubrics
 
-A rubric is the shared scoring floor for the Jury (verdict) panel. Every juror scores the same
-dimensions and answers the same forced questions; the stance and role card change where each seat
-attacks, not what it scores. Council seats do not score.
+A rubric is the shared scoring floor for one round. Every seat receives the same rubric and answers
+the same forced questions; the stance and role card change where each seat attacks, not what it
+scores. Only challenging seats return scores; helpful seats use the rubric for its questions and fail
+modes.
 
 The convener picks the rubric whose name matches the artifact's domain file in `../lenses/`
-(`audit-visual.md` pairs with `design.md`, `image.md`, or `video.md` when real pixels are in the packet).
-Embed exactly one rubric in each verdict seat's prompt.
+(`audit-visual.md` is used only for rendered UI screenshots; `image.md` and `video.md` keep their own
+rubrics). Embed exactly one rubric in each seat's prompt.
 
 ## Conventions
 
@@ -16,8 +17,12 @@ Embed exactly one rubric in each verdict seat's prompt.
   words for reference; map them as: ship/approve/publish/go/run/ready/fund/build/do-now/clear/on-brand
   = SUPPORTED; revise/needs-revision/pause/hold/defer/review/ship-with-fixes/pivot = REVISE; reject/
   kill/block/abort/don't-ship/drop/do-not-run/off-brand = REVISE with at least one P0 finding;
-  insufficient evidence = UNRESOLVED. Put the native verdict word in `top_concern` when it helps.
-- **Tiers.** P0 invalidates the outcome or safety and must be fixed or explicitly waived; P1 should
+  `SHIP-WITH-MONITORING` = SUPPORTED (list the monitoring items as P2); `NEEDS-MEASUREMENT` =
+  UNRESOLVED with a MISSING_EVIDENCE finding; insufficient evidence = UNRESOLVED.
+  **No image, no verdict:** missing pixels for a visual artifact is always UNRESOLVED, never a
+  DON'T-SHIP. Put the native verdict word in `top_concern` when it helps.
+- **Tiers.** P0 shows a failed outcome or safety property and must be fixed or explicitly waived (an
+  unproven concern is MISSING_EVIDENCE, not an automatic P0); P1 should
   change before ship; P2 is worth knowing. A seat returns at most 8 P1+P2 findings; P0 is unbounded.
 - **Forced questions.** Answer every one, in one or two sentences, citing packet evidence. "none found"
   is a valid answer only with what you checked. Answer the stance's own forced question as well.

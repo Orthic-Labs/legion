@@ -1,0 +1,628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-council-record-v2",
+  "title": "CouncilRecord",
+  "description": "Advisory Council record (v2): one round of blind seats and one adjudication. Digest- and source-bound findings are evidence only; a record about an old source revision is stale for a changed subject.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "recordId",
+    "requestId",
+    "mode",
+    "round",
+    "packetDigest",
+    "sourceRevision",
+    "seats",
+    "adjudication",
+    "outcome",
+    "integrity"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "kind": {
+      "const": "legion-council-record"
+    },
+    "recordId": {
+      "type": "string",
+      "pattern": "^CV-\\d+$"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "mode": {
+      "enum": [
+        "DECISION_CHALLENGE",
+        "BLOCKER_CONSULT"
+      ],
+      "description": "PACKET_ONLY runs no seats and produces no record; validate-record rejects it."
+    },
+    "round": {
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Must match the request's round."
+    },
+    "packetDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Must match the request's top-level packetDigest and its recomputed projected digest."
+    },
+    "sourceRevision": {
+      "type": "string",
+      "minLength": 7
+    },
+    "seats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "seatId",
+          "side",
+          "stance",
+          "lens",
+          "cli",
+          "requestedModel",
+          "reportedModel",
+          "status",
+          "isolated",
+          "timing"
+        ],
+        "properties": {
+          "seatId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "side": {
+            "enum": [
+              "HELPFUL",
+              "CHALLENGING"
+            ],
+            "description": "HELPFUL seats (improvement-path, scope-alternatives, user-outcome) give advice only: no position, no score. CHALLENGING seats (red-team, security-ops, minimize) carry position, score, and scores."
+          },
+          "stance": {
+            "enum": [
+              "improvement-path",
+              "scope-alternatives",
+              "user-outcome",
+              "red-team",
+              "security-ops",
+              "minimize"
+            ]
+          },
+          "lens": {
+            "type": "string",
+            "minLength": 1,
+            "description": "<stance>/<domain>:<role>, e.g. red-team/code:lead-architect. Distinct per seat; a card (domain:role) appears at most once per side."
+          },
+          "cli": {
+            "type": "string",
+            "minLength": 1
+          },
+          "requestedModel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reportedModel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model the CLI reported; null when the seat failed before reporting. Record a mismatch with requestedModel rather than hiding it."
+          },
+          "status": {
+            "enum": [
+              "RETURNED",
+              "FAILED"
+            ]
+          },
+          "failureReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isolated": {
+            "type": "boolean",
+            "description": "Seat ran in its own context, blind to peers, with only request-authorized inputs."
+          },
+          "timing": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "startedAt",
+              "completedAt",
+              "durationMs"
+            ],
+            "properties": {
+              "startedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "durationMs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          },
+          "requirementTrace": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requirement",
+                "status",
+                "evidence"
+              ],
+              "properties": {
+                "requirement": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "One verbatim user requirement."
+                },
+                "status": {
+                  "enum": [
+                    "MET",
+                    "PARTIAL",
+                    "MISSING",
+                    "UNPROVEN"
+                  ]
+                },
+                "evidence": {
+                  "type": "string",
+                  "description": "What proves or fails the requirement (path:line, quoted artifact text, or why none exists)."
+                }
+              }
+            },
+            "description": "One row per verbatim user requirement."
+          },
+          "framingCheck": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "matchesUserIntent"
+            ],
+            "properties": {
+              "matchesUserIntent": {
+                "type": "boolean",
+                "description": "False when the packet's framing narrows, reframes, or drops what the user verbatim asked."
+              },
+              "distortions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "description": "Seat's check that the packet frames the question the way the user's verbatim words do."
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "findingId",
+                "statement",
+                "tier",
+                "classification"
+              ],
+              "properties": {
+                "findingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Seat-local id."
+                },
+                "statement": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "enum": [
+                    "P0",
+                    "P1",
+                    "P2"
+                  ]
+                },
+                "classification": {
+                  "enum": [
+                    "IN_SCOPE_DEFECT",
+                    "LATER_PHASE",
+                    "OUT_OF_SCOPE",
+                    "MISSING_EVIDENCE",
+                    "OPTIONAL_VALUE"
+                  ]
+                },
+                "evidenceRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "affectedDecisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^D-\\d+$"
+                  }
+                },
+                "affectedAcceptance": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^AC-\\d+$"
+                  }
+                },
+                "failurePath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recommendedAction": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "confidence": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "enum": [
+              "SUPPORTED",
+              "REVISE",
+              "UNRESOLVED"
+            ],
+            "description": "CHALLENGING seats only."
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "CHALLENGING seats only. Overall 1-10."
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "description": "CHALLENGING seats only. Per-dimension 1-10 scores."
+          }
+        }
+      },
+      "description": "DECISION_CHALLENGE: exactly 6 (3 HELPFUL + 3 CHALLENGING, distinct stances per side). BLOCKER_CONSULT: exactly 3 (improvement-path, red-team, security-ops)."
+    },
+    "adjudication": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "requirementTrace",
+        "findingRulings",
+        "findings",
+        "dissents",
+        "verdict",
+        "ruledBy"
+      ],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirementTrace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "requirement",
+              "status",
+              "evidence"
+            ],
+            "properties": {
+              "requirement": {
+                "type": "string",
+                "minLength": 1,
+                "description": "One verbatim user requirement."
+              },
+              "status": {
+                "enum": [
+                  "MET",
+                  "PARTIAL",
+                  "MISSING",
+                  "UNPROVEN"
+                ]
+              },
+              "evidence": {
+                "type": "string",
+                "description": "What proves or fails the requirement (path:line, quoted artifact text, or why none exists)."
+              }
+            }
+          },
+          "description": "One row per verbatim user requirement."
+        },
+        "findingRulings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "findingId",
+              "ruling",
+              "reason"
+            ],
+            "properties": {
+              "findingId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "ruling": {
+                "enum": [
+                  "VERIFIED",
+                  "UNGROUNDED",
+                  "WRONG"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "description": "The adjudicator verifies every seat finding against the artifact and rules on each contested one."
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "findingId",
+              "statement",
+              "tier",
+              "classification",
+              "raisedBy"
+            ],
+            "properties": {
+              "findingId": {
+                "type": "string",
+                "pattern": "^F-\\d+$"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tier": {
+                "enum": [
+                  "P0",
+                  "P1",
+                  "P2"
+                ]
+              },
+              "classification": {
+                "enum": [
+                  "IN_SCOPE_DEFECT",
+                  "LATER_PHASE",
+                  "OUT_OF_SCOPE",
+                  "MISSING_EVIDENCE",
+                  "OPTIONAL_VALUE"
+                ]
+              },
+              "raisedBy": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "Lens ids of the seats that raised this finding; each must be a seat lens in the record."
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "affectedDecisions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^D-\\d+$"
+                }
+              },
+              "affectedAcceptance": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^AC-\\d+$"
+                }
+              },
+              "failurePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "recommendedAction": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "description": "Merged findings after verification; each needs a ruling in findingRulings."
+        },
+        "dissents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "lens",
+              "statement"
+            ],
+            "properties": {
+              "lens": {
+                "type": "string",
+                "minLength": 1
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "verdict": {
+          "enum": [
+            "SUPPORTED",
+            "REVISE",
+            "UNRESOLVED",
+            "CONTRACT_SAFE",
+            "AMENDMENT_REQUIRED",
+            "INSUFFICIENT_EVIDENCE"
+          ],
+          "description": "DECISION_CHALLENGE: SUPPORTED|REVISE|UNRESOLVED. BLOCKER_CONSULT: CONTRACT_SAFE|AMENDMENT_REQUIRED|INSUFFICIENT_EVIDENCE."
+        },
+        "ruledBy": {
+          "enum": [
+            "ADJUDICATOR",
+            "USER"
+          ]
+        },
+        "userOverride": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "originalVerdict",
+            "reason"
+          ],
+          "properties": {
+            "originalVerdict": {
+              "enum": [
+                "SUPPORTED",
+                "REVISE",
+                "UNRESOLVED",
+                "CONTRACT_SAFE",
+                "AMENDMENT_REQUIRED",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "overriddenFindingIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Present exactly when ruledBy is USER (the user overrode the adjudicator)."
+        }
+      },
+      "description": "Null or absent means no verdict was reached and the outcome is UNRESOLVED / INSUFFICIENT_EVIDENCE."
+    },
+    "outcome": {
+      "enum": [
+        "SUPPORTED",
+        "REVISE",
+        "UNRESOLVED",
+        "CONTRACT_SAFE",
+        "AMENDMENT_REQUIRED",
+        "INSUFFICIENT_EVIDENCE"
+      ],
+      "description": "Final verdict, derived by the verdict rule: any CHALLENGING seat FAILED or no adjudication -> UNRESOLVED (INSUFFICIENT_EVIDENCE for blockers); a merged P0 finding or an adjudicator requirementTrace MISSING forces REVISE (AMENDMENT_REQUIRED); else the adjudicator's verdict."
+    },
+    "lane": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "providerMetadata": {
+      "type": "object"
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digestVerified",
+        "baselineHead",
+        "baselineStatusDigest",
+        "mutationDetected"
+      ],
+      "properties": {
+        "digestVerified": {
+          "type": "boolean",
+          "description": "Accepted only when the bound request's packetDigest and this record's packetDigest both match the recomputed request digest."
+        },
+        "baselineHead": {
+          "type": "string",
+          "minLength": 7,
+          "description": "HEAD sha captured before any seat ran."
+        },
+        "baselineStatusDigest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Digest of the working-tree status captured before any seat ran."
+        },
+        "mutationDetected": {
+          "type": "boolean",
+          "description": "Any seat mutating the subject under review invalidates the review."
+        }
+      }
+    }
+  }
+}

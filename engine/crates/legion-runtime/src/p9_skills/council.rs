@@ -1,14 +1,15 @@
 //! Packet P9-skill-scripts: Rust port of `skills/council/lib/contracts.mjs` (the deterministic
 //! half of the Council packet engine: canonical digesting and the field-level validation rules
-//! that do not require loading the JSON Schema files).
+//! that do not require loading the JSON Schema files), evolved to the v2 Council shape.
 //!
-//! `skills/council/lib/flows.mjs` (`runSeats`, `executeDecisionChallenge`,
-//! `executeBlockerConsult`, `executePacketOnly`) orchestrates async calls out to independent LLM
-//! seat providers via caller-supplied runner callbacks; that provider-IO orchestration is not
-//! ported here (see the packet report). The pure, deterministic pieces of `flows.mjs` that do
-//! not require provider IO — the contract-boundary constant list and disagreement/outcome
-//! aggregation for a decision challenge — are ported as `CONTRACT_BOUNDARIES` and
-//! `aggregate_decision_verdict`.
+//! v2 Council is ONE round of blind seats run in parallel (three HELPFUL seats: advice only;
+//! three CHALLENGING seats: position + score) plus ONE adjudicator who verifies findings, rules
+//! contested ones (the user may override), and gives the verdict. There is no debate round and no
+//! separate Jury. `BLOCKER_CONSULT` runs three seats (improvement-path, red-team, security-ops).
+//!
+//! `skills/council/lib/flows.mjs` provider-IO orchestration is not ported here. The pure pieces
+//! that need no provider IO are: the contract-boundary list (`CONTRACT_BOUNDARIES`) and the v2
+//! verdict rule (`decide_verdict`, enforced on records by `validate_record_fields`).
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -100,34 +101,100 @@ pub fn allowed_outcomes(mode: &str) -> Option<&'static [&'static str]> {
     }
 }
 
-/// `aggregateDecisionVerdict`: aggregates fresh-verdict seat positions into one outcome.
-pub fn aggregate_decision_verdict<I, S>(positions: I) -> &'static str
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let upper: Vec<String> = positions
-        .into_iter()
-        .map(|p| p.as_ref().to_ascii_uppercase())
-        .collect();
-    if upper
-        .iter()
-        .any(|p| p.contains("PROVIDER_FAILURE") || p.contains("UNRESOLVED"))
-    {
-        "UNRESOLVED"
-    } else if upper
-        .iter()
-        .any(|p| p.contains("REVISE") || p.contains("MUTATION_DETECTED"))
-    {
-        "REVISE"
-    } else {
-        "SUPPORTED"
+const HELPFUL_STANCES: &[&str] = &["improvement-path", "scope-alternatives", "user-outcome"];
+const CHALLENGING_STANCES: &[&str] = &["red-team", "security-ops", "minimize"];
+const BLOCKER_HELPFUL: &[&str] = &["improvement-path"];
+const BLOCKER_CHALLENGING: &[&str] = &["red-team", "security-ops"];
+
+/// `(supported, revise, unresolved)` outcome names for a record mode.
+fn outcome_triple(mode: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    match mode {
+        "DECISION_CHALLENGE" => Some(("SUPPORTED", "REVISE", "UNRESOLVED")),
+        "BLOCKER_CONSULT" => Some((
+            "CONTRACT_SAFE",
+            "AMENDMENT_REQUIRED",
+            "INSUFFICIENT_EVIDENCE",
+        )),
+        _ => None,
     }
 }
 
+/// The v2 verdict rule, as a pure function.
+///
+/// * any CHALLENGING seat FAILED -> unresolved
+/// * adjudication missing (`adjudicator_verdict` is `None`) -> unresolved
+/// * `forced_revise` (a merged P0 finding or an adjudicator requirementTrace MISSING) turns a
+///   supported verdict into revise
+/// * otherwise the adjudicator's verdict stands
+///
+/// Returns `None` only for a mode with no outcome set (for example `PACKET_ONLY`).
+pub fn decide_verdict(
+    mode: &str,
+    challenging_seat_failed: bool,
+    adjudicator_verdict: Option<&str>,
+    forced_revise: bool,
+) -> Option<&'static str> {
+    let (supported, revise, unresolved) = outcome_triple(mode)?;
+    if challenging_seat_failed {
+        return Some(unresolved);
+    }
+    let Some(verdict) = adjudicator_verdict else {
+        return Some(unresolved);
+    };
+    Some(if verdict == supported {
+        if forced_revise {
+            revise
+        } else {
+            supported
+        }
+    } else if verdict == revise {
+        revise
+    } else {
+        unresolved
+    })
+}
+
+fn str_field<'a>(v: &'a Value, key: &str) -> &'a str {
+    v.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn is_present(v: &Value, key: &str) -> bool {
+    v.get(key).is_some_and(|x| !x.is_null())
+}
+
+fn seats_of(record: &Value) -> &[Value] {
+    record
+        .get("seats")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+}
+
+fn adjudication_of(record: &Value) -> Option<&Value> {
+    record.get("adjudication").filter(|a| a.is_object())
+}
+
+fn challenging_seat_failed(record: &Value) -> bool {
+    seats_of(record)
+        .iter()
+        .any(|s| str_field(s, "side") == "CHALLENGING" && str_field(s, "status") != "RETURNED")
+}
+
+/// A merged finding at tier P0, or an adjudicator requirementTrace row that is MISSING.
+fn adjudication_blocks_support(adjudication: &Value) -> bool {
+    let p0 = adjudication
+        .get("findings")
+        .and_then(Value::as_array)
+        .is_some_and(|f| f.iter().any(|x| str_field(x, "tier") == "P0"));
+    let missing = adjudication
+        .get("requirementTrace")
+        .and_then(Value::as_array)
+        .is_some_and(|t| t.iter().any(|r| str_field(r, "status") == "MISSING"));
+    p0 || missing
+}
+
 /// Field-level validation from `validateCouncilRecord`, minus the generic JSON-Schema structural
-/// pass (which lives in the schema files under `skills/council/schemas/*.json` and is not
-/// re-implemented here — see the packet report).
+/// pass (done separately through `validate_against_schema` with the v2 record schema).
 pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<String> {
     let mut errors = Vec::new();
     // A plain fn (rather than a closure) so the borrow's lifetime is tied to
@@ -164,15 +231,15 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
         if get(record, "sourceRevision") != get(request, "sourceRevision") {
             errors.push("$.sourceRevision does not match request".to_string());
         }
-        if get(record, "loop") != get(request, "loop") {
-            errors.push("$.loop does not match request".to_string());
+        if get(record, "round") != get(request, "round") {
+            errors.push("$.round does not match request".to_string());
         }
     }
 
-    // At most two complete loops, each tied to a real artifact state.
-    if let Some(loop_no) = record.get("loop") {
-        if !matches!(loop_no.as_i64(), Some(1 | 2)) {
-            errors.push("$.loop must be 1 or 2 (at most two complete loops)".to_string());
+    // One round by default; a second round only when the user asks, on a revised artifact.
+    if let Some(round_no) = record.get("round") {
+        if !matches!(round_no.as_i64(), Some(1 | 2)) {
+            errors.push("$.round must be 1 or 2".to_string());
         }
     }
 
@@ -221,90 +288,261 @@ pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<St
         errors.push("$.integrity.mutationDetected invalidates review".to_string());
     }
 
-    if let Some(seats) = record.get("seatRecords").and_then(Value::as_array) {
-        if seats
-            .iter()
-            .any(|s| s.get("isolated").and_then(Value::as_bool) != Some(true))
-        {
-            errors.push("$.seatRecords must all be isolated".to_string());
-        }
-    }
-
-    validate_seat_lenses(record, &mut errors);
-
-    // A record is PENDING until the decision owner dispositions every finding, then COMPLETE.
-    // Dispositions are required only when COMPLETE, so a record can be validated before the
-    // owner has acted. A fresh-verdict record id cannot be attached while PENDING.
-    match record.get("dispositionState").and_then(Value::as_str) {
-        Some("COMPLETE") => {
-            if mode == "DECISION_CHALLENGE" {
-                validate_dispositions(record, &mut errors);
-            }
-        }
-        Some("PENDING") => {
-            let fresh = record.get("freshVerdictRecordId");
-            if fresh.is_some_and(|v| !v.is_null()) {
-                errors.push(
-                    "$.freshVerdictRecordId cannot be set while dispositionState is PENDING"
-                        .to_string(),
-                );
-            }
-        }
-        _ => errors.push("$.dispositionState must be PENDING or COMPLETE".to_string()),
-    }
+    validate_seats(record, mode, &mut errors);
+    validate_adjudication_and_outcome(record, mode, &mut errors);
 
     errors
 }
 
-/// A panel needs at least three seats, each with a distinct lens id
-/// (`<stance>/<domain>:<role>`); two seats sharing a lens share a blind spot.
-///
-/// A Council seat appears twice when it took part in the peer-debate round: once as its blind
-/// `POSITION` read and once as its `DEBATE` re-launch. The uniqueness rule is therefore on
-/// (lens, round), the three-distinct-lens floor counts lens ids, and a `DEBATE` seat must have a
-/// `POSITION` seat of the same lens (a seat cannot debate a position it never took).
-fn validate_seat_lenses(record: &Value, errors: &mut Vec<String>) {
+/// Seat-level rules: panel shape per mode, distinct lenses, one card per side, helpful seats
+/// advisory only, challenging seats scored, returned seats carry their trace and framing check.
+fn validate_seats(record: &Value, mode: &str, errors: &mut Vec<String>) {
+    let seats = seats_of(record);
+    let mut lenses: BTreeSet<&str> = BTreeSet::new();
+    let mut cards: BTreeSet<(&str, &str)> = BTreeSet::new();
+    let mut helpful_stances: Vec<&str> = Vec::new();
+    let mut challenging_stances: Vec<&str> = Vec::new();
+
+    for seat in seats {
+        let lens = str_field(seat, "lens").trim();
+        let side = str_field(seat, "side");
+        let stance = str_field(seat, "stance");
+        let status = str_field(seat, "status");
+        let label = if lens.is_empty() { "<no lens>" } else { lens };
+
+        if seat.get("isolated").and_then(Value::as_bool) != Some(true) {
+            errors.push(format!("$.seats {label} must be isolated"));
+        }
+        if lens.is_empty() {
+            errors.push("$.seats every seat needs a lens id".to_string());
+        } else {
+            if !lenses.insert(lens) {
+                errors.push(format!("$.seats lens {lens} is used by more than one seat"));
+            }
+            let card = lens.split_once('/').map_or(lens, |(_, card)| card);
+            if !cards.insert((side, card)) {
+                errors.push(format!(
+                    "$.seats card {card} appears more than once on the {side} side"
+                ));
+            }
+            if !stance.is_empty() && !lens.starts_with(&format!("{stance}/")) {
+                errors.push(format!(
+                    "$.seats lens {lens} does not start with its stance {stance}/"
+                ));
+            }
+        }
+
+        match side {
+            "HELPFUL" => {
+                helpful_stances.push(stance);
+                if !HELPFUL_STANCES.contains(&stance) {
+                    errors.push(format!(
+                        "$.seats {label} stance {stance} is not a HELPFUL stance"
+                    ));
+                }
+                for key in ["position", "score", "scores"] {
+                    if is_present(seat, key) {
+                        errors.push(format!(
+                            "$.seats {label} is HELPFUL and must not carry {key} (advice only)"
+                        ));
+                    }
+                }
+            }
+            "CHALLENGING" => {
+                challenging_stances.push(stance);
+                if !CHALLENGING_STANCES.contains(&stance) {
+                    errors.push(format!(
+                        "$.seats {label} stance {stance} is not a CHALLENGING stance"
+                    ));
+                }
+                if status == "RETURNED" {
+                    validate_challenging_scores(seat, label, errors);
+                }
+            }
+            _ => errors.push(format!(
+                "$.seats {label} side must be HELPFUL or CHALLENGING"
+            )),
+        }
+
+        match status {
+            "RETURNED" => {
+                if !seat.get("requirementTrace").is_some_and(Value::is_array) {
+                    errors.push(format!(
+                        "$.seats {label} RETURNED seat needs requirementTrace"
+                    ));
+                }
+                if !seat.get("framingCheck").is_some_and(Value::is_object) {
+                    errors.push(format!("$.seats {label} RETURNED seat needs framingCheck"));
+                }
+            }
+            "FAILED" => {}
+            _ => errors.push(format!("$.seats {label} status must be RETURNED or FAILED")),
+        }
+    }
+
+    let (expect_total, helpful_allowed, challenging_allowed) = match mode {
+        "DECISION_CHALLENGE" => (6, HELPFUL_STANCES, CHALLENGING_STANCES),
+        "BLOCKER_CONSULT" => (3, BLOCKER_HELPFUL, BLOCKER_CHALLENGING),
+        _ => return,
+    };
+    if seats.len() != expect_total {
+        errors.push(format!(
+            "$.seats {mode} needs exactly {expect_total} seats, found {}",
+            seats.len()
+        ));
+    }
+    for (side, stances, allowed) in [
+        ("HELPFUL", &helpful_stances, helpful_allowed),
+        ("CHALLENGING", &challenging_stances, challenging_allowed),
+    ] {
+        let distinct: BTreeSet<&str> = stances.iter().copied().collect();
+        if distinct.len() != stances.len() {
+            errors.push(format!("$.seats {side} seats need distinct stances"));
+        }
+        for want in allowed {
+            if !distinct.contains(want) {
+                errors.push(format!(
+                    "$.seats {mode} is missing the {side} stance {want}"
+                ));
+            }
+        }
+        if stances.len() != allowed.len() {
+            errors.push(format!(
+                "$.seats {mode} needs exactly {} {side} seats, found {}",
+                allowed.len(),
+                stances.len()
+            ));
+        }
+    }
+}
+
+fn validate_challenging_scores(seat: &Value, label: &str, errors: &mut Vec<String>) {
+    match seat.get("position").and_then(Value::as_str) {
+        Some("SUPPORTED" | "REVISE" | "UNRESOLVED") => {}
+        _ => errors.push(format!(
+            "$.seats {label} CHALLENGING seat needs position SUPPORTED|REVISE|UNRESOLVED"
+        )),
+    }
+    match seat.get("score").and_then(Value::as_i64) {
+        Some(1..=10) => {}
+        _ => errors.push(format!(
+            "$.seats {label} CHALLENGING seat needs an integer score 1-10"
+        )),
+    }
+    match seat.get("scores").and_then(Value::as_object) {
+        Some(map) if !map.is_empty() => {
+            if map
+                .values()
+                .any(|v| !v.as_f64().is_some_and(|n| (1.0..=10.0).contains(&n)))
+            {
+                errors.push(format!("$.seats {label} scores must each be a number 1-10"));
+            }
+        }
+        _ => errors.push(format!(
+            "$.seats {label} CHALLENGING seat needs per-dimension scores"
+        )),
+    }
+}
+
+/// Adjudication rules and the verdict rule: the record's `outcome` must be what
+/// [`decide_verdict`] derives, and an ADJUDICATOR-ruled verdict may not claim SUPPORTED over a
+/// merged P0 finding or a MISSING requirement.
+fn validate_adjudication_and_outcome(record: &Value, mode: &str, errors: &mut Vec<String>) {
+    let adjudication = adjudication_of(record);
+    let mut adjudicator_verdict: Option<&str> = None;
+    let mut forced_revise = false;
+
+    if let Some(adj) = adjudication {
+        let verdict = str_field(adj, "verdict");
+        adjudicator_verdict = Some(verdict);
+        if let Some(allowed) = allowed_outcomes(mode) {
+            if !allowed.contains(&verdict) {
+                errors.push(format!("$.adjudication.verdict is invalid for {mode}"));
+            }
+        }
+        let ruled_by = str_field(adj, "ruledBy");
+        let override_present = is_present(adj, "userOverride");
+        match ruled_by {
+            "ADJUDICATOR" => {
+                if override_present {
+                    errors.push("$.adjudication.userOverride requires ruledBy USER".to_string());
+                }
+            }
+            "USER" => {
+                if !override_present {
+                    errors.push("$.adjudication ruledBy USER requires userOverride".to_string());
+                }
+            }
+            _ => errors.push("$.adjudication.ruledBy must be ADJUDICATOR or USER".to_string()),
+        }
+
+        if ruled_by != "USER" && adjudication_blocks_support(adj) {
+            forced_revise = true;
+            if let Some((supported, revise, _)) = outcome_triple(mode) {
+                if verdict == supported {
+                    errors.push(format!(
+                        "$.adjudication.verdict {supported} conflicts with a merged P0 finding or a MISSING requirement; the verdict must be {revise}"
+                    ));
+                }
+            }
+        }
+
+        validate_adjudication_findings(record, adj, errors);
+    }
+
+    if let Some(expected) = decide_verdict(
+        mode,
+        challenging_seat_failed(record),
+        adjudicator_verdict,
+        forced_revise,
+    ) {
+        let outcome = str_field(record, "outcome");
+        if outcome != expected && allowed_outcomes(mode).is_some_and(|a| a.contains(&outcome)) {
+            errors.push(format!(
+                "$.outcome {outcome} does not follow the verdict rule (expected {expected})"
+            ));
+        }
+    }
+}
+
+fn validate_adjudication_findings(record: &Value, adj: &Value, errors: &mut Vec<String>) {
     let empty = Vec::new();
-    let seats = record
-        .get("seatRecords")
+    let lenses: BTreeSet<&str> = seats_of(record)
+        .iter()
+        .map(|s| str_field(s, "lens"))
+        .collect();
+    let rulings = adj
+        .get("findingRulings")
         .and_then(Value::as_array)
         .unwrap_or(&empty);
-    let mut seen: BTreeSet<(&str, &str)> = BTreeSet::new();
-    let mut lenses: BTreeSet<&str> = BTreeSet::new();
-    let mut debaters: Vec<&str> = Vec::new();
-    for seat in seats {
-        let lens = seat
-            .get("lens")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim();
-        let round = seat
-            .get("round")
-            .and_then(Value::as_str)
-            .unwrap_or("POSITION");
-        if lens.is_empty() {
-            errors.push("$.seatRecords every seat needs a lens id".to_string());
-            continue;
-        }
-        if !seen.insert((lens, round)) {
+    let ruled_ids: BTreeSet<&str> = rulings.iter().map(|r| str_field(r, "findingId")).collect();
+    let merged = adj
+        .get("findings")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty);
+    for finding in merged {
+        let id = str_field(finding, "findingId");
+        if !ruled_ids.contains(id) {
             errors.push(format!(
-                "$.seatRecords lens {lens} is used by more than one seat"
+                "$.adjudication.findingRulings missing ruling for {id}"
             ));
         }
-        lenses.insert(lens);
-        if round == "DEBATE" {
-            debaters.push(lens);
-        }
-    }
-    for lens in debaters {
-        if !seen.contains(&(lens, "POSITION")) {
+        let raised_by = finding
+            .get("raisedBy")
+            .and_then(Value::as_array)
+            .unwrap_or(&empty);
+        if raised_by.is_empty() {
             errors.push(format!(
-                "$.seatRecords DEBATE seat {lens} has no POSITION seat with the same lens"
+                "$.adjudication.findings {id} needs raisedBy seat lenses"
             ));
         }
-    }
-    if lenses.len() < 3 {
-        errors.push("$.seatRecords needs at least 3 seats with distinct lens ids".to_string());
+        for lens in raised_by.iter().filter_map(Value::as_str) {
+            if !lenses.contains(lens) {
+                errors.push(format!(
+                    "$.adjudication.findings {id} raisedBy {lens} is not a seat in this record"
+                ));
+            }
+        }
     }
 }
 
@@ -408,82 +646,6 @@ fn schema_walk(value: &Value, schema: &Value, path: &str, errors: &mut Vec<Strin
     }
 }
 
-fn validate_dispositions(record: &Value, errors: &mut Vec<String>) {
-    let empty = Vec::new();
-    let dispositions = record
-        .get("callerDispositions")
-        .and_then(Value::as_array)
-        .unwrap_or(&empty);
-    let findings = record
-        .get("findings")
-        .and_then(Value::as_array)
-        .unwrap_or(&empty);
-    for finding in findings {
-        let finding_id = finding
-            .get("findingId")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let item = dispositions
-            .iter()
-            .find(|d| d.get("findingId").and_then(Value::as_str) == Some(finding_id));
-        let Some(item) = item else {
-            errors.push(format!(
-                "$.callerDispositions missing terminal disposition for {finding_id}"
-            ));
-            continue;
-        };
-        let disposition = item
-            .get("disposition")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        if disposition == "REJECT" {
-            let rationale = item
-                .get("rationale")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .trim();
-            if rationale.is_empty() {
-                errors.push(format!(
-                    "$.callerDispositions {finding_id} REJECT requires rationale"
-                ));
-            }
-        }
-        // Only the user rules a contest the debate round left sustained: the owner may not
-        // reject or supersede such a finding on its own.
-        let contested = finding
-            .get("contested")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let sustained = finding
-            .get("sustainedBy")
-            .and_then(Value::as_array)
-            .is_some_and(|a| !a.is_empty());
-        let ruled_by_user = item.get("ruledBy").and_then(Value::as_str) == Some("USER");
-        if contested
-            && sustained
-            && (disposition == "REJECT" || disposition == "SUPERSEDED")
-            && !ruled_by_user
-        {
-            errors.push(format!(
-                "$.callerDispositions {finding_id} is a sustained contest; only the user may {} it (ruledBy USER)",
-                if disposition == "REJECT" { "reject" } else { "supersede" }
-            ));
-        }
-        if disposition == "DEFER_TO_PHASE" {
-            let owning_phase = item
-                .get("owningPhase")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .trim();
-            if owning_phase.is_empty() {
-                errors.push(format!(
-                    "$.callerDispositions {finding_id} DEFER_TO_PHASE requires owningPhase"
-                ));
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,10 +680,142 @@ mod tests {
         assert_ne!(request_digest(&a), request_digest(&b));
     }
 
+    #[test]
+    fn finds_forbidden_token_nested() {
+        let v = json!({"nested": {"x": ["ok", "contains DECISION_SEALED here"]}});
+        assert_eq!(find_forbidden_token(&v), Some("DECISION_SEALED"));
+        let clean = json!({"nested": {"x": ["ok", "fine"]}});
+        assert_eq!(find_forbidden_token(&clean), None);
+    }
+
+    #[test]
+    fn dispute_review_mode_is_retired() {
+        assert!(allowed_outcomes("DISPUTE_REVIEW").is_none());
+    }
+
+    // ---- fixtures ----
+
+    fn trace_row(status: &str) -> Value {
+        json!({"requirement": "make Council one round", "status": status, "evidence": "packet.md:1"})
+    }
+
+    fn helpful_seat(stance: &str) -> Value {
+        let card = match stance {
+            "improvement-path" => "senior-developer",
+            "scope-alternatives" => "lead-architect",
+            _ => "qa-test-lead",
+        };
+        json!({
+            "seatId": format!("seat-{stance}"),
+            "side": "HELPFUL",
+            "stance": stance,
+            "lens": format!("{stance}/code:{card}"),
+            "cli": "claude",
+            "requestedModel": "opus",
+            "reportedModel": "opus",
+            "status": "RETURNED",
+            "isolated": true,
+            "timing": {"startedAt": "2026-10-14T10:00:00Z", "completedAt": "2026-10-14T10:01:00Z", "durationMs": 60000},
+            "requirementTrace": [trace_row("MET")],
+            "framingCheck": {"matchesUserIntent": true},
+            "findings": [],
+        })
+    }
+
+    fn challenging_seat(stance: &str) -> Value {
+        let card = match stance {
+            "red-team" => "lead-architect",
+            "security-ops" => "security-reliability-reviewer",
+            _ => "senior-developer",
+        };
+        json!({
+            "seatId": format!("seat-{stance}"),
+            "side": "CHALLENGING",
+            "stance": stance,
+            "lens": format!("{stance}/code:{card}"),
+            "cli": "codex",
+            "requestedModel": "gpt-5.6",
+            "reportedModel": "gpt-5.6",
+            "status": "RETURNED",
+            "isolated": true,
+            "timing": {"startedAt": "2026-10-14T10:00:00Z", "completedAt": "2026-10-14T10:01:00Z", "durationMs": 60000},
+            "requirementTrace": [trace_row("MET")],
+            "framingCheck": {"matchesUserIntent": true},
+            "findings": [],
+            "position": "SUPPORTED",
+            "score": 8,
+            "scores": {"correctness": 8, "scope": 7},
+        })
+    }
+
+    fn adjudication(verdict: &str) -> Value {
+        json!({
+            "model": "astra-6",
+            "requirementTrace": [trace_row("MET")],
+            "findingRulings": [],
+            "findings": [],
+            "dissents": [],
+            "verdict": verdict,
+            "ruledBy": "ADJUDICATOR",
+        })
+    }
+
+    fn integrity() -> Value {
+        json!({
+            "digestVerified": true,
+            "baselineHead": "abcdef1234",
+            "baselineStatusDigest": "sha256:status",
+            "mutationDetected": false,
+        })
+    }
+
+    fn decision_record() -> Value {
+        json!({
+            "schemaVersion": 2,
+            "kind": "legion-council-record",
+            "recordId": "CV-1",
+            "requestId": "req_01HZX3Q8Z9K2M4N6P8R0S2T4V6",
+            "mode": "DECISION_CHALLENGE",
+            "round": 1,
+            "sourceRevision": "abcdef1234",
+            "seats": [
+                helpful_seat("improvement-path"),
+                helpful_seat("scope-alternatives"),
+                helpful_seat("user-outcome"),
+                challenging_seat("red-team"),
+                challenging_seat("security-ops"),
+                challenging_seat("minimize"),
+            ],
+            "adjudication": adjudication("SUPPORTED"),
+            "outcome": "SUPPORTED",
+            "integrity": integrity(),
+        })
+    }
+
+    fn blocker_record(outcome: &str) -> Value {
+        json!({
+            "schemaVersion": 2,
+            "kind": "legion-council-record",
+            "recordId": "CV-2",
+            "requestId": "req_01HZX3Q8Z9K2M4N6P8R0S2T4V6",
+            "mode": "BLOCKER_CONSULT",
+            "round": 1,
+            "sourceRevision": "abcdef1234",
+            "seats": [
+                helpful_seat("improvement-path"),
+                challenging_seat("red-team"),
+                challenging_seat("security-ops"),
+            ],
+            "adjudication": adjudication(outcome),
+            "outcome": outcome,
+            "integrity": integrity(),
+        })
+    }
+
     fn validate_with_matching_request(record: &Value) -> Vec<String> {
         let mut record = record.clone();
         let mut request = json!({});
-        for key in ["requestId", "mode", "sourceRevision", "loop"] {
+        for key in ["requestId", "mode", "sourceRevision", "round"] {
             if let Some(value) = record.get(key) {
                 request[key] = value.clone();
             }
@@ -532,32 +826,409 @@ mod tests {
         validate_record_fields(&record, Some(&request))
     }
 
+    fn has_error(errors: &[String], needle: &str) -> bool {
+        errors.iter().any(|e| e.contains(needle))
+    }
+
+    fn set_challenging_position(record: &mut Value, stance: &str, status: &str) {
+        let seat = record["seats"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|s| s["stance"] == stance)
+            .unwrap();
+        seat["status"] = json!(status);
+    }
+
+    // ---- verdict rule ----
+
     #[test]
-    fn finds_forbidden_token_nested() {
-        let v = json!({"nested": {"x": ["ok", "contains DECISION_SEALED here"]}});
-        assert_eq!(find_forbidden_token(&v), Some("DECISION_SEALED"));
-        let clean = json!({"nested": {"x": ["ok", "fine"]}});
-        assert_eq!(find_forbidden_token(&clean), None);
+    fn decide_verdict_applies_the_v2_rule() {
+        // adjudicator verdict stands when nothing blocks it
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", false, Some("SUPPORTED"), false),
+            Some("SUPPORTED")
+        );
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", false, Some("REVISE"), false),
+            Some("REVISE")
+        );
+        // failed challenging seat or missing adjudication -> UNRESOLVED
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", true, Some("SUPPORTED"), false),
+            Some("UNRESOLVED")
+        );
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", false, None, false),
+            Some("UNRESOLVED")
+        );
+        // P0 / MISSING forces REVISE over SUPPORTED, but not over UNRESOLVED
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", false, Some("SUPPORTED"), true),
+            Some("REVISE")
+        );
+        assert_eq!(
+            decide_verdict("DECISION_CHALLENGE", false, Some("UNRESOLVED"), true),
+            Some("UNRESOLVED")
+        );
+        // blocker mode maps onto its own outcome set
+        assert_eq!(
+            decide_verdict("BLOCKER_CONSULT", false, Some("CONTRACT_SAFE"), true),
+            Some("AMENDMENT_REQUIRED")
+        );
+        assert_eq!(
+            decide_verdict("BLOCKER_CONSULT", true, Some("CONTRACT_SAFE"), false),
+            Some("INSUFFICIENT_EVIDENCE")
+        );
+        assert_eq!(decide_verdict("PACKET_ONLY", false, None, false), None);
+    }
+
+    // ---- record validation ----
+
+    #[test]
+    fn valid_decision_record_has_no_errors() {
+        let errors = validate_with_matching_request(&decision_record());
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
     }
 
     #[test]
-    fn aggregate_decision_verdict_prioritizes_unresolved_then_revise() {
-        assert_eq!(
-            aggregate_decision_verdict(["SUPPORTED", "PROVIDER_FAILURE: x"]),
-            "UNRESOLVED"
+    fn valid_blocker_record_has_no_errors() {
+        let errors = validate_with_matching_request(&blocker_record("CONTRACT_SAFE"));
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn valid_records_satisfy_the_v2_record_schema() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../skills/council/lib/schemas/council-record-v2.schema.json");
+        let schema: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        for record in [decision_record(), blocker_record("CONTRACT_SAFE")] {
+            let mut record = record;
+            record["packetDigest"] = json!(format!("sha256:{}", "0".repeat(64)));
+            let errors = validate_against_schema(&record, &schema);
+            assert!(errors.is_empty(), "schema errors: {errors:?}");
+        }
+        let mut bad = decision_record();
+        bad["packetDigest"] = json!(format!("sha256:{}", "0".repeat(64)));
+        bad["seats"][0]["side"] = json!("NEUTRAL");
+        bad["adjudication"]["ruledBy"] = json!("SAGE");
+        let errors = validate_against_schema(&bad, &schema);
+        assert!(has_error(&errors, "$.seats[0].side"));
+        assert!(has_error(&errors, "$.adjudication.ruledBy"));
+    }
+
+    #[test]
+    fn failed_challenging_seat_forces_unresolved() {
+        let mut record = decision_record();
+        set_challenging_position(&mut record, "red-team", "FAILED");
+        // the record still claims SUPPORTED: rejected
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(
+                &errors,
+                "outcome SUPPORTED does not follow the verdict rule (expected UNRESOLVED)"
+            ),
+            "{errors:?}"
         );
-        assert_eq!(
-            aggregate_decision_verdict(["SUPPORTED", "REVISE"]),
-            "REVISE"
+        // claiming UNRESOLVED is accepted
+        record["outcome"] = json!("UNRESOLVED");
+        let errors = validate_with_matching_request(&record);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn failed_helpful_seat_does_not_force_unresolved() {
+        let mut record = decision_record();
+        let seat = &mut record["seats"][0];
+        seat["status"] = json!("FAILED");
+        let errors = validate_with_matching_request(&record);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn missing_adjudication_is_unresolved() {
+        let mut record = decision_record();
+        record["adjudication"] = Value::Null;
+        let errors = validate_with_matching_request(&record);
+        assert!(has_error(&errors, "expected UNRESOLVED"), "{errors:?}");
+        record["outcome"] = json!("UNRESOLVED");
+        assert!(validate_with_matching_request(&record).is_empty());
+
+        let mut blocker = blocker_record("CONTRACT_SAFE");
+        blocker.as_object_mut().unwrap().remove("adjudication");
+        let errors = validate_with_matching_request(&blocker);
+        assert!(
+            has_error(&errors, "expected INSUFFICIENT_EVIDENCE"),
+            "{errors:?}"
         );
-        assert_eq!(
-            aggregate_decision_verdict(["SUPPORTED", "SUPPORTED"]),
-            "SUPPORTED"
+    }
+
+    fn with_p0(mut record: Value) -> Value {
+        let lens = record["seats"][3]["lens"].clone();
+        record["adjudication"]["findings"] = json!([{
+            "findingId": "F-1",
+            "statement": "the migration drops data",
+            "tier": "P0",
+            "classification": "IN_SCOPE_DEFECT",
+            "raisedBy": [lens],
+        }]);
+        record["adjudication"]["findingRulings"] = json!([{"findingId": "F-1", "ruling": "VERIFIED", "reason": "reproduced at packet.md:9"}]);
+        record
+    }
+
+    #[test]
+    fn supported_with_p0_is_rejected_and_revise_is_accepted() {
+        let record = with_p0(decision_record());
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "the verdict must be REVISE"),
+            "{errors:?}"
+        );
+        assert!(
+            has_error(&errors, "does not follow the verdict rule"),
+            "{errors:?}"
+        );
+
+        let mut revised = record;
+        revised["adjudication"]["verdict"] = json!("REVISE");
+        revised["outcome"] = json!("REVISE");
+        let errors = validate_with_matching_request(&revised);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    #[test]
+    fn supported_with_missing_requirement_is_rejected() {
+        let mut record = decision_record();
+        record["adjudication"]["requirementTrace"] = json!([trace_row("MISSING")]);
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "the verdict must be REVISE"),
+            "{errors:?}"
         );
     }
 
     #[test]
-    fn validate_record_fields_catches_mismatched_request_and_bad_outcome() {
+    fn blocker_p0_cannot_be_contract_safe() {
+        let record = with_p0(blocker_record("CONTRACT_SAFE"));
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "the verdict must be AMENDMENT_REQUIRED"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn user_override_may_rule_over_a_p0() {
+        let mut record = with_p0(decision_record());
+        record["adjudication"]["ruledBy"] = json!("USER");
+        record["adjudication"]["userOverride"] = json!({"originalVerdict": "REVISE", "reason": "accepted risk", "overriddenFindingIds": ["F-1"]});
+        let errors = validate_with_matching_request(&record);
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+
+        record["adjudication"]["userOverride"] = Value::Null;
+        assert!(has_error(
+            &validate_with_matching_request(&record),
+            "ruledBy USER requires userOverride"
+        ));
+    }
+
+    #[test]
+    fn merged_finding_needs_a_ruling_and_real_seat_lenses() {
+        let mut record = with_p0(decision_record());
+        record["adjudication"]["verdict"] = json!("REVISE");
+        record["outcome"] = json!("REVISE");
+        record["adjudication"]["findingRulings"] = json!([]);
+        record["adjudication"]["findings"][0]["raisedBy"] = json!(["red-team/code:ghost"]);
+        let errors = validate_with_matching_request(&record);
+        assert!(has_error(&errors, "missing ruling for F-1"), "{errors:?}");
+        assert!(
+            has_error(&errors, "raisedBy red-team/code:ghost is not a seat"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn helpful_seat_with_score_is_rejected() {
+        for key in ["score", "position", "scores"] {
+            let mut record = decision_record();
+            record["seats"][0][key] = match key {
+                "score" => json!(7),
+                "position" => json!("SUPPORTED"),
+                _ => json!({"scope": 7}),
+            };
+            let errors = validate_with_matching_request(&record);
+            assert!(
+                has_error(&errors, &format!("must not carry {key}")),
+                "{key}: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn returned_challenging_seat_needs_position_score_and_scores() {
+        let mut record = decision_record();
+        let seat = record["seats"][3].as_object_mut().unwrap();
+        seat.remove("position");
+        seat.remove("score");
+        seat.remove("scores");
+        let errors = validate_with_matching_request(&record);
+        assert!(has_error(&errors, "needs position"), "{errors:?}");
+        assert!(
+            has_error(&errors, "needs an integer score 1-10"),
+            "{errors:?}"
+        );
+        assert!(
+            has_error(&errors, "needs per-dimension scores"),
+            "{errors:?}"
+        );
+
+        let mut out_of_range = decision_record();
+        out_of_range["seats"][3]["score"] = json!(11);
+        out_of_range["seats"][3]["scores"] = json!({"scope": 0});
+        let errors = validate_with_matching_request(&out_of_range);
+        assert!(has_error(&errors, "integer score 1-10"), "{errors:?}");
+        assert!(
+            has_error(&errors, "scores must each be a number 1-10"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn returned_seat_needs_trace_and_framing_check() {
+        let mut record = decision_record();
+        let seat = record["seats"][1].as_object_mut().unwrap();
+        seat.remove("requirementTrace");
+        seat.remove("framingCheck");
+        let errors = validate_with_matching_request(&record);
+        assert!(has_error(&errors, "needs requirementTrace"), "{errors:?}");
+        assert!(has_error(&errors, "needs framingCheck"), "{errors:?}");
+    }
+
+    #[test]
+    fn seven_seats_are_rejected() {
+        let mut record = decision_record();
+        let mut extra = helpful_seat("improvement-path");
+        extra["lens"] = json!("improvement-path/code:qa-test-lead");
+        record["seats"].as_array_mut().unwrap().push(extra);
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "needs exactly 6 seats, found 7"),
+            "{errors:?}"
+        );
+        assert!(
+            has_error(&errors, "HELPFUL seats need distinct stances"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn wrong_seat_count_per_mode_is_rejected() {
+        let mut five = decision_record();
+        five["seats"].as_array_mut().unwrap().pop();
+        assert!(has_error(
+            &validate_with_matching_request(&five),
+            "needs exactly 6 seats, found 5"
+        ));
+
+        let mut blocker = blocker_record("CONTRACT_SAFE");
+        blocker["seats"]
+            .as_array_mut()
+            .unwrap()
+            .push(challenging_seat("minimize"));
+        let errors = validate_with_matching_request(&blocker);
+        assert!(
+            has_error(&errors, "needs exactly 3 seats, found 4"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn blocker_panel_must_be_improvement_path_red_team_security_ops() {
+        let mut record = blocker_record("CONTRACT_SAFE");
+        record["seats"][2] = challenging_seat("minimize");
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "missing the CHALLENGING stance security-ops"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn lens_ids_are_distinct_and_a_card_appears_once_per_side() {
+        let mut dup_lens = decision_record();
+        dup_lens["seats"][1]["lens"] = dup_lens["seats"][0]["lens"].clone();
+        let errors = validate_with_matching_request(&dup_lens);
+        assert!(
+            has_error(&errors, "is used by more than one seat"),
+            "{errors:?}"
+        );
+
+        // same card (domain:role) twice on the HELPFUL side, with distinct lens ids
+        let mut dup_card = decision_record();
+        dup_card["seats"][1]["lens"] = json!("scope-alternatives/code:senior-developer");
+        let errors = validate_with_matching_request(&dup_card);
+        assert!(
+            has_error(
+                &errors,
+                "card code:senior-developer appears more than once on the HELPFUL side"
+            ),
+            "{errors:?}"
+        );
+
+        // the same card on opposite sides is fine
+        let mut cross = decision_record();
+        cross["seats"][3]["lens"] = json!("red-team/code:qa-test-lead");
+        let errors = validate_with_matching_request(&cross);
+        assert!(!has_error(&errors, "appears more than once"), "{errors:?}");
+    }
+
+    #[test]
+    fn lens_must_start_with_its_stance() {
+        let mut record = decision_record();
+        record["seats"][0]["lens"] = json!("red-team/code:senior-developer");
+        let errors = validate_with_matching_request(&record);
+        assert!(
+            has_error(&errors, "does not start with its stance improvement-path/"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn seats_must_be_isolated_and_unmutated() {
+        let mut record = decision_record();
+        record["seats"][0]["isolated"] = json!(false);
+        record["integrity"]["mutationDetected"] = json!(true);
+        let errors = validate_with_matching_request(&record);
+        assert!(has_error(&errors, "must be isolated"), "{errors:?}");
+        assert!(
+            has_error(&errors, "mutationDetected invalidates review"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn round_is_one_or_two_and_matches_the_request() {
+        let mut record = decision_record();
+        record["round"] = json!(3);
+        assert!(has_error(
+            &validate_with_matching_request(&record),
+            "round must be 1 or 2"
+        ));
+
+        let request = json!({"round": 2});
+        record["round"] = json!(1);
+        assert!(has_error(
+            &validate_record_fields(&record, Some(&request)),
+            "round does not match request"
+        ));
+
+        let mut round_two = decision_record();
+        round_two["round"] = json!(2);
+        assert!(validate_with_matching_request(&round_two).is_empty());
+    }
+
+    #[test]
+    fn packet_only_and_bad_outcome_are_rejected() {
         let request = json!({"requestId": "R1", "mode": "BLOCKER_CONSULT", "packetDigest": "d", "sourceRevision": "r"});
         let record = json!({
             "requestId": "R2",
@@ -566,315 +1237,63 @@ mod tests {
             "sourceRevision": "r",
             "outcome": "NOT_A_REAL_OUTCOME",
             "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": [{"isolated": true}],
+            "seats": [],
         });
         let errors = validate_record_fields(&record, Some(&request));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("requestId does not match")));
-        assert!(errors.iter().any(|e| e.contains("outcome is invalid")));
+        assert!(has_error(&errors, "requestId does not match"));
+        assert!(has_error(&errors, "outcome is invalid"));
+
+        let mut packet_only = decision_record();
+        packet_only["mode"] = json!("PACKET_ONLY");
+        assert!(has_error(
+            &validate_with_matching_request(&packet_only),
+            "PACKET_ONLY cannot produce a CouncilRecord"
+        ));
     }
 
     #[test]
     fn validate_record_fields_requires_digest_verified_true() {
-        let record = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "integrity": {"digestVerified": false},
-        });
+        let mut record = decision_record();
+        record["integrity"]["digestVerified"] = json!(false);
         let errors = validate_with_matching_request(&record);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("digestVerified must be true")));
+        assert!(has_error(&errors, "digestVerified must be true"));
     }
 
     #[test]
     fn caller_digest_verified_flag_cannot_replace_request_verification() {
-        let record = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-        });
-        let errors = validate_record_fields(&record, None);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("request is required to verify packet digest")));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("digestVerified cannot be accepted")));
+        let errors = validate_record_fields(&decision_record(), None);
+        assert!(has_error(
+            &errors,
+            "request is required to verify packet digest"
+        ));
+        assert!(has_error(&errors, "digestVerified cannot be accepted"));
     }
 
     #[test]
     fn request_bound_validation_rejects_artifact_mutations_and_forged_digest_flags() {
-        let mut request =
-            json!({"requestId": "R1", "mode": "BLOCKER_CONSULT", "subject": "before"});
+        let mut request = json!({
+            "requestId": "req_01HZX3Q8Z9K2M4N6P8R0S2T4V6",
+            "mode": "DECISION_CHALLENGE",
+            "sourceRevision": "abcdef1234",
+            "round": 1,
+            "subject": "before",
+        });
         let digest = request_digest(&request);
         request["packetDigest"] = json!(digest);
-        let record = json!({
-            "requestId": "R1",
-            "mode": "BLOCKER_CONSULT",
-            "packetDigest": digest,
-            "outcome": "CONTRACT_SAFE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": three_seats(),
-        });
+        let mut record = decision_record();
+        record["packetDigest"] = json!(digest);
         assert!(validate_record_fields(&record, Some(&request)).is_empty());
 
         let mut mutated_request = request.clone();
         mutated_request["subject"] = json!("after");
         let errors = validate_record_fields(&record, Some(&mutated_request));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("does not match request content")));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("does not match computed request digest")));
+        assert!(has_error(&errors, "does not match request content"));
+        assert!(has_error(&errors, "does not match computed request digest"));
 
         let mut forged = record;
         forged["packetDigest"] = json!(request_digest(&mutated_request));
         let errors = validate_record_fields(&forged, Some(&mutated_request));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("does not match request content")));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("digestVerified cannot be accepted")));
-    }
-
-    fn three_seats() -> Value {
-        json!([
-            {"lens": "improvement-path/code:senior-developer", "isolated": true},
-            {"lens": "scope-alternatives/code:lead-architect", "isolated": true},
-            {"lens": "user-outcome/code:qa-test-lead", "isolated": true},
-        ])
-    }
-
-    #[test]
-    fn decision_challenge_requires_terminal_dispositions_when_complete() {
-        let record = json!({
-            "mode": "DECISION_CHALLENGE",
-            "outcome": "REVISE",
-            "dispositionState": "COMPLETE",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": three_seats(),
-            "findings": [{"findingId": "F1"}],
-            "callerDispositions": [],
-        });
-        let errors = validate_with_matching_request(&record);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("missing terminal disposition for F1")));
-    }
-
-    #[test]
-    fn pending_record_validates_without_dispositions() {
-        let record = json!({
-            "mode": "DECISION_CHALLENGE",
-            "outcome": "REVISE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": three_seats(),
-            "findings": [{"findingId": "F1"}],
-            "callerDispositions": [],
-            "freshVerdictRecordId": null,
-        });
-        let errors = validate_with_matching_request(&record);
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-    }
-
-    #[test]
-    fn pending_record_rejects_fresh_verdict_record_id() {
-        let record = json!({
-            "mode": "DECISION_CHALLENGE",
-            "outcome": "REVISE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": three_seats(),
-            "findings": [{"findingId": "F1"}],
-            "callerDispositions": [],
-            "freshVerdictRecordId": "CV-2",
-        });
-        let errors = validate_with_matching_request(&record);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("freshVerdictRecordId cannot be set while")));
-    }
-
-    #[test]
-    fn complete_record_with_dispositions_accepts_fresh_verdict_record_id() {
-        let record = json!({
-            "mode": "DECISION_CHALLENGE",
-            "outcome": "REVISE",
-            "dispositionState": "COMPLETE",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": three_seats(),
-            "findings": [{"findingId": "F1"}],
-            "callerDispositions": [{"findingId": "F1", "disposition": "ACCEPT"}],
-            "freshVerdictRecordId": "CV-2",
-        });
-        let errors = validate_with_matching_request(&record);
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-    }
-
-    #[test]
-    fn disposition_state_is_required() {
-        let record = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "integrity": {"digestVerified": true},
-            "seatRecords": three_seats(),
-        });
-        let errors = validate_with_matching_request(&record);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("dispositionState must be PENDING or COMPLETE")));
-    }
-
-    #[test]
-    fn panel_needs_three_distinct_lens_ids() {
-        let two = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true},
-            "seatRecords": [
-                {"lens": "red-team/code:lead-architect", "isolated": true},
-                {"lens": "minimize/code:senior-developer", "isolated": true},
-            ],
-        });
-        assert!(validate_with_matching_request(&two)
-            .iter()
-            .any(|e| e.contains("at least 3 seats with distinct lens ids")));
-
-        let duplicate = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true},
-            "seatRecords": [
-                {"lens": "red-team/code:lead-architect", "isolated": true},
-                {"lens": "red-team/code:lead-architect", "isolated": true},
-                {"lens": "minimize/code:senior-developer", "isolated": true},
-            ],
-        });
-        let errors = validate_with_matching_request(&duplicate);
-        assert!(errors.iter().any(|e| e.contains("more than one seat")));
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("at least 3 seats with distinct lens ids")));
-
-        let three = json!({
-            "mode": "BLOCKER_CONSULT",
-            "outcome": "CONTRACT_SAFE",
-            "dispositionState": "PENDING",
-            "integrity": {"digestVerified": true},
-            "seatRecords": three_seats(),
-        });
-        assert!(validate_with_matching_request(&three).is_empty());
-    }
-
-    fn debate_seats() -> Value {
-        json!([
-            {"lens": "improvement-path/code:senior-developer", "stage": "COUNCIL", "round": "POSITION", "isolated": true},
-            {"lens": "scope-alternatives/code:lead-architect", "stage": "COUNCIL", "round": "POSITION", "isolated": true},
-            {"lens": "user-outcome/code:qa-test-lead", "stage": "COUNCIL", "round": "POSITION", "isolated": true},
-            {"lens": "improvement-path/code:senior-developer", "stage": "COUNCIL", "round": "DEBATE", "isolated": true},
-            {"lens": "scope-alternatives/code:lead-architect", "stage": "COUNCIL", "round": "DEBATE", "isolated": true},
-            {"lens": "user-outcome/code:qa-test-lead", "stage": "COUNCIL", "round": "DEBATE", "isolated": true},
-        ])
-    }
-
-    fn debated_record(findings: Value, dispositions: Value) -> Value {
-        json!({
-            "mode": "DECISION_CHALLENGE",
-            "loop": 1,
-            "outcome": "REVISE",
-            "dispositionState": "COMPLETE",
-            "integrity": {"digestVerified": true, "mutationDetected": false},
-            "seatRecords": debate_seats(),
-            "findings": findings,
-            "callerDispositions": dispositions,
-        })
-    }
-
-    #[test]
-    fn debate_round_reuses_a_lens_once_per_round() {
-        let record = debated_record(json!([]), json!([]));
-        let errors = validate_with_matching_request(&record);
-        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
-
-        let mut twice = record.clone();
-        twice["seatRecords"].as_array_mut().unwrap().push(json!({
-            "lens": "improvement-path/code:senior-developer", "round": "DEBATE", "isolated": true
-        }));
-        assert!(validate_with_matching_request(&twice)
-            .iter()
-            .any(|e| e.contains("more than one seat")));
-    }
-
-    #[test]
-    fn debate_seat_needs_a_matching_position_seat() {
-        let mut record = debated_record(json!([]), json!([]));
-        record["seatRecords"].as_array_mut().unwrap().push(json!({
-            "lens": "red-team/code:lead-architect", "round": "DEBATE", "isolated": true
-        }));
-        assert!(validate_with_matching_request(&record)
-            .iter()
-            .any(|e| e.contains("DEBATE seat red-team/code:lead-architect has no POSITION seat")));
-    }
-
-    #[test]
-    fn loop_is_one_or_two_and_matches_the_request() {
-        let mut record = debated_record(json!([]), json!([]));
-        record["loop"] = json!(3);
-        assert!(validate_with_matching_request(&record)
-            .iter()
-            .any(|e| e.contains("loop must be 1 or 2")));
-
-        let request = json!({"loop": 2});
-        record["loop"] = json!(1);
-        assert!(validate_record_fields(&record, Some(&request))
-            .iter()
-            .any(|e| e.contains("loop does not match request")));
-    }
-
-    #[test]
-    fn only_the_user_rules_a_sustained_contest() {
-        let findings = json!([{
-            "findingId": "F-1",
-            "contested": true,
-            "sustainedBy": ["scope-alternatives/code:lead-architect"],
-        }]);
-        let owner_reject = debated_record(
-            findings.clone(),
-            json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "not real"}]),
-        );
-        assert!(validate_with_matching_request(&owner_reject)
-            .iter()
-            .any(|e| e.contains("sustained contest; only the user may reject")));
-
-        let user_reject = debated_record(
-            findings.clone(),
-            json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "not real", "ruledBy": "USER"}]),
-        );
-        assert!(validate_with_matching_request(&user_reject).is_empty());
-
-        // Accepting a sustained contest, or rejecting one nobody sustained, needs no ruling.
-        let accepted = debated_record(
-            findings,
-            json!([{"findingId": "F-1", "disposition": "ACCEPT"}]),
-        );
-        assert!(validate_with_matching_request(&accepted).is_empty());
-        let withdrawn = debated_record(
-            json!([{"findingId": "F-1", "contested": true, "sustainedBy": []}]),
-            json!([{"findingId": "F-1", "disposition": "REJECT", "rationale": "withdrawn"}]),
-        );
-        assert!(validate_with_matching_request(&withdrawn).is_empty());
-    }
-
-    #[test]
-    fn dispute_review_mode_is_retired() {
-        assert!(allowed_outcomes("DISPUTE_REVIEW").is_none());
+        assert!(has_error(&errors, "does not match request content"));
+        assert!(has_error(&errors, "digestVerified cannot be accepted"));
     }
 }

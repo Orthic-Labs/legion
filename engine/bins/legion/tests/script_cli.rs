@@ -469,6 +469,7 @@ fn native_script_list_includes_sc4d_ports() {
         "alchemist/viewer",
         "brand-identity/color-check",
         "council/digest",
+        "council/nim-seat",
         "council/validate-external-review-packet",
         "council/validate-record",
         "seo/provider_registry",
@@ -498,6 +499,7 @@ fn native_script_council_validate_external_review_packet_missing_file_exits_2() 
 fn native_script_council_routes_help_exits_0() {
     for key in [
         "council/digest",
+        "council/nim-seat",
         "council/validate-record",
         "council/validate-external-review-packet",
     ] {
@@ -516,7 +518,7 @@ fn native_script_council_validate_record_rejects_unverified_digest() {
     let path = dir.join("record.json");
     std::fs::write(
         &path,
-        r#"{"mode":"BLOCKER_CONSULT","outcome":"CONTRACT_SAFE","integrity":{"digestVerified":false},"seatRecords":[{"isolated":true}]}"#,
+        r#"{"mode":"BLOCKER_CONSULT","round":1,"outcome":"CONTRACT_SAFE","integrity":{"digestVerified":false},"seats":[{"isolated":true}]}"#,
     )
     .unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -528,6 +530,161 @@ fn native_script_council_validate_record_rejects_unverified_digest() {
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("digestVerified"), "{stdout}");
+}
+
+fn council_v2_seat(side: &str, stance: &str, card: &str, challenging: bool) -> serde_json::Value {
+    let mut seat = serde_json::json!({
+        "seatId": format!("seat-{stance}"),
+        "side": side,
+        "stance": stance,
+        "lens": format!("{stance}/code:{card}"),
+        "cli": "claude",
+        "requestedModel": "opus",
+        "reportedModel": "opus",
+        "status": "RETURNED",
+        "isolated": true,
+        "timing": {"startedAt": null, "completedAt": null, "durationMs": 1},
+        "requirementTrace": [{"requirement": "r", "status": "MET", "evidence": "e"}],
+        "framingCheck": {"matchesUserIntent": true},
+        "findings": [],
+    });
+    if challenging {
+        seat["position"] = serde_json::json!("SUPPORTED");
+        seat["score"] = serde_json::json!(8);
+        seat["scores"] = serde_json::json!({"correctness": 8});
+    }
+    seat
+}
+
+/// Writes a v2 request plus a matching BLOCKER_CONSULT record (digest computed by the real
+/// `council/digest` script), lets `edit` change the record, and returns validate-record output.
+fn council_v2_validate(
+    tag: &str,
+    edit: impl FnOnce(&mut serde_json::Value),
+) -> (Option<i32>, String) {
+    let dir = std::env::temp_dir().join(format!("legion-council-v2-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let request_path = dir.join("request.json");
+    let record_path = dir.join("record.json");
+    let mut request = serde_json::json!({
+        "requestId": "req_01HZX3Q8Z9K2M4N6P8R0S2T4V6",
+        "mode": "BLOCKER_CONSULT",
+        "round": 1,
+        "sourceRevision": "abcdef1234",
+    });
+    std::fs::write(&request_path, request.to_string()).unwrap();
+    let digest_out = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "council/digest"])
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    assert_eq!(digest_out.status.code(), Some(0), "{digest_out:?}");
+    let digest = String::from_utf8_lossy(&digest_out.stdout)
+        .trim()
+        .to_string();
+    request["packetDigest"] = serde_json::json!(digest);
+    std::fs::write(&request_path, request.to_string()).unwrap();
+    let mut record = serde_json::json!({
+        "schemaVersion": 2,
+        "kind": "legion-council-record",
+        "recordId": "CV-1",
+        "requestId": "req_01HZX3Q8Z9K2M4N6P8R0S2T4V6",
+        "mode": "BLOCKER_CONSULT",
+        "round": 1,
+        "packetDigest": digest,
+        "sourceRevision": "abcdef1234",
+        "seats": [
+            council_v2_seat("HELPFUL", "improvement-path", "senior-developer", false),
+            council_v2_seat("CHALLENGING", "red-team", "lead-architect", true),
+            council_v2_seat("CHALLENGING", "security-ops", "security-reliability-reviewer", true),
+        ],
+        "adjudication": {
+            "model": "astra-6",
+            "requirementTrace": [{"requirement": "r", "status": "MET", "evidence": "e"}],
+            "findingRulings": [],
+            "findings": [],
+            "dissents": [],
+            "verdict": "CONTRACT_SAFE",
+            "ruledBy": "ADJUDICATOR",
+        },
+        "outcome": "CONTRACT_SAFE",
+        "integrity": {
+            "digestVerified": true,
+            "baselineHead": "abcdef1234",
+            "baselineStatusDigest": "sha256:status",
+            "mutationDetected": false,
+        },
+    });
+    edit(&mut record);
+    std::fs::write(&record_path, record.to_string()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "council/validate-record"])
+        .arg(&record_path)
+        .arg("--request")
+        .arg(&request_path)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).to_string(),
+    )
+}
+
+#[test]
+fn native_script_council_validate_record_accepts_valid_v2_record() {
+    let (code, stdout) = council_v2_validate("valid", |_| {});
+    assert_eq!(code, Some(0), "{stdout}");
+    assert!(stdout.contains("PASS"), "{stdout}");
+}
+
+#[test]
+fn native_script_council_validate_record_enforces_v2_rules() {
+    // a failed CHALLENGING seat means the outcome must be INSUFFICIENT_EVIDENCE
+    let (code, stdout) = council_v2_validate("failed", |r| {
+        r["seats"][1]["status"] = serde_json::json!("FAILED");
+    });
+    assert_eq!(code, Some(1), "{stdout}");
+    assert!(
+        stdout.contains("expected INSUFFICIENT_EVIDENCE"),
+        "{stdout}"
+    );
+
+    // a merged P0 finding cannot be CONTRACT_SAFE
+    let (code, stdout) = council_v2_validate("p0", |r| {
+        r["adjudication"]["findings"] = serde_json::json!([{
+            "findingId": "F-1",
+            "statement": "breaks the contract",
+            "tier": "P0",
+            "classification": "IN_SCOPE_DEFECT",
+            "raisedBy": ["red-team/code:lead-architect"],
+        }]);
+        r["adjudication"]["findingRulings"] =
+            serde_json::json!([{"findingId": "F-1", "ruling": "VERIFIED", "reason": "reproduced"}]);
+    });
+    assert_eq!(code, Some(1), "{stdout}");
+    assert!(
+        stdout.contains("the verdict must be AMENDMENT_REQUIRED"),
+        "{stdout}"
+    );
+
+    // a HELPFUL seat must not carry a score
+    let (code, stdout) = council_v2_validate("helpful-score", |r| {
+        r["seats"][0]["score"] = serde_json::json!(7);
+    });
+    assert_eq!(code, Some(1), "{stdout}");
+    assert!(stdout.contains("must not carry score"), "{stdout}");
+
+    // a fourth seat breaks the BLOCKER_CONSULT panel
+    let (code, stdout) = council_v2_validate("four-seats", |r| {
+        let extra = council_v2_seat("CHALLENGING", "minimize", "senior-developer", true);
+        r["seats"].as_array_mut().unwrap().push(extra);
+    });
+    assert_eq!(code, Some(1), "{stdout}");
+    assert!(
+        stdout.contains("needs exactly 3 seats, found 4"),
+        "{stdout}"
+    );
 }
 
 #[test]
@@ -1027,4 +1184,13 @@ fn seo_closure_native_entries_match_script_list_and_catalog() {
             }
         }
     }
+}
+
+#[test]
+fn native_script_council_nim_seat_missing_args_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "council/nim-seat", "--model", "x/y"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
 }

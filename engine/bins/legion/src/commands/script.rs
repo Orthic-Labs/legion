@@ -61,6 +61,7 @@ pub const TABLE: &[(&str, Entry)] = &[
         "council/validate-external-review-packet",
         council_validate_external_review_packet,
     ),
+    ("council/nim-seat", council_nim_seat),
     ("council/validate-record", council_validate_record),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
@@ -340,6 +341,10 @@ fn brand_identity_color_check(args: &[String]) -> i32 {
 
 // ---- council --------------------------------------------------------
 
+fn council_nim_seat(args: &[String]) -> i32 {
+    super::nim_seat::run(args)
+}
+
 fn council_validate_external_review_packet(args: &[String]) -> i32 {
     w2_005::run(args)
 }
@@ -425,7 +430,7 @@ fn council_validate_record(args: &[String]) -> i32 {
         },
         None => None,
     };
-    let schema_path = find_skills_file("skills/council/lib/schemas/council-record-v1.schema.json");
+    let schema_path = find_skills_file("skills/council/lib/schemas/council-record-v2.schema.json");
     let schema = match council_read_json(&schema_path.to_string_lossy()) {
         Ok(v) => v,
         Err(e) => {

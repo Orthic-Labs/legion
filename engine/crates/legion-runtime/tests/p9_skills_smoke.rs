@@ -39,9 +39,34 @@ fn seo_pre_commit_check_blocks_on_placeholder_text() {
 
 #[test]
 fn council_contracts_digest_and_validate_entry_points() {
+    fn seat(side: &str, stance: &str, card: &str, challenging: bool) -> serde_json::Value {
+        let mut seat = json!({
+            "seatId": format!("seat-{stance}"),
+            "side": side,
+            "stance": stance,
+            "lens": format!("{stance}/code:{card}"),
+            "cli": "claude",
+            "requestedModel": "opus",
+            "reportedModel": "opus",
+            "status": "RETURNED",
+            "isolated": true,
+            "timing": {"startedAt": null, "completedAt": null, "durationMs": 1},
+            "requirementTrace": [{"requirement": "r", "status": "MET", "evidence": "e"}],
+            "framingCheck": {"matchesUserIntent": true},
+            "findings": [],
+        });
+        if challenging {
+            seat["position"] = json!("SUPPORTED");
+            seat["score"] = json!(8);
+            seat["scores"] = json!({"correctness": 8});
+        }
+        seat
+    }
+
     let mut request = json!({
         "requestId": "R1",
         "mode": "BLOCKER_CONSULT",
+        "round": 1,
         "subject": {"artifact": "fixture"},
     });
     let packet_digest = request_digest(&request);
@@ -50,15 +75,24 @@ fn council_contracts_digest_and_validate_entry_points() {
     let record = json!({
         "requestId": "R1",
         "mode": "BLOCKER_CONSULT",
+        "round": 1,
         "packetDigest": packet_digest,
         "outcome": "CONTRACT_SAFE",
-        "dispositionState": "PENDING",
         "integrity": {"digestVerified": true, "mutationDetected": false},
-        "seatRecords": [
-            {"lens": "red-team/code:lead-architect", "isolated": true},
-            {"lens": "minimize/code:senior-developer", "isolated": true},
-            {"lens": "security-ops/code:security-reliability-reviewer", "isolated": true},
+        "seats": [
+            seat("HELPFUL", "improvement-path", "senior-developer", false),
+            seat("CHALLENGING", "red-team", "lead-architect", true),
+            seat("CHALLENGING", "security-ops", "security-reliability-reviewer", true),
         ],
+        "adjudication": {
+            "model": "astra-6",
+            "requirementTrace": [{"requirement": "r", "status": "MET", "evidence": "e"}],
+            "findingRulings": [],
+            "findings": [],
+            "dissents": [],
+            "verdict": "CONTRACT_SAFE",
+            "ruledBy": "ADJUDICATOR",
+        },
     });
     let errors = validate_record_fields(&record, Some(&request));
     assert!(errors.is_empty(), "unexpected errors: {errors:?}");
@@ -106,6 +140,8 @@ fn council_schema_copies_are_byte_equal() {
     for name in [
         "council-record-v1.schema.json",
         "council-request-v1.schema.json",
+        "council-record-v2.schema.json",
+        "council-request-v2.schema.json",
     ] {
         let skill = std::fs::read(root.join("skills/council/lib/schemas").join(name)).unwrap();
         let contracts =

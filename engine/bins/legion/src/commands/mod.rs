@@ -21,6 +21,7 @@ pub mod init;
 pub mod languages;
 pub mod mcp_config;
 pub mod minimize;
+pub mod nim_seat;
 pub mod plan;
 pub mod policy;
 pub mod providers;
@@ -79,6 +80,16 @@ pub fn audit_inventory_source(
 ) -> Result<Arc<legion_audit::FilesystemInventorySource>, CommandError> {
     legion_audit::FilesystemInventorySource::new(root)
         .map(Arc::new)
+        .map_err(|error| CommandError::incomplete(error.to_string()))
+}
+/// `audit_inventory_source` narrowed to `only_paths` (diff-scoped audits);
+/// `None` is the whole-repository inventory.
+pub fn audit_inventory_source_scoped(
+    root: &Path,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
+) -> Result<Arc<legion_audit::FilesystemInventorySource>, CommandError> {
+    legion_audit::FilesystemInventorySource::new(root)
+        .map(|source| Arc::new(source.with_only_paths(only_paths.cloned())))
         .map_err(|error| CommandError::incomplete(error.to_string()))
 }
 #[derive(Debug)]

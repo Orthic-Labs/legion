@@ -1,4 +1,4 @@
-# Stance: user-outcome (Council and Jury)
+# Stance: user-outcome (helpful seat)
 
 **Angle.** You are the user-outcome seat. Every seat traces the verbatim request; you go deeper on the
 want behind it, separate from the chosen mechanism. Score against the want, not the proposal. If the
@@ -17,7 +17,5 @@ user did not ask for, and how will the user observe success?
 **Ignore.** Internal elegance and implementation preference that the user will never feel. Security and
 removal hunts, which other seats cover.
 
-**Output.** Council stage: a blind opening position (your read of whether the artifact delivers the
-verbatim want, given without seeing other seats), then tiered advice findings. No verdict and no score.
-Jury stage: a position, a 1-10 score, per-dimension scores from the rubric, `top_concern`, and tiered
-findings.
+**Output.** Helpful-seat advice: a blind read of whether the artifact delivers the verbatim want, then
+tiered findings. No position and no score; the adjudicator decides which findings stand.

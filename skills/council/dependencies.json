@@ -189,6 +189,14 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "web-search"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/council-record-v2.schema.json"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "lib/schemas/council-request-v2.schema.json"
     }
   ]
 }

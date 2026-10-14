@@ -80,6 +80,12 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         reason: None,
     },
     ScriptProbe {
+        key: "council/nim-seat",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
         key: "council/validate-external-review-packet",
         mode: ProbeMode::Help,
         args: HELP,

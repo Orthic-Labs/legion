@@ -1,4 +1,5 @@
 pub mod artifact;
+pub mod credential;
 pub mod environment;
 pub mod error;
 pub mod executable;

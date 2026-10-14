@@ -5,7 +5,7 @@ whose expertise a seat brings: its mandate, references, evidence, severity ceili
 
 **The convener assigns one role card from a domain file to each seat.** The card is only half of a
 seat's lens. The other half is its stance (`../stances/`), which sets the angle of attack. A seat
-gets one stance and one role card, and in the Jury also the artifact's rubric (`../rubrics/`).
+gets one stance and one role card, and the artifact's rubric (`../rubrics/`).
 Never hand a seat a whole file: playing every role in a domain recreates the failure where three
 seats share one lens and one blind spot.
 
@@ -32,10 +32,12 @@ Seat lens ids use the form `<stance>/<domain>:<role>`, for example `red-team/cod
 
 ## Severity wording
 
-A card's "Veto power" line names what that role treats as a maximum-severity finding. Under Council
-a seat is advisory: it reports that finding as P0 for the decision owner to weigh and never blocks or
+A card's "Veto power" items set the MAXIMUM severity that card may assign, not an automatic grade. A
+finding is P0 only when it shows a failed outcome or safety property; an unproven concern is
+MISSING_EVIDENCE, not an automatic P0. The adjudicator verifies each finding; a seat never blocks or
 disposes.
 
 ## Seat mix
 
-`../../SKILL.md` carries the table of which cards go to which stances for each artifact type.
+`../../SKILL.md` carries the six-card mix for each artifact type. A card may hold at most one helpful
+and one challenging seat.

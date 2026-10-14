@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-council-request-v2",
+  "title": "CouncilRequest",
+  "description": "Advisory Council request (v2: one round of blind seats plus one adjudicator). callerAuthority records an explicit calling context; convenedBy records Legion orchestration separately. Neither field grants Council authority or makes challenge a release gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "requestId",
+    "runId",
+    "callerAuthority",
+    "mode",
+    "subjectType",
+    "subjectId",
+    "subjectVersion",
+    "sourceRevision",
+    "packetDigest",
+    "userIntent",
+    "question",
+    "constraints",
+    "invariants",
+    "nonGoals",
+    "evidenceRefs",
+    "embeddedEvidence",
+    "knownUnknowns",
+    "knownWeaknesses",
+    "alternativesConsidered",
+    "requestedOutcome",
+    "seatPolicy",
+    "riskClass",
+    "round"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "kind": {
+      "const": "legion-council-request"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "callerAuthority": {
+      "enum": [
+        "SAGE",
+        "ALCHEMIST",
+        "USER_OVERRIDE"
+      ]
+    },
+    "convenedBy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "const": "legion",
+      "description": "Present only when the Legion orchestrator convened this request on user/policy request. Never equals callerAuthority; the orchestrator never becomes the caller of record."
+    },
+    "mode": {
+      "enum": [
+        "DECISION_CHALLENGE",
+        "BLOCKER_CONSULT",
+        "PACKET_ONLY"
+      ]
+    },
+    "round": {
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Round 1 is the single blind-seat round plus adjudication. Round 2 happens only when the user asks, on a revised artifact; it is a fresh request with its own packetDigest. Never more than two."
+    },
+    "subjectType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. 'execution-contract', 'blocker', 'artifact'."
+    },
+    "subjectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subjectVersion": {
+      "type": [
+        "string",
+        "integer",
+        "null"
+      ]
+    },
+    "sourceRevision": {
+      "type": "string",
+      "minLength": 7
+    },
+    "packetDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Canonical request digest with only this top-level packetDigest field excluded; nested fields named packetDigest remain covered."
+    },
+    "userIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verbatim",
+        "interpretedSuccessCriteria",
+        "transcriptRef"
+      ],
+      "properties": {
+        "verbatim": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The user's exact request, never replaced by the author's interpretation. Seats derive requirementTrace rows from this text."
+        },
+        "interpretedSuccessCriteria": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transcriptRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Path to the transcript that holds the verbatim user requests."
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Hex sha256 of the transcript file at request time."
+            }
+          }
+        }
+      }
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "embeddedEvidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Real diff/file content or real screenshots, not only prose summary \u2014 'no evidence, no verdict'."
+    },
+    "knownUnknowns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "knownWeaknesses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "alternativesConsidered": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requestedOutcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "seatPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seatCount"
+      ],
+      "properties": {
+        "seatCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "DECISION_CHALLENGE runs 6 seats (3 HELPFUL + 3 CHALLENGING); BLOCKER_CONSULT runs 3 (improvement-path, red-team, security-ops). One adjudicator is not a seat."
+        },
+        "lensRequirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "All seats run blind and in parallel with only request-authorized inputs; provider selection remains Legion orchestration. There is no debate round and no separate Jury."
+    },
+    "riskClass": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
