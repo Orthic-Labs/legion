@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "legion-model-tier-map",
-  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Sentry runs mechanical-cheap (Haiku on Claude Code, Luna on Codex). Council seats run deliberation (Fable on Claude Code, Astra on Codex); an explicit human reviewer override may select another available model, including Fable or Astra.",
+  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Sentry runs mechanical-cheap (Haiku on Claude Code, Luna on Codex). Council seats run deliberation across three CLIs in every run (Fable 5.1 via Claude CLI, Astra 6 via Codex CLI, Muse Wonder full via Muse CLI); an explicit human reviewer override may select another available model, including Fable or Astra.",
   "tiers": {
     "frontier-judgment": {
       "hosts": {
@@ -23,8 +23,9 @@
     },
     "deliberation": {
       "hosts": {
-        "claude-code": "fable",
-        "codex": "gpt-6-astra"
+        "claude-code": "claude-fable-5-1",
+        "codex": "gpt-6-astra",
+        "muse": "muse-wonder-full-1.0"
       }
     }
   }

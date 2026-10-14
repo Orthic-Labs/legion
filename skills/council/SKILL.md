@@ -19,7 +19,7 @@ hostRequirements:
 
 PRIMARY_DELIVERABLE: Digest-bound Council request, record, or packet-only artifact.
 CHILD_AGENTS_MAX: 10
-EXTERNAL_REQUESTS_MAX: 0 (seats; the owner's source research in step 6 is outside the seats)
+EXTERNAL_REQUESTS_MAX: 0 beyond the seat CLI sessions (the owner's source research in step 6 is outside the seats)
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Mode-specific record exists, or packet-only marker proves no panel ran.
@@ -170,7 +170,27 @@ build-and-measure step between loops, is what makes the process converge.
 
 ## Seats
 
-Launch each seat as the `council-seat` agent type with the host's agent-spawn tool (Claude: `subagent_type: legion:council-seat`; Codex: `agent_type: council-seat`) and `fork_turns: "none"`. The prompt
+Seats run across three vendors so no stage is one model reviewing itself. Each seat is a fresh,
+read-only headless session of one CLI, started with no conversation history:
+
+| CLI | Model | Read-only headless launch (prompt file on stdin or `--prompt-file`) |
+|---|---|---|
+| Codex CLI | `gpt-6-astra` (Astra 6) | `codex exec -m gpt-6-astra -s read-only --skip-git-repo-check - < seat.md` |
+| Claude CLI | `claude-fable-5-1` (Fable 5.1) | `claude -p --model claude-fable-5-1 --permission-mode plan < seat.md` |
+| Muse CLI | `muse-wonder-full-1.0` (Wonder full) | `muse exec --model muse-wonder-full-1.0 --disable-write --disable-shell --prompt-file seat.md` |
+
+Assignment by stance, so every stage spans all three vendors:
+
+| Stage | Astra (Codex) | Fable (Claude) | Wonder full (Muse) |
+|---|---|---|---|
+| Council positions and debate | `improvement-path` | `scope-alternatives` | `user-outcome` |
+| Jury | `red-team`, `user-outcome` | `minimize` | `security-ops` |
+| BLOCKER_CONSULT | `improvement-path` | `red-team` | `security-ops` |
+
+A debate re-launch uses the same CLI as that seat's position, in a new session. Record each seat's
+CLI, requested model, and the model the CLI reports; never substitute another model or CLI for a
+seat. The seat file (`seat.md`) holds the `council-seat` agent instructions (`agents/council-seat.md`
+body) followed by the seat prompt. The prompt
 embeds, and nothing else:
 
 - the packet (never another seat's output, except the Council debate round below);
@@ -212,8 +232,9 @@ this is the only cross-file card.
 
 ## Degradation
 
-If the `legion:council-seat` agent is unavailable, report DEGRADED to the user and write no record (the
-record schema has no degraded outcome, and a record needs at least three seats). Never simulate seats
+If fewer than three seat CLIs can run (missing CLI, no login, model unavailable), report DEGRADED to
+the user and write no record (the record schema has no degraded outcome, and a record needs at least
+three seats). A seat whose CLI fails is a failed seat; never relaunch it on another model. Never simulate seats
 inline, and never claim independence for a single-agent run. A Council seat that failed leaves its
 stance uncovered and is recorded as such; it is not replaced by the convener. A Jury seat failure
 makes the outcome UNRESOLVED. A seat that fails its debate re-launch keeps its blind position and
@@ -225,5 +246,4 @@ For `/council packet`, fill `assets/external-review-packet-template.md` and vali
 `legion script council/validate-external-review-packet`. This mode runs no seats and produces no
 record or outcome: no self-review, disposition, or verdict. To use outside reviewers, export the
 packet PACKET_ONLY, run it elsewhere, and ingest their replies as seat records (each with its own
-stance, role card, and `isolated` flag); Council itself makes no external or cross-vendor calls.
-Seats are host-native.
+stance, role card, and `isolated` flag).
