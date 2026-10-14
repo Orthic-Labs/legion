@@ -1,5 +1,24 @@
 {
   "schemaVersion": 1,
   "kind": "legion-skill-dependencies",
-  "resources": []
+  "resources": [
+    {
+      "class": "PROJECT_OVERLAY",
+      "path": "<project-overlay>/swiftright/docs/proven-controls.json",
+      "optional": true,
+      "absent": "Treat no control as SwiftRight-proven; keep views to stacks, text, images, shapes and buttons and report the Windows claim as unverified."
+    },
+    {
+      "class": "PROJECT_OVERLAY",
+      "path": "<project-overlay>/swiftright/docs/sr1-status.md",
+      "optional": true,
+      "absent": "Treat no control as SwiftRight-proven; keep views to stacks, text, images, shapes and buttons and report the Windows claim as unverified."
+    },
+    {
+      "class": "PROJECT_OVERLAY",
+      "path": "<project-overlay>/rightkit-owns",
+      "optional": true,
+      "absent": "Skip the `rightkit owns` check and ask the project owner before adding a third-party package."
+    }
+  ]
 }

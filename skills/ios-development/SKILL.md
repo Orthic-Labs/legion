@@ -46,6 +46,7 @@ platform expertise within Legion, not a new authority, agent harness, or permiss
    - Xcode selection, tools, simulator workflows: [Toolchain](references/toolchain.md)
    - Measured build, launch, rendering, memory improvements: [Performance](references/performance.md)
    - Signing, archive/export, TestFlight/App Store preparation: [Release](references/release.md)
+   - SwiftUI that must also render on Windows (SwiftRight), third-party package rules: [SwiftRight portability](references/swiftright-portability.md)
    - A cross-platform shell or native bridge: [Rust/Tauri interop](references/tauri-rust-interop.md)
    - Native iOS workflow router & deep workflows: [iOS workflows](references/ios-workflows.md), [SwiftUI quality](references/ios-workflows/swiftui-quality.md), [simulator debugging](references/ios-workflows/simulator-debugging.md), [memory evidence](references/ios-workflows/memory-evidence.md), [performance evidence](references/ios-workflows/performance-evidence.md)
    - Mac workflow boundary for multiplatform targets: [macOS workflow boundary](references/macos-workflows.md)

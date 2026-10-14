@@ -1,5 +1,7 @@
 # SwiftUI window management
 
+This covers macOS app windows; to run SwiftUI on Windows, see [SwiftRight portability](../swiftright-portability.md).
+
 Start from scene ownership, then apply scene/window modifiers before bridging to AppKit.
 The following APIs are version-sensitive; check active SDK and deployment minimum and
 guard or provide an older-target path:

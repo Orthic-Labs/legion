@@ -48,6 +48,7 @@ This adds platform expertise to Legion; it does not replace its runtime or autho
    - Signing, sandbox, notarization, distribution preparation: [Release](references/release.md)
    - Cross-language implementation and host preservation: [Rust/Tauri interop](references/tauri-rust-interop.md)
    - Native Mac workflow router & deep workflows: [macOS workflows](references/macos-workflows.md), [AppKit interop](references/macos-workflows/appkit-interop.md), [windows](references/macos-workflows/windows.md), [scenes](references/macos-workflows/swiftui-scenes.md), [build/run/debug](references/macos-workflows/build-run-debug.md), [signing/packaging](references/macos-workflows/signing-packaging.md)
+   - SwiftUI that must also render on Windows (SwiftRight), third-party package rules: [SwiftRight portability](references/swiftright-portability.md)
    - iOS workflow boundary for multiplatform targets: [iOS workflow boundary](references/ios-workflows.md)
    - Build analysis & measured optimization: [Build optimization](references/build-optimization.md), [benchmarking](references/build-optimization/benchmarking.md), [compilation analysis](references/build-optimization/compilation-analysis.md)
    - Profiling capture & interpretation: [Profiling](references/profiling.md), [capture](references/profiling/capture.md), [hotspots](references/profiling/hotspots.md), [export](references/profiling/export.md)
