@@ -25,7 +25,7 @@ require another validation.
 
 Legion is responsible for transmitting scope. Oracle is responsible for reconstructing and
 restating it from raw user turns. Never trust Legion's summary, status prose, test totals, or
-claimed success. Challenge every claimed outcome against actual source, call sites,
+claimed success. Verify that the capabilities and authority that produced the work match what the raw request required (for example, an architecture decision produced without Architect), not only the output text. Challenge every claimed outcome against actual source, call sites,
 configuration, documentation, and live consumers. Read tests when they clarify intended behavior;
 **do not run or rerun tests** in Completion Validation.
 

@@ -54,6 +54,7 @@ Report requested states actually reached. Independent nested repositories are de
 - Worker output is untrusted until Legion verifies it in the primary checkout. Require a reachable canonical commit or a content-addressed patch outside its disposable worktree before archive; clean read-only tasks archive freely.
 - On each worker return, integrate accepted work & assign remaining ready work or finish it inline. Partial returns never close scope; size lanes by dependency & evidence cost, not fixed quotas.
 - Verify requested behavior on its actual platform, application mode & installed build. Launch, transport, compilation & worker claims prove only their own stage; read back resulting user-visible state.
+- Message another agent chat through the Pulse bridge (`pulse-bridge` skill or `pulse chat` CLI) or the host's cross-session messaging; never use computer use or UI automation as the transport for agent-to-agent messages, and treat Pulse as unavailable only on evidence.
 - Bound mapping, planning, & retries; only the operator's explicit resume resets stopped work.
 
 ## Invariants Legion never breaks

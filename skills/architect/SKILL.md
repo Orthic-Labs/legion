@@ -37,7 +37,8 @@ Architect's routine mandate.
 - ADRs where warranted;
 - migration and evolution;
 - architectural risk;
-- simplest-sufficient architecture.
+- simplest-sufficient architecture;
+- technology or model selection studies that commit an integration shape (Research supplies the evidence; Architect owns the decision).
 
 ## Method
 

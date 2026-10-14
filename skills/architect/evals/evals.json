@@ -4,7 +4,8 @@
   "route": "capability:architect",
   "should_trigger": [
     {"id":"ad-design-a-feature","prompt":"Design and plan how to add real-time notifications to this app.","expected_skill":"architect","forbidden_skills":["audit"],"expected_behavior":"Architect owns engineering design and planning directly; no Sage handoff for routine architecture work.","severity":"error","mode":"discovery"},
-    {"id":"ad-plan-refactor","prompt":"Write an implementation plan to refactor the auth module.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"Routes engineering planning to Architect as a first-class capability.","severity":"error","mode":"discovery"}
+    {"id":"ad-plan-refactor","prompt":"Write an implementation plan to refactor the auth module.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"Routes engineering planning to Architect as a first-class capability.","severity":"error","mode":"discovery"},
+    {"id":"ad-technology-selection-study","prompt":"Study whether our desktop app should use a native speech-to-speech model or an ASR → LLM → TTS pipeline, and recommend one.","expected_skill":"architect","forbidden_skills":["marketing"],"expected_behavior":"A model or technology selection that commits an integration shape is an architecture decision: Architect owns it; Research may also load to supply evidence but does not replace Architect.","severity":"error","mode":"discovery"}
   ],
   "should_not_trigger": [
     {"id":"ad-not-map-current","prompt":"Map current architecture of this repo without proposing changes.","expected_skill":"blueprint","forbidden_skills":["architect"],"expected_behavior":"Current-state mapping routes through public Blueprint; Architect is reserved for target-state judgment or design.","severity":"error","mode":"discovery"},

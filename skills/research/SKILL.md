@@ -25,6 +25,8 @@ Reading local transcripts, inspecting repository files, or opening/summarizing a
 without external investigation stays direct. Medical and legal are private internal routes; India
 consumer-commission filing is a Legal workflow.
 
+When the synthesis must decide architecture (component boundaries, runtime ownership, pipeline topology, latency/quality budgets, or model/technology selection that commits an integration shape), Research supplies the evidence and Architect owns the decision; an unresolved material tradeoff goes to Sage.
+
 PRIMARY_DELIVERABLE: Frozen `ResearchRoute` plus route-scoped evidence artifact.
 RESOURCE_BUDGET: hook-metered by route scale, never model-counted.
 MAY_ADD_TASKS: NO · MAY_CALL_SKILLS: NONE

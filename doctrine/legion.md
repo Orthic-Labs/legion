@@ -44,6 +44,8 @@ repository-quality verdict, or a research synthesis, select `writing`, `designer
 `research` and load its REQUIRED_READS before producing. Inline production without the capability is
 the exception & must be named.
 
+Message another agent chat through the Pulse bridge (`pulse-bridge` skill or `pulse chat` CLI) or the host's cross-session messaging; never use computer use or UI automation as the transport for agent-to-agent messages, and treat Pulse as unavailable only on evidence.
+
 Legion decides whether authority is needed before selecting Dispatch or another capability.
 Use each canonical roster's Triggers table; explicit role requests take precedence over routine-work
 exclusions. Sage closes material unresolved meaning, Alchemist executes any assignment that writes files, runs commands with effects, or produces an
