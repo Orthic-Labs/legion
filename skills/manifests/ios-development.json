@@ -118,6 +118,7 @@
       "references/release/testflight.md",
       "references/release.md",
       "references/route-resources.json",
+      "references/swiftright-portability.md",
       "references/swiftui/accessibility-localization.md",
       "references/swiftui/animation.md",
       "references/swiftui/api-migrations.md",
@@ -205,7 +206,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ios-development/SKILL.md",
-      "digest": "sha256:3b56db75938aaf4caa00cc03a1b717cfdb18cac3e5bf4bf213775e0c9575382e"
+      "digest": "sha256:bb7e18ce0b5d5eabac18c1994e46a84ccc5605043ec7b22f2f381772b1ba4d4f"
     },
     {
       "path": "agents/openai.yaml",
@@ -225,7 +226,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://ios-development/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:a1ea63b63cba1007583a2223ea80b10d800c67f2087f92fb11f67376c9ad4bb3"
     },
     {
       "path": "evals/evals.json",
@@ -661,6 +662,11 @@
       "path": "references/route-resources.json",
       "uri": "legion-skill://ios-development/references/route-resources.json",
       "digest": "sha256:40fae2f4d2098ddc8938950569ec244a095657ac2599a34c98a87f23c7d401ee"
+    },
+    {
+      "path": "references/swiftright-portability.md",
+      "uri": "legion-skill://ios-development/references/swiftright-portability.md",
+      "digest": "sha256:c399945c467af6e8535b19965f59242a8fc8661a91b534da2bba2e3bc1e61a6d"
     },
     {
       "path": "references/swiftui/accessibility-localization.md",
