@@ -59,11 +59,17 @@ Before anything runs, capture `git status --short` and `HEAD`. They are the read
 
 1. **Request.** Build the request JSON per `lib/schemas/council-request-v1.schema.json`. Use
    DECISION_CHALLENGE for a named decision or work artifact (a disputed finding is one too) and
-   BLOCKER_CONSULT for a named execution blocker. Set `loop` (1 or 2). Embed the real artifact and
-   the user's request **verbatim** in `userIntent.verbatim`; the implementer's restatement goes in
-   `interpretedSuccessCriteria`, where it is visibly the author's claim and can be disputed. Council
-   never creates a prerequisite authority route. State the phase boundary in the request's
-   `constraints` and `nonGoals` so the panel judges the phase, not the whole roadmap. Finish the
+   BLOCKER_CONSULT for a named execution blocker. Set `loop` (1 or 2). Embed the real artifact, and in
+   `userIntent.verbatim` **every user turn that states or corrects the request**, copied from the
+   transcript, never paraphrased, trimmed or reordered; keep earlier turns and mark which later
+   correction overrides them. Every seat traces its review to this text, so a missing turn is a
+   requirement no seat can check. The implementer's restatement goes in `interpretedSuccessCriteria`,
+   where it is visibly the author's claim and can be disputed. Council never creates a prerequisite
+   authority route. State the phase boundary in `constraints` and `nonGoals` so the panel judges the
+   phase, not the whole roadmap: quote the user's words for each, and prefix anything the convener adds
+   with `convener:`. The `question` asks what the user asked; it never offers options the user did not
+   (for example "include, exclude or defer" when the user asked "where does each go"). Seats flag any
+   convener text that drops or narrows a verbatim requirement as a P0 packet defect. Finish the
    request content before computing its digest.
 2. **Self-review.** The convener reviews the artifact first and records what it found in the
    request's `knownWeaknesses`, each labelled `self-review`. A self-review is the author's own pass,
@@ -102,7 +108,7 @@ Before anything runs, capture `git status --short` and `HEAD`. They are the read
    Validate before and after: a PENDING record validates without dispositions; a COMPLETE one requires
    them.
 7. **Revision.** The owner applies the accepted fixes. Build a NEW request with a new digest for the
-   revised artifact, marked `seatPolicy.stage: JURY`. It carries **no Council findings,
+   revised artifact, marked `seatPolicy.stage: JURY`. It keeps the same `userIntent.verbatim` unchanged and carries **no Council findings,
    dispositions, votes, or preferred verdict**, because the Jury must come to it unprimed. Record
    `revisionSubjectId` and `revisionDigest` on the Council record; set `freshVerdictRecordId` only
    once `dispositionState` is COMPLETE.
@@ -193,7 +199,8 @@ seat. The seat file (`seat.md`) holds the `council-seat` agent instructions (`ag
 body) followed by the seat prompt. The prompt
 embeds, and nothing else:
 
-- the packet (never another seat's output, except the Council debate round below);
+- the packet, always including the verbatim user intent (never another seat's output, except the
+  Council debate round below);
 - the seat's stance file, in full;
 - exactly one role card, copied from the domain file (the card section, not the whole file);
 - in the Jury, the artifact's rubric;

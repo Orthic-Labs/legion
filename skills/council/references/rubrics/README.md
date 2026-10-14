@@ -21,6 +21,9 @@ Embed exactly one rubric in each verdict seat's prompt.
   change before ship; P2 is worth knowing. A seat returns at most 8 P1+P2 findings; P0 is unbounded.
 - **Forced questions.** Answer every one, in one or two sentences, citing packet evidence. "none found"
   is a valid answer only with what you checked. Answer the stance's own forced question as well.
+- **requirement_coverage.** Every rubric also scores this dimension from the seat's requirement trace:
+  10 = every verbatim requirement `MET` with evidence. Any `MISSING` requirement is a P0 and makes the
+  position REVISE; an `UNPROVEN` one is a MISSING_EVIDENCE finding.
 - **missing_evidence.** Every rubric also asks: what would you need to see that is not in this packet?
   Gaps are findings of class MISSING_EVIDENCE, never reasons to guess.
 - **Fail modes** are a checklist of known ways this artifact type fails. Use them to look, not to pad.

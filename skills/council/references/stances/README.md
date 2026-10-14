@@ -11,7 +11,7 @@ Seats that share a stance in one panel would share a blind spot, so a panel uses
 |---|---|---|---|
 | Council (advisory) | `improvement-path` | Constructive: smallest change that most improves the artifact | `highest_leverage_improvement` |
 | Council (advisory) | `scope-alternatives` | Constructive: is this the best route to the intent? | `best_alternative_and_decider` |
-| Council and Jury | `user-outcome` | Score against the want, not the mechanism | `intention_alternative_path` |
+| Council and Jury | `user-outcome` | Score against the want, not the mechanism | `intention_fidelity` |
 | Jury (verdict) | `red-team` | Adversarial: default REVISE, argue against | `strongest_known_counterexample` |
 | Jury (verdict) | `minimize` | Adversarial: what can be removed, deferred, shrunk | `smallest_removable_slice` |
 | Jury (verdict) | `security-ops` | Adversarial: trust boundaries, abuse, observability | `exploitable_or_unguarded_path` |
@@ -26,7 +26,9 @@ contest or endorse theirs). Jury stances return a position and score against the
 - labels anything it cannot ground in the packet as speculation;
 - stays inside its stance. Another seat covers the other angles.
 
-`user-outcome` is the only stance used in both panels. It reads the verbatim user request, never the
-author's restatement of it.
+Every seat in every stance first traces the verbatim user request, never the author's restatement of
+it (`agents/council-seat.md`, requirement trace and framing check); the stance only sets where a seat
+attacks. `user-outcome`, the one stance used in both panels, goes deeper on the want: friction the
+user did not ask for and how success will be observed.
 
 Seat lens id: `<stance>/<domain>:<role>`, for example `red-team/code:lead-architect`.
