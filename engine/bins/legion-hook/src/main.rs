@@ -1490,8 +1490,7 @@ fn is_shell_assignment(word: &str) -> bool {
 }
 
 fn word_program(word: &str) -> String {
-    program_name(word.trim_matches(|c| c == '"' || c == '\''))
-        .to_ascii_lowercase()
+    program_name(word.trim_matches(|c| c == '"' || c == '\'')).to_ascii_lowercase()
 }
 
 /// Whether the text a command substitution sits in only *captures* its
@@ -1523,7 +1522,10 @@ fn capture_parent_is_safe(parent: &str) -> bool {
             .map(word_program)
             .filter(|program| !program.is_empty())
     };
-    match (program_of(parent), program_of(strip_command_prefixes(parent.trim()))) {
+    match (
+        program_of(parent),
+        program_of(strip_command_prefixes(parent.trim())),
+    ) {
         (Some(first), Some(launched)) => {
             !DISPLAY_PROGRAMS.contains(&first.as_str())
                 && !DISPLAY_PROGRAMS.contains(&launched.as_str())
@@ -1534,10 +1536,7 @@ fn capture_parent_is_safe(parent: &str) -> bool {
 
 /// Whether the output of a credential-revealing segment is captured or
 /// discarded rather than displayed. Narrow on purpose: when unsure, display.
-fn credential_output_is_captured(
-    segment: &CommandSegment,
-    next: Option<&CommandSegment>,
-) -> bool {
+fn credential_output_is_captured(segment: &CommandSegment, next: Option<&CommandSegment>) -> bool {
     let captured_by_parent = segment
         .parent
         .as_deref()
@@ -1601,8 +1600,7 @@ fn reads_credential_material(command: &str) -> bool {
                 return false;
             }
             secret_to_stderr = words.iter().skip(1).any(|w| security_flag_reveals(w, 'g'));
-            if !secret_to_stderr && !words.iter().skip(1).any(|w| security_flag_reveals(w, 'w'))
-            {
+            if !secret_to_stderr && !words.iter().skip(1).any(|w| security_flag_reveals(w, 'w')) {
                 // Metadata lookup: attributes only, no secret.
                 return false;
             }
@@ -1751,23 +1749,21 @@ fn command_segments_with_context(command: &str) -> Vec<CommandSegment> {
                 parents.push(parent_text);
                 level_text.clear();
             }
-            '`' if quote != Some('\'') => {
-                match backtick.take() {
-                    Some(saved) => {
-                        quote = saved;
-                        push_segment(&mut segments, &mut current, &parents, false);
-                        level_text = parents.pop().unwrap_or_default();
-                    }
-                    None => {
-                        backtick = Some(quote);
-                        quote = None;
-                        let parent_text = format!("{level_text}{current}");
-                        push_segment(&mut segments, &mut current, &parents, false);
-                        parents.push(parent_text);
-                        level_text.clear();
-                    }
+            '`' if quote != Some('\'') => match backtick.take() {
+                Some(saved) => {
+                    quote = saved;
+                    push_segment(&mut segments, &mut current, &parents, false);
+                    level_text = parents.pop().unwrap_or_default();
                 }
-            }
+                None => {
+                    backtick = Some(quote);
+                    quote = None;
+                    let parent_text = format!("{level_text}{current}");
+                    push_segment(&mut segments, &mut current, &parents, false);
+                    parents.push(parent_text);
+                    level_text.clear();
+                }
+            },
             ')' if quote.is_none() => {
                 push_segment(&mut segments, &mut current, &parents, false);
                 if let Some(saved) = substitutions.pop() {

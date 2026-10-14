@@ -1405,8 +1405,9 @@
     },
     "deliberation": {
       "hosts": {
-        "claude-code": "fable",
-        "codex": "gpt-6-astra"
+        "claude-code": "claude-fable-5-1",
+        "codex": "gpt-6-astra",
+        "muse": "muse-wonder-full-1.0"
       }
     }
   },
