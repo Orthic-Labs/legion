@@ -1023,8 +1023,8 @@ fn freeze_lens_basis(
 
 /// Packet size gate. Builds the lens packets the frozen plan implies (no
 /// scanner results yet), reports per-lens bytes, estimated tokens, parts and
-/// required seats, and refuses when a part exceeds the per-seat token budget or
-/// the required seats exceed the host cap, unless `--allow-oversize-lenses`.
+/// required seats, and refuses when a part exceeds the per-seat token budget,
+/// unless `--allow-oversize-lenses`; seats over the host cap only warn (waves).
 /// `Ok(None)` when there is no lens work or the packets cannot be built (the
 /// later packet step reports that as `lens-packets-unavailable`).
 fn lens_size_gate(
@@ -2502,7 +2502,10 @@ fn git_ref_is_valid(reference: &Option<String>) -> bool {
 }
 
 fn git_stdout(root: &std::path::Path, git_args: &[&str]) -> Option<String> {
+    // Unquoted paths: with the default core.quotePath, non-ASCII paths come back
+    // quoted and would silently drop out of a diff-scoped denominator.
     let output = std::process::Command::new("git")
+        .args(["-c", "core.quotePath=false"])
         .args(git_args)
         .current_dir(root)
         .output()

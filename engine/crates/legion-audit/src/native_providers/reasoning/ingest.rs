@@ -2074,7 +2074,13 @@ pub fn lens_size_report(work: &[PendingLensWork], limits: &LensSizeLimits) -> Va
     for provider in order {
         let mut part_sizes: Vec<(u32, u64)> = Vec::new();
         for item in work.iter().filter(|item| item.provider_id == provider) {
-            let bytes = serde_json::to_vec(&item.request.packet)
+            // Seat reading load: the packet without the inventory `projection`,
+            // which part 1 carries for every file whatever the excerpt size.
+            let mut packet = item.request.packet.clone();
+            if let Some(object) = packet.as_object_mut() {
+                object.remove("projection");
+            }
+            let bytes = serde_json::to_vec(&packet)
                 .map(|bytes| bytes.len() as u64)
                 .unwrap_or(0);
             part_sizes.push((item.part().map_or(1, |part| part.number), bytes));
