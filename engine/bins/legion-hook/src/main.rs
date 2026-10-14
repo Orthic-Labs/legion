@@ -1359,8 +1359,19 @@ const CREDENTIAL_READERS: [&str; 14] = [
     "open",
 ];
 
-/// Whether one path argument names a well-known credential store.
-fn is_credential_path(argument: &str) -> bool {
+/// What a well-known credential path holds.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CredentialPathKind {
+    /// Private-key material (ssh `id_*` keys, `.pem/.p12/.pfx/.key` in key
+    /// directories): never readable, even when the output is captured.
+    PrivateKey,
+    /// A secret-bearing config or token file (`.env`, `.netrc`, cloud
+    /// credentials): readable only when the contents are captured, not shown.
+    Secret,
+}
+
+/// Classifies one path argument as a well-known credential store, if it is one.
+fn credential_path_kind(argument: &str) -> Option<CredentialPathKind> {
     let normalized = argument
         .trim_matches(|c| c == '"' || c == '\'')
         .replace('\\', "/")
@@ -1369,50 +1380,203 @@ fn is_credential_path(argument: &str) -> bool {
         .split('/')
         .filter(|component| !component.is_empty())
         .collect::<Vec<_>>();
-    let Some((name, parents)) = components.split_last() else {
-        return false;
-    };
+    let (name, parents) = components.split_last()?;
     let name: &str = name;
     let in_directory = |directory: &str| parents.iter().any(|parent| *parent == directory);
     if name == ".env" {
-        return true;
+        return Some(CredentialPathKind::Secret);
     }
     if let Some(suffix) = name.strip_prefix(".env.") {
-        return !matches!(suffix, "example" | "sample" | "template");
+        return (!matches!(suffix, "example" | "sample" | "template"))
+            .then_some(CredentialPathKind::Secret);
     }
     if matches!(name, ".netrc" | ".git-credentials" | ".npmrc" | ".pypirc") {
-        return true;
+        return Some(CredentialPathKind::Secret);
     }
     if ["id_rsa", "id_ed25519", "id_ecdsa", "id_dsa"]
         .iter()
         .any(|key| name.starts_with(key))
     {
-        return !name.ends_with(".pub");
+        return (!name.ends_with(".pub")).then_some(CredentialPathKind::PrivateKey);
     }
     if [".pem", ".p12", ".pfx", ".key"]
         .iter()
         .any(|extension| name.ends_with(extension))
     {
-        return in_directory(".ssh")
+        return (in_directory(".ssh")
             || in_directory("secrets")
             || in_directory(".secrets")
-            || in_directory("secret");
+            || in_directory("secret"))
+        .then_some(CredentialPathKind::PrivateKey);
     }
-    (name == "credentials" && in_directory(".aws"))
+    ((name == "credentials" && in_directory(".aws"))
         || (name == "config.json" && in_directory(".docker"))
-        || (name == "config" && in_directory(".kube"))
+        || (name == "config" && in_directory(".kube")))
+    .then_some(CredentialPathKind::Secret)
 }
 
-/// Well-known credential stores, read by a command that reads files.
+/// Programs that put their arguments or input in front of a reader. A secret
+/// that is an argument to one of these is displayed, not captured.
+const DISPLAY_PROGRAMS: [&str; 34] = [
+    "echo",
+    "printf",
+    "print",
+    "println",
+    "cat",
+    "tee",
+    "head",
+    "tail",
+    "less",
+    "more",
+    "nl",
+    "rev",
+    "tac",
+    "fold",
+    "od",
+    "xxd",
+    "hexdump",
+    "write-host",
+    "write-output",
+    "write-error",
+    "out-host",
+    "type",
+    "logger",
+    "say",
+    "eval",
+    "source",
+    ".",
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "xargs",
+    "awk",
+    "sed",
+];
+
+/// Whether a `-`-flag of `security find-*-password` reveals the secret:
+/// `-w` prints the password to stdout, `-g` prints it to stderr.
+fn security_flag_reveals(word: &str, flag: char) -> bool {
+    word.starts_with('-') && !word.starts_with("--") && word[1..].contains(flag)
+}
+
+/// Whether the text redirects stdout (not stderr) to `/dev/null`.
+fn redirects_stdout_to_null(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    text.match_indices('>').any(|(index, _)| {
+        let previous = index.checked_sub(1).map(|i| bytes[i]);
+        if previous == Some(b'>') || previous.is_some_and(|b| b.is_ascii_digit() && b != b'1') {
+            return false;
+        }
+        text[index + 1..]
+            .trim_start_matches('>')
+            .trim_start()
+            .starts_with("/dev/null")
+    })
+}
+
+/// Whether stderr is folded into stdout or discarded in this segment.
+fn stderr_is_not_displayed(text: &str) -> bool {
+    text.contains("2>&1") || text.contains("2>/dev/null") || text.contains("2> /dev/null")
+}
+
+fn is_shell_assignment(word: &str) -> bool {
+    word.split_once('=').is_some_and(|(name, _)| {
+        !name.is_empty()
+            && name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '_')
+    })
+}
+
+fn word_program(word: &str) -> String {
+    program_name(word.trim_matches(|c| c == '"' || c == '\''))
+        .to_ascii_lowercase()
+}
+
+/// Whether the text a command substitution sits in only *captures* its
+/// result: a variable assignment (`VAR="$(...)"`, `export VAR=$(...)`) or an
+/// argument to a program that does not print it. A bare `$(...)` (the secret
+/// would run as a command) or an argument to `echo`/`printf`/`cat`/`tee`...
+/// is display.
+fn capture_parent_is_safe(parent: &str) -> bool {
+    let words = parent.split_whitespace().collect::<Vec<_>>();
+    let Some(last) = words.last() else {
+        return false;
+    };
+    let declarations = ["export", "local", "declare", "readonly", "typeset"];
+    if is_shell_assignment(last)
+        && words[..words.len() - 1].iter().all(|word| {
+            is_shell_assignment(word) || declarations.contains(word) || word.starts_with('-')
+        })
+    {
+        return true;
+    }
+    // Shell keywords (`then echo "$(...)"`) are not the program; a parent of
+    // only quotes (`"$(...)"`) names none, so the secret would run as a command.
+    let keywords = [
+        "if", "then", "else", "elif", "do", "while", "until", "{", "!", "(", "time",
+    ];
+    let program_of = |text: &str| {
+        text.split_whitespace()
+            .find(|word| !is_shell_assignment(word) && !keywords.contains(word))
+            .map(word_program)
+            .filter(|program| !program.is_empty())
+    };
+    match (program_of(parent), program_of(strip_command_prefixes(parent.trim()))) {
+        (Some(first), Some(launched)) => {
+            !DISPLAY_PROGRAMS.contains(&first.as_str())
+                && !DISPLAY_PROGRAMS.contains(&launched.as_str())
+        }
+        _ => false,
+    }
+}
+
+/// Whether the output of a credential-revealing segment is captured or
+/// discarded rather than displayed. Narrow on purpose: when unsure, display.
+fn credential_output_is_captured(
+    segment: &CommandSegment,
+    next: Option<&CommandSegment>,
+) -> bool {
+    let captured_by_parent = segment
+        .parent
+        .as_deref()
+        .is_some_and(capture_parent_is_safe);
+    if !segment.piped {
+        return captured_by_parent;
+    }
+    let Some(next) = next else {
+        return false;
+    };
+    let consumer = strip_command_prefixes(&next.text)
+        .split_whitespace()
+        .next()
+        .map(word_program)
+        .unwrap_or_default();
+    if consumer == "wc" || redirects_stdout_to_null(&next.text) {
+        return true;
+    }
+    // Inside a capture the rest of the pipeline is captured too, unless a
+    // consumer writes a copy out.
+    captured_by_parent && consumer != "tee"
+}
+
+/// Credential reads that would put a secret in front of a reader.
 ///
-/// The pack denies CREDENTIAL_ACCESS, but nothing ever produced that class
-/// from a shell command, so reading a private key was admitted as an ordinary
-/// COMMAND_EXEC and the rule could not fire. Matching is deliberately narrow --
-/// a reader program with a credential path argument -- because this class
-/// denies rather than warns. A search pattern is never a credential read.
+/// Agents may *use* credentials but never *display* them. A well-known
+/// credential store or keychain secret read is denied (CREDENTIAL_ACCESS)
+/// unless its output is captured: inside a command substitution that is
+/// assigned or passed to a non-display program (`VAR="$(security ... -w)" cmd`),
+/// or piped only into `wc` or a stdout redirect to `/dev/null`. Keychain
+/// lookups without `-w`/`-g` reveal only metadata and are not reads at all.
+/// Private-key material (ssh `id_*` keys, `.pem/.p12/.pfx/.key` in key
+/// directories) is denied even when captured. Matching is deliberately
+/// narrow -- a reader program with a credential path argument -- because this
+/// class denies rather than warns. A search pattern is never a credential read.
 fn reads_credential_material(command: &str) -> bool {
-    command_segments(command).iter().any(|segment| {
-        let stripped = strip_command_prefixes(segment);
+    let segments = command_segments_with_context(command);
+    segments.iter().enumerate().any(|(index, segment)| {
+        let stripped = strip_command_prefixes(&segment.text);
         let unwrapped = unwrap_shell_command(stripped);
         if unwrapped != stripped {
             return reads_credential_material(unwrapped);
@@ -1427,18 +1591,42 @@ fn reads_credential_material(command: &str) -> bool {
             return false;
         };
         let program = program_name(program).to_ascii_lowercase();
+        let secret_to_stderr;
         if program == "security" {
-            return words
+            if !words
                 .iter()
                 .skip(1)
-                .any(|word| matches!(*word, "find-generic-password" | "find-internet-password"));
-        }
-        CREDENTIAL_READERS.contains(&program.as_str())
-            && words
+                .any(|word| matches!(*word, "find-generic-password" | "find-internet-password"))
+            {
+                return false;
+            }
+            secret_to_stderr = words.iter().skip(1).any(|w| security_flag_reveals(w, 'g'));
+            if !secret_to_stderr && !words.iter().skip(1).any(|w| security_flag_reveals(w, 'w'))
+            {
+                // Metadata lookup: attributes only, no secret.
+                return false;
+            }
+        } else if CREDENTIAL_READERS.contains(&program.as_str()) {
+            let kinds = words
                 .iter()
                 .skip(1)
                 .filter(|word| !word.starts_with('-'))
-                .any(|word| is_credential_path(word))
+                .filter_map(|word| credential_path_kind(word))
+                .collect::<Vec<_>>();
+            if kinds.contains(&CredentialPathKind::PrivateKey) {
+                return true;
+            }
+            if kinds.is_empty() {
+                return false;
+            }
+            secret_to_stderr = false;
+        } else {
+            return false;
+        }
+        if secret_to_stderr && !stderr_is_not_displayed(&segment.text) {
+            return true;
+        }
+        !credential_output_is_captured(segment, segments.get(index + 1))
     })
 }
 
@@ -1463,6 +1651,26 @@ fn publishes_artifact(command: &str) -> bool {
 /// they are fed to a shell, so a command that merely quotes dangerous words
 /// (a message, a commit body, a `grep` pattern) is not read as running them.
 fn command_segments(command: &str) -> Vec<String> {
+    command_segments_with_context(command)
+        .into_iter()
+        .map(|segment| segment.text)
+        .collect()
+}
+
+/// One piece of a command line, with how its output is used.
+struct CommandSegment {
+    text: String,
+    /// For a segment inside a command substitution: the text of the enclosing
+    /// command before the substitution (`NAME="` for `NAME="$(...)"`,
+    /// `echo "` for `echo "$(...)"`); `None` at the top level.
+    parent: Option<String>,
+    /// The segment's stdout is piped (a single `|`) into the next segment.
+    piped: bool,
+}
+
+/// [`command_segments`] keeping each segment's capture context: whether it
+/// ran inside a command substitution (and in what), and whether it pipes on.
+fn command_segments_with_context(command: &str) -> Vec<CommandSegment> {
     const SHELLS: [&str; 6] = ["bash", "sh", "zsh", "dash", "pwsh", "powershell"];
     let mut text = String::new();
     let mut heredoc_end: Option<String> = None;
@@ -1496,7 +1704,23 @@ fn command_segments(command: &str) -> Vec<String> {
         text.push_str(line);
         text.push('\n');
     }
-    let mut segments = Vec::new();
+    fn push_segment(
+        segments: &mut Vec<CommandSegment>,
+        current: &mut String,
+        parents: &[String],
+        piped: bool,
+    ) {
+        segments.push(CommandSegment {
+            text: std::mem::take(current),
+            parent: parents.last().cloned(),
+            piped,
+        });
+    }
+    let mut segments: Vec<CommandSegment> = Vec::new();
+    // Enclosing-command text for each open substitution, and the text of the
+    // command at the current level that precedes the substitution just closed.
+    let mut parents: Vec<String> = Vec::new();
+    let mut level_text = String::new();
     let mut current = String::new();
     let mut quote: Option<char> = None;
     let mut substitutions: Vec<Option<char>> = Vec::new();
@@ -1522,35 +1746,62 @@ fn command_segments(command: &str) -> Vec<String> {
                 characters.next();
                 substitutions.push(quote);
                 quote = None;
-                segments.push(std::mem::take(&mut current));
+                let parent_text = format!("{level_text}{current}");
+                push_segment(&mut segments, &mut current, &parents, false);
+                parents.push(parent_text);
+                level_text.clear();
             }
             '`' if quote != Some('\'') => {
-                quote = match backtick.take() {
-                    Some(saved) => saved,
+                match backtick.take() {
+                    Some(saved) => {
+                        quote = saved;
+                        push_segment(&mut segments, &mut current, &parents, false);
+                        level_text = parents.pop().unwrap_or_default();
+                    }
                     None => {
                         backtick = Some(quote);
-                        None
+                        quote = None;
+                        let parent_text = format!("{level_text}{current}");
+                        push_segment(&mut segments, &mut current, &parents, false);
+                        parents.push(parent_text);
+                        level_text.clear();
                     }
-                };
-                segments.push(std::mem::take(&mut current));
+                }
             }
             ')' if quote.is_none() => {
+                push_segment(&mut segments, &mut current, &parents, false);
                 if let Some(saved) = substitutions.pop() {
                     quote = saved;
+                    level_text = parents.pop().unwrap_or_default();
                 }
-                segments.push(std::mem::take(&mut current));
+            }
+            // `2>&1` and `<&3` are redirections, not command separators.
+            '&' if quote.is_none() && matches!(current.chars().last(), Some('>' | '<')) => {
+                current.push(character);
             }
             ';' | '&' | '|' | '\n' | '(' if quote.is_none() => {
-                segments.push(std::mem::take(&mut current));
+                let mut piped = false;
+                if character == '|' {
+                    if characters.peek() == Some(&'|') {
+                        characters.next();
+                    } else {
+                        piped = true;
+                    }
+                }
+                push_segment(&mut segments, &mut current, &parents, piped);
+                level_text.clear();
             }
             _ => current.push(character),
         }
     }
-    segments.push(current);
+    push_segment(&mut segments, &mut current, &parents, false);
     segments
         .into_iter()
-        .map(|segment| segment.trim().to_owned())
-        .filter(|segment| !segment.is_empty())
+        .map(|segment| CommandSegment {
+            text: segment.text.trim().to_owned(),
+            ..segment
+        })
+        .filter(|segment| !segment.text.is_empty())
         .collect()
 }
 
@@ -5417,6 +5668,77 @@ mod tests {
                 EffectClass::COMMAND_EXEC,
                 "{command}"
             );
+        }
+    }
+
+    #[test]
+    fn credentials_may_be_used_but_never_displayed() {
+        let class = |command: &str| command_effect_class(Some(command));
+        for command in [
+            // The exact shape that was blocked: key captured into an env prefix.
+            r#"NIM_API_KEY="$(security find-generic-password -a "$USER" -s NIM_API_KEY -w)" curl -s https://x.example/v1 -H "Authorization: Bearer $NIM_API_KEY""#,
+            r#"export NIM_API_KEY="$(security find-generic-password -a "$USER" -s NIM_API_KEY -w)""#,
+            "KEY=$(security find-generic-password -s svc -w)",
+            "KEY=`security find-generic-password -s svc -w`",
+            "TOKEN=$(cat .env)",
+            "curl -H \"Authorization: Bearer $(security find-generic-password -s svc -w)\" https://x.example",
+            "KEY=$(security find-generic-password -s svc -w | tr -d '\\n')",
+            "KEY=$(security find-generic-password -s svc -g 2>&1 >/dev/null)",
+            "bash -c 'K=\"$(security find-generic-password -s svc -w)\" curl https://x.example'",
+            // Keychain metadata without -w / -g reveals no secret.
+            "security find-generic-password -s svc",
+            "security find-internet-password -s example.com -a me",
+            // Narrow pipe cases: a counter, or discarded output.
+            "security find-generic-password -s svc -w | wc -c",
+            "cat .env | grep -q x >/dev/null",
+            "cat .env | tee /dev/null >/dev/null",
+        ] {
+            assert_eq!(class(command), EffectClass::COMMAND_EXEC, "{command}");
+        }
+        for command in [
+            "security find-generic-password -s svc -w",
+            "security find-internet-password -s svc -w",
+            "security find-generic-password -s svc -g",
+            "security find-generic-password -s svc -gw",
+            "KEY=$(security find-generic-password -s svc -g)",
+            "cat .env",
+            "cat ~/.aws/credentials | head",
+            "cat .env | tee out.txt",
+            "cat .env | cat 2>/dev/null",
+            "echo \"$(security find-generic-password -s svc -w)\"",
+            "printf %s \"$(security find-generic-password -s svc -w)\"",
+            "echo `security find-generic-password -s svc -w`",
+            "echo hi \"$(date)\" \"$(security find-generic-password -s svc -w)\"",
+            "cat <<< \"$(cat .env)\"",
+            "tee out.txt <<< $(cat .env)",
+            "$(security find-generic-password -s svc -w)",
+            "eval \"$(security find-generic-password -s svc -w)\"",
+            "sudo echo \"$(security find-generic-password -s svc -w)\"",
+            "bash -c 'security find-generic-password -s svc -w'",
+            "bash -c 'echo \"$(cat .env)\"'",
+            "security find-generic-password -s svc -w || true",
+            "\"$(security find-generic-password -s svc -w)\"",
+            "if true; then echo \"$(security find-generic-password -s svc -w)\"; fi",
+            "for x in 1; do echo \"$(cat .env)\"; done",
+            "{ echo \"$(security find-generic-password -s svc -w)\"; }",
+            "! printf %s \"$(security find-generic-password -s svc -w)\"",
+        ] {
+            assert_eq!(class(command), EffectClass::CREDENTIAL_ACCESS, "{command}");
+        }
+        // Private-key material is denied even when captured.
+        for command in [
+            "KEY=$(cat ~/.ssh/id_rsa)",
+            "KEY=\"$(cat ~/.ssh/id_ed25519)\" ssh-add - ",
+            "KEY=`cat ./secrets/server.pem`",
+            "cat ~/.ssh/id_rsa | wc -c",
+            "cat ~/.ssh/id_rsa | tee /dev/null >/dev/null",
+            "bash -c 'K=$(cat ~/.ssh/id_ecdsa) true'",
+            "cp ~/.ssh/id_rsa /tmp/k >/dev/null",
+        ] {
+            assert_eq!(class(command), EffectClass::CREDENTIAL_ACCESS, "{command}");
+        }
+        for command in ["cat ~/.ssh/id_rsa.pub", "KEY=$(cat ~/.ssh/id_rsa.pub)"] {
+            assert_eq!(class(command), EffectClass::COMMAND_EXEC, "{command}");
         }
     }
 
