@@ -1408,6 +1408,15 @@
         "claude-code": "claude-fable-5-1",
         "codex": "gpt-6-astra",
         "muse": "muse-wonder-full-1.0"
+      },
+      "roles": {
+        "improvement-path": "muse-wonder-full-1.0",
+        "scope-alternatives": "deepseek-ai/deepseek-v4.1-flash",
+        "user-outcome": "moonshotai/kimi-k3",
+        "red-team": "claude-fable-5-1",
+        "security-ops": "z-ai/glm-5.3",
+        "minimize": "z-ai/glm-5.3-flash",
+        "adjudicator": "gpt-6-astra"
       }
     }
   },

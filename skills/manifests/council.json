@@ -78,7 +78,9 @@
     ],
     "schemas": [
       "lib/schemas/council-record-v1.schema.json",
-      "lib/schemas/council-request-v1.schema.json"
+      "lib/schemas/council-record-v2.schema.json",
+      "lib/schemas/council-request-v1.schema.json",
+      "lib/schemas/council-request-v2.schema.json"
     ],
     "receipts": [],
     "evals": [
@@ -93,7 +95,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://council/SKILL.md",
-      "digest": "sha256:fcc7adc8f895ad7739929f7bae691cdb0ac18111dadb3639cd4c6372002dc1d3"
+      "digest": "sha256:da37d3072df578a7b3527034d4b01e417a8ebf31516c00c8a881fc00f4f483ea"
     },
     {
       "path": "agents/openai.yaml",
@@ -108,7 +110,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://council/dependencies.json",
-      "digest": "sha256:21c2a1ea64049c8ee474283e523bb6b31ec95aa8f48c25b1aa2a7688d2682110"
+      "digest": "sha256:74e50df5652faaf6a94622a17b5bf2d5f98fc81eb6660a9f47d7bf19f18537c1"
     },
     {
       "path": "evals/evals.json",
@@ -121,14 +123,24 @@
       "digest": "sha256:4e84e6cfa1f72ec23766d46ef0e7e5ff1ed26b9f5bd9abb5a859290f6df92b29"
     },
     {
+      "path": "lib/schemas/council-record-v2.schema.json",
+      "uri": "legion-skill://council/lib/schemas/council-record-v2.schema.json",
+      "digest": "sha256:7a3b681528474832291f64cf35e48a6e2ce0a766c1461ebe0de6a998a4015993"
+    },
+    {
       "path": "lib/schemas/council-request-v1.schema.json",
       "uri": "legion-skill://council/lib/schemas/council-request-v1.schema.json",
       "digest": "sha256:91b330202ecdb409dc0eaf059dd85dfbe3bdcfda04c55e2f5990cd6773e7fc27"
     },
     {
+      "path": "lib/schemas/council-request-v2.schema.json",
+      "uri": "legion-skill://council/lib/schemas/council-request-v2.schema.json",
+      "digest": "sha256:55b6f5a3e56554a45f8d4f9f1fe9f884f85000e0c2615c06dfc04fca2952e0c9"
+    },
+    {
       "path": "references/lenses/README.md",
       "uri": "legion-skill://council/references/lenses/README.md",
-      "digest": "sha256:83a5e4e5ef0a6055b07e9d604a523726de3e6b711c7272293ab7046d17cda7d0"
+      "digest": "sha256:3d86f934fe228a5a0fcb9e16a63fe60ec2f224683d385b0db7dcac96e5955a0f"
     },
     {
       "path": "references/lenses/ad.md",
@@ -213,7 +225,7 @@
     {
       "path": "references/rubrics/README.md",
       "uri": "legion-skill://council/references/rubrics/README.md",
-      "digest": "sha256:821e0d575e0b72688d0f79d6060bcd4e7a28e85d82b8da6191d43fda59af70f8"
+      "digest": "sha256:396579f290084da5259ca0ac38a7e3eb4a6e83df6bb0ffed86ca399c812f107d"
     },
     {
       "path": "references/rubrics/ad.md",
@@ -223,7 +235,7 @@
     {
       "path": "references/rubrics/audit-visual.md",
       "uri": "legion-skill://council/references/rubrics/audit-visual.md",
-      "digest": "sha256:81ac5177c0bc162b9160f1ea6fbaf944b9689ccbb03952ff6cbb830ff4a9f480"
+      "digest": "sha256:034afc8aa86192da18610848a64da9e9aa2f023649d2d2f32d18a99f064a86d3"
     },
     {
       "path": "references/rubrics/blogs.md",
@@ -303,37 +315,37 @@
     {
       "path": "references/stances/README.md",
       "uri": "legion-skill://council/references/stances/README.md",
-      "digest": "sha256:00fa6aa293d538f8591c741eb7bb2f9924470aedf56d37f4f17a0145b1638c37"
+      "digest": "sha256:a989b5cc45226127a6b4c0fbd9c66f4aa1037b33f1931990e817cc62136dc528"
     },
     {
       "path": "references/stances/improvement-path.md",
       "uri": "legion-skill://council/references/stances/improvement-path.md",
-      "digest": "sha256:cd81a5fdc4b84b317f4c19bed681339e4acbb544c6d05b94c507c6cff30c4290"
+      "digest": "sha256:5c1a97128548e66c5116efe68b723e6b41b5188ab4b7fdc0922f7a8135d2dfe3"
     },
     {
       "path": "references/stances/minimize.md",
       "uri": "legion-skill://council/references/stances/minimize.md",
-      "digest": "sha256:55dc233a1983e3cfe8818a76389b61a588c7c6c5cf68571ce9400f9848708214"
+      "digest": "sha256:22e3d36e869ba3c9852a8cab4870eb2d18e511c2f8a45c1c33e5ceacc0cf813a"
     },
     {
       "path": "references/stances/red-team.md",
       "uri": "legion-skill://council/references/stances/red-team.md",
-      "digest": "sha256:28630c6ef25138c256ab72063ec7d8b01c639c16bfee4542e3c67b07483e01a0"
+      "digest": "sha256:f96e25890e1df849ffdfb39ef90d8e16f0fc44507947705a6f267c9bd5a5bb61"
     },
     {
       "path": "references/stances/scope-alternatives.md",
       "uri": "legion-skill://council/references/stances/scope-alternatives.md",
-      "digest": "sha256:ef5601ca37c486e4fc99b3bebd110166e254726793d24c4c5c075be64a325f73"
+      "digest": "sha256:dc8331525a50f73253027e47a851cb3efd440883e6bc545bb7ad16f688b456bc"
     },
     {
       "path": "references/stances/security-ops.md",
       "uri": "legion-skill://council/references/stances/security-ops.md",
-      "digest": "sha256:f04d7768b6f12a406bb430dc5547e9c3d3c887154e1c67a03487ca0e61acbc2e"
+      "digest": "sha256:329d980e9b494939f4b982ddfb6e87ad47752cc3d8f906a7ae5ed32541e6a44b"
     },
     {
       "path": "references/stances/user-outcome.md",
       "uri": "legion-skill://council/references/stances/user-outcome.md",
-      "digest": "sha256:2dfc3817ef3cb16ae05f10fd349c32b2d763c03ee05951999fe1b7981e6c26b1"
+      "digest": "sha256:156eb82d7c66721971cdac25acffe2de210e5af28e73d55966be9346309c871f"
     }
   ]
 }
