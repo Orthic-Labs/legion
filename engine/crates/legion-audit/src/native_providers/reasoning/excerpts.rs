@@ -39,6 +39,46 @@ pub const MAX_BLOCK_LINES: usize = 200;
 /// overrides it).
 pub const DEFAULT_MAX_PARTS: usize = 400;
 
+/// Source lines of context kept on each side of a changed hunk when a diff
+/// scoped audit excerpts a file (overlapping or touching windows merge).
+pub const HUNK_CONTEXT_LINES: usize = 20;
+
+/// Changed line ranges per repository-relative path: 1-based inclusive
+/// `(start, end)` source lines of the new file. A path without an entry is
+/// excerpted whole.
+pub type ChangedHunks = std::collections::BTreeMap<String, Vec<(usize, usize)>>;
+
+/// Merges `hunks` widened by `context` lines on each side and clamped to
+/// `1..=total_lines`. Returns sorted, non-overlapping, non-adjacent windows.
+pub fn hunk_windows(
+    hunks: &[(usize, usize)],
+    context: usize,
+    total_lines: usize,
+) -> Vec<(usize, usize)> {
+    if total_lines == 0 {
+        return Vec::new();
+    }
+    let mut widened: Vec<(usize, usize)> = hunks
+        .iter()
+        .filter(|(start, end)| *start <= total_lines && end >= start)
+        .map(|(start, end)| {
+            (
+                start.saturating_sub(context).max(1),
+                (end + context).min(total_lines),
+            )
+        })
+        .collect();
+    widened.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in widened {
+        match merged.last_mut() {
+            Some(last) if start <= last.1 + 1 => last.1 = last.1.max(end),
+            _ => merged.push((start, end)),
+        }
+    }
+    merged
+}
+
 /// What redaction did to one excerpt.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -734,6 +774,21 @@ fn excerpt_for_chunk(
 /// `Err(reason)` names why the file cannot be excerpted at all: `unreadable`,
 /// `binary` (NUL bytes), `non-utf8`, or `line-over-limit`.
 fn prepare_file(root: &Path, path: &str, mode: ExcerptMode) -> Result<Vec<Excerpt>, &'static str> {
+    prepare_file_scoped(root, path, mode, None)
+}
+
+/// `prepare_file`, optionally restricted to the merged hunk windows of a diff
+/// scoped audit. Only RAW excerpts are windowed (a skeleton is already small
+/// and gives the whole file's shape). The whole file is redacted first, so a
+/// secret block can never straddle a window edge unredacted; each window is a
+/// contiguous run of lines and is chunked on its own, so a chunk's anchors
+/// stay exact.
+fn prepare_file_scoped(
+    root: &Path,
+    path: &str,
+    mode: ExcerptMode,
+    hunks: Option<&[(usize, usize)]>,
+) -> Result<Vec<Excerpt>, &'static str> {
     let bytes = std::fs::read(root.join(path)).map_err(|_| "unreadable")?;
     if bytes.contains(&0) {
         return Err("binary");
@@ -744,7 +799,31 @@ fn prepare_file(root: &Path, path: &str, mode: ExcerptMode) -> Result<Vec<Excerp
     if lines.iter().any(|line| line.text.len() > MAX_LINE_BYTES) {
         return Err("line-over-limit");
     }
-    let ranges = chunk_ranges(&lines);
+    let hunks = hunks.filter(|hunks| !hunks.is_empty() && mode == ExcerptMode::Raw);
+    let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    match hunks {
+        None => ranges = chunk_ranges(&lines),
+        Some(hunks) => {
+            let total = lines.last().map_or(0, |line| line.end);
+            let windows = hunk_windows(hunks, HUNK_CONTEXT_LINES, total);
+            if windows.is_empty() {
+                // Hunks outside the file (for example a pure deletion past
+                // EOF): fall back to the whole file rather than excerpt nothing.
+                ranges = chunk_ranges(&lines);
+            }
+            for (start, end) in windows {
+                let first = lines.iter().position(|line| line.end >= start);
+                let last = lines.iter().rposition(|line| line.start <= end);
+                if let (Some(first), Some(last)) = (first, last) {
+                    if first <= last {
+                        for range in chunk_ranges(&lines[first..=last]) {
+                            ranges.push(first + range.start..first + range.end);
+                        }
+                    }
+                }
+            }
+        }
+    }
     let chunks = ranges.len();
     Ok(ranges
         .into_iter()
@@ -861,6 +940,19 @@ pub fn partition_excerpts(
     mode: ExcerptMode,
     max_parts: usize,
 ) -> Partition {
+    partition_excerpts_scoped(root, paths, mode, max_parts, &ChangedHunks::new())
+}
+
+/// `partition_excerpts` for a diff scoped audit: a path with an entry in
+/// `hunks` carries only its changed hunks plus `HUNK_CONTEXT_LINES` of context
+/// (merged), every other path is excerpted whole.
+pub fn partition_excerpts_scoped(
+    root: &Path,
+    paths: &[String],
+    mode: ExcerptMode,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+) -> Partition {
     let max_parts = max_parts.max(1);
     let new_part = |number: usize| ExcerptPart {
         number,
@@ -871,7 +963,7 @@ pub fn partition_excerpts(
     let mut parts = vec![new_part(1)];
     let mut bytes = 0usize;
     for path in paths {
-        match prepare_file(root, path, mode) {
+        match prepare_file_scoped(root, path, mode, hunks.get(path).map(Vec::as_slice)) {
             Err(reason) => {
                 let current = parts.last_mut().expect("at least one part");
                 current.paths.push(path.clone());
@@ -1161,5 +1253,63 @@ mod tests {
             next = chunk.end_line + 1;
         }
         assert_eq!(next - 1, 4000);
+    }
+
+    #[test]
+    fn hunk_windows_widen_clamp_and_merge() {
+        // 30..32 widens to 10..52, 60..60 to 40..80 (merges), 300 is past EOF.
+        assert_eq!(
+            hunk_windows(&[(60, 60), (30, 32), (300, 301)], 20, 200),
+            vec![(10, 80)]
+        );
+        // Clamped at both file edges; disjoint windows stay separate.
+        assert_eq!(
+            hunk_windows(&[(2, 3), (190, 200)], 20, 200),
+            vec![(1, 23), (170, 200)]
+        );
+        // Touching windows merge (end + 1 == next start).
+        assert_eq!(hunk_windows(&[(1, 1), (42, 42)], 20, 100), vec![(1, 62)]);
+        assert!(hunk_windows(&[(1, 1)], 20, 0).is_empty());
+    }
+
+    #[test]
+    fn diff_scoped_partition_carries_changed_hunks_with_context_not_whole_files() {
+        let dir = ScratchDir::new();
+        let body: String = (1..=500)
+            .map(|n| format!("let line_{n} = {n};\n"))
+            .collect();
+        write(dir.path(), "src/changed.rs", &body);
+        write(dir.path(), "src/untouched_by_diff.rs", &body);
+        let paths = vec![
+            "src/changed.rs".to_owned(),
+            "src/untouched_by_diff.rs".to_owned(),
+        ];
+        let mut hunks = ChangedHunks::new();
+        hunks.insert("src/changed.rs".into(), vec![(100, 102), (400, 400)]);
+        let partition = partition_excerpts_scoped(dir.path(), &paths, ExcerptMode::Raw, 8, &hunks);
+        assert_eq!(partition.parts.len(), 1);
+        let carried = &partition.parts[0].excerpts;
+        let changed: Vec<&Excerpt> = carried
+            .iter()
+            .filter(|excerpt| excerpt.path == "src/changed.rs")
+            .collect();
+        // Two disjoint windows: 80..122 and 380..420 (+/-20 context).
+        assert_eq!(changed.len(), 2);
+        assert_eq!((changed[0].start_line, changed[0].end_line), (80, 122));
+        assert_eq!((changed[1].start_line, changed[1].end_line), (380, 420));
+        assert_eq!(changed[0].anchors, vec!["src/changed.rs:80-122".to_owned()]);
+        assert!(changed.iter().all(|excerpt| excerpt.chunks == 2));
+        assert!(changed[0].content.contains("let line_100 = 100;"));
+        assert!(!changed[0].content.contains("let line_79 = 79;"));
+        assert!(!changed[1].content.contains("let line_500 = 500;"));
+        // A path with no hunk entry is excerpted whole.
+        let whole: Vec<&Excerpt> = carried
+            .iter()
+            .filter(|excerpt| excerpt.path == "src/untouched_by_diff.rs")
+            .collect();
+        assert_eq!(whole.len(), 1);
+        assert_eq!((whole[0].start_line, whole[0].end_line), (1, 500));
+        // Both paths are homed exactly once.
+        assert_eq!(partition.parts[0].paths, paths);
     }
 }

@@ -58,6 +58,18 @@ pub struct AuditArgs {
     pub profile: String,
     #[arg(long)]
     pub out: Option<PathBuf>,
+    /// Largest estimated token count (packet JSON bytes / 4) one reasoning
+    /// seat (packet part) may carry before the plan refuses to freeze.
+    #[arg(long = "seat-token-budget", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_SEAT_TOKEN_BUDGET)]
+    pub seat_token_budget: u64,
+    /// Host child-agent cap: most reasoning seats (packet parts, all lenses)
+    /// the plan may require before it refuses to freeze.
+    #[arg(long = "max-lens-seats", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_MAX_SEATS)]
+    pub max_lens_seats: u64,
+    /// Freeze the plan even though lens packets exceed the per-seat token
+    /// budget or the host seat cap (the report still records the overrun).
+    #[arg(long = "allow-oversize-lenses")]
+    pub allow_oversize_lenses: bool,
     #[arg(long = "provider-plan")]
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
@@ -141,6 +153,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // the plan; the facts document then omits scope and the run is incomplete,
     // mirroring Node's crashed facts collection without a CLI-level error.
     let scope = audit_scope(&root, &args);
+    // Diff scope narrows the frozen denominator to the changed files: every
+    // inventory the run builds (plan, lens basis, binding, direct plan) uses it.
+    let inventory_filter = scope.inventory_filter();
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
     let native_application_configured =
         std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some();
@@ -158,26 +173,40 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Gaps the direct route adds when its provider plan could not be bound
     // (for example `unsealed-plan`); empty for every other route.
     let mut direct_gaps: Vec<String> = Vec::new();
-    let (application, context_notices, effect_artifact_scratch, trusted_scope_universe) = if direct
-    {
-        let (application, notices, gaps) = direct_application(&args, &root)?;
-        direct_gaps = gaps;
-        (Arc::new(application), notices, None, false)
-    } else if let Some(manifest) = &args.native_rule_manifest {
-        let (application, notices) = native_rule_diagnostic_application(&args, &root, manifest)?;
-        (Arc::new(application), notices, None, false)
-    } else if native_application_configured {
-        (
-            super::native_application_for(&root.to_string_lossy())?,
-            Vec::new(),
-            None,
-            false,
-        )
-    } else {
-        let (application, notices, scratch) =
-            native_registry_application(&root, args.rightkit_trust.as_deref())?;
-        (Arc::new(application), notices, Some(scratch), true)
-    };
+    let (application, mut context_notices, effect_artifact_scratch, trusted_scope_universe) =
+        if direct {
+            let (application, notices, gaps) =
+                direct_application(&args, &root, inventory_filter.as_ref())?;
+            direct_gaps = gaps;
+            (Arc::new(application), notices, None, false)
+        } else if let Some(manifest) = &args.native_rule_manifest {
+            let (application, notices) = native_rule_diagnostic_application(
+                &args,
+                &root,
+                manifest,
+                inventory_filter.as_ref(),
+            )?;
+            (Arc::new(application), notices, None, false)
+        } else if native_application_configured {
+            (
+                super::native_application_for(&root.to_string_lossy())?,
+                Vec::new(),
+                None,
+                false,
+            )
+        } else {
+            let (application, notices, scratch) = native_registry_application(
+                &root,
+                args.rightkit_trust.as_deref(),
+                inventory_filter.as_ref(),
+            )?;
+            (Arc::new(application), notices, Some(scratch), true)
+        };
+    if args.out.is_some() {
+        if let Some(notice) = audit_dir_ignore_notice(&root) {
+            context_notices.push(notice);
+        }
+    }
     let all_specs = application.provider_specs();
     let mut selected_specs = all_specs.clone();
     let configured_ids = selected_specs
@@ -271,7 +300,16 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Freeze the lens basis (plan + inventory) before any scanner runs, so lens
     // packets are built from the exact inventory the executed plan was frozen over
     // rather than a re-walk that scanner scratch output could perturb.
-    let lens_basis = freeze_lens_basis(&root, &selected_specs, signing_key.as_deref());
+    let lens_basis = freeze_lens_basis(
+        &root,
+        &selected_specs,
+        signing_key.as_deref(),
+        inventory_filter.as_ref(),
+    );
+    // Size gate: report every lens's packet bytes, estimated tokens, parts and
+    // required seats, and refuse to freeze an oversize plan without an
+    // explicit override. Runs before any scanner executes.
+    let lens_size = lens_size_gate(&root, &lens_basis, &args)?;
     let provider_selection = if !provider_scope_claims_allowed(trusted_scope_universe) {
         // Imported provider specs describe only the selected execution set.
         // They cannot establish the repository's full applicable universe, so
@@ -307,7 +345,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             plan_signature,
             providers,
         } => {
-            let binding = native_inventory_binding(&root, &args)?;
+            let binding = native_inventory_binding(&root, inventory_filter.as_ref())?;
             let (lens_work, lens_work_gaps) = lens_work_items(
                 &root,
                 &lens_basis,
@@ -345,6 +383,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "completionValidation": "not-run",
                 "gaps": plan_gaps,
                 "lensWork": lens_work,
+                "lensSize": lens_size,
                 "inputGaps": input_gaps
             });
             if !provider_scope_claims_allowed(trusted_scope_universe) {
@@ -434,6 +473,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             };
             report.gaps.extend(lens_work_gaps);
             report.claims.insert("lensWork".into(), json!(lens_work));
+            if let Some(size) = &lens_size {
+                report.claims.insert("lensSize".into(), size.clone());
+            }
             // The CLI process is the trusted reasoning host for ingest: generate this
             // run's epoch key (0600, never in a report) and record only its digest.
             let epoch_digest = match (&args.out, execution.pending_host.is_empty()) {
@@ -962,8 +1004,10 @@ fn freeze_lens_basis(
     root: &std::path::Path,
     specs: &[legion_contracts::ProviderSpec],
     signing_key: Option<&[u8]>,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> LensBasis {
-    let source = super::audit_inventory_source(root).map_err(|error| error.message)?;
+    let source =
+        super::audit_inventory_source_scoped(root, only_paths).map_err(|error| error.message)?;
     let inventory = source
         .inventory(&root.to_string_lossy())
         .map_err(|error| error.to_string())?;
@@ -975,6 +1019,77 @@ fn freeze_lens_basis(
     }
     .map_err(|error| error.to_string())?;
     Ok((plan, inventory))
+}
+
+/// Packet size gate. Builds the lens packets the frozen plan implies (no
+/// scanner results yet), reports per-lens bytes, estimated tokens, parts and
+/// required seats, and refuses when a part exceeds the per-seat token budget or
+/// the required seats exceed the host cap, unless `--allow-oversize-lenses`.
+/// `Ok(None)` when there is no lens work or the packets cannot be built (the
+/// later packet step reports that as `lens-packets-unavailable`).
+fn lens_size_gate(
+    root: &std::path::Path,
+    basis: &LensBasis,
+    args: &AuditArgs,
+) -> Result<Option<Value>, CommandError> {
+    use legion_audit::native_providers::reasoning as reasoning_lens;
+    let Ok((plan, inventory)) = basis.as_ref() else {
+        return Ok(None);
+    };
+    let Ok(work) = reasoning_lens::pending_lens_work_with_candidates(root, plan, inventory, None)
+    else {
+        return Ok(None);
+    };
+    if work.is_empty() {
+        return Ok(None);
+    }
+    let limits = reasoning_lens::ingest::LensSizeLimits {
+        seat_token_budget: args.seat_token_budget,
+        max_seats: args.max_lens_seats,
+    };
+    let mut report = reasoning_lens::ingest::lens_size_report(&work, &limits);
+    let violations: Vec<String> = report["violations"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    let overridden = !violations.is_empty() && args.allow_oversize_lenses;
+    report["overridden"] = json!(overridden);
+    if !violations.is_empty() && !overridden {
+        if let Some(out) = &args.out {
+            if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
+                let _ = write_artifact(out, "lens-size.json", &bytes);
+            }
+        }
+        let per_lens = report["lenses"]
+            .as_array()
+            .map(|lenses| {
+                lenses
+                    .iter()
+                    .map(|lens| {
+                        format!(
+                            "  {}: {} part(s), {} bytes, ~{} tokens (estimate)",
+                            lens["provider"].as_str().unwrap_or("?"),
+                            lens["parts"],
+                            lens["packetBytes"],
+                            lens["estimatedTokens"]
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_default();
+        return Err(CommandError::incomplete(format!(
+            "refusing to freeze the plan: lens packets do not fit the host\n{per_lens}\n{}\nNarrow the scope (--base-commit/--base/--dir/--only/--skip), raise --seat-token-budget/--max-lens-seats, or pass --allow-oversize-lenses to freeze anyway",
+            violations.join("\n")
+        )));
+    }
+    Ok(Some(report))
 }
 
 /// `pending-host` reasoning-lens work items for the frozen plan, with the full
@@ -1029,6 +1144,23 @@ fn lens_work_items(
     }
 }
 
+/// A run dir lives under `<root>/.audit/`; in a git work tree where that path
+/// is not ignored, say so (add `.audit/` to `.gitignore`) instead of silently
+/// letting run artifacts show up as untracked files.
+fn audit_dir_ignore_notice(root: &std::path::Path) -> Option<String> {
+    git_stdout(root, &["rev-parse", "--is-inside-work-tree"])?;
+    let ignored = std::process::Command::new("git")
+        .args(["check-ignore", "-q", ".audit/"])
+        .current_dir(root)
+        .status()
+        .ok()?
+        .success();
+    (!ignored).then(|| {
+        "audit-run-dir-not-ignored: add `.audit/` to .gitignore (or .git/info/exclude); run directories under .audit/ are otherwise reported as untracked files"
+            .to_owned()
+    })
+}
+
 fn validate_output_dir(
     root: &std::path::Path,
     requested: &std::path::Path,
@@ -1069,9 +1201,9 @@ fn lexical_normalize(path: &std::path::Path) -> std::path::PathBuf {
 
 fn native_inventory_binding(
     root: &std::path::Path,
-    _args: &AuditArgs,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<Value, CommandError> {
-    let source = super::audit_inventory_source(root)?;
+    let source = super::audit_inventory_source_scoped(root, only_paths)?;
     let inventory = source
         .inventory(&root.to_string_lossy())
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
@@ -2252,29 +2384,68 @@ struct AuditScope {
     base_commit: Option<String>,
     dir: Option<String>,
     changed_files: Vec<String>,
+    /// New-file line ranges of every changed hunk, per path (diff-scoped
+    /// audits only; empty otherwise). Paths without hunks are reviewed whole.
+    changed_hunks: std::collections::BTreeMap<String, Vec<(usize, usize)>>,
+    /// `HEAD` at scope resolution (diff-scoped audits only).
+    head: Option<String>,
     facts_unavailable: bool,
 }
 
+/// Scope types that name a changed-file set on their own.
+fn scope_type_selects_changes(scope_type: &str) -> bool {
+    matches!(scope_type, "local" | "uncommitted" | "committed")
+}
+
 impl AuditScope {
+    /// True when the run is a real diff: a base ref/commit or a change-set
+    /// scope type was given and the refs resolved. `--dir` alone only filters
+    /// and never narrows the denominator.
+    fn narrows_inventory(&self) -> bool {
+        !self.facts_unavailable
+            && (self.base.is_some()
+                || self.base_commit.is_some()
+                || scope_type_selects_changes(&self.scope_type))
+    }
+
+    /// The changed-file set the frozen denominator is restricted to, or
+    /// `None` for a whole-repository (or `--dir`-only) run.
+    fn inventory_filter(&self) -> Option<std::collections::BTreeSet<String>> {
+        self.narrows_inventory()
+            .then(|| self.changed_files.iter().cloned().collect())
+    }
+
     fn plan_json(&self) -> Value {
-        json!({
+        let mut scope = json!({
             "mode": self.mode,
             "type": self.scope_type,
             "base": self.base,
             "baseCommit": self.base_commit,
             "dir": self.dir,
-        })
+        });
+        if self.narrows_inventory() {
+            scope["head"] = json!(self.head);
+            scope["changedFileCount"] = json!(self.changed_files.len());
+            scope["denominator"] = json!("changed-files");
+        }
+        scope
     }
 
     fn facts_json(&self) -> Value {
-        json!({
+        let mut scope = json!({
             "mode": self.mode,
             "type": self.scope_type,
             "base": self.base,
             "base_commit": self.base_commit,
             "dir": self.dir,
             "changed_files": self.changed_files,
-        })
+        });
+        if self.narrows_inventory() {
+            scope["head"] = json!(self.head);
+            scope["changed_file_count"] = json!(self.changed_files.len());
+            scope["denominator"] = json!("changed-files");
+        }
+        scope
     }
 
     fn ref_is_valid(reference: &Option<String>) -> bool {
@@ -2287,8 +2458,14 @@ fn clean_path(input: &str) -> Option<String> {
         return None;
     }
     let mut path = input.replace('\\', "/");
-    if let Some(rest) = path.strip_prefix('.') {
-        path = rest.trim_start_matches('/').to_string();
+    // Strip only a leading `./` (or a lone `.`); a dotfile such as
+    // `.github/ci.yml` must keep its dot or it would drop out of a diff
+    // denominator that is matched against inventory paths.
+    if path == "." {
+        return None;
+    }
+    while let Some(rest) = path.strip_prefix("./") {
+        path = rest.to_string();
     }
     while path.ends_with('/') {
         path.pop();
@@ -2421,6 +2598,28 @@ fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
     } else {
         Vec::new()
     };
+    let narrows = refs_valid
+        && (scope_base.is_some()
+            || scope_base_commit.is_some()
+            || scope_type_selects_changes(&scope_type));
+    let changed_hunks = if narrows {
+        audit_changed_hunks(
+            root,
+            &scope_type,
+            scope_base.as_deref(),
+            scope_base_commit.as_deref(),
+            scope_dir.as_deref(),
+        )
+    } else {
+        std::collections::BTreeMap::new()
+    };
+    let head = if narrows {
+        git_stdout(root, &["rev-parse", "HEAD"])
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    } else {
+        None
+    };
     AuditScope {
         mode: if scoped { "diff" } else { "whole-repo" },
         scope_type,
@@ -2428,8 +2627,109 @@ fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
         base_commit: scope_base_commit,
         dir: scope_dir,
         changed_files,
+        changed_hunks,
+        head,
         facts_unavailable: !refs_valid,
     }
+}
+
+/// The inventory restriction a persisted run's facts record: `Some(changed
+/// files)` when `facts.scope` describes a real diff, else `None`. Lets
+/// `legion verify` rebuild the same narrowed denominator the run froze.
+pub(super) fn inventory_filter_from_facts(
+    facts: &Value,
+) -> Option<std::collections::BTreeSet<String>> {
+    let scope = facts.get("scope").filter(|scope| scope.is_object())?;
+    let present = |key: &str| scope.get(key).is_some_and(|value| !value.is_null());
+    let scope_type = scope.get("type").and_then(Value::as_str).unwrap_or("all");
+    if !(present("base") || present("base_commit") || scope_type_selects_changes(scope_type)) {
+        return None;
+    }
+    Some(
+        scope
+            .get("changed_files")?
+            .as_array()?
+            .iter()
+            .filter_map(Value::as_str)
+            .map(ToOwned::to_owned)
+            .collect(),
+    )
+}
+
+/// Merges `git diff -U0` hunk headers (`@@ -a,b +c,d @@` under `+++ b/path`)
+/// into per-path new-file line ranges. A pure deletion (`d == 0`) is anchored
+/// at the line it follows. Pure function over the diff text.
+fn parse_diff_hunks(
+    diff: &str,
+    hunks: &mut std::collections::BTreeMap<String, Vec<(usize, usize)>>,
+) {
+    let mut current: Option<String> = None;
+    for line in diff.lines() {
+        if let Some(path) = line.strip_prefix("+++ ") {
+            current = path
+                .strip_prefix("b/")
+                .and_then(clean_path)
+                .filter(|_| path != "/dev/null");
+        } else if line.starts_with("@@ ") {
+            let Some(path) = current.as_ref() else {
+                continue;
+            };
+            let Some(new) = line.split_whitespace().find(|part| part.starts_with('+')) else {
+                continue;
+            };
+            let mut numbers = new[1..].split(',');
+            let start = numbers.next().and_then(|n| n.parse::<usize>().ok());
+            let count = numbers.next().map_or(Some(1), |n| n.parse::<usize>().ok());
+            if let (Some(start), Some(count)) = (start, count) {
+                let start = start.max(1);
+                let end = if count == 0 { start } else { start + count - 1 };
+                hunks.entry(path.clone()).or_default().push((start, end));
+            }
+        }
+    }
+}
+
+fn audit_changed_hunks(
+    root: &std::path::Path,
+    scope_type: &str,
+    scope_base: Option<&str>,
+    scope_base_commit: Option<&str>,
+    scope_dir: Option<&str>,
+) -> std::collections::BTreeMap<String, Vec<(usize, usize)>> {
+    let mut hunks = std::collections::BTreeMap::new();
+    let mut add = |git_args: &[&str]| {
+        if let Some(diff) = git_stdout(root, git_args) {
+            parse_diff_hunks(&diff, &mut hunks);
+        }
+    };
+    if scope_type == "local" {
+        add(&["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"]);
+        let upstream = git_stdout(
+            root,
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        )
+        .map(|reference| reference.trim().to_string())
+        .filter(|reference| !reference.is_empty());
+        if let Some(upstream) = upstream {
+            let range = format!("{upstream}..HEAD");
+            add(&["diff", "-U0", "--no-color", "--no-ext-diff", &range]);
+        }
+    } else if let Some(commit) = scope_base_commit {
+        add(&["diff", "-U0", "--no-color", "--no-ext-diff", commit]);
+    } else if let Some(base) = scope_base {
+        let range = format!("{base}...HEAD");
+        add(&["diff", "-U0", "--no-color", "--no-ext-diff", &range]);
+    } else if scope_type == "uncommitted" {
+        add(&["diff", "-U0", "--no-color", "--no-ext-diff"]);
+    } else if scope_type == "committed" {
+        add(&["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD~1..HEAD"]);
+    }
+    hunks.retain(|path, ranges| {
+        ranges.sort_unstable();
+        ranges.dedup();
+        in_scope(path, scope_dir)
+    });
+    hunks
 }
 
 fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
@@ -2449,6 +2749,10 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             "mergeBase": Value::Null,
         },
     });
+    if scope.narrows_inventory() {
+        context["changedHunks"] = json!(scope.changed_hunks);
+        context["head"] = json!(scope.head);
+    }
     if scope.mode == "whole-repo"
         || (scope.dir.is_some()
             && scope.base.is_none()
@@ -2537,6 +2841,7 @@ fn native_rule_diagnostic_application(
     args: &AuditArgs,
     root: &std::path::Path,
     manifest: &std::path::Path,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
     let provider: legion_contracts::ProviderSpec = serde_json::from_value(json!({
         "schemaVersion": 2,
@@ -2557,7 +2862,7 @@ fn native_rule_diagnostic_application(
         "controlIds": [], "scopes": [], "selectable": true
     }))
     .map_err(|error| CommandError::internal(error.to_string()))?;
-    let source = super::audit_inventory_source(root)?;
+    let source = super::audit_inventory_source_scoped(root, only_paths)?;
     let executor = super::rules::NativeRuleProviderExecutor::new(
         root.to_path_buf(),
         manifest.to_path_buf(),
@@ -2580,12 +2885,14 @@ fn native_rule_diagnostic_application(
 /// provider registry `legion audit` builds for `repository_id` (its root).
 pub(super) fn audit_application_for(
     repository_id: &str,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
     let root = std::path::Path::new(repository_id);
     if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
         return super::native_application_for(repository_id);
     }
-    native_registry_application(root, None).map(|(application, _, _scratch)| Arc::new(application))
+    native_registry_application(root, None, only_paths)
+        .map(|(application, _, _scratch)| Arc::new(application))
 }
 
 fn rightkit_trust_early_subcommand(args: &AuditArgs) -> Option<&'static str> {
@@ -2765,6 +3072,7 @@ fn rightkit_trust_route_is_supported(
 fn native_registry_application(
     root: &std::path::Path,
     rightkit_trust: Option<&std::path::Path>,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<
     (
         legion_application::NativeApplication,
@@ -2794,7 +3102,7 @@ fn native_registry_application(
         .map(serde_json::from_value)
         .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
         .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
-    let source = super::audit_inventory_source(root)?;
+    let source = super::audit_inventory_source_scoped(root, only_paths)?;
     // All audit scratch lives outside the audited tree and is removed when the
     // registry (the last holder) is dropped.
     let scratch = std::sync::Arc::new(
@@ -3115,6 +3423,7 @@ fn record_retention_failure(
 fn direct_application(
     args: &AuditArgs,
     root: &std::path::Path,
+    only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<
     (
         legion_application::NativeApplication,
@@ -3132,7 +3441,7 @@ fn direct_application(
             "direct Audit requires at least one --provider-result",
         ));
     }
-    let source = super::audit_inventory_source(root)?;
+    let source = super::audit_inventory_source_scoped(root, only_paths)?;
     let plan_value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(plan).map_err(super::io_error)?)
             .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
@@ -3528,6 +3837,9 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
+            seat_token_budget: 200_000,
+            max_lens_seats: 16,
+            allow_oversize_lenses: false,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -3560,6 +3872,104 @@ mod closure_tests {
         // Facts collection equivalent crashes in Node, so facts omit scope entirely.
         assert!(scope.facts_unavailable);
         assert!(scope.changed_files.is_empty());
+    }
+
+    #[test]
+    fn diff_hunks_parse_new_file_ranges_and_anchor_pure_deletions() {
+        let diff = "diff --git a/src/a.rs b/src/a.rs\n--- a/src/a.rs\n+++ b/src/a.rs\n@@ -10,2 +10,3 @@ fn x()\n@@ -40 +41 @@\n@@ -60,4 +60,0 @@\ndiff --git a/gone.rs b/gone.rs\n--- a/gone.rs\n+++ /dev/null\n@@ -1,5 +0,0 @@\n";
+        let mut hunks = std::collections::BTreeMap::new();
+        parse_diff_hunks(diff, &mut hunks);
+        assert_eq!(hunks.len(), 1, "deleted files carry no hunks: {hunks:?}");
+        assert_eq!(hunks["src/a.rs"], vec![(10, 12), (41, 41), (60, 60)]);
+    }
+
+    #[test]
+    fn facts_scope_restores_the_diff_denominator_filter_only_for_real_diffs() {
+        let diff = json!({"scope": {
+            "mode": "diff", "type": "all", "base": null, "base_commit": "abc123",
+            "dir": null, "changed_files": ["src/b.rs", "src/a.rs"]
+        }});
+        let filter = inventory_filter_from_facts(&diff).expect("diff filter");
+        assert_eq!(
+            filter.into_iter().collect::<Vec<_>>(),
+            vec!["src/a.rs".to_owned(), "src/b.rs".to_owned()]
+        );
+        // `--dir` alone records mode diff with no changed files: no narrowing.
+        let dir_only = json!({"scope": {
+            "mode": "diff", "type": "all", "base": null, "base_commit": null,
+            "dir": "engine", "changed_files": []
+        }});
+        assert!(inventory_filter_from_facts(&dir_only).is_none());
+        assert!(inventory_filter_from_facts(&json!({})).is_none());
+    }
+
+    #[test]
+    fn base_commit_scope_narrows_the_denominator_and_records_hunks() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-audit-diff-scope-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+                .args(args)
+                .current_dir(&root)
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "git {args:?}: {output:?}");
+            String::from_utf8_lossy(&output.stdout).trim().to_owned()
+        };
+        git(&["init", "-q"]);
+        let body: String = (1..=100).map(|n| format!("let v{n} = {n};\n")).collect();
+        for name in ["a", "b", "c"] {
+            std::fs::write(root.join(format!("src/{name}.rs")), &body).unwrap();
+        }
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "base"]);
+        let base = git(&["rev-parse", "HEAD"]);
+        let changed = body.replace("let v50 = 50;", "let v50 = 5000;");
+        std::fs::write(root.join("src/b.rs"), changed).unwrap();
+        git(&["commit", "-qam", "change b"]);
+        let head = git(&["rev-parse", "HEAD"]);
+
+        let args = AuditArgs {
+            base_commit: Some(base.clone()),
+            ..minimal_audit_args()
+        };
+        let scope = audit_scope(&root, &args);
+        assert!(scope.narrows_inventory());
+        assert_eq!(scope.changed_files, vec!["src/b.rs".to_owned()]);
+        assert_eq!(scope.head.as_deref(), Some(head.as_str()));
+        assert_eq!(scope.changed_hunks["src/b.rs"], vec![(50, 50)]);
+        let plan = scope.plan_json();
+        assert_eq!(plan["head"], json!(head));
+        assert_eq!(plan["changedFileCount"], json!(1));
+        assert_eq!(plan["denominator"], "changed-files");
+
+        // The frozen denominator is the changed set only.
+        let filter = scope.inventory_filter();
+        let source = super::super::audit_inventory_source_scoped(&root, filter.as_ref()).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        assert_eq!(inventory.paths().collect::<Vec<_>>(), ["src/b.rs"]);
+        let whole = super::super::audit_inventory_source(&root).unwrap();
+        assert_eq!(
+            whole
+                .inventory(&root.to_string_lossy())
+                .unwrap()
+                .paths()
+                .count(),
+            3
+        );
+        // The frozen review context carries the hunks for lens packets.
+        let context = review_context(&root, &scope);
+        assert_eq!(context["changedHunks"]["src/b.rs"], json!([[50, 50]]));
+        assert_eq!(context["head"], json!(head));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
@@ -3607,6 +4017,8 @@ mod closure_tests {
             base_commit: None,
             dir: None,
             changed_files: Vec::new(),
+            changed_hunks: std::collections::BTreeMap::new(),
+            head: None,
             facts_unavailable: false,
         };
         let context = review_context(std::path::Path::new("."), &scope);
@@ -4266,6 +4678,9 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
+            seat_token_budget: 200_000,
+            max_lens_seats: 16,
+            allow_oversize_lenses: false,
         }
     }
 

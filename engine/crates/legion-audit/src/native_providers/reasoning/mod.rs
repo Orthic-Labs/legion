@@ -452,6 +452,51 @@ fn reasoning_denominator(
     Ok(denominator)
 }
 
+/// `reviewContext.changedHunks` of a diff-scoped audit
+/// (`{path: [[start, end], ...]}`), empty for a whole-repository audit.
+fn changed_hunks_from_review_context(provider: &AuditProvider) -> excerpts::ChangedHunks {
+    let mut hunks = excerpts::ChangedHunks::new();
+    let context = provider
+        .configuration
+        .get("reasoning")
+        .and_then(Value::as_object)
+        .and_then(|reasoning| reasoning.get("reviewContext"));
+    if context
+        .and_then(|value| value.get("mode"))
+        .and_then(Value::as_str)
+        != Some("diff")
+    {
+        return hunks;
+    }
+    let Some(map) = context
+        .and_then(|value| value.get("changedHunks"))
+        .and_then(Value::as_object)
+    else {
+        return hunks;
+    };
+    for (path, ranges) in map {
+        let parsed = ranges
+            .as_array()
+            .map(|ranges| {
+                ranges
+                    .iter()
+                    .filter_map(|range| {
+                        let pair = range.as_array()?;
+                        Some((
+                            pair.first()?.as_u64()? as usize,
+                            pair.get(1)?.as_u64()? as usize,
+                        ))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if !parsed.is_empty() {
+            hunks.insert(path.clone(), parsed);
+        }
+    }
+    hunks
+}
+
 /// Provider-level ceiling on packet parts: `bounds.maxReasoningParts` from the
 /// frozen provider, else `excerpts::DEFAULT_MAX_PARTS`.
 fn part_ceiling(provider: &AuditProvider) -> usize {
@@ -511,8 +556,12 @@ fn build_invocations(
     // "Excerpt compression" section. `None` only for
     // `legacy.security.adjudication`, which is not lens-routed here.
     let ceiling = part_ceiling(provider);
-    let partition = lens_plan::lens_plan_excerpt_mode(&provider.id)
-        .map(|mode| excerpts::partition_excerpts(root, &paths, mode, ceiling));
+    // Diff-scoped audit: the frozen review context carries the changed hunks
+    // per path; those paths are excerpted as hunks plus context, not whole.
+    let changed_hunks = changed_hunks_from_review_context(provider);
+    let partition = lens_plan::lens_plan_excerpt_mode(&provider.id).map(|mode| {
+        excerpts::partition_excerpts_scoped(root, &paths, mode, ceiling, &changed_hunks)
+    });
     // Scanner candidates for the adjudicator: one verdict per candidate.
     // `null` means the caller did not supply scanner results (unknown, not
     // "none"); ingest then refuses to treat the lens as covered.

@@ -15,8 +15,8 @@ use std::{
 use legion_audit::native_providers::reasoning::{
     excerpts,
     ingest::{
-        create_epoch, ingest_lens_result, recompute_run, write_lens_packets, EPOCH_KEY_FILE,
-        LENS_PACKET_DIR,
+        create_epoch, ingest_lens_result, lens_size_report, recompute_run, write_lens_packets,
+        LensSizeLimits, EPOCH_KEY_FILE, LENS_PACKET_DIR,
     },
     lens_plan, pending_lens_work, PendingLensWork, ReasoningProviderExecutor,
 };
@@ -339,6 +339,57 @@ fn a_three_megabyte_denominator_partitions_exactly_into_parts() {
         .join(LENS_PACKET_DIR)
         .join(format!("{RAW_PROVIDER}.json"))
         .exists());
+}
+
+#[test]
+fn size_gate_reports_bytes_tokens_parts_and_flags_budget_and_seat_overruns() {
+    let env = build_env("size-gate", RAW_PROVIDER, RAW_LENS, &many_files(120));
+    let parts = env.work.len() as u64;
+    assert!(parts > 1);
+
+    let roomy = LensSizeLimits {
+        seat_token_budget: 10_000_000,
+        max_seats: 10_000,
+    };
+    let report = lens_size_report(&env.work, &roomy);
+    assert_eq!(report["withinLimits"], json!(true));
+    assert!(report["violations"].as_array().unwrap().is_empty());
+    let lens = &report["lenses"][0];
+    assert_eq!(lens["provider"], json!(RAW_PROVIDER));
+    assert_eq!(lens["parts"], json!(parts));
+    assert_eq!(lens["requiredSeats"], json!(parts));
+    let bytes = lens["packetBytes"].as_u64().unwrap();
+    assert!(bytes > 3_000_000);
+    assert_eq!(lens["estimatedTokens"], json!(bytes.div_ceil(4)));
+    assert_eq!(report["requiredSeats"], json!(parts));
+    assert!(report["estimateBasis"]
+        .as_str()
+        .unwrap()
+        .contains("estimate"));
+
+    // One seat fewer than the parts needed: a wave warning, never a refusal.
+    let tight_seats = LensSizeLimits {
+        seat_token_budget: 10_000_000,
+        max_seats: parts - 1,
+    };
+    let report = lens_size_report(&env.work, &tight_seats);
+    assert_eq!(report["withinLimits"], json!(true));
+    assert!(report["violations"].as_array().unwrap().is_empty());
+    let warnings = report["warnings"].as_array().unwrap();
+    assert_eq!(warnings.len(), 1);
+    assert!(warnings[0].as_str().unwrap().contains("child-agent cap"));
+
+    // A tiny per-seat budget flags every part.
+    let tiny_budget = LensSizeLimits {
+        seat_token_budget: 1_000,
+        max_seats: 10_000,
+    };
+    let report = lens_size_report(&env.work, &tiny_budget);
+    assert_eq!(report["violations"].as_array().unwrap().len() as u64, parts);
+    assert!(report["violations"][0]
+        .as_str()
+        .unwrap()
+        .contains("per-seat budget"));
 }
 
 #[test]

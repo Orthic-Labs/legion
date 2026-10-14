@@ -171,7 +171,10 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     let verdict = lens_verdict(&root, &mut errors);
     if errors.is_empty() {
         let signing_key = verification_key(&root)?;
-        let application = super::audit::audit_application_for(&repository_id)?;
+        let application = super::audit::audit_application_for(
+            &repository_id,
+            super::audit::inventory_filter_from_facts(&facts).as_ref(),
+        )?;
         // Verify against the providers this run froze, not every configured
         // one: selection (`--only`/`--skip`, applicability) is part of the plan.
         let planned_ids = plan

@@ -48,6 +48,9 @@ pub trait InventorySource: Send + Sync {
 #[derive(Clone, Debug)]
 pub struct FilesystemInventorySource {
     root: PathBuf,
+    /// When set, only these repository-relative paths enter the inventory
+    /// (diff-scoped audits: the denominator is the changed-file set).
+    only_paths: Option<BTreeSet<String>>,
 }
 
 pub type InventorySourceDyn = dyn InventorySource;
@@ -61,7 +64,17 @@ impl FilesystemInventorySource {
         if !root.is_dir() {
             return Err(AuditError::Invalid("Audit root must be a directory".into()));
         }
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            only_paths: None,
+        })
+    }
+
+    /// Restricts the inventory to `paths` (repository-relative, `/`
+    /// separated). Paths absent from the work tree are simply not listed.
+    pub fn with_only_paths(mut self, paths: Option<BTreeSet<String>>) -> Self {
+        self.only_paths = paths;
+        self
     }
 
     pub fn root(&self) -> &Path {
@@ -99,6 +112,13 @@ impl InventorySource for FilesystemInventorySource {
             if git_files
                 .as_ref()
                 .is_some_and(|files| !files.contains(&path))
+            {
+                continue;
+            }
+            if self
+                .only_paths
+                .as_ref()
+                .is_some_and(|only| !only.contains(&path))
             {
                 continue;
             }
@@ -1221,6 +1241,34 @@ mod tests {
         let changed = source.inventory("repo").unwrap();
         assert_ne!(first.generation, changed.generation);
         assert_ne!(first.digest, changed.digest);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn only_paths_narrows_the_denominator_to_the_changed_set() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-only-paths-inventory-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/a.rs"), "fn a() {}\n").unwrap();
+        std::fs::write(root.join("src/b.rs"), "fn b() {}\n").unwrap();
+        std::fs::write(root.join("src/c.rs"), "fn c() {}\n").unwrap();
+        let only: BTreeSet<String> = ["src/b.rs", "src/gone.rs"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let source = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .with_only_paths(Some(only));
+        let narrowed = source.inventory("repo").unwrap();
+        assert_eq!(narrowed.paths().collect::<Vec<_>>(), ["src/b.rs"]);
+        let whole = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("repo")
+            .unwrap();
+        assert_eq!(whole.paths().count(), 3);
         std::fs::remove_dir_all(root).unwrap();
     }
 

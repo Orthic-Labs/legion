@@ -2035,6 +2035,100 @@ pub fn lens_packet_items(
     Ok(out)
 }
 
+/// Limits a lens packet set is gated against before the plan is frozen.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LensSizeLimits {
+    /// Largest estimated token count one seat (one packet part) may carry.
+    pub seat_token_budget: u64,
+    /// Most seats (packet parts, summed over every lens) the host can run.
+    pub max_seats: u64,
+}
+
+/// Default per-seat token budget (estimated tokens of one packet part).
+pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = 200_000;
+/// Default host child-agent cap (`CHILD_AGENTS_MAX` in the Audit manual).
+pub const DEFAULT_MAX_SEATS: u64 = 16;
+
+/// Estimated tokens for `bytes` of packet JSON. A labelled estimate
+/// (bytes / 4), not a tokenizer count.
+pub fn estimate_tokens(bytes: u64) -> u64 {
+    bytes.div_ceil(4)
+}
+
+/// Per-lens packet size report for a pending-work set: packet bytes, estimated
+/// tokens, parts and required seats, plus `violations` naming every lens part
+/// over the per-seat budget (refusing), and `warnings` for a total seat count over
+/// the host cap (waves, not refusal). Pure and
+/// deterministic; `violations` is empty exactly when the set fits `limits`.
+pub fn lens_size_report(work: &[PendingLensWork], limits: &LensSizeLimits) -> Value {
+    let mut order: Vec<&str> = Vec::new();
+    for item in work {
+        if !order.contains(&item.provider_id.as_str()) {
+            order.push(item.provider_id.as_str());
+        }
+    }
+    let mut lenses = Vec::new();
+    let mut violations = Vec::new();
+    let mut total_seats = 0u64;
+    let mut total_bytes = 0u64;
+    for provider in order {
+        let mut part_sizes: Vec<(u32, u64)> = Vec::new();
+        for item in work.iter().filter(|item| item.provider_id == provider) {
+            let bytes = serde_json::to_vec(&item.request.packet)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(0);
+            part_sizes.push((item.part().map_or(1, |part| part.number), bytes));
+        }
+        let bytes: u64 = part_sizes.iter().map(|(_, bytes)| bytes).sum();
+        let seats = part_sizes.len() as u64;
+        let largest = part_sizes.iter().max_by_key(|(_, bytes)| *bytes);
+        let largest_tokens = largest.map_or(0, |(_, bytes)| estimate_tokens(*bytes));
+        for (number, part_bytes) in &part_sizes {
+            let tokens = estimate_tokens(*part_bytes);
+            if tokens > limits.seat_token_budget {
+                violations.push(format!(
+                    "{provider} part {number}: ~{tokens} estimated tokens exceeds the per-seat budget of {}",
+                    limits.seat_token_budget
+                ));
+            }
+        }
+        total_seats += seats;
+        total_bytes += bytes;
+        lenses.push(json!({
+            "provider": provider,
+            "parts": seats,
+            "requiredSeats": seats,
+            "packetBytes": bytes,
+            "estimatedTokens": estimate_tokens(bytes),
+            "largestPartBytes": largest.map_or(0, |(_, bytes)| *bytes),
+            "largestPartEstimatedTokens": largest_tokens,
+        }));
+    }
+    // Seats run in waves, so a total over the child-agent cap costs time, not
+    // correctness: warn. Only a part no single seat can read refuses the freeze.
+    let mut warnings = Vec::new();
+    if total_seats > limits.max_seats {
+        warnings.push(format!(
+            "{total_seats} seats required (one per packet part) exceeds the host child-agent cap of {}; dispatch in waves",
+            limits.max_seats
+        ));
+    }
+    json!({
+        "estimateBasis": "estimate: packet JSON bytes / 4",
+        "limits": {
+            "seatTokenBudget": limits.seat_token_budget,
+            "maxSeats": limits.max_seats,
+        },
+        "lenses": lenses,
+        "requiredSeats": total_seats,
+        "packetBytes": total_bytes,
+        "estimatedTokens": estimate_tokens(total_bytes),
+        "withinLimits": violations.is_empty(),
+        "violations": violations,
+        "warnings": warnings,
+    })
+}
+
 /// Writes lens packets under `packet_dir` (`<out>/lens-packets`): the single
 /// `<provider>.json` when a provider's denominator fits one part, otherwise
 /// `<provider>.part-NNNN.json` for every part plus `<provider>.index.json`.
