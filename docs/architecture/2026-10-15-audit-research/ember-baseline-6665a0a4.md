@@ -87,3 +87,117 @@ Step 3 requested these fields. None could be read because the run refused before
 4. **Packet-byte accounting inconsistent** between the top-level total and the per-lens sum (see above).
 
 Nothing in Ember was edited, committed or branch-switched. The only writes are the `ember/.audit/baseline-run-20261015T095438Z/` run dir and this report.
+
+## Baseline 2 (build 56a82271)
+
+Status: **incomplete**. Both runs exited 2. The plan-only run wrote a plan (`auditStatus: incomplete`, `qualityGate: unproven`, gap `plan-only`). The standard run completed its process (`processExecution: complete`) and wrote all four output files, but its lens dispatch is over budget and every reasoning lens is still `pending-host`. No completion validation ran.
+
+### Build and environment
+
+| Item | Value |
+| --- | --- |
+| Artifact | `Orthic-Labs/legion` actions artifact 11968914504, 48,447,809 bytes |
+| Artifact sha256 | `186d5e56dff27ebc9ec2b591799a97c57878d6806badc0e2b8d0f5906fc838c0` |
+| Inner `app.zip` sha256 | `8f5302cf9023c2497940778a8be4a005f3d0896d128f92a4f200bbba5b0474ca` |
+| Installer | headless `Legion Installer.app`, exit 0, log ends `installation complete`, no rollback lines |
+| Installed binary sha256 | `3d0c3641a5c9bdbffd7cffaa45d711eaf419235a6eeb51b27a3cdafe90502cab` |
+| `share/legion/release.json` runtime.sha256 | `3d0c3641a5c9bdbffd7cffaa45d711eaf419235a6eeb51b27a3cdafe90502cab` (match) |
+| Previous binary sha256 | `764026be8435afa0d65cfb31ee705d2849139ddb6badae17c359eafa2a5ba578` (replaced) |
+| `legion --version` | `0.3.23` (the build id `56a82271` is not exposed by the binary) |
+| Ember HEAD | `657f7f48cf95267b490e5acd62d2cfed1636513d` |
+| Ember `git status --short` after runs | `?? .audit/` (run output) and the pre-existing `?? 7d3:1` |
+
+The installed binary matches the manifest and differs from the previous build. The binary still reports `0.3.23`, so the build identity rests on the artifact hash and the install log.
+
+### Commands and results
+
+| Run | Command (paths relative to the Ember checkout) | Wall clock | Exit | Max RSS | Output dir |
+| --- | --- | --- | --- | --- | --- |
+| Plan-only | `legion audit ember --plan-only --profile standard` | 28.99 s | 2 | 288,030,720 B | `ember/.audit/baseline2-plan-20261015T121607Z/` |
+| Standard | `legion audit ember --profile standard` | 115.71 s | 2 | 702,660,608 B | `ember/.audit/baseline2-run-20261015T121650Z/` |
+
+The plan-only run printed no stderr. Exit 2 coincides with `auditStatus: incomplete` and the `plan-only` gap. The plan-only run reported no `AUDIT_PLAN_SIGNING_KEY` error, unlike Baseline 1.
+
+### Plan-only dispatch (`lens-dispatch.json`)
+
+| Field | Value |
+| --- | --- |
+| `coverageMode` | `risk-sampled` |
+| `withinLimits` | `true`, no violations |
+| Limits | seat budget 150,000; wave width 16; run budget 6,000,000; max seats 48 |
+| Lenses | 16 |
+| Required seats / seats / waves | 42 / 42 / 3 (tiers: judgment 20, specialist 17, mechanical 5) |
+| Estimated tokens, total | 4,243,664 |
+| `packetBytes` = `seatReadBytes` | 16,974,606 |
+| `perLensPacketBytes` | 33,397,421 |
+| `uniqueExcerptBytes` | 16,383,305 |
+| `sharedExcerptBytesSaved` | 16,422,815 |
+| `planSignature` | present (`hmac-sha256:7b6be65f…`) |
+| `epoch.key` | present in the run dir |
+
+Per bundle (estimated tokens, seats, over-share):
+
+| Bundle | Seats | Est. tokens | Over share |
+| --- | --- | --- | --- |
+| ADJ | 1 | 297 | 0 |
+| J1 | 12 | 1,394,161 | 0 |
+| J2 | 7 | 817,075 | 0 |
+| M1 | 5 | 544,344 | 0 |
+| S1 | 5 | 330,702 | 0 |
+| S2 | 5 | 378,088 | 0 |
+| S3 | 7 | 778,997 | 478,997 |
+
+The only warning is bundle S3, which exceeds its 300,000 allocation target. The run budget is the limit that applies.
+
+### Standard run
+
+| Measure | Value |
+| --- | --- |
+| Exit | 2 |
+| `auditStatus` / `qualityGate` | `incomplete` / `unproven` |
+| `coverageMode` / `auditLabel` | `sampled` / `whole-repository risk-sampled audit` (`lens-dispatch.json` says `risk-sampled`) |
+| `processExecution` / `processState` | `complete` / `complete` |
+| `completionValidation` | `not-run` |
+| Providers in report | 87 total: 78 applicable, 9 not applicable |
+| Provider `status` | ok 27, partial 50, complete 5, failed 5 |
+| Provider `complete` | true 20, false 67 |
+| Unavailable | 27 gap records of kind `unavailable`. The report has no separate unavailable field, so this is the best count available. |
+| Findings (all provider-sourced; `advisoryFindings` = 0) | 825: medium 445, warning 302, low 63, error 15 |
+| Top finding providers | code.rust 500, test-quality.core 126, docs.contract 96, legacy.quality.negative-space 75, code.javascript 15 |
+| Gaps (report) | 212 |
+| Top gap kinds | provider-incomplete 54, provider-degradation 48, unavailable 27, reasoning-lens-pending-host 16, unparsed JSON gap 12, code.rust 7, code.python 6 |
+| `lensWork` | 16 entries, all `pending-host`; 23 selected lenses; 103 seat references across waves 1 to 4 (the references may double-count shared seats) |
+| `report.json` | 2,675,073 B |
+| `execution.json` | 3,508,419 B |
+| `report.sarif` | 1,490,211 B |
+| `facts.json` | 1,690,701 B |
+
+### Standard run dispatch (`lens-dispatch.json` in the run dir)
+
+The run re-dispatched with more seats than the plan-only pass.
+
+| Field | Value |
+| --- | --- |
+| `withinLimits` | `false` |
+| Required seats / seats / waves | 56 / 56 / 4 (tiers: judgment 23, specialist 28, mechanical 5) |
+| Estimated tokens, total | 6,125,674 (run budget 6,000,000) |
+| `packetBytes` = `seatReadBytes` | 24,502,612 |
+| `perLensPacketBytes` | 44,468,972 |
+| `uniqueExcerptBytes` | 22,473,637 |
+| Violations | seat 1 (bundle ADJ) at ~250,412 tokens exceeds the 150,000 per-seat budget; 56 seats exceed the 48-seat cap; the run total exceeds the 6,000,000 budget |
+
+Per bundle over budget: J2 by 146,847; S1 by 150,315; S2 by 138,476; S3 by 1,175,087 (estimated 1,475,087 against 300,000).
+
+The 6.0M run budget and 48-seat cap are the likely cause of exit 2, but the CLI did not state a cause on stderr.
+
+### Failures and open items
+
+1. Standard run is over budget in the run dir (`withinLimits: false`, 56 seats against a 48-seat cap). Reducing scope or raising budgets is an owner decision and was not applied.
+2. Run `auditStatus` is `incomplete`, so no quality gate passed. No completion validation ran.
+3. All 16 reasoning lenses are `pending-host`, so no reasoning findings exist for this baseline.
+4. The plan-only and standard dispatches disagree (42 vs 56 seats, 4.24M vs 6.13M tokens). Dispatch is not stable across the two runs on the same source.
+5. The run's `lensWork` seat references (103) do not match its `lens-dispatch.json` seat count (56). The discrepancy is not explained.
+6. The auditor's `contextNotices` asks for `.audit/` to be added to `.gitignore` or `.git/info/exclude`. Nothing was edited in Ember, so `.audit/` still shows as untracked.
+7. Build identity: the binary does not expose build `56a82271`. Identity rests on the artifact and runtime hashes above.
+
+Nothing in Ember was edited, committed or branch-switched. No reasoning-lens seats or subagents were dispatched. The writes are the two run dirs under `ember/.audit/` and this section.
