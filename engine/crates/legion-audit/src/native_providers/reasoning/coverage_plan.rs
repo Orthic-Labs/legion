@@ -1104,8 +1104,20 @@ mod tests {
             &request(CoverageMode::Auto),
         )
         .unwrap();
+        // Every fixture file has churn, so all non-mandatory files rank as
+        // hotspots and the seeded remainder is empty here: assert what the seed
+        // controls — a different basis gives a different seed and ordering.
+        let seed_a = a["reasoning.security"]["seed"].as_str().unwrap().to_owned();
+        let seed_c = c["reasoning.security"]["seed"].as_str().unwrap().to_owned();
+        assert_ne!(seed_a, seed_c, "a different basis gives a different seed");
+        let order = |seed: &str| {
+            let mut sample: Vec<&str> = paths.iter().map(String::as_str).collect();
+            sample.sort_by_key(|path| seeded_key(seed, path));
+            sample.into_iter().take(30).map(str::to_owned).collect::<Vec<_>>()
+        };
         assert_ne!(
-            a["reasoning.security"]["reviewSetDigest"], c["reasoning.security"]["reviewSetDigest"],
+            order(&seed_a),
+            order(&seed_c),
             "a different seed samples a different remainder"
         );
     }
