@@ -486,6 +486,101 @@ fn report_metrics(report: &Value) -> Value {
     })
 }
 
+fn raw_candidate_location(candidate: &Value) -> Option<Loc> {
+    fn anchor(value: &Value) -> Result<(Option<String>, Option<u32>, Option<u32>), ()> {
+        let path = value
+            .get("path")
+            .filter(|value| !value.is_null())
+            .or_else(|| value.get("file").filter(|value| !value.is_null()))
+            .map(|value| {
+                let path = value.as_str().ok_or(())?.replace('\\', "/");
+                if path.starts_with('/') || path.contains(':') || path.chars().any(char::is_control)
+                {
+                    return Err(());
+                }
+                let parts = path
+                    .split('/')
+                    .filter(|part| !part.is_empty() && *part != ".")
+                    .collect::<Vec<_>>();
+                if parts.is_empty() || parts.contains(&"..") {
+                    return Err(());
+                }
+                Ok(parts.join("/"))
+            })
+            .transpose()?;
+        let positive = |value: &Value| {
+            value
+                .as_u64()
+                .and_then(|line| u32::try_from(line).ok())
+                .filter(|line| *line > 0)
+                .ok_or(())
+        };
+        let line = value
+            .get("line")
+            .filter(|value| !value.is_null())
+            .or_else(|| value.get("startLine").filter(|value| !value.is_null()))
+            .map(positive)
+            .transpose()?;
+        let end = value
+            .get("endLine")
+            .filter(|value| !value.is_null())
+            .map(positive)
+            .transpose()?
+            .or(line);
+        if end.zip(line).is_some_and(|(end, start)| end < start) {
+            return Err(());
+        }
+        Ok((path, line, end))
+    }
+    if matches!(
+        candidate.get("locationStatus").and_then(Value::as_str),
+        Some("unknown" | "invalid" | "conflicting")
+    ) {
+        return None;
+    }
+    let top = anchor(candidate).ok()?;
+    let nested_value = candidate
+        .get("evidence")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first());
+    let nested = nested_value
+        .map(anchor)
+        .transpose()
+        .ok()?
+        .unwrap_or_default();
+    if top
+        .0
+        .as_ref()
+        .zip(nested.0.as_ref())
+        .is_some_and(|(left, right)| left != right)
+        || top
+            .1
+            .zip(nested.1)
+            .is_some_and(|(left, right)| left != right)
+        || candidate
+            .get("endLine")
+            .is_some_and(|value| !value.is_null())
+            && top
+                .2
+                .zip(nested.2)
+                .is_some_and(|(left, right)| left != right)
+    {
+        return None;
+    }
+    let path = top.0.or(nested.0)?;
+    let start = top.1.or(nested.1);
+    let end = if candidate
+        .get("endLine")
+        .is_some_and(|value| !value.is_null())
+    {
+        top.2
+    } else {
+        nested.2.or(top.2)
+    }
+    .or(start);
+    Some(Loc { path, start, end })
+}
+
 fn raw_candidate_observations(report: &Value) -> Option<(Vec<Observed>, u32)> {
     let rows = report_provider_results(report)?.as_array()?;
     let arrays: Vec<&Vec<Value>> = rows
@@ -504,45 +599,8 @@ fn raw_candidate_observations(report: &Value) -> Option<(Vec<Observed>, u32)> {
     let count = candidates.len() as u32;
     let observations = candidates
         .into_iter()
-        .map(|candidate| {
-            let location_status = candidate.get("locationStatus").and_then(Value::as_str);
-            let anchor_invalid = matches!(location_status, Some("invalid" | "conflicting"));
-            let anchor_unknown = location_status == Some("unknown");
-            let path = if anchor_invalid || anchor_unknown {
-                None
-            } else {
-                candidate
-                    .get("path")
-                    .or_else(|| candidate.get("file"))
-                    .and_then(Value::as_str)
-            };
-            let start = if anchor_invalid || anchor_unknown {
-                None
-            } else {
-                candidate
-                    .get("line")
-                    .or_else(|| candidate.get("startLine"))
-                    .and_then(Value::as_u64)
-                    .and_then(|line| u32::try_from(line).ok())
-                    .filter(|line| *line > 0)
-            };
-            let end = candidate
-                .get("endLine")
-                .and_then(Value::as_u64)
-                .and_then(|line| u32::try_from(line).ok())
-                .filter(|line| start.is_some_and(|start| *line >= start))
-                .or(start);
-            Observed {
-                locations: path
-                    .map(|path| {
-                        vec![Loc {
-                            path: path.replace('\\', "/"),
-                            start,
-                            end,
-                        }]
-                    })
-                    .unwrap_or_default(),
-            }
+        .map(|candidate| Observed {
+            locations: raw_candidate_location(candidate).into_iter().collect(),
         })
         .collect();
     Some((observations, count))
@@ -2693,6 +2751,46 @@ mod tests {
         );
         assert_eq!(missing_followup_calls["status"], "unknown");
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn raw_native_candidate_evidence_locations_are_scored_without_promotion() {
+        // Exact native binary-pins push_candidate shape: location is nested.
+        let report = json!({"findings":[],"providerResults":[{"provider":"legacy.security.binary-pins","result":{"details":{"candidates":[{
+            "id":"binary-fixture","ruleId":"security.binary-unpinned","role":"candidate-generator",
+            "claim":"Unbound executable download","severityHint":"high",
+            "evidence":[{"file":"scripts/install.sh","line":3}],
+            "evidenceStrength":"candidate","verdict":"UNADJUDICATED","adjudicationRequired":true
+        }]}}}]});
+        let (candidates, count) = raw_candidate_observations(&report).unwrap();
+        assert_eq!(count, 1);
+        assert!(overlaps(
+            &candidates[0].locations[0],
+            "scripts/install.sh",
+            [3, 3]
+        ));
+        let case = planted(
+            "native-binary-location",
+            Category::Security,
+            "scripts/install.sh",
+            [3, 3],
+        );
+        let score = score_run(&[case.clone()], &BTreeMap::from([(case.id, candidates)]));
+        assert_eq!(score.location_hits, 1);
+        assert_eq!(report_metrics(&report)["finalReport"]["findingCount"], 0);
+        assert_eq!(raw_candidate_location(&json!({"file":"src/session.ts","line":4,"evidence":[{"file":"src/session.ts","line":4,"endLine":5}]})).unwrap().end,Some(5));
+        for invalid in [
+            json!({"locationStatus":"unknown","evidence":[{"file":"scripts/install.sh","line":3}]}),
+            json!({"locationStatus":"invalid","evidence":[{"file":"scripts/install.sh","line":3}]}),
+            json!({"file":"different.sh","line":3,"evidence":[{"file":"scripts/install.sh","line":3}]}),
+            json!({"file":"scripts/install.sh","line":2,"evidence":[{"file":"scripts/install.sh","line":3}]}),
+            json!({"file":"scripts/install.sh","line":3,"endLine":4,"evidence":[{"file":"scripts/install.sh","line":3,"endLine":5}]}),
+            json!({"evidence":[{"file":"../install.sh","line":3}]}),
+            json!({"evidence":[{"file":"scripts/install.sh","line":0}]}),
+            json!({"evidence":[{"file":"scripts/install.sh","line":3,"endLine":2}]}),
+        ] {
+            assert!(raw_candidate_location(&invalid).is_none(), "{invalid}");
+        }
     }
 
     #[test]
