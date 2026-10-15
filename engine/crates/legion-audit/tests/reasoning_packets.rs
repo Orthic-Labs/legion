@@ -532,7 +532,7 @@ fn ingesting_a_single_part_reports_the_provider_level_outstanding_work() {
     let ingested = ingest_fixture(
         &env,
         &env.work[0],
-        part_result(&env.work[0], json![]),
+        part_result(&env.work[0], json!([])),
         FindingDisposition::Upheld,
     );
     assert!(!ingested.complete);
@@ -621,7 +621,7 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
         latest = Some(ingest_fixture(
             &env,
             item,
-            part_result(item, json![]),
+            part_result(item, json!([])),
             FindingDisposition::Upheld,
         ));
     }
@@ -632,7 +632,7 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
     let after = ingest_fixture(
         &env,
         &env.work[last],
-        part_result(&env.work[last], json![]),
+        part_result(&env.work[last], json!([])),
         FindingDisposition::Upheld,
     );
     assert_eq!((after.examined, after.expected), (20, 20));
@@ -643,7 +643,7 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
     let only_last = ingest_fixture(
         &alone,
         &alone.work[last],
-        part_result(&alone.work[last], json![]),
+        part_result(&alone.work[last], json!([])),
         FindingDisposition::Upheld,
     );
     assert_eq!((only_last.examined, only_last.expected), (0, 20));
