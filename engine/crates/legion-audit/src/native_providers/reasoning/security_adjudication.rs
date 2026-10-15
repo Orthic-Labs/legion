@@ -61,6 +61,29 @@ impl SecurityVerdictKind {
             SecurityVerdictKind::TruePositive | SecurityVerdictKind::LikelyTruePositive
         )
     }
+
+    /// Verdicts that keep a candidate alive in any form: every one of them
+    /// needs a second, single-candidate fresh-context confirmation before it
+    /// counts (scaled adjudication, D1).
+    pub fn needs_confirmation(self) -> bool {
+        matches!(
+            self,
+            SecurityVerdictKind::TruePositive
+                | SecurityVerdictKind::LikelyTruePositive
+                | SecurityVerdictKind::HardeningGap
+                | SecurityVerdictKind::MisuseHazard
+        )
+    }
+
+    /// Verdicts that dismiss a candidate.
+    pub fn is_dismissal(self) -> bool {
+        matches!(
+            self,
+            SecurityVerdictKind::FalsePositive
+                | SecurityVerdictKind::LikelyFalsePositive
+                | SecurityVerdictKind::OutOfScope
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -415,6 +438,10 @@ pub struct SecurityVerdict {
     /// candidate's file.
     #[serde(default)]
     pub cited_evidence: Vec<Value>,
+    /// The cluster this row was expanded from, when it was adjudicated through
+    /// a cluster representative. Absent for single-candidate verdicts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cluster_id: Option<String>,
     pub variant_analysis_required: bool,
     pub verdict_digest: String,
 }
@@ -523,6 +550,7 @@ fn finalize_with_evidence(
         rationale: result.rationale,
         devils_advocate: result.devils_advocate,
         cited_evidence,
+        cluster_id: None,
         variant_analysis_required: surviving,
         verdict_digest: String::new(),
     };
@@ -775,13 +803,22 @@ fn build_item(
     candidate: &ScannerCandidate,
     packet_digest: &str,
 ) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
+    let item_id = adjudication_item_id(packet_digest, candidate.finding_id.as_str())?;
+    let context_id = format!("adjudicator:{item_id}");
+    build_item_with(candidate, packet_digest, item_id, context_id)
+}
+
+fn build_item_with(
+    candidate: &ScannerCandidate,
+    packet_digest: &str,
+    item_id: String,
+    context_id: String,
+) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
     let id = candidate.finding_id.as_str();
     let setup = |error: SecurityAdjudicationError| SecurityAdjudicationError::CandidateSetup {
         id: id.to_owned(),
         reason: error.to_string(),
     };
-    let item_id = adjudication_item_id(packet_digest, id)?;
-    let context_id = format!("adjudicator:{item_id}");
     let claim = if candidate.message.trim().is_empty() {
         candidate.rule.clone()
     } else {
@@ -837,7 +874,8 @@ pub fn adjudication_work_items(
 }
 
 /// How a verdict's adjudicator context is established.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ContextPolicy {
     /// The context is the one issued for the candidate; a verdict that names a
     /// different one (`contextId`) is rejected. A verdict that names none is
@@ -1129,16 +1167,102 @@ pub fn adjudicate_scanner_candidates_isolated(
     packet_digest: &str,
     policy: ContextPolicy,
 ) -> Result<Vec<SecurityVerdict>, SecurityAdjudicationError> {
+    adjudicate_scanner_candidates_scoped(
+        candidates,
+        verdicts,
+        packet_digest,
+        policy,
+        &AdjudicationScope::PerCandidate,
+    )
+}
+
+/// What a set of verdicts is scoped to, and so which adjudicator context each
+/// verdict must name.
+#[derive(Clone, Copy, Debug)]
+pub enum AdjudicationScope<'a> {
+    /// One isolated context per candidate (the original contract).
+    PerCandidate,
+    /// One isolated context per candidate, in a named stage
+    /// (`confirmation`, `spotCheck`, `individual`). The stage is part of the
+    /// context derivation, so a candidate's contexts differ between stages.
+    Stage(&'a str),
+    /// One context for the whole batch, shared by its cluster representatives.
+    /// Only representatives carry verdicts; each is expanded to every cluster
+    /// member, which keeps its own row (with `cluster_id`).
+    Batch {
+        batch: &'a Batch,
+        clusters: &'a [Cluster],
+    },
+}
+
+fn scoped_item(
+    scope: &AdjudicationScope<'_>,
+    candidate: &ScannerCandidate,
+    packet_digest: &str,
+) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
+    match scope {
+        AdjudicationScope::PerCandidate => build_item(candidate, packet_digest),
+        AdjudicationScope::Stage(stage) => {
+            let item_id =
+                adjudication_item_id(packet_digest, &format!("{stage}:{}", candidate.finding_id))?;
+            let context_id = format!("adjudicator:{item_id}");
+            build_item_with(candidate, packet_digest, item_id, context_id)
+        }
+        AdjudicationScope::Batch { batch, .. } => build_item_with(
+            candidate,
+            packet_digest,
+            batch.item_id.clone(),
+            batch.context_id.clone(),
+        ),
+    }
+}
+
+/// [`adjudicate_scanner_candidates_isolated`] generalized over
+/// [`AdjudicationScope`]. Under [`AdjudicationScope::Batch`] `candidates` are
+/// every member of the batch's clusters and `verdicts` cover the cluster
+/// representatives only; the result has one row per member.
+pub fn adjudicate_scanner_candidates_scoped(
+    candidates: &[ScannerCandidate],
+    verdicts: &[Value],
+    packet_digest: &str,
+    policy: ContextPolicy,
+    scope: &AdjudicationScope<'_>,
+) -> Result<Vec<SecurityVerdict>, SecurityAdjudicationError> {
     let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
     for candidate in candidates {
         by_id
             .entry(candidate.finding_id.as_str())
             .or_insert(candidate);
     }
-    let items = adjudication_work_items(candidates, packet_digest)?
-        .into_iter()
-        .map(|item| (item.packet.candidate.id.clone(), item))
-        .collect::<BTreeMap<_, _>>();
+    // The candidates that need a verdict of their own.
+    let adjudicated: Vec<ScannerCandidate> = match scope {
+        AdjudicationScope::Batch { clusters, .. } => clusters
+            .iter()
+            .map(|cluster| {
+                by_id
+                    .get(cluster.representative_id.as_str())
+                    .map(|candidate| (*candidate).clone())
+                    .ok_or_else(|| SecurityAdjudicationError::CandidateSetup {
+                        id: cluster.representative_id.clone(),
+                        reason: format!(
+                            "representative of cluster {} is not among the batch candidates",
+                            cluster.cluster_id
+                        ),
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => candidates.to_vec(),
+    };
+    let shared_context = matches!(scope, AdjudicationScope::Batch { .. });
+    let mut items: BTreeMap<String, CandidateAdjudicationItem> = BTreeMap::new();
+    for candidate in &adjudicated {
+        if !items.contains_key(&candidate.finding_id) {
+            items.insert(
+                candidate.finding_id.clone(),
+                scoped_item(scope, candidate, packet_digest)?,
+            );
+        }
+    }
     // Which candidate each issued context belongs to, to name the other party
     // when a verdict claims a context that is not its own.
     let issued = items
@@ -1155,14 +1279,14 @@ pub fn adjudicate_scanner_candidates_isolated(
             .get("candidateId")
             .and_then(Value::as_str)
             .ok_or(SecurityAdjudicationError::MissingCandidateId(index))?;
-        let candidate =
-            by_id
-                .get(id)
-                .copied()
-                .ok_or_else(|| SecurityAdjudicationError::UnknownCandidate {
-                    index,
-                    id: id.to_owned(),
-                })?;
+        let candidate = by_id
+            .get(id)
+            .copied()
+            .filter(|_| items.contains_key(id))
+            .ok_or_else(|| SecurityAdjudicationError::UnknownCandidate {
+                index,
+                id: id.to_owned(),
+            })?;
         if closed.contains_key(id) {
             return Err(SecurityAdjudicationError::DuplicateVerdict {
                 index,
@@ -1185,19 +1309,21 @@ pub fn adjudicate_scanner_candidates_isolated(
                 if context == generator_context_id(candidate) {
                     return Err(SecurityAdjudicationError::GeneratorContext(id.to_owned()));
                 }
-                if let Some(other) = issued.get(context).filter(|other| other.as_str() != id) {
-                    return Err(SecurityAdjudicationError::SharedContext {
-                        candidate: id.to_owned(),
-                        other: other.clone(),
-                        context: context.to_owned(),
-                    });
-                }
-                if let Some(other) = claimed_contexts.get(context) {
-                    return Err(SecurityAdjudicationError::SharedContext {
-                        candidate: id.to_owned(),
-                        other: other.clone(),
-                        context: context.to_owned(),
-                    });
+                if !shared_context {
+                    if let Some(other) = issued.get(context).filter(|other| other.as_str() != id) {
+                        return Err(SecurityAdjudicationError::SharedContext {
+                            candidate: id.to_owned(),
+                            other: other.clone(),
+                            context: context.to_owned(),
+                        });
+                    }
+                    if let Some(other) = claimed_contexts.get(context) {
+                        return Err(SecurityAdjudicationError::SharedContext {
+                            candidate: id.to_owned(),
+                            other: other.clone(),
+                            context: context.to_owned(),
+                        });
+                    }
                 }
                 if context != item.context_id {
                     return Err(SecurityAdjudicationError::UnexpectedContext {
@@ -1246,20 +1372,68 @@ pub fn adjudicate_scanner_candidates_isolated(
         }
         closed.insert(id.to_owned(), verdict);
     }
-    let missing = by_id
+    let missing = items
         .keys()
-        .filter(|id| !closed.contains_key(**id))
-        .copied()
+        .filter(|id| !closed.contains_key(id.as_str()))
+        .cloned()
         .collect::<Vec<_>>();
     if !missing.is_empty() {
         return Err(SecurityAdjudicationError::MissingVerdicts(
             missing.join(", "),
         ));
     }
-    Ok(candidates
-        .iter()
-        .filter_map(|candidate| closed.remove(candidate.finding_id.as_str()))
-        .collect())
+    match scope {
+        AdjudicationScope::Batch { clusters, .. } => expand_clusters(candidates, clusters, &closed),
+        _ => Ok(candidates
+            .iter()
+            .filter_map(|candidate| closed.remove(candidate.finding_id.as_str()))
+            .collect()),
+    }
+}
+
+/// One row per candidate, copied from its cluster representative's verdict.
+/// Every row records its own candidate and `cluster_id` and carries its own
+/// digest, so no location is lost to clustering.
+fn expand_clusters(
+    candidates: &[ScannerCandidate],
+    clusters: &[Cluster],
+    closed: &BTreeMap<String, SecurityVerdict>,
+) -> Result<Vec<SecurityVerdict>, SecurityAdjudicationError> {
+    let mut cluster_of: BTreeMap<&str, &Cluster> = BTreeMap::new();
+    for cluster in clusters {
+        for member in &cluster.member_ids {
+            cluster_of.insert(member.as_str(), cluster);
+        }
+    }
+    let mut rows = Vec::new();
+    let mut seen = BTreeSet::new();
+    for candidate in candidates {
+        if !seen.insert(candidate.finding_id.as_str()) {
+            continue;
+        }
+        let cluster = cluster_of
+            .get(candidate.finding_id.as_str())
+            .copied()
+            .ok_or_else(|| SecurityAdjudicationError::CandidateSetup {
+                id: candidate.finding_id.clone(),
+                reason: "candidate is not a member of any cluster in this batch".to_owned(),
+            })?;
+        let representative = closed
+            .get(cluster.representative_id.as_str())
+            .ok_or_else(|| SecurityAdjudicationError::CandidateSetup {
+                id: cluster.representative_id.clone(),
+                reason: "cluster representative has no verdict".to_owned(),
+            })?;
+        let mut row = representative.clone();
+        row.candidate_id = candidate.finding_id.clone();
+        row.candidate_provider = candidate.provider.clone();
+        row.cluster_id = Some(cluster.cluster_id.clone());
+        row.verdict_digest = String::new();
+        row.verdict_digest = canonical_digest(&row)
+            .map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))?;
+        rows.push(row);
+    }
+    Ok(rows)
 }
 
 /// Batch entry point kept for compatibility. It fans out to the per-candidate
@@ -1326,6 +1500,1290 @@ fn chrono_now_rfc3339() -> String {
     // module needs no extra crate; callers that need calendar precision
     // should pass generated_at/context_started_at explicitly.
     format!("1970-01-01T00:00:00Z+{}s", now.as_secs())
+}
+
+// ---------------------------------------------------------------------
+// Scaled adjudication: triage, clusters, batches, confirmations, spot-checks
+// ---------------------------------------------------------------------
+//
+// At ~1.4k candidates one fresh context per candidate is not affordable, so
+// adjudication is staged. Nothing here weakens what a verdict must prove; it
+// moves where the per-candidate rigor is spent:
+//
+// 1. `triage_candidates` closes only provable non-issues, typed
+//    `deterministic`, reported as `autoTriaged`, never counted as adjudicated.
+// 2. `cluster_candidates` groups identical sinks; every member keeps its own
+//    verdict row (`clusterId`).
+// 3. `adjudication_batches` groups clusters (rule family, then file locality,
+//    at most `MAX_CLUSTERS_PER_BATCH` clusters and `MAX_BATCH_TOKENS`) into one
+//    fresh context per batch.
+// 4. Every surviving verdict is re-adjudicated alone (`confirmation_items`),
+//    a seeded 5% of routine dismissals is re-adjudicated alone
+//    (`spot_check_items`; any disagreement voids the batch and reruns it one
+//    candidate per context), and high-risk or uncertain dismissals go straight
+//    to individual review.
+//
+// Context identity is host-attested. The context ids issued here are labels a
+// host is asked to honour; a verdict echoing one proves nothing about how it
+// was reached, so ingest keeps recording the derived-context gap.
+
+/// Most clusters one batch may carry.
+pub const MAX_CLUSTERS_PER_BATCH: usize = 25;
+/// Estimated-token bound for one batch packet (4 characters per token).
+pub const MAX_BATCH_TOKENS: usize = 24_000;
+/// Share of routine dismissals re-adjudicated alone, rounded up, at least one
+/// per batch that has any.
+pub const SPOT_CHECK_PERCENT: usize = 5;
+/// Verdict basis of a deterministic triage closure.
+pub const DETERMINISTIC_BASIS: &str = "deterministic";
+
+pub const STAGE_BATCH: &str = "batch";
+pub const STAGE_CONFIRMATION: &str = "confirmation";
+pub const STAGE_SPOT_CHECK: &str = "spotCheck";
+pub const STAGE_INDIVIDUAL: &str = "individual";
+
+pub const TRIAGE_RULE_PATH_EXCLUDED: &str = "triage.path-excluded";
+pub const TRIAGE_RULE_PLACEHOLDER: &str = "triage.placeholder-value";
+pub const TRIAGE_RULE_NATIVE_RESOLVED: &str = "triage.native-resolved";
+
+fn digest_of<T: Serialize>(value: &T) -> Result<String, SecurityAdjudicationError> {
+    canonical_digest(value).map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))
+}
+
+fn short_digest(digest: &str) -> String {
+    digest
+        .trim_start_matches("sha256:")
+        .chars()
+        .take(16)
+        .collect()
+}
+
+fn estimate_tokens(text: &str) -> usize {
+    text.chars().count() / 4 + 1
+}
+
+/// Host-supplied facts triage may rely on. Both sets are frozen into the
+/// packet, so ingest re-derives triage from exactly what the packet declares.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TriageContext {
+    /// Paths the lens denominators exclude (the host's own classification).
+    #[serde(default)]
+    pub excluded_paths: BTreeSet<String>,
+    /// [`location_fingerprint`]s a native provider already resolved.
+    #[serde(default)]
+    pub resolved_fingerprints: BTreeSet<String>,
+}
+
+/// A candidate closed by a deterministic rule. It is not an adjudication.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoTriaged {
+    pub candidate_id: String,
+    pub rule_id: String,
+    pub scanner_rule: String,
+    pub verdict: SecurityVerdictKind,
+    pub basis: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub line: Option<u64>,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct TriageOutcome {
+    pub auto_triaged: Vec<AutoTriaged>,
+    pub remaining: Vec<ScannerCandidate>,
+}
+
+fn lower_path(path: &str) -> String {
+    path.trim().replace('\\', "/").to_lowercase()
+}
+
+/// Test and fixture paths are never auto-closed: real secrets leak there.
+fn path_is_test_or_fixture(path: &str) -> bool {
+    let lower = lower_path(path);
+    let mut parts = lower.split('/').collect::<Vec<_>>();
+    let name = parts.pop().unwrap_or_default();
+    parts.iter().any(|part| {
+        matches!(
+            *part,
+            "test"
+                | "tests"
+                | "__tests__"
+                | "spec"
+                | "specs"
+                | "fixture"
+                | "fixtures"
+                | "__fixtures__"
+                | "testdata"
+                | "mocks"
+                | "__mocks__"
+                | "e2e"
+        )
+    }) || name.starts_with("test_")
+        || [
+            "_test.go",
+            "_test.rs",
+            "_test.py",
+            ".test.js",
+            ".test.ts",
+            ".test.tsx",
+            ".spec.js",
+            ".spec.ts",
+            ".spec.tsx",
+        ]
+        .iter()
+        .any(|suffix| name.ends_with(suffix))
+}
+
+/// Generated, vendored, minified or lock files: what the lens denominators
+/// leave out.
+fn excluded_path_kind(path: &str) -> Option<&'static str> {
+    let lower = lower_path(path);
+    let mut parts = lower.split('/').collect::<Vec<_>>();
+    let name = parts.pop().unwrap_or_default();
+    if parts.iter().any(|part| {
+        matches!(
+            *part,
+            "node_modules" | "vendor" | "vendored" | "third_party" | "third-party"
+        )
+    }) {
+        return Some("vendored");
+    }
+    if parts
+        .iter()
+        .any(|part| matches!(*part, "generated" | "__generated__"))
+        || name.contains(".generated.")
+        || name.contains("_generated.")
+        || name.ends_with(".pb.go")
+        || name.ends_with("_pb2.py")
+    {
+        return Some("generated");
+    }
+    if name.ends_with(".min.js") || name.ends_with(".min.css") {
+        return Some("minified");
+    }
+    if name.ends_with(".lock")
+        || matches!(
+            name,
+            "package-lock.json" | "pnpm-lock.yaml" | "npm-shrinkwrap.json" | "go.sum"
+        )
+    {
+        return Some("lock file");
+    }
+    None
+}
+
+fn rule_is_secret_like(rule: &str) -> bool {
+    let lower = rule.to_lowercase();
+    [
+        "secret",
+        "credential",
+        "password",
+        "passwd",
+        "token",
+        "api-key",
+        "api_key",
+        "apikey",
+    ]
+    .iter()
+    .any(|marker| lower.contains(marker))
+}
+
+/// Exact, stock placeholder literals. Deliberately narrow: `changeme`,
+/// `password` and `secret` are default credentials, not placeholders.
+const STRICT_PLACEHOLDERS: &[&str] = &[
+    "example",
+    "sample",
+    "dummy",
+    "placeholder",
+    "notasecret",
+    "yourapikey",
+    "yourkey",
+    "yourtoken",
+    "yoursecret",
+    "yourpassword",
+];
+
+fn quoted_literals(text: &str) -> Vec<String> {
+    let mut literals = Vec::new();
+    let mut quote: Option<char> = None;
+    let mut current = String::new();
+    for character in text.chars() {
+        match quote {
+            Some(open) if character == open => {
+                literals.push(std::mem::take(&mut current));
+                quote = None;
+            }
+            Some(_) => current.push(character),
+            None if character == '"' || character == '\'' => quote = Some(character),
+            None => {}
+        }
+    }
+    literals
+}
+
+/// True only when the anchored line assigns a secret-shaped rule's value to
+/// nothing but stock placeholder literals. A redacted excerpt can hide a real
+/// value, so any redaction marker disables the rule.
+fn placeholder_value(candidate: &ScannerCandidate) -> bool {
+    if !rule_is_secret_like(&candidate.rule) {
+        return false;
+    }
+    let Some(excerpt) = candidate.evidence_excerpt.as_deref() else {
+        return false;
+    };
+    if excerpt.to_lowercase().contains("redacted") {
+        return false;
+    }
+    let literals = quoted_literals(excerpt);
+    !literals.is_empty()
+        && literals.iter().all(|literal| {
+            let form = normal_form(literal);
+            STRICT_PLACEHOLDERS.contains(&form.as_str())
+                || (form.len() >= 4 && form.chars().all(|character| character == 'x'))
+        })
+}
+
+fn normalized_excerpt(candidate: &ScannerCandidate) -> String {
+    let source = candidate
+        .evidence_excerpt
+        .as_deref()
+        .filter(|excerpt| !excerpt.trim().is_empty())
+        .unwrap_or(candidate.message.as_str());
+    source
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+/// Identity of one candidate location: scanner rule, path, line and the
+/// normalized anchored text. Native providers record resolutions under it.
+pub fn location_fingerprint(candidate: &ScannerCandidate) -> String {
+    // A failed digest yields "", which no resolved set contains: triage then
+    // leaves the candidate alone.
+    digest_of(&json!({
+        "kind": "candidate-location",
+        "rule": candidate.rule,
+        "path": candidate.path,
+        "line": candidate.line,
+        "excerpt": normalized_excerpt(candidate),
+    }))
+    .unwrap_or_default()
+}
+
+fn resolved_by_native(candidate: &ScannerCandidate, context: &TriageContext) -> bool {
+    let fingerprint = location_fingerprint(candidate);
+    !fingerprint.is_empty() && context.resolved_fingerprints.contains(&fingerprint)
+}
+
+/// Close only provable non-issues. Each closure carries the verdict basis
+/// `deterministic` and its rule id; none is an adjudication.
+pub fn triage_candidates(
+    candidates: &[ScannerCandidate],
+    context: &TriageContext,
+) -> TriageOutcome {
+    let mut outcome = TriageOutcome::default();
+    for candidate in candidates {
+        let path = candidate.path.as_deref();
+        let closure = if path.is_some_and(path_is_test_or_fixture) {
+            None
+        } else if let Some(kind) = path.and_then(|path| {
+            excluded_path_kind(path).or_else(|| {
+                context
+                    .excluded_paths
+                    .contains(&normalize_cited_path(path))
+                    .then_some("excluded from the lens denominators")
+            })
+        }) {
+            Some((
+                TRIAGE_RULE_PATH_EXCLUDED,
+                SecurityVerdictKind::OutOfScope,
+                format!("path is a {kind} file, outside the lens denominators"),
+            ))
+        } else if placeholder_value(candidate) {
+            Some((
+                TRIAGE_RULE_PLACEHOLDER,
+                SecurityVerdictKind::FalsePositive,
+                "the matched value is a stock placeholder literal".to_owned(),
+            ))
+        } else if resolved_by_native(candidate, context) {
+            Some((
+                TRIAGE_RULE_NATIVE_RESOLVED,
+                SecurityVerdictKind::FalsePositive,
+                "a native provider already resolved this fingerprint".to_owned(),
+            ))
+        } else {
+            None
+        };
+        match closure {
+            Some((rule_id, verdict, reason)) => outcome.auto_triaged.push(AutoTriaged {
+                candidate_id: candidate.finding_id.clone(),
+                rule_id: rule_id.to_owned(),
+                scanner_rule: candidate.rule.clone(),
+                verdict,
+                basis: DETERMINISTIC_BASIS.to_owned(),
+                path: candidate.path.clone(),
+                line: candidate.line,
+                reason,
+            }),
+            None => outcome.remaining.push(candidate.clone()),
+        }
+    }
+    outcome
+}
+
+/// Rule family: the first dotted/slashed segment of the scanner rule id.
+fn rule_family(rule: &str) -> String {
+    rule.split(['.', '/', ':'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(rule)
+        .to_lowercase()
+}
+
+/// Candidates with an identical rule and normalized sink/excerpt.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Cluster {
+    pub cluster_id: String,
+    pub fingerprint: String,
+    pub rule: String,
+    pub family: String,
+    /// The one member that is adjudicated for the cluster.
+    pub representative_id: String,
+    /// Every member, representative included, in id order.
+    pub member_ids: Vec<String>,
+}
+
+/// Fingerprint = rule + normalized sink/excerpt digest. Test/fixture location
+/// is part of the key (a refinement of the design): a verdict reached on a
+/// test file is never expanded onto production code or the reverse.
+pub fn cluster_candidates(
+    candidates: &[ScannerCandidate],
+) -> Result<Vec<Cluster>, SecurityAdjudicationError> {
+    let mut groups: BTreeMap<String, Vec<&ScannerCandidate>> = BTreeMap::new();
+    let mut seen = BTreeSet::new();
+    for candidate in candidates {
+        if !seen.insert(candidate.finding_id.as_str()) {
+            continue;
+        }
+        let fingerprint = digest_of(&json!({
+            "kind": "candidate-cluster",
+            "rule": candidate.rule,
+            "excerpt": normalized_excerpt(candidate),
+            "testPath": candidate.path.as_deref().is_some_and(path_is_test_or_fixture),
+        }))?;
+        groups.entry(fingerprint).or_default().push(candidate);
+    }
+    let mut clusters = Vec::new();
+    for (fingerprint, mut members) in groups {
+        members.sort_by(|left, right| {
+            (&left.path, left.line, &left.finding_id).cmp(&(
+                &right.path,
+                right.line,
+                &right.finding_id,
+            ))
+        });
+        let representative = members[0];
+        let mut member_ids = members
+            .iter()
+            .map(|member| member.finding_id.clone())
+            .collect::<Vec<_>>();
+        member_ids.sort();
+        clusters.push(Cluster {
+            cluster_id: format!("cluster-{}", short_digest(&fingerprint)),
+            fingerprint,
+            rule: representative.rule.clone(),
+            family: rule_family(&representative.rule),
+            representative_id: representative.finding_id.clone(),
+            member_ids,
+        });
+    }
+    clusters.sort_by(|left, right| left.cluster_id.cmp(&right.cluster_id));
+    Ok(clusters)
+}
+
+/// One fresh-context batch of clusters.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Batch {
+    pub batch_id: String,
+    pub item_id: String,
+    /// Requested context label shared by the batch's representatives. It does
+    /// not prove a fresh host context exists.
+    pub context_id: String,
+    pub context_policy: ContextPolicy,
+    pub family: String,
+    pub cluster_ids: Vec<String>,
+    pub estimated_tokens: usize,
+    /// The batch work packet a host hands to one fresh adjudicator context.
+    pub packet: Value,
+}
+
+fn cluster_entry(cluster: &Cluster, by_id: &BTreeMap<&str, &ScannerCandidate>) -> Value {
+    let representative = by_id.get(cluster.representative_id.as_str()).copied();
+    let locations = cluster
+        .member_ids
+        .iter()
+        .take(20)
+        .map(|member| {
+            let candidate = by_id.get(member.as_str()).copied();
+            json!({
+                "findingId": member,
+                "path": candidate.and_then(|candidate| candidate.path.clone()),
+                "line": candidate.and_then(|candidate| candidate.line),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "clusterId": cluster.cluster_id,
+        "rule": cluster.rule,
+        "memberCount": cluster.member_ids.len(),
+        "representative": {
+            "findingId": cluster.representative_id,
+            "provider": representative.map(|candidate| candidate.provider.clone()),
+            "rule": representative.map(|candidate| candidate.rule.clone()),
+            "severity": representative.map(|candidate| candidate.severity.clone()),
+            "path": representative.and_then(|candidate| candidate.path.clone()),
+            "line": representative.and_then(|candidate| candidate.line),
+            "message": representative.map(|candidate| candidate.message.clone()),
+            "excerpt": representative.and_then(|candidate| candidate.evidence_excerpt.clone()),
+        },
+        "memberLocations": locations,
+    })
+}
+
+fn cluster_tokens(cluster: &Cluster, by_id: &BTreeMap<&str, &ScannerCandidate>) -> usize {
+    estimate_tokens(&cluster_entry(cluster, by_id).to_string())
+}
+
+/// Group clusters by rule family, then file locality, into batches of at most
+/// [`MAX_CLUSTERS_PER_BATCH`] clusters and [`MAX_BATCH_TOKENS`] estimated
+/// tokens. A single oversize cluster gets a batch of its own. Batches are
+/// homogeneous in rule family.
+pub fn adjudication_batches(
+    clusters: &[Cluster],
+    candidates: &[ScannerCandidate],
+    packet_digest: &str,
+) -> Result<Vec<Batch>, SecurityAdjudicationError> {
+    let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
+    for candidate in candidates {
+        by_id
+            .entry(candidate.finding_id.as_str())
+            .or_insert(candidate);
+    }
+    let representative_path = |cluster: &Cluster| {
+        by_id
+            .get(cluster.representative_id.as_str())
+            .and_then(|candidate| candidate.path.clone())
+            .unwrap_or_default()
+    };
+    let mut ordered = clusters.iter().collect::<Vec<_>>();
+    ordered.sort_by(|left, right| {
+        (
+            &left.family,
+            representative_path(*left),
+            &left.rule,
+            &left.cluster_id,
+        )
+            .cmp(&(
+                &right.family,
+                representative_path(*right),
+                &right.rule,
+                &right.cluster_id,
+            ))
+    });
+    let mut groups: Vec<(String, Vec<&Cluster>, usize)> = Vec::new();
+    for cluster in ordered {
+        let cost = cluster_tokens(cluster, &by_id);
+        let fits = groups.last().is_some_and(|(family, members, tokens)| {
+            *family == cluster.family
+                && members.len() < MAX_CLUSTERS_PER_BATCH
+                && tokens + cost <= MAX_BATCH_TOKENS
+        });
+        if fits {
+            if let Some((_, members, tokens)) = groups.last_mut() {
+                members.push(cluster);
+                *tokens += cost;
+            }
+        } else {
+            groups.push((cluster.family.clone(), vec![cluster], cost));
+        }
+    }
+    let mut batches = Vec::with_capacity(groups.len());
+    for (index, (family, members, tokens)) in groups.into_iter().enumerate() {
+        let batch_id = format!("batch-{:04}", index + 1);
+        let item_id = adjudication_item_id(packet_digest, &format!("{STAGE_BATCH}:{batch_id}"))?;
+        let context_id = format!("adjudicator:{item_id}");
+        let packet = json!({
+            "schemaVersion": 1,
+            "kind": "security-batch-adjudication-packet",
+            "parentPacketDigest": packet_digest,
+            "batchId": batch_id,
+            "family": family,
+            "adjudicator": {
+                "provider": ADJUDICATOR_PROVIDER_ID,
+                "contextId": context_id,
+            },
+            "requiredEvidence": REQUIRED_EVIDENCE,
+            "note": "one verdict per cluster representative; it is expanded to every member, which is then confirmed or spot-checked alone",
+            "clusters": members
+                .iter()
+                .map(|cluster| cluster_entry(cluster, &by_id))
+                .collect::<Vec<_>>(),
+        });
+        batches.push(Batch {
+            batch_id,
+            item_id,
+            context_id,
+            context_policy: ContextPolicy::Attested,
+            family,
+            cluster_ids: members
+                .iter()
+                .map(|cluster| cluster.cluster_id.clone())
+                .collect(),
+            estimated_tokens: tokens,
+            packet,
+        });
+    }
+    Ok(batches)
+}
+
+/// Everything derivable from the scanner candidates before any verdict
+/// exists. Ingest rebuilds it from the packet and requires equality.
+#[derive(Clone, Debug)]
+pub struct AdjudicationPlan {
+    pub parent_packet_digest: String,
+    pub triage_context: TriageContext,
+    pub auto_triaged: Vec<AutoTriaged>,
+    pub clusters: Vec<Cluster>,
+    pub batches: Vec<Batch>,
+}
+
+pub fn build_adjudication_plan(
+    candidates: &[ScannerCandidate],
+    context: &TriageContext,
+    parent_packet_digest: &str,
+) -> Result<AdjudicationPlan, SecurityAdjudicationError> {
+    let triage = triage_candidates(candidates, context);
+    let clusters = cluster_candidates(&triage.remaining)?;
+    let batches = adjudication_batches(&clusters, &triage.remaining, parent_packet_digest)?;
+    Ok(AdjudicationPlan {
+        parent_packet_digest: parent_packet_digest.to_owned(),
+        triage_context: context.clone(),
+        auto_triaged: triage.auto_triaged,
+        clusters,
+        batches,
+    })
+}
+
+impl AdjudicationPlan {
+    /// The `candidateWorkItems` packet value. Confirmations and spot-checks
+    /// depend on batch verdicts, so the packet carries their rules and the
+    /// host derives the items with [`required_items`] once batches return.
+    pub fn to_value(&self) -> Value {
+        json!({
+            "parentPacketDigest": self.parent_packet_digest,
+            "triage": {
+                "basis": DETERMINISTIC_BASIS,
+                "context": self.triage_context,
+                "autoTriagedCount": self.auto_triaged.len(),
+                "autoTriaged": self.auto_triaged,
+                "note": "deterministic closures are reported as autoTriaged and never counted as adjudicated",
+            },
+            "clusters": self.clusters,
+            "batches": self.batches,
+            "confirmations": {
+                "status": "derived-after-batch-stage",
+                "rule": "every surviving TRUE_POSITIVE, LIKELY_TRUE_POSITIVE, HARDENING_GAP and MISUSE_HAZARD verdict is re-adjudicated alone in a fresh context before it counts",
+                "stage": STAGE_CONFIRMATION,
+            },
+            "spotChecks": {
+                "status": "derived-after-batch-stage",
+                "rule": "ceil(5% x routine dismissals) per non-empty batch, digest-seeded, re-adjudicated alone; any disagreement voids the batch and reruns it one candidate per context",
+                "percent": SPOT_CHECK_PERCENT,
+                "stage": STAGE_SPOT_CHECK,
+                "individualStage": STAGE_INDIVIDUAL,
+            },
+            "limits": {
+                "maxClustersPerBatch": MAX_CLUSTERS_PER_BATCH,
+                "maxBatchTokens": MAX_BATCH_TOKENS,
+            },
+        })
+    }
+}
+
+/// One required single-candidate adjudication, with its isolated work item.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageItem {
+    pub stage: String,
+    pub reason: String,
+    pub batch_id: Option<String>,
+    /// A verdict for this item has already been ingested and validated.
+    pub satisfied: bool,
+    pub item: CandidateAdjudicationItem,
+}
+
+#[derive(Clone, Debug)]
+struct Requirement {
+    stage: &'static str,
+    candidate_id: String,
+    reason: String,
+    batch_id: Option<String>,
+    satisfied: bool,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageCount {
+    pub expected: usize,
+    pub ingested: usize,
+}
+
+/// What was required and what was ingested, per stage. Passing
+/// `security_adjudication` requires `complete`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdjudicationLedger {
+    pub batches: StageCount,
+    pub confirmations: StageCount,
+    pub spot_checks: StageCount,
+    pub individual_reviews: StageCount,
+    pub auto_triaged: usize,
+    /// Candidates holding a final adjudicated row.
+    pub adjudicated: usize,
+    pub voided_batches: Vec<String>,
+    /// Confirmations that disagreed with the verdict they confirm.
+    pub contested: Vec<String>,
+    /// Submitted items that were not required and so were ignored.
+    pub superseded: Vec<String>,
+    pub outstanding: Vec<String>,
+    pub complete: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct AdjudicationOutcome {
+    /// Final rows, one per resolved candidate, in candidate order. Candidates
+    /// that are provisional, unconfirmed, contested or unresolved have none.
+    pub verdicts: Vec<SecurityVerdict>,
+    pub auto_triaged: Vec<AutoTriaged>,
+    pub ledger: AdjudicationLedger,
+}
+
+fn high_risk(candidate: &ScannerCandidate) -> bool {
+    let severity = candidate.severity.to_lowercase();
+    if matches!(severity.as_str(), "critical" | "high" | "error") {
+        return true;
+    }
+    let rule = candidate.rule.to_lowercase();
+    rule_is_secret_like(&rule)
+        || [
+            "inject",
+            "rce",
+            "exec",
+            "deserial",
+            "auth",
+            "crypto",
+            "private-key",
+            "privatekey",
+        ]
+        .iter()
+        .any(|marker| rule.contains(marker))
+}
+
+/// Why a batch dismissal may not stand on the batch verdict alone.
+fn individual_reason(
+    candidate: &ScannerCandidate,
+    verdict: SecurityVerdictKind,
+) -> Option<&'static str> {
+    if !verdict.is_dismissal() {
+        None
+    } else if high_risk(candidate) {
+        Some("high-risk-dismissal")
+    } else if verdict == SecurityVerdictKind::LikelyFalsePositive {
+        Some("uncertain-dismissal")
+    } else {
+        None
+    }
+}
+
+fn spot_check_selection(
+    parent: &str,
+    batch_id: &str,
+    rows: &[&SecurityVerdict],
+    pool: &[String],
+) -> Result<Vec<String>, SecurityAdjudicationError> {
+    if pool.is_empty() {
+        return Ok(Vec::new());
+    }
+    let seed = digest_of(&json!({
+        "kind": "spot-check-seed",
+        "parentPacketDigest": parent,
+        "batchId": batch_id,
+        "verdicts": rows
+            .iter()
+            .map(|row| json!([row.candidate_id, row.verdict_digest]))
+            .collect::<Vec<_>>(),
+    }))?;
+    let wanted = (pool.len() * SPOT_CHECK_PERCENT).div_ceil(100).max(1);
+    let mut keyed = pool
+        .iter()
+        .map(|id| {
+            Ok((
+                digest_of(&json!({"seed": seed, "candidateId": id}))?,
+                id.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>, SecurityAdjudicationError>>()?;
+    keyed.sort();
+    Ok(keyed.into_iter().take(wanted).map(|(_, id)| id).collect())
+}
+
+fn check_binding(
+    value: &Value,
+    id: &str,
+    item_id: &str,
+    packet_digest: &str,
+) -> Result<(), SecurityAdjudicationError> {
+    if value.get("workItemId").and_then(Value::as_str) != Some(item_id)
+        || value.get("workPacketDigest").and_then(Value::as_str) != Some(packet_digest)
+    {
+        return Err(SecurityAdjudicationError::MalformedVerdict {
+            id: id.to_owned(),
+            reason: "verdict is not bound to its isolated work item".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn stage_item(
+    candidate: &ScannerCandidate,
+    parent: &str,
+    stage: &'static str,
+) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
+    scoped_item(&AdjudicationScope::Stage(stage), candidate, parent)
+}
+
+/// Validate every submitted verdict of one single-candidate stage that is
+/// required; verdicts for candidates that are not required are ignored and
+/// recorded as superseded.
+fn validate_stage(
+    stage: &'static str,
+    wanted: &BTreeSet<String>,
+    values: &[&Value],
+    by_id: &BTreeMap<&str, &ScannerCandidate>,
+    parent: &str,
+    superseded: &mut Vec<String>,
+) -> Result<BTreeMap<String, SecurityVerdict>, SecurityAdjudicationError> {
+    let mut candidates = Vec::new();
+    let mut accepted = Vec::new();
+    for (index, value) in values.iter().enumerate() {
+        let id = value
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .ok_or(SecurityAdjudicationError::MissingCandidateId(index))?;
+        let candidate =
+            by_id
+                .get(id)
+                .copied()
+                .ok_or_else(|| SecurityAdjudicationError::UnknownCandidate {
+                    index,
+                    id: id.to_owned(),
+                })?;
+        if !wanted.contains(id) {
+            superseded.push(format!("{stage}:{id}"));
+            continue;
+        }
+        let item = stage_item(candidate, parent, stage)?;
+        check_binding(value, id, &item.item_id, &digest_of(&item.packet)?)?;
+        candidates.push(candidate.clone());
+        accepted.push((*value).clone());
+    }
+    let rows = adjudicate_scanner_candidates_scoped(
+        &candidates,
+        &accepted,
+        parent,
+        ContextPolicy::Attested,
+        &AdjudicationScope::Stage(stage),
+    )?;
+    Ok(rows
+        .into_iter()
+        .map(|row| (row.candidate_id.clone(), row))
+        .collect())
+}
+
+/// Evaluate a full submission (all stages, any order) against the plan.
+///
+/// Hard errors mean the submission is invalid (forged binding, wrong context,
+/// thin or copied text, unknown candidates). A submission that is merely
+/// incomplete is not an error: its gaps are in the ledger and the affected
+/// candidates have no final row, so they can never count as adjudicated.
+pub fn evaluate_adjudication(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<AdjudicationOutcome, SecurityAdjudicationError> {
+    evaluate_internal(plan, candidates, submitted).map(|(outcome, _)| outcome)
+}
+
+fn evaluate_internal(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<(AdjudicationOutcome, Vec<Requirement>), SecurityAdjudicationError> {
+    let parent = plan.parent_packet_digest.as_str();
+    let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
+    for candidate in candidates {
+        by_id
+            .entry(candidate.finding_id.as_str())
+            .or_insert(candidate);
+    }
+    let clusters: BTreeMap<&str, &Cluster> = plan
+        .clusters
+        .iter()
+        .map(|cluster| (cluster.cluster_id.as_str(), cluster))
+        .collect();
+    let mut batch_of: BTreeMap<&str, &str> = BTreeMap::new();
+    for batch in &plan.batches {
+        for cluster_id in &batch.cluster_ids {
+            if let Some(cluster) = clusters.get(cluster_id.as_str()) {
+                for member in &cluster.member_ids {
+                    batch_of.insert(member.as_str(), batch.batch_id.as_str());
+                }
+            }
+        }
+    }
+
+    // Partition the submission by stage.
+    let mut batch_values: BTreeMap<&str, Vec<&Value>> = BTreeMap::new();
+    let mut spot_values: Vec<&Value> = Vec::new();
+    let mut individual_values: Vec<&Value> = Vec::new();
+    let mut confirmation_values: Vec<&Value> = Vec::new();
+    for value in submitted {
+        let id = value
+            .get("candidateId")
+            .and_then(Value::as_str)
+            .unwrap_or("<unknown>")
+            .to_owned();
+        let malformed = |reason: &str| SecurityAdjudicationError::MalformedVerdict {
+            id: id.clone(),
+            reason: reason.to_owned(),
+        };
+        match value.get("stage").and_then(Value::as_str) {
+            Some(STAGE_BATCH) => {
+                let batch_id = value
+                    .get("batchId")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| malformed("batch verdict requires batchId"))?;
+                let batch = plan
+                    .batches
+                    .iter()
+                    .find(|batch| batch.batch_id == batch_id)
+                    .ok_or_else(|| malformed("batch verdict names an unknown batch"))?;
+                batch_values
+                    .entry(batch.batch_id.as_str())
+                    .or_default()
+                    .push(value);
+            }
+            Some(STAGE_SPOT_CHECK) => spot_values.push(value),
+            Some(STAGE_INDIVIDUAL) => individual_values.push(value),
+            Some(STAGE_CONFIRMATION) => confirmation_values.push(value),
+            Some(_) => return Err(malformed("unknown adjudication stage")),
+            None => return Err(malformed("verdict requires its stage")),
+        }
+    }
+
+    let mut outstanding: Vec<String> = Vec::new();
+    let mut superseded: Vec<String> = Vec::new();
+    let mut requirements: Vec<Requirement> = Vec::new();
+
+    // Stage 1: batches. A batch is adjudicated only once every cluster
+    // representative has its verdict.
+    let mut batch_rows: BTreeMap<&str, Vec<SecurityVerdict>> = BTreeMap::new();
+    let mut batches_ingested = 0usize;
+    for batch in &plan.batches {
+        let batch_digest = digest_of(&batch.packet)?;
+        let batch_clusters = batch
+            .cluster_ids
+            .iter()
+            .filter_map(|id| clusters.get(id.as_str()).copied().cloned())
+            .collect::<Vec<_>>();
+        let values = batch_values
+            .get(batch.batch_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let mut present = BTreeSet::new();
+        for value in &values {
+            if let Some(id) = value.get("candidateId").and_then(Value::as_str) {
+                check_binding(value, id, &batch.item_id, &batch_digest)?;
+                present.insert(id.to_owned());
+            }
+        }
+        let missing = batch_clusters
+            .iter()
+            .filter(|cluster| !present.contains(&cluster.representative_id))
+            .count();
+        if missing > 0 {
+            outstanding.push(format!(
+                "batch:{}:{missing} cluster representative verdicts missing",
+                batch.batch_id
+            ));
+            continue;
+        }
+        let members = batch_clusters
+            .iter()
+            .flat_map(|cluster| cluster.member_ids.iter())
+            .filter_map(|id| by_id.get(id.as_str()).copied().cloned())
+            .collect::<Vec<_>>();
+        let verdicts = values
+            .iter()
+            .map(|value| (*value).clone())
+            .collect::<Vec<_>>();
+        let rows = adjudicate_scanner_candidates_scoped(
+            &members,
+            &verdicts,
+            parent,
+            batch.context_policy,
+            &AdjudicationScope::Batch {
+                batch,
+                clusters: &batch_clusters,
+            },
+        )?;
+        batches_ingested += 1;
+        batch_rows.insert(batch.batch_id.as_str(), rows);
+    }
+
+    // Stage 2a: spot-checks of routine dismissals, per batch.
+    let mut spot_required: BTreeMap<String, String> = BTreeMap::new();
+    for batch in &plan.batches {
+        let Some(rows) = batch_rows.get(batch.batch_id.as_str()) else {
+            continue;
+        };
+        let mut pool = Vec::new();
+        for row in rows {
+            let Some(candidate) = by_id.get(row.candidate_id.as_str()).copied() else {
+                continue;
+            };
+            if row.verdict.is_dismissal() && individual_reason(candidate, row.verdict).is_none() {
+                pool.push(row.candidate_id.clone());
+            }
+        }
+        pool.sort();
+        let all = rows.iter().collect::<Vec<_>>();
+        for id in spot_check_selection(parent, &batch.batch_id, &all, &pool)? {
+            spot_required.insert(id, batch.batch_id.clone());
+        }
+    }
+    let spot_wanted = spot_required.keys().cloned().collect::<BTreeSet<_>>();
+    let spot_rows = validate_stage(
+        STAGE_SPOT_CHECK,
+        &spot_wanted,
+        &spot_values,
+        &by_id,
+        parent,
+        &mut superseded,
+    )?;
+    let mut voided: BTreeSet<String> = BTreeSet::new();
+    for (id, batch_id) in &spot_required {
+        match spot_rows.get(id) {
+            Some(row) if !row.verdict.is_dismissal() => {
+                voided.insert(batch_id.clone());
+            }
+            Some(_) => {}
+            None => {}
+        }
+        requirements.push(Requirement {
+            stage: STAGE_SPOT_CHECK,
+            candidate_id: id.clone(),
+            reason: "seeded spot-check of a routine dismissal".to_owned(),
+            batch_id: Some(batch_id.clone()),
+            satisfied: spot_rows.contains_key(id),
+        });
+        if !spot_rows.contains_key(id) {
+            outstanding.push(format!("{STAGE_SPOT_CHECK}:{id}"));
+        }
+    }
+
+    // Stage 2b: individual review of high-risk or uncertain dismissals, and a
+    // one-candidate-per-context rerun of every voided batch.
+    let mut individual_required: BTreeMap<String, (String, Option<String>)> = BTreeMap::new();
+    for batch in &plan.batches {
+        let Some(rows) = batch_rows.get(batch.batch_id.as_str()) else {
+            continue;
+        };
+        let void = voided.contains(&batch.batch_id);
+        for row in rows {
+            let Some(candidate) = by_id.get(row.candidate_id.as_str()).copied() else {
+                continue;
+            };
+            let reason = if void {
+                Some("voided-batch")
+            } else {
+                individual_reason(candidate, row.verdict)
+            };
+            if let Some(reason) = reason {
+                individual_required.insert(
+                    row.candidate_id.clone(),
+                    (reason.to_owned(), Some(batch.batch_id.clone())),
+                );
+            }
+        }
+    }
+    let individual_wanted = individual_required.keys().cloned().collect::<BTreeSet<_>>();
+    let individual_rows = validate_stage(
+        STAGE_INDIVIDUAL,
+        &individual_wanted,
+        &individual_values,
+        &by_id,
+        parent,
+        &mut superseded,
+    )?;
+    for (id, (reason, batch_id)) in &individual_required {
+        let satisfied = individual_rows.contains_key(id);
+        requirements.push(Requirement {
+            stage: STAGE_INDIVIDUAL,
+            candidate_id: id.clone(),
+            reason: reason.clone(),
+            batch_id: batch_id.clone(),
+            satisfied,
+        });
+        if !satisfied {
+            outstanding.push(format!("{STAGE_INDIVIDUAL}:{id}:{reason}"));
+        }
+    }
+
+    // Stage 3: confirmation of every surviving verdict, wherever it came from.
+    // `first` is the verdict a candidate stands on before confirmation.
+    let mut first: BTreeMap<String, SecurityVerdict> = BTreeMap::new();
+    // Rows that stand on the batch verdict alone, and so only count once the
+    // batch's spot-checks are all in.
+    let mut batch_standing: BTreeSet<String> = BTreeSet::new();
+    for batch in &plan.batches {
+        let Some(rows) = batch_rows.get(batch.batch_id.as_str()) else {
+            continue;
+        };
+        for row in rows {
+            if let Some(individual) = individual_rows.get(&row.candidate_id) {
+                let mut individual = individual.clone();
+                individual.cluster_id = row.cluster_id.clone();
+                individual.verdict_digest = String::new();
+                individual.verdict_digest = digest_of(&individual)?;
+                first.insert(row.candidate_id.clone(), individual);
+            } else if !individual_required.contains_key(&row.candidate_id) {
+                first.insert(row.candidate_id.clone(), row.clone());
+                batch_standing.insert(row.candidate_id.clone());
+            }
+        }
+    }
+    let confirmation_wanted = first
+        .iter()
+        .filter(|(_, row)| row.verdict.needs_confirmation())
+        .map(|(id, _)| id.clone())
+        .collect::<BTreeSet<_>>();
+    let confirmation_rows = validate_stage(
+        STAGE_CONFIRMATION,
+        &confirmation_wanted,
+        &confirmation_values,
+        &by_id,
+        parent,
+        &mut superseded,
+    )?;
+    let mut contested = Vec::new();
+    for id in &confirmation_wanted {
+        let satisfied = confirmation_rows.contains_key(id);
+        requirements.push(Requirement {
+            stage: STAGE_CONFIRMATION,
+            candidate_id: id.clone(),
+            reason: "single-candidate confirmation of a surviving verdict".to_owned(),
+            batch_id: batch_of.get(id.as_str()).map(|batch| (*batch).to_owned()),
+            satisfied,
+        });
+        match confirmation_rows.get(id) {
+            None => outstanding.push(format!("{STAGE_CONFIRMATION}:{id}")),
+            Some(row) if !row.verdict.needs_confirmation() => {
+                contested.push(id.clone());
+                outstanding.push(format!("contested:{id}"));
+            }
+            Some(_) => {}
+        }
+    }
+
+    // Final rows: a candidate counts only through a verdict that has passed
+    // every stage it requires.
+    let unchecked_batches = requirements
+        .iter()
+        .filter(|requirement| requirement.stage == STAGE_SPOT_CHECK && !requirement.satisfied)
+        .filter_map(|requirement| requirement.batch_id.clone())
+        .collect::<BTreeSet<_>>();
+    let mut finals: BTreeMap<String, SecurityVerdict> = BTreeMap::new();
+    for (id, row) in &first {
+        let unchecked = batch_standing.contains(id)
+            && batch_of
+                .get(id.as_str())
+                .is_some_and(|batch| unchecked_batches.contains(*batch));
+        if unchecked {
+            continue;
+        }
+        if confirmation_wanted.contains(id) {
+            if let Some(confirmed) = confirmation_rows
+                .get(id)
+                .filter(|confirmed| confirmed.verdict.needs_confirmation())
+            {
+                let mut confirmed = confirmed.clone();
+                confirmed.cluster_id = row.cluster_id.clone();
+                confirmed.verdict_digest = String::new();
+                confirmed.verdict_digest = digest_of(&confirmed)?;
+                finals.insert(id.clone(), confirmed);
+            }
+        } else {
+            finals.insert(id.clone(), row.clone());
+        }
+    }
+    let ordered = candidates
+        .iter()
+        .filter_map(|candidate| finals.remove(candidate.finding_id.as_str()))
+        .collect::<Vec<_>>();
+
+    let triaged = plan
+        .auto_triaged
+        .iter()
+        .map(|entry| entry.candidate_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut accounted = ordered
+        .iter()
+        .map(|row| row.candidate_id.as_str())
+        .collect::<BTreeSet<_>>();
+    accounted.extend(triaged.iter().copied());
+    let unaccounted = candidates
+        .iter()
+        .filter(|candidate| !accounted.contains(candidate.finding_id.as_str()))
+        .count();
+    let expected_count = |stage: &str| {
+        requirements
+            .iter()
+            .filter(|requirement| requirement.stage == stage)
+            .count()
+    };
+    let ingested_count = |stage: &str| {
+        requirements
+            .iter()
+            .filter(|requirement| requirement.stage == stage && requirement.satisfied)
+            .count()
+    };
+    let voided_batches = voided.into_iter().collect::<Vec<_>>();
+    let ledger = AdjudicationLedger {
+        batches: StageCount {
+            expected: plan.batches.len(),
+            ingested: batches_ingested,
+        },
+        confirmations: StageCount {
+            expected: expected_count(STAGE_CONFIRMATION),
+            ingested: ingested_count(STAGE_CONFIRMATION),
+        },
+        spot_checks: StageCount {
+            expected: expected_count(STAGE_SPOT_CHECK),
+            ingested: ingested_count(STAGE_SPOT_CHECK),
+        },
+        individual_reviews: StageCount {
+            expected: expected_count(STAGE_INDIVIDUAL),
+            ingested: ingested_count(STAGE_INDIVIDUAL),
+        },
+        auto_triaged: plan.auto_triaged.len(),
+        adjudicated: ordered.len(),
+        voided_batches,
+        contested,
+        superseded,
+        complete: outstanding.is_empty() && unaccounted == 0,
+        outstanding,
+    };
+    Ok((
+        AdjudicationOutcome {
+            verdicts: ordered,
+            auto_triaged: plan.auto_triaged.clone(),
+            ledger,
+        },
+        requirements,
+    ))
+}
+
+/// Every single-candidate adjudication the submission so far requires, with
+/// its isolated work item. Batches come first; call again after each round of
+/// verdicts, because spot-check disagreements and survivors from individual
+/// reviews create more required items.
+pub fn required_items(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
+    let (_, requirements) = evaluate_internal(plan, candidates, submitted)?;
+    let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
+    for candidate in candidates {
+        by_id
+            .entry(candidate.finding_id.as_str())
+            .or_insert(candidate);
+    }
+    requirements
+        .into_iter()
+        .map(|requirement| {
+            let candidate = by_id
+                .get(requirement.candidate_id.as_str())
+                .copied()
+                .ok_or_else(|| SecurityAdjudicationError::CandidateSetup {
+                    id: requirement.candidate_id.clone(),
+                    reason: "required item names an unknown candidate".to_owned(),
+                })?;
+            Ok(StageItem {
+                stage: requirement.stage.to_owned(),
+                reason: requirement.reason,
+                batch_id: requirement.batch_id,
+                satisfied: requirement.satisfied,
+                item: stage_item(candidate, &plan.parent_packet_digest, requirement.stage)?,
+            })
+        })
+        .collect()
+}
+
+fn items_of_stage(
+    stage: &str,
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
+    Ok(required_items(plan, candidates, submitted)?
+        .into_iter()
+        .filter(|item| item.stage == stage)
+        .collect())
+}
+
+/// Single-candidate confirmations of every surviving batch or individual verdict.
+pub fn confirmation_items(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
+    items_of_stage(STAGE_CONFIRMATION, plan, candidates, submitted)
+}
+
+/// The digest-seeded spot-checks of routine dismissals.
+pub fn spot_check_items(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
+    items_of_stage(STAGE_SPOT_CHECK, plan, candidates, submitted)
+}
+
+/// Individual review: high-risk or uncertain dismissals and voided-batch reruns.
+pub fn individual_review_items(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
+    items_of_stage(STAGE_INDIVIDUAL, plan, candidates, submitted)
 }
 
 #[cfg(test)]
@@ -1696,5 +3154,599 @@ mod tests {
         assert_eq!(selected.entries.len(), 1);
         assert_eq!(selected.entries[0].path, "src/db.rs");
         let _ = std::fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod scaled_tests {
+    use super::*;
+
+    const PARENT: &str = "sha256:test-parent-packet";
+
+    fn candidate(index: usize, rule: &str, path: &str, excerpt: &str) -> ScannerCandidate {
+        ScannerCandidate {
+            finding_id: format!("cand-{index:05}"),
+            provider: "security.pack".into(),
+            rule: rule.into(),
+            severity: "medium".into(),
+            path: Some(path.into()),
+            line: Some(10 + (index % 50) as u64),
+            message: format!("{rule} matched"),
+            evidence_excerpt: Some(excerpt.into()),
+        }
+    }
+
+    /// 1,400 candidates: 1,300 ordinary (7 rule families x 40 sinks), 80 in
+    /// vendored code, 20 in lock files.
+    fn synthetic() -> Vec<ScannerCandidate> {
+        let mut candidates = Vec::new();
+        for index in 0..1300 {
+            let family = index % 7;
+            candidates.push(candidate(
+                index,
+                &format!("fam{family}.check"),
+                &format!("src/mod{}/file{index}.rs", index % 50),
+                &format!("call_sink_{}(input)", (index / 7) % 40),
+            ));
+        }
+        for index in 1300..1380 {
+            candidates.push(candidate(
+                index,
+                "fam0.check",
+                &format!("vendor/lib/file{index}.js"),
+                "eval(input)",
+            ));
+        }
+        for index in 1380..1400 {
+            candidates.push(candidate(
+                index,
+                "fam1.check",
+                &format!("deps/dir{index}/Cargo.lock"),
+                "checksum = \"abc\"",
+            ));
+        }
+        candidates
+    }
+
+    fn verdict_json(candidate: &ScannerCandidate, kind: SecurityVerdictKind, tag: &str) -> Value {
+        let id = &candidate.finding_id;
+        let path = candidate.path.clone().unwrap();
+        let mut verdict = json!({
+            "candidateId": id,
+            "verdict": kind,
+            "threatModel": format!("{tag} {id}: attacker model for {path}"),
+            "reachability": format!("{tag} {id}: reachable only through {path} wiring"),
+            "impact": format!("{tag} {id}: bounded impact assessed here"),
+        });
+        if kind.is_surviving() {
+            let object = verdict.as_object_mut().unwrap();
+            object.insert("severity".into(), json!("high"));
+            object.insert("attackerControl".into(), json!("full"));
+            object.insert("evidenceStrength".into(), json!("observed"));
+            object.insert(
+                "proof".into(),
+                json!(format!("{tag} {id}: trace into {path}")),
+            );
+            object.insert(
+                "devilsAdvocate".into(),
+                json!(format!("{tag} {id}: no sanitizer found on the path")),
+            );
+            object.insert(
+                "evidence".into(),
+                json!([{"file": path, "line": candidate.line.unwrap()}]),
+            );
+        }
+        verdict
+    }
+
+    fn bind(
+        mut verdict: Value,
+        stage: &str,
+        item_id: &str,
+        context: &str,
+        packet: &impl Serialize,
+    ) -> Value {
+        let object = verdict.as_object_mut().unwrap();
+        object.insert("stage".into(), json!(stage));
+        object.insert("workItemId".into(), json!(item_id));
+        object.insert(
+            "workPacketDigest".into(),
+            json!(canonical_digest(packet).unwrap()),
+        );
+        object.insert("contextId".into(), json!(context));
+        verdict
+    }
+
+    fn batch_submission(
+        plan: &AdjudicationPlan,
+        candidates: &[ScannerCandidate],
+        decide: &dyn Fn(&str, &ScannerCandidate) -> SecurityVerdictKind,
+    ) -> Vec<Value> {
+        let by_id = candidates
+            .iter()
+            .map(|c| (c.finding_id.as_str(), c))
+            .collect::<BTreeMap<_, _>>();
+        let mut values = Vec::new();
+        for batch in &plan.batches {
+            for cluster_id in &batch.cluster_ids {
+                let cluster = plan
+                    .clusters
+                    .iter()
+                    .find(|cluster| &cluster.cluster_id == cluster_id)
+                    .unwrap();
+                let rep = by_id[cluster.representative_id.as_str()];
+                let mut verdict = verdict_json(rep, decide(STAGE_BATCH, rep), "batch");
+                verdict["batchId"] = json!(batch.batch_id);
+                verdict["clusterId"] = json!(cluster.cluster_id);
+                values.push(bind(
+                    verdict,
+                    STAGE_BATCH,
+                    &batch.item_id,
+                    &batch.context_id,
+                    &batch.packet,
+                ));
+            }
+        }
+        values
+    }
+
+    /// Drive the staged protocol to a fixed point. `decide(stage, candidate)`
+    /// picks every verdict.
+    fn run(
+        plan: &AdjudicationPlan,
+        candidates: &[ScannerCandidate],
+        decide: &dyn Fn(&str, &ScannerCandidate) -> SecurityVerdictKind,
+    ) -> (Vec<Value>, AdjudicationOutcome) {
+        let by_id = candidates
+            .iter()
+            .map(|c| (c.finding_id.as_str(), c))
+            .collect::<BTreeMap<_, _>>();
+        let mut submitted = batch_submission(plan, candidates, decide);
+        for _ in 0..8 {
+            let pending = required_items(plan, candidates, &submitted)
+                .unwrap()
+                .into_iter()
+                .filter(|item| !item.satisfied)
+                .collect::<Vec<_>>();
+            if pending.is_empty() {
+                break;
+            }
+            for item in pending {
+                let candidate = by_id[item.item.packet.candidate.id.as_str()];
+                let kind = decide(item.stage.as_str(), candidate);
+                let verdict = verdict_json(candidate, kind, &item.stage);
+                submitted.push(bind(
+                    verdict,
+                    &item.stage,
+                    &item.item.item_id,
+                    &item.item.context_id,
+                    &item.item.packet,
+                ));
+            }
+        }
+        let outcome = evaluate_adjudication(plan, candidates, &submitted).unwrap();
+        (submitted, outcome)
+    }
+
+    fn plan_for(candidates: &[ScannerCandidate]) -> AdjudicationPlan {
+        build_adjudication_plan(candidates, &TriageContext::default(), PARENT).unwrap()
+    }
+
+    #[test]
+    fn plan_bounds_batches_and_types_triage_as_deterministic() {
+        let candidates = synthetic();
+        assert_eq!(candidates.len(), 1400);
+        let plan = plan_for(&candidates);
+
+        assert_eq!(plan.auto_triaged.len(), 100);
+        assert!(plan
+            .auto_triaged
+            .iter()
+            .all(|entry| entry.basis == "deterministic"
+                && entry.rule_id == TRIAGE_RULE_PATH_EXCLUDED));
+        let clustered = plan
+            .clusters
+            .iter()
+            .map(|cluster| cluster.member_ids.len())
+            .sum::<usize>();
+        assert_eq!(clustered, 1300);
+        assert_eq!(plan.clusters.len(), 7 * 40);
+
+        assert!(!plan.batches.is_empty());
+        let families = plan
+            .batches
+            .iter()
+            .map(|batch| batch.family.clone())
+            .collect::<BTreeSet<_>>();
+        assert!(
+            plan.batches.len()
+                <= plan.clusters.len().div_ceil(MAX_CLUSTERS_PER_BATCH) + families.len()
+        );
+        for batch in &plan.batches {
+            assert!(batch.cluster_ids.len() <= MAX_CLUSTERS_PER_BATCH);
+            assert!(batch.estimated_tokens <= MAX_BATCH_TOKENS);
+            for cluster_id in &batch.cluster_ids {
+                let cluster = plan
+                    .clusters
+                    .iter()
+                    .find(|c| &c.cluster_id == cluster_id)
+                    .unwrap();
+                assert_eq!(cluster.family, batch.family);
+            }
+        }
+        // Every cluster lands in exactly one batch.
+        let batched = plan
+            .batches
+            .iter()
+            .map(|batch| batch.cluster_ids.len())
+            .sum::<usize>();
+        assert_eq!(batched, plan.clusters.len());
+        // Deterministic.
+        assert_eq!(plan.to_value(), plan_for(&candidates).to_value());
+    }
+
+    #[test]
+    fn test_and_fixture_paths_and_redacted_placeholders_are_not_auto_closed() {
+        let mut test_secret = candidate(
+            1,
+            "secrets.api-key",
+            "tests/fixtures/vendor/a.rs",
+            "k = \"example\"",
+        );
+        test_secret.finding_id = "cand-test".into();
+        let redacted = candidate(2, "secrets.api-key", "src/a.rs", "k = \"[REDACTED]\"");
+        let placeholder = candidate(3, "secrets.api-key", "src/b.rs", "k = \"example\"");
+        let default_password = candidate(4, "secrets.password", "src/c.rs", "p = \"changeme\"");
+        let outcome = triage_candidates(
+            &[test_secret, redacted, placeholder, default_password],
+            &TriageContext::default(),
+        );
+        assert_eq!(outcome.auto_triaged.len(), 1);
+        assert_eq!(outcome.auto_triaged[0].rule_id, TRIAGE_RULE_PLACEHOLDER);
+        assert_eq!(
+            outcome.auto_triaged[0].verdict,
+            SecurityVerdictKind::FalsePositive
+        );
+        assert_eq!(outcome.remaining.len(), 3);
+    }
+
+    #[test]
+    fn native_resolved_fingerprints_close_only_that_location() {
+        let resolved = candidate(1, "fam0.check", "src/a.rs", "sink(input)");
+        let other = candidate(2, "fam0.check", "src/b.rs", "sink(input)");
+        let mut context = TriageContext::default();
+        context
+            .resolved_fingerprints
+            .insert(location_fingerprint(&resolved));
+        let outcome = triage_candidates(&[resolved, other], &context);
+        assert_eq!(outcome.auto_triaged.len(), 1);
+        assert_eq!(outcome.auto_triaged[0].rule_id, TRIAGE_RULE_NATIVE_RESOLVED);
+        assert_eq!(outcome.remaining.len(), 1);
+    }
+
+    #[test]
+    fn cluster_expansion_keeps_every_location() {
+        let candidates = synthetic();
+        let plan = plan_for(&candidates);
+        let dismiss = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::FalsePositive;
+        let (_, outcome) = run(&plan, &candidates, &dismiss);
+        assert!(outcome.ledger.complete, "{:?}", outcome.ledger.outstanding);
+        assert_eq!(outcome.ledger.auto_triaged, 100);
+        assert_eq!(outcome.verdicts.len(), 1300);
+        let ids = outcome
+            .verdicts
+            .iter()
+            .map(|row| row.candidate_id.clone())
+            .collect::<BTreeSet<_>>();
+        let expected = candidates[..1300]
+            .iter()
+            .map(|c| c.finding_id.clone())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(ids, expected);
+        assert!(outcome.verdicts.iter().all(|row| row.cluster_id.is_some()));
+        // Rows of one cluster share a cluster id but keep their own digest.
+        let cluster = plan
+            .clusters
+            .iter()
+            .find(|c| c.member_ids.len() > 1)
+            .unwrap();
+        let rows = outcome
+            .verdicts
+            .iter()
+            .filter(|row| row.cluster_id.as_deref() == Some(cluster.cluster_id.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), cluster.member_ids.len());
+        let digests = rows
+            .iter()
+            .map(|row| row.verdict_digest.clone())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(digests.len(), rows.len());
+        // Spot-checks ran: at least one per non-empty batch.
+        assert!(outcome.ledger.spot_checks.expected >= plan.batches.len());
+        assert_eq!(
+            outcome.ledger.spot_checks.expected,
+            outcome.ledger.spot_checks.ingested
+        );
+        // Triaged candidates are never counted as adjudicated.
+        assert!(outcome.verdicts.iter().all(|row| !outcome
+            .auto_triaged
+            .iter()
+            .any(|t| t.candidate_id == row.candidate_id)));
+    }
+
+    #[test]
+    fn unconfirmed_survivor_leaves_adjudication_unproven() {
+        let candidates = (0..6)
+            .map(|i| {
+                candidate(
+                    i,
+                    "fam0.check",
+                    &format!("src/m{i}.rs"),
+                    &format!("sink_{i}(x)"),
+                )
+            })
+            .collect::<Vec<_>>();
+        let plan = plan_for(&candidates);
+        let survive = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::TruePositive;
+        let batch_only = batch_submission(&plan, &candidates, &survive);
+        let outcome = evaluate_adjudication(&plan, &candidates, &batch_only).unwrap();
+        assert!(!outcome.ledger.complete);
+        assert!(
+            outcome.verdicts.is_empty(),
+            "an unconfirmed survivor must not count"
+        );
+        assert!(outcome
+            .ledger
+            .outstanding
+            .iter()
+            .any(|entry| entry.starts_with("confirmation:")));
+        assert_eq!(outcome.ledger.confirmations.expected, 6);
+        assert_eq!(outcome.ledger.confirmations.ingested, 0);
+        assert!(confirmed_findings(&candidates, &outcome.verdicts).is_empty());
+
+        let (_, confirmed) = run(&plan, &candidates, &survive);
+        assert!(
+            confirmed.ledger.complete,
+            "{:?}",
+            confirmed.ledger.outstanding
+        );
+        assert_eq!(confirmed.verdicts.len(), 6);
+        assert_eq!(
+            confirmed_findings(&candidates, &confirmed.verdicts).len(),
+            6
+        );
+    }
+
+    #[test]
+    fn confirmation_that_dismisses_a_survivor_is_contested_not_counted() {
+        let candidates = vec![candidate(0, "fam0.check", "src/a.rs", "sink(x)")];
+        let plan = plan_for(&candidates);
+        let decide = |stage: &str, _: &ScannerCandidate| {
+            if stage == STAGE_CONFIRMATION {
+                SecurityVerdictKind::FalsePositive
+            } else {
+                SecurityVerdictKind::TruePositive
+            }
+        };
+        let (_, outcome) = run(&plan, &candidates, &decide);
+        assert!(!outcome.ledger.complete);
+        assert_eq!(outcome.ledger.contested, vec!["cand-00000".to_owned()]);
+        assert!(outcome.verdicts.is_empty());
+    }
+
+    #[test]
+    fn spot_check_disagreement_voids_the_batch_and_reruns_it_per_candidate() {
+        let candidates = (0..40)
+            .map(|i| {
+                candidate(
+                    i,
+                    "fam0.check",
+                    &format!("src/m{i}.rs"),
+                    &format!("sink_{}(x)", i % 4),
+                )
+            })
+            .collect::<Vec<_>>();
+        let plan = plan_for(&candidates);
+        assert_eq!(plan.batches.len(), 1);
+        let dismiss = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::FalsePositive;
+        let mut submitted = batch_submission(&plan, &candidates, &dismiss);
+
+        // The seeded spot-check disagrees with the batch.
+        let spot = spot_check_items(&plan, &candidates, &submitted).unwrap();
+        assert_eq!(spot.len(), 2, "ceil(5% x 40) spot-checks");
+        let by_id = candidates
+            .iter()
+            .map(|c| (c.finding_id.as_str(), c))
+            .collect::<BTreeMap<_, _>>();
+        for item in &spot {
+            let candidate = by_id[item.item.packet.candidate.id.as_str()];
+            let kind = if item.item.packet.candidate.id == spot[0].item.packet.candidate.id {
+                SecurityVerdictKind::TruePositive
+            } else {
+                SecurityVerdictKind::FalsePositive
+            };
+            submitted.push(bind(
+                verdict_json(candidate, kind, "spot"),
+                STAGE_SPOT_CHECK,
+                &item.item.item_id,
+                &item.item.context_id,
+                &item.item.packet,
+            ));
+        }
+        let outcome = evaluate_adjudication(&plan, &candidates, &submitted).unwrap();
+        assert_eq!(outcome.ledger.voided_batches, vec!["batch-0001".to_owned()]);
+        assert!(!outcome.ledger.complete);
+        assert!(
+            outcome.verdicts.is_empty(),
+            "a voided batch yields no accepted rows"
+        );
+        let individual = individual_review_items(&plan, &candidates, &submitted).unwrap();
+        assert_eq!(individual.len(), 40, "one candidate per context");
+        assert!(individual.iter().all(|item| item.reason == "voided-batch"));
+        let batch_context = &plan.batches[0].context_id;
+        assert!(individual
+            .iter()
+            .all(|item| &item.item.context_id != batch_context));
+
+        // Rerun alone: dismissals stand on their own contexts.
+        for item in individual {
+            let candidate = by_id[item.item.packet.candidate.id.as_str()];
+            submitted.push(bind(
+                verdict_json(candidate, SecurityVerdictKind::FalsePositive, "indiv"),
+                STAGE_INDIVIDUAL,
+                &item.item.item_id,
+                &item.item.context_id,
+                &item.item.packet,
+            ));
+        }
+        let rerun = evaluate_adjudication(&plan, &candidates, &submitted).unwrap();
+        assert!(rerun.ledger.complete, "{:?}", rerun.ledger.outstanding);
+        assert_eq!(rerun.verdicts.len(), 40);
+        assert!(rerun
+            .verdicts
+            .iter()
+            .all(|row| &row.adjudicator_context_id != batch_context));
+    }
+
+    #[test]
+    fn high_risk_and_uncertain_dismissals_go_straight_to_individual_review() {
+        let mut high = candidate(0, "fam0.check", "src/a.rs", "sink_a(x)");
+        high.severity = "high".into();
+        let uncertain = candidate(1, "fam0.check", "src/b.rs", "sink_b(x)");
+        let routine = candidate(2, "fam0.check", "src/c.rs", "sink_c(x)");
+        let candidates = vec![high, uncertain, routine];
+        let plan = plan_for(&candidates);
+        let decide = |stage: &str, c: &ScannerCandidate| {
+            if stage == STAGE_BATCH && c.finding_id == "cand-00001" {
+                SecurityVerdictKind::LikelyFalsePositive
+            } else {
+                SecurityVerdictKind::FalsePositive
+            }
+        };
+        let submitted = batch_submission(&plan, &candidates, &decide);
+        let individual = individual_review_items(&plan, &candidates, &submitted).unwrap();
+        let reasons = individual
+            .iter()
+            .map(|item| (item.item.packet.candidate.id.clone(), item.reason.clone()))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(reasons["cand-00000"], "high-risk-dismissal");
+        assert_eq!(reasons["cand-00001"], "uncertain-dismissal");
+        assert_eq!(reasons.len(), 2);
+        // The routine dismissal is the only spot-check candidate.
+        let spot = spot_check_items(&plan, &candidates, &submitted).unwrap();
+        assert_eq!(spot.len(), 1);
+        assert_eq!(spot[0].item.packet.candidate.id, "cand-00002");
+        let outcome = evaluate_adjudication(&plan, &candidates, &submitted).unwrap();
+        assert!(!outcome.ledger.complete);
+        assert!(
+            outcome.verdicts.is_empty(),
+            "a batch with a pending spot-check withholds its routine dismissals"
+        );
+    }
+
+    #[test]
+    fn echoed_or_missing_context_ids_never_satisfy_isolation() {
+        let candidates = vec![candidate(0, "fam0.check", "src/a.rs", "sink(x)")];
+        let plan = plan_for(&candidates);
+        let dismiss = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::FalsePositive;
+        let good = batch_submission(&plan, &candidates, &dismiss);
+
+        let mut wrong = good.clone();
+        wrong[0]["contextId"] = json!("adjudicator:sha256:forged");
+        assert!(matches!(
+            evaluate_adjudication(&plan, &candidates, &wrong).unwrap_err(),
+            SecurityAdjudicationError::UnexpectedContext { .. }
+        ));
+        let mut missing = good.clone();
+        missing[0].as_object_mut().unwrap().remove("contextId");
+        assert!(matches!(
+            evaluate_adjudication(&plan, &candidates, &missing).unwrap_err(),
+            SecurityAdjudicationError::MissingContextAttestation(_)
+        ));
+        // The generator's context is never acceptable.
+        let mut generator = good.clone();
+        generator[0]["contextId"] = json!("scanner:security.pack");
+        assert!(matches!(
+            evaluate_adjudication(&plan, &candidates, &generator).unwrap_err(),
+            SecurityAdjudicationError::GeneratorContext(_)
+        ));
+        // A spot-check/confirmation context may not be the batch context.
+        let spot = spot_check_items(&plan, &candidates, &good).unwrap();
+        assert!(spot
+            .iter()
+            .all(|item| item.item.context_id != plan.batches[0].context_id));
+    }
+
+    #[test]
+    fn unbound_or_unstaged_verdicts_are_rejected() {
+        let candidates = vec![candidate(0, "fam0.check", "src/a.rs", "sink(x)")];
+        let plan = plan_for(&candidates);
+        let dismiss = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::FalsePositive;
+        let mut forged = batch_submission(&plan, &candidates, &dismiss);
+        forged[0]["workItemId"] = json!("sha256:forged");
+        assert!(evaluate_adjudication(&plan, &candidates, &forged)
+            .unwrap_err()
+            .to_string()
+            .contains("not bound to its isolated work item"));
+        let mut unstaged = batch_submission(&plan, &candidates, &dismiss);
+        unstaged[0].as_object_mut().unwrap().remove("stage");
+        assert!(evaluate_adjudication(&plan, &candidates, &unstaged).is_err());
+    }
+
+    #[test]
+    fn batch_scope_expands_every_member_and_validates_representatives_only() {
+        let candidates = (0..3)
+            .map(|i| candidate(i, "fam0.check", &format!("src/m{i}.rs"), "same_sink(x)"))
+            .collect::<Vec<_>>();
+        let plan = plan_for(&candidates);
+        assert_eq!(plan.clusters.len(), 1);
+        let batch = &plan.batches[0];
+        let rep = candidates
+            .iter()
+            .find(|c| c.finding_id == plan.clusters[0].representative_id)
+            .unwrap();
+        let verdict = bind(
+            verdict_json(rep, SecurityVerdictKind::FalsePositive, "batch"),
+            STAGE_BATCH,
+            &batch.item_id,
+            &batch.context_id,
+            &batch.packet,
+        );
+        let rows = adjudicate_scanner_candidates_scoped(
+            &candidates,
+            &[verdict.clone()],
+            PARENT,
+            ContextPolicy::Attested,
+            &AdjudicationScope::Batch {
+                batch,
+                clusters: &plan.clusters,
+            },
+        )
+        .unwrap();
+        assert_eq!(rows.len(), 3);
+        assert!(rows
+            .iter()
+            .all(|row| row.cluster_id.as_deref() == Some(plan.clusters[0].cluster_id.as_str())));
+        // A verdict for a non-representative member is not a batch verdict.
+        let other = candidates
+            .iter()
+            .find(|c| c.finding_id != rep.finding_id)
+            .unwrap();
+        let mut stray = verdict;
+        stray["candidateId"] = json!(other.finding_id);
+        assert!(matches!(
+            adjudicate_scanner_candidates_scoped(
+                &candidates,
+                &[stray],
+                PARENT,
+                ContextPolicy::Attested,
+                &AdjudicationScope::Batch {
+                    batch,
+                    clusters: &plan.clusters,
+                },
+            )
+            .unwrap_err(),
+            SecurityAdjudicationError::UnknownCandidate { .. }
+        ));
     }
 }

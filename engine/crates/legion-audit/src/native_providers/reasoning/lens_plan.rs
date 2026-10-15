@@ -28,6 +28,10 @@ use serde_json::{json, Value};
 pub enum ExcerptMode {
     Raw,
     Skeleton,
+    /// Signature skeleton plus raw windows around flagged regions (findings,
+    /// changed hunks, entrypoint and sink symbols). Used by risk-sampled
+    /// coverage for non-mandatory files (`coverage_plan`).
+    Regions,
 }
 
 use serde::Serialize;
@@ -37,6 +41,9 @@ use serde::Serialize;
 #[serde(rename_all = "kebab-case")]
 pub enum ModelTier {
     Judgment,
+    /// Mid tier for pattern-bounded lenses (performance, resilience,
+    /// data-safety, minimize, ai-slop, standards): Sonnet/Sol 6.1 class.
+    Specialist,
     Mechanical,
 }
 
@@ -109,6 +116,13 @@ impl LensPlan {
             "ponytailTags": self.ponytail_tags,
             "cues": self.cues,
         });
+        if let Some(bundle) = bundle_for_lens(self.lens) {
+            packet["bundle"] = json!({
+                "id": bundle.id,
+                "tier": bundle.tier,
+                "budgetShareBp": bundle.budget_share_bp,
+            });
+        }
         if matches!(self.lens, "security" | "architecture" | "correctness") {
             // Keep modelTier inside the established strict enum. This additive
             // floor lets dispatch honor lens-routing's strongest-tier rule.
@@ -121,6 +135,117 @@ impl LensPlan {
         }
         packet
     }
+}
+
+/// A seat bundle: lenses that share an excerpt part and are answered by one
+/// seat reading it once (design `2026-10-15-scaled-audit-design.md` section 2).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BundleInfo {
+    pub id: &'static str,
+    pub tier: ModelTier,
+    /// Share of the run token budget, in basis points (10_000 = 100%).
+    pub budget_share_bp: u32,
+    /// Excerpt mode used for non-mandatory files under risk-sampled coverage.
+    pub sampled_mode: ExcerptMode,
+    /// True when the mandatory stratum is excerpted Raw under sampling.
+    pub raw_mandatory: bool,
+}
+
+pub const BUNDLE_J1: BundleInfo = BundleInfo {
+    id: "J1",
+    tier: ModelTier::Judgment,
+    budget_share_bp: 4000,
+    sampled_mode: ExcerptMode::Regions,
+    raw_mandatory: true,
+};
+// Architecture and doc-drift are never skeletonized (lens-routing.md wins over
+// the design): Raw for the mandatory stratum, Regions elsewhere.
+pub const BUNDLE_J2: BundleInfo = BundleInfo {
+    id: "J2",
+    tier: ModelTier::Judgment,
+    budget_share_bp: 1500,
+    sampled_mode: ExcerptMode::Regions,
+    raw_mandatory: true,
+};
+pub const BUNDLE_S1: BundleInfo = BundleInfo {
+    id: "S1",
+    tier: ModelTier::Specialist,
+    budget_share_bp: 700,
+    sampled_mode: ExcerptMode::Regions,
+    raw_mandatory: false,
+};
+pub const BUNDLE_S2: BundleInfo = BundleInfo {
+    id: "S2",
+    tier: ModelTier::Specialist,
+    budget_share_bp: 800,
+    sampled_mode: ExcerptMode::Regions,
+    raw_mandatory: false,
+};
+/// Minimize needs raw bodies: Raw for its whole review set (never Regions or
+/// Skeleton), so it cannot share S1's Regions seats. Sampling, not the excerpt
+/// mode, absorbs the token difference.
+pub const BUNDLE_S3: BundleInfo = BundleInfo {
+    id: "S3",
+    tier: ModelTier::Specialist,
+    budget_share_bp: 500,
+    sampled_mode: ExcerptMode::Raw,
+    raw_mandatory: false,
+};
+pub const BUNDLE_M1: BundleInfo = BundleInfo {
+    id: "M1",
+    tier: ModelTier::Mechanical,
+    budget_share_bp: 1500,
+    sampled_mode: ExcerptMode::Skeleton,
+    raw_mandatory: false,
+};
+/// Security adjudication (lane B owns its packets); budget share only.
+pub const BUNDLE_ADJUDICATION: BundleInfo = BundleInfo {
+    id: "ADJ",
+    tier: ModelTier::Judgment,
+    budget_share_bp: 1000,
+    sampled_mode: ExcerptMode::Raw,
+    raw_mandatory: false,
+};
+
+/// Coverage-planned seat bundles, in dispatch order (judgment first).
+pub const COVERAGE_BUNDLES: [BundleInfo; 6] = [
+    BUNDLE_J1, BUNDLE_J2, BUNDLE_S1, BUNDLE_S2, BUNDLE_S3, BUNDLE_M1,
+];
+
+/// Bundle a lens belongs to. Conditional lenses join S1/S2.
+pub fn bundle_for_lens(lens: &str) -> Option<BundleInfo> {
+    Some(match lens {
+        "security" | "correctness" | "schema" | "variant-analysis" => BUNDLE_J1,
+        "architecture" | "doc-drift" => BUNDLE_J2,
+        "performance" | "resilience" | "data-safety" | "platform-parity" | "release-readiness" => {
+            BUNDLE_S1
+        }
+        "minimize" => BUNDLE_S3,
+        // lens-routing.md rates naming a judgment-tier lens (at least the mid
+        // tier), so it cannot ride the mechanical M1 seat the design proposed.
+        "ai-slop" | "a11y" | "naming" => BUNDLE_S2,
+        "dead-file" => BUNDLE_M1,
+        _ => return None,
+    })
+}
+
+/// Bundle of a reasoning provider; the adjudicator maps to `ADJ`.
+pub fn bundle_for_provider(provider_id: &str) -> Option<BundleInfo> {
+    if provider_id == "legacy.security.adjudication" {
+        return Some(BUNDLE_ADJUDICATION);
+    }
+    let lens = provider_id
+        .strip_prefix("reasoning.")
+        .or_else(|| provider_id.strip_prefix("legacy.security."))?;
+    bundle_for_lens(lens)
+}
+
+/// True for the `reasoning.<lens>` providers the coverage plan samples
+/// (never the adjudicator or the follow-up variant lens).
+pub fn is_coverage_planned_provider(provider_id: &str) -> bool {
+    provider_id
+        .strip_prefix("reasoning.")
+        .is_some_and(|lens| bundle_for_lens(lens).is_some())
 }
 
 const MINIMIZE_TAGS: &[&str] = &["delete", "stdlib", "native", "yagni", "shrink"];
@@ -580,6 +705,36 @@ mod tests {
                 Applicability::Always => panic!("{lens} should be conditional"),
             }
         }
+    }
+
+    #[test]
+    fn every_planned_lens_has_a_bundle_and_shares_sum_to_one() {
+        for id in REASONING_PROVIDER_IDS {
+            if id == "legacy.security.adjudication" {
+                continue;
+            }
+            let bundle = bundle_for_provider(id).expect(id);
+            let value = lens_plan_packet_value(id).expect(id);
+            assert_eq!(value["bundle"]["id"], bundle.id, "{id}");
+            if let Some(lens) = id.strip_prefix("reasoning.") {
+                let plan = lens_plan_for(lens).expect(lens);
+                // Seat tier never drops below what lens-routing.md asks of the
+                // lens: judgment-tier lenses need at least the mid tier, and
+                // strongest-floor lenses need a judgment seat.
+                if plan.model_tier == ModelTier::Judgment {
+                    assert_ne!(bundle.tier, ModelTier::Mechanical, "{id}");
+                }
+                if matches!(lens, "security" | "architecture" | "correctness") {
+                    assert_eq!(bundle.tier, ModelTier::Judgment, "{id}");
+                }
+            }
+        }
+        let total: u32 = COVERAGE_BUNDLES
+            .iter()
+            .map(|bundle| bundle.budget_share_bp)
+            .sum::<u32>()
+            + BUNDLE_ADJUDICATION.budget_share_bp;
+        assert_eq!(total, 10_000);
     }
 
     #[test]

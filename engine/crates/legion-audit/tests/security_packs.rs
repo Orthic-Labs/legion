@@ -768,22 +768,38 @@ fn full_run_carries_every_pack_candidate_into_the_adjudication_packet() {
         )
         .unwrap())
     );
-    let child_items = child_binding["items"].as_array().unwrap();
-    assert_eq!(child_items.len(), candidates.len());
-    for (item, candidate) in child_items.iter().zip(&candidates) {
-        assert_eq!(item["packet"]["candidate"]["id"], candidate.finding_id);
-        let child_evidence = item["packet"]["candidate"]["evidence"].as_array().unwrap();
-        assert_eq!(child_evidence.len(), 1);
-        assert_eq!(child_evidence[0]["findingId"], candidate.finding_id);
-        assert_eq!(child_evidence[0]["path"], json!(candidate.path.as_deref()));
-        for sibling in &candidates {
-            if sibling.finding_id != candidate.finding_id {
-                assert!(!child_evidence
-                    .iter()
-                    .any(|evidence| evidence["findingId"] == sibling.finding_id));
-            }
+    // The packet carries the staged plan, rebuilt deterministically from the
+    // candidates and the parent digest.
+    let parent_digest = child_binding["parentPacketDigest"].as_str().unwrap();
+    let plan = legion_audit::native_providers::reasoning::security_adjudication::build_adjudication_plan(
+        &candidates,
+        &legion_audit::native_providers::reasoning::security_adjudication::TriageContext::default(),
+        parent_digest,
+    )
+    .unwrap();
+    assert_eq!(child_binding, &plan.to_value());
+    // Every candidate is accounted for exactly once: auto-triaged or in one
+    // cluster, so no location is lost to clustering.
+    let mut accounted: BTreeSet<String> = BTreeSet::new();
+    for entry in child_binding["triage"]["autoTriaged"].as_array().unwrap() {
+        assert_eq!(entry["basis"], "deterministic");
+        assert!(accounted.insert(entry["candidateId"].as_str().unwrap().to_owned()));
+    }
+    for cluster in child_binding["clusters"].as_array().unwrap() {
+        for member in cluster["memberIds"].as_array().unwrap() {
+            assert!(accounted.insert(member.as_str().unwrap().to_owned()));
         }
     }
+    let expected_ids: BTreeSet<String> = candidates.iter().map(|c| c.finding_id.clone()).collect();
+    assert_eq!(accounted, expected_ids);
+    for batch in child_binding["batches"].as_array().unwrap() {
+        assert!(batch["clusterIds"].as_array().unwrap().len() <= 25);
+        assert_eq!(batch["contextPolicy"], "attested");
+    }
+    assert_eq!(
+        child_binding["confirmations"]["status"],
+        "derived-after-batch-stage"
+    );
     let unavailable = pending_lens_work_with_candidates(&run.root, &run.plan, &run.inventory, None)
         .unwrap()
         .into_iter()
@@ -799,7 +815,7 @@ fn full_run_carries_every_pack_candidate_into_the_adjudication_packet() {
             .unwrap();
     assert_eq!(known_empty.request.packet["scannerCandidates"], json!([]));
     assert_eq!(
-        known_empty.request.packet["candidateWorkItems"]["items"],
+        known_empty.request.packet["candidateWorkItems"]["batches"],
         json!([])
     );
 }

@@ -638,7 +638,11 @@ fn is_skeleton_line(language: &str, trimmed: &str) -> bool {
 /// Builds a SKELETON excerpt: kept declaration lines with their original
 /// line numbers, dropped runs collapsed to a single `{ ... }` marker so the
 /// lens still sees where bodies were, without their content.
-fn skeletonize(language: &str, lines: &[RedLine]) -> (String, Vec<(usize, usize)>) {
+fn skeletonize(
+    language: &str,
+    lines: &[RedLine],
+    keep: &[(usize, usize)],
+) -> (String, Vec<(usize, usize)>) {
     let mut out = String::new();
     let mut anchors = Vec::new();
     let mut in_drop_run = false;
@@ -647,7 +651,10 @@ fn skeletonize(language: &str, lines: &[RedLine]) -> (String, Vec<(usize, usize)
 
     for line in lines {
         let trimmed = line.text.trim_start();
-        if is_skeleton_line(language, trimmed) || trimmed.is_empty() {
+        let forced = keep
+            .iter()
+            .any(|(start, end)| line.end >= *start && line.start <= *end);
+        if forced || is_skeleton_line(language, trimmed) || trimmed.is_empty() {
             if in_drop_run {
                 anchors.push((drop_start, line.start.saturating_sub(1)));
                 out.push_str("    { ... }\n");
@@ -721,6 +728,60 @@ fn chunk_ranges(lines: &[RedLine]) -> Vec<std::ops::Range<usize>> {
     ranges
 }
 
+/// Substrings that mark an entrypoint or a dangerous sink; a `Regions`
+/// excerpt keeps raw windows around the first few lines that carry one.
+const SINK_MARKERS: &[&str] = &[
+    "command::new",
+    "std::process",
+    "exec(",
+    "spawn(",
+    "eval(",
+    "unsafe ",
+    "unsafe{",
+    "deserialize",
+    "json.parse",
+    "pickle.load",
+    "yaml.load",
+    "innerhtml",
+    "child_process",
+    "os.system",
+    "subprocess",
+    "tcplistener",
+    "reqwest",
+    "fetch(",
+    "tauri::command",
+    "fn main(",
+    "decrypt",
+    "keychain",
+    "seckey",
+];
+
+/// Most sink windows one chunk keeps (flagged-finding and changed-hunk windows
+/// are never capped).
+const MAX_SINK_WINDOWS: usize = 6;
+
+fn sink_ranges(lines: &[RedLine]) -> Vec<(usize, usize)> {
+    lines
+        .iter()
+        .filter(|line| {
+            let lower = line.text.to_ascii_lowercase();
+            SINK_MARKERS.iter().any(|marker| lower.contains(marker))
+        })
+        .take(MAX_SINK_WINDOWS)
+        .map(|line| (line.start, line.end))
+        .collect()
+}
+
+/// Source-line windows a `Regions` chunk keeps raw: caller flags (findings,
+/// changed hunks) plus entrypoint/sink lines, each widened by
+/// `HUNK_CONTEXT_LINES`.
+fn region_keep(lines: &[RedLine], flagged: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let total = lines.last().map_or(0, |line| line.end);
+    let mut keep = hunk_windows(flagged, HUNK_CONTEXT_LINES, total);
+    keep.extend(hunk_windows(&sink_ranges(lines), HUNK_CONTEXT_LINES, total));
+    keep
+}
+
 fn excerpt_for_chunk(
     path: &str,
     mode: ExcerptMode,
@@ -728,6 +789,7 @@ fn excerpt_for_chunk(
     lines: &[RedLine],
     chunk: usize,
     chunks: usize,
+    flagged: &[(usize, usize)],
 ) -> Excerpt {
     let counts = counts_for(lines);
     let (content, anchors) = match mode {
@@ -744,7 +806,12 @@ fn excerpt_for_chunk(
             (body, anchors)
         }
         ExcerptMode::Skeleton => {
-            let (body, ranges) = skeletonize(language, lines);
+            let (body, ranges) = skeletonize(language, lines, &[]);
+            (body, anchors_to_ranges(path, &ranges))
+        }
+        ExcerptMode::Regions => {
+            let keep = region_keep(lines, flagged);
+            let (body, ranges) = skeletonize(language, lines, &keep);
             (body, anchors_to_ranges(path, &ranges))
         }
     };
@@ -774,7 +841,7 @@ fn excerpt_for_chunk(
 /// `Err(reason)` names why the file cannot be excerpted at all: `unreadable`,
 /// `binary` (NUL bytes), `non-utf8`, or `line-over-limit`.
 fn prepare_file(root: &Path, path: &str, mode: ExcerptMode) -> Result<Vec<Excerpt>, &'static str> {
-    prepare_file_scoped(root, path, mode, None)
+    prepare_file_scoped(root, path, mode, None, None)
 }
 
 /// `prepare_file`, optionally restricted to the merged hunk windows of a diff
@@ -788,6 +855,7 @@ fn prepare_file_scoped(
     path: &str,
     mode: ExcerptMode,
     hunks: Option<&[(usize, usize)]>,
+    flagged: Option<&[(usize, usize)]>,
 ) -> Result<Vec<Excerpt>, &'static str> {
     let bytes = std::fs::read(root.join(path)).map_err(|_| "unreadable")?;
     if bytes.contains(&0) {
@@ -829,7 +897,15 @@ fn prepare_file_scoped(
         .into_iter()
         .enumerate()
         .map(|(index, range)| {
-            excerpt_for_chunk(path, mode, language, &lines[range], index + 1, chunks)
+            excerpt_for_chunk(
+                path,
+                mode,
+                language,
+                &lines[range],
+                index + 1,
+                chunks,
+                flagged.unwrap_or(&[]),
+            )
         })
         .collect())
 }
@@ -953,6 +1029,51 @@ pub fn partition_excerpts_scoped(
     max_parts: usize,
     hunks: &ChangedHunks,
 ) -> Partition {
+    let items: Vec<ReviewItem> = paths
+        .iter()
+        .map(|path| ReviewItem {
+            path: path.clone(),
+            mode,
+        })
+        .collect();
+    partition_review_set(
+        root,
+        &items,
+        &AliasMap::new(),
+        max_parts,
+        hunks,
+        &FlaggedRegions::new(),
+    )
+}
+
+/// One review-set path and the excerpt mode it is read in.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReviewItem {
+    pub path: String,
+    pub mode: ExcerptMode,
+}
+
+/// Source line ranges to keep raw in a `Regions` excerpt, per path (for
+/// example deterministic findings), 1-based inclusive.
+pub type FlaggedRegions = std::collections::BTreeMap<String, Vec<(usize, usize)>>;
+
+/// Canonical path -> paths with identical content that are credited with the
+/// canonical path's excerpt (content-digest dedup).
+pub type AliasMap = std::collections::BTreeMap<String, Vec<String>>;
+
+/// Partitions a frozen review set (path, mode) into packet parts. Behaves like
+/// `partition_excerpts_scoped` (which delegates here) and additionally:
+/// `Regions` items keep raw windows around `flags` and changed `hunks`;
+/// `aliases` paths are homed (and omitted) with their canonical path, so the
+/// homed paths still partition the credited set exactly.
+pub fn partition_review_set(
+    root: &Path,
+    items: &[ReviewItem],
+    aliases: &AliasMap,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+    flags: &FlaggedRegions,
+) -> Partition {
     let max_parts = max_parts.max(1);
     let new_part = |number: usize| ExcerptPart {
         number,
@@ -962,8 +1083,20 @@ pub fn partition_excerpts_scoped(
     };
     let mut parts = vec![new_part(1)];
     let mut bytes = 0usize;
-    for path in paths {
-        match prepare_file_scoped(root, path, mode, hunks.get(path).map(Vec::as_slice)) {
+    for item in items {
+        let path = &item.path;
+        let mut regions: Vec<(usize, usize)> = Vec::new();
+        if item.mode == ExcerptMode::Regions {
+            if let Some(found) = flags.get(path) {
+                regions.extend(found.iter().copied());
+            }
+            if let Some(found) = hunks.get(path) {
+                regions.extend(found.iter().copied());
+            }
+        }
+        let windowed = hunks.get(path).map(Vec::as_slice);
+        let flagged = (!regions.is_empty()).then_some(regions.as_slice());
+        match prepare_file_scoped(root, path, item.mode, windowed, flagged) {
             Err(reason) => {
                 let current = parts.last_mut().expect("at least one part");
                 current.paths.push(path.clone());
@@ -971,6 +1104,13 @@ pub fn partition_excerpts_scoped(
                     path: path.clone(),
                     reason,
                 });
+                for alias in aliases.get(path).into_iter().flatten() {
+                    current.paths.push(alias.clone());
+                    current.omitted.push(OmittedExcerpt {
+                        path: alias.clone(),
+                        reason,
+                    });
+                }
             }
             Ok(chunks) => {
                 for (index, excerpt) in chunks.into_iter().enumerate() {
@@ -983,6 +1123,9 @@ pub fn partition_excerpts_scoped(
                     let current = parts.last_mut().expect("at least one part");
                     if index == 0 {
                         current.paths.push(path.clone());
+                        for alias in aliases.get(path).into_iter().flatten() {
+                            current.paths.push(alias.clone());
+                        }
                     }
                     bytes += size;
                     current.excerpts.push(excerpt);
@@ -1311,5 +1454,74 @@ mod tests {
         assert_eq!((whole[0].start_line, whole[0].end_line), (1, 500));
         // Both paths are homed exactly once.
         assert_eq!(partition.parts[0].paths, paths);
+    }
+
+    #[test]
+    fn regions_excerpt_keeps_flagged_window_anchors_and_redacts() {
+        let fake_key = ["sk", "live", "abcdefghijklmnopqrstuvwxyz"].join("_");
+        let dir = ScratchDir::new();
+        let mut body = String::from("use std::fmt;\n");
+        for n in 0..200 {
+            body.push_str(&format!("let filler_{n} = {n};\n"));
+        }
+        body.push_str(&format!("let API_KEY = \"{fake_key}\";\n"));
+        for n in 0..200 {
+            body.push_str(&format!("let tail_{n} = {n};\n"));
+        }
+        write(dir.path(), "src/r.rs", &body);
+        let items = vec![ReviewItem {
+            path: "src/r.rs".into(),
+            mode: ExcerptMode::Regions,
+        }];
+        let mut flags = FlaggedRegions::new();
+        // Flag the line carrying the secret (line 202) plus one early line.
+        flags.insert("src/r.rs".into(), vec![(202, 202), (50, 50)]);
+        let partition = partition_review_set(
+            dir.path(),
+            &items,
+            &AliasMap::new(),
+            8,
+            &ChangedHunks::new(),
+            &flags,
+        );
+        let excerpt = &partition.parts[0].excerpts[0];
+        assert_eq!(excerpt.mode, ExcerptMode::Regions);
+        assert!(excerpt.content.contains("use std::fmt;"));
+        assert!(excerpt.content.contains("let filler_49 = 49;"), "window around 50");
+        assert!(excerpt.content.contains("[REDACTED]"));
+        assert!(!excerpt.content.contains(fake_key.as_str()));
+        assert!(!excerpt.content.contains("let filler_120 = 120;"));
+        assert!(excerpt.content.contains("{ ... }"));
+        // Anchors are source-file line numbers and cover the secret window.
+        assert!(excerpt.anchors.iter().any(|anchor| {
+            let range = anchor.trim_start_matches("src/r.rs:");
+            let (start, end) = range.split_once('-').unwrap_or((range, range));
+            let (start, end): (usize, usize) = (start.parse().unwrap(), end.parse().unwrap());
+            start <= 202 && 202 <= end
+        }));
+        assert!(excerpt.content.len() < body.len() / 2, "regions compress");
+    }
+
+    #[test]
+    fn aliases_are_homed_with_their_canonical_path() {
+        let dir = ScratchDir::new();
+        write(dir.path(), "a/x.rs", "pub fn f() {}\n");
+        write(dir.path(), "b/x.rs", "pub fn f() {}\n");
+        let items = vec![ReviewItem {
+            path: "a/x.rs".into(),
+            mode: ExcerptMode::Skeleton,
+        }];
+        let mut aliases = AliasMap::new();
+        aliases.insert("a/x.rs".into(), vec!["b/x.rs".into()]);
+        let partition = partition_review_set(
+            dir.path(),
+            &items,
+            &aliases,
+            8,
+            &ChangedHunks::new(),
+            &FlaggedRegions::new(),
+        );
+        assert_eq!(partition.parts[0].paths, vec!["a/x.rs", "b/x.rs"]);
+        assert_eq!(partition.parts[0].excerpts.len(), 1);
     }
 }

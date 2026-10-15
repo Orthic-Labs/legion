@@ -60,7 +60,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
 | 1 · Scanners (`legion audit <root> --out <run-dir>`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens, tier by lens kind: strongest for security/architecture/correctness, mid for the other judgment lenses, lowest for mechanical lenses; see `lens-routing.md`). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no external worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
+| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per bundled seat, dispatched in resumable waves; tier by seat kind: judgment for J1/J2, specialist for S1/S2, mechanical for M1; see `lens-routing.md` Bundled seats). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no external worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -167,7 +167,8 @@ metadata is advisory context; scanner coverage remains honest — a scoped repor
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
 2. **Run applicable lenses over `facts.json` + repo — as parallel native host subagents,
-   one fresh subagent per lens, all in ONE wave, tier by lens kind (see `lens-routing.md` Model routing); inline in main
+   one fresh subagent per bundled seat listed in `lens-dispatch.json`, dispatched in resumable waves of at most
+   `CHILD_AGENTS_MAX`, judgment seats first (see `lens-routing.md` Bundled seats and Model routing); inline in main
    session is fallback only when no native seat is available.** NO external model APIs (locked
    2026-07-05). Model routing, structured task bodies,
    secret-safe inputs, and the skel-vs-RAW excerpt-compression split are owned by

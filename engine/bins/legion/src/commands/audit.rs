@@ -62,14 +62,25 @@ pub struct AuditArgs {
     /// seat (packet part) may carry before the plan refuses to freeze.
     #[arg(long = "seat-token-budget", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_SEAT_TOKEN_BUDGET)]
     pub seat_token_budget: u64,
-    /// Host child-agent cap: most reasoning seats (packet parts, all lenses)
-    /// the plan may require before it refuses to freeze.
+    /// Wave width (host child-agent cap): seats run in waves of this size.
     #[arg(long = "max-lens-seats", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_MAX_SEATS)]
     pub max_lens_seats: u64,
     /// Freeze the plan even though lens packets exceed the per-seat token
-    /// budget or the host seat cap (the report still records the overrun).
+    /// budget or the run budget (the report still records the overrun).
     #[arg(long = "allow-oversize-lenses")]
     pub allow_oversize_lenses: bool,
+    /// Lens coverage: `auto` reviews every file when it fits the run budget and
+    /// otherwise runs a whole-repository risk-sampled audit; `exhaustive`
+    /// never samples and refuses to freeze when it cannot fit; `risk-sampled`
+    /// always samples.
+    #[arg(long = "coverage", default_value = "auto", value_parser = ["auto", "exhaustive", "risk-sampled"])]
+    pub coverage: String,
+    /// Estimated input tokens the whole run (all seats) may use.
+    #[arg(long = "run-token-budget", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_RUN_TOKEN_BUDGET)]
+    pub run_token_budget: u64,
+    /// Most seats across all waves; the plan refuses to freeze past it.
+    #[arg(long = "max-total-seats", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_MAX_TOTAL_SEATS)]
+    pub max_total_seats: u64,
     #[arg(long = "provider-plan")]
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
@@ -262,14 +273,20 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         }
     };
     let review_context = review_context(&root, &scope);
+    // The coverage request freezes with the provider spec (like the review
+    // context), so the executed plan and the lens basis plan, which compile
+    // independently, derive the same review sets.
+    let coverage_request = coverage_request(&args);
     for provider in &mut selected_specs {
         if let Some(reasoning) = provider.reasoning.as_object_mut() {
             reasoning.insert("reviewContext".into(), review_context.clone());
+            reasoning.insert("coverageRequest".into(), coverage_request.clone());
         } else {
             let source = provider.reasoning.clone();
             provider.reasoning = json!({
                 "source": source,
                 "reviewContext": review_context.clone(),
+                "coverageRequest": coverage_request.clone(),
             });
         }
     }
@@ -346,13 +363,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             providers,
         } => {
             let binding = native_inventory_binding(&root, inventory_filter.as_ref())?;
-            let (lens_work, lens_work_gaps) = lens_work_items(
+            let (lens_work, lens_work_gaps, lens_dispatch) = lens_work_items(
                 &root,
                 &lens_basis,
                 plan_digest.as_str(),
                 args.out.as_deref(),
                 None,
+                &args,
             );
+            let (lens_coverage, sampled_run) = lens_coverage_summary(&lens_basis);
             let mut input_gaps = native_audit_input_gaps(&args, &declared_input_gaps);
             input_gaps.extend(lens_work_gaps);
             let mut plan_gaps = vec!["plan-only".to_owned()];
@@ -384,6 +403,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "gaps": plan_gaps,
                 "lensWork": lens_work,
                 "lensSize": lens_size,
+                "lensDispatch": lens_dispatch,
+                "coverageMode": if sampled_run { "sampled" } else { "exhaustive" },
+                "auditLabel": if sampled_run { json!(legion_audit::native_providers::reasoning::ingest::SAMPLED_AUDIT_LABEL) } else { Value::Null },
+                "lensCoverage": lens_coverage,
                 "inputGaps": input_gaps
             });
             if !provider_scope_claims_allowed(trusted_scope_universe) {
@@ -460,8 +483,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report.gaps.extend(direct_gaps.iter().cloned());
             // Reasoning lenses no in-process host executed are `pending-host`
             // work: emit their packets for the invoking session to run.
-            let (lens_work, lens_work_gaps) = if execution.pending_host.is_empty() {
-                (Vec::new(), Vec::new())
+            let (lens_work, lens_work_gaps, lens_dispatch) = if execution.pending_host.is_empty() {
+                (Vec::new(), Vec::new(), None)
             } else {
                 lens_work_items(
                     &root,
@@ -469,10 +492,28 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     execution.plan_digest.as_str(),
                     args.out.as_deref(),
                     Some(&execution),
+                    &args,
                 )
             };
             report.gaps.extend(lens_work_gaps);
+            let (lens_coverage, sampled_run) = lens_coverage_summary(&lens_basis);
             report.claims.insert("lensWork".into(), json!(lens_work));
+            if let Some(dispatch) = &lens_dispatch {
+                report.claims.insert("lensDispatch".into(), dispatch.clone());
+            }
+            report.claims.insert(
+                "coverageMode".into(),
+                json!(if sampled_run { "sampled" } else { "exhaustive" }),
+            );
+            if sampled_run {
+                report.claims.insert(
+                    "auditLabel".into(),
+                    json!(legion_audit::native_providers::reasoning::ingest::SAMPLED_AUDIT_LABEL),
+                );
+            }
+            if lens_coverage.as_object().is_some_and(|map| !map.is_empty()) {
+                report.claims.insert("lensCoverage".into(), lens_coverage.clone());
+            }
             if let Some(size) = &lens_size {
                 report.claims.insert("lensSize".into(), size.clone());
             }
@@ -548,10 +589,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 .insert("auditStatus".into(), json!(report_status));
             report.claims.insert(
                 "qualityGate".into(),
-                json!(if report.status == legion_contracts::ReportStatus::Clean {
-                    "proven"
-                } else {
+                json!(if report.status != legion_contracts::ReportStatus::Clean {
                     "unproven"
+                } else if sampled_run {
+                    "sampled"
+                } else {
+                    "proven"
                 }),
             );
             report
@@ -646,6 +689,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "reasoningEpochDigest": epoch_digest,
                 "deterministicLensTagCounts": execution.deterministic_lens_tags,
                 "lensWork": lens_work,
+                "lensDispatch": lens_dispatch,
+                "coverageMode": if sampled_run { "sampled" } else { "exhaustive" },
+                "auditLabel": if sampled_run { json!(legion_audit::native_providers::reasoning::ingest::SAMPLED_AUDIT_LABEL) } else { Value::Null },
+                "lensCoverage": lens_coverage,
                 "contextNotices": context_notices,
                 "gaps": report.gaps,
                 "artifacts": args.out.as_ref().map(|out| json!({
@@ -657,7 +704,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 })),
                 "effectArtifactsRoot": effect_artifact_root,
                 "auditStatus": if !report.gaps.is_empty() { "incomplete" } else { status },
-                "qualityGate": if status == "pass" && report.gaps.is_empty() { "proven" } else { "unproven" },
+                "qualityGate": if status == "pass" && report.gaps.is_empty() { if sampled_run { "sampled" } else { "proven" } } else { "unproven" },
                 "processExecution": "complete",
                 "processState": "complete",
                 "completionValidation": "not-run"
@@ -1021,10 +1068,82 @@ fn freeze_lens_basis(
     Ok((plan, inventory))
 }
 
-/// Packet size gate. Builds the lens packets the frozen plan implies (no
-/// scanner results yet), reports per-lens bytes, estimated tokens, parts and
-/// required seats, and refuses when a part exceeds the per-seat token budget,
-/// unless `--allow-oversize-lenses`; seats over the host cap only warn (waves).
+/// The frozen coverage request for `args` (`--coverage`, `--run-token-budget`,
+/// `--max-total-seats`, `--seat-token-budget`).
+fn coverage_request(args: &AuditArgs) -> Value {
+    use legion_audit::native_providers::reasoning::coverage_plan::{CoverageMode, CoverageRequest};
+    CoverageRequest {
+        mode: CoverageMode::parse(&args.coverage).unwrap_or(CoverageMode::Auto),
+        run_token_budget: args.run_token_budget.max(1),
+        max_total_seats: args.max_total_seats.max(1),
+        seat_token_budget: args.seat_token_budget.max(1),
+    }
+    .to_value()
+}
+
+fn dispatch_limits(args: &AuditArgs) -> legion_audit::native_providers::reasoning::ingest::DispatchLimits {
+    legion_audit::native_providers::reasoning::ingest::DispatchLimits {
+        seat_token_budget: args.seat_token_budget,
+        wave_width: args.max_lens_seats,
+        run_token_budget: args.run_token_budget,
+        max_total_seats: args.max_total_seats,
+    }
+}
+
+/// `lensCoverage` claims, `coverageMode`, and whether the plan is risk-sampled,
+/// from the frozen lens basis (nothing ingested yet).
+fn lens_coverage_summary(basis: &LensBasis) -> (Value, bool) {
+    match basis {
+        Ok((plan, _)) => legion_audit::native_providers::reasoning::ingest::lens_coverage_claims(
+            plan.plan(),
+            &[],
+        ),
+        Err(_) => (Value::Null, false),
+    }
+}
+
+/// Seat/wave labels for each provider of `dispatch`, merged into the
+/// `lensWork` items so the output lists work by bundle and wave.
+fn annotate_lens_work(items: &mut [Value], dispatch: &Value) {
+    for item in items {
+        let Some(provider) = item.get("provider").and_then(Value::as_str).map(ToOwned::to_owned)
+        else {
+            continue;
+        };
+        let seats: Vec<Value> = dispatch["seats"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|seat| {
+                seat["providers"]
+                    .as_array()
+                    .is_some_and(|providers| providers.iter().any(|p| p.as_str() == Some(provider.as_str())))
+            })
+            .map(|seat| {
+                json!({
+                    "seat": seat["seat"],
+                    "wave": seat["wave"],
+                    "part": seat["part"],
+                    "bundle": seat["bundle"],
+                    "tier": seat["tier"],
+                })
+            })
+            .collect();
+        if let Some(object) = item.as_object_mut() {
+            if let Some(first) = seats.first() {
+                object.insert("bundle".into(), first["bundle"].clone());
+                object.insert("tier".into(), first["tier"].clone());
+            }
+            object.insert("seats".into(), Value::Array(seats));
+        }
+    }
+}
+
+/// Bundled dispatch gate. Builds the lens packets the frozen plan implies (no
+/// scanner results yet), plans bundled seats and waves from them, and refuses
+/// to freeze when a seat exceeds the per-seat budget, the run exceeds its
+/// token budget or total-seat cap (printing how far over each bundle is), or
+/// `--coverage exhaustive` cannot fit; `--allow-oversize-lenses` overrides.
 /// `Ok(None)` when there is no lens work or the packets cannot be built (the
 /// later packet step reports that as `lens-packets-unavailable`).
 fn lens_size_gate(
@@ -1043,11 +1162,7 @@ fn lens_size_gate(
     if work.is_empty() {
         return Ok(None);
     }
-    let limits = reasoning_lens::ingest::LensSizeLimits {
-        seat_token_budget: args.seat_token_budget,
-        max_seats: args.max_lens_seats,
-    };
-    let mut report = reasoning_lens::ingest::lens_size_report(&work, &limits);
+    let mut report = reasoning_lens::ingest::lens_dispatch_plan(&work, &dispatch_limits(args));
     let violations: Vec<String> = report["violations"]
         .as_array()
         .map(|items| {
@@ -1064,28 +1179,34 @@ fn lens_size_gate(
         if let Some(out) = &args.out {
             if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
                 let _ = write_artifact(out, "lens-size.json", &bytes);
+                let _ = write_artifact(out, "lens-dispatch.json", &bytes);
             }
         }
-        let per_lens = report["lenses"]
+        let per_bundle = report["bundles"]
             .as_array()
-            .map(|lenses| {
-                lenses
+            .map(|bundles| {
+                bundles
                     .iter()
-                    .map(|lens| {
+                    .map(|bundle| {
                         format!(
-                            "  {}: {} part(s), {} bytes, ~{} tokens (estimate)",
-                            lens["provider"].as_str().unwrap_or("?"),
-                            lens["parts"],
-                            lens["packetBytes"],
-                            lens["estimatedTokens"]
+                            "  bundle {}: {} seat(s), ~{} tokens (estimate), {} over its share",
+                            bundle["bundle"].as_str().unwrap_or("?"),
+                            bundle["seats"],
+                            bundle["estimatedTokens"],
+                            bundle["overBy"]
                         )
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
             })
             .unwrap_or_default();
+        let hint = if args.coverage == "exhaustive" {
+            "--coverage exhaustive cannot fit this repository; use --coverage auto or risk-sampled"
+        } else {
+            "Narrow the scope (--base-commit/--base/--dir/--only/--skip), raise --seat-token-budget/--run-token-budget/--max-total-seats, or pass --allow-oversize-lenses to freeze anyway"
+        };
         return Err(CommandError::incomplete(format!(
-            "refusing to freeze the plan: lens packets do not fit the host\n{per_lens}\n{}\nNarrow the scope (--base-commit/--base/--dir/--only/--skip), raise --seat-token-budget/--max-lens-seats, or pass --allow-oversize-lenses to freeze anyway",
+            "refusing to freeze the plan: lens seats do not fit the run budget\n{per_bundle}\n{}\n{hint}",
             violations.join("\n")
         )));
     }
@@ -1101,8 +1222,10 @@ fn lens_work_items(
     executed_plan_digest: &str,
     out: Option<&std::path::Path>,
     execution: Option<&legion_audit::ExecutionReport>,
-) -> (Vec<Value>, Vec<String>) {
-    let built = (|| -> Result<Vec<Value>, String> {
+    args: &AuditArgs,
+) -> (Vec<Value>, Vec<String>, Option<Value>) {
+    let mut dispatch_gap: Option<String> = None;
+    let built = (|| -> Result<(Vec<Value>, Value), String> {
         let (plan, inventory) = basis.as_ref().map_err(Clone::clone)?;
         if executed_plan_digest != plan.digest() {
             return Err("plan digest differs from the executed plan".into());
@@ -1123,7 +1246,7 @@ fn lens_work_items(
         .map_err(|error| error.to_string())?;
         // A provider whose denominator does not fit one packet is split into
         // parts; the writer names each part file and the provider index.
-        let items = match out {
+        let mut items = match out {
             Some(out) => legion_audit::native_providers::reasoning::ingest::write_lens_packets(
                 &out.join("lens-packets"),
                 &work,
@@ -1133,13 +1256,43 @@ fn lens_work_items(
             }
         }
         .map_err(|error| error.to_string())?;
-        Ok(items)
+        // Bundled seats and waves over the packets actually written (after
+        // findings promotion), written as `lens-dispatch.json`.
+        let limits = dispatch_limits(args);
+        let dispatch = match out {
+            Some(out) => legion_audit::native_providers::reasoning::ingest::write_lens_dispatch(
+                out, &work, &limits,
+            )
+            .map_err(|error| error.to_string())?,
+            None => legion_audit::native_providers::reasoning::ingest::lens_dispatch_plan(
+                &work, &limits,
+            ),
+        };
+        annotate_lens_work(&mut items, &dispatch);
+        Ok((items, dispatch))
     })();
     match built {
-        Ok(items) => (items, Vec::new()),
+        Ok((items, dispatch)) => {
+            if dispatch["withinLimits"].as_bool() == Some(false) && !args.allow_oversize_lenses {
+                // Findings promotion added files after the freeze-time gate:
+                // the run is over budget and says so instead of passing quietly.
+                dispatch_gap = Some(format!(
+                    "lens-dispatch-over-budget:{}",
+                    dispatch["violations"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ));
+            }
+            (items, dispatch_gap.into_iter().collect(), Some(dispatch))
+        }
         Err(message) => (
             Vec::new(),
             vec![format!("lens-packets-unavailable:{message}")],
+            None,
         ),
     }
 }
@@ -3840,9 +3993,12 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
-            seat_token_budget: 200_000,
+            seat_token_budget: 150_000,
             max_lens_seats: 16,
             allow_oversize_lenses: false,
+            coverage: "auto".into(),
+            run_token_budget: 6_000_000,
+            max_total_seats: 48,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -4681,9 +4837,12 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
-            seat_token_budget: 200_000,
+            seat_token_budget: 150_000,
             max_lens_seats: 16,
             allow_oversize_lenses: false,
+            coverage: "auto".into(),
+            run_token_budget: 6_000_000,
+            max_total_seats: 48,
         }
     }
 

@@ -1,0 +1,1225 @@
+//! Frozen coverage plan for the reasoning lenses (design
+//! `docs/architecture/2026-10-15-scaled-audit-design.md` section 1, with
+//! Astra's D2 conditions).
+//!
+//! A lens never claims that every lens judged every line. At plan time this
+//! module chooses, per seat bundle, the **review set** the lens will examine:
+//!
+//! 1. **mandatory** stratum, reviewed exhaustively and never shrunk to fit:
+//!    entrypoints, security-sensitive paths, files changed since the base, and
+//!    the top-N files by churn;
+//! 2. **hotspot** stratum, ranked by churn + fan-in + size, reviewed
+//!    exhaustively up to the bundle budget;
+//! 3. **remainder** stratum, sampled in `sha256(seed || path)` order with a
+//!    floor of `min(30, |stratum|)`.
+//!
+//! The result is frozen into each lens provider's `configuration.coverage`, so
+//! the plan digest covers it. Everything here is pure and deterministic: the
+//! same facts and request give the same review set. File facts come from the
+//! frozen inventory, `fs::metadata`, and read-only `git log --numstat`; no
+//! search or indexing code lives here (fan-in uses only the inventory's own
+//! `dependencies`, which is empty for most source files; that signal is an
+//! acknowledged gap, see `gather_facts`).
+//!
+//! Statistical statements are deliberately narrow (Astra D2): only the seeded
+//! random remainder stratum carries a confidence statement, scoped to "findings
+//! this lens can detect in a sampled file". The rule of three is used only when
+//! zero high-severity findings were observed; Clopper-Pearson otherwise.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
+
+use legion_contracts::canonical_digest;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+
+use super::lens_plan::{self, BundleInfo, ExcerptMode, BUNDLE_ADJUDICATION, COVERAGE_BUNDLES};
+use crate::{
+    error::AuditError,
+    inventory::{glob_match, InventoryEnvelope},
+};
+
+pub const MODE_EXHAUSTIVE: &str = "exhaustive";
+pub const MODE_RISK_SAMPLED: &str = "risk-sampled";
+
+/// Run budget: estimated input tokens across every seat.
+pub const DEFAULT_RUN_TOKEN_BUDGET: u64 = 6_000_000;
+/// Most seats the whole run may use (all waves).
+pub const DEFAULT_MAX_TOTAL_SEATS: u64 = 48;
+/// Largest estimated token count one seat may carry.
+pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = 150_000;
+/// Wave width (`CHILD_AGENTS_MAX` in the Audit manual).
+pub const WAVE_WIDTH: u64 = 16;
+/// Floor of the sampled remainder stratum: `min(SAMPLE_FLOOR, |stratum|)`.
+pub const SAMPLE_FLOOR: usize = 30;
+/// Top-N files by churn that join the mandatory stratum.
+pub const CHURN_TOP_N: usize = 25;
+/// Share (percent) of the budget left after the mandatory stratum that the
+/// hotspot stratum may take; the rest is the sample's.
+pub const HOTSPOT_SHARE_PERCENT: u64 = 70;
+/// Percent of a bundle's budget the plan commits; the rest is headroom for
+/// findings promotion and packet overhead.
+pub const COMMIT_PERCENT: u64 = 90;
+/// Commits read for churn.
+const CHURN_COMMIT_LIMIT: &str = "2000";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoverageMode {
+    Auto,
+    Exhaustive,
+    RiskSampled,
+}
+
+impl CoverageMode {
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "auto" => Some(Self::Auto),
+            "exhaustive" => Some(Self::Exhaustive),
+            "risk-sampled" => Some(Self::RiskSampled),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Exhaustive => "exhaustive",
+            Self::RiskSampled => "risk-sampled",
+        }
+    }
+}
+
+/// What the invoker asked for; frozen into every lens provider's
+/// `configuration.reasoning.coverageRequest` so a recompile is reproducible.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CoverageRequest {
+    pub mode: CoverageMode,
+    pub run_token_budget: u64,
+    pub max_total_seats: u64,
+    pub seat_token_budget: u64,
+}
+
+impl Default for CoverageRequest {
+    fn default() -> Self {
+        Self {
+            mode: CoverageMode::Auto,
+            run_token_budget: DEFAULT_RUN_TOKEN_BUDGET,
+            max_total_seats: DEFAULT_MAX_TOTAL_SEATS,
+            seat_token_budget: DEFAULT_SEAT_TOKEN_BUDGET,
+        }
+    }
+}
+
+impl CoverageRequest {
+    pub fn to_value(self) -> Value {
+        json!({
+            "mode": self.mode.as_str(),
+            "runTokenBudget": self.run_token_budget,
+            "maxTotalSeats": self.max_total_seats,
+            "seatTokenBudget": self.seat_token_budget,
+        })
+    }
+
+    /// Reads `reasoning.coverageRequest`; absent or malformed fields fall back
+    /// to the defaults.
+    pub fn from_reasoning(reasoning: &Value) -> Self {
+        let mut request = Self::default();
+        let Some(value) = reasoning.get("coverageRequest") else {
+            return request;
+        };
+        if let Some(mode) = value
+            .get("mode")
+            .and_then(Value::as_str)
+            .and_then(CoverageMode::parse)
+        {
+            request.mode = mode;
+        }
+        for (field, slot) in [
+            ("runTokenBudget", &mut request.run_token_budget),
+            ("maxTotalSeats", &mut request.max_total_seats),
+            ("seatTokenBudget", &mut request.seat_token_budget),
+        ] {
+            if let Some(number) = value
+                .get(field)
+                .and_then(Value::as_u64)
+                .filter(|n| *n > 0)
+            {
+                *slot = number;
+            }
+        }
+        request
+    }
+}
+
+/// Facts about one inventory file, gathered read-only.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct FileFacts {
+    pub size: u64,
+    pub digest: Option<String>,
+    /// Commits touching the file in the churn window.
+    pub churn: u32,
+    pub fan_in: u32,
+    /// `entrypoint` | `security-sensitive` when a mandatory path/symbol rule hit.
+    pub signal: Option<&'static str>,
+    /// Changed since the base commit (diff-scoped runs).
+    pub changed: bool,
+}
+
+/// One coverage-planned lens provider and its (selector-bound) denominator.
+#[derive(Clone, Debug)]
+pub struct LensInput {
+    pub provider_id: String,
+    pub paths: Vec<String>,
+}
+
+const ENTRYPOINT_GLOBS: &[&str] = &[
+    "**/main.*",
+    "**/bin/**",
+    "**/bins/**/main.rs",
+    "**/commands/**",
+    "**/routes/**",
+    "**/handlers/**",
+    "**/controllers/**",
+    "**/api/**",
+    "**/ipc/**",
+    "**/server.*",
+    "**/router.*",
+    "src-tauri/src/lib.rs",
+    "src-tauri/src/main.rs",
+];
+
+const SECURITY_TOKENS: &[&str] = &[
+    "auth",
+    "authn",
+    "authz",
+    "authentication",
+    "authorization",
+    "crypto",
+    "cryptography",
+    "secret",
+    "secrets",
+    "credential",
+    "credentials",
+    "password",
+    "passwords",
+    "token",
+    "tokens",
+    "keychain",
+    "signing",
+    "signature",
+    "signatures",
+    "ipc",
+    "deserialize",
+    "sandbox",
+    "permission",
+    "permissions",
+    "entitlement",
+    "entitlements",
+    "jwt",
+    "oauth",
+    "session",
+    "sessions",
+    "cookie",
+    "cookies",
+    "tls",
+    "cert",
+    "certs",
+    "exec",
+    "shell",
+    "network",
+    "socket",
+    "sockets",
+    "http",
+    "security",
+    "guard",
+];
+
+const SECURITY_SYMBOL_HINTS: &[&str] = &["exec", "spawn", "deserialize", "decrypt", "verify_signature"];
+
+/// Mandatory-stratum path/symbol rule.
+pub fn classify_signal(path: &str, symbols: &[String]) -> Option<&'static str> {
+    if ENTRYPOINT_GLOBS.iter().any(|glob| glob_match(glob, path)) {
+        return Some("entrypoint");
+    }
+    let lower = path.to_ascii_lowercase();
+    let hit = lower
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| SECURITY_TOKENS.contains(&token));
+    if hit
+        || symbols.iter().any(|symbol| {
+            let symbol = symbol.to_ascii_lowercase();
+            SECURITY_SYMBOL_HINTS.iter().any(|hint| symbol.contains(hint))
+        })
+    {
+        return Some("security-sensitive");
+    }
+    None
+}
+
+/// Generated, vendored, lock and minified files: kept in deterministic
+/// denominators, left out of lens review sets (declared, not silently dropped).
+pub fn is_lens_excluded(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    const SEGMENTS: &[&str] = &[
+        "vendor",
+        "vendored",
+        "node_modules",
+        "third_party",
+        "third-party",
+        "generated",
+        "__generated__",
+        ".yarn",
+    ];
+    if lower
+        .split('/')
+        .rev()
+        .skip(1)
+        .any(|segment| SEGMENTS.contains(&segment))
+    {
+        return true;
+    }
+    const SUFFIXES: &[&str] = &[
+        ".lock",
+        "-lock.json",
+        "-lock.yaml",
+        ".min.js",
+        ".min.mjs",
+        ".min.css",
+        ".generated.ts",
+        ".generated.rs",
+        "_generated.rs",
+        ".pb.go",
+        ".g.dart",
+        ".bundle.js",
+    ];
+    SUFFIXES.iter().any(|suffix| lower.ends_with(suffix))
+}
+
+/// Changed paths of a diff-scoped audit (`reviewContext.changedHunks` keys).
+pub fn changed_paths_from_reasoning(reasoning: &Value) -> BTreeSet<String> {
+    let context = reasoning.get("reviewContext");
+    if context
+        .and_then(|value| value.get("mode"))
+        .and_then(Value::as_str)
+        != Some("diff")
+    {
+        return BTreeSet::new();
+    }
+    context
+        .and_then(|value| value.get("changedHunks"))
+        .and_then(Value::as_object)
+        .map(|map| map.keys().cloned().collect())
+        .unwrap_or_default()
+}
+
+/// Per-path commit counts from read-only `git log --numstat`. Empty when the
+/// root is not a git work tree or git is unavailable (churn is then 0).
+fn git_churn(root: &Path) -> BTreeMap<String, u32> {
+    let mut counts: BTreeMap<String, u32> = BTreeMap::new();
+    let output = std::process::Command::new("git")
+        .args([
+            "log",
+            "--numstat",
+            "--format=",
+            "-n",
+            CHURN_COMMIT_LIMIT,
+            "--no-renames",
+        ])
+        .current_dir(root)
+        .output();
+    let Ok(output) = output else {
+        return counts;
+    };
+    if !output.status.success() {
+        return counts;
+    }
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let mut fields = line.splitn(3, '\t');
+        let (Some(added), Some(deleted), Some(path)) =
+            (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if added == "-" || deleted == "-" {
+            continue;
+        }
+        *counts.entry(path.to_owned()).or_insert(0) += 1;
+    }
+    counts
+}
+
+/// Gathers facts for every inventory file. Fan-in is the number of inventory
+/// entries whose `dependencies` name the file (by path or stem); the
+/// filesystem inventory only fills `dependencies` for manifests, so this is
+/// usually 0 and the hotspot score leans on churn and size. A blueprint graph
+/// would be the better source; none is available to this crate (reported gap).
+pub fn gather_facts(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    changed: &BTreeSet<String>,
+) -> BTreeMap<String, FileFacts> {
+    let churn = git_churn(root);
+    let mut dependency_counts: BTreeMap<&str, u32> = BTreeMap::new();
+    for entry in &inventory.entries {
+        for dependency in &entry.dependencies {
+            *dependency_counts.entry(dependency.as_str()).or_insert(0) += 1;
+        }
+    }
+    inventory
+        .entries
+        .iter()
+        .map(|entry| {
+            let size = std::fs::metadata(root.join(&entry.path))
+                .map(|metadata| metadata.len())
+                .unwrap_or(0);
+            let stem = Path::new(&entry.path)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or_default();
+            let fan_in = dependency_counts
+                .get(entry.path.as_str())
+                .copied()
+                .unwrap_or(0)
+                + dependency_counts.get(stem).copied().unwrap_or(0);
+            (
+                entry.path.clone(),
+                FileFacts {
+                    size,
+                    digest: entry.digest.clone(),
+                    churn: churn.get(&entry.path).copied().unwrap_or(0),
+                    fan_in,
+                    signal: classify_signal(&entry.path, &entry.symbols),
+                    changed: changed.contains(&entry.path),
+                },
+            )
+        })
+        .collect()
+}
+
+/// Estimated excerpt bytes for one file in `mode` (a labelled estimate; the
+/// dispatch plan later measures the real packets).
+pub fn estimate_bytes(mode: ExcerptMode, size: u64) -> u64 {
+    match mode {
+        ExcerptMode::Raw => size,
+        ExcerptMode::Skeleton => size / 4 + 200,
+        ExcerptMode::Regions => size.min(size / 4 + 6144),
+    }
+}
+
+fn seeded_key(seed: &str, path: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(seed.as_bytes());
+    hasher.update([0u8]);
+    hasher.update(path.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+/// Hotspot score: churn, fan-in and size (KiB, capped). Higher is riskier.
+pub fn hotspot_score(facts: &FileFacts) -> u64 {
+    u64::from(facts.churn) * 4 + u64::from(facts.fan_in) * 3 + (facts.size / 1024).min(64)
+}
+
+#[derive(Clone, Copy)]
+enum Stratum {
+    Mandatory,
+    Hotspot,
+    Sample,
+}
+
+struct BundleSelection {
+    /// path -> stratum chosen for it
+    chosen: BTreeMap<String, Stratum>,
+    estimated_bytes: u64,
+}
+
+fn sample_mode(bundle: &BundleInfo, mandatory: bool) -> ExcerptMode {
+    if mandatory && bundle.raw_mandatory {
+        ExcerptMode::Raw
+    } else {
+        bundle.sampled_mode
+    }
+}
+
+/// Selects one bundle's review set from the global strata under `budget_bytes`.
+fn select_for_bundle(
+    bundle: &BundleInfo,
+    budget_bytes: u64,
+    mandatory: &[&str],
+    hotspots: &[&str],
+    remainder: &[&str],
+    facts: &BTreeMap<String, FileFacts>,
+) -> BundleSelection {
+    let size_of = |path: &str| facts.get(path).map_or(0, |f| f.size);
+    let mut chosen: BTreeMap<String, Stratum> = BTreeMap::new();
+    let mut used = 0u64;
+    // Mandatory coverage never shrinks to fit.
+    for path in mandatory {
+        used += estimate_bytes(sample_mode(bundle, true), size_of(path));
+        chosen.insert((*path).to_owned(), Stratum::Mandatory);
+    }
+    let remaining = budget_bytes.saturating_sub(used);
+    let hotspot_budget = remaining * HOTSPOT_SHARE_PERCENT / 100;
+    let mut hot_used = 0u64;
+    for path in hotspots {
+        let cost = estimate_bytes(sample_mode(bundle, false), size_of(path));
+        if hot_used + cost > hotspot_budget {
+            break;
+        }
+        hot_used += cost;
+        chosen.insert((*path).to_owned(), Stratum::Hotspot);
+    }
+    used += hot_used;
+    let sample_budget = budget_bytes.saturating_sub(used);
+    let floor = SAMPLE_FLOOR.min(remainder.len());
+    let mut sample_used = 0u64;
+    for (index, path) in remainder.iter().enumerate() {
+        let cost = estimate_bytes(sample_mode(bundle, false), size_of(path));
+        if index >= floor && sample_used + cost > sample_budget {
+            break;
+        }
+        sample_used += cost;
+        chosen.insert((*path).to_owned(), Stratum::Sample);
+    }
+    BundleSelection {
+        chosen,
+        estimated_bytes: used + sample_used,
+    }
+}
+
+/// Plans coverage for every coverage-planned lens in `lenses` and returns the
+/// `configuration.coverage` value to freeze per provider id.
+pub fn plan_coverage(
+    seed_basis: &Value,
+    facts: &BTreeMap<String, FileFacts>,
+    lenses: &[LensInput],
+    request: &CoverageRequest,
+) -> Result<BTreeMap<String, Value>, AuditError> {
+    let seed = canonical_digest(&json!({
+        "kind": "legion-coverage-seed:v1",
+        "basis": seed_basis,
+        "request": request.to_value(),
+    }))
+    .map_err(|error| AuditError::Invalid(error.to_string()))?;
+
+    // Providers per bundle, in provider-id order.
+    let mut bundle_lenses: BTreeMap<&'static str, Vec<&LensInput>> = BTreeMap::new();
+    for lens in lenses {
+        if let Some(bundle) = lens_plan::bundle_for_provider(&lens.provider_id) {
+            bundle_lenses.entry(bundle.id).or_default().push(lens);
+        }
+    }
+    let present: Vec<BundleInfo> = COVERAGE_BUNDLES
+        .iter()
+        .copied()
+        .filter(|bundle| bundle_lenses.contains_key(bundle.id))
+        .collect();
+
+    // Shares: absent bundles' shares flow to the present ones pro rata.
+    let present_share: u64 = present.iter().map(|b| u64::from(b.budget_share_bp)).sum();
+    let planned_share = present_share.max(1);
+    let spendable = 10_000 - u64::from(BUNDLE_ADJUDICATION.budget_share_bp);
+    let base_tokens = |bundle: &BundleInfo| -> u64 {
+        // Present bundles split the non-adjudication budget by relative share,
+        // so an absent bundle's share is not wasted.
+        request.run_token_budget * spendable / 10_000 * u64::from(bundle.budget_share_bp)
+            / planned_share
+    };
+
+    // Union eligible universe per bundle.
+    let denominators: BTreeMap<&'static str, BTreeSet<&str>> = bundle_lenses
+        .iter()
+        .map(|(id, members)| {
+            (
+                *id,
+                members
+                    .iter()
+                    .flat_map(|lens| lens.paths.iter().map(String::as_str))
+                    .collect(),
+            )
+        })
+        .collect();
+
+    // Exhaustive-fit estimate: base excerpt mode of each lens, one seat read
+    // per bundle part (max over the bundle's lenses).
+    let mut fits = true;
+    let mut estimated_seats = 0u64;
+    let mut exhaustive_tokens: BTreeMap<&'static str, u64> = BTreeMap::new();
+    for bundle in &present {
+        let members = &bundle_lenses[bundle.id];
+        let bytes = members
+            .iter()
+            .map(|lens| {
+                let mode =
+                    lens_plan::lens_plan_excerpt_mode(&lens.provider_id).unwrap_or(ExcerptMode::Raw);
+                lens.paths
+                    .iter()
+                    .map(|path| estimate_bytes(mode, facts.get(path).map_or(0, |f| f.size)))
+                    .sum::<u64>()
+            })
+            .max()
+            .unwrap_or(0);
+        let tokens = bytes / 4;
+        exhaustive_tokens.insert(bundle.id, tokens);
+        estimated_seats += bytes.div_ceil(super::excerpts::MAX_TOTAL_EXCERPT_BYTES as u64).max(1);
+        if tokens * 100 > base_tokens(bundle) * COMMIT_PERCENT {
+            fits = false;
+        }
+    }
+    if estimated_seats > request.max_total_seats {
+        fits = false;
+    }
+    let sampled = match request.mode {
+        CoverageMode::Exhaustive => false,
+        CoverageMode::RiskSampled => true,
+        CoverageMode::Auto => !fits,
+    };
+
+    let mut configs: BTreeMap<String, Value> = BTreeMap::new();
+    if !sampled {
+        for lens in lenses {
+            let Some(bundle) = lens_plan::bundle_for_provider(&lens.provider_id) else {
+                continue;
+            };
+            let mut paths = lens.paths.clone();
+            paths.sort();
+            paths.dedup();
+            let digest = canonical_digest(&paths)
+                .map_err(|error| AuditError::Invalid(error.to_string()))?;
+            configs.insert(
+                lens.provider_id.clone(),
+                json!({
+                    "schemaVersion": 1,
+                    "mode": MODE_EXHAUSTIVE,
+                    "requestedMode": request.mode.as_str(),
+                    "fitsExhaustive": fits,
+                    "seed": seed,
+                    "bundle": bundle.id,
+                    "tier": bundle.tier,
+                    "budgetShareBp": bundle.budget_share_bp,
+                    "tokenBudget": base_tokens(&bundle),
+                    "estimatedTokens": exhaustive_tokens.get(bundle.id).copied().unwrap_or(0),
+                    "denominator": paths.len(),
+                    "reviewSet": paths,
+                    "reviewSetDigest": digest,
+                    "strata": [{"name": "all", "N": lens.paths.len(), "n": lens.paths.len(), "paths": Value::Null}],
+                    "excluded": {"count": 0},
+                    "declaredUnsampled": 0,
+                    "excerpt": {"mode": Value::Null, "mandatoryMode": Value::Null, "dedup": false},
+                }),
+            );
+        }
+        return Ok(configs);
+    }
+
+    // ---- risk-sampled -------------------------------------------------------
+    let universe: BTreeSet<&str> = denominators.values().flatten().copied().collect();
+    let eligible: Vec<&str> = universe
+        .iter()
+        .copied()
+        .filter(|path| !is_lens_excluded(path))
+        .collect();
+
+    // Mandatory: signal, changed, top-N churn.
+    let mut churn_ranked: Vec<&str> = eligible
+        .iter()
+        .copied()
+        .filter(|path| facts.get(*path).is_some_and(|f| f.churn > 0))
+        .collect();
+    churn_ranked.sort_by(|left, right| {
+        let (l, r) = (&facts[*left], &facts[*right]);
+        r.churn.cmp(&l.churn).then_with(|| left.cmp(right))
+    });
+    let churn_top: BTreeSet<&str> = churn_ranked.into_iter().take(CHURN_TOP_N).collect();
+    let mandatory: Vec<&str> = eligible
+        .iter()
+        .copied()
+        .filter(|path| {
+            facts
+                .get(*path)
+                .is_some_and(|f| f.signal.is_some() || f.changed)
+                || churn_top.contains(path)
+        })
+        .collect();
+    let mandatory_set: BTreeSet<&str> = mandatory.iter().copied().collect();
+    let mut hotspots: Vec<&str> = eligible
+        .iter()
+        .copied()
+        .filter(|path| !mandatory_set.contains(path))
+        .collect();
+    hotspots.sort_by(|left, right| {
+        let default = FileFacts::default();
+        let l = hotspot_score(facts.get(*left).unwrap_or(&default));
+        let r = hotspot_score(facts.get(*right).unwrap_or(&default));
+        r.cmp(&l).then_with(|| left.cmp(right))
+    });
+    // Size alone does not make a hotspot: only files with a churn or fan-in
+    // signal are ranked hotspots; the rest is remainder material (sampled).
+    let (hotspots, mut remainder): (Vec<&str>, Vec<&str>) =
+        hotspots.into_iter().partition(|path| {
+            facts
+                .get(*path)
+                .is_some_and(|f| f.churn > 0 || f.fan_in > 0)
+        });
+    remainder.sort_by_key(|path| (seeded_key(&seed, path), (*path).to_owned()));
+
+    // Budgets: surplus of bundles that fit entirely flows to the others.
+    let mut budget_tokens: BTreeMap<&'static str, u64> = present
+        .iter()
+        .map(|bundle| (bundle.id, base_tokens(bundle)))
+        .collect();
+    let mut full_cost: BTreeMap<&'static str, u64> = BTreeMap::new();
+    for bundle in &present {
+        let tokens: u64 = eligible
+            .iter()
+            .filter(|path| denominators[bundle.id].contains(**path))
+            .map(|path| {
+                let mandatory = mandatory_set.contains(path);
+                estimate_bytes(
+                    sample_mode(bundle, mandatory),
+                    facts.get(*path).map_or(0, |f| f.size),
+                )
+            })
+            .sum::<u64>()
+            / 4;
+        full_cost.insert(bundle.id, tokens);
+    }
+    let surplus: u64 = present
+        .iter()
+        .map(|bundle| budget_tokens[bundle.id].saturating_sub(full_cost[bundle.id] * 100 / COMMIT_PERCENT))
+        .sum();
+    let deficit_share: u64 = present
+        .iter()
+        .filter(|bundle| full_cost[bundle.id] * 100 > budget_tokens[bundle.id] * COMMIT_PERCENT)
+        .map(|bundle| u64::from(bundle.budget_share_bp))
+        .sum();
+    if deficit_share > 0 {
+        for bundle in &present {
+            if full_cost[bundle.id] * 100 > budget_tokens[bundle.id] * COMMIT_PERCENT {
+                *budget_tokens.get_mut(bundle.id).expect("present bundle") +=
+                    surplus * u64::from(bundle.budget_share_bp) / deficit_share;
+            }
+        }
+        for bundle in &present {
+            if full_cost[bundle.id] * 100 <= budget_tokens[bundle.id] * COMMIT_PERCENT {
+                budget_tokens.insert(bundle.id, full_cost[bundle.id] * 100 / COMMIT_PERCENT);
+            }
+        }
+    }
+
+    let mut selections: BTreeMap<&'static str, BundleSelection> = BTreeMap::new();
+    for bundle in &present {
+        let den = &denominators[bundle.id];
+        let keep = |list: &Vec<&str>| -> Vec<String> {
+            list.iter()
+                .filter(|path| den.contains(**path))
+                .map(|path| (*path).to_owned())
+                .collect()
+        };
+        let m = keep(&mandatory);
+        let h = keep(&hotspots);
+        let r = keep(&remainder);
+        let m_refs: Vec<&str> = m.iter().map(String::as_str).collect();
+        let h_refs: Vec<&str> = h.iter().map(String::as_str).collect();
+        let r_refs: Vec<&str> = r.iter().map(String::as_str).collect();
+        let budget_bytes = budget_tokens[bundle.id] * 4 * COMMIT_PERCENT / 100;
+        selections.insert(
+            bundle.id,
+            select_for_bundle(bundle, budget_bytes, &m_refs, &h_refs, &r_refs, facts),
+        );
+    }
+
+    for lens in lenses {
+        let Some(bundle) = lens_plan::bundle_for_provider(&lens.provider_id) else {
+            continue;
+        };
+        let selection = &selections[bundle.id];
+        let denominator: BTreeSet<&str> = lens.paths.iter().map(String::as_str).collect();
+        let mut review_set: Vec<String> = Vec::new();
+        let mut strata_paths: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+        for (path, stratum) in &selection.chosen {
+            if !denominator.contains(path.as_str()) {
+                continue;
+            }
+            review_set.push(path.clone());
+            let name = match stratum {
+                Stratum::Mandatory => "mandatory",
+                Stratum::Hotspot => "hotspot",
+                Stratum::Sample => "remainder",
+            };
+            strata_paths.entry(name).or_default().push(path.clone());
+        }
+        review_set.sort();
+        let excluded = lens
+            .paths
+            .iter()
+            .filter(|path| is_lens_excluded(path))
+            .count();
+        let in_den = |list: &[&str]| list.iter().filter(|p| denominator.contains(**p)).count();
+        let mandatory_n = in_den(&mandatory);
+        let hotspot_n = in_den(&hotspots);
+        let remainder_n = in_den(&remainder);
+        let strata = json!([
+            {"name": "mandatory", "N": mandatory_n, "n": strata_paths.get("mandatory").map_or(0, Vec::len),
+             "paths": strata_paths.get("mandatory").cloned().unwrap_or_default()},
+            {"name": "hotspot", "N": hotspot_n, "n": strata_paths.get("hotspot").map_or(0, Vec::len),
+             "paths": strata_paths.get("hotspot").cloned().unwrap_or_default()},
+            {"name": "remainder", "N": remainder_n, "n": strata_paths.get("remainder").map_or(0, Vec::len),
+             "paths": strata_paths.get("remainder").cloned().unwrap_or_default(), "sampling": "seeded-uniform"},
+            {"name": "excluded", "N": excluded, "n": 0, "paths": Value::Null,
+             "reason": "generated-vendored-lock-minified"},
+        ]);
+        let digest = canonical_digest(&review_set)
+            .map_err(|error| AuditError::Invalid(error.to_string()))?;
+        let declared_unsampled = lens.paths.len().saturating_sub(review_set.len());
+        configs.insert(
+            lens.provider_id.clone(),
+            json!({
+                "schemaVersion": 1,
+                "mode": MODE_RISK_SAMPLED,
+                "requestedMode": request.mode.as_str(),
+                "fitsExhaustive": fits,
+                "seed": seed,
+                "bundle": bundle.id,
+                "tier": bundle.tier,
+                "budgetShareBp": bundle.budget_share_bp,
+                "tokenBudget": budget_tokens[bundle.id],
+                "estimatedTokens": selection.estimated_bytes / 4,
+                "denominator": lens.paths.len(),
+                "reviewSet": review_set,
+                "reviewSetDigest": digest,
+                "strata": strata,
+                "excluded": {"count": excluded},
+                "declaredUnsampled": declared_unsampled,
+                "excerpt": {
+                    "mode": bundle.sampled_mode,
+                    "mandatoryMode": if bundle.raw_mandatory { json!(ExcerptMode::Raw) } else { Value::Null },
+                    "dedup": true,
+                },
+            }),
+        );
+    }
+    Ok(configs)
+}
+
+// ---------------------------------------------------------------------------
+// Confidence (Astra D2: narrow, assumption-stated)
+// ---------------------------------------------------------------------------
+
+/// 95% upper bound on the share of affected files given zero observations in
+/// `n` randomly sampled files: `3/n` (the rule of three). `None` for `n == 0`.
+pub fn rule_of_three_upper(n: u64) -> Option<f64> {
+    (n > 0).then(|| (3.0 / n as f64).min(1.0))
+}
+
+fn ln_binomial_cdf(n: u64, k: u64, p: f64) -> f64 {
+    // ln P(X <= k), X ~ Binomial(n, p), summed in log space.
+    if p <= 0.0 {
+        return 0.0;
+    }
+    if p >= 1.0 {
+        return if k >= n { 0.0 } else { f64::NEG_INFINITY };
+    }
+    let ratio = (p / (1.0 - p)).ln();
+    let mut ln_pmf = n as f64 * (1.0 - p).ln();
+    let mut terms = vec![ln_pmf];
+    for i in 0..k.min(n) {
+        ln_pmf += ((n - i) as f64 / (i + 1) as f64).ln() + ratio;
+        terms.push(ln_pmf);
+    }
+    let max = terms.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    max + terms.iter().map(|t| (t - max).exp()).sum::<f64>().ln()
+}
+
+/// Two-sided 95% Clopper-Pearson interval for `k` affected files among `n`
+/// sampled. Valid only when the sample is i.i.d.-like; the remainder stratum
+/// is a seeded uniform sample without replacement, which the binomial model
+/// treats conservatively when the sample is a small share of the stratum.
+pub fn clopper_pearson(n: u64, k: u64) -> (f64, f64) {
+    if n == 0 {
+        return (0.0, 1.0);
+    }
+    let alpha_half = 0.025f64;
+    // Upper: smallest p with P(X <= k | p) <= alpha/2 (cdf decreases in p).
+    let upper = if k >= n {
+        1.0
+    } else {
+        let (mut lo, mut hi) = (0.0f64, 1.0f64);
+        for _ in 0..80 {
+            let mid = (lo + hi) / 2.0;
+            if ln_binomial_cdf(n, k, mid).exp() > alpha_half {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        hi
+    };
+    // Lower: largest p with P(X >= k | p) <= alpha/2, i.e. P(X <= k-1) >= 1-alpha/2.
+    let lower = if k == 0 {
+        0.0
+    } else {
+        let (mut lo, mut hi) = (0.0f64, 1.0f64);
+        for _ in 0..80 {
+            let mid = (lo + hi) / 2.0;
+            if ln_binomial_cdf(n, k - 1, mid).exp() >= 1.0 - alpha_half {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        lo
+    };
+    (lower, upper)
+}
+
+/// Confidence statement for one stratum. Only the seeded random remainder gets
+/// a statistical claim; mandatory and hotspot strata are exhaustive within
+/// their frozen selection and carry none. `high_findings` counts high or
+/// critical findings anchored in the stratum's reviewed files.
+pub fn stratum_confidence(name: &str, population: u64, sampled: u64, high_findings: u64) -> Value {
+    if name != "remainder" {
+        return json!({
+            "claim": "none",
+            "basis": "exhaustive-within-frozen-selection",
+        });
+    }
+    if sampled == 0 {
+        return json!({"claim": "none", "basis": "empty-sample"});
+    }
+    let assumption = "seeded uniform sample without replacement; bound is on the share of files in this stratum carrying a high-or-critical finding this lens can detect in a sampled file; says nothing about unsampled files' lens-undetectable defects";
+    if high_findings == 0 {
+        json!({
+            "claim": "upper-bound",
+            "method": "rule-of-three",
+            "level": 0.95,
+            "population": population,
+            "sampled": sampled,
+            "observed": 0,
+            "upperBound": rule_of_three_upper(sampled),
+            "assumption": assumption,
+        })
+    } else {
+        let (lower, upper) = clopper_pearson(sampled, high_findings);
+        json!({
+            "claim": "interval",
+            "method": "clopper-pearson",
+            "level": 0.95,
+            "population": population,
+            "sampled": sampled,
+            "observed": high_findings,
+            "lowerBound": lower,
+            "upperBound": upper,
+            "assumption": assumption,
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Frozen-config readers
+// ---------------------------------------------------------------------------
+
+/// A lens provider's frozen coverage configuration.
+#[derive(Clone, Debug)]
+pub struct FrozenCoverage {
+    pub mode: String,
+    pub bundle: String,
+    pub seed: String,
+    pub review_set: BTreeSet<String>,
+    pub review_set_digest: String,
+    pub denominator: usize,
+    pub excluded: usize,
+    pub mandatory: BTreeSet<String>,
+    pub default_mode: Option<ExcerptMode>,
+    pub mandatory_mode: Option<ExcerptMode>,
+    pub dedup: bool,
+    pub strata: Value,
+}
+
+impl FrozenCoverage {
+    pub fn is_sampled(&self) -> bool {
+        self.mode == MODE_RISK_SAMPLED
+    }
+
+    pub fn from_value(value: &Value) -> Option<Self> {
+        let object = value.as_object()?;
+        let strings = |field: &str| -> BTreeSet<String> {
+            object
+                .get(field)
+                .and_then(Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(ToOwned::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let strata = object.get("strata").cloned().unwrap_or(Value::Null);
+        let mandatory = strata
+            .as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("name").and_then(Value::as_str) == Some("mandatory"))
+            })
+            .and_then(|item| item.get("paths"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mode_of = |field: &str| -> Option<ExcerptMode> {
+            object
+                .get("excerpt")
+                .and_then(|excerpt| excerpt.get(field))
+                .cloned()
+                .and_then(|value| serde_json::from_value(value).ok())
+        };
+        Some(Self {
+            mode: object.get("mode")?.as_str()?.to_owned(),
+            bundle: object.get("bundle")?.as_str()?.to_owned(),
+            seed: object.get("seed")?.as_str()?.to_owned(),
+            review_set: strings("reviewSet"),
+            review_set_digest: object.get("reviewSetDigest")?.as_str()?.to_owned(),
+            denominator: object.get("denominator")?.as_u64()? as usize,
+            excluded: object
+                .get("excluded")
+                .and_then(|excluded| excluded.get("count"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            mandatory,
+            default_mode: mode_of("mode"),
+            mandatory_mode: mode_of("mandatoryMode"),
+            dedup: object
+                .get("excerpt")
+                .and_then(|excerpt| excerpt.get("dedup"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            strata,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn facts_for(paths: &[String], size: u64) -> BTreeMap<String, FileFacts> {
+        paths
+            .iter()
+            .enumerate()
+            .map(|(index, path)| {
+                (
+                    path.clone(),
+                    FileFacts {
+                        size,
+                        digest: Some(format!("sha256:{index:064x}")),
+                        churn: (index % 7) as u32,
+                        fan_in: 0,
+                        signal: classify_signal(path, &[]),
+                        changed: false,
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn fixture_paths(count: usize) -> Vec<String> {
+        let mut paths: Vec<String> = (0..count)
+            .map(|index| match index % 10 {
+                0 => format!("src/auth/mod_{index:04}.rs"),
+                1 => format!("src/commands/cmd_{index:04}.rs"),
+                _ => format!("src/lib/file_{index:04}.rs"),
+            })
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    fn lenses(paths: &[String]) -> Vec<LensInput> {
+        [
+            "reasoning.security",
+            "reasoning.correctness",
+            "reasoning.schema",
+            "reasoning.architecture",
+            "reasoning.doc-drift",
+            "reasoning.performance",
+            "reasoning.minimize",
+            "reasoning.ai-slop",
+            "reasoning.naming",
+            "reasoning.dead-file",
+        ]
+        .iter()
+        .map(|id| LensInput {
+            provider_id: (*id).to_owned(),
+            paths: paths.to_vec(),
+        })
+        .collect()
+    }
+
+    fn request(mode: CoverageMode) -> CoverageRequest {
+        CoverageRequest {
+            mode,
+            ..CoverageRequest::default()
+        }
+    }
+
+    #[test]
+    fn same_inputs_give_the_same_review_set() {
+        let paths = fixture_paths(1100);
+        let facts = facts_for(&paths, 12 * 1024);
+        let basis = json!({"inventoryDigest": "sha256:aa"});
+        let a = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
+        let b = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
+        assert_eq!(a, b);
+        let c = plan_coverage(
+            &json!({"inventoryDigest": "sha256:bb"}),
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Auto),
+        )
+        .unwrap();
+        assert_ne!(
+            a["reasoning.security"]["reviewSetDigest"],
+            c["reasoning.security"]["reviewSetDigest"],
+            "a different seed samples a different remainder"
+        );
+    }
+
+    #[test]
+    fn eleven_hundred_files_plan_within_budget_and_mandatory_never_shrinks() {
+        let paths = fixture_paths(1100);
+        let facts = facts_for(&paths, 12 * 1024);
+        let basis = json!({"inventoryDigest": "sha256:aa"});
+        let plan = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
+        let security = &plan["reasoning.security"];
+        assert_eq!(security["mode"], MODE_RISK_SAMPLED);
+        assert_eq!(security["fitsExhaustive"], false);
+        let review = security["reviewSet"].as_array().unwrap().len();
+        assert!(review < 1100 && review > 200, "review set {review}");
+        // Every mandatory path (auth/commands signals) is in the review set.
+        let mandatory: Vec<&String> = paths
+            .iter()
+            .filter(|p| facts[*p].signal.is_some())
+            .collect();
+        let set: BTreeSet<&str> = security["reviewSet"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        assert!(mandatory.iter().all(|p| set.contains(p.as_str())));
+        // Estimated tokens of all bundles stay inside the run budget.
+        let total: u64 = ["reasoning.security", "reasoning.architecture", "reasoning.performance", "reasoning.minimize", "reasoning.ai-slop", "reasoning.naming"]
+            .iter()
+            .map(|id| plan[*id]["estimatedTokens"].as_u64().unwrap())
+            .sum();
+        assert!(total <= DEFAULT_RUN_TOKEN_BUDGET, "estimated {total} tokens");
+        // Lenses in one bundle share one review set.
+        assert_eq!(
+            plan["reasoning.security"]["reviewSetDigest"],
+            plan["reasoning.correctness"]["reviewSetDigest"]
+        );
+        // Declared unsampled accounts for the rest of the denominator.
+        assert_eq!(
+            security["declaredUnsampled"].as_u64().unwrap() as usize + review,
+            1100
+        );
+    }
+
+    #[test]
+    fn small_repository_stays_exhaustive_under_auto() {
+        let paths = fixture_paths(40);
+        let facts = facts_for(&paths, 2048);
+        let plan = plan_coverage(
+            &json!({}),
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Auto),
+        )
+        .unwrap();
+        for config in plan.values() {
+            assert_eq!(config["mode"], MODE_EXHAUSTIVE);
+            assert_eq!(config["reviewSet"].as_array().unwrap().len(), 40);
+            assert_eq!(config["declaredUnsampled"], 0);
+        }
+    }
+
+    #[test]
+    fn explicit_exhaustive_never_samples_even_when_it_does_not_fit() {
+        let paths = fixture_paths(1100);
+        let facts = facts_for(&paths, 12 * 1024);
+        let plan = plan_coverage(
+            &json!({}),
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Exhaustive),
+        )
+        .unwrap();
+        let security = &plan["reasoning.security"];
+        assert_eq!(security["mode"], MODE_EXHAUSTIVE);
+        assert_eq!(security["fitsExhaustive"], false);
+        assert_eq!(security["reviewSet"].as_array().unwrap().len(), 1100);
+    }
+
+    #[test]
+    fn changing_the_review_set_changes_the_digest_input() {
+        let paths = fixture_paths(1100);
+        let facts = facts_for(&paths, 12 * 1024);
+        let a = plan_coverage(&json!({}), &facts, &lenses(&paths), &request(CoverageMode::RiskSampled)).unwrap();
+        let mut bigger = request(CoverageMode::RiskSampled);
+        bigger.run_token_budget *= 2;
+        let b = plan_coverage(&json!({}), &facts, &lenses(&paths), &bigger).unwrap();
+        assert_ne!(
+            a["reasoning.security"]["reviewSetDigest"],
+            b["reasoning.security"]["reviewSetDigest"]
+        );
+        // A bigger budget only adds files (nested prefix selection).
+        let small: BTreeSet<&str> = a["reasoning.security"]["reviewSet"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        let large: BTreeSet<&str> = b["reasoning.security"]["reviewSet"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        assert!(small.is_subset(&large));
+    }
+
+    #[test]
+    fn confidence_is_scoped_to_the_random_stratum() {
+        assert_eq!(rule_of_three_upper(0), None);
+        assert!((rule_of_three_upper(30).unwrap() - 0.1).abs() < 1e-9);
+        let zero = stratum_confidence("remainder", 800, 30, 0);
+        assert_eq!(zero["method"], "rule-of-three");
+        assert!((zero["upperBound"].as_f64().unwrap() - 0.1).abs() < 1e-9);
+        let some = stratum_confidence("remainder", 800, 30, 2);
+        assert_eq!(some["method"], "clopper-pearson");
+        let (lo, hi) = (some["lowerBound"].as_f64().unwrap(), some["upperBound"].as_f64().unwrap());
+        assert!(lo > 0.0 && lo < 2.0 / 30.0 && hi > 2.0 / 30.0 && hi < 0.3, "{lo} {hi}");
+        assert_eq!(stratum_confidence("mandatory", 10, 10, 0)["claim"], "none");
+        // Known value: 0 of 30 gives a CP upper of about 0.116 (two-sided).
+        let (_, upper) = clopper_pearson(30, 0);
+        assert!((upper - 0.1157).abs() < 0.002, "{upper}");
+    }
+
+    #[test]
+    fn excluded_and_signal_rules() {
+        assert!(is_lens_excluded("vendor/x/lib.rs"));
+        assert!(is_lens_excluded("web/app.min.js"));
+        assert!(is_lens_excluded("Cargo.lock"));
+        assert!(!is_lens_excluded("src/vendor_client.rs"));
+        assert_eq!(classify_signal("bins/legion/src/main.rs", &[]), Some("entrypoint"));
+        assert_eq!(classify_signal("src/auth/session.rs", &[]), Some("security-sensitive"));
+        assert_eq!(classify_signal("src/design/layout.rs", &[]), None);
+    }
+}

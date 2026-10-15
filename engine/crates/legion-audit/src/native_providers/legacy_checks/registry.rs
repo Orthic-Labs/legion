@@ -428,3 +428,185 @@ pub fn spec(provider_id: &str) -> Option<&'static LegacyCheckSpec> {
 pub fn specs() -> &'static [LegacyCheckSpec] {
     LEGACY_CHECK_SPECS
 }
+
+/// Capability class of an external scanner a legacy check may need on the host.
+///
+/// The class decides what a missing tool means for the run. It is typed here,
+/// next to the frozen check projection, so the outcome is decided by the same
+/// table that names the tool.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CapabilityClass {
+    /// A native provider or lens covers the same domain. A missing tool is a
+    /// `capability-absent:<tool>` note and never blocks the run.
+    Substitutable { substitute: &'static str },
+    /// No native substitute exists. A missing tool leaves the run incomplete
+    /// through `unavailable:host-capability:<tool>`.
+    Advisory,
+    /// Adds information only. A missing tool is a note and never blocks.
+    Informational,
+}
+
+/// Host capability declaration for one scanner tool named by the registry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct HostCapability {
+    pub tool: &'static str,
+    pub class: CapabilityClass,
+}
+
+impl CapabilityClass {
+    /// Native substitute that covers the domain when the tool is absent.
+    pub const fn substitute(self) -> Option<&'static str> {
+        match self {
+            Self::Substitutable { substitute } => Some(substitute),
+            Self::Advisory | Self::Informational => None,
+        }
+    }
+}
+
+/// Scanner tools whose absence has a declared meaning. Tools not listed here
+/// keep the existing `unavailable:tool-missing:<tool>` behaviour.
+pub const HOST_CAPABILITIES: &[HostCapability] = &[
+    HostCapability {
+        tool: "gitleaks",
+        class: CapabilityClass::Substitutable {
+            substitute: "security.credentials",
+        },
+    },
+    HostCapability {
+        tool: "semgrep",
+        class: CapabilityClass::Substitutable {
+            substitute: "native security detectors and the security lens",
+        },
+    },
+    HostCapability {
+        tool: "jscpd",
+        class: CapabilityClass::Substitutable {
+            substitute: "minimize lens",
+        },
+    },
+    HostCapability {
+        tool: "knip",
+        class: CapabilityClass::Substitutable {
+            substitute: "dead-file lens",
+        },
+    },
+    HostCapability {
+        tool: "cargo-machete",
+        class: CapabilityClass::Substitutable {
+            substitute: "minimize lens",
+        },
+    },
+    HostCapability {
+        tool: "swiftlint",
+        class: CapabilityClass::Substitutable {
+            substitute: "security.agentic-ci and ai-slop lens",
+        },
+    },
+    HostCapability {
+        tool: "actionlint",
+        class: CapabilityClass::Substitutable {
+            substitute: "security.agentic-ci",
+        },
+    },
+    HostCapability {
+        tool: "cargo-audit",
+        class: CapabilityClass::Advisory,
+    },
+    HostCapability {
+        tool: "pip-audit",
+        class: CapabilityClass::Advisory,
+    },
+    HostCapability {
+        tool: "cargo-deny",
+        class: CapabilityClass::Advisory,
+    },
+    HostCapability {
+        tool: "cargo-geiger",
+        class: CapabilityClass::Informational,
+    },
+    HostCapability {
+        tool: "cargo-outdated",
+        class: CapabilityClass::Informational,
+    },
+    HostCapability {
+        tool: "license-checker",
+        class: CapabilityClass::Informational,
+    },
+];
+
+/// Declared host capability for `tool`, if the scanner has one.
+pub fn host_capability(tool: &str) -> Option<&'static HostCapability> {
+    HOST_CAPABILITIES.iter().find(|item| item.tool == tool)
+}
+
+/// What an absent declared tool means for the run.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AbsenceOutcome {
+    /// Blocking gap reason, emitted as `unavailable:<reason>`.
+    Blocking(String),
+    /// Non-blocking coverage note.
+    NonBlocking(String),
+}
+
+/// Outcome of a missing tool, or `None` when the tool has no declared class.
+pub fn absence_outcome(tool: &str) -> Option<AbsenceOutcome> {
+    match host_capability(tool)?.class {
+        CapabilityClass::Advisory => Some(AbsenceOutcome::Blocking(format!(
+            "host-capability:{tool}"
+        ))),
+        CapabilityClass::Substitutable { .. } | CapabilityClass::Informational => Some(
+            AbsenceOutcome::NonBlocking(format!("capability-absent:{tool}")),
+        ),
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    #[test]
+    fn missing_substitutable_tool_does_not_block() {
+        for tool in [
+            "gitleaks",
+            "semgrep",
+            "jscpd",
+            "knip",
+            "cargo-machete",
+            "swiftlint",
+            "actionlint",
+        ] {
+            assert_eq!(
+                absence_outcome(tool),
+                Some(AbsenceOutcome::NonBlocking(format!("capability-absent:{tool}"))),
+                "{tool} must note, not block"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_cargo_audit_blocks_when_its_provider_applies() {
+        // The rust-advisories provider selects only when Cargo.lock exists, so
+        // the absent-tool outcome is reached only in that case.
+        assert_eq!(
+            absence_outcome("cargo-audit"),
+            Some(AbsenceOutcome::Blocking(
+                "host-capability:cargo-audit".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn informational_tools_only_note() {
+        for tool in ["cargo-geiger", "cargo-outdated", "license-checker"] {
+            assert!(matches!(
+                absence_outcome(tool),
+                Some(AbsenceOutcome::NonBlocking(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn undeclared_tools_keep_existing_behaviour() {
+        assert_eq!(absence_outcome("cargo-fmt"), None);
+    }
+}

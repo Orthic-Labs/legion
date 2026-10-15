@@ -31,6 +31,32 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 `legion report <run-dir>/report.json --format md|html|sarif|json [--out <file>]` renders a frozen report;
 `legion fix --plan <sealed-remediation-plan>` validates a remediation plan and applies nothing.
 
+## Coverage modes and quality outcome
+
+Status: target contract (2026-10-15 scaled-audit design). Until that build lands, `legion audit` has no
+`--coverage` flag, runs every lens over its full denominator, and reports exhaustive coverage. The
+rules below are the target.
+
+- `--coverage auto|exhaustive|risk-sampled` (default `auto`) is frozen into the plan with its review set.
+- `exhaustive`: every denominator path of every reasoning lens is examined. It refuses up front when the
+  run exceeds the run budget; it never freezes an incomplete run.
+- `risk-sampled`: a frozen review set is examined. Its mandatory stratum (entrypoints, security-sensitive
+  paths, files changed since the base commit, top churn files) is reviewed exhaustively. Its hotspot
+  stratum (churn, fan-in, size, deterministic-finding density) is reviewed up to budget. Its remainder is a
+  seeded sample ordered by `sha256(planDigest || path)`, so it is reproducible and cannot be cherry-picked.
+  Paths outside the review set are recorded `declaredUnsampled`, not as gaps. A review-set path that was
+  not examined stays a gap, and the run stays `incomplete`.
+- `auto`: `exhaustive` when it fits the run budget, `risk-sampled` otherwise. The mode chosen is recorded.
+- Deterministic providers always cover every inventory path. Coverage mode never changes them.
+- Deterministic findings can promote files into the review set, never remove them.
+
+Report `coverageMode` (`exhaustive` or `sampled`) separately from the quality outcome. `auditStatus` keeps
+`pass | findings | incomplete`. `qualityGate` reads `proven` for an exhaustive clean run and `sampled` for a
+clean risk-sampled run; `sampled` is never `proven`. Findings and missing evidence keep their failure and
+incomplete states in either mode. Each reasoning lens reports `lensCoverage`:
+`{mode, denominator, reviewSet, examined, strata: [{name, N, n, findings, confidence}]}`. Statistical
+statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
+
 ## Reasoning lens packets (step 7 detail)
 
 The engine has no in-process reasoning host; the CLI process is the trusted host for ingest. For each
@@ -38,8 +64,11 @@ selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` w
 `<run-dir>/lens-packets/<provider>.json`, lists it under `lensWork` and `reasoningLensesPending`, and
 generates a random per-run epoch key at `<run-dir>/epoch.key` (mode 0600; only its digest appears in
 `plan.json` `epoch.digest` and the report claim `reasoningEpochDigest`). Never read, copy, or print the
-key. The session dispatches one fresh-context subagent per packet (up to `CHILD_AGENTS_MAX`) at the
-tier `lens-routing.md` assigns. Each subagent writes a result file:
+key. The session dispatches bundled seats listed in `<run-dir>/lens-dispatch.json` (bundle id, packet
+files, tier, wave) in resumable waves: at most `CHILD_AGENTS_MAX` seats run at once, judgment seats first.
+A stopped run resumes at the first seat without an ingested result. There is no lifetime seat limit; the
+run budget in `lens-dispatch.json` bounds the work. Each seat is one fresh-context subagent at the tier
+`lens-routing.md` assigns, and it writes one result file per bundled lens:
 
 ```json
 {"schemaVersion": 1, "kind": "legion-lens-result", "provider": "reasoning.security",
@@ -86,17 +115,21 @@ older receipts.
   `{findingId, provider, rule, severity, path, line, message, evidenceExcerpt}`. `null` means scanner
   results were unavailable (gap `scanner-candidates-unavailable:<provider>`; the lens stays uncovered).
 - `candidateWorkItems` (only `legacy.security.adjudication`): `null` when `scannerCandidates` is
-  `null`; otherwise `{parentPacketDigest, items}` with one isolated work item per candidate. Each
-  child packet contains only its candidate's evidence. `parentPacketDigest` is the canonical digest
-  of the batch packet with `candidateWorkItems` removed, avoiding a circular digest while binding
-  each child to the complete frozen batch evidence and invocation. An empty `scannerCandidates` array
-  therefore has an empty `items` array and remains distinct from unavailable candidates.
+  `null`; otherwise `{parentPacketDigest, triage, clusters, batches, confirmations}`, replacing the
+  earlier one-item-per-candidate shape. `parentPacketDigest` is the canonical digest of the batch packet
+  with `candidateWorkItems` removed, avoiding a circular digest while binding every batch to the complete
+  frozen evidence and invocation. `triage` lists candidates closed by a deterministic rule (see Security
+  adjudication). `clusters` group candidates by rule and normalized sink/excerpt digest. `batches` group
+  clusters by rule family, then file locality, with at most 25 clusters per batch inside the batch token
+  budget. An empty `scannerCandidates` array has empty `triage`, `clusters`, `batches`, and `confirmations`,
+  and remains distinct from unavailable candidates.
 - `verdicts` (result array, adjudication only): exactly one aggregated entry per `scannerCandidates` item,
   `{candidateId, verdict, ...}`. `verdict` is `TRUE_POSITIVE`, `LIKELY_TRUE_POSITIVE`,
   `LIKELY_FALSE_POSITIVE`, `FALSE_POSITIVE`, `OUT_OF_SCOPE`, `HARDENING_GAP`, or `MISUSE_HAZARD`; every
-  verdict also carries the matching `workItemId` and canonical `workPacketDigest` for its child packet.
-  Dispatch each child packet in its own fresh Oracle context, then aggregate the returned verdicts;
-  the batch packet is only an aggregation boundary. These result fields and an echoed `contextId` are
+  verdict also carries its `clusterId` and the canonical `workPacketDigest` of its batch. Every member of a
+  cluster keeps its own verdict row, so no location is lost.
+  Each batch runs in one fresh Oracle context, separate from any generator context; the batch packet is
+  only an aggregation boundary. These result fields and an echoed `contextId` are
   not trusted-host evidence of actual context isolation. The current CLI/model path uses `Derived`,
   so every nonempty adjudication remains incomplete with the typed
   `adjudication-context-derived:<provider>:...` gap. Previously saved batch packets without
@@ -106,6 +139,30 @@ older receipts.
   `LIKELY_TRUE_POSITIVE`) also needs `severity`, `attackerControl` above `unproven`, `proof`,
   `evidenceStrength` above `possible`, and `devilsAdvocate`, plus an anchored finding with id
   `adjudicated:<candidateId>`. Missing, duplicate, or unknown candidate ids reject the ingest.
+
+### Security adjudication batches
+
+Status: target contract, as above.
+
+1. **Deterministic triage.** Only provable non-issues close here, each with verdict basis `deterministic`
+   and a rule id: the candidate path is excluded from the lens denominators (generated, vendored, minified,
+   or lock file); the value matches the existing placeholder detection; or the same fingerprint was already
+   resolved by a native provider. Triage is reported as `autoTriaged` and is never counted as adjudicated.
+   Test and fixture paths are not auto-closed, because real secrets leak there.
+2. **Clustering.** Fingerprint = rule + normalized sink/excerpt digest. Each cluster gets one adjudicated
+   representative. The duplicate-text check applies across clusters and allows expanded text within one.
+3. **Batching.** Stays on the judgment tier. Batches are bounded by token budget and cluster count, and every
+   candidate gets a recorded evidence and disposition row.
+4. **Confirmation.** Every surviving verdict (`TRUE_POSITIVE`, `LIKELY_TRUE_POSITIVE`, `HARDENING_GAP`,
+   `MISUSE_HAZARD`) gets a second, single-candidate confirmation in a fresh context before it counts.
+   High-risk or uncertain dismissals go directly to individual review.
+5. **Spot-checks.** For each non-empty batch, `ceil(5% x false-positive candidates)` (at least one) is
+   re-adjudicated alone in fresh contexts, chosen by seeded digest. Any disagreement voids the batch, and that
+   batch reruns one candidate per context.
+6. **Gates.** Confirmations and spot-checks are budgeted explicitly and ingested as work items.
+   `security_adjudication: pass` requires that every batch, confirmation, and spot-check was ingested; until
+   then it stays `unproven`. Context isolation must be host-attested. Echoed `contextId` or `workItemId`
+   values never clear `adjudication-context-derived`.
 
 ### Variant-analysis follow-up
 

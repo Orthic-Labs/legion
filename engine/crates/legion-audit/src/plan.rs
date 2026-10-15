@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use legion_contracts::ProviderSpec;
@@ -10,7 +10,7 @@ use crate::{
     error::AuditError,
     integrity::{plan_digest, sign},
     inventory::{InventoryDenominator, InventoryEnvelope},
-    native_providers::reasoning::{lens_plan, triggers},
+    native_providers::reasoning::{coverage_plan, lens_plan, triggers},
 };
 
 /// `AuditPlan::bounds` key carrying the parent-run binding of a follow-up plan.
@@ -125,6 +125,55 @@ fn resolve_host_declaration(runner: &Value) -> Option<Value> {
     }))
 }
 
+/// Plans coverage for every applicable coverage-planned lens provider in
+/// `specs`. The request (`reasoning.coverageRequest`) and diff scope come from
+/// the specs themselves, so the executed plan and the lens basis plan, which
+/// compile independently, freeze identical review sets.
+fn plan_lens_coverage(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    specs: &[ProviderSpec],
+    candidates: &[InventoryDenominator],
+) -> Result<BTreeMap<String, Value>, AuditError> {
+    let mut lenses = Vec::new();
+    let mut request = coverage_plan::CoverageRequest::default();
+    let mut changed: BTreeSet<String> = BTreeSet::new();
+    for spec in specs {
+        if !lens_plan::is_coverage_planned_provider(spec.id.as_str()) {
+            continue;
+        }
+        let denominator = inventory.denominator_entries_with_candidates(&spec.selector, candidates)?;
+        if denominator.entries.is_empty() {
+            continue;
+        }
+        if lenses.is_empty() {
+            request = coverage_plan::CoverageRequest::from_reasoning(&spec.reasoning);
+            changed = coverage_plan::changed_paths_from_reasoning(&spec.reasoning);
+        }
+        lenses.push(coverage_plan::LensInput {
+            provider_id: spec.id.to_string(),
+            paths: denominator
+                .entries
+                .iter()
+                .map(|entry| entry.path.clone())
+                .collect(),
+        });
+    }
+    if lenses.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let facts = coverage_plan::gather_facts(root, inventory, &changed);
+    coverage_plan::plan_coverage(
+        &serde_json::json!({
+            "repositoryId": inventory.repository_id,
+            "inventoryDigest": inventory.digest,
+        }),
+        &facts,
+        &lenses,
+        &request,
+    )
+}
+
 fn selector_is_always(selector: &Value) -> bool {
     selector.as_str() == Some("always")
         || selector.get("op").and_then(Value::as_str) == Some("always")
@@ -232,6 +281,13 @@ impl AuditPlan {
             .filter(|spec| spec.role == "candidate-generator")
             .map(|spec| inventory.denominator_entries(&spec.selector))
             .collect::<Result<Vec<InventoryDenominator>, _>>()?;
+        // Frozen lens coverage plans (review sets) per coverage-planned lens
+        // provider. Needs a filesystem root (sizes, churn); without one every
+        // lens keeps the exhaustive, selector-bound behaviour.
+        let coverage_configs = match root {
+            Some(root) => plan_lens_coverage(root, inventory, specs, &candidate_denominators)?,
+            None => BTreeMap::new(),
+        };
         let providers = specs
             .iter()
             .map(|spec| {
@@ -345,6 +401,12 @@ impl AuditPlan {
                     .unwrap_or(false);
                 if let Some(value) = host_declaration {
                     configuration.insert("hostDeclaration".into(), value);
+                }
+                // Review set, strata, seed and budget share: covered by the
+                // plan digest and signature. The selector-bound denominator
+                // above is unchanged.
+                if let Some(coverage) = coverage_configs.get(spec.id.as_str()) {
+                    configuration.insert("coverage".into(), coverage.clone());
                 }
                 // A provider whose selector matches nothing does not apply to
                 // this repository, so it is never `required`.
@@ -587,6 +649,31 @@ impl AuditPlan {
                 if !provider.configuration.contains_key(field) {
                     return Err(AuditError::Invalid(format!(
                         "provider {} is missing frozen ProviderSpec field {field}",
+                        provider.id
+                    )));
+                }
+            }
+            if let Some(coverage) = provider.configuration.get("coverage") {
+                let frozen = coverage_plan::FrozenCoverage::from_value(coverage).ok_or_else(|| {
+                    AuditError::Invalid(format!(
+                        "provider {} has a malformed frozen coverage plan",
+                        provider.id
+                    ))
+                })?;
+                let listed: Vec<&String> = frozen.review_set.iter().collect();
+                let digest = legion_contracts::canonical_digest(&listed)
+                    .map_err(|error| AuditError::Invalid(error.to_string()))?;
+                let count = provider
+                    .configuration
+                    .get("denominatorCount")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as usize;
+                if digest != frozen.review_set_digest
+                    || frozen.review_set.len() > count
+                    || frozen.denominator != count
+                {
+                    return Err(AuditError::Invalid(format!(
+                        "provider {} frozen coverage plan does not match its review set or denominator",
                         provider.id
                     )));
                 }

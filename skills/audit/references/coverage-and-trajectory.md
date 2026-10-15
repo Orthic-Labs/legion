@@ -12,6 +12,23 @@ needs to persist across runs. Neither one mutates `facts.json` or the frozen che
 contains. Until it is wired, a coverage gate or `audit_diff` block that is absent from `report.json` is
 reported as `UNPROVEN`, never computed by hand.
 
+## Whole-repository coverage statistics
+
+Applies only to `risk-sampled` runs (`execution-contract.md`, Coverage modes and quality outcome).
+Status: target, as there.
+
+- **Label.** Every rendering of a risk-sampled run is headed "whole-repository risk-sampled audit". The
+  label never reads as a full-repository proof.
+- **Assumptions.** The statements below cover only findings detectable in the random strata, under the
+  stated seeded sampling within each stratum. They say nothing about findings no lens can detect.
+- **Zero findings: rule of three.** With zero findings at high severity or above in `n` reviewed files,
+  the 95% upper bound on the share of affected files is `3/n`.
+- **Findings present: Clopper-Pearson.** Report the exact Clopper-Pearson 95% interval for the affected
+  share, and only where the binomial assumptions hold (files independent, one per-file probability within
+  each stratum). Where they do not hold, report the counts and name the failed assumption.
+- **Per stratum.** Each sampled stratum reports its own `N`, `n`, findings, and confidence. Strata are
+  never pooled into one estimate.
+
 ## Per-change coverage rows (§2A)
 
 **Problem.** A binary "tests pass" hides that the CHANGED code specifically is untested — the suite

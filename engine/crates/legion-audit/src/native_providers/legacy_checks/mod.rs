@@ -40,6 +40,7 @@ use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
 use legion_provider_sdk::{ExternalProjectTool, ExternalToolRequest};
+use registry::AbsenceOutcome;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::sync::{
@@ -599,12 +600,22 @@ impl LegacyCheckDispatcher {
                 .degradation
                 .retain(|gap| !gap.starts_with("unavailable:managed-test-"));
         }
+        // A declared scanner that is absent resolves to its class outcome. Only
+        // a missing tool with a declared class is affected; everything else keeps
+        // the existing typed behaviour.
+        let declared_absence = (execution.state == LegacyCheckProcessState::MissingExecutable
+            && !read_only_test_owner_unavailable
+            && !managed_test_runner_unavailable
+            && !managed_test_unavailable_claim)
+            .then(|| registry::absence_outcome(contract.tool))
+            .flatten();
         let mut gaps = output.coverage_gaps.clone();
         let mut degradation = output.degradation.clone();
         if !process_ok
             && !sandbox_refused
             && !read_only_test_owner_unavailable
             && !managed_test_runner_unavailable
+            && !matches!(declared_absence, Some(AbsenceOutcome::NonBlocking(_)))
         {
             gaps.push(format!("external-process:{}", execution.state.as_str()));
             degradation.push(format!("external-process:{}", execution.state.as_str()));
@@ -627,7 +638,8 @@ impl LegacyCheckDispatcher {
                 .map(ToOwned::to_owned)
         } else {
             (execution.state == LegacyCheckProcessState::MissingExecutable
-                && !managed_test_unavailable_claim)
+                && !managed_test_unavailable_claim
+                && declared_absence.is_none())
                 .then(|| {
                     let gap_text = output
                         .coverage_gaps
@@ -650,6 +662,22 @@ impl LegacyCheckDispatcher {
                 })
         }
         .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
+        let unavailable_reason = match declared_absence.clone() {
+            Some(AbsenceOutcome::Blocking(reason)) => Some(reason),
+            _ => unavailable_reason,
+        };
+        if let Some(AbsenceOutcome::NonBlocking(note)) = &declared_absence {
+            output.details.insert(
+                "capabilityAbsence".into(),
+                json!({
+                    "tool": contract.tool,
+                    "note": note,
+                    "blocking": false,
+                    "substitute": registry::host_capability(contract.tool)
+                        .and_then(|capability| capability.class.substitute()),
+                }),
+            );
+        }
         if let Some(reason) = &unavailable_reason {
             gaps.push(super::availability::unavailable_gap(reason));
             output.details.insert(
@@ -657,7 +685,7 @@ impl LegacyCheckDispatcher {
                 super::availability::unavailable_detail(reason),
             );
         }
-        let coverage = output.coverage.take().unwrap_or_else(|| Coverage {
+        let mut coverage = output.coverage.take().unwrap_or_else(|| Coverage {
             denominator_digest: input.denominator.digest.clone(),
             expected: input.denominator.entries.len() as u64,
             examined: 0,
@@ -667,6 +695,19 @@ impl LegacyCheckDispatcher {
             gaps.push("denominator-digest-mismatch".into());
         }
         gaps.extend(coverage.gaps.iter().cloned());
+        if matches!(declared_absence, Some(AbsenceOutcome::NonBlocking(_))) {
+            // The absent declared tool is recorded only as its note. The process
+            // text it produced is not a blocking gap or degradation; other
+            // failures keep their gaps.
+            let is_absence_text = |gap: &String| {
+                gap.starts_with("missing executable: ")
+                    || gap.starts_with("external-process:missing_executable")
+                    || gap.starts_with("external-error:missing executable: ")
+            };
+            gaps.retain(|gap| !is_absence_text(gap));
+            degradation.retain(|gap| !is_absence_text(gap));
+            coverage.gaps.retain(|gap| !is_absence_text(gap));
+        }
         gaps.sort();
         gaps.dedup();
         degradation.sort();
@@ -751,7 +792,7 @@ impl LegacyCheckDispatcher {
             }
         } else if process_ok {
             output.status
-        } else if unavailable_reason.is_some() {
+        } else if unavailable_reason.is_some() || declared_absence.is_some() {
             ProviderStatus::Partial
         } else {
             ProviderStatus::Failed

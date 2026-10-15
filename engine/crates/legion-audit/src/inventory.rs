@@ -1095,7 +1095,7 @@ fn normalize_path(path: &str) -> String {
         .to_owned()
 }
 
-fn glob_match(pattern: &str, path: &str) -> bool {
+pub(crate) fn glob_match(pattern: &str, path: &str) -> bool {
     fn segment(pattern: &[u8], path: &[u8]) -> bool {
         if pattern.is_empty() {
             return path.is_empty();

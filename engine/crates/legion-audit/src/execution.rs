@@ -176,6 +176,20 @@ pub(crate) fn is_advisory_ownership(provider: &AuditProvider) -> bool {
 
 pub(crate) const OWNERSHIP_PROVIDER_ID: &str = "governance.capability-ownership";
 
+/// A declared scanner that is absent for a non-blocking class (substitutable
+/// or informational) is a coverage note. Its incomplete result does not block
+/// the run, because the registry names what covers the domain instead.
+fn declared_capability_note(result: &ProviderResult) -> Option<String> {
+    let absence = result.details.get("capabilityAbsence")?;
+    if absence.get("blocking").and_then(serde_json::Value::as_bool) != Some(false) {
+        return None;
+    }
+    absence
+        .get("note")
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
 fn advisory_ownership_notes(result: &ProviderResult) -> Vec<String> {
     let mut notes: Vec<String> = result
         .coverage_gaps
@@ -410,6 +424,8 @@ pub fn execute(
                         failed.insert(provider.id.clone());
                         if is_advisory_ownership(provider) {
                             coverage_notes.extend(advisory_ownership_notes(&result));
+                        } else if let Some(note) = declared_capability_note(&result) {
+                            coverage_notes.push(note);
                         } else {
                             gaps.push(format!("provider-incomplete:{}", provider.id));
                             gaps.extend(result.coverage_gaps.iter().cloned());
@@ -604,6 +620,8 @@ pub async fn execute_with_cancellation(
                             failed.insert(provider.id.clone());
                             if is_advisory_ownership(provider) {
                                 coverage_notes.extend(advisory_ownership_notes(&result));
+                            } else if let Some(note) = declared_capability_note(&result) {
+                                coverage_notes.push(note);
                             } else {
                                 gaps.push(format!("provider-incomplete:{}", provider.id));
                                 gaps.extend(result.coverage_gaps.iter().cloned());
@@ -1731,5 +1749,55 @@ mod tests {
             },
         )
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod declared_capability_tests {
+    use super::*;
+    use legion_contracts::ProviderId;
+    use std::collections::BTreeMap;
+
+    fn incomplete_with_absence(tool: &str, blocking: bool, note: &str) -> ProviderResult {
+        let mut details = BTreeMap::new();
+        details.insert(
+            "capabilityAbsence".to_owned(),
+            serde_json::json!({"tool": tool, "note": note, "blocking": blocking}),
+        );
+        ProviderResult {
+            schema_version: 1,
+            provider: ProviderId::new("legacy.security.secrets").unwrap(),
+            applicable: true,
+            required: false,
+            status: ProviderStatus::Partial,
+            complete: false,
+            coverage: None,
+            findings: Vec::new(),
+            coverage_gaps: Vec::new(),
+            degradation: Vec::new(),
+            details,
+        }
+    }
+
+    #[test]
+    fn missing_substitutable_tool_is_a_note_not_a_blocking_gap() {
+        let result = incomplete_with_absence("gitleaks", false, "capability-absent:gitleaks");
+        assert_eq!(
+            declared_capability_note(&result).as_deref(),
+            Some("capability-absent:gitleaks")
+        );
+    }
+
+    #[test]
+    fn missing_advisory_tool_keeps_its_blocking_gap() {
+        let result = incomplete_with_absence("cargo-audit", true, "host-capability:cargo-audit");
+        assert_eq!(declared_capability_note(&result), None);
+    }
+
+    #[test]
+    fn results_without_a_declared_absence_are_unchanged() {
+        let mut result = incomplete_with_absence("gitleaks", false, "capability-absent:gitleaks");
+        result.details.clear();
+        assert_eq!(declared_capability_note(&result), None);
     }
 }

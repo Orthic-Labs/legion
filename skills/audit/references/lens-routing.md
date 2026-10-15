@@ -12,7 +12,26 @@ or HTTP model provider.
 The read-only lenses are `doc-drift`, `architecture`, `correctness`, `ai-slop`, `naming`,
 `dead-file`, `schema`, `security`, `minimize`, and `performance`, plus conditional `a11y`,
 `data-safety`, `resilience`, `platform-parity`, and `release-readiness`. Fan the applicable lenses
-out in one parallel wave.
+out in bundled seats (see Bundled seats below) and dispatched in resumable waves, judgment seats first.
+
+## Bundled seats
+
+One seat reads an excerpt part once and answers every lens it bundles, so bundled lenses share model
+tokens rather than re-reading the same text. Each seat writes one result file per bundled lens. The
+bundle plan lives in `<run-dir>/lens-dispatch.json` (bundle id, packet files, tier, wave).
+
+| Seat | Lenses | Tier |
+|---|---|---|
+| J1 | security, correctness, schema/contract drift | judgment |
+| J2 | architecture, doc-drift | judgment |
+| S1 | performance, resilience, data-safety, minimize | specialist |
+| S2 | ai-slop, standards | specialist |
+| M1 | breadth triage, naming, dead-file | mechanical |
+
+Conditional lenses (a11y, platform-parity, release-readiness) join S1 or S2 when their trigger fires.
+Excerpt mode per seat follows the rules in Input contract below; the seat plan does not override them.
+The plan is size-gated before any seat starts: a plan that exceeds the run budget is refused, and the
+refusal names how far over each bundle is.
 
 ## Input contract
 
@@ -35,7 +54,7 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 ## Semantic routing
 
 When explicit specifications or standards are present, run two independent contracts in the same
-parallel wave:
+dispatch plan:
 
 - Route SPEC fidelity to `correctness`, with only exact requirements, acceptance criteria, public
   contracts, applicable ADR consequences, and scoped implementation evidence. Preserve per-
@@ -56,6 +75,7 @@ justified with searched scope and reason. Present but incomplete or inaccessible
 - `security`, `architecture`, and `correctness` run on the strongest available native tier. They
   decide exploitability, structural shape, and real bugs, and a miss there is expensive.
 - `schema`, `minimize`, `doc-drift`, `data-safety`, `resilience`, `release-readiness`, `ai-slop`, `naming`, and `performance` are judgment lenses and run on at least the mid tier; they receive raw logic, exact contracts, or failure-mode evidence. `ai-slop` carries the suite's highest false-positive risk, so its findings stay capped as `manual.md` states.
+- The mid tier is the specialist seat tier (S1, S2; Sonnet or Sol 6.1). The judgment seat tier (J1, J2) is Opus or Sol. The mechanical seat tier (M1) is Haiku or Luna.
 - `dead-file`, `a11y`, and `platform-parity` are mechanical:
   the lowest available native tier is fine. They receive scoped evidence; a11y and platform parity
   still receive relevant raw excerpts.

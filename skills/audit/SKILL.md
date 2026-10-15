@@ -38,7 +38,9 @@ TERMINAL: Frozen provider plan reconciles to evidence or typed degradation.
 [Execution contract](references/execution-contract.md) is normative; this summary never
 overrides it.
 
-1. Freeze repository root, scope, revision, dirty state, & requested mode.
+1. Freeze repository root, scope, revision, dirty state, requested mode, & coverage mode (`auto`
+   default, `exhaustive`, or `risk-sampled`; see [execution contract](references/execution-contract.md)
+   Coverage modes).
 2. Read [provider architecture](references/provider-architecture.md). When graph grounding is
    used, route it through the optional `blueprint-grounding` method in
    [route resources](references/route-resources.json); never build a parallel registry. Without
@@ -71,16 +73,18 @@ overrides it.
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [lens routing](references/lens-routing.md) & [lens cues](references/lens-cues.md) before
-   dispatch. Include each applicable lens cue in its packet. Fan every applicable reasoning contract
-   to one native subagent in one parallel wave, tiered by lens kind (strongest for `security`, `architecture`,
-   `correctness`; mid for other judgment lenses; lowest for mechanical lenses). Inline execution is
-   fallback only when no native seat is available. Reason only inside frozen-plan providers.
+   dispatch. Include each applicable lens cue in its packet. Group applicable reasoning lenses into
+   bundled seats (see [lens routing](references/lens-routing.md) Bundled seats). One native subagent
+   per seat reads its excerpts once and answers every lens it bundles, tiered by seat kind (judgment
+   for `security`, `architecture`, `correctness`, and schema; specialist for the S-seats; mechanical
+   for breadth triage, naming, and dead-file). Dispatch seats from `lens-dispatch.json` in resumable
+   waves of at most `CHILD_AGENTS_MAX`, judgment seats first. Inline execution is fallback only when no
+   native seat is available. Reason only inside frozen-plan providers.
    The engine has no in-process lens host: `legion audit --out <run-dir>` freezes a per-run epoch key
    and emits each reasoning lens as a `pending-host` packet at `<run-dir>/lens-packets/<provider>.json`,
    listed under `lensWork` / `reasoningLensesPending`; `reasoningLensesRan` counts a lens only after
-   the CLI ingests its result. Read every packet, fan out one subagent per packet (at most
-   `CHILD_AGENTS_MAX`) at the tier `lens-routing.md` assigns, and have each write a
-   `legion-lens-result` JSON file whose every finding carries a verbatim code anchor
+   the CLI ingests its result. Read `lens-dispatch.json` and every packet it names. Each seat writes a
+   `legion-lens-result` JSON file per bundled lens whose every finding carries a verbatim code anchor
    (`anchor: {path, line, text}`; see the execution contract). Apply the refutation rule (a finding is
    withdrawn only by citing, as a `disproof` anchor, the line that disproves it). Then run
    `legion audit ingest --run <run-dir> --provider <id> --result <file>` once per lens, sequentially:
@@ -88,12 +92,13 @@ overrides it.
    revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
    `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not
    ingested stays `pending-host` and keeps the audit non-clean. The adjudication packet carries
-   `scannerCandidates` plus isolated `candidateWorkItems`, each holding one candidate's evidence and
-   bound to the batch packet digest. Dispatch each child packet in its own fresh Oracle context, then
-   aggregate exactly one verdict per item in the batch result; the batch packet is only an aggregation
-   boundary. Each verdict carries `workItemId` and `workPacketDigest`. Those echoed identifiers bind
-   the result to its child packet but do not attest which context produced it, so CLI/model results
-   retain the typed derived-context coverage gap. `scannerCandidates: null` means unavailable; `[]`
+   `scannerCandidates` plus the batch plan (`triage`, `clusters`, `batches`, `confirmations`), bound to the
+   batch packet digest. Each batch runs in one fresh Oracle context, separate from any
+   generator context, and yields exactly one verdict per candidate; the batch is an aggregation boundary
+   only. Every surviving verdict then gets a single-candidate confirmation, and seeded spot-checks of
+   false-positive verdicts run per batch (execution contract, Security adjudication). Each verdict carries
+   its `clusterId` and `workPacketDigest`. Echoed identifiers bind the result to its packet but do not
+   attest which context produced it, so CLI/model results retain the typed derived-context coverage gap. `scannerCandidates: null` means unavailable; `[]`
    means scanner completed with no candidates. Every packet carries
    `excerptCoverage`, and omitted/truncated excerpts leave a `reasoning-excerpt-coverage` gap (partial
    receipt). The `minimize` packet carries full `ponytail-lens.md`, including DI, test, &
@@ -105,8 +110,9 @@ overrides it.
    specifications or standards. Reuse `correctness` for SPEC fidelity & `ai-slop` for STANDARDS,
    with independent inputs, reports, & verdicts; missing inputs are typed `unproven` or
    `not-applicable` with a reason, never filled from invented standards.
-9. Adjudicate each security candidate independently; no generator closes its own finding. Run variant
-   analysis (follow-up plan) for every confirmed finding.
+9. Adjudicate each security candidate; no generator closes its own finding. Candidates are batched by
+   cluster, but high-risk or uncertain dismissals go to individual review. Run variant analysis
+   (follow-up plan) for every confirmed finding.
 10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
    coverage stays typed `incomplete`. Providers without a passing bench class or qualification record
@@ -115,7 +121,9 @@ overrides it.
 11. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, & receipts, artifacts, &
-typed degradation; `quality_gate` stays separate. A zero-finding result is reportable only after
+typed degradation; `quality_gate` stays separate, and `coverageMode` (`exhaustive` or `sampled`) is
+reported apart from both. A risk-sampled run is labelled "whole-repository risk-sampled audit" and reports
+`qualityGate: sampled`, never `proven`; its findings and missing evidence keep their own states. A zero-finding result is reportable only after
 every planned provider, lens, candidate adjudication, denominator, & required qualification
 reconciles complete.
 

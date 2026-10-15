@@ -30,6 +30,7 @@ use crate::{
     plan::{AuditProvider, FrozenPlan, ProviderKind},
 };
 
+pub mod coverage_plan;
 pub mod excerpts;
 pub mod followup;
 pub mod ingest;
@@ -559,9 +560,38 @@ fn build_invocations(
     // Diff-scoped audit: the frozen review context carries the changed hunks
     // per path; those paths are excerpted as hunks plus context, not whole.
     let changed_hunks = changed_hunks_from_review_context(provider);
-    let partition = lens_plan::lens_plan_excerpt_mode(&provider.id).map(|mode| {
-        excerpts::partition_excerpts_scoped(root, &paths, mode, ceiling, &changed_hunks)
+    let base_mode = lens_plan::lens_plan_excerpt_mode(&provider.id);
+    // Frozen coverage plan: a risk-sampled lens partitions only its review set
+    // (plus files promoted by deterministic findings); an exhaustive lens, or a
+    // plan without a coverage plan, partitions the whole denominator exactly as
+    // before.
+    let sampled = base_mode.and_then(|mode| {
+        sampled_review(
+            provider,
+            denominator,
+            scanner_candidates,
+            mode,
+        )
     });
+    let partition = match (&sampled, base_mode) {
+        (Some(sampled), _) => Some(excerpts::partition_review_set(
+            root,
+            &sampled.items,
+            &sampled.aliases,
+            ceiling,
+            &changed_hunks,
+            &sampled.flags,
+        )),
+        (None, Some(mode)) => Some(excerpts::partition_excerpts_scoped(
+            root,
+            &paths,
+            mode,
+            ceiling,
+            &changed_hunks,
+        )),
+        (None, None) => None,
+    };
+    let review_binding = sampled.as_ref().map(|sampled| &sampled.binding);
     // Scanner candidates for the adjudicator: one verdict per candidate.
     // `null` means the caller did not supply scanner results (unknown, not
     // "none"); ingest then refuses to treat the lens as covered.
@@ -624,8 +654,13 @@ fn build_invocations(
         // What this packet actually carries, reconciled against the
         // denominator. Ingest derives examined coverage from this, never
         // from an attestation.
-        let excerpt_coverage =
-            excerpt_coverage_value(&provider.id, part, scanner_candidates, paths.len());
+        let excerpt_coverage = excerpt_coverage_value(
+            &provider.id,
+            part,
+            scanner_candidates,
+            paths.len(),
+            review_binding,
+        );
         let excerpts_value =
             part.map(|part| serde_json::to_value(&part.excerpts).unwrap_or(Value::Null));
         let part_meta = match (multi_part, part) {
@@ -680,21 +715,27 @@ fn build_invocations(
             "projection": if number == 1 { projection.clone() } else { Value::Null },
             "artifactIds": [],
         });
+        // === LANE B BOUNDARY: security adjudicator packet construction. ===
+        // Everything inside this `if` belongs to security_adjudication.rs and
+        // wf064 finalize (batched adjudication); lane A does not edit it.
         if provider.id == ADJUDICATOR_PROVIDER_ID {
             let child_work = match scanner_candidates {
                 Some(candidates) => {
                     let parent_packet_digest =
                         security_adjudication::adjudication_parent_packet_digest(&packet)
                             .map_err(|error| AuditError::Invalid(error.to_string()))?;
-                    let items = security_adjudication::adjudication_work_items(
+                    // Deterministic triage, clusters and bounded batches.
+                    // Confirmations and spot-checks depend on batch verdicts;
+                    // the packet carries their rules and ingest derives them.
+                    // The host supplies no resolved-fingerprint set yet, so
+                    // only the path and placeholder triage rules can fire.
+                    security_adjudication::build_adjudication_plan(
                         candidates,
+                        &security_adjudication::TriageContext::default(),
                         &parent_packet_digest,
                     )
-                    .map_err(|error| AuditError::Invalid(error.to_string()))?;
-                    json!({
-                        "parentPacketDigest": parent_packet_digest,
-                        "items": items,
-                    })
+                    .map_err(|error| AuditError::Invalid(error.to_string()))?
+                    .to_value()
                 }
                 // Keep unavailable scanner output distinct from a known empty
                 // candidate set. In particular, null must never mean no work.
@@ -702,6 +743,7 @@ fn build_invocations(
             };
             packet["candidateWorkItems"] = child_work;
         }
+        // === END LANE B BOUNDARY ===
         if multi_part {
             if let Some(object) = packet.as_object_mut() {
                 object.insert("part".into(), part_meta);
@@ -743,6 +785,169 @@ fn build_invocations(
     Ok(invocations)
 }
 
+/// What a risk-sampled lens packet records about its frozen review set.
+#[derive(Clone, Debug)]
+pub(crate) struct ReviewBinding {
+    bundle: String,
+    /// Digest of the frozen review set (`configuration.coverage`).
+    digest: String,
+    /// Frozen review-set size; promoted paths are counted separately.
+    review_count: usize,
+    declared_unsampled: usize,
+    excluded: usize,
+    /// Paths promoted into the review set by deterministic findings (add-only).
+    promoted: Vec<String>,
+    /// Digest binding the promotion to the scanner candidates it came from.
+    promotion_digest: Option<String>,
+    aliases: excerpts::AliasMap,
+}
+
+/// The partition inputs of a risk-sampled lens.
+struct SampledReview {
+    items: Vec<excerpts::ReviewItem>,
+    aliases: excerpts::AliasMap,
+    flags: excerpts::FlaggedRegions,
+    binding: ReviewBinding,
+}
+
+fn mode_strength(mode: lens_plan::ExcerptMode) -> u8 {
+    match mode {
+        lens_plan::ExcerptMode::Raw => 3,
+        lens_plan::ExcerptMode::Regions => 2,
+        lens_plan::ExcerptMode::Skeleton => 1,
+    }
+}
+
+/// Builds the sampled review of `provider`, or `None` when the provider has no
+/// frozen risk-sampled coverage plan (exhaustive, or a plan without one).
+///
+/// Review paths are the frozen review set plus any path a deterministic
+/// scanner candidate points at (promotion only ever adds). Files with
+/// identical content digests are excerpted once under their first path and
+/// credited to every path that shares the digest.
+fn sampled_review(
+    provider: &AuditProvider,
+    denominator: &InventoryDenominator,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+    base_mode: lens_plan::ExcerptMode,
+) -> Option<SampledReview> {
+    let frozen = provider
+        .configuration
+        .get("coverage")
+        .and_then(coverage_plan::FrozenCoverage::from_value)
+        .filter(coverage_plan::FrozenCoverage::is_sampled)?;
+    let in_denominator: BTreeSet<&str> = denominator
+        .entries
+        .iter()
+        .map(|entry| entry.path.as_str())
+        .collect();
+    let mut promoted: BTreeSet<String> = BTreeSet::new();
+    let mut flags = excerpts::FlaggedRegions::new();
+    let mut promotion_basis: Vec<(String, u64)> = Vec::new();
+    for candidate in scanner_candidates.unwrap_or(&[]) {
+        let Some(path) = candidate.path.as_deref() else {
+            continue;
+        };
+        if !in_denominator.contains(path) {
+            continue;
+        }
+        if !frozen.review_set.contains(path) {
+            promoted.insert(path.to_owned());
+        }
+        let line = candidate.line.unwrap_or(0) as usize;
+        if line > 0 {
+            flags
+                .entry(path.to_owned())
+                .or_default()
+                .push((line.saturating_sub(1).max(1), line + 1));
+            promotion_basis.push((path.to_owned(), line as u64));
+        }
+    }
+    promotion_basis.sort();
+    promotion_basis.dedup();
+    let promotion_digest = if promoted.is_empty() {
+        None
+    } else {
+        canonical_digest(&json!({
+            "promoted": promoted,
+            "findings": promotion_basis,
+        }))
+        .ok()
+    };
+    let default_mode = frozen.default_mode.unwrap_or(base_mode);
+    let mandatory_mode = frozen.mandatory_mode.unwrap_or(default_mode);
+    // Group review paths by content digest; a path without a digest is alone.
+    let mut groups: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for entry in &denominator.entries {
+        if !(frozen.review_set.contains(&entry.path) || promoted.contains(&entry.path)) {
+            continue;
+        }
+        let key = match (&entry.digest, frozen.dedup) {
+            (Some(digest), true) => format!("digest:{digest}"),
+            _ => format!("path:{}", entry.path),
+        };
+        groups.entry(key).or_default().push(entry.path.as_str());
+    }
+    let mut ordered: Vec<(&str, Vec<&str>)> = groups
+        .into_values()
+        .map(|members| (members[0], members))
+        .collect();
+    ordered.sort_by(|left, right| left.0.cmp(right.0));
+    let mut items = Vec::with_capacity(ordered.len());
+    let mut aliases = excerpts::AliasMap::new();
+    let mut merged_flags = excerpts::FlaggedRegions::new();
+    for (canonical, members) in ordered {
+        let mode = members
+            .iter()
+            .map(|member| {
+                if frozen.mandatory.contains(*member) {
+                    mandatory_mode
+                } else {
+                    default_mode
+                }
+            })
+            .max_by_key(|mode| mode_strength(*mode))
+            .unwrap_or(default_mode);
+        for member in &members {
+            if let Some(found) = flags.get(*member) {
+                merged_flags
+                    .entry(canonical.to_owned())
+                    .or_default()
+                    .extend(found.iter().copied());
+            }
+        }
+        if members.len() > 1 {
+            aliases.insert(
+                canonical.to_owned(),
+                members[1..].iter().map(|member| (*member).to_owned()).collect(),
+            );
+        }
+        items.push(excerpts::ReviewItem {
+            path: canonical.to_owned(),
+            mode,
+        });
+    }
+    let declared_unsampled = denominator
+        .entries
+        .len()
+        .saturating_sub(frozen.review_set.len() + promoted.len());
+    Some(SampledReview {
+        items,
+        aliases: aliases.clone(),
+        flags: merged_flags,
+        binding: ReviewBinding {
+            bundle: frozen.bundle.clone(),
+            digest: frozen.review_set_digest.clone(),
+            review_count: frozen.review_set.len(),
+            declared_unsampled,
+            excluded: frozen.excluded,
+            promoted: promoted.into_iter().collect(),
+            promotion_digest,
+            aliases,
+        },
+    })
+}
+
 /// Coverage the packet itself can prove. `examinedPaths` lists denominator
 /// paths whose every chunk is present in this packet; `chunkedPaths` lists
 /// the chunks of paths only partly present here (their remaining chunks are
@@ -755,6 +960,7 @@ fn excerpt_coverage_value(
     part: Option<&excerpts::ExcerptPart>,
     scanner_candidates: Option<&[ScannerCandidate]>,
     denominator_count: usize,
+    review: Option<&ReviewBinding>,
 ) -> Value {
     if let Some(part) = part {
         let mut present: BTreeMap<&str, (usize, usize)> = BTreeMap::new();
@@ -789,7 +995,7 @@ fn excerpt_coverage_value(
                 })
             })
             .collect::<Vec<_>>();
-        return json!({
+        let mut value = json!({
             "basis": "bounded-excerpts",
             "denominatorCount": denominator_count,
             "examinedPaths": examined,
@@ -797,6 +1003,33 @@ fn excerpt_coverage_value(
             "chunkedPaths": chunked,
             "omittedPaths": part.omitted,
         });
+        if let (Some(review), Some(object)) = (review, value.as_object_mut()) {
+            // Aliases (identical content) of every canonical path this part
+            // carries; ingest credits an alias once its canonical path is
+            // fully covered.
+            let aliased: Vec<Value> = present
+                .keys()
+                .filter_map(|canonical| {
+                    review.aliases.get(*canonical).map(|aliases| {
+                        aliases
+                            .iter()
+                            .map(|alias| json!({"path": alias, "of": canonical}))
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .flatten()
+                .collect();
+            object.insert("coverageMode".into(), json!(coverage_plan::MODE_RISK_SAMPLED));
+            object.insert("bundle".into(), json!(review.bundle));
+            object.insert("reviewSetDigest".into(), json!(review.digest));
+            object.insert("reviewSetCount".into(), json!(review.review_count));
+            object.insert("promotedPaths".into(), json!(review.promoted));
+            object.insert("promotionDigest".into(), json!(review.promotion_digest));
+            object.insert("declaredUnsampledCount".into(), json!(review.declared_unsampled));
+            object.insert("excludedCount".into(), json!(review.excluded));
+            object.insert("aliasedPaths".into(), Value::Array(aliased));
+        }
+        return value;
     }
     if provider_id == ADJUDICATOR_PROVIDER_ID {
         return json!({

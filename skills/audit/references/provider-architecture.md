@@ -114,16 +114,21 @@ agent-to-tool boundary candidates when untrusted prompt/request sources and tool
 validation, authorization, reachability, and impact are adjudicated separately. Every detector emits
 candidates only.
 
-A different provider adjudicates each candidate in its own fresh context through threat model,
-attacker control, source-to-sink trace, reachability, primary controls, environmental mitigations,
-real impact, proof, and false-positive challenge. The batch packet exposes one child work packet per
-candidate, bound to its parent digest; Audit dispatches those packets in fresh Oracle contexts and
-aggregates one bound verdict per child. The batch is an aggregation boundary only. Evidence strength,
-verdict, and severity remain independent. Confirmed findings require a separate variant analysis
-before closure.
+A different provider adjudicates candidates through threat model, attacker control, source-to-sink
+trace, reachability, primary controls, environmental mitigations, real impact, proof, and
+false-positive challenge. Candidates are triaged, then clustered by rule and normalized sink/excerpt
+digest; each cluster has one adjudicated representative, and every member keeps its own verdict row.
+Clusters are batched by rule family and file locality. Each batch runs in one fresh Oracle context,
+separate from any generator context, and the batch is an aggregation boundary only. Every surviving
+verdict is confirmed in a single-candidate fresh context, and seeded spot-checks re-adjudicate
+false-positive verdicts per batch (`execution-contract.md`, Security adjudication batches). Evidence
+strength, verdict, and severity remain independent. Confirmed findings require a separate variant
+analysis before closure.
 
 Provider/context separation and verdict invariants are enforced by the `legion-audit` security pipeline
-(`engine/crates/legion-audit/src/p12_pipeline`), which rejects context reuse across candidates.
+(`engine/crates/legion-audit/src/p12_pipeline`). Under batching that pipeline must reject context reuse
+across batches and between a surviving verdict and its confirmation. Status: target; the pipeline still
+checks per-candidate contexts until the scaled-audit build lands.
 
 ## Measured rule packs
 

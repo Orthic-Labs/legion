@@ -30,11 +30,11 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use super::{
-    authenticate_receipt, followup, lens_plan, lens_schemas,
+    authenticate_receipt, coverage_plan, followup, lens_plan, lens_schemas,
     security_adjudication::{
         adjudicate_scanner_candidates, adjudication_parent_packet_digest, adjudication_work_items,
-        confirmed_findings, confirmed_paths, ConfirmedSecurityFinding, ScannerCandidate,
-        ADJUDICATOR_PROVIDER_ID,
+        build_adjudication_plan, confirmed_findings, confirmed_paths, evaluate_adjudication,
+        ConfirmedSecurityFinding, ScannerCandidate, TriageContext, ADJUDICATOR_PROVIDER_ID,
     },
     verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
@@ -57,6 +57,8 @@ pub const LENS_RECEIPT_DIR: &str = "lens-receipts";
 pub const INGEST_HOST: &str = "legion-cli-ingest";
 pub const LENS_RESULT_KIND: &str = "legion-lens-result";
 const EPOCH_DOMAIN: &[u8] = b"legion-audit-epoch:v1";
+/// Prominent label of a risk-sampled run (Astra D2).
+pub const SAMPLED_AUDIT_LABEL: &str = "whole-repository risk-sampled audit";
 const NOT_COMPLETE_GAP: &str = "selected reasoning lenses did not complete";
 
 /// Lens-schema finding fields (`lens_schemas.rs`: the shared shape plus the
@@ -361,6 +363,142 @@ struct PacketCoverage {
     detail: Value,
 }
 
+/// The risk-sampled fields a packet's `excerptCoverage` carries.
+struct SampledPacket {
+    bundle: String,
+    review_set_digest: String,
+    review_set_count: usize,
+    promoted: Vec<String>,
+    declared_unsampled: usize,
+    excluded: usize,
+    /// (alias path, canonical path)
+    aliases: Vec<(String, String)>,
+}
+
+impl SampledPacket {
+    fn from_coverage(coverage: Option<&Value>) -> Option<Self> {
+        let coverage = coverage?;
+        if coverage.get("coverageMode").and_then(Value::as_str)
+            != Some(coverage_plan::MODE_RISK_SAMPLED)
+        {
+            return None;
+        }
+        let aliases = coverage
+            .get("aliasedPaths")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| {
+                        Some((
+                            item.get("path")?.as_str()?.to_owned(),
+                            item.get("of")?.as_str()?.to_owned(),
+                        ))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Some(Self {
+            bundle: coverage
+                .get("bundle")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+            review_set_digest: coverage
+                .get("reviewSetDigest")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+            review_set_count: coverage
+                .get("reviewSetCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            promoted: string_list(coverage.get("promotedPaths")),
+            declared_unsampled: coverage
+                .get("declaredUnsampledCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            excluded: coverage
+                .get("excludedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            aliases,
+        })
+    }
+
+    /// Paths the lens must examine: the frozen review set plus promotions.
+    fn review_expected(&self) -> usize {
+        self.review_set_count + self.promoted.len()
+    }
+
+    fn annotate(&self, object: &mut Map<String, Value>) {
+        object.insert("coverageMode".into(), json!(coverage_plan::MODE_RISK_SAMPLED));
+        object.insert("bundle".into(), json!(self.bundle));
+        object.insert("reviewSetDigest".into(), json!(self.review_set_digest));
+        object.insert("reviewSetCount".into(), json!(self.review_set_count));
+        object.insert("reviewExpected".into(), json!(self.review_expected()));
+        object.insert("promotedPaths".into(), json!(self.promoted));
+        object.insert("declaredUnsampled".into(), json!(self.declared_unsampled));
+        object.insert("excluded".into(), json!(self.excluded));
+        object.insert(
+            "aliasedPaths".into(),
+            Value::Array(
+                self.aliases
+                    .iter()
+                    .map(|(alias, of)| json!({"path": alias, "of": of}))
+                    .collect(),
+            ),
+        );
+    }
+}
+
+/// The frozen coverage plan of `provider_id` from the persisted native plan.
+fn frozen_coverage_for(plan: &Value, provider_id: &str) -> Option<coverage_plan::FrozenCoverage> {
+    plan.pointer("/nativePlan/plan/providers")?
+        .as_array()?
+        .iter()
+        .find(|provider| provider.get("id").and_then(Value::as_str) == Some(provider_id))?
+        .pointer("/configuration/coverage")
+        .and_then(coverage_plan::FrozenCoverage::from_value)
+}
+
+/// A risk-sampled lens packet must carry exactly the review set the plan
+/// froze; promotions may only add paths inside the frozen denominator.
+fn verify_review_binding(
+    plan: &Value,
+    provider_id: &str,
+    packet: &Value,
+    denominator_paths: &[String],
+) -> Result<(), AuditError> {
+    let Some(frozen) = frozen_coverage_for(plan, provider_id).filter(|f| f.is_sampled()) else {
+        return Ok(());
+    };
+    let coverage = packet.get("excerptCoverage").filter(|v| v.is_object());
+    let carried = SampledPacket::from_coverage(coverage).ok_or_else(|| {
+        invalid(format!(
+            "lens packet for {provider_id} does not carry the frozen risk-sampled review set"
+        ))
+    })?;
+    if carried.review_set_digest != frozen.review_set_digest
+        || carried.review_set_count != frozen.review_set.len()
+    {
+        return Err(invalid(format!(
+            "lens packet for {provider_id} review set differs from the frozen plan"
+        )));
+    }
+    let denominator: BTreeSet<&str> = denominator_paths.iter().map(String::as_str).collect();
+    if carried
+        .promoted
+        .iter()
+        .any(|path| !denominator.contains(path.as_str()) || frozen.review_set.contains(path))
+    {
+        return Err(invalid(format!(
+            "lens packet for {provider_id} promotes a path outside the frozen denominator or already in the review set"
+        )));
+    }
+    Ok(())
+}
+
 fn string_list(value: Option<&Value>) -> Vec<String> {
     value
         .and_then(Value::as_array)
@@ -390,15 +528,25 @@ fn packet_coverage(
     let coverage = packet
         .get("excerptCoverage")
         .filter(|value| value.is_object());
+    let sampled = SampledPacket::from_coverage(coverage);
     let basis = coverage
         .and_then(|value| value.get("basis"))
         .and_then(Value::as_str)
         .unwrap_or("unrecorded");
     match basis {
         "bounded-excerpts" => {
-            let included = string_list(coverage.and_then(|value| value.get("examinedPaths")))
+            let mut included = string_list(coverage.and_then(|value| value.get("examinedPaths")))
                 .into_iter()
                 .collect::<BTreeSet<_>>();
+            if let Some(sampled) = &sampled {
+                // Identical-content aliases are credited with their canonical
+                // path's excerpt.
+                for (alias, canonical) in &sampled.aliases {
+                    if included.contains(canonical) {
+                        included.insert(alias.clone());
+                    }
+                }
+            }
             let examined = denominator_paths
                 .iter()
                 .filter(|path| included.contains(*path))
@@ -434,46 +582,68 @@ fn packet_coverage(
                     })
                     .unwrap_or_default();
                 let part_meta = packet.get("part").cloned().unwrap_or(Value::Null);
+                let mut detail = json!({
+                    "basis": basis,
+                    "examined": examined,
+                    "expected": expected,
+                    "part": {"number": part.number, "total": part.total},
+                    "requiredParts": part_meta.get("requiredParts"),
+                    "overCeiling": part_meta.get("overCeiling"),
+                    "partPaths": part_meta.get("paths"),
+                    "examinedPaths": examined_paths,
+                    "chunkedPaths": chunked,
+                    "omittedPaths": omitted,
+                    "truncatedPaths": truncated,
+                });
+                if let (Some(sampled), Some(object)) = (&sampled, detail.as_object_mut()) {
+                    sampled.annotate(object);
+                }
                 return PacketCoverage {
                     examined,
                     gaps: vec![format!(
                         "reasoning-part-scope:{provider_id}:part {}/{}",
                         part.number, part.total
                     )],
-                    detail: json!({
-                        "basis": basis,
-                        "examined": examined,
-                        "expected": expected,
-                        "part": {"number": part.number, "total": part.total},
-                        "requiredParts": part_meta.get("requiredParts"),
-                        "overCeiling": part_meta.get("overCeiling"),
-                        "partPaths": part_meta.get("paths"),
-                        "examinedPaths": examined_paths,
-                        "chunkedPaths": chunked,
-                        "omittedPaths": omitted,
-                        "truncatedPaths": truncated,
-                    }),
+                    detail,
                 };
             }
-            let gaps = if examined < expected {
+            // A risk-sampled lens is judged against its frozen review set;
+            // paths outside it are declared unsampled, not gaps. The numeric
+            // `examined` credits them so the provider-level reconciliation
+            // (expected == denominator count) stays exact; the honest split is
+            // in `detail` and the `lensCoverage` claim.
+            let review_expected = sampled
+                .as_ref()
+                .map_or(expected, |sampled| sampled.review_expected() as u64);
+            let gaps = if examined < review_expected {
                 vec![format!(
-                    "reasoning-excerpt-coverage:{provider_id}:{examined}/{expected} paths examined ({} omitted, {} truncated)",
+                    "reasoning-excerpt-coverage:{provider_id}:{examined}/{review_expected} {}paths examined ({} omitted, {} truncated)",
+                    if sampled.is_some() { "review-set " } else { "" },
                     omitted.as_array().map_or(0, Vec::len),
                     truncated.len()
                 )]
             } else {
                 Vec::new()
             };
+            let credited = match &sampled {
+                Some(sampled) => (examined + sampled.declared_unsampled as u64).min(expected),
+                None => examined,
+            };
+            let mut detail = json!({
+                "basis": basis,
+                "examined": examined,
+                "expected": expected,
+                "omittedPaths": omitted,
+                "truncatedPaths": truncated,
+            });
+            if let (Some(sampled), Some(object)) = (&sampled, detail.as_object_mut()) {
+                sampled.annotate(object);
+                object.insert("reviewExamined".into(), json!(examined));
+            }
             PacketCoverage {
-                examined,
+                examined: credited,
                 gaps,
-                detail: json!({
-                    "basis": basis,
-                    "examined": examined,
-                    "expected": expected,
-                    "omittedPaths": omitted,
-                    "truncatedPaths": truncated,
-                }),
+                detail,
             }
         }
         "candidate-verdicts" => {
@@ -730,6 +900,7 @@ pub fn ingest_lens_result(
             "lens packet binding was altered after the run froze",
         ));
     }
+    verify_review_binding(&plan, provider_id, &request.packet, &request.denominator_paths)?;
     let packet_digest =
         canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?;
 
@@ -888,8 +1059,84 @@ pub fn ingest_lens_result(
     let submitted_verdicts = array_field(result, "verdicts", &who)?;
     let mut candidates_supplied = false;
     let mut verdict_details: Option<(Value, Value)> = None;
+    // Staged adjudication: the per-stage ledger and any gaps it implies.
+    let mut adjudication_ledger: Option<Value> = None;
+    let mut ledger_gaps: Vec<String> = Vec::new();
     if provider_id == ADJUDICATOR_PROVIDER_ID {
         match request.packet.get("scannerCandidates") {
+            Some(Value::Array(items))
+                if request
+                    .packet
+                    .get("candidateWorkItems")
+                    .is_some_and(|work| work.get("batches").is_some()) =>
+            {
+                // Triage, clusters, batches, confirmations and spot-checks:
+                // rebuild the plan from the packet's own candidates and
+                // frozen triage context, require it to match the packet, and
+                // evaluate every submitted stage against it.
+                let candidates: Vec<ScannerCandidate> =
+                    serde_json::from_value(Value::Array(items.clone()))
+                        .map_err(|error| invalid(format!("{who}: packet candidates: {error}")))?;
+                let parent_packet_digest = adjudication_parent_packet_digest(&request.packet)
+                    .map_err(|error| invalid(format!("{who}: {error}")))?;
+                let triage_context: TriageContext = serde_json::from_value(
+                    request
+                        .packet
+                        .pointer("/candidateWorkItems/triage/context")
+                        .cloned()
+                        .unwrap_or_else(|| json!({})),
+                )
+                .map_err(|error| invalid(format!("{who}: triage context: {error}")))?;
+                let plan = build_adjudication_plan(&candidates, &triage_context, &parent_packet_digest)
+                    .map_err(|error| invalid(format!("{who}: {error}")))?;
+                if request.packet.get("candidateWorkItems") != Some(&plan.to_value()) {
+                    return Err(invalid(format!(
+                        "{who}: adjudication plan does not match the batch candidates and parent packet digest"
+                    )));
+                }
+                let outcome = evaluate_adjudication(&plan, &candidates, &submitted_verdicts)
+                    .map_err(|error| invalid(format!("{who}: {error}")))?;
+                for verdict in outcome
+                    .verdicts
+                    .iter()
+                    .filter(|verdict| verdict.verdict.is_surviving())
+                {
+                    let finding_id = format!("adjudicated:{}", verdict.candidate_id);
+                    if !seen_ids.contains(&finding_id) {
+                        return Err(invalid(format!(
+                            "{who}: surviving verdict for {} needs an anchored finding with id {finding_id}",
+                            verdict.candidate_id
+                        )));
+                    }
+                }
+                let confirmed = confirmed_findings(&candidates, &outcome.verdicts);
+                verdict_details = Some((
+                    serde_json::to_value(&outcome.verdicts)
+                        .map_err(|error| invalid(error.to_string()))?,
+                    serde_json::to_value(&confirmed).map_err(|error| invalid(error.to_string()))?,
+                ));
+                let ledger = &outcome.ledger;
+                if !ledger.complete {
+                    let listed = ledger
+                        .outstanding
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    ledger_gaps.push(format!(
+                        "adjudication-incomplete:{provider_id}:{} outstanding item(s), {} contested, {} batch(es) voided; first: {listed}",
+                        ledger.outstanding.len(),
+                        ledger.contested.len(),
+                        ledger.voided_batches.len()
+                    ));
+                }
+                adjudication_ledger = Some(json!({
+                    "ledger": ledger,
+                    "autoTriaged": outcome.auto_triaged,
+                }));
+                candidates_supplied = true;
+            }
             Some(Value::Array(items)) => {
                 let candidates: Vec<ScannerCandidate> =
                     serde_json::from_value(Value::Array(items.clone()))
@@ -1015,6 +1262,7 @@ pub fn ingest_lens_result(
         candidates_supplied,
         part,
     );
+    coverage.gaps.append(&mut ledger_gaps);
     // The batch entry point adjudicates under `ContextPolicy::Derived`: the
     // per-candidate context id is derived from the packet digest and the
     // candidate id, so naming it proves nothing about the context the verdict
@@ -1074,6 +1322,9 @@ pub fn ingest_lens_result(
     }
     if let Some(context) = adjudication_context {
         details.insert("adjudicationContext".into(), context);
+    }
+    if let Some(ledger) = adjudication_ledger {
+        details.insert("adjudicationLedger".into(), ledger);
     }
     for (field, value) in extra_details {
         details.insert(field, value);
@@ -1412,6 +1663,9 @@ fn merge_parts(
     let mut semantic_reviews: Vec<(u32, Value)> = Vec::new();
     let mut change_risks: Vec<(u32, Value)> = Vec::new();
     let mut ingested: Vec<u32> = Vec::new();
+    // Risk-sampled lenses: review-set expectation and alias credit.
+    let mut sampled_meta: Option<(usize, usize, usize, String, String)> = None;
+    let mut alias_pairs: Vec<(String, String)> = Vec::new();
 
     for (number, file_total, result) in &parts {
         let coverage = result
@@ -1445,6 +1699,57 @@ fn merge_parts(
             }
         }
         examined_paths.extend(string_list(packet_coverage.get("examinedPaths")));
+        if packet_coverage.get("coverageMode").and_then(Value::as_str)
+            == Some(coverage_plan::MODE_RISK_SAMPLED)
+        {
+            let field = |name: &str| {
+                packet_coverage
+                    .get(name)
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0) as usize
+            };
+            let meta = (
+                field("reviewExpected"),
+                field("declaredUnsampled"),
+                field("excluded"),
+                packet_coverage
+                    .get("reviewSetDigest")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+                packet_coverage
+                    .get("bundle")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+            );
+            if let Some(existing) = &sampled_meta {
+                if *existing != meta {
+                    return Err(invalid(format!(
+                        "{who}: part {number} disagrees on the frozen review set"
+                    )));
+                }
+            } else {
+                sampled_meta = Some(meta);
+            }
+            for item in packet_coverage
+                .get("aliasedPaths")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                if let (Some(path), Some(of)) = (
+                    item.get("path").and_then(Value::as_str),
+                    item.get("of").and_then(Value::as_str),
+                ) {
+                    alias_pairs.push((path.to_owned(), of.to_owned()));
+                }
+            }
+        } else if sampled_meta.is_some() {
+            return Err(invalid(format!(
+                "{who}: part {number} mixes risk-sampled and exhaustive packets"
+            )));
+        }
         for item in packet_coverage
             .get("chunkedPaths")
             .and_then(Value::as_array)
@@ -1553,11 +1858,24 @@ fn merge_parts(
             partial.push(path.clone());
         }
     }
+    for (alias, canonical) in &alias_pairs {
+        if covered.contains(canonical) {
+            covered.insert(alias.clone());
+        }
+    }
     for path in omitted.keys() {
         covered.remove(path);
     }
     let expected = template_coverage.expected;
-    let examined = (covered.len() as u64).min(expected);
+    // Risk-sampled: complete against the frozen review set; numeric `examined`
+    // credits the declared-unsampled paths so expected == denominator count
+    // stays exact (the honest split is in packetCoverage and `lensCoverage`).
+    let (review_expected, declared_unsampled) = match &sampled_meta {
+        Some((review, declared, _, _, _)) => (*review as u64, *declared as u64),
+        None => (expected, 0),
+    };
+    let review_examined = (covered.len() as u64).min(review_expected);
+    let examined = (review_examined + declared_unsampled).min(expected);
     let pending: Vec<u32> = (1..=total).filter(|n| !ingested.contains(n)).collect();
 
     let mut gaps = Vec::new();
@@ -1576,9 +1894,10 @@ fn merge_parts(
             object.get("unscheduledPathCount").and_then(Value::as_u64).unwrap_or(0),
         ));
     }
-    if pending.is_empty() && examined < expected {
+    if pending.is_empty() && review_examined < review_expected {
         gaps.push(format!(
-            "reasoning-excerpt-coverage:{provider}:{examined}/{expected} paths examined ({} omitted, {} partially covered)",
+            "reasoning-excerpt-coverage:{provider}:{review_examined}/{review_expected} {}paths examined ({} omitted, {} partially covered)",
+            if sampled_meta.is_some() { "review-set " } else { "" },
             omitted.len(),
             partial.len()
         ));
@@ -1611,12 +1930,26 @@ fn merge_parts(
         }),
     );
     details.insert("partReceipts".into(), Value::Array(part_receipts));
+    let sampled_detail = sampled_meta.as_ref().map(
+        |(review, declared, excluded, digest, bundle)| {
+            json!({
+                "coverageMode": coverage_plan::MODE_RISK_SAMPLED,
+                "reviewExpected": review,
+                "reviewExamined": review_examined,
+                "declaredUnsampled": declared,
+                "excluded": excluded,
+                "reviewSetDigest": digest,
+                "bundle": bundle,
+            })
+        },
+    );
     details.insert(
         "packetCoverage".into(),
         json!({
             "basis": "bounded-excerpts",
             "examined": examined,
             "expected": expected,
+            "sampled": sampled_detail,
             "partsTotal": total,
             "partsIngested": ingested,
             "partsPending": pending,
@@ -2044,10 +2377,14 @@ pub struct LensSizeLimits {
     pub max_seats: u64,
 }
 
-/// Default per-seat token budget (estimated tokens of one packet part).
-pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = 200_000;
+/// Default per-seat token budget (estimated tokens of one seat, 150k).
+pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = coverage_plan::DEFAULT_SEAT_TOKEN_BUDGET;
 /// Default host child-agent cap (`CHILD_AGENTS_MAX` in the Audit manual).
-pub const DEFAULT_MAX_SEATS: u64 = 16;
+pub const DEFAULT_MAX_SEATS: u64 = coverage_plan::WAVE_WIDTH;
+/// Default run budget: estimated input tokens across every seat.
+pub const DEFAULT_RUN_TOKEN_BUDGET: u64 = coverage_plan::DEFAULT_RUN_TOKEN_BUDGET;
+/// Default cap on seats across all waves.
+pub const DEFAULT_MAX_TOTAL_SEATS: u64 = coverage_plan::DEFAULT_MAX_TOTAL_SEATS;
 
 /// Estimated tokens for `bytes` of packet JSON. A labelled estimate
 /// (bytes / 4), not a tokenizer count.
@@ -2133,6 +2470,284 @@ pub fn lens_size_report(work: &[PendingLensWork], limits: &LensSizeLimits) -> Va
         "violations": violations,
         "warnings": warnings,
     })
+}
+
+/// Limits a bundled dispatch plan is gated against.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DispatchLimits {
+    /// Largest estimated token count one seat may carry.
+    pub seat_token_budget: u64,
+    /// Seats per wave (`CHILD_AGENTS_MAX`).
+    pub wave_width: u64,
+    /// Estimated input tokens across every seat; the plan refuses past it.
+    pub run_token_budget: u64,
+    /// Seats across all waves; the plan refuses past it.
+    pub max_total_seats: u64,
+}
+
+impl Default for DispatchLimits {
+    fn default() -> Self {
+        Self {
+            seat_token_budget: DEFAULT_SEAT_TOKEN_BUDGET,
+            wave_width: DEFAULT_MAX_SEATS,
+            run_token_budget: DEFAULT_RUN_TOKEN_BUDGET,
+            max_total_seats: DEFAULT_MAX_TOTAL_SEATS,
+        }
+    }
+}
+
+fn bundle_share_bp(id: &str) -> u32 {
+    lens_plan::COVERAGE_BUNDLES
+        .iter()
+        .chain(std::iter::once(&lens_plan::BUNDLE_ADJUDICATION))
+        .find(|bundle| bundle.id == id)
+        .map_or(0, |bundle| bundle.budget_share_bp)
+}
+
+fn tier_rank(tier: &str) -> u8 {
+    match tier {
+        "judgment" => 0,
+        "specialist" => 1,
+        _ => 2,
+    }
+}
+
+struct SeatDraft {
+    bundle: String,
+    tier: String,
+    part: u32,
+    members: Vec<usize>,
+    excerpt_bytes: u64,
+    overhead_bytes: u64,
+}
+
+/// Bundled dispatch plan for a pending-work set: lens packets that read the
+/// same excerpt part (same bundle, part number, review set, mode) share one
+/// seat that reads the part once and answers every lens of the bundle,
+/// writing one result file per provider. Seats are ordered judgment tier
+/// first and scheduled in waves of `wave_width`. The plan refuses (a
+/// `violations` entry) when a seat exceeds the seat budget, the run exceeds
+/// its estimated token budget, or the run needs more than `max_total_seats`
+/// seats, and reports how far over each bundle is. Pure and deterministic.
+///
+/// `estimatedTokens` is the seat-based run estimate (excerpt tokens counted
+/// once per seat plus each lens's own instruction overhead), a labelled
+/// estimate (bytes / 4), not a tokenizer count.
+pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
+    let mut drafts: Vec<SeatDraft> = Vec::new();
+    let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
+    let mut sampled = false;
+    for (position, item) in work.iter().enumerate() {
+        let packet = &item.request.packet;
+        let mut stripped = packet.clone();
+        if let Some(object) = stripped.as_object_mut() {
+            object.remove("projection");
+        }
+        let total = serde_json::to_vec(&stripped).map_or(0, |bytes| bytes.len() as u64);
+        let excerpt_bytes = packet
+            .get("excerpts")
+            .filter(|value| !value.is_null())
+            .and_then(|value| serde_json::to_vec(value).ok())
+            .map_or(0, |bytes| bytes.len() as u64);
+        let adjudicator = item.provider_id == ADJUDICATOR_PROVIDER_ID;
+        let bundle = packet
+            .pointer("/lensPlan/bundle/id")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| {
+                if adjudicator {
+                    lens_plan::BUNDLE_ADJUDICATION.id.to_owned()
+                } else {
+                    format!("X:{}", item.provider_id)
+                }
+            });
+        let tier = packet
+            .pointer("/lensPlan/bundle/tier")
+            .and_then(Value::as_str)
+            .unwrap_or("judgment")
+            .to_owned();
+        let part = item.part().map_or(1, |part| part.number);
+        let coverage = packet.get("excerptCoverage");
+        if coverage
+            .and_then(|value| value.get("coverageMode"))
+            .and_then(Value::as_str)
+            == Some(coverage_plan::MODE_RISK_SAMPLED)
+        {
+            sampled = true;
+        }
+        let identity = coverage
+            .and_then(|value| value.get("reviewSetDigest"))
+            .and_then(Value::as_str)
+            .unwrap_or(item.request.denominator_digest.as_str());
+        let paths_digest = packet
+            .pointer("/part/pathsDigest")
+            .and_then(Value::as_str)
+            .unwrap_or("single");
+        let mode = packet
+            .pointer("/excerpts/0/mode")
+            .and_then(Value::as_str)
+            .unwrap_or("none");
+        let chunks = packet
+            .get("excerpts")
+            .and_then(Value::as_array)
+            .map_or(0, Vec::len);
+        let key = if excerpt_bytes > 0 && !adjudicator {
+            format!("{bundle}|{part}|{identity}|{paths_digest}|{mode}|{chunks}")
+        } else {
+            format!("solo|{}|{part}|{position}", item.provider_id)
+        };
+        let overhead = total.saturating_sub(excerpt_bytes);
+        match by_key.get(&key).copied() {
+            Some(index) => {
+                let draft = &mut drafts[index];
+                draft.members.push(position);
+                draft.excerpt_bytes = draft.excerpt_bytes.max(excerpt_bytes);
+                draft.overhead_bytes += overhead;
+            }
+            None => {
+                by_key.insert(key, drafts.len());
+                drafts.push(SeatDraft {
+                    bundle,
+                    tier,
+                    part,
+                    members: vec![position],
+                    excerpt_bytes,
+                    overhead_bytes: overhead,
+                });
+            }
+        }
+    }
+    drafts.sort_by(|left, right| {
+        tier_rank(&left.tier)
+            .cmp(&tier_rank(&right.tier))
+            .then_with(|| left.bundle.cmp(&right.bundle))
+            .then_with(|| left.part.cmp(&right.part))
+            .then_with(|| left.members.cmp(&right.members))
+    });
+    let wave_width = limits.wave_width.max(1);
+    let mut seats = Vec::new();
+    let mut violations: Vec<String> = Vec::new();
+    let mut bundles: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+    let mut total_tokens = 0u64;
+    let mut total_bytes = 0u64;
+    for (index, draft) in drafts.iter().enumerate() {
+        let number = index as u64 + 1;
+        let bytes = draft.excerpt_bytes + draft.overhead_bytes;
+        let tokens = estimate_tokens(bytes);
+        total_tokens += tokens;
+        total_bytes += bytes;
+        let entry = bundles.entry(draft.bundle.clone()).or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += tokens;
+        if tokens > limits.seat_token_budget {
+            violations.push(format!(
+                "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds the per-seat budget of {}",
+                draft.bundle, draft.part, limits.seat_token_budget
+            ));
+        }
+        seats.push(json!({
+            "seat": number,
+            "bundle": draft.bundle,
+            "tier": draft.tier,
+            "wave": (number - 1) / wave_width + 1,
+            "part": draft.part,
+            "estimatedTokens": tokens,
+            "providers": draft.members.iter().map(|i| work[*i].provider_id.clone()).collect::<Vec<_>>(),
+            "lensIds": draft.members.iter().flat_map(|i| work[*i].lens_ids.clone()).collect::<Vec<_>>(),
+            "packets": draft.members.iter().map(|i| work[*i].packet_file_name()).collect::<Vec<_>>(),
+        }));
+    }
+    let required_seats = drafts.len() as u64;
+    let waves = required_seats.div_ceil(wave_width);
+    if required_seats > limits.max_total_seats {
+        violations.push(format!(
+            "{required_seats} seats required exceeds the run cap of {} seats",
+            limits.max_total_seats
+        ));
+    }
+    let mut overruns = Vec::new();
+    let bundle_rows: Vec<Value> = bundles
+        .iter()
+        .map(|(id, (seat_count, tokens))| {
+            let budget = limits.run_token_budget * u64::from(bundle_share_bp(id)) / 10_000;
+            let over = tokens.saturating_sub(budget);
+            if over > 0 && budget > 0 {
+                overruns.push(format!(
+                    "bundle {id}: ~{tokens} estimated tokens is {over} over its {budget} share of the run budget"
+                ));
+            }
+            json!({
+                "bundle": id,
+                "shareBp": bundle_share_bp(id),
+                "seats": seat_count,
+                "estimatedTokens": tokens,
+                "budgetTokens": budget,
+                "overBy": over,
+            })
+        })
+        .collect();
+    if total_tokens > limits.run_token_budget {
+        violations.push(format!(
+            "run needs ~{total_tokens} estimated tokens, {} over the run budget of {}{}",
+            total_tokens - limits.run_token_budget,
+            limits.run_token_budget,
+            if overruns.is_empty() {
+                String::new()
+            } else {
+                format!(" ({})", overruns.join("; "))
+            }
+        ));
+    }
+    // Per-packet check kept from the part-level gate: a packet no seat can
+    // read refuses the freeze whatever the bundle arithmetic says.
+    let legacy = lens_size_report(
+        work,
+        &LensSizeLimits {
+            seat_token_budget: limits.seat_token_budget,
+            max_seats: wave_width,
+        },
+    );
+    for violation in legacy["violations"].as_array().into_iter().flatten() {
+        if let Some(text) = violation.as_str() {
+            violations.push(text.to_owned());
+        }
+    }
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-lens-dispatch",
+        "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
+        "estimateBasis": "estimate: seat excerpt bytes read once + per-lens packet overhead, bytes / 4",
+        "coverageMode": if sampled { coverage_plan::MODE_RISK_SAMPLED } else { coverage_plan::MODE_EXHAUSTIVE },
+        "limits": {
+            "seatTokenBudget": limits.seat_token_budget,
+            "waveWidth": wave_width,
+            "runTokenBudget": limits.run_token_budget,
+            "maxTotalSeats": limits.max_total_seats,
+        },
+        "lenses": legacy["lenses"],
+        "bundles": bundle_rows,
+        "seats": seats,
+        "waves": waves,
+        "requiredSeats": required_seats,
+        "packetBytes": total_bytes,
+        "estimatedTokens": total_tokens,
+        "withinLimits": violations.is_empty(),
+        "violations": violations,
+        "warnings": overruns,
+    })
+}
+
+/// `lens-dispatch.json` under `out_dir`: the dispatch plan for the packets in
+/// `work` (bundles, waves, tiers, packet files per seat).
+pub fn write_lens_dispatch(
+    out_dir: &Path,
+    work: &[PendingLensWork],
+    limits: &DispatchLimits,
+) -> Result<Value, AuditError> {
+    let plan = lens_dispatch_plan(work, limits);
+    let bytes = serde_json::to_vec_pretty(&plan).map_err(|error| invalid(error.to_string()))?;
+    write_atomic(out_dir, "lens-dispatch.json", &bytes)?;
+    Ok(plan)
 }
 
 /// Writes lens packets under `packet_dir` (`<out>/lens-packets`): the single
@@ -2352,15 +2967,38 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         plan_complete,
         next.results.len(),
     );
+    let (lens_coverage, sampled_run) = match native_plan.as_ref() {
+        Some(native) => lens_coverage_claims(native, &receipts),
+        None => (Value::Null, false),
+    };
     report.claims.insert("auditStatus".into(), json!(label));
+    // `coverageMode` is reported separately from the quality outcome: a
+    // sampled run keeps its findings/incomplete states, and a clean sampled
+    // run is `sampled`, never `proven`.
     report.claims.insert(
         "qualityGate".into(),
-        json!(if status == ReportStatus::Clean {
-            "proven"
-        } else {
+        json!(if status != ReportStatus::Clean {
             "unproven"
+        } else if sampled_run {
+            "sampled"
+        } else {
+            "proven"
         }),
     );
+    report.claims.insert(
+        "coverageMode".into(),
+        json!(if sampled_run { "sampled" } else { "exhaustive" }),
+    );
+    if sampled_run {
+        report
+            .claims
+            .insert("auditLabel".into(), json!(SAMPLED_AUDIT_LABEL));
+    } else {
+        report.claims.remove("auditLabel");
+    }
+    if lens_coverage.as_object().is_some_and(|map| !map.is_empty()) {
+        report.claims.insert("lensCoverage".into(), lens_coverage);
+    }
     if !confirmed_security.is_empty() {
         report.claims.insert(
             "securityVariantTrigger".into(),
@@ -2410,6 +3048,138 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         ingested: ingested.into_iter().collect(),
         lens_parts,
     })
+}
+
+/// Per-lens coverage claim (`lensCoverage`) and whether any applicable lens is
+/// risk-sampled. `results` are the verified ingested receipts (empty before any
+/// ingest). A lens never claims that every lens judged every line: its mode,
+/// frozen review set, examined count and per-stratum confidence are reported
+/// as they are, and the status stays separate (`coverageMode` versus
+/// `auditStatus`/`qualityGate`).
+pub fn lens_coverage_claims(
+    plan: &AuditPlan,
+    results: &[(String, ProviderResult)],
+) -> (Value, bool) {
+    let mut claims = Map::new();
+    let mut sampled = false;
+    for provider in &plan.providers {
+        if provider.not_applicable() {
+            continue;
+        }
+        let Some(frozen) = provider
+            .configuration
+            .get("coverage")
+            .and_then(coverage_plan::FrozenCoverage::from_value)
+        else {
+            continue;
+        };
+        let receipt = results
+            .iter()
+            .find(|(id, _)| *id == provider.id)
+            .map(|(_, result)| result);
+        let packet = receipt.and_then(|result| result.details.get("packetCoverage"));
+        let merged = packet.and_then(|detail| detail.get("sampled")).filter(|v| !v.is_null());
+        let review_examined = if frozen.is_sampled() {
+            merged
+                .and_then(|value| value.get("reviewExamined"))
+                .or_else(|| packet.and_then(|detail| detail.get("reviewExamined")))
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        } else {
+            receipt
+                .and_then(|result| result.coverage.as_ref())
+                .map_or(0, |coverage| coverage.examined)
+        };
+        let review_total = merged
+            .and_then(|value| value.get("reviewExpected"))
+            .or_else(|| packet.and_then(|detail| detail.get("reviewExpected")))
+            .and_then(Value::as_u64)
+            .unwrap_or(frozen.review_set.len() as u64);
+        let complete = receipt.is_some_and(|result| result.complete);
+        // Findings by anchor path, for strata and the confidence statement.
+        let anchored: Vec<(String, bool)> = receipt
+            .and_then(|result| result.details.get("lensFindings"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|finding| {
+                        let path = finding.pointer("/anchor/path")?.as_str()?.to_owned();
+                        let high = matches!(
+                            finding.get("severity").and_then(Value::as_str),
+                            Some("high" | "critical")
+                        );
+                        Some((path, high))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut strata = Vec::new();
+        let mut placed: BTreeSet<String> = BTreeSet::new();
+        for stratum in frozen.strata.as_array().into_iter().flatten() {
+            let name = stratum.get("name").and_then(Value::as_str).unwrap_or("?");
+            let population = stratum.get("N").and_then(Value::as_u64).unwrap_or(0);
+            let selected = stratum.get("n").and_then(Value::as_u64).unwrap_or(0);
+            let paths: BTreeSet<String> = string_list(stratum.get("paths")).into_iter().collect();
+            let (total, high) = anchored
+                .iter()
+                .filter(|(path, _)| paths.contains(path))
+                .fold((0u64, 0u64), |(total, high), (_, is_high)| {
+                    (total + 1, high + u64::from(*is_high))
+                });
+            placed.extend(paths.iter().cloned());
+            let confidence = if frozen.is_sampled() && complete {
+                coverage_plan::stratum_confidence(name, population, selected, high)
+            } else if frozen.is_sampled() {
+                json!({"claim": "none", "basis": "lens-incomplete"})
+            } else {
+                json!({"claim": "none", "basis": "exhaustive-lens"})
+            };
+            strata.push(json!({
+                "name": name,
+                "N": population,
+                "n": selected,
+                "findings": total,
+                "highFindings": high,
+                "confidence": confidence,
+            }));
+        }
+        let promoted_findings = anchored
+            .iter()
+            .filter(|(path, _)| frozen.is_sampled() && !placed.contains(path))
+            .count();
+        if promoted_findings > 0 {
+            strata.push(json!({
+                "name": "promoted",
+                "N": review_total.saturating_sub(frozen.review_set.len() as u64),
+                "n": review_total.saturating_sub(frozen.review_set.len() as u64),
+                "findings": promoted_findings,
+                "confidence": {"claim": "none", "basis": "promoted-by-deterministic-findings"},
+            }));
+        }
+        sampled |= frozen.is_sampled();
+        claims.insert(
+            provider.id.clone(),
+            json!({
+                "mode": frozen.mode,
+                "bundle": frozen.bundle,
+                "denominator": frozen.denominator,
+                "reviewSet": review_total,
+                "reviewSetDigest": frozen.review_set_digest,
+                "examined": review_examined,
+                "declaredUnsampled": (frozen.denominator as u64).saturating_sub(review_total),
+                "excluded": frozen.excluded,
+                "seed": frozen.seed,
+                "status": match receipt {
+                    None => "pending",
+                    Some(result) if result.complete => "ingested",
+                    Some(_) => "ingested-partial",
+                },
+                "strata": strata,
+            }),
+        );
+    }
+    (Value::Object(claims), sampled)
 }
 
 fn set_derived_provider_coverage(

@@ -370,15 +370,73 @@ fn provider_status(facts: &Value, provider_id: &str, compatibility_alias: &str) 
         .unwrap_or_else(|| json!("not_applicable"))
 }
 
+/// Staged (batched) adjudication carries a ledger of what was required and what
+/// was ingested. `security_adjudication: pass` needs every batch, confirmation,
+/// spot-check and individual review ingested, no contested confirmation, and
+/// nothing outstanding; a `complete: true` claim cannot override a short
+/// ledger. An adjudication without a ledger is the unstaged shape and has no
+/// stage to check.
+fn adjudication_ledger_deficits(adjudication: &Value) -> Vec<String> {
+    let Some(ledger) = adjudication.get("ledger") else {
+        return Vec::new();
+    };
+    if !ledger.is_object() {
+        return vec!["ledger is not an object".to_owned()];
+    }
+    let mut deficits = Vec::new();
+    for stage in [
+        "batches",
+        "confirmations",
+        "spotChecks",
+        "individualReviews",
+    ] {
+        let count = |field: &str| {
+            ledger
+                .pointer(&format!("/{stage}/{field}"))
+                .and_then(Value::as_u64)
+        };
+        match (count("expected"), count("ingested")) {
+            (Some(expected), Some(ingested)) if expected == ingested => {}
+            (expected, ingested) => deficits.push(format!(
+                "{stage}: expected {expected:?}, ingested {ingested:?}"
+            )),
+        }
+    }
+    let listed = |field: &str| {
+        ledger
+            .get(field)
+            .and_then(Value::as_array)
+            .map_or(1, |items| items.len())
+    };
+    let outstanding = listed("outstanding");
+    if outstanding != 0 {
+        deficits.push(format!("{outstanding} outstanding adjudication item(s)"));
+    }
+    let contested = listed("contested");
+    if contested != 0 {
+        deficits.push(format!("{contested} contested confirmation(s)"));
+    }
+    if ledger.get("complete").and_then(Value::as_bool) != Some(true) {
+        deficits.push("ledger is not complete".to_owned());
+    }
+    deficits
+}
+
 /// Faithful port of `finalizeAudit`. The `rerun` command block (which shells
 /// out to `audit-run.mjs`/`audit-verify.mjs` with `process.execPath`) is not
 /// ported — it names process-launch commands, not analysis output.
 pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value) -> Value {
     let mut gaps = non_security_gaps(facts);
-    let adjudication_complete =
-        adjudication.get("complete").and_then(|v| v.as_bool()) == Some(true);
+    let ledger_deficits = adjudication_ledger_deficits(adjudication);
+    let adjudication_complete = adjudication.get("complete").and_then(|v| v.as_bool())
+        == Some(true)
+        && ledger_deficits.is_empty();
     if !adjudication_complete {
-        gaps.push(json!({"kind": "security-adjudication", "detail": adjudication}));
+        gaps.push(json!({
+            "kind": "security-adjudication",
+            "detail": adjudication,
+            "ledgerDeficits": ledger_deficits,
+        }));
     }
     for orphan in orphan_security_verdicts(adjudication, candidates) {
         gaps.push(json!({"kind": "orphan-security-verdict", "candidateId": orphan["candidateId"]}));
@@ -683,6 +741,68 @@ mod tests {
         assert!(gaps
             .iter()
             .any(|g| g["kind"] == json!("security-adjudication")));
+    }
+
+    fn clean_facts() -> Value {
+        json!({
+            "workspace": "/repo", "incomplete": false, "checks": [],
+            "plan_binding_verification": {"valid": true, "drift": []},
+            "plan": {"coverageGaps": [], "reasoningProviders": [], "selectedProviderIds": []},
+            "network_policy": {"mode": "deny"},
+            "provider_reconciliation": {
+                "missingChecks": [], "unplannedChecks": [], "denominatorMismatches": [],
+                "providerResults": [], "unresolvedCoverage": [], "missingRuntimeProviders": [],
+            },
+        })
+    }
+
+    fn ledger(confirmations: (u64, u64), spot: (u64, u64), outstanding: Value) -> Value {
+        json!({
+            "batches": {"expected": 3, "ingested": 3},
+            "confirmations": {"expected": confirmations.0, "ingested": confirmations.1},
+            "spotChecks": {"expected": spot.0, "ingested": spot.1},
+            "individualReviews": {"expected": 0, "ingested": 0},
+            "contested": [],
+            "outstanding": outstanding,
+            "complete": true,
+        })
+    }
+
+    #[test]
+    fn staged_adjudication_passes_only_with_every_stage_ingested() {
+        let candidates = json!({"candidates": []});
+        let full =
+            json!({"complete": true, "verdicts": [], "ledger": ledger((4, 4), (2, 2), json!([]))});
+        let report = finalize_audit(&clean_facts(), &candidates, &full);
+        assert_eq!(report["gates"]["security_adjudication"], json!("pass"));
+
+        // A `complete: true` claim cannot override a missing confirmation.
+        let missing_confirmation =
+            json!({"complete": true, "verdicts": [], "ledger": ledger((4, 3), (2, 2), json!([]))});
+        let report = finalize_audit(&clean_facts(), &candidates, &missing_confirmation);
+        assert_eq!(report["gates"]["security_adjudication"], json!("unproven"));
+        assert!(report["coverage_gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|g| g["kind"] == json!("security-adjudication")));
+
+        let missing_spot_check =
+            json!({"complete": true, "verdicts": [], "ledger": ledger((4, 4), (2, 1), json!([]))});
+        let report = finalize_audit(&clean_facts(), &candidates, &missing_spot_check);
+        assert_eq!(report["gates"]["security_adjudication"], json!("unproven"));
+
+        let outstanding = json!({
+            "complete": true, "verdicts": [],
+            "ledger": ledger((4, 4), (2, 2), json!(["confirmation:cand-1"])),
+        });
+        let report = finalize_audit(&clean_facts(), &candidates, &outstanding);
+        assert_eq!(report["gates"]["security_adjudication"], json!("unproven"));
+
+        // A malformed ledger fails closed.
+        let malformed = json!({"complete": true, "verdicts": [], "ledger": {"batches": {}}});
+        let report = finalize_audit(&clean_facts(), &candidates, &malformed);
+        assert_eq!(report["gates"]["security_adjudication"], json!("unproven"));
     }
 
     #[test]

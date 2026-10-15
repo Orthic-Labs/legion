@@ -14,8 +14,9 @@ use std::{
 use legion_audit::native_providers::reasoning::{
     followup::{compile_followup, FOLLOWUP_DIR, FROZEN_PLAN_FILE, VARIANT_PROVIDER_ID},
     ingest::{create_epoch, ingest_lens_result, recompute_run, EPOCH_KEY_FILE, LENS_PACKET_DIR},
-    pending_lens_work_with_candidates, scanner_candidates_from_execution, PendingLensWork,
-    ReasoningProviderExecutor, ADJUDICATOR_PROVIDER_ID,
+    pending_lens_work_with_candidates, scanner_candidates_from_execution,
+    security_adjudication::{build_adjudication_plan, required_items, TriageContext},
+    PendingLensWork, ReasoningProviderExecutor, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
 };
 use legion_audit::{
     canonical_report, execute, AuditError, AuditPlan, AuditProvider, FilesystemInventorySource,
@@ -315,6 +316,62 @@ fn verdict(id: &str, confirmed: bool) -> Value {
     }
 }
 
+/// Every stage of the batched protocol, driven to a fixed point: one batch
+/// verdict per cluster representative, then the confirmations, spot-checks and
+/// individual reviews the earlier verdicts require.
+fn staged_verdicts(run: &Run, confirm_sql: bool) -> Vec<Value> {
+    let packet = &run.adjudication.request.packet;
+    let candidates: Vec<ScannerCandidate> =
+        serde_json::from_value(packet["scannerCandidates"].clone()).unwrap();
+    let plan = build_adjudication_plan(
+        &candidates,
+        &TriageContext::default(),
+        packet["candidateWorkItems"]["parentPacketDigest"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+    let survives = |id: &str| id == "cand-sql" && confirm_sql;
+    let mut submitted = Vec::new();
+    for batch in &plan.batches {
+        for cluster_id in &batch.cluster_ids {
+            let cluster = plan
+                .clusters
+                .iter()
+                .find(|cluster| &cluster.cluster_id == cluster_id)
+                .unwrap();
+            let mut verdict = verdict(&cluster.representative_id, survives(&cluster.representative_id));
+            verdict["stage"] = json!("batch");
+            verdict["batchId"] = json!(batch.batch_id);
+            verdict["clusterId"] = json!(cluster.cluster_id);
+            verdict["workItemId"] = json!(batch.item_id);
+            verdict["workPacketDigest"] = json!(canonical_digest(&batch.packet).unwrap());
+            verdict["contextId"] = json!(batch.context_id);
+            submitted.push(verdict);
+        }
+    }
+    for _ in 0..6 {
+        let pending = required_items(&plan, &candidates, &submitted)
+            .unwrap()
+            .into_iter()
+            .filter(|item| !item.satisfied)
+            .collect::<Vec<_>>();
+        if pending.is_empty() {
+            break;
+        }
+        for item in pending {
+            let id = item.item.packet.candidate.id.clone();
+            let mut verdict = verdict(&id, survives(&id));
+            verdict["stage"] = json!(item.stage);
+            verdict["workItemId"] = json!(item.item.item_id);
+            verdict["workPacketDigest"] = json!(canonical_digest(&item.item.packet).unwrap());
+            verdict["contextId"] = json!(item.item.context_id);
+            submitted.push(verdict);
+        }
+    }
+    submitted
+}
+
 fn adjudication_result(run: &Run, confirm_sql: bool) -> Value {
     let findings = if confirm_sql {
         json!([{
@@ -326,21 +383,7 @@ fn adjudication_result(run: &Run, confirm_sql: bool) -> Value {
     } else {
         json!([])
     };
-    let verdicts = [verdict("cand-sql", confirm_sql), verdict("cand-doc", false)]
-        .into_iter()
-        .map(|mut verdict| {
-            let candidate_id = verdict["candidateId"].as_str().unwrap();
-            let item = run.adjudication.request.packet["candidateWorkItems"]["items"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|item| item["packet"]["candidate"]["id"] == candidate_id)
-                .unwrap();
-            verdict["workItemId"] = item["itemId"].clone();
-            verdict["workPacketDigest"] = json!(canonical_digest(&item["packet"]).unwrap());
-            verdict
-        })
-        .collect::<Vec<_>>();
+    let verdicts = staged_verdicts(run, confirm_sql);
     json!({
         "schemaVersion": 1,
         "kind": "legion-lens-result",
@@ -478,16 +521,7 @@ fn confirmed_run_with_source(name: &str, db_source: &str) -> Run {
 #[test]
 fn adjudication_under_derived_context_policy_records_a_gap_not_an_attestation() {
     let run = setup("derived-context");
-    let mut result = adjudication_result(&run, true);
-    for verdict in result["verdicts"].as_array_mut().unwrap() {
-        let item = run.adjudication.request.packet["candidateWorkItems"]["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|item| item["packet"]["candidate"]["id"] == verdict["candidateId"])
-            .unwrap();
-        verdict["contextId"] = item["contextId"].clone();
-    }
+    let result = adjudication_result(&run, true);
     ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap();
     let recomputed = recompute_run(&run.run).unwrap();
     assert!(
@@ -517,11 +551,9 @@ fn adjudication_result_must_bind_each_verdict_to_its_isolated_child_packet() {
 #[test]
 fn historical_batch_packet_without_child_items_remains_ingestable_as_derived() {
     let mut run = setup("legacy-batch-packet");
+    // A historical packet predates stages: one plain verdict per candidate.
     let mut result = adjudication_result(&run, true);
-    for verdict in result["verdicts"].as_array_mut().unwrap() {
-        verdict.as_object_mut().unwrap().remove("workItemId");
-        verdict.as_object_mut().unwrap().remove("workPacketDigest");
-    }
+    result["verdicts"] = json!([verdict("cand-sql", true), verdict("cand-doc", false)]);
     run.adjudication
         .request
         .packet
