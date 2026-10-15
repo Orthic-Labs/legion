@@ -164,7 +164,7 @@ fresh headless session started with no conversation history.
 |---|---|---|---|
 | Wonder full | `muse-wonder-full-1.0` | `improvement-path` | `muse exec --model muse-wonder-full-1.0 --disable-write --disable-shell --prompt-file seat.md` |
 | DeepSeek V4.1 Flash | `deepseek-ai/deepseek-v4.1-flash` | `scope-alternatives` | NIM |
-| Kimi K3 | `moonshotai/kimi-k3` | `user-outcome` | NIM |
+| Kimi K2.6 | `moonshotai/kimi-k2.6` | `user-outcome` | NIM |
 | Fable 5.1 | `claude-fable-5-1` | `red-team` | `claude -p --model claude-fable-5-1 --permission-mode plan < seat.md` |
 | GLM 5.3 | `z-ai/glm-5.3` | `security-ops` | NIM |
 | GLM 5.3 Flash | `z-ai/glm-5.3-flash` | `minimize` | NIM |
@@ -174,7 +174,7 @@ NIM seats launch with
 `legion script council/nim-seat --model <id> --prompt-file seat.md --out reply.md --reasoning-effort high`.
 It streams, reads the key from env `NIM_API_KEY` or `NVIDIA_API_KEY`, else the OS credential store service `NIM_API_KEY`, and
 never prints it. Measured NIM behaviour (2026-10-14 pilot): free-tier queueing of 4-20 minutes before
-the first token; Kimi K3 and GLM 5.3 default `reasoning_effort` to max; GLM 5.3 returned HTTP 504 twice.
+the first token; Kimi K3 (retired 2026-10-15) and GLM 5.3 defaulted `reasoning_effort` to max; GLM 5.3 returned HTTP 504 twice.
 Budget for the wait and run the six seats concurrently.
 
 Record each seat's CLI or transport, requested model, reported model, and timings. Never substitute a
