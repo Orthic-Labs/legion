@@ -35,6 +35,8 @@ fn fixture_git(root: &std::path::Path, args: &[&str]) {
     }
 }
 fn init_fixture_git(root: &std::path::Path) {
+    // Audit state is disposable run output, excluded from clean source fixtures.
+    std::fs::write(root.join(".gitignore"), ".audit/\n").unwrap();
     fixture_git(root, &["init", "-q", "--template="]);
     fixture_git(root, &["config", "user.name", "Audit Fixture"]);
     fixture_git(root, &["config", "user.email", "audit@example.invalid"]);

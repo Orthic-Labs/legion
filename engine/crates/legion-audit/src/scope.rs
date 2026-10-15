@@ -344,12 +344,13 @@ fn acquire_pr(git: &GitRunner, selector: &str) -> Result<AcquiredPr, AuditError>
         return Err(invalid("blocked:invalid-PR-OIDs"));
     }
     let (owner, repo, _) = github_pr_parts(field("url")?)?;
-    let cache = rightkit_fs::state::StateDir::create(&git.root.join(".legion-cache"))
-        .map_err(|e| invalid(e.to_string()))?
-        .child("audit-pr")
+    let cache_root =
+        crate::source_cache::audit_cache_root(&git.root).map_err(|e| invalid(e.to_string()))?;
+    let cache = rightkit_fs::state::StateDir::create(&cache_root.join("audit-pr"))
         .map_err(|e| invalid(e.to_string()))?;
     let name = format!("{base}-{head}");
-    let dir = cache.child(&name).map_err(|e| invalid(e.to_string()))?;
+    let dir =
+        crate::source_cache::cache_child(&cache, &name).map_err(|e| invalid(e.to_string()))?;
     // Construct a minimal bare store ourselves: an existing cache config may
     // contain credential helpers, URL rewrites or includes. Never let Git read
     // such repository-controlled configuration during network acquisition.
@@ -369,14 +370,14 @@ fn acquire_pr(git: &GitRunner, selector: &str) -> Result<AcquiredPr, AuditError>
                 .map_err(|e| invalid(e.to_string()))?,
         }
     }
-    let object_dir = dir.child("objects").map_err(|e| invalid(e.to_string()))?;
-    object_dir
-        .child("pack")
+    // Git reopens these paths; use RightKit's identity-checked reopen rather than
+    // retaining Windows child-creation DELETE handles across that boundary.
+    let object_dir =
+        crate::source_cache::cache_child(&dir, "objects").map_err(|e| invalid(e.to_string()))?;
+    crate::source_cache::cache_child(&object_dir, "pack").map_err(|e| invalid(e.to_string()))?;
+    let info = crate::source_cache::cache_child(&object_dir, "info")
         .map_err(|e| invalid(e.to_string()))?;
-    let info = object_dir
-        .child("info")
-        .map_err(|e| invalid(e.to_string()))?;
-    dir.child("refs").map_err(|e| invalid(e.to_string()))?;
+    crate::source_cache::cache_child(&dir, "refs").map_err(|e| invalid(e.to_string()))?;
     for name in ["alternates", "http-alternates"] {
         if info
             .read_opt(name, 4096)

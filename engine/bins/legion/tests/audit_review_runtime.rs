@@ -37,6 +37,7 @@ fn main() {
     if args.iter().any(|arg| arg == "--help") {
         println!("{HELP}");
     } else if args.iter().any(|arg| arg == "--print") {
+        install_simulation_diagnostics();
         simulate_native(&args);
     } else {
         completes_after_host_tool_round_and_recovers_stale_lock_file();
@@ -46,6 +47,22 @@ fn main() {
         live_runtime_lock_excludes_another_controller();
         println!("SIMULATION PASS: Audit native host integration (no real model call)");
     }
+}
+
+fn install_simulation_diagnostics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        // Fake-provider-only diagnostic: these inputs contain synthetic source
+        // & no credential client. Never change real native stderr handling.
+        let message = info.to_string().chars().take(4096).collect::<String>();
+        if let Ok(directory) = std::env::current_dir() {
+            let _ = fs::write(
+                directory.join(format!("simulation-failure-{}.txt", std::process::id())),
+                message,
+            );
+        }
+        previous(info);
+    }));
 }
 
 fn value_after<'a>(args: &'a [String], flag: &str) -> &'a str {
@@ -201,7 +218,9 @@ impl Fixture {
         };
         fs::create_dir_all(fixture.repo.join("src")).unwrap();
         fs::create_dir_all(&fixture.home).unwrap();
-        fs::write(fixture.repo.join("src/lib.rs"),format!("pub fn add(a:i32,b:i32)->i32 {{\n{SOURCE_LINE}\n}}\n// runtime-simulation:{mode}\n")).unwrap();
+        // Naming uses skeleton excerpts, which omit ordinary comments. Keep
+        // mode selection in valid frozen source retained by that projection.
+        fs::write(fixture.repo.join("src/lib.rs"),format!("pub fn add(a:i32,b:i32)->i32 {{\n{SOURCE_LINE}\n}}\npub const RUNTIME_SIMULATION: &str = \"runtime-simulation:{mode}\";\n")).unwrap();
         fixture.git(&["init", "-q"]);
         fixture.git(&["config", "user.name", "Runtime Simulation"]);
         fixture.git(&["config", "user.email", "simulation@example.invalid"]);
@@ -281,6 +300,12 @@ impl Fixture {
         let report = canonical_report(&repository, &execution).unwrap();
         let work = pending_lens_work(root, &plan, &inventory).unwrap();
         assert_eq!(work.len(), 1);
+        assert!(
+            work[0].request.packet["excerpts"]
+                .to_string()
+                .contains("runtime-simulation:"),
+            "simulation mode must survive frozen source excerpt projection"
+        );
         write_lens_packets(&self.run.join("lens-packets"), &work).unwrap();
         write_lens_dispatch(&self.run, &work, &DispatchLimits::default()).unwrap();
         write_json(
@@ -362,6 +387,27 @@ impl Drop for Fixture {
     fn drop(&mut self) {
         if std::thread::panicking() {
             eprintln!("simulation artifacts retained: {}", self.base.display());
+            if let Ok(entries) = fs::read_dir(self.run.join("runtime-host")) {
+                for entry in entries
+                    .flatten()
+                    .filter(|entry| {
+                        entry
+                            .file_name()
+                            .to_string_lossy()
+                            .starts_with("simulation-failure-")
+                    })
+                    .take(8)
+                {
+                    if let Ok(file) = fs::File::open(entry.path()) {
+                        let mut message = String::new();
+                        let _ = file.take(4096).read_to_string(&mut message);
+                        eprintln!(
+                            "SIMULATED provider stderr {}: {message}",
+                            entry.file_name().to_string_lossy()
+                        );
+                    }
+                }
+            }
         } else {
             let _ = fs::remove_dir_all(&self.base);
         }

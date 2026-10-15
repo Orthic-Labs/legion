@@ -10,10 +10,118 @@ use sha1::Digest as Sha1Digest;
 use sha2::{Digest as Sha2Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
 use std::io;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 pub const CACHE_SCHEMA: &str = "legion-audit-source/1";
 pub const DEFAULT_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Preserve descriptor-relative children on Unix; Windows path consumers require RightKit's
+/// identity-checked reopen without the child-creation handle's DELETE cleanup access.
+/// Callers supply a single known child name.
+pub(crate) fn cache_child(parent: &StateDir, name: &str) -> rightkit_fs::Result<StateDir> {
+    #[cfg(windows)]
+    {
+        StateDir::create(&parent.path().join(name))
+    }
+    #[cfg(not(windows))]
+    {
+        parent.child(name)
+    }
+}
+
+/// Reuse Legion's platform state owner, in a separate namespace beside repository receipts.
+/// Resolving storage must not create anything beneath an audited worktree, including through
+/// an existing symlink or an override containing parent traversal.
+pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
+    let repository = repository.canonicalize()?;
+    let receipts =
+        legion_contracts::state_root::receipts_root_for_cwd(&repository).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "Legion user state root unavailable",
+            )
+        })?;
+    let overridden = std::env::var_os(legion_contracts::state_root::STATE_ROOT_ENV)
+        .is_some_and(|value| !value.is_empty());
+    audit_cache_root_in(
+        &repository,
+        state_root_from_receipts(&receipts, overridden)?,
+    )
+}
+
+fn state_root_from_receipts(receipts: &Path, overridden: bool) -> io::Result<&Path> {
+    // Canonical owner layouts: override/state/receipts; default/state/receipts/<repo key>.
+    let parent = receipts.parent().and_then(|parent| {
+        if overridden {
+            Some(parent)
+        } else {
+            parent.parent()
+        }
+    });
+    parent.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Legion receipts state parent unavailable",
+        )
+    })
+}
+
+fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathBuf> {
+    if !state_root.is_absolute()
+        || state_root
+            .components()
+            .any(|part| matches!(part, Component::ParentDir))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Legion state root must be absolute without parent traversal",
+        ));
+    }
+    let root = state_root
+        .join("audit-cache")
+        .join(bytes_digest(repository.to_string_lossy().as_bytes()));
+    // The leaf normally does not exist. Resolve its nearest existing ancestor to detect an
+    // override alias into the repository without creating that leaf as a side effect.
+    let mut ancestor = root.as_path();
+    let mut suffix = Vec::new();
+    loop {
+        match ancestor.canonicalize() {
+            Ok(mut resolved) => {
+                for name in suffix.iter().rev() {
+                    resolved.push(name);
+                }
+                if resolved.starts_with(repository) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Audit cache root must be outside audited repository",
+                    ));
+                }
+                break;
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                suffix.push(
+                    ancestor
+                        .file_name()
+                        .ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                "Legion state ancestor unavailable",
+                            )
+                        })?
+                        .to_os_string(),
+                );
+                ancestor = ancestor.parent().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Legion state ancestor unavailable",
+                    )
+                })?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(root)
+}
 
 pub fn bytes_digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -131,8 +239,7 @@ impl SourceCache {
                 // StateDir::child retains Windows creation cleanup rights (DELETE). A
                 // path-based owner-only cache must reopen this parent without those rights.
                 // StateDir::create performs that reopen with its own no-reparse identity check.
-                let objects = StateDir::create(&pinned_root.path().join("objects"))
-                    .map_err(io::Error::other)?;
+                let objects = cache_child(&pinned_root, "objects").map_err(io::Error::other)?;
                 let cache = DiskCache::open(
                     objects.path(),
                     Config::new(max_bytes)
@@ -593,5 +700,60 @@ mod tests {
         assert!(std::fs::rename(&objects, &moved).is_err());
         drop(cache);
         std::fs::rename(&objects, &moved).unwrap();
+    }
+    #[test]
+    fn repository_cache_namespace_is_external_stable_and_separate_from_receipts() {
+        let temp = Temp::new();
+        let repo = temp.0.join("repo");
+        let other = temp.0.join("other-repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        let repo = repo.canonicalize().unwrap();
+        let other = other.canonicalize().unwrap();
+        let state = temp.0.join("host-state");
+        let receipts = state.join("receipts");
+        let root = audit_cache_root_in(&repo, &state).unwrap();
+        assert!(!root.starts_with(&repo));
+        assert!(!root.starts_with(&receipts));
+        assert_eq!(root, audit_cache_root_in(&repo, &state).unwrap());
+        assert_ne!(root, audit_cache_root_in(&other, &state).unwrap());
+        assert_eq!(state_root_from_receipts(&receipts, true).unwrap(), state);
+        assert_eq!(
+            state_root_from_receipts(&receipts.join("repository-key"), false).unwrap(),
+            state
+        );
+        let mut cache = SourceCache::open(&root, 1024 * 1024).unwrap();
+        cache.verified_source(b"validated external source").unwrap();
+        assert_eq!(
+            cache.stats.mode, "writable",
+            "{:?}",
+            cache.stats.unavailable_reason
+        );
+        assert_eq!(std::fs::read_dir(&repo).unwrap().count(), 0);
+        assert!(!receipts.exists());
+    }
+
+    #[test]
+    fn repository_cache_root_rejects_in_tree_or_relative_state_without_writes() {
+        let temp = Temp::new();
+        std::fs::create_dir_all(&temp.0).unwrap();
+        let repo = temp.0.canonicalize().unwrap();
+        assert!(audit_cache_root_in(&repo, &repo.join("state/receipts")).is_err());
+        assert!(audit_cache_root_in(&repo, Path::new("relative/receipts")).is_err());
+        assert!(audit_cache_root_in(&repo, &repo.join("../external/receipts")).is_err());
+        assert_eq!(std::fs::read_dir(&repo).unwrap().count(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repository_cache_root_rejects_symlink_alias_into_audited_tree() {
+        let temp = Temp::new();
+        let repo = temp.0.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let repo = repo.canonicalize().unwrap();
+        let alias = temp.0.join("state-alias");
+        std::os::unix::fs::symlink(&repo, &alias).unwrap();
+        assert!(audit_cache_root_in(&repo, &alias.join("receipts")).is_err());
+        assert_eq!(std::fs::read_dir(&repo).unwrap().count(), 0);
     }
 }

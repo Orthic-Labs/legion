@@ -90,7 +90,7 @@ fn write_safe(root: &Path, path: &str, bytes: &[u8]) -> Result<(), AuditError> {
     let mut pieces = path.split('/').peekable();
     while let Some(piece) = pieces.next() {
         if pieces.peek().is_some() {
-            dir = dir.child(piece).map_err(io)?;
+            dir = crate::source_cache::cache_child(&dir, piece).map_err(io)?;
         } else {
             dir.write_new(piece, bytes).map_err(io)?;
         }
@@ -142,11 +142,9 @@ fn add_bytes(
 impl FrozenSnapshot {
     pub fn capture(scope: ResolvedScope) -> Result<Self, AuditError> {
         let git = GitRunner::new(scope.object_root.as_deref().unwrap_or(&scope.source_root));
-        let mut source_cache = SourceCache::open(
-            scope.source_root.join(".legion-cache/audit-source"),
-            DEFAULT_MAX_BYTES,
-        )
-        .map_err(io)?;
+        let cache_root = crate::source_cache::audit_cache_root(&scope.source_root).map_err(io)?;
+        let mut source_cache =
+            SourceCache::open(cache_root.join("audit-source"), DEFAULT_MAX_BYTES).map_err(io)?;
         let mut paths: BTreeSet<String> = scope.selected_entries.keys().cloned().collect();
         if scope.head_kind == "worktree" {
             paths.extend(scope::names(&git.run(&[
@@ -292,19 +290,16 @@ impl FrozenSnapshot {
             &gaps,
             "read-only-no-project-execution",
         ))?;
-        let cache = StateDir::create(&scope.source_root.join(".legion-cache"))
-            .map_err(io)?
-            .child("audit-snapshots")
-            .map_err(io)?;
+        let cache = StateDir::create(&cache_root.join("audit-snapshots")).map_err(io)?;
         // Unique immutable run object. No speculative reuse or writable shared
         // cache lease; RightKit cache integration can deduplicate this contract.
         let mut nonce = [0u8; 12];
         getrandom::fill(&mut nonce).map_err(io)?;
-        let object = cache
-            .child(&format!("cold-{}", hex::encode(nonce)))
-            .map_err(io)?;
-        let selected_dir = object.child("selected").map_err(io)?;
-        let base_dir = object.child("base").map_err(io)?;
+        let object =
+            crate::source_cache::cache_child(&cache, &format!("cold-{}", hex::encode(nonce)))
+                .map_err(io)?;
+        let selected_dir = crate::source_cache::cache_child(&object, "selected").map_err(io)?;
+        let base_dir = crate::source_cache::cache_child(&object, "base").map_err(io)?;
         for (path, file) in &files {
             write_safe(selected_dir.path(), path, &objects[&file.digest])?;
         }
@@ -741,10 +736,8 @@ pub fn record_completed(
     validate_completed_report(&bytes)?;
     validate_report_binding(&bytes, plan_digest, &snapshot.manifest.key)?;
     let root = &snapshot.manifest.scope.source_root;
-    let state = StateDir::create(&root.join(".audit"))
-        .map_err(io)?
-        .child("state")
-        .map_err(io)?;
+    let audit = StateDir::create(&root.join(".audit")).map_err(io)?;
+    let state = crate::source_cache::cache_child(&audit, "state").map_err(io)?;
     let _writer = rightkit_fs::FileLock::acquire(
         &state.path().join("history.lock"),
         &rightkit_fs::LockOptions::default().labeled("audit-completed-history"),
@@ -760,7 +753,7 @@ pub fn record_completed(
         return Ok(());
     }
     // Durable content copy survives mutable run directories & disposable caches.
-    let reports = state.child("reports").map_err(io)?;
+    let reports = crate::source_cache::cache_child(&state, "reports").map_err(io)?;
     let report_name = format!("{}.json", report_digest.trim_start_matches("sha256:"));
     if let Some(stored) = reports
         .read_opt(&report_name, MAX_MANIFEST_BYTES)
@@ -966,6 +959,22 @@ mod tests {
         );
         assert!(snapshot.manifest.scope.changed_paths.is_empty());
         assert!(!snapshot.manifest.files.contains_key("added.rs"));
+    }
+    #[test]
+    fn publication_reopens_nested_source_while_creation_pins_live() {
+        let fixture = Fixture::new();
+        std::fs::create_dir_all(fixture.0.join("src/nested")).unwrap();
+        std::fs::write(fixture.0.join("src/nested/file.rs"), b"nested source\n").unwrap();
+        // capture() verifies both trees before dropping its directory pins. This
+        // must permit fresh no-reparse readers even on Windows sharing rules.
+        let snapshot = fixture.capture(scope::ScopeSpec::Repo);
+        assert_eq!(
+            snapshot
+                .read("src/nested/file.rs", SnapshotSide::Selected, 100)
+                .unwrap(),
+            b"nested source\n"
+        );
+        FrozenSnapshot::open(&snapshot.manifest_path).unwrap();
     }
     #[test]
     fn immutable_context_artifact_reuse_requires_identical_bytes() {

@@ -368,8 +368,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         .collect::<std::collections::BTreeMap<_, _>>();
     let resolver_digest = legion_audit::digest(&resolver_files)
         .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let cache_root =
+        legion_audit::source_cache::audit_cache_root(&source_root).map_err(super::io_error)?;
     let mut graph_cache = legion_audit::source_cache::SourceCache::open(
-        &source_root.join(".legion-cache/audit-source"),
+        cache_root.join("audit-source"),
         legion_audit::source_cache::DEFAULT_MAX_BYTES,
     )
     .map_err(super::io_error)?;

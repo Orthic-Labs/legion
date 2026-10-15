@@ -1254,6 +1254,16 @@ impl StateLock {
     }
 }
 
+impl Drop for StateLock {
+    fn drop(&mut self) {
+        // Unix locks belong to the open file description, which another
+        // thread's fork may inherit before exec. Closing only our descriptor
+        // would let that child retain a completed transaction's lock. Unlock
+        // explicitly while our descriptor is still open; never unlink it.
+        let _ = self._file.unlock();
+    }
+}
+
 fn save_state(run_dir: &Path, state: &State) -> Result<(), AuditError> {
     let bytes = serde_json::to_vec_pretty(state).map_err(|error| invalid(error.to_string()))?;
     write_file(run_dir, STATE_FILE, &bytes)?;
@@ -2236,6 +2246,46 @@ mod tests {
         ));
         fs::create_dir_all(dir.join(LENS_PACKET_DIR)).unwrap();
         dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_budget_transaction_unlocks_descriptors_inherited_before_exec() {
+        let run = budget_run("inherited-lock", 10_000);
+        let transaction = StateLock::acquire(&run).unwrap();
+        // try_clone shares the same open file description as an fd inherited
+        // by a concurrently spawned child, without a timing-dependent fork.
+        let inherited = transaction._file.try_clone().unwrap();
+        assert!(reserve_call(&run, &call("held")).is_err());
+        drop(transaction);
+
+        let authorized = reserve_call(&run, &call("after-release")).unwrap();
+        assert_eq!(authorized["authorized"], true);
+        reconcile_usage(
+            &run,
+            &UsageReceipt {
+                reservation_id: authorized["reservationId"].as_str().unwrap().into(),
+                receipt_id: "after-release-usage".into(),
+                input_tokens: Some(1),
+                output_tokens: Some(1),
+                cached_input_tokens: Some(0),
+                retry_tokens: Some(0),
+                failed: false,
+            },
+        )
+        .unwrap();
+        assert!(persisted_budget_report(&run).unwrap().unwrap()["gaps"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+
+        let successor = StateLock::acquire(&run).unwrap();
+        drop(inherited);
+        // Closing a stale inherited descriptor must not unlock its successor.
+        assert!(StateLock::acquire(&run).is_err());
+        drop(successor);
+        drop(StateLock::acquire(&run).unwrap());
+        let _ = fs::remove_dir_all(run);
     }
 
     fn write_value(path: &Path, value: &Value) {
