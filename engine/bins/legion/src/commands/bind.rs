@@ -1420,7 +1420,27 @@ fn codex_projection_targets(codex_dir: &Path, report: &Value) -> Vec<Target> {
         content,
     ));
     let path = codex_dir.join("config.toml");
-    let raw = std::fs::read_to_string(&path).unwrap_or_default();
+    // Only a missing file starts empty: an existing config.toml that cannot be
+    // read (permissions, invalid UTF-8) is the operator's and must never be
+    // replaced by the managed block alone.
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => {
+            out.push(Target {
+                path: path.clone(),
+                kind: "toml-managed",
+                reason: "install Legion agent projections and MCP entry in .codex/config.toml"
+                    .into(),
+                expected: String::new(),
+                write_content: String::new(),
+                skip_write: true,
+                conflicts: vec![json!({"path": path.display().to_string(),
+                    "reason": format!("existing config.toml is unreadable ({error}); left untouched")})],
+            });
+            return out;
+        }
+    };
     let (existing, conf) = migrate_legacy_config(&raw);
     let target = if let Some(c) = conf {
         Target {

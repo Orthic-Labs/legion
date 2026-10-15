@@ -4711,9 +4711,6 @@ async fn apply_host_integrations(
             integrations.insert("codexSkills".into(), value);
         }
     }
-    if let Some(value) = refresh_codex_role_projections(request, &inputs) {
-        integrations.insert("codexRoleProjections".into(), value);
-    }
     for input in &inputs.client_projections {
         if !should_process_client(request, &input.client_id) {
             continue;
@@ -4765,6 +4762,11 @@ async fn apply_host_integrations(
         }
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
         integrations.insert(key.into(), value);
+    }
+    // After the client projections: a setup-owned [mcp_servers.legion] they
+    // remove would otherwise read as a managed-block conflict on first install.
+    if let Some(value) = refresh_codex_role_projections(request, &inputs) {
+        integrations.insert("codexRoleProjections".into(), value);
     }
     Ok(Value::Object(integrations))
 }
