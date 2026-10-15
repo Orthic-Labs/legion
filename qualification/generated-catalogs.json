@@ -1336,6 +1336,114 @@
         "qualificationDigest": null
       },
       "selectable": true
+    },
+    {
+      "id": "security.scanner-squawk",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-shellcheck",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-zizmor",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-tflint",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-kubeconform",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-kube-linter",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-brakeman",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.scanner-golangci-lint",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.suppression-changes",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
     }
   ],
   "support": [

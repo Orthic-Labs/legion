@@ -1741,6 +1741,141 @@
       "produces_security_candidates": false,
       "fresh_context_required": false,
       "may_close_own_candidates": true
+    },
+    {
+      "id": "security.scanner-squawk",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-squawk"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-shellcheck",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-shellcheck"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-zizmor",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-zizmor"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-tflint",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-tflint"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-kubeconform",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-kubeconform"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-kube-linter",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-kube-linter"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-brakeman",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-brakeman"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.scanner-golangci-lint",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-golangci-lint"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
+      "id": "security.suppression-changes",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.suppression-changes"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
     }
   ]
 }

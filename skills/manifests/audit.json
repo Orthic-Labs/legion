@@ -40,9 +40,11 @@
       "references/manual.md",
       "references/migration-safety.md",
       "references/okf-output.md",
+      "references/pattern-cards.md",
       "references/performance-checklist.md",
       "references/ponytail-lens.md",
       "references/provider-architecture.md",
+      "references/reasoning-runtime.md",
       "references/route-resources.json",
       "references/rubrics/cargo-toml.md",
       "references/rubrics/github-workflow.md",
@@ -58,7 +60,8 @@
     "schemas": [],
     "receipts": [],
     "evals": [
-      "evals/evals.json"
+      "evals/evals.json",
+      "evals/patterns/cases.json"
     ],
     "consumers": [
       "src/registry/skills/index.json",
@@ -74,7 +77,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:f61d82ed109bb68e5b644f061c2e3061e8d4d8ed752767b35d2b534eb4b03ec9"
+      "digest": "sha256:3c685c5bc718012b93da807cbd17122ac6cd3b861d2d6c4ff95beccc2c760e91"
     },
     {
       "path": "agents/openai.yaml",
@@ -90,6 +93,11 @@
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
       "digest": "sha256:ddcb5d2cf45dc2e1d36723aa9087dde35bef7a989d4277d7970d6603e345e153"
+    },
+    {
+      "path": "evals/patterns/cases.json",
+      "uri": "legion-skill://audit/evals/patterns/cases.json",
+      "digest": "sha256:e208273e2860ad671bfcc3a6b1a89eb02826e1f68f346686a3ce417aa0977064"
     },
     {
       "path": "references/a11y-checklist.md",
@@ -114,27 +122,27 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:e631645435a81399db07298ea0e4b8e8746a14f482eb2ba124705a938f5865df"
+      "digest": "sha256:e95ad8d9ea409902e8e2e341de1ce8214989342546c7e5c77561936f01794dd3"
     },
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:09e97113f731a59cc2177a38c2ca51f248807281159d5ae0f811e3419cc5e2c3"
+      "digest": "sha256:c4decd46a13a19d57351883a57a3dd260c89a265a7aea0aaffb68d8a34b3d70e"
     },
     {
       "path": "references/lens-cues.md",
       "uri": "legion-skill://audit/references/lens-cues.md",
-      "digest": "sha256:511c67cc07588dbfbde2a81e7f131042abc3480c959151792fb8924ce94d2c59"
+      "digest": "sha256:94ced784749c422e0355976988aa4e17e506d234758a7ff1b46788c64c29b3d1"
     },
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:71f9891b523928262643779f0f3f8df195359a29738c6cd7147f0587304195ee"
+      "digest": "sha256:0a3f70fed739a5002196418978370f6f1b1a2e83c136ae46436769d2609d2426"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:b5a2c728a9fd9b8971068ed552271c0b9562e15be3090ae71a023dbe1682ddda"
+      "digest": "sha256:b346965fa24039956c7f4814693a9962c351a0f7ad0f349ffa80f448dd272a58"
     },
     {
       "path": "references/migration-safety.md",
@@ -145,6 +153,11 @@
       "path": "references/okf-output.md",
       "uri": "legion-skill://audit/references/okf-output.md",
       "digest": "sha256:36e3abd093c4a0cd99448ba522113a39205c31917b50a5f387948425528a630d"
+    },
+    {
+      "path": "references/pattern-cards.md",
+      "uri": "legion-skill://audit/references/pattern-cards.md",
+      "digest": "sha256:a848f105c75c59e965000751488fec245f12848c19309b5bef7f1d3cfbcf33f3"
     },
     {
       "path": "references/performance-checklist.md",
@@ -160,6 +173,11 @@
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
       "digest": "sha256:ac2cdd130b818ffc43a349848a714efc830ca0dac8f708af5fd91fb17e93f3a5"
+    },
+    {
+      "path": "references/reasoning-runtime.md",
+      "uri": "legion-skill://audit/references/reasoning-runtime.md",
+      "digest": "sha256:573d599470562256f9de726ff5ed4173994eace885690556e58ba25493323b89"
     },
     {
       "path": "references/route-resources.json",

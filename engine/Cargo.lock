@@ -2062,13 +2062,19 @@ dependencies = [
  "legion-provider-sdk",
  "legion-rules",
  "regex",
+ "rightkit-agent-tools",
+ "rightkit-agents",
+ "rightkit-cache",
+ "rightkit-child-process",
+ "rightkit-fs",
  "serde",
  "serde_json",
+ "sha1",
  "sha2 0.11.0",
  "thiserror 2.0.21",
- "toml",
  "tokio",
  "tokio-util",
+ "toml",
  "walkdir",
 ]
 
@@ -2119,6 +2125,7 @@ dependencies = [
  "legion-audit",
  "legion-contracts",
  "regex",
+ "rightkit-child-process",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -3503,6 +3510,86 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
 
 [[package]]
+name = "rightkit-agent-tools"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "568c86c8e68c6d26604a1867a7d4a3c356452c04edb0235b74466419393f56b9"
+dependencies = [
+ "rightkit-daemon",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rightkit-agents"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89d3cb9c04229026fcb4ac816e6bc2149d6729d2d0abe51d01fbcec2ead75378"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rightkit-cache"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65998aa0a37a7b392880aae6bd63d7d0a77b52f07e7d2a6c7ca500fc50b32c68"
+dependencies = [
+ "rightkit-child-process",
+ "rightkit-fs",
+ "sha2 0.11.0",
+]
+
+[[package]]
+name = "rightkit-child-process"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb25fdec9f62f2bcd642913f0a360444d8090b6258956f9cc80cdc0881777f5b"
+dependencies = [
+ "libc 0.2.189",
+ "windows",
+]
+
+[[package]]
+name = "rightkit-daemon"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "654016e0cda8f4919831e7ebf5002fd9318acd4f3d24729d9ad4c02b84f83346"
+dependencies = [
+ "rightkit-child-process",
+ "rightkit-fs",
+ "rightkit-sidecar",
+ "serde",
+ "serde_json",
+ "windows",
+]
+
+[[package]]
+name = "rightkit-fs"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a0ecfbffe572b08d867e40b7e3ed5bf42f8c9812c7d9f876ee0a8895eebe792"
+dependencies = [
+ "libc 0.2.189",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-sidecar"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e76b9fb669976682ed646d003c07fee688d9e22af8afc5b92cda578b011ec9eb"
+dependencies = [
+ "libc 0.2.189",
+ "serde",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4802,6 +4889,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
+name = "windows"
+version = "0.62.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "527fadee13e0c05939a6a05d5bd6eec6cd2e3dbd648b9f8e447c6518133d8580"
+dependencies = [
+ "windows-collections",
+ "windows-core",
+ "windows-future",
+ "windows-numerics",
+]
+
+[[package]]
+name = "windows-collections"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b2d95af1a8a14a3c7367e1ed4fc9c20e0a26e79551b1454d72583c97cc6610"
+dependencies = [
+ "windows-core",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.62.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4812,6 +4920,17 @@ dependencies = [
  "windows-link",
  "windows-result",
  "windows-strings",
+]
+
+[[package]]
+name = "windows-future"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1d6f90251fe18a279739e78025bd6ddc52a7e22f921070ccdc67dde84c605cb"
+dependencies = [
+ "windows-core",
+ "windows-link",
+ "windows-threading",
 ]
 
 [[package]]
@@ -4841,6 +4960,16 @@ name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+
+[[package]]
+name = "windows-numerics"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2e40844ac143cdb44aead537bbf727de9b044e107a0f1220392177d15b0f26"
+dependencies = [
+ "windows-core",
+ "windows-link",
+]
 
 [[package]]
 name = "windows-result"
@@ -4892,6 +5021,15 @@ dependencies = [
  "windows_x86_64_gnu",
  "windows_x86_64_gnullvm",
  "windows_x86_64_msvc",
+]
+
+[[package]]
+name = "windows-threading"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
+dependencies = [
+ "windows-link",
 ]
 
 [[package]]
