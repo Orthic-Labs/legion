@@ -1011,7 +1011,11 @@ fn runtime_usage(run: &Path, runtime: &Value) -> Value {
         calls = calls.saturating_add(followup_calls);
         if let Some(child_run) = followup.get("run").and_then(Value::as_str) {
             let child_run = PathBuf::from(child_run);
-            let child_run = if child_run.is_absolute() { child_run } else { run.join(child_run) };
+            let child_run = if child_run.is_absolute() {
+                child_run
+            } else {
+                run.join(child_run)
+            };
             receipt_dirs.push((child_run.join("runtime-calls"), followup_calls));
         } else if followup_calls > 0 {
             return json!({"status":"unknown","reason":"follow-up run path is missing","callCount":calls,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
@@ -1024,7 +1028,15 @@ fn runtime_usage(run: &Path, runtime: &Value) -> Value {
             continue;
         }
         match fs::read_dir(dir) {
-            Ok(entries) => paths.extend(entries.filter_map(Result::ok).map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|extension| extension == "json"))),
+            Ok(entries) => paths.extend(
+                entries
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.path())
+                    .filter(|path| {
+                        path.extension()
+                            .is_some_and(|extension| extension == "json")
+                    }),
+            ),
             Err(error) => receipt_error = Some(format!("cannot read {}: {error}", dir.display())),
         }
     }
@@ -1417,7 +1429,11 @@ fn run_fixture(
         .collect();
     if !cases.iter().any(|case| case.ruled) {
         return Ok(FixtureRun {
-            score: score_run_with_failures(&cases, &BTreeMap::new(), &std::collections::BTreeSet::new()),
+            score: score_run_with_failures(
+                &cases,
+                &BTreeMap::new(),
+                &std::collections::BTreeSet::new(),
+            ),
             split: file.split_label().to_owned(),
             telemetry: BenchTelemetry::new(0, opts.with_lenses),
             errors: Vec::new(),
@@ -1513,7 +1529,10 @@ fn run_fixture(
                 let mut result_errors = result.errors.clone();
                 if budget_overrun {
                     result_errors.push("actual runtime tokens exceeded case reservation".into());
-                    errors.push(format!("{fixture}/{}: actual runtime tokens exceeded case reservation", case.id));
+                    errors.push(format!(
+                        "{fixture}/{}: actual runtime tokens exceeded case reservation",
+                        case.id
+                    ));
                 }
                 let runtime_wall_time = result
                     .reasoning_wall_time_ms
@@ -1664,14 +1683,20 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
         return false;
     }
     if opts.with_lenses && opts.case_token_budget == 0 {
-        eprintln!("legion-dev audit-bench: --case-token-budget must be positive with --with-lenses");
+        eprintln!(
+            "legion-dev audit-bench: --case-token-budget must be positive with --with-lenses"
+        );
         return false;
     }
     if !opts.with_lenses && (opts.claude.is_some() || opts.model.is_some()) {
         eprintln!("legion-dev audit-bench: --claude and --model require --with-lenses");
         return false;
     }
-    if opts.model.as_deref().is_some_and(|model| model.trim().is_empty()) {
+    if opts
+        .model
+        .as_deref()
+        .is_some_and(|model| model.trim().is_empty())
+    {
         eprintln!("legion-dev audit-bench: --model must not be empty");
         return false;
     }
@@ -1694,13 +1719,19 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
     }
     if let Some(claude) = opts.claude.clone() {
         if !claude.is_file() {
-            eprintln!("legion-dev audit-bench: --claude {} is not a file", claude.display());
+            eprintln!(
+                "legion-dev audit-bench: --claude {} is not a file",
+                claude.display()
+            );
             return false;
         }
         match fs::canonicalize(&claude) {
             Ok(path) => opts.claude = Some(path),
             Err(error) => {
-                eprintln!("legion-dev audit-bench: cannot resolve --claude {}: {error}", claude.display());
+                eprintln!(
+                    "legion-dev audit-bench: cannot resolve --claude {}: {error}",
+                    claude.display()
+                );
                 return false;
             }
         }
@@ -1724,8 +1755,7 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     if fixtures.is_empty() {
         return Err("no fixture bundles found".into());
     }
-    let requested_cases: std::collections::BTreeSet<String> =
-        opts.cases.iter().cloned().collect();
+    let requested_cases: std::collections::BTreeSet<String> = opts.cases.iter().cloned().collect();
     let mut fixture_splits = BTreeMap::new();
     let mut known_cases = std::collections::BTreeSet::new();
     for fixture in &fixtures {
