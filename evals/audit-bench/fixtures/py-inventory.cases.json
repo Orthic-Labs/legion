@@ -1,0 +1,153 @@
+{
+  "schema": "legion-audit-bench-cases/1",
+  "fixture": "py-inventory",
+  "language": "python",
+  "base": "base",
+  "cases": [
+    {
+      "id": "py-sec-pickle-load",
+      "kind": "planted",
+      "scope": "range:base..py-sec-pickle-load",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Snapshots from another host are loaded with pickle, allowing code execution",
+      "expected": [
+        {
+          "path": "inventory/snapshot.py",
+          "lineRange": [
+            11,
+            13
+          ],
+          "lens": "security",
+          "severity": "critical",
+          "alt": [
+            {
+              "path": "inventory/snapshot.py",
+              "lineRange": [
+                2,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "py-sec-shell-injection",
+      "kind": "planted",
+      "scope": "range:base..py-sec-shell-injection",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "gzip command built as a string and run with shell=True from a caller-supplied path",
+      "expected": [
+        {
+          "path": "inventory/export.py",
+          "lineRange": [
+            15,
+            15
+          ],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "py-corr-mutable-default",
+      "kind": "planted",
+      "scope": "range:base..py-corr-mutable-default",
+      "category": "correctness",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Mutable default argument shared across calls; tags accumulate between calls",
+      "expected": [
+        {
+          "path": "inventory/tags.py",
+          "lineRange": [
+            4,
+            7
+          ],
+          "lens": "correctness",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "py-lean-rounding-strategy",
+      "kind": "planted",
+      "scope": "range:base..py-lean-rounding-strategy",
+      "category": "lean",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Abstract strategy, concrete class and factory added for a single floor division",
+      "expected": [
+        {
+          "path": "inventory/pricing.py",
+          "lineRange": [
+            2,
+            21
+          ],
+          "lens": "lean",
+          "severity": "low",
+          "alt": [
+            {
+              "path": "inventory/pricing.py",
+              "lineRange": [
+                35,
+                36
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "py-cr-discount-in-place",
+      "kind": "planted",
+      "scope": "range:base..py-cr-discount-in-place",
+      "category": "caller-regression",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "apply_discount now mutates its input; unchanged quote() totals the same list before and after, so it reports zero savings",
+      "expected": [
+        {
+          "path": "inventory/quote.py",
+          "lineRange": [
+            6,
+            10
+          ],
+          "lens": "read-beyond-diff",
+          "severity": "high",
+          "alt": [
+            {
+              "path": "inventory/pricing.py",
+              "lineRange": [
+                13,
+                17
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "py-clean-stock-hints",
+      "kind": "clean",
+      "scope": "range:base..py-clean-stock-hints",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Type hints and docstrings only",
+      "expected": []
+    },
+    {
+      "id": "py-clean-format-cents",
+      "kind": "clean",
+      "scope": "range:base..py-clean-format-cents",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "New format_cents helper with unit tests; no existing behaviour touched",
+      "expected": []
+    }
+  ]
+}

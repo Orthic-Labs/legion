@@ -1,0 +1,213 @@
+{
+  "schema": "legion-audit-bench-cases/1",
+  "fixture": "rust-ledger",
+  "language": "rust",
+  "base": "base",
+  "cases": [
+    {
+      "id": "rust-sec-traversal",
+      "kind": "planted",
+      "scope": "range:base..rust-sec-traversal",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Account name validation removed; a name with .. or / escapes the base directory",
+      "expected": [
+        {
+          "path": "src/store.rs",
+          "lineRange": [
+            9,
+            9
+          ],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "rust-sec-timing",
+      "kind": "planted",
+      "scope": "range:base..rust-sec-timing",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Constant-time token compare replaced by an early-exit comparison",
+      "expected": [
+        {
+          "path": "src/auth.rs",
+          "lineRange": [
+            3,
+            7
+          ],
+          "lens": "security",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "rust-corr-split-remainder",
+      "kind": "planted",
+      "scope": "range:base..rust-corr-split-remainder",
+      "category": "correctness",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Off-by-one in split: i <= rem gives one extra cent too many, so shares no longer sum to the total",
+      "expected": [
+        {
+          "path": "src/money.rs",
+          "lineRange": [
+            30,
+            30
+          ],
+          "lens": "correctness",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "rust-corr-transfer-rollback",
+      "kind": "planted",
+      "scope": "range:base..rust-corr-transfer-rollback",
+      "category": "correctness",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Rollback after a failed credit removed; the debited money is lost",
+      "expected": [
+        {
+          "path": "src/transfer.rs",
+          "lineRange": [
+            11,
+            11
+          ],
+          "lens": "correctness",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "rust-perf-statement-total",
+      "kind": "planted",
+      "scope": "range:base..rust-perf-statement-total",
+      "category": "perf",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Grand total recomputed inside the per-account loop, making statement quadratic",
+      "expected": [
+        {
+          "path": "src/report.rs",
+          "lineRange": [
+            14,
+            14
+          ],
+          "lens": "perf",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "rust-lean-dead-duplicate",
+      "kind": "planted",
+      "scope": "range:base..rust-lean-dead-duplicate",
+      "category": "lean",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "split_even is an unused copy of split",
+      "expected": [
+        {
+          "path": "src/money.rs",
+          "lineRange": [
+            48,
+            57
+          ],
+          "lens": "lean",
+          "severity": "low"
+        }
+      ]
+    },
+    {
+      "id": "rust-cr-frozen-debit",
+      "kind": "planted",
+      "scope": "range:base..rust-cr-frozen-debit",
+      "category": "caller-regression",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Frozen check removed from Account::debit; unchanged transfer() relied on it, so frozen accounts can send money",
+      "expected": [
+        {
+          "path": "src/transfer.rs",
+          "lineRange": [
+            11,
+            11
+          ],
+          "lens": "read-beyond-diff",
+          "severity": "high",
+          "alt": [
+            {
+              "path": "src/account.rs",
+              "lineRange": [
+                20,
+                30
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rust-cr-split-empty",
+      "kind": "planted",
+      "scope": "range:base..rust-cr-split-empty",
+      "category": "caller-regression",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "split(_, 0) now returns Some(empty); unchanged first_share() indexes shares[0] and panics",
+      "expected": [
+        {
+          "path": "src/report.rs",
+          "lineRange": [
+            31,
+            32
+          ],
+          "lens": "read-beyond-diff",
+          "severity": "high",
+          "alt": [
+            {
+              "path": "src/money.rs",
+              "lineRange": [
+                22,
+                25
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rust-clean-doc-tests",
+      "kind": "clean",
+      "scope": "range:base..rust-clean-doc-tests",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Doc comment tweak and unit tests for split; no behaviour change",
+      "expected": []
+    },
+    {
+      "id": "rust-clean-extract-restore",
+      "kind": "clean",
+      "scope": "range:base..rust-clean-extract-restore",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Behaviour-preserving extraction of the restore helper in transfer",
+      "expected": []
+    },
+    {
+      "id": "rust-clean-is-empty",
+      "kind": "clean",
+      "scope": "range:base..rust-clean-is-empty",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "New Account::is_empty with a test; nothing calls or changes existing behaviour",
+      "expected": []
+    }
+  ]
+}

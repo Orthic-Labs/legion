@@ -1,0 +1,144 @@
+{
+  "schema": "legion-audit-bench-cases/1",
+  "fixture": "ts-orders",
+  "language": "typescript",
+  "base": "base",
+  "cases": [
+    {
+      "id": "ts-sec-sql-injection",
+      "kind": "planted",
+      "scope": "range:base..ts-sec-sql-injection",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Email interpolated into the SQL text instead of passed as a parameter",
+      "expected": [
+        {
+          "path": "src/orders.ts",
+          "lineRange": [
+            31,
+            31
+          ],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "ts-sec-xss",
+      "kind": "planted",
+      "scope": "range:base..ts-sec-xss",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Product name inserted into receipt HTML without escapeHtml",
+      "expected": [
+        {
+          "path": "src/render.ts",
+          "lineRange": [
+            12,
+            12
+          ],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "ts-corr-shipping-boundary",
+      "kind": "planted",
+      "scope": "range:base..ts-corr-shipping-boundary",
+      "category": "correctness",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Free-shipping comparison changed from >= to >; an order of exactly 100.00 now pays shipping",
+      "expected": [
+        {
+          "path": "src/shipping.ts",
+          "lineRange": [
+            4,
+            4
+          ],
+          "lens": "correctness",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "ts-perf-per-line-lookup",
+      "kind": "planted",
+      "scope": "range:base..ts-perf-per-line-lookup",
+      "category": "perf",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Batched product lookup replaced by one awaited query per order line",
+      "expected": [
+        {
+          "path": "src/orders.ts",
+          "lineRange": [
+            16,
+            16
+          ],
+          "lens": "perf",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "ts-cr-parse-price-lenient",
+      "kind": "planted",
+      "scope": "range:base..ts-cr-parse-price-lenient",
+      "category": "caller-regression",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "parsePrice returns 0 for invalid input instead of throwing; unchanged orderSubtotal then prices bad products at zero",
+      "expected": [
+        {
+          "path": "src/orders.ts",
+          "lineRange": [
+            25,
+            25
+          ],
+          "lens": "read-beyond-diff",
+          "severity": "high",
+          "alt": [
+            {
+              "path": "src/money.ts",
+              "lineRange": [
+                4,
+                6
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ts-clean-extract-line-cents",
+      "kind": "clean",
+      "scope": "range:base..ts-clean-extract-line-cents",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Behaviour-preserving extraction of lineCents in orders",
+      "expected": []
+    },
+    {
+      "id": "ts-clean-status-lookup",
+      "kind": "clean",
+      "scope": "range:base..ts-clean-status-lookup",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "New parameterised findOrdersByStatus query; safe",
+      "expected": []
+    },
+    {
+      "id": "ts-clean-rename-shipping",
+      "kind": "clean",
+      "scope": "range:base..ts-clean-rename-shipping",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Rename shippingCents to shippingFeeCents with its only caller updated",
+      "expected": []
+    }
+  ]
+}

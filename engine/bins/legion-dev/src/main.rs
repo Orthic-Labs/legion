@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod apple_skill_integrity;
+mod audit_bench;
 mod checks;
 mod generators;
 mod native_cli_gate;
@@ -203,6 +204,33 @@ enum Command {
         #[arg(long)]
         diagnostic: bool,
     },
+    /// Score an installed `legion audit` against the planted-case fixtures in `evals/audit-bench/`.
+    /// Deterministic phase only; it never invokes a model. `--repeat N` repeats the run and `--aa`
+    /// adds an identical twin arm to report the A/A recall band.
+    AuditBench {
+        /// Installed `legion` binary to measure.
+        #[arg(long)]
+        legion: std::path::PathBuf,
+        /// Fixture name (`<name>.bundle`); repeatable. Default: every bundle.
+        #[arg(long = "fixture")]
+        fixtures: Vec<String>,
+        #[arg(long, default_value_t = 1)]
+        repeat: u32,
+        /// Run an identical second arm and report the A/A band.
+        #[arg(long)]
+        aa: bool,
+        /// Reserved for the reasoning-lens phase; currently rejected.
+        #[arg(long = "with-lenses")]
+        with_lenses: bool,
+        /// Scratch directory for clones and audit output (default: `.cache/audit-bench`).
+        #[arg(long = "work-dir")]
+        work_dir: Option<std::path::PathBuf>,
+        /// Keep the scratch clones and per-case audit output.
+        #[arg(long)]
+        keep: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -297,6 +325,28 @@ fn main() -> ExitCode {
         Command::NativeCliCaptureRust { diagnostic } => {
             generators::native_cli_rust_characterization::run(&root, diagnostic)
         }
+        Command::AuditBench {
+            legion,
+            fixtures,
+            repeat,
+            aa,
+            with_lenses,
+            work_dir,
+            keep,
+            json,
+        } => audit_bench::run(
+            &root,
+            audit_bench::Options {
+                legion,
+                fixtures,
+                repeat,
+                aa,
+                with_lenses,
+                work_dir,
+                keep,
+                json,
+            },
+        ),
     };
 
     if ok {
@@ -323,6 +373,37 @@ mod tests {
             Command::RefreshLocalSkillManifests { check, bundles } => {
                 assert!(check);
                 assert_eq!(bundles, vec!["audit"]);
+            }
+            _ => panic!("unexpected command parsed"),
+        }
+    }
+
+    #[test]
+    fn audit_bench_parses_repeat_twin_and_fixtures() {
+        let cli = Cli::try_parse_from([
+            "legion-dev",
+            "audit-bench",
+            "--legion",
+            "/opt/legion",
+            "--fixture",
+            "rust-ledger",
+            "--repeat",
+            "3",
+            "--aa",
+        ])
+        .expect("audit-bench arguments should parse");
+        match cli.command {
+            Command::AuditBench {
+                fixtures,
+                repeat,
+                aa,
+                with_lenses,
+                ..
+            } => {
+                assert_eq!(fixtures, vec!["rust-ledger"]);
+                assert_eq!(repeat, 3);
+                assert!(aa);
+                assert!(!with_lenses);
             }
             _ => panic!("unexpected command parsed"),
         }
