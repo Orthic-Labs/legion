@@ -15,7 +15,7 @@ evals/audit-bench/
     <name>.cases.json            planted and clean cases for that bundle
 ```
 
-Seed corpus: `rust-ledger`, `ts-orders`, `py-inventory`, `audit-behavior` (see
+Seed corpus: `rust-ledger`, `ts-orders`, `py-inventory`, `audit-behavior`, `heldout-controls` (see
 `build-fixtures.sh` for sources).
 
 ## Fixture repositories
@@ -80,10 +80,11 @@ primary expected site is the unchanged caller (finding it needs read-beyond-diff
 is listed under `alt`, so a reviewer that only flags the diff still gets recall credit but not caller
 recall.
 
-The seed contains 21 planted cases (4 caller regressions) and 11 clean changes. `audit-behavior`
+The seed contains 23 planted cases (4 caller regressions) and 14 clean changes. `audit-behavior`
 adds Redis session TTL positives & controls, local `Map.set` & documentation URL controls, an
-executable unpinned download, & two distinct Redis finding locations. Unknown JSON fields are
-rejected so a typo cannot silently drop a ruling.
+executable unpinned download, & two distinct Redis finding locations. `heldout-controls` is a separate
+five-case held-out split with paired Redis expiry & executable-bootstrap controls. Unknown JSON fields
+are rejected so a typo cannot silently drop a ruling.
 
 ## Runner
 
@@ -180,13 +181,25 @@ its own A/A recall band, keeping held-out results out of tuning aggregates. With
 repeats, `repeatIntervals` reports empirical min/max/range for measured full-run latency & host
 input/output/cache/retry tokens, per arm & across both arms. These are observed ranges, not
 confidence intervals; incomplete evidence produces `unknown`, while fewer than two repeats reports
-`insufficient-repeat-evidence`. No performance or accuracy threshold is implied before repeated
-measurements establish variance. `ablationIdentity` names `deterministic-only` or
+`insufficient-repeat-evidence`. No general performance or accuracy threshold is implied before repeated
+measurements establish variance; the CI sample below uses case-specific assertions. `ablationIdentity` names `deterministic-only` or
 `deterministic-plus-reasoning` for each output.
+
+## CI deterministic sample
+
+macOS CI runs `audit-behavior` against assembled installed `legion`, with two repeats & an A/A twin,
+without model reasoning. For this fixture only, deterministic stage selects
+`legacy.data.internal-suite` & `legacy.security.binary-pins`; JSON names this restricted provider
+scope & separately reports full-Audit completeness. CI asserts selected-stage coverage, first-attempt
+denominators, expected raw-candidate location hits for three planted cases, zero raw candidates
+for three controls, identical raw-candidate scores across repeats & A/A arms, and repeated latency
+ranges. Raw candidates remain separate from final report findings, so this sample does not claim
+semantic recall. CI prints machine-readable JSON before assertions exit; it does not add diagnostics
+to installed app or installer payloads.
 
 ## Limits
 
 - Cases run sequentially.
 - Semantic recall & localization are expectation-based proxies; they do not replace human review.
-- The planted defects are semantic. Deterministic rules are expected to find few of them; the
-  baseline measures that, it does not assume it.
+- The deterministic CI gate covers only the named `audit-behavior` sample; it does not establish
+  performance on all planted cases or on held-out controls.

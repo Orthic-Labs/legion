@@ -126,6 +126,108 @@ fi
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release --profile debug --out "${RUNNER_TEMP}/legion-install" --force
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
 
+# Deterministic behavior benchmark: record a reproducible A/A × 2 sample against
+# the assembled installed CLI. This lane never invokes model reasoning.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  bench_json="${RUNNER_TEMP}/audit-bench-behavior-deterministic.json"
+  provider_registry="${RUNNER_TEMP}/legion-install/share/legion/assets/registry/providers.json"
+  test -f "$provider_registry"
+  set +e
+  LEGION_PROVIDER_REGISTRY="$provider_registry" \
+    "${GITHUB_WORKSPACE}/engine/target/debug/legion-dev" audit-bench \
+    --legion "${RUNNER_TEMP}/legion-install/bin/legion" \
+    --fixture audit-behavior \
+    --repeats 2 \
+    --aa \
+    --work-dir "${RUNNER_TEMP}/audit-bench-behavior-work" \
+    --keep \
+    --json > "$bench_json"
+  bench_status=$?
+  set -e
+  # Print machine-readable output before either runner or assertion failures exit.
+  cat "$bench_json"
+  if (( bench_status != 0 )); then
+    exit "$bench_status"
+  fi
+  python3 - "$bench_json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    result = json.load(source)
+
+assert result["fixtureSplits"]["audit-behavior"] == "tuning"
+assert result["caseErrors"] == [], result["caseErrors"]
+assert result["splitResults"]["tuning"]["aaBand"] is not None
+expected_raw_location_hits = {
+    "audit-redis-session-no-ttl": 1,
+    "audit-executable-download-unpinned": 1,
+    "audit-redis-two-locations": 2,
+}
+data_provider = "legacy.data.internal-suite"
+binary_provider = "legacy.security.binary-pins"
+expected_applicable_providers = {
+    "audit-redis-session-no-ttl": {data_provider, binary_provider},
+    "audit-executable-download-unpinned": {binary_provider},
+    "audit-redis-two-locations": {data_provider, binary_provider},
+    "audit-redis-session-valid-ttl": {data_provider, binary_provider},
+    "audit-map-set-clean": {data_provider, binary_provider},
+    "audit-docs-url-clean": set(),
+}
+for arm in ("armA", "armB"):
+    runs = result[arm]["runs"]
+    assert len(runs) == 2, (arm, len(runs))
+    for run in runs:
+        counts = run["counts"]
+        assert counts["plannedCases"] == 6, (arm, counts)
+        assert counts["completedCases"] == 6, (arm, counts)
+        assert counts["failedCases"] == 0, (arm, counts)
+        assert counts["items"] == 4, (arm, counts)
+    interval = result["splitResults"]["tuning"]["repeatIntervals"][arm]["wallTimeMs"]
+    assert interval["status"] == "reported-empirical-range", (arm, interval)
+
+behavior_groups = [
+    (key, cases)
+    for key, cases in result["caseOutcomes"].items()
+    if key.endswith("/audit-behavior")
+]
+assert len(behavior_groups) == 4, (len(behavior_groups), result["caseOutcomes"])
+for key, cases in behavior_groups:
+    assert len(cases) == 6, (key, len(cases))
+    assert all(case["status"] == "completed" for case in cases.values()), (key, cases)
+    run_key = key.split("/", 1)[0] + "/audit-behavior"
+    metrics = result["caseMetrics"][run_key]
+    for case_id, expected_providers in expected_applicable_providers.items():
+        audit_scope = metrics[case_id]["report"]["auditScope"]
+        assert audit_scope["kind"] == "selected-provider-stage", (case_id, audit_scope)
+        assert audit_scope["selectedProviders"] == [
+            "legacy.data.internal-suite",
+            "legacy.security.binary-pins",
+        ], (case_id, audit_scope)
+        assert audit_scope["complete"] is True, (case_id, audit_scope)
+        raw = metrics[case_id]["report"]["rawAudit"]["rawScannerCandidates"]
+        assert {row["provider"] for row in audit_scope["providers"] if row["applicable"] is True} == expected_providers, (case_id, audit_scope)
+        for row in audit_scope["providers"]:
+            if row["provider"] not in expected_providers:
+                assert row["selectionStatus"] == "not-applicable", (case_id, row)
+                assert row["inspection"] == "not-inspected", (case_id, row)
+                assert row["eligibleDenominator"] == 0, (case_id, row)
+        assert raw["status"] == "available", (case_id, raw)
+        assert {row["provider"] for row in raw["candidateProviders"]} == expected_providers, (case_id, raw)
+        if not expected_providers:
+            assert raw["evidenceState"] == "not-applicable", (case_id, raw)
+            assert raw["inspection"] == "not-inspected", (case_id, raw)
+        if case_id in expected_raw_location_hits:
+            assert raw["score"]["counts"]["locationHits"] == expected_raw_location_hits[case_id], (case_id, raw)
+    for case_id in ("audit-redis-session-valid-ttl", "audit-map-set-clean", "audit-docs-url-clean"):
+        raw = metrics[case_id]["report"]["rawAudit"]["rawScannerCandidates"]
+        assert raw["status"] == "available", (case_id, raw)
+        assert raw["count"] == 0, (case_id, raw)
+
+print("deterministic audit-behavior selected-provider A/A × 2 assertions passed")
+PY
+fi
+
 # Unsigned Windows development installer (formerly windows-development.yml);
 # the managed ci.yml uploads dist/local-windows/installer/* as dev-windows-<sha>.
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then

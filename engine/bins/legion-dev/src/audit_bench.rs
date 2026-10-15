@@ -56,6 +56,10 @@ pub const CASES_SCHEMA: &str = "legion-audit-bench-cases/1";
 pub const MAX_REPEATS: u32 = 10;
 pub const DEFAULT_TOKEN_BUDGET: u64 = 100_000;
 pub const DEFAULT_CASE_TOKEN_BUDGET: u64 = 10_000;
+/// Hostless candidate generators measured by the deterministic `audit-behavior` sample.
+/// This is a deliberately restricted stage, not a claim about full Audit completeness.
+pub const AUDIT_BEHAVIOR_PROVIDERS: [&str; 2] =
+    ["legacy.data.internal-suite", "legacy.security.binary-pins"];
 
 fn valid_repeats(repeats: u32) -> bool {
     (1..=MAX_REPEATS).contains(&repeats)
@@ -383,9 +387,26 @@ fn report_metrics(report: &Value) -> Value {
         .flatten()
         .filter_map(|row| row.get("result")?.get("details"))
         .filter_map(|details| {
-            ["rawScannerCandidates", "scannerCandidates"]
+            ["rawScannerCandidates", "scannerCandidates", "candidates"]
                 .iter()
                 .find_map(|key| details.get(*key).and_then(Value::as_array))
+        })
+        .collect();
+    let candidate_providers: Vec<Value> = provider_rows
+        .into_iter()
+        .flatten()
+        .filter_map(|row| {
+            let details = row.get("result")?.get("details")?;
+            let candidates = ["rawScannerCandidates", "scannerCandidates", "candidates"]
+                .iter()
+                .find_map(|key| details.get(*key).and_then(Value::as_array))?;
+            Some(json!({
+                "provider": row.get("provider").cloned().unwrap_or(Value::Null),
+                "count": candidates.len(),
+                "sourceField": ["rawScannerCandidates", "scannerCandidates", "candidates"]
+                    .iter().find(|key| details.get(**key).and_then(Value::as_array).is_some())
+                    .copied().unwrap_or("unknown")
+            }))
         })
         .collect();
     let candidate_malformed = provider_results.is_some()
@@ -397,7 +418,7 @@ fn report_metrics(report: &Value) -> Value {
                             .get("result")
                             .and_then(|value| value.get("details"))
                             .is_some_and(|details| {
-                                ["rawScannerCandidates", "scannerCandidates"]
+                                ["rawScannerCandidates", "scannerCandidates", "candidates"]
                                     .iter()
                                     .any(|key| {
                                         details.get(*key).is_some_and(|value| !value.is_array())
@@ -414,6 +435,7 @@ fn report_metrics(report: &Value) -> Value {
             "status": "available",
             "count": candidate_arrays.iter().map(|rows| rows.len()).sum::<usize>(),
             "candidateArrayCount": candidate_arrays.len(),
+            "candidateProviders": candidate_providers,
             "source": "extensions.providerResults[].result.details"
         })
     } else {
@@ -466,7 +488,7 @@ fn raw_candidate_observations(report: &Value) -> Option<(Vec<Observed>, u32)> {
         .iter()
         .filter_map(|row| row.get("result")?.get("details"))
         .filter_map(|details| {
-            ["rawScannerCandidates", "scannerCandidates"]
+            ["rawScannerCandidates", "scannerCandidates", "candidates"]
                 .iter()
                 .find_map(|key| details.get(*key).and_then(Value::as_array))
         })
@@ -520,6 +542,96 @@ fn raw_candidate_observations(report: &Value) -> Option<(Vec<Observed>, u32)> {
         })
         .collect();
     Some((observations, count))
+}
+
+fn deterministic_stage_metrics(
+    report: &Value,
+    selected_providers: &[&str],
+    plan: Option<&Value>,
+) -> Value {
+    let rows = report
+        .pointer("/extensions/providerResults")
+        .and_then(Value::as_array);
+    let providers = selected_providers.iter().copied().map(|selected| {
+        let matches = rows.map(|rows| rows.iter().filter(|row| row.get("provider").and_then(Value::as_str) == Some(selected)).collect::<Vec<_>>()).unwrap_or_default();
+        let denominator = plan.and_then(|plan| plan.pointer("/nativePlan/plan/providers")).and_then(Value::as_array).and_then(|providers| {
+            let matches = providers.iter().filter(|provider| provider.get("id").and_then(Value::as_str) == Some(selected)).collect::<Vec<_>>();
+            (matches.len() == 1).then(|| matches[0].pointer("/configuration/denominatorCount").and_then(Value::as_u64)).flatten()
+        });
+        let execution = (matches.len() == 1).then(|| serde_json::from_value::<legion_audit::ProviderExecution>(matches[0].clone()).ok()).flatten();
+        match execution {
+            Some(execution) if execution.result.provider.as_str() == selected && !execution.skipped && execution.result.validate().is_ok() => {
+                let result = execution.result;
+                // Plan-level selector NA is distinct from missing host support or an
+                // untyped applicable=false claim. It proves no inspection took place.
+                let not_applicable = !result.applicable && !result.complete
+                    && result.status == legion_contracts::ProviderStatus::Ok
+                    && result.coverage.is_none() && result.findings.is_empty()
+                    && result.coverage_gaps.is_empty() && result.degradation.is_empty()
+                    && result.details.get("notApplicable") == Some(&Value::Bool(true))
+                    && result.details.get("notApplicableReason").and_then(Value::as_str) == Some("selector-denominator-empty")
+                    && denominator == Some(0)
+                    && ["rawScannerCandidates", "scannerCandidates", "candidates"].iter().all(|field| !result.details.contains_key(*field));
+                let inspected = result.applicable && result.complete && result.degradation.is_empty();
+                json!({
+                    "provider":selected, "status":result.status, "applicable":result.applicable,
+                    "complete":result.complete, "coverage":result.coverage,
+                    "eligibleDenominator":denominator,
+                    "selectionComplete":inspected || not_applicable,
+                    "selectionStatus":if not_applicable { "not-applicable" } else if inspected { "complete" } else { "incomplete" },
+                    "inspection":if not_applicable { "not-inspected" } else if inspected { "inspected" } else { "unknown" },
+                    "candidateCount":if not_applicable { Some(0) } else { result.details.get("candidates").and_then(Value::as_array).map(Vec::len) },
+                })
+            }
+            _ => json!({"provider":selected,"status":if matches.is_empty() {"missing"} else {"malformed"},"applicable":null,"complete":null,"coverage":null,"candidateCount":null,"selectionComplete":false,"selectionStatus":"incomplete","inspection":"unknown"}),
+        }
+    }).collect::<Vec<_>>();
+    let complete = !providers.is_empty()
+        && providers
+            .iter()
+            .all(|provider| provider["selectionComplete"] == true);
+    json!({
+        "kind":"selected-provider-stage",
+        "status":if complete { "complete" } else if rows.is_none() { "unknown" } else { "incomplete" },
+        "complete":if rows.is_some() { Value::Bool(complete) } else { Value::Null },
+        "selectedProviders":selected_providers, "providers":providers,
+        "fullAuditCompleteness":"not-claimed-by-selected-stage",
+    })
+}
+
+fn selected_stage_raw_metrics(report: &Value, stage: &Value) -> Value {
+    let mut metrics = report_metrics(report);
+    let all_not_applicable = stage["complete"] == true
+        && stage["providers"].as_array().is_some_and(|providers| {
+            !providers.is_empty()
+                && providers
+                    .iter()
+                    .all(|provider| provider["selectionStatus"] == "not-applicable")
+        });
+    if all_not_applicable && metrics["rawScannerCandidates"]["status"] == "unavailable" {
+        metrics["rawScannerCandidates"] = json!({
+            "status":"available", "count":0, "candidateArrayCount":0, "candidateProviders":[],
+            "inspection":"not-inspected", "evidenceState":"not-applicable",
+            "source":"selected-provider-stage-zero-eligible-denominators",
+        });
+    }
+    metrics
+}
+
+fn deterministic_provider_args(
+    with_lenses: bool,
+    selected_providers: Option<&[&str]>,
+) -> Vec<String> {
+    if with_lenses {
+        Vec::new()
+    } else if let Some(selected_providers) = selected_providers {
+        selected_providers
+            .iter()
+            .flat_map(|provider| ["--only".to_owned(), (*provider).to_owned()])
+            .collect()
+    } else {
+        Vec::new()
+    }
 }
 
 fn on_path(loc: &Loc, path: &str) -> bool {
@@ -1109,6 +1221,7 @@ fn audit_case(
     case: &Case,
     out: &Path,
     with_lenses: bool,
+    deterministic_providers: Option<&[&str]>,
     token_budget: Option<u64>,
     claude: Option<&Path>,
     model: Option<&str>,
@@ -1130,6 +1243,10 @@ fn audit_case(
         out.to_string_lossy().into_owned(),
     ];
     let mut args = args;
+    args.extend(deterministic_provider_args(
+        with_lenses,
+        deterministic_providers,
+    ));
     if let Some(token_budget) = token_budget {
         args.push("--run-token-budget".into());
         args.push(token_budget.to_string());
@@ -1149,16 +1266,40 @@ fn audit_case(
             report_path.display()
         ));
     }
-    let raw_metrics = report_metrics(&report);
-    let mut metrics = json!({"rawAudit": raw_metrics.clone(), "finalReport": raw_metrics});
+    let plan = fs::read(out.join("plan.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+    let audit_scope = if with_lenses {
+        json!({"kind":"full-audit-plan", "selectedProviders":null, "fullAuditCompleteness":"required"})
+    } else if let Some(providers) = deterministic_providers {
+        deterministic_stage_metrics(&report, providers, plan.as_ref())
+    } else {
+        json!({"kind":"full-audit-plan", "selectedProviders":null, "fullAuditCompleteness":"required"})
+    };
+    let mut metrics = json!({
+        "rawAudit":selected_stage_raw_metrics(&report, &audit_scope),
+        "finalReport":report_metrics(&report),
+        "auditScope":audit_scope,
+    });
     let mut errors = Vec::new();
-    let raw_complete =
+    let full_audit_complete =
         metrics["rawAudit"]["finalReport"]["completeness"]["complete"].as_bool() == Some(true);
-    if !with_lenses && !raw_complete {
-        errors.push("deterministic audit report is incomplete or has unknown completeness".into());
+    if !with_lenses {
+        let scope_complete = if metrics["auditScope"]["kind"] == "selected-provider-stage" {
+            metrics["auditScope"]["complete"].as_bool() == Some(true)
+        } else {
+            full_audit_complete
+        };
+        if !scope_complete {
+            errors.push("deterministic audit scope is incomplete or unknown".into());
+        }
     }
     if metrics["rawAudit"]["rawScannerCandidates"]["status"] == "available" {
-        if let Some((candidates, candidate_count)) = raw_candidate_observations(&report) {
+        let observations = raw_candidate_observations(&report).or_else(|| {
+            (metrics["rawAudit"]["rawScannerCandidates"]["evidenceState"] == "not-applicable")
+                .then(|| (Vec::new(), 0))
+        });
+        if let Some((candidates, candidate_count)) = observations {
             let raw_score = score_run(
                 std::slice::from_ref(case),
                 &BTreeMap::from([(case.id.clone(), candidates.clone())]),
@@ -1479,6 +1620,11 @@ fn run_fixture(
     }
     for case in cases.iter().filter(|case| case.ruled && clone_ok) {
         let out = work.join(label).join(format!("{fixture}.{}.out", case.id));
+        let deterministic_providers = if !opts.with_lenses && fixture == "audit-behavior" {
+            Some(AUDIT_BEHAVIOR_PROVIDERS.as_slice())
+        } else {
+            None
+        };
         let allocation = if opts.with_lenses {
             token_budget.reserve_case()
         } else {
@@ -1506,6 +1652,7 @@ fn run_fixture(
             case,
             &out,
             opts.with_lenses,
+            deterministic_providers,
             allocation,
             opts.claude.as_deref(),
             opts.model.as_deref(),
@@ -1986,6 +2133,169 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn deterministic_provider_selection_is_fixture_scoped_and_model_mode_stays_full() {
+        assert!(deterministic_provider_args(false, None).is_empty());
+        assert!(deterministic_provider_args(true, Some(&AUDIT_BEHAVIOR_PROVIDERS)).is_empty());
+        assert_eq!(
+            deterministic_provider_args(false, Some(&AUDIT_BEHAVIOR_PROVIDERS)),
+            vec![
+                "--only",
+                "legacy.data.internal-suite",
+                "--only",
+                "legacy.security.binary-pins"
+            ]
+        );
+    }
+
+    fn selected_result(provider: &str, applicable: bool) -> Value {
+        json!({"provider":provider,"skipped":false,"result":{
+            "schema_version":1,"provider":provider,"required":true,
+            "status":"ok","applicable":applicable,"complete":applicable,
+            "coverage":if applicable {json!({"denominator_digest":"sha256:fixture","expected":1,"examined":1,"gaps":[]})} else {Value::Null},
+            "findings":[],"coverage_gaps":[],"degradation":[],
+            "details":if applicable {json!({"candidates":[]})} else {json!({"notApplicable":true,"notApplicableReason":"selector-denominator-empty"})}
+        }})
+    }
+
+    fn zero_denominator_plan() -> Value {
+        json!({"nativePlan":{"plan":{"providers":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| json!({"id":provider,"configuration":{"denominatorCount":0}})).collect::<Vec<_>>()}}})
+    }
+
+    #[test]
+    fn selected_stage_completeness_does_not_claim_full_audit_completeness() {
+        let mut first = selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], true);
+        first["result"]["details"]["candidates"] = json!([{"path":"src/session.ts","line":4}]);
+        let report = json!({"extensions":{"providerResults":[first,selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]}});
+        let stage = deterministic_stage_metrics(&report, &AUDIT_BEHAVIOR_PROVIDERS, None);
+        assert_eq!(stage["complete"], true);
+        assert_eq!(stage["selectedProviders"].as_array().unwrap().len(), 2);
+        assert_eq!(stage["providers"][0]["candidateCount"], 1);
+        assert_eq!(
+            stage["fullAuditCompleteness"],
+            "not-claimed-by-selected-stage"
+        );
+        let missing = deterministic_stage_metrics(
+            &json!({"extensions":{"providerResults":[]}}),
+            &AUDIT_BEHAVIOR_PROVIDERS,
+            None,
+        );
+        assert_eq!(missing["complete"], false);
+        assert_eq!(missing["providers"][0]["status"], "missing");
+    }
+
+    #[test]
+    fn zero_eligible_selection_is_not_inspected_and_has_known_zero_candidates() {
+        let report = json!({"extensions":{"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()}});
+        let stage = deterministic_stage_metrics(
+            &report,
+            &AUDIT_BEHAVIOR_PROVIDERS,
+            Some(&zero_denominator_plan()),
+        );
+        assert_eq!(stage["complete"], true);
+        for provider in stage["providers"].as_array().unwrap() {
+            assert_eq!(provider["complete"], false);
+            assert_eq!(provider["selectionStatus"], "not-applicable");
+            assert_eq!(provider["inspection"], "not-inspected");
+        }
+        assert_eq!(
+            report_metrics(&report)["rawScannerCandidates"]["status"],
+            "unavailable"
+        );
+        let raw = selected_stage_raw_metrics(&report, &stage);
+        assert_eq!(raw["rawScannerCandidates"]["count"], 0);
+        assert_eq!(raw["rawScannerCandidates"]["candidateProviders"], json!([]));
+        assert_eq!(
+            raw["rawScannerCandidates"]["evidenceState"],
+            "not-applicable"
+        );
+
+        let mixed = json!({"extensions":{"providerResults":[selected_result(AUDIT_BEHAVIOR_PROVIDERS[0],false),selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]}});
+        let stage = deterministic_stage_metrics(
+            &mixed,
+            &AUDIT_BEHAVIOR_PROVIDERS,
+            Some(&zero_denominator_plan()),
+        );
+        assert_eq!(stage["complete"], true);
+        let raw = selected_stage_raw_metrics(&mixed, &stage);
+        assert_eq!(
+            raw["rawScannerCandidates"]["candidateProviders"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            raw["rawScannerCandidates"]["candidateProviders"][0]["provider"],
+            AUDIT_BEHAVIOR_PROVIDERS[1]
+        );
+    }
+
+    #[test]
+    fn not_applicable_requires_typed_zero_denominator_evidence() {
+        let valid = json!({"extensions":{"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()}});
+        let plan = zero_denominator_plan();
+        let mut invalid = Vec::new();
+        let mut malformed = valid.clone();
+        malformed["extensions"]["providerResults"][0]["result"]
+            .as_object_mut()
+            .unwrap()
+            .remove("schema_version");
+        invalid.push((malformed, Some(plan.clone())));
+        let mut missing = valid.clone();
+        missing["extensions"]["providerResults"]
+            .as_array_mut()
+            .unwrap()
+            .remove(0);
+        invalid.push((missing, Some(plan.clone())));
+        let mut duplicate = valid.clone();
+        duplicate["extensions"]["providerResults"]
+            .as_array_mut()
+            .unwrap()
+            .push(selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], false));
+        invalid.push((duplicate, Some(plan.clone())));
+        let mut nonzero = plan.clone();
+        nonzero["nativePlan"]["plan"]["providers"][0]["configuration"]["denominatorCount"] =
+            json!(1);
+        invalid.push((valid.clone(), Some(nonzero)));
+        let mut unknown = plan.clone();
+        unknown["nativePlan"]["plan"]["providers"][0]["configuration"]
+            .as_object_mut()
+            .unwrap()
+            .remove("denominatorCount");
+        invalid.push((valid.clone(), Some(unknown)));
+        invalid.push((valid.clone(), None));
+        for (field, value) in [
+            ("status", json!("failed")),
+            ("status", json!("cancelled")),
+            ("complete", json!(true)),
+            ("coverage_gaps", json!(["missing"])),
+        ] {
+            let mut report = valid.clone();
+            report["extensions"]["providerResults"][0]["result"][field] = value;
+            invalid.push((report, Some(plan.clone())));
+        }
+        for (field, value) in [
+            ("notApplicableReason", json!("host-declaration-absent")),
+            ("notApplicable", Value::Null),
+            ("candidates", json!([{"path":"unexpected"}])),
+        ] {
+            let mut report = valid.clone();
+            report["extensions"]["providerResults"][0]["result"]["details"][field] = value;
+            invalid.push((report, Some(plan.clone())));
+        }
+        for (report, plan) in invalid {
+            let stage =
+                deterministic_stage_metrics(&report, &AUDIT_BEHAVIOR_PROVIDERS, plan.as_ref());
+            assert_eq!(stage["complete"], false, "{report} / {plan:?}");
+            assert_ne!(
+                selected_stage_raw_metrics(&report, &stage)["rawScannerCandidates"]
+                    ["evidenceState"],
+                "not-applicable"
+            );
+        }
+    }
+
     fn close(actual: Option<f64>, expected: f64) -> bool {
         actual.is_some_and(|value| (value - expected).abs() < 1e-9)
     }
@@ -2219,6 +2529,28 @@ mod tests {
             metrics["phaseTelemetry"]["phases"][0]["actualCachedInputTokens"]["value"],
             Value::Null
         );
+    }
+
+    #[test]
+    fn canonical_candidate_generator_details_keep_provider_provenance() {
+        let report = json!({"status":"incomplete","findings":[],"extensions":{"providerResults":[
+            {"provider":"legacy.data.internal-suite","result":{"details":{"candidates":[{"path":"src/session.ts","line":4}]}}},
+            {"provider":"legacy.security.binary-pins","result":{"details":{"candidates":[]}}}
+        ]}});
+        let metrics = report_metrics(&report);
+        assert_eq!(metrics["rawScannerCandidates"]["status"], "available");
+        assert_eq!(metrics["rawScannerCandidates"]["count"], 1);
+        assert_eq!(
+            metrics["rawScannerCandidates"]["candidateProviders"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        let (candidates, count) = raw_candidate_observations(&report).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(candidates[0].locations[0].path, "src/session.ts");
+        assert_eq!(metrics["finalReport"]["completeness"]["complete"], false);
     }
 
     #[test]
