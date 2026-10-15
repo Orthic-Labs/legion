@@ -83,7 +83,7 @@ fn release_fixture() -> (Fixture, InventoryEnvelope, FrozenPlan, Vec<PendingLens
         )],
     )
     .unwrap()
-    .freeze(None)
+    .freeze(Some(b"coverage-regression-fixture-key"))
     .unwrap();
     let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
     (fixture, inventory, plan, work)
@@ -138,7 +138,7 @@ fn oversized_promotion_does_not_starve_later_affordable_candidate() {
         &[spec("reasoning.performance", json!({"op":"always"}))],
     )
     .unwrap()
-    .freeze(None)
+    .freeze(Some(b"coverage-regression-fixture-key"))
     .unwrap();
     let mut provider = plan.providers()[0].clone();
     provider.configuration.insert("coverage".into(), json!({
@@ -421,4 +421,53 @@ fn unavailable_trigger_checks_keep_bounded_review_without_becoming_witnesses() {
         .as_array()
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn final_pretty_envelope_refinement_preserves_every_selected_home() {
+    let files = (0..120)
+        .map(|index| {
+            (
+                format!("src/long_module_name_for_packet_overhead_{index:04}.rs"),
+                format!("pub fn fixture_{index}() {{ let value = {index}; consume(value); }}\n")
+                    .repeat(12),
+            )
+        })
+        .collect::<Vec<_>>();
+    let borrowed = files
+        .iter()
+        .map(|(path, body)| (path.as_str(), body.clone()))
+        .collect::<Vec<_>>();
+    let fixture = Fixture::new(&borrowed);
+    let inventory = fixture.inventory();
+    let mut provider = spec("reasoning.performance", json!({"op":"always"}));
+    provider.reasoning["coverageRequest"] =
+        json!({"mode":"exhaustive","runTokenBudget":1_000_000,"seatTokenBudget":25_000});
+    let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &[provider])
+        .unwrap()
+        .freeze(Some(b"envelope-refinement-fixture-key"))
+        .unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    assert!(work.len() > 1);
+    let target = 25_000 * 4
+        - coverage_plan::SEAT_PACKET_RESERVE_BYTES
+        - crate::next::DEFAULT_OUTPUT_TOKENS as usize * 4;
+    let mut homes = Vec::new();
+    for item in &work {
+        assert!(serde_json::to_vec_pretty(item).unwrap().len() <= target);
+        assert!(required_packet_gaps(&item.request).is_empty());
+        homes.extend(
+            item.request.packet["excerptCoverage"]["selectedPaths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned),
+        );
+    }
+    assert_eq!(homes.len(), files.len());
+    assert_eq!(
+        homes.into_iter().collect::<BTreeSet<_>>(),
+        inventory.paths().map(str::to_owned).collect()
+    );
 }

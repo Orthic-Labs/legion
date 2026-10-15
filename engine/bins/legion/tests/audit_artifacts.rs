@@ -3,6 +3,88 @@ use std::{collections::BTreeMap, process::Command, sync::Arc};
 use legion_audit::{AuditError, FilesystemInventorySource, InventoryEnvelope, InventorySource};
 use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
 
+fn fixture_git(root: &std::path::Path, args: &[&str]) {
+    let mut child = Command::new("git")
+        .current_dir(root)
+        .args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env(
+            "GIT_CONFIG_GLOBAL",
+            if cfg!(windows) { "NUL" } else { "/dev/null" },
+        )
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert!(status.success(), "fixture Git failed: {args:?}");
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("fixture Git deadline: {args:?}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+fn init_fixture_git(root: &std::path::Path) {
+    fixture_git(root, &["init", "-q", "--template="]);
+    fixture_git(root, &["config", "user.name", "Audit Fixture"]);
+    fixture_git(root, &["config", "user.email", "audit@example.invalid"]);
+    fixture_git(root, &["add", "."]);
+    fixture_git(root, &["commit", "-qm", "fixture source"]);
+}
+fn fixture_snapshot(root: &std::path::Path) -> legion_audit::snapshot::FrozenSnapshot {
+    init_fixture_git(root);
+    legion_audit::snapshot::FrozenSnapshot::capture(
+        legion_audit::scope::ResolvedScope::resolve(
+            root,
+            legion_audit::scope::ScopeSpec::Repo,
+            None,
+        )
+        .unwrap(),
+    )
+    .unwrap()
+}
+fn remove_fixture(root: &std::path::Path) {
+    let Ok(meta) = std::fs::symlink_metadata(root) else {
+        return;
+    };
+    if meta.is_dir() && !meta.file_type().is_symlink() {
+        let mut permissions = meta.permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            permissions.set_mode(permissions.mode() | 0o700);
+        }
+        #[cfg(not(unix))]
+        permissions.set_readonly(false);
+        std::fs::set_permissions(root, permissions).unwrap();
+        for entry in std::fs::read_dir(root).unwrap() {
+            remove_fixture(&entry.unwrap().path());
+        }
+        std::fs::remove_dir(root).unwrap();
+    } else {
+        #[cfg(not(unix))]
+        {
+            let mut permissions = meta.permissions();
+            permissions.set_readonly(false);
+            std::fs::set_permissions(root, permissions).unwrap();
+        }
+        std::fs::remove_file(root).unwrap();
+    }
+}
+
 /// Fixed-snapshot inventory fixture. Replaces the retired
 /// `FileBlueprintInventorySource`: Legion (Rust) has no Blueprint/Membrane
 /// packet to read, so a unit-level fixture that needs an exact, precomputed
@@ -29,6 +111,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
+    remove_fixture(&root);
     // Source files live in an isolated subdirectory so the frozen inventory
     // (and its digest) reflects exactly these two files, not whatever other
     // fixture artifacts (provider-plan.json, out/, ...) this test also
@@ -41,13 +124,21 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     let root = std::fs::canonicalize(root).unwrap();
     let source_root = std::fs::canonicalize(source_root).unwrap();
     let repository_id = source_root.to_string_lossy().into_owned();
+    let snapshot = fixture_snapshot(&source_root);
+    let execution_root = snapshot.manifest.execution_root.clone();
+    let execution_id = execution_root.to_string_lossy().into_owned();
+    let review_context = serde_json::json!({
+        "snapshotManifest": snapshot.manifest_path,
+        "snapshotKey": snapshot.manifest.key,
+        "sourceRepository": source_root,
+    });
     let provider_id = ProviderId::new("fixture-provider").unwrap();
     // Legion's own read-only filesystem walk is the sole inventory source;
     // use it here too so the fixture's digest matches exactly what the CLI
-    // invocation below computes for the same `source_root`.
-    let inventory = FilesystemInventorySource::new(&source_root)
+    // invocation below validates for this exact immutable execution root.
+    let inventory = FilesystemInventorySource::new(&execution_root)
         .unwrap()
-        .inventory(&repository_id)
+        .inventory(&execution_id)
         .unwrap();
     let result = ProviderResult {
         schema_version: 1,
@@ -103,18 +194,21 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     let source: Arc<dyn InventorySource> = Arc::new(FixedInventorySource(inventory.clone()));
     assert!(
         legion_application::NativeApplicationConfig::for_audit_artifacts(
-            repository_id.clone(),
+            execution_id.clone(),
             source,
             vec![specification.clone()],
             vec![invalid_result],
-            Some(source_root.clone()),
+            Some(execution_root.clone()),
         )
         .is_err()
     );
     let plan_path = root.join("provider-plan.json");
     std::fs::write(
         &plan_path,
-        serde_json::to_vec_pretty(&serde_json::json!({"providers": [specification]})).unwrap(),
+        serde_json::to_vec_pretty(
+            &serde_json::json!({"providers": [specification], "reviewContext": review_context}),
+        )
+        .unwrap(),
     )
     .unwrap();
     let result_path = root.join("provider-result.json");
@@ -124,7 +218,8 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
     )
     .unwrap();
     let out = root.join("out");
-    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_legion"));
+    let output = command
         .args([
             "audit",
             "--out",
@@ -201,25 +296,35 @@ fn run_direct_with_sealed_plan(
     name: &str,
     tamper: impl Fn(&mut serde_json::Value),
     result_plan_digest: Option<&str>,
+    scope: Option<&str>,
 ) -> (std::process::Output, std::path::PathBuf) {
     let root = std::env::temp_dir().join(format!(
         "legion-sealed-direct-{name}-{}",
         std::process::id()
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     let source_root = root.join("source");
     std::fs::create_dir_all(source_root.join("src")).unwrap();
     std::fs::write(source_root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let source_root = std::fs::canonicalize(source_root).unwrap();
     let repository_id = source_root.to_string_lossy().into_owned();
-    let inventory = FilesystemInventorySource::new(&source_root)
+    let snapshot = fixture_snapshot(&source_root);
+    let execution_root = snapshot.manifest.execution_root.clone();
+    let execution_id = execution_root.to_string_lossy().into_owned();
+    let review_context = serde_json::json!({
+        "snapshotManifest": snapshot.manifest_path,
+        "snapshotKey": snapshot.manifest.key,
+        "sourceRepository": source_root,
+    });
+    let inventory = FilesystemInventorySource::new(&execution_root)
         .unwrap()
-        .inventory(&repository_id)
+        .inventory(&execution_id)
         .unwrap();
-    let specification = fixture_specification();
+    let mut specification = fixture_specification();
+    specification.reasoning["reviewContext"] = review_context.clone();
     let frozen = legion_audit::AuditPlan::compile_with_root(
-        Some(source_root.as_path()),
+        Some(execution_root.as_path()),
         &inventory,
         std::slice::from_ref(&specification),
     )
@@ -229,6 +334,7 @@ fn run_direct_with_sealed_plan(
     let mut plan = serde_json::json!({
         "schemaVersion": 1,
         "kind": "audit-provider-plan",
+        "reviewContext": review_context,
         "planDigest": frozen.digest(),
         "planSignature": frozen.signature(),
         "seal": {
@@ -275,9 +381,13 @@ fn run_direct_with_sealed_plan(
     )
     .unwrap();
     let out = root.join("out");
-    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_legion"));
+    command.arg("audit");
+    if let Some(scope) = scope {
+        command.args(["--type", scope]);
+    }
+    let output = command
         .args([
-            "audit",
             "--out",
             out.to_str().unwrap(),
             "--json",
@@ -295,7 +405,7 @@ fn run_direct_with_sealed_plan(
 
 #[test]
 fn sealed_plan_is_accepted_without_an_unsealed_gap() {
-    let (output, root) = run_direct_with_sealed_plan("accepted", |_| {}, None);
+    let (output, root) = run_direct_with_sealed_plan("accepted", |_| {}, None, None);
     assert_eq!(
         output.status.code(),
         Some(0),
@@ -316,7 +426,7 @@ fn sealed_plan_is_accepted_without_an_unsealed_gap() {
     let report: serde_json::Value =
         serde_json::from_slice(&std::fs::read(root.join("out/report.json")).unwrap()).unwrap();
     assert!(report["claims"].get("providerCoverage").is_none());
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
@@ -324,6 +434,7 @@ fn tampered_sealed_plan_is_refused() {
     let (output, root) = run_direct_with_sealed_plan(
         "tampered",
         |plan| plan["providerSpecs"][0]["providerVersion"] = serde_json::json!("2"),
+        None,
         None,
     );
     assert_eq!(
@@ -334,13 +445,13 @@ fn tampered_sealed_plan_is_refused() {
     );
     assert!(String::from_utf8_lossy(&output.stderr).contains("seal verification failed"));
     assert!(!root.join("out/report.json").exists());
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
 fn provider_result_naming_a_different_plan_digest_is_refused() {
     let other = format!("sha256:{}", "a".repeat(64));
-    let (output, root) = run_direct_with_sealed_plan("digest", |_| {}, Some(&other));
+    let (output, root) = run_direct_with_sealed_plan("digest", |_| {}, Some(&other), None);
     assert_eq!(
         output.status.code(),
         Some(5),
@@ -348,7 +459,47 @@ fn provider_result_naming_a_different_plan_digest_is_refused() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(String::from_utf8_lossy(&output.stderr).contains("names plan digest"));
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
+}
+
+#[test]
+fn imported_snapshot_cannot_change_the_requested_scope() {
+    let (output, root) =
+        run_direct_with_sealed_plan("scope-mismatch", |_| {}, None, Some("committed"));
+    assert_eq!(
+        output.status.code(),
+        Some(5),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("differs from current requested source scope"));
+    assert!(!root.join("out/report.json").exists());
+    remove_fixture(&root);
+}
+
+#[test]
+fn imported_snapshot_cannot_hide_changed_source_bytes() {
+    let (output, root) = run_direct_with_sealed_plan(
+        "source-mismatch",
+        |plan| {
+            let source =
+                std::path::Path::new(plan["reviewContext"]["sourceRepository"].as_str().unwrap());
+            std::fs::write(source.join("src/lib.rs"), "pub fn changed() {}\n").unwrap();
+        },
+        None,
+        None,
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(5),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("differs from current requested source scope"));
+    assert!(!root.join("out/report.json").exists());
+    remove_fixture(&root);
 }
 
 /// Runs `legion audit findings <args> --repo <repo>` from the system temp

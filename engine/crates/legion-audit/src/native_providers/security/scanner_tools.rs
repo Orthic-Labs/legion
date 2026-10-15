@@ -3,6 +3,8 @@
 //! changing reports, rewriting source or weakening independent scanner policy.
 use std::time::Instant;
 
+use serde::Deserialize;
+
 use super::*;
 use crate::native_providers::security::{scanners, suppressions};
 
@@ -36,19 +38,59 @@ fn module_root(root: &Path, path: &str, marker: &str) -> Option<String> {
     }
 }
 
+/// Parse every YAML/JSON document before excluding a selected path. Quoted,
+/// flow & indented mappings are ordinary YAML; lexical key matching cannot
+/// establish that a file lacks Kubernetes objects.
 fn kube_input(text: &str) -> Result<bool, &'static str> {
     if text.contains("{{") || text.contains("{%") {
         return Err("kubernetes-template-unrendered");
     }
-    if let Ok(value) = serde_json::from_str::<Value>(text) {
-        return Ok(value.get("apiVersion").is_some() && value.get("kind").is_some());
+    fn nested_identity(value: &serde_yaml::Value) -> bool {
+        match value {
+            serde_yaml::Value::Mapping(mapping) => mapping.iter().any(|(key, value)| {
+                matches!(key.as_str(), Some("apiVersion" | "kind" | "<<")) || nested_identity(value)
+            }),
+            serde_yaml::Value::Sequence(values) => values.iter().any(nested_identity),
+            serde_yaml::Value::Tagged(_) => true,
+            _ => false,
+        }
     }
-    let api = text.lines().any(|line| line.starts_with("apiVersion:"));
-    let kind = text.lines().any(|line| line.starts_with("kind:"));
-    if api != kind {
-        return Err("kubernetes-object-identity-incomplete");
+    let mut documents = 0usize;
+    let mut applicable = false;
+    for document in serde_yaml::Deserializer::from_str(text) {
+        documents += 1;
+        let value = serde_yaml::Value::deserialize(document)
+            .map_err(|_| "kubernetes-document-parse-unknown")?;
+        let serde_yaml::Value::Mapping(mapping) = value else {
+            return Err("kubernetes-document-shape-unknown");
+        };
+        if mapping
+            .keys()
+            .any(|key| key.as_str().is_none() || key.as_str() == Some("<<"))
+        {
+            return Err("kubernetes-document-identity-ambiguous");
+        }
+        let api = mapping.get(&serde_yaml::Value::String("apiVersion".into()));
+        let kind = mapping.get(&serde_yaml::Value::String("kind".into()));
+        match (api, kind) {
+            (Some(api), Some(kind))
+                if api.as_str().is_some_and(|s| !s.trim().is_empty())
+                    && kind.as_str().is_some_and(|s| !s.trim().is_empty()) =>
+            {
+                applicable = true
+            }
+            (None, None) => {
+                if mapping.values().any(nested_identity) {
+                    return Err("kubernetes-document-identity-ambiguous");
+                }
+            }
+            _ => return Err("kubernetes-object-identity-incomplete"),
+        }
     }
-    Ok(api && kind)
+    if documents == 0 {
+        return Err("kubernetes-document-shape-unknown");
+    }
+    Ok(applicable)
 }
 
 fn glob_literal(path: &str) -> String {
@@ -159,7 +201,7 @@ impl<'a> Run<'a> {
                 .is_some_and(|side| side == "base")
             {
                 examined.insert(entry.path.clone());
-                selection_ledger.push(json!({"path":entry.path,"sourceSide":"base","disposition":"not-applicable","reason":"deleted-source-has-no-selected-tool-input"}));
+                selection_ledger.push(json!({"path":entry.path,"sourceSide":"base","sourceDigest":entry.digest,"disposition":"not-applicable","reason":"deleted-source-has-no-selected-tool-input"}));
                 continue;
             }
             let text = match checked_text(self.root(), &entry.path) {
@@ -180,12 +222,12 @@ impl<'a> Run<'a> {
                 );
                 continue;
             }
-            source_digests.insert(entry.path.clone(), actual);
+            source_digests.insert(entry.path.clone(), actual.clone());
             if matches!(tool, "kubeconform" | "kube-linter") {
                 match kube_input(&text) {
                     Ok(false) => {
                         examined.insert(entry.path.clone());
-                        selection_ledger.push(json!({"path":entry.path,"disposition":"not-applicable","reason":"no-kubernetes-object-identity"}));
+                        selection_ledger.push(json!({"path":entry.path,"sourceSide":"selected","sourceDigest":actual,"classifier":"yaml-document-identity","disposition":"not-applicable","reason":"no-kubernetes-object-identity"}));
                         continue;
                     }
                     Err(reason) => {
@@ -724,5 +766,202 @@ mod tests {
             .any(|finding| finding["File"] == "fixtures/token.env"
                 && finding["RuleID"] == "github.token"));
         assert!(!serde_json::to_string(&input).unwrap().contains(&token));
+    }
+    #[test]
+    fn selected_non_kubernetes_files_are_natively_classified_without_deselecting_provider() {
+        let temp = Scratch::create(None).unwrap();
+        let root = temp.path.join("repo");
+        fs::create_dir_all(&root).unwrap();
+        let text = r#"{"name":"ordinary-package"}"#;
+        fs::write(root.join("package.json"), text).unwrap();
+        for tool in ["kube-linter", "kubeconform"] {
+            let provider = provider(
+                &format!("security.scanner-{tool}"),
+                scanners::selector(tool),
+            );
+            let Production::Artifact(input) = ArtifactProducer::new(&root)
+                .with_search_path(vec![])
+                .produce(&provider, &inventory("package.json", text))
+            else {
+                panic!("native classification evidence required")
+            };
+            let analysis = scanners::analyze(&input);
+            assert_eq!(analysis["applicable"], true, "{tool}");
+            assert_eq!(analysis["complete"], true, "{tool}");
+            assert_eq!(analysis["status"], "classified", "{tool}");
+            assert_eq!(analysis["executionMode"], "native-classification");
+            assert_eq!(analysis["denominator"]["expected"], 1);
+            assert_eq!(analysis["denominator"]["examined"], 1);
+            assert_eq!(
+                analysis["selectionLedger"][0]["disposition"],
+                "not-applicable"
+            );
+            assert_eq!(
+                analysis["selectionLedger"][0]["sourceDigest"],
+                digest(text.as_bytes())
+            );
+            assert!(input["artifacts"]["scannerEvidence"]["runs"]
+                .as_array()
+                .unwrap()
+                .is_empty());
+            assert!(input.get("executionReceipt").is_none());
+            let mut unproven = input.clone();
+            unproven["artifacts"]["scannerEvidence"]["selectionLedger"] = json!([]);
+            assert_eq!(scanners::analyze(&unproven)["complete"], false);
+        }
+    }
+
+    #[test]
+    fn mixed_kubernetes_inputs_keep_frozen_denominator_and_require_external_evidence() {
+        let temp = Scratch::create(None).unwrap();
+        let root = temp.path.join("repo");
+        fs::create_dir_all(&root).unwrap();
+        let sources = [
+            ("package.json", r#"{"name":"ordinary-package"}"#),
+            (
+                "pod.yaml",
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: fixture\n",
+            ),
+        ];
+        for (path, text) in sources {
+            fs::write(root.join(path), text).unwrap();
+        }
+        let inventory = InventoryEnvelope::new(
+            "test-repository",
+            "test-revision",
+            sources
+                .iter()
+                .map(|(path, text)| InventoryEntry {
+                    path: (*path).into(),
+                    symbols: vec![],
+                    dependencies: vec![],
+                    package_scripts: vec![],
+                    source_file: true,
+                    digest: Some(digest(text.as_bytes())),
+                })
+                .collect(),
+        )
+        .unwrap();
+        for tool in ["kube-linter", "kubeconform"] {
+            let provider = provider(
+                &format!("security.scanner-{tool}"),
+                scanners::selector(tool),
+            );
+            let Production::Artifact(input) = ArtifactProducer::new(&root)
+                .with_search_path(vec![])
+                .produce(&provider, &inventory)
+            else {
+                panic!("partial classification evidence required")
+            };
+            let analysis = scanners::analyze(&input);
+            assert_eq!(analysis["applicable"], true, "{tool}");
+            assert_eq!(analysis["complete"], false, "{tool}");
+            assert_eq!(analysis["classificationOnly"], false);
+            assert_eq!(analysis["denominator"]["expected"], 2);
+            assert_eq!(analysis["denominator"]["examined"], 1);
+            assert_eq!(
+                input["artifacts"]["scannerEvidence"]["applicablePaths"],
+                json!(["pod.yaml"])
+            );
+            assert!(analysis["coverageGaps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|gap| gap["kind"] == "scanner-input-unexamined" && gap["path"] == "pod.yaml"));
+            assert!(input["artifacts"]["scannerEvidence"]["runs"]
+                .as_array()
+                .unwrap()
+                .is_empty());
+            if tool == "kube-linter" {
+                assert!(analysis["coverageGaps"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|gap| gap["reason"] == "tool-missing:kube-linter"));
+            } else {
+                assert!(analysis["coverageGaps"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|gap| gap["kind"] == "offline-database-missing:kubeconform"));
+            }
+        }
+    }
+    #[test]
+    fn yaml_identity_parser_covers_quoted_flow_indented_and_multiple_documents() {
+        let positives = [
+            "\"apiVersion\": v1\n\"kind\": Pod\nmetadata:\n  name: fixture\n",
+            "  apiVersion: v1\n  kind: Pod\n  metadata: {name: fixture}\n",
+            "{apiVersion: v1, kind: Pod, metadata: {name: fixture}}\n",
+            "name: ordinary\n---\napiVersion: v1\nkind: Pod\n",
+            "apiVersion: v1\nkind: Pod\n---\nname: ordinary\n",
+            "---\napiVersion: v1\nkind: Pod\n---\napiVersion: apps/v1\nkind: Deployment\n",
+        ];
+        for text in positives {
+            assert_eq!(kube_input(text), Ok(true), "{text}");
+        }
+        for text in [
+            "name: ordinary\n",
+            "{name: ordinary, metadata: {name: fixture}}\n",
+            "name: ordinary\n---\nname: another\n",
+            r#"{"name":"ordinary-package"}"#,
+        ] {
+            assert_eq!(kube_input(text), Ok(false), "{text}");
+        }
+        for text in [
+            "apiVersion: v1\nkind: Pod\n---\n[invalid\n",
+            "name: ordinary\n---\n[invalid\n",
+            "apiVersion: v1\nkind: Pod\n---\nkind: Pod\n",
+            "apiVersion: v1\nkind: null\n",
+            "apiVersion: v1\nkind: Pod\nkind: Deployment\n",
+            "items: [{apiVersion: v1, kind: Pod}]\n",
+            "- apiVersion: v1\n  kind: Pod\n",
+            "apiVersion v1\nkind Pod\n",
+            "<<: {apiVersion: v1, kind: Pod}\n",
+        ] {
+            assert!(kube_input(text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn quoted_or_unknown_yaml_never_completes_native_classification_without_scanner() {
+        let temp = Scratch::create(None).unwrap();
+        let root = temp.path.join("repo");
+        fs::create_dir_all(&root).unwrap();
+        for text in [
+            "\"apiVersion\": v1\n\"kind\": Pod\nmetadata:\n  name: fixture\n",
+            "  apiVersion: v1\n  kind: Pod\n",
+            "{apiVersion: v1, kind: Pod}\n",
+            "name: ordinary\n---\napiVersion: v1\nkind: Pod\n",
+            "apiVersion: v1\nkind: Pod\n---\n[invalid\n",
+        ] {
+            fs::write(root.join("pod.yaml"), text).unwrap();
+            for tool in ["kube-linter", "kubeconform"] {
+                let provider = provider(
+                    &format!("security.scanner-{tool}"),
+                    scanners::selector(tool),
+                );
+                let Production::Artifact(input) = ArtifactProducer::new(&root)
+                    .with_search_path(vec![])
+                    .produce(&provider, &inventory("pod.yaml", text))
+                else {
+                    panic!("selected evidence required")
+                };
+                let analysis = scanners::analyze(&input);
+                assert_eq!(analysis["applicable"], true, "{tool}: {text}");
+                assert_eq!(analysis["complete"], false, "{tool}: {text}");
+                assert_eq!(analysis["classificationOnly"], false, "{tool}: {text}");
+                assert_eq!(analysis["denominator"]["examined"], 0, "{tool}: {text}");
+                assert!(!analysis["coverageGaps"].as_array().unwrap().is_empty());
+                assert!(
+                    !analysis["selectionLedger"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|row| row["disposition"] == "not-applicable"),
+                    "{tool}: {text}"
+                );
+            }
+        }
     }
 }

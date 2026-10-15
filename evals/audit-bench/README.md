@@ -88,8 +88,17 @@ rejected so a typo cannot silently drop a ruling.
 ## Runner
 
 ```
-legion-dev audit-bench --legion <installed legion> [--fixture <name>]... [--repeats N] [--aa]
-                       [--with-lenses] [--work-dir <dir>] [--keep] [--json]
+legion-dev audit-bench --legion <installed legion> [--fixture <name>]... [--case <id>]...
+                       [--repeats N] [--aa] [--with-lenses] [--token-budget N]
+                       [--case-token-budget N]
+                       [--claude <path>] [--model <id>] [--work-dir <dir>] [--keep] [--json]
+```
+
+Bounded single-case runtime validation:
+
+```
+legion-dev audit-bench --legion <installed legion> --fixture audit-behavior \
+  --case audit-redis-session-no-ttl --with-lenses --token-budget 10000 --keep --json
 ```
 
 For each fixture, repeat and case, the runner clones the bundle, checks out the case head, resolves
@@ -102,19 +111,33 @@ legion audit <clone> --base <base-commit> --quiet --out <case-out>
 then reads `<case-out>/report.json`. A finding location is `path`, `path:line` or `path:start-end`.
 Each fixture case file may declare top-level `split: "tuning"` or `"heldout"`; missing split is
 reported as `unknown`, never inferred. Results remain partitioned in `splitResults`, so held-out
-scores & A/A bands stay separate from tuning scores. Each ruled case enters first-attempt denominators before execution. Failed or unstarted cases remain
+scores & A/A bands stay separate from tuning scores. `--case` selects one or more case ids and
+restricts scoring denominators to selected cases; unknown ids fail before scratch data is created.
+Each ruled selected case enters first-attempt denominators before execution. Failed or unstarted cases remain
 denominator misses and appear under `failedOrUnstartedCases`; `caseOutcomes` records `completed`,
 `failed` or `unstarted` for each planned attempt. A non-zero `legion audit` exit with a report is
 normal (findings). `git` is bounded to 30 seconds & audits to 10 minutes, then timed-out
 process trees are terminated through RightKit.
 
 With `--with-lenses`, the same installed executable also runs
-`legion audit run-reasoning --run <case-out>` under a 10-minute bound. The benchmark reads
+`legion audit run-reasoning --run <case-out> [--claude <path>] [--model <id>]` under a 10-minute bound.
+`--claude` and `--model` pin native runtime identity; otherwise installed PATH/default identity applies.
+The aggregate token allowance is shared across every selected case, repeat and A/A arm. Its default
+is 100,000 tokens; `--case-token-budget` defaults to 10,000 and sets maximum reservation per case.
+Each reservation is bounded by current aggregate remaining, forwarded as
+`legion audit --run-token-budget`. Actual input, output and retry tokens are
+reconciled before the next case (cached input is already part of input totals); known unused reservation returns to shared allowance. Missing or
+malformed actual usage burns full case reservation & halts further model cases, preserving their
+planned denominator as unstarted. A measured case overrun also halts later model cases.
+Usage reconciliation includes parent and security-variant follow-up runtime receipts.
+Cases reached after budget exhaustion remain denominator misses with `status: unstarted`; budget
+diagnostics report limit, actual known tokens, unknown usage cases, remaining allowance and overruns.
+Any A/A band uses only complete arms; exhausted arms remain in score denominators but cannot create
+an A/A estimate. No model calls are synthesized by the benchmark. The benchmark reads
 `review-runtime.json`, requires `complete: true` & `status: "done"` for completion, then rereads
 the reconciled `<case-out>/report.json` for final scoring. Incomplete runs retain any final partial
 findings, record every runtime/report failure, & remain failed in the first-attempt population.
-No model calls are synthesized by the benchmark; the command uses the installed host's configured
-runtime. Each case metric keeps deterministic/raw-stage & final-report metrics separate, including
+Each case metric keeps deterministic/raw-stage & final-report metrics separate, including
 scanner candidates, findings, provider phases, reported actual token/cache/cost values, and unknowns.
 `wallTimeMs` is measured for both stages; phase-level values not emitted by runtime remain unknown.
 

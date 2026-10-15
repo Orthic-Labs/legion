@@ -456,10 +456,16 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
             .filter(|item| item.provider_id == provider)
             .count() as u64
     };
-    // security + correctness (bundle J1) read each part once; performance (S1)
-    // is its own bundle.
-    let expected_seats = parts_of("reasoning.performance") + parts_of("reasoning.security");
-    assert_eq!(plan["requiredSeats"], json!(expected_seats));
+    // Runtime shared-context-v1 supplies security + correctness (bundle J1)
+    // excerpts once per part; performance (S1) remains its own bundle.
+    let expected_max_seats = parts_of("reasoning.performance")
+        + parts_of("reasoning.security")
+        + parts_of("reasoning.correctness");
+    let expected_seats = plan["requiredSeats"].as_u64().unwrap();
+    assert!(
+        expected_seats < expected_max_seats,
+        "compatible bounded parts must share seats"
+    );
     let seats = plan["seats"].as_array().unwrap();
     assert_eq!(
         seats[0]["tier"], "judgment",
@@ -469,7 +475,46 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
         .iter()
         .any(|seat| seat["providers"].as_array().unwrap().len() == 2));
     assert_eq!(plan["waves"], json!(expected_seats.div_ceil(16)));
+    let mut carried = seats
+        .iter()
+        .flat_map(|seat| {
+            seat["packets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|name| name.as_str().unwrap().to_owned())
+        })
+        .collect::<Vec<_>>();
+    let mut expected = env
+        .work
+        .iter()
+        .map(|work| work.packet_file_name())
+        .collect::<Vec<_>>();
+    carried.sort();
+    expected.sort();
+    assert_eq!(
+        carried, expected,
+        "bounded packing must retain each logical packet exactly once"
+    );
+    assert!(seats.windows(2).all(|pair| {
+        let rank = |seat: &Value| match seat["tier"].as_str().unwrap() {
+            "judgment" => 0,
+            "specialist" => 1,
+            _ => 2,
+        };
+        rank(&pair[0]) <= rank(&pair[1])
+    }));
     assert_eq!(plan["withinLimits"], true, "{:?}", plan["violations"]);
+    for seat in seats {
+        let bytes = seat["plannedRequestBytes"].as_u64().unwrap();
+        assert_eq!(
+            seat["estimatedTokens"],
+            json!(bytes.div_ceil(4) + seat["outputTokenLimit"].as_u64().unwrap())
+        );
+        if seat["providers"].as_array().unwrap().len() > 1 {
+            assert_eq!(seat["transportEncoding"], "shared-context-v1");
+        }
+    }
 }
 
 fn big_fixture_files() -> Vec<(String, Vec<u8>)> {
@@ -604,21 +649,31 @@ fn ember_like_auto_plan_freezes_with_every_seat_within_budget() {
         .iter()
         .find(|bundle| bundle["bundle"] == "S3")
         .unwrap();
-    assert!(
-        s3["overBy"].as_u64().unwrap() > 0,
-        "the fixture must overrun the S3 share: {s3:#}"
+    assert_eq!(
+        s3["overBy"].as_u64().unwrap(),
+        s3["estimatedTokens"]
+            .as_u64()
+            .unwrap()
+            .saturating_sub(s3["budgetTokens"].as_u64().unwrap()),
+        "sharing changes physical cost; allocation target still never shrinks mandatory coverage"
     );
 
-    // Byte accounting: per-lens packets carry their own copy of the shared
-    // excerpts, seats read them once; the report states both.
+    // Physical host requests include framing, tools, schemas & escaping.
+    // Shared-context-v1 removes repeated excerpt delivery; logical packet
+    // files still retain every lens's complete reconstruction.
     let seat_read = plan["seatReadBytes"].as_u64().unwrap();
     let per_lens = plan["perLensPacketBytes"].as_u64().unwrap();
     let unique = plan["uniqueExcerptBytes"].as_u64().unwrap();
     let saved = plan["sharedExcerptBytesSaved"].as_u64().unwrap();
     assert_eq!(plan["packetBytes"].as_u64().unwrap(), seat_read);
-    assert_eq!(per_lens, seat_read + saved);
-    assert!(saved > 0, "bundled lenses share excerpts");
-    assert!(unique <= seat_read && seat_read <= per_lens);
+    assert_eq!(
+        plan["unsharedRequestBytes"].as_u64().unwrap(),
+        seat_read + plan["physicalRequestBytesSaved"].as_u64().unwrap()
+    );
+    assert!(saved > 0, "bundled lenses physically share exact excerpts");
+    assert!(plan["physicalRequestBytesSaved"].as_u64().unwrap() > 0);
+    assert!(unique <= seat_read);
+    assert_eq!(plan["requestEncoding"], "runtime-initial-v1");
     let lens_sum: u64 = plan["lenses"]
         .as_array()
         .unwrap()
@@ -998,6 +1053,7 @@ fn lens_packets_reference_the_inventory_instead_of_embedding_it() {
         "changeRiskContract",
         "reviewContext",
         "inventoryRef",
+        "sourceSides",
         "artifactIds",
         "part",
     ]

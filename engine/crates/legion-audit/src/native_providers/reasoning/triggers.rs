@@ -477,7 +477,11 @@ mod tests {
         let evaluation = evaluate_trigger(dir.path(), "platform-parity", &paths).unwrap();
         assert!(!evaluation.fired);
         assert_eq!(evaluation.unavailable_paths, paths);
-        assert_eq!(evaluation.required_paths(), paths);
+        assert!(evaluation.required_paths().is_empty());
+        assert_eq!(
+            evaluation.applicable_paths(),
+            vec!["src/large.rs".to_owned()]
+        );
         let snapshot = evaluation.snapshot("frozen-inventory", &paths).unwrap();
         assert_eq!(snapshot["applicability"], "unavailable");
     }

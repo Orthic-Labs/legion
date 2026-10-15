@@ -15,7 +15,7 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 37] = [
+const TESTED_RUNTIME_IDS: [&str; 46] = [
     "architecture.core",
     "code.c-family",
     "code.dotnet",
@@ -50,6 +50,15 @@ const TESTED_RUNTIME_IDS: [&str; 37] = [
     "security.insecure-defaults",
     "security.misuse-resistance",
     "security.opengrep",
+    "security.scanner-brakeman",
+    "security.scanner-golangci-lint",
+    "security.scanner-kube-linter",
+    "security.scanner-kubeconform",
+    "security.scanner-shellcheck",
+    "security.scanner-squawk",
+    "security.scanner-tflint",
+    "security.scanner-zizmor",
+    "security.suppression-changes",
     "structural.ast-grep",
     "supply-chain.license-sbom-provenance",
     "test-quality.core",
@@ -100,7 +109,9 @@ fn fixture_root(label: &str) -> PathBuf {
             .as_nanos(),
         NEXT_ID.fetch_add(1, Ordering::Relaxed)
     ));
-    fs::create_dir_all(root.join("src")).unwrap();
+    for directory in ["src", "app", "config", ".github/workflows"] {
+        fs::create_dir_all(root.join(directory)).unwrap();
+    }
     for (path, body) in [
         ("src/lib.rs", "fn main() {}\n"),
         ("src/index.js", "export const value = 1;\n"),
@@ -114,6 +125,20 @@ fn fixture_root(label: &str) -> PathBuf {
         ("pyproject.toml", "[project]\nname='fixture'\n"),
         ("terraform.tf", "resource \"x\" \"y\" {}\n"),
         ("results.sarif", "{\"runs\":[]}\n"),
+        ("migration.sql", "ALTER TABLE users DROP COLUMN name;\n"),
+        ("run.sh", "#!/bin/sh\necho $value\n"),
+        (
+            "pod.yaml",
+            "apiVersion: v1\nkind: Pod\nmetadata:\n  name: fixture\n",
+        ),
+        (
+            ".github/workflows/ci.yml",
+            "name: fixture\non: push\njobs: {}\n",
+        ),
+        ("app/model.rb", "class Model; end\n"),
+        ("config/application.rb", "require 'rails'\n"),
+        ("Gemfile", "source 'https://rubygems.org'\ngem 'rails'\n"),
+        ("go.mod", "module example.com/fixture\n\ngo 1.22\n"),
     ] {
         fs::write(root.join(path), body).unwrap();
     }
@@ -134,6 +159,14 @@ fn inventory() -> InventoryEnvelope {
         "pyproject.toml",
         "terraform.tf",
         "results.sarif",
+        "migration.sql",
+        "run.sh",
+        "pod.yaml",
+        ".github/workflows/ci.yml",
+        "app/model.rb",
+        "config/application.rb",
+        "Gemfile",
+        "go.mod",
     ];
     InventoryEnvelope::new(
         "runtime-cutover",
@@ -184,7 +217,12 @@ fn assert_authority(result: &legion_contracts::ProviderResult) {
 fn every_frozen_runtime_script_id_dispatches_with_bound_denominator() {
     let specs = frozen_specs();
     let ids: Vec<_> = specs.iter().map(|spec| spec.id.to_string()).collect();
-    assert_eq!(ids.len(), 37);
+    assert_eq!(ids.len(), TESTED_RUNTIME_IDS.len());
+    assert_eq!(
+        ids.iter().collect::<BTreeSet<_>>().len(),
+        ids.len(),
+        "runtime registry IDs must be unique"
+    );
     assert_eq!(
         ids.iter().map(String::as_str).collect::<BTreeSet<_>>(),
         TESTED_RUNTIME_IDS.into_iter().collect::<BTreeSet<_>>(),
@@ -196,10 +234,29 @@ fn every_frozen_runtime_script_id_dispatches_with_bound_denominator() {
     for spec in &specs {
         let provider = provider(spec);
         let expected = inventory.denominator_entries(&spec.selector).unwrap();
+        if provider.id.starts_with("security.scanner-") {
+            assert!(
+                !expected.entries.is_empty(),
+                "{} scanner fixture must exercise selected input",
+                spec.id
+            );
+        }
         let result = registry
             .execute(&provider, &inventory)
             .unwrap_or_else(|error| panic!("{}: {error}", spec.id));
         assert_eq!(result.provider.to_string(), spec.id.to_string());
+        if provider.id.starts_with("security.scanner-") {
+            assert!(
+                result.applicable,
+                "{} selected scanner cannot deselect itself",
+                spec.id
+            );
+            assert!(
+                result.coverage.is_some(),
+                "{} selected scanner must report frozen coverage",
+                spec.id
+            );
+        }
         assert_authority(&result);
         assert_status_is_settled(&spec.id.to_string(), &result);
         if let Some(coverage) = result.coverage {

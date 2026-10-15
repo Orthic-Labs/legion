@@ -1096,8 +1096,11 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         adjudication_candidates = count;
     }
     let budget = parse_budget(&dispatch)?;
+    let runtime_encoding =
+        dispatch.get("requestEncoding").and_then(Value::as_str) == Some("runtime-initial-v1");
     for seat in &mut seats {
         let mut bytes = 0u64;
+        let mut work = Vec::new();
         for packet in &seat.packets {
             if Path::new(packet).file_name().and_then(|name| name.to_str()) != Some(packet.as_str())
             {
@@ -1112,6 +1115,19 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
                     ))
                 })?;
             bytes = bytes.saturating_add(content.len() as u64);
+            if runtime_encoding {
+                work.push(
+                    serde_json::from_slice::<crate::native_providers::reasoning::PendingLensWork>(
+                        &content,
+                    )
+                    .map_err(|error| {
+                        invalid(format!("budget packet {packet} is malformed: {error}"))
+                    })?,
+                );
+            }
+        }
+        if runtime_encoding {
+            bytes = crate::review_runtime::initial_seat_request_bytes(&work)?;
         }
         seat.estimated_tokens = estimated_request_tokens(bytes, budget.output);
     }

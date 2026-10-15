@@ -144,6 +144,7 @@ fn scanner_details(provider: &str) -> BTreeMap<String, Value> {
             json!([
                 {
                     "id": "cand-sql",
+                    "domain": "security",
                     "ruleId": "sql-concat",
                     "claim": "query built by interpolation",
                     "severityHint": "high",
@@ -151,6 +152,7 @@ fn scanner_details(provider: &str) -> BTreeMap<String, Value> {
                 },
                 {
                     "id": "cand-doc",
+                    "domain": "security",
                     "ruleId": "todo-marker",
                     "claim": "marker",
                     "severityHint": "low",

@@ -4496,17 +4496,26 @@ mod scaled_tests {
 
     #[test]
     fn spot_check_disagreement_voids_the_batch_and_reruns_it_per_candidate() {
+        // Forty observations of four actual source instances fit one batch.
+        // Each equivalence group shares provider, source path, range & excerpt.
         let candidates = (0..40)
             .map(|i| {
-                candidate(
+                let mut observation = candidate(
                     i,
                     "fam0.check",
-                    &format!("src/m{i}.rs"),
+                    &format!("src/sink{}.rs", i % 4),
                     &format!("sink_{}(x)", i % 4),
-                )
+                );
+                observation.line = Some(10);
+                observation
             })
             .collect::<Vec<_>>();
         let plan = plan_for(&candidates);
+        assert_eq!(plan.clusters.len(), 4);
+        assert!(plan
+            .clusters
+            .iter()
+            .all(|cluster| cluster.member_ids.len() == 10));
         assert_eq!(plan.batches.len(), 1);
         let dismiss = |_: &str, _: &ScannerCandidate| SecurityVerdictKind::FalsePositive;
         let mut submitted = batch_submission(&plan, &candidates, &dismiss);
@@ -4656,10 +4665,26 @@ mod scaled_tests {
     #[test]
     fn batch_scope_expands_every_member_and_validates_representatives_only() {
         let candidates = (0..3)
-            .map(|i| candidate(i, "fam0.check", &format!("src/m{i}.rs"), "same_sink(x)"))
+            .map(|i| {
+                let mut observation = candidate(i, "fam0.check", "src/shared.rs", "same_sink(x)");
+                observation.line = Some(10);
+                observation
+            })
             .collect::<Vec<_>>();
         let plan = plan_for(&candidates);
         assert_eq!(plan.clusters.len(), 1);
+        // Identical scanner text in another source file is a separate instance.
+        let mut other_source = candidates[0].clone();
+        other_source.finding_id = "cand-other-source".into();
+        other_source.path = Some("src/unrelated.rs".into());
+        let mut with_other_source = candidates.clone();
+        with_other_source.push(other_source);
+        let distinct_plan = plan_for(&with_other_source);
+        assert_eq!(distinct_plan.clusters.len(), 2);
+        assert!(distinct_plan
+            .clusters
+            .iter()
+            .any(|cluster| cluster.member_ids == ["cand-other-source"]));
         let batch = &plan.batches[0];
         let rep = candidates
             .iter()

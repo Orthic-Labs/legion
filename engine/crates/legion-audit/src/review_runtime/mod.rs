@@ -115,6 +115,71 @@ fn action_schema() -> Value {
     json!({"type":"object","properties":{"toolRequest":{"type":"object","additionalProperties":false,"required":["tool","arguments"],"properties":{"tool":{"type":"string","enum":["audit.read_file","audit.search_code","audit.list_files","audit.read_diff","audit.find_callers"]},"arguments":{"type":"object"}}},"finalResult":{"type":"object"}},"additionalProperties":false})
 }
 
+fn review_prompt(
+    request: &ReasoningInvocation,
+    snapshot_key: &str,
+    stage: Option<&Value>,
+) -> Value {
+    let lens = lens_plan::lens_id_for_provider(&request.provider_id);
+    let report_schema = lens.and_then(lens_schemas::lens_report_schema);
+    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields.","request":request,"snapshotKey":snapshot_key,"stagePacket":stage,"findingSchema":report_schema,"contextTools":tools::specs(),"conversation":[]});
+    if stage.is_some() {
+        // Stage material is the sole candidate review context.
+        prompt["request"]["packet"] = json!({"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
+    }
+    prompt
+}
+
+fn rendered_request(
+    prompt: &Value,
+    system: &str,
+    schema: &Value,
+    model: Option<&str>,
+) -> Result<(String, Value), AuditError> {
+    let frame = native::rendered_input(prompt)?;
+    let rendered = json!({"system":system,"schema":schema,"frame":frame,"model":model,"controls":["tools:none","mcp:none","safe-mode","slash:none","chrome:none","persistence:none","max-turns:1"]});
+    Ok((frame, rendered))
+}
+fn request_bytes(rendered: &Value) -> Result<u64, AuditError> {
+    serde_json::to_vec(rendered)
+        .map(|bytes| bytes.len() as u64)
+        .map_err(|error| invalid(error.to_string()))
+}
+
+/// Initial physical host envelopes, including JSON escaping, schemas & tools.
+/// Additional context/verification calls & native hidden overhead are not
+/// predicted here; each actual call still requires its own authorization.
+pub(crate) fn initial_seat_request_bytes(works: &[PendingLensWork]) -> Result<u64, AuditError> {
+    if works.is_empty() {
+        return Err(invalid("cannot estimate an empty reviewer seat"));
+    }
+    let schema = action_schema();
+    if let Some(prompt) = batch::initial_prompt(works)? {
+        return request_bytes(&rendered_request(&prompt, SYSTEM, &schema, None)?.1);
+    }
+    let mut total = 0u64;
+    for work in works {
+        // Pure planning fixtures can lack a snapshot. Real runtime packets
+        // carry its SHA256 key; use equal-width placeholder only when absent.
+        let snapshot_key = work
+            .request
+            .packet
+            .pointer("/reviewContext/snapshotKey")
+            .and_then(Value::as_str)
+            .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
+        let prompt = review_prompt(&work.request, snapshot_key, None);
+        let bytes = request_bytes(&rendered_request(&prompt, SYSTEM, &schema, None)?.1)?;
+        total = total
+            .checked_add(bytes)
+            .ok_or_else(|| invalid("reviewer seat byte estimate overflow"))?;
+    }
+    Ok(total)
+}
+
+pub(crate) fn shared_seat_supported(works: &[PendingLensWork]) -> Result<bool, AuditError> {
+    Ok(batch::initial_prompt(works)?.is_some())
+}
+
 pub(super) struct Controller<'a> {
     run: &'a Path,
     options: &'a RuntimeOptions,
@@ -139,12 +204,10 @@ impl Controller<'_> {
         schema: &Value,
         initial: Option<String>,
     ) -> Result<Observation, AuditError> {
-        let frame = native::rendered_input(&prompt)?;
-        let rendered = json!({"system":system,"schema":schema,"frame":frame,"model":self.options.model,"controls":["tools:none","mcp:none","safe-mode","slash:none","chrome:none","persistence:none","max-turns:1"]});
-        let bytes = serde_json::to_vec(&rendered)
-            .map_err(|error| invalid(error.to_string()))?
-            .len();
-        if bytes > MAX_REQUEST_BYTES {
+        let (frame, rendered) =
+            rendered_request(&prompt, system, schema, self.options.model.as_deref())?;
+        let bytes = request_bytes(&rendered)?;
+        if bytes > MAX_REQUEST_BYTES as u64 {
             return Err(AuditError::BoundExceeded(
                 "complete reviewer request exceeds byte cap".into(),
             ));
@@ -165,7 +228,7 @@ impl Controller<'_> {
             },
             call_id: call_id.clone(),
             tier: seat["tier"].as_str().unwrap_or("judgment").into(),
-            rendered_request_bytes: bytes as u64,
+            rendered_request_bytes: bytes,
             output_token_limit: seat["outputTokenLimit"]
                 .as_u64()
                 .ok_or_else(|| invalid("frozen output token cap missing"))?,
@@ -189,7 +252,7 @@ impl Controller<'_> {
             schema,
             frame,
         );
-        observation.request_bytes = bytes as u64;
+        observation.request_bytes = bytes;
         observation.request_digest = digest(&rendered)?;
         let settled = next::reconcile_usage(budget_run, &observation.usage)?;
         persist(
@@ -210,13 +273,7 @@ impl Controller<'_> {
         initial: Option<String>,
     ) -> Result<(Value, Observation), AuditError> {
         let schema = action_schema();
-        let lens = lens_plan::lens_id_for_provider(&request.provider_id);
-        let report_schema = lens.and_then(lens_schemas::lens_report_schema);
-        let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields.","request":request,"snapshotKey":self.snapshot.manifest.key,"stagePacket":stage,"findingSchema":report_schema,"contextTools":self.tools.specs(),"conversation":[]});
-        if stage.is_some() {
-            // Stage material is the sole candidate review context.
-            prompt["request"]["packet"] = json!({"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
-        }
+        let mut prompt = review_prompt(request, &self.snapshot.manifest.key, stage);
         let mut initial = initial;
         for _ in 0..self.options.max_calls_per_packet {
             let observation = self.call(seat, prompt.clone(), SYSTEM, &schema, initial.take())?;
@@ -700,6 +757,98 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn estimate_work(provider: &str, request_id: &str, content: &str) -> PendingLensWork {
+        PendingLensWork {
+            provider_id: provider.into(),
+            lens_ids: vec![],
+            status: "pending-host".into(),
+            request: ReasoningInvocation {
+                schema_version: 1,
+                kind: "legion-reasoning-invocation".into(),
+                request_id: request_id.into(),
+                provider_id: provider.into(),
+                contract: "estimate-fixture".into(),
+                plan_digest: "plan".into(),
+                plan_signature: "signature".into(),
+                repository_id: "repo".into(),
+                inventory_generation: "generation".into(),
+                inventory_digest: "inventory".into(),
+                denominator_digest: "denominator".into(),
+                denominator_count: 1,
+                denominator_paths: vec!["a.rs".into()],
+                packet: json!({"reviewContext":{"snapshotKey":"sha256:fixture"},"excerpts":[{"path":"a.rs","content":content}]}),
+            },
+            promotion: None,
+        }
+    }
+    #[test]
+    fn initial_estimate_counts_host_frame_escaping_schema_and_tools() {
+        let work = estimate_work("reasoning.naming", "naming", "quote:\" slash:\\ newline:\n");
+        let prompt = review_prompt(&work.request, "sha256:fixture", None);
+        assert_eq!(prompt["contextTools"], tools::specs());
+        assert!(prompt["findingSchema"].is_object());
+        let (frame, envelope) = rendered_request(&prompt, SYSTEM, &action_schema(), None).unwrap();
+        let exact = serde_json::to_vec(&envelope).unwrap().len() as u64;
+        assert!(exact > frame.len() as u64);
+        assert!(frame.len() > serde_json::to_vec(&work.request.packet).unwrap().len());
+        assert_eq!(initial_seat_request_bytes(&[work]).unwrap(), exact);
+    }
+    #[test]
+    fn shared_estimate_and_runtime_builder_transport_common_source_once() {
+        let marker = "UNIQUE_COMMON_SOURCE_LINE".repeat(1024);
+        let works = vec![
+            estimate_work("reasoning.naming", "naming", &marker),
+            estimate_work("reasoning.correctness", "correctness", &marker),
+        ];
+        let prompt = batch::initial_prompt(&works).unwrap().unwrap();
+        let shared = ingest::shared_seat_payload(&works).unwrap().unwrap();
+        assert_eq!(prompt["lenses"], shared["lenses"]);
+        assert_eq!(prompt["sharedContext"], shared["sharedContext"]);
+        assert_eq!(prompt.to_string().matches(marker.as_str()).count(), 1);
+        assert!(shared_seat_supported(&works).unwrap());
+        let physical = initial_seat_request_bytes(&works).unwrap();
+        let split = works
+            .iter()
+            .map(|work| initial_seat_request_bytes(std::slice::from_ref(work)).unwrap())
+            .sum::<u64>();
+        assert!(physical < split);
+        assert_eq!(
+            physical,
+            request_bytes(
+                &rendered_request(&prompt, SYSTEM, &action_schema(), None)
+                    .unwrap()
+                    .1
+            )
+            .unwrap()
+        );
+    }
+    #[test]
+    fn incompatible_or_oversized_shared_seats_charge_all_single_envelopes() {
+        for content in [
+            "different".to_owned(),
+            "large".repeat(MAX_REQUEST_BYTES / 8),
+        ] {
+            let works = vec![
+                estimate_work("reasoning.naming", "naming", &content),
+                estimate_work(
+                    "reasoning.correctness",
+                    "correctness",
+                    if content == "different" {
+                        "other"
+                    } else {
+                        &content
+                    },
+                ),
+            ];
+            assert!(!shared_seat_supported(&works).unwrap());
+            assert!(batch::initial_prompt(&works).unwrap().is_none());
+            let split = works
+                .iter()
+                .map(|work| initial_seat_request_bytes(std::slice::from_ref(work)).unwrap())
+                .sum::<u64>();
+            assert_eq!(initial_seat_request_bytes(&works).unwrap(), split);
+        }
+    }
     #[test]
     fn model_cannot_combine_tool_and_final() {
         assert!(action(

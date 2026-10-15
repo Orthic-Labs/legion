@@ -405,27 +405,49 @@ pub fn analyze(input: &Value) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    // Registry selection fixes provider applicability. Native classification
+    // settles entries only with explicit source-bound evidence, never a claim
+    // that a scanner executed successfully.
+    let envelope_valid = evidence.is_some_and(|e| {
+        exact_binding(e.get("binding"), input.pointer("/plan/binding"))
+            && e.get("selectedPaths") == Some(&json!(files))
+    });
+    let native_paths: std::collections::BTreeSet<String> = evidence
+        .and_then(|e| e.get("selectionLedger"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|row| {
+            row["disposition"] == "not-applicable"
+                && valid_digest(row.get("sourceDigest"))
+                && matches!(
+                    row["reason"].as_str(),
+                    Some(
+                        "no-kubernetes-object-identity"
+                            | "deleted-source-has-no-selected-tool-input"
+                    )
+                )
+        })
+        .filter_map(|row| row["path"].as_str())
+        .filter(|path| files.iter().any(|p| p == path))
+        .map(str::to_owned)
+        .collect();
     let classified_only = evidence.is_some_and(|e| {
         e.get("applicablePaths")
             .and_then(Value::as_array)
             .is_some_and(Vec::is_empty)
-            && e.get("examinedPaths")
-                .and_then(Value::as_array)
-                .is_some_and(|paths| paths.len() == files.len())
+            && native_paths.len() == files.len()
     });
-    let valid = evidence.is_some_and(|e| {
-        exact_binding(e.get("binding"), input.pointer("/plan/binding"))
-            && (classified_only
-                || (e
-                    .pointer("/executionReceipt/complete")
-                    .and_then(Value::as_bool)
-                    == Some(true)
-                    && e.pointer("/executionReceipt/offline")
-                        .and_then(Value::as_bool)
-                        == Some(true)
-                    && valid_digest(e.pointer("/executionReceipt/tool/executableDigest"))))
-            && e.get("selectedPaths") == Some(&json!(files))
+    let receipt_valid = evidence.is_some_and(|e| {
+        e.pointer("/executionReceipt/complete")
+            .and_then(Value::as_bool)
+            == Some(true)
+            && e.pointer("/executionReceipt/offline")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && valid_digest(e.pointer("/executionReceipt/tool/executableDigest"))
     });
+    let valid = envelope_valid && (classified_only || receipt_valid);
     if !valid && !files.is_empty() {
         gaps.push(json!({"kind":"scanner-evidence-invalid"}));
     }
@@ -435,7 +457,11 @@ pub fn analyze(input: &Value) -> Value {
         .into_iter()
         .flatten()
         .filter_map(Value::as_str)
-        .filter(|path| files.iter().any(|p| p == path))
+        .filter(|path| {
+            envelope_valid
+                && files.iter().any(|p| p == path)
+                && (receipt_valid || native_paths.contains(*path))
+        })
         .map(str::to_owned)
         .collect();
     let examined: std::collections::BTreeSet<_> = examined.into_iter().collect();
@@ -449,7 +475,7 @@ pub fn analyze(input: &Value) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    json!({"status":if !candidates.is_empty(){"candidates"}else if gaps.is_empty(){"pass"}else{"unproven"},"applicable":!files.is_empty()&&!classified_only,"complete":valid && gaps.is_empty() && !files.is_empty()&&!classified_only,"denominator":{"kind":"scanner-files","expected":files.len(),"examined":if valid {examined.len()}else{0}},"candidates":candidates,"findings":[],"coverageGaps":gaps,"lossLedger":evidence.and_then(|e|e.get("lossLedger")).cloned().unwrap_or_else(||json!([])),"selectionLedger":evidence.and_then(|e|e.get("selectionLedger")).cloned().unwrap_or_else(||json!([])),"deferredTools":deferred_tools()})
+    json!({"status":if !candidates.is_empty(){"candidates"}else if classified_only && gaps.is_empty(){"classified"}else if gaps.is_empty(){"pass"}else{"unproven"},"applicable":!files.is_empty(),"complete":valid && gaps.is_empty() && !files.is_empty(),"denominator":{"kind":"scanner-files","expected":files.len(),"examined":examined.len()},"candidates":candidates,"findings":[],"coverageGaps":gaps,"lossLedger":evidence.and_then(|e|e.get("lossLedger")).cloned().unwrap_or_else(||json!([])),"selectionLedger":evidence.and_then(|e|e.get("selectionLedger")).cloned().unwrap_or_else(||json!([])),"classificationOnly":classified_only,"executionMode":if classified_only{"native-classification"}else{"scanner-required"},"deferredTools":deferred_tools()})
 }
 
 #[cfg(test)]

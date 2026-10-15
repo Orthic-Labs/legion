@@ -212,6 +212,40 @@ fn audit_then_verify_an_ordinary_run() {
 
     // d) at least one code.* provider produced a non-failed result with coverage
     let results = execution["results"].as_array().expect("execution results");
+    // JSON lockfiles are selected by each frozen Kube selector. Native
+    // classification settles those entries without waiving selected providers
+    // or claiming any external scanner ran.
+    for id in [
+        "security.scanner-kube-linter",
+        "security.scanner-kubeconform",
+    ] {
+        let entry = results
+            .iter()
+            .find(|entry| entry["provider"].as_str() == Some(id))
+            .unwrap_or_else(|| panic!("missing selected {id}"));
+        assert_eq!(entry["result"]["applicable"], true, "{id}");
+        let analysis = &entry["result"]["details"]["analysis"];
+        assert_eq!(analysis["executionMode"], "native-classification", "{id}");
+        assert_eq!(analysis["classificationOnly"], true, "{id}");
+        assert_eq!(analysis["status"], "classified", "{id}");
+        assert_eq!(
+            analysis["denominator"]["expected"], analysis["denominator"]["examined"],
+            "{id}"
+        );
+        assert!(
+            analysis["selectionLedger"]
+                .as_array()
+                .is_some_and(|rows| !rows.is_empty()
+                    && rows
+                        .iter()
+                        .all(|row| row["disposition"] == "not-applicable")),
+            "{id}"
+        );
+        assert!(
+            entry["result"]["details"].get("executionReceipt").is_none(),
+            "{id} native classification cannot fabricate scanner receipt"
+        );
+    }
     let usable = results.iter().any(|entry| {
         entry["provider"]
             .as_str()

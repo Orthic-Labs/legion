@@ -2108,8 +2108,13 @@ pub fn ingest_lens_result(
                 .find(|provider| provider.get("id").and_then(Value::as_str) == Some(provider_id))
         })
     {
-        if provider.pointer("/configuration/triggerEvidence")
-            != request.packet.get("triggerEvidence")
+        if provider
+            .pointer("/configuration/triggerEvidence")
+            .filter(|value| !value.is_null())
+            != request
+                .packet
+                .get("triggerEvidence")
+                .filter(|value| !value.is_null())
         {
             coverage
                 .gaps
@@ -3431,7 +3436,9 @@ pub struct LensSizeLimits {
 pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = coverage_plan::DEFAULT_SEAT_TOKEN_BUDGET;
 /// Default host child-agent cap (`CHILD_AGENTS_MAX` in the Audit manual).
 pub const DEFAULT_MAX_SEATS: u64 = coverage_plan::WAVE_WIDTH;
-/// Default run budget: estimated input tokens across every seat.
+/// Default total admission budget: estimated rendered input plus reserved output
+/// across every call, including follow-ups, verification & retries. Cached input
+/// is a subset of input; actual overruns reconcile without refunding spend.
 pub const DEFAULT_RUN_TOKEN_BUDGET: u64 = coverage_plan::DEFAULT_RUN_TOKEN_BUDGET;
 /// Default cap on seats across all waves.
 pub const DEFAULT_MAX_TOTAL_SEATS: u64 = coverage_plan::DEFAULT_MAX_TOTAL_SEATS;
@@ -3557,41 +3564,95 @@ fn tier_rank(tier: &str) -> u8 {
     }
 }
 
+/// Physical shared-context-v1 payload consumed by the trusted host. Sharing
+/// is legal only for exact excerpt arrays; logical packets remain unchanged.
+pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, AuditError> {
+    if !(2..=8).contains(&work.len()) {
+        return Ok(None);
+    }
+    let Some(excerpts) = work[0]
+        .request
+        .packet
+        .get("excerpts")
+        .filter(|value| value.is_array())
+    else {
+        return Ok(None);
+    };
+    if work.iter().any(|item| {
+        item.provider_id == ADJUDICATOR_PROVIDER_ID
+            || item.request.packet.get("excerpts") != Some(excerpts)
+    }) {
+        return Ok(None);
+    }
+    let shared = json!({"excerpts":excerpts});
+    let mut requests = Vec::new();
+    let mut identities = BTreeSet::new();
+    for item in work {
+        if !identities.insert(item.request.request_id.as_str()) {
+            return Err(invalid("duplicate request IDs in shared seat"));
+        }
+        let mut compact = item.request.packet.clone();
+        compact["excerpts"] = json!({"$sharedContext":"excerpts"});
+        let lens = lens_plan::lens_id_for_provider(&item.provider_id);
+        requests.push(json!({"requestId":item.request.request_id,"providerId":item.provider_id,
+            "planDigest":item.request.plan_digest,"packetDigest":canonical_digest(&item.request.packet).map_err(|error|invalid(error.to_string()))?,
+            "packet":compact,"findingSchema":lens.and_then(lens_schemas::lens_report_schema)}));
+    }
+    Ok(Some(
+        json!({"sharedContext":shared,"sharedContextDigest":canonical_digest(&shared).map_err(|error|invalid(error.to_string()))?,"lenses":requests}),
+    ))
+}
+
 struct SeatDraft {
     bundle: String,
     tier: String,
     part: u32,
     members: Vec<usize>,
     excerpt_bytes: u64,
-    overhead_bytes: u64,
+    request_bytes: u64,
+    shared_excerpt_bytes_saved: u64,
 }
 
 /// Bundled dispatch plan for a pending-work set: lens packets that read the
 /// same excerpt part (same bundle, part number, review set, mode) share one
-/// seat answering every lens; accounting still charges repeated packet bytes,
+/// seat answering every lens using the host's shared-context-v1 encoding,
 /// writing one result file per provider. Seats are ordered judgment tier
 /// first and scheduled in waves of `wave_width`. The plan refuses (a
 /// `violations` entry) when a seat exceeds the seat budget, the run exceeds
 /// its estimated token budget, or the run needs more than `max_total_seats`
 /// seats, and reports how far over each bundle is. Pure and deterministic.
 ///
-/// `estimatedTokens` charges every complete serialized packet, including
-/// repeated excerpts, plus output reserve. Common references may reduce this
-/// only once transport actually consumes them. Bytes / 4 remains an estimate.
+/// `estimatedTokens` charges the host's complete initial rendered request,
+/// including schemas, tools, framing, escaping & output reserve. Exact shared
+/// excerpts are charged once only when the host consumes that encoding.
+/// Bytes / 4 remains an estimate; each later physical call preflights again.
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
     let output_tokens =
         crate::next::DEFAULT_OUTPUT_TOKENS.min((limits.seat_token_budget / 4).max(1));
     let mut drafts: Vec<SeatDraft> = Vec::new();
     let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
     let mut sampled = false;
+    let mut unshared_request_bytes = 0u64;
+    let mut planning_errors = Vec::new();
     for (position, item) in work.iter().enumerate() {
         let packet = &item.request.packet;
-        let total = serde_json::to_vec_pretty(item).map_or(u64::MAX, |bytes| bytes.len() as u64);
         let excerpt_bytes = packet
             .get("excerpts")
             .filter(|value| !value.is_null())
             .and_then(|value| serde_json::to_vec(value).ok())
             .map_or(0, |bytes| bytes.len() as u64);
+        let request_bytes =
+            match crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    planning_errors.push(format!(
+                        "{} initial request cannot render: {error}",
+                        item.provider_id
+                    ));
+                    u64::MAX
+                }
+            };
+        unshared_request_bytes = unshared_request_bytes.saturating_add(request_bytes);
         let adjudicator = item.provider_id == ADJUDICATOR_PROVIDER_ID;
         let bundle = packet
             .pointer("/lensPlan/bundle/id")
@@ -3639,26 +3700,39 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         } else {
             format!("solo|{}|{part}|{position}", item.provider_id)
         };
-        let overhead = total.saturating_sub(excerpt_bytes);
-        match by_key.get(&key).copied() {
-            Some(index) => {
-                let draft = &mut drafts[index];
-                draft.members.push(position);
-                // Packets still duplicate excerpts; charge each delivered copy.
-                draft.excerpt_bytes = draft.excerpt_bytes.saturating_add(excerpt_bytes);
-                draft.overhead_bytes = draft.overhead_bytes.saturating_add(overhead);
+        let merge = by_key.get(&key).copied().and_then(|index| {
+            let mut members = drafts[index].members.clone();
+            members.push(position);
+            let items = members
+                .iter()
+                .map(|position| work[*position].clone())
+                .collect::<Vec<_>>();
+            // Strict physical compatibility, not merely equal path counts.
+            if !crate::review_runtime::shared_seat_supported(&items).ok()? {
+                return None;
             }
-            None => {
-                by_key.insert(key, drafts.len());
-                drafts.push(SeatDraft {
-                    bundle,
-                    tier,
-                    part,
-                    members: vec![position],
-                    excerpt_bytes,
-                    overhead_bytes: overhead,
-                });
-            }
+            let bytes = crate::review_runtime::initial_seat_request_bytes(&items).ok()?;
+            let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
+            (tokens <= limits.seat_token_budget).then_some((index, bytes))
+        });
+        if let Some((index, bytes)) = merge {
+            let draft = &mut drafts[index];
+            draft.members.push(position);
+            draft.request_bytes = bytes;
+            draft.shared_excerpt_bytes_saved = draft
+                .shared_excerpt_bytes_saved
+                .saturating_add(excerpt_bytes);
+        } else {
+            by_key.insert(key, drafts.len());
+            drafts.push(SeatDraft {
+                bundle,
+                tier,
+                part,
+                members: vec![position],
+                excerpt_bytes,
+                request_bytes,
+                shared_excerpt_bytes_saved: 0,
+            });
         }
     }
     drafts.sort_by(|left, right| {
@@ -3670,21 +3744,24 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     });
     let wave_width = limits.wave_width.max(1);
     let mut seats = Vec::new();
-    let mut violations: Vec<String> = Vec::new();
+    let mut violations = planning_errors;
     let mut bundles: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     let mut total_tokens = 0u64;
     let mut total_bytes = 0u64;
     let mut unique_excerpt_bytes = 0u64;
+    let mut shared_excerpt_bytes_saved = 0u64;
     for (index, draft) in drafts.iter().enumerate() {
         let number = index as u64 + 1;
-        let bytes = draft.excerpt_bytes + draft.overhead_bytes;
+        let bytes = draft.request_bytes;
         let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
         total_tokens = total_tokens.saturating_add(tokens);
-        total_bytes += bytes;
-        unique_excerpt_bytes += draft.excerpt_bytes;
+        total_bytes = total_bytes.saturating_add(bytes);
+        unique_excerpt_bytes = unique_excerpt_bytes.saturating_add(draft.excerpt_bytes);
+        shared_excerpt_bytes_saved =
+            shared_excerpt_bytes_saved.saturating_add(draft.shared_excerpt_bytes_saved);
         let entry = bundles.entry(draft.bundle.clone()).or_insert((0, 0));
-        entry.0 += 1;
-        entry.1 += tokens;
+        entry.0 = entry.0.saturating_add(1);
+        entry.1 = entry.1.saturating_add(tokens);
         if tokens > limits.seat_token_budget {
             violations.push(format!(
                 "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds the per-seat budget of {}",
@@ -3701,7 +3778,8 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "estimatedTokens": tokens,
             "estimatedInputTokens": estimate_tokens(bytes),
             "outputTokenLimit": output_tokens,
-            "deliveredPacketBytes": bytes,
+            "plannedRequestBytes": bytes,
+            "transportEncoding": if draft.members.len() > 1 { "shared-context-v1" } else { "literal" },
             "providers": draft.members.iter().map(|i| work[*i].provider_id.clone()).collect::<Vec<_>>(),
             "lensIds": draft.members.iter().flat_map(|i| work[*i].lens_ids.clone()).collect::<Vec<_>>(),
             "packets": draft.members.iter().map(|i| work[*i].packet_file_name()).collect::<Vec<_>>(),
@@ -3769,13 +3847,16 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
-        "estimateBasis": "estimate: full delivered packet JSON bytes / 4 plus output reserve per seat; host preflights exact rendered request before transport",
+        "estimateBasis": "estimate: full initial runtime-rendered request bytes / 4 plus output reserve per seat; every physical call preflights actual rendered request",
+        "requestEncoding": "runtime-initial-v1",
         "byteBasis": {
-            "packetBytes": "every serialized packet envelope, including duplicated excerpts, contracts & schema",
-            "seatReadBytes": "same full packet bytes; actual delivery requires host receipt",
-            "perLensPacketBytes": "every serialized packet envelope; no physical sharing assumed",
-            "uniqueExcerptBytes": "excerpt bytes across delivered packet copies; not deduplicated",
-            "sharedExcerptBytesSaved": "zero until host consumes shared evidence references",
+            "packetBytes": "planned full initial physical requests, including system, schemas, context tools, framing & escaping; model selection preflighted at transport",
+            "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+            "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+            "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+            "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+            "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+            "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests",
         },
         "reasoningBudget": {
             "schemaVersion": 2,
@@ -3800,7 +3881,9 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "seatReadBytes": total_bytes,
         "perLensPacketBytes": per_lens_bytes,
         "uniqueExcerptBytes": unique_excerpt_bytes,
-        "sharedExcerptBytesSaved": 0,
+        "sharedExcerptBytesSaved": shared_excerpt_bytes_saved,
+        "unsharedRequestBytes": unshared_request_bytes,
+        "physicalRequestBytesSaved": unshared_request_bytes.saturating_sub(total_bytes),
         "estimatedTokens": total_tokens,
         "withinLimits": violations.is_empty(),
         "violations": violations,
@@ -5289,6 +5372,92 @@ mod runtime_evidence_tests {
         assert!(mint_runtime_verification(&run, &request, &id_only).is_err());
         let _ = fs::remove_dir_all(run);
     }
+    fn planning_work(request: &ReasoningInvocation, provider: &str, text: &str) -> PendingLensWork {
+        let mut request = request.clone();
+        request.provider_id = provider.into();
+        request.request_id = format!("request:{provider}");
+        request.packet = json!({"lensPlan":{"bundle":{"id":"J1","tier":"judgment"}},
+            "contractText":"quoted \" contract \n".repeat(1800),
+            "excerpts":[{"path":"source.rs","mode":"raw","content":text}]});
+        PendingLensWork {
+            provider_id: provider.into(),
+            lens_ids: vec![provider.into()],
+            status: "pending-host".into(),
+            request,
+            promotion: None,
+        }
+    }
+
+    #[test]
+    fn dispatch_uses_actual_shared_encoding_and_splits_over_budget_members() {
+        let (run, request) = setup();
+        let text = "source \"line\" \n".repeat(1000);
+        let work = vec![
+            planning_work(&request, "reasoning.security", &text),
+            planning_work(&request, "reasoning.correctness", &text),
+        ];
+        assert!(crate::review_runtime::shared_seat_supported(&work).unwrap());
+        let shared = crate::review_runtime::initial_seat_request_bytes(&work).unwrap();
+        let single = work
+            .iter()
+            .map(|work| {
+                crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(work))
+                    .unwrap()
+            })
+            .max()
+            .unwrap();
+        assert!(
+            shared > single,
+            "distinct lens contracts & schemas still consume bytes"
+        );
+        let roomy = DispatchLimits {
+            seat_token_budget: shared.div_ceil(4) + 4096 + 100,
+            run_token_budget: 1_000_000,
+            ..DispatchLimits::default()
+        };
+        let plan = lens_dispatch_plan(&work, &roomy);
+        assert_eq!(plan["withinLimits"], true, "{}", plan["violations"]);
+        assert_eq!(plan["requiredSeats"], 1);
+        assert_eq!(plan["seats"][0]["plannedRequestBytes"], shared);
+        assert_eq!(plan["seats"][0]["transportEncoding"], "shared-context-v1");
+        assert!(plan["physicalRequestBytesSaved"].as_u64().unwrap() > 0);
+        write_lens_packets(&run.join(LENS_PACKET_DIR), &work).unwrap();
+        write_lens_dispatch(&run, &work, &roomy).unwrap();
+        let issued = crate::next::next(
+            &run,
+            &crate::next::NextOptions {
+                now_ms: 0,
+                lease_ms: 1000,
+            },
+        )
+        .unwrap();
+        assert_eq!(issued["seats"][0]["budgetReservationTokens"],plan["seats"][0]["estimatedTokens"],
+            "resume/admission must reconstruct the same physical shared request, not sum logical packet copies");
+        let bounded = DispatchLimits {
+            seat_token_budget: (single.div_ceil(4) + shared.div_ceil(4)) / 2 + 4096,
+            ..roomy
+        };
+        let split = lens_dispatch_plan(&work, &bounded);
+        assert_eq!(split["withinLimits"], true, "{}", split["violations"]);
+        assert_eq!(split["requiredSeats"], 2);
+        assert_eq!(split["sharedExcerptBytesSaved"], 0);
+        assert!(split["seats"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|seat| seat["estimatedTokens"].as_u64().unwrap() <= bounded.seat_token_budget));
+        let mut different = work;
+        different[1].request.packet["excerpts"][0]["content"] = json!("different source");
+        assert!(shared_seat_payload(&different).unwrap().is_none());
+        let plan = lens_dispatch_plan(&different, &roomy);
+        assert_eq!(
+            plan["requiredSeats"], 2,
+            "equal excerpt counts do not prove equal bytes"
+        );
+        assert_eq!(plan["sharedExcerptBytesSaved"], 0);
+        let _ = fs::remove_dir_all(run);
+    }
+
     fn part_result(number: u32, extra_gap: Option<&str>) -> ProviderResult {
         let scope_gap = format!("reasoning-part-scope:reasoning.correctness:part {number}/2");
         let mut gaps = vec![scope_gap];

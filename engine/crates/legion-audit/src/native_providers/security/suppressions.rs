@@ -196,12 +196,12 @@ fn config_tool(path: &str) -> Option<&'static str> {
 fn manifest_policy(path: &str, text: &str) -> Option<(String, Value)> {
     let name = path.rsplit('/').next().unwrap_or(path);
     if name == "pyproject.toml" {
-        let value = text.parse::<toml::Value>().ok()?;
+        let value: toml::Value = toml::from_str(text).ok()?;
         let tool = value.get("tool");
         let projection = json!({"ruff":tool.and_then(|v|v.get("ruff")),"bandit":tool.and_then(|v|v.get("bandit")),"semgrep":tool.and_then(|v|v.get("semgrep")),"sqlfluff":tool.and_then(|v|v.get("sqlfluff"))});
         Some(("python-sql-lint".into(), projection))
     } else if name == "Cargo.toml" {
-        let value = text.parse::<toml::Value>().ok()?;
+        let value: toml::Value = toml::from_str(text).ok()?;
         Some((
             "rust-lint".into(),
             json!({"lints":value.get("lints"),"workspaceLints":value.get("workspace").and_then(|v|v.get("lints"))}),

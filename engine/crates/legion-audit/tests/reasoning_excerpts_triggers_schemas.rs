@@ -190,7 +190,14 @@ fn conditional_trigger_detection_covers_all_five_lenses_with_evidence() {
     assert!(none_fired.iter().all(|evaluation| !evaluation.fired));
     assert!(none_fired
         .iter()
-        .all(|evaluation| evaluation.reason.contains("zero hits")));
+        .all(|evaluation| evaluation.unavailable_paths.is_empty()));
+    for evaluation in none_fired {
+        assert_eq!(
+            evaluation.snapshot("empty-inventory", &[]).unwrap()["applicability"],
+            "not-applicable"
+        );
+        assert!(!evaluation.reason.is_empty());
+    }
 }
 
 #[test]
@@ -248,7 +255,7 @@ fn report_schema_body_is_present_for_every_owned_lens_and_matches_the_packet_id(
 }
 
 #[test]
-fn correctness_lens_output_fails_closed_without_verify_pass() {
+fn correctness_schema_retains_unverified_findings_for_host_verification() {
     let unverified = json!([{
         "id": "f-1",
         "lens": "correctness",
@@ -260,7 +267,12 @@ fn correctness_lens_output_fails_closed_without_verify_pass() {
         "verifyStatus": "unverified"
     }]);
     let findings: Vec<_> = unverified.as_array().unwrap().clone();
-    assert!(lens_schemas::validate_lens_output("correctness", &findings).is_err());
+    // Schema keeps unresolved evidence visible. Host-authenticated verification
+    // controls completeness (covered by lens_ingest), not an author's status.
+    assert!(lens_schemas::validate_lens_output("correctness", &findings).is_ok());
+    let mut missing_method = findings.clone();
+    missing_method[0]["verifyStatus"] = json!("verified");
+    assert!(lens_schemas::validate_lens_output("correctness", &missing_method).is_err());
 
     let verified = json!([{
         "id": "f-1",

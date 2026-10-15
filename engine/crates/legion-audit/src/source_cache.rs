@@ -60,6 +60,9 @@ impl FactIdentity {
 #[serde(rename_all = "camelCase")]
 pub struct SourceCacheStats {
     pub mode: String,
+    /// Optional cache initialization failed; source reads & identity validation continue uncached.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unavailable_reason: Option<String>,
     pub immutable_blob_hits: u64,
     pub misses: u64,
     /// Bytes revalidated by caller, even when corresponding content object already exists.
@@ -89,49 +92,75 @@ struct Envelope {
 pub struct SourceCache {
     cache: Option<DiskCache>,
     lease: Option<FileLock>,
-    _root: StateDir,
+    _root: Option<StateDir>,
+    _objects: Option<StateDir>,
     pins: HashSet<String>,
     pinned_keys: Vec<Key>,
     pub stats: SourceCacheStats,
 }
 impl SourceCache {
     pub fn open(root: impl AsRef<Path>, max_bytes: u64) -> io::Result<Self> {
-        let root = root.as_ref();
+        match Self::open_available(root.as_ref(), max_bytes) {
+            Ok(cache) => Ok(cache),
+            // Storage is optional. Never retry an unsafe/unavailable directory through a weaker
+            // path API; skip all cache reads/writes while preserving source identity checks.
+            Err(error) => Ok(Self {
+                cache: None,
+                lease: None,
+                _root: None,
+                _objects: None,
+                pins: HashSet::new(),
+                pinned_keys: Vec::new(),
+                stats: SourceCacheStats {
+                    mode: "disabled-unavailable".into(),
+                    unavailable_reason: Some(error.to_string()),
+                    max_bytes,
+                    ..Default::default()
+                },
+            }),
+        }
+    }
+
+    fn open_available(root: &Path, max_bytes: u64) -> io::Result<Self> {
         let pinned_root = StateDir::create(root).map_err(io::Error::other)?;
-        let (cache, lease, mode) = match FileLock::acquire(
+        let (cache, lease, objects, mode) = match FileLock::acquire(
             &root.join("LOCK"),
             &LockOptions::default().labeled("legion-audit-source-cache"),
         ) {
             Ok(lock) => {
-                let objects = pinned_root.child("objects").map_err(io::Error::other)?;
-                (
-                    Some(DiskCache::open(
-                        objects.path(),
-                        Config::new(max_bytes)
-                            .owner_only()
-                            .max_entry_bytes(max_bytes),
-                    )?),
-                    Some(lock),
-                    "writable",
-                )
+                // StateDir::child retains Windows creation cleanup rights (DELETE). A
+                // path-based owner-only cache must reopen this parent without those rights.
+                // StateDir::create performs that reopen with its own no-reparse identity check.
+                let objects = StateDir::create(&pinned_root.path().join("objects"))
+                    .map_err(io::Error::other)?;
+                let cache = DiskCache::open(
+                    objects.path(),
+                    Config::new(max_bytes)
+                        .owner_only()
+                        .max_entry_bytes(max_bytes),
+                )?;
+                (Some(cache), Some(lock), Some(objects), "writable")
             }
             Err(rightkit_fs::FsError::Locked { .. } | rightkit_fs::FsError::LockTimeout { .. }) => {
-                if root.join("objects").exists() {
-                    StateDir::open(&root.join("objects")).map_err(io::Error::other)?;
-                }
+                let objects = match StateDir::open(&root.join("objects")) {
+                    Ok(objects) => Some(objects),
+                    Err(error) if error.is_not_found() => None,
+                    Err(error) => return Err(io::Error::other(error)),
+                };
                 let reader = match DiskCache::open_read_only(root.join("objects")) {
                     Ok(reader) => Some(reader),
                     Err(error) if error.kind() == io::ErrorKind::NotFound => None,
                     Err(error) => return Err(error),
                 };
-                (reader, None, "read-only-contention")
+                (reader, None, objects, "read-only-contention")
             }
             Err(error) => return Err(io::Error::other(error)),
         };
         let mut result = Self {
             cache,
             lease,
-            _root: pinned_root,
+            _root: Some(pinned_root),
+            _objects: objects,
             pins: HashSet::new(),
             pinned_keys: Vec::new(),
             stats: SourceCacheStats {
@@ -512,5 +541,57 @@ mod tests {
             b"redacted"
         );
         assert!(!temp.0.join("state").exists());
+    }
+    #[test]
+    fn unavailable_optional_cache_keeps_source_and_blob_validation() {
+        let temp = Temp::new();
+        std::fs::create_dir_all(&temp.0).unwrap();
+        let blocked = temp.0.join("cache-is-a-file");
+        std::fs::write(&blocked, b"foreign file").unwrap();
+        let mut cache = SourceCache::open(&blocked, 1024 * 1024).unwrap();
+        assert_eq!(cache.stats.mode, "disabled-unavailable");
+        assert!(cache.stats.unavailable_reason.is_some());
+        assert_eq!(
+            cache.verified_source(b"verified source").unwrap(),
+            b"verified source"
+        );
+        let oid = format!("sha1:{}", git_blob_digest("sha1", b"trusted source"));
+        assert!(cache
+            .immutable_blob(&oid, || Ok(b"wrong source".to_vec()))
+            .is_err());
+        assert_eq!(
+            cache
+                .immutable_blob(&oid, || Ok(b"trusted source".to_vec()))
+                .unwrap(),
+            b"trusted source"
+        );
+        assert_eq!(
+            cache
+                .fact(&identity(), || Ok(b"extracted fact".to_vec()))
+                .unwrap(),
+            b"extracted fact"
+        );
+        assert_eq!(cache.stats.storage_entries, 0);
+        assert_eq!(cache.stats.skipped_writes, 3);
+        assert_eq!(std::fs::read(blocked).unwrap(), b"foreign file");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cache_objects_pin_allows_private_writes_and_blocks_directory_swap() {
+        let temp = Temp::new();
+        let mut cache = SourceCache::open(&temp.0, 1024 * 1024).unwrap();
+        assert_eq!(
+            cache.stats.mode, "writable",
+            "{:?}",
+            cache.stats.unavailable_reason
+        );
+        cache.verified_source(b"private source").unwrap();
+        assert_eq!(cache.stats.storage_entries, 1);
+        let objects = temp.0.join("objects");
+        let moved = temp.0.join("moved-objects");
+        assert!(std::fs::rename(&objects, &moved).is_err());
+        drop(cache);
+        std::fs::rename(&objects, &moved).unwrap();
     }
 }

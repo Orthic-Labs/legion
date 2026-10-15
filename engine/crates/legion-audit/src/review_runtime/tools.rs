@@ -47,18 +47,29 @@ struct Args {
 pub struct ContextTools {
     toolbox: Toolbox,
 }
+fn specifications() -> Vec<ToolSpec> {
+    let mut specs = NAMES.iter().map(|name| ToolSpec::new(*name, "Bounded secret-redacted immutable source context; find_callers is lexical evidence, not a semantic call graph", Effect::Observe, json!({"type":"object","additionalProperties":false,"properties":{"path":{"type":"string"},"side":{"type":"string","enum":["selected","base"]},"startLine":{"type":"integer"},"endLine":{"type":"integer"},"query":{"type":"string"},"prefix":{"type":"string"},"offset":{"type":"integer"}}}))).collect::<Vec<_>>();
+    // Match RightKit Toolbox's BTreeMap registry order.
+    specs.sort_by(|left, right| left.name.cmp(&right.name));
+    specs
+}
+pub(super) fn specs() -> Value {
+    json!(specifications())
+}
 impl ContextTools {
     pub fn new(snapshot: FrozenSnapshot) -> Result<Self, String> {
         let snapshot = Arc::new(snapshot);
         let mut toolbox = Toolbox::new();
-        for name in NAMES {
-            toolbox.register(Arc::new(SnapshotTool { snapshot: snapshot.clone(), spec: ToolSpec::new(*name, "Bounded secret-redacted immutable source context; find_callers is lexical evidence, not a semantic call graph", Effect::Observe, json!({"type":"object","additionalProperties":false,"properties":{"path":{"type":"string"},"side":{"type":"string","enum":["selected","base"]},"startLine":{"type":"integer"},"endLine":{"type":"integer"},"query":{"type":"string"},"prefix":{"type":"string"},"offset":{"type":"integer"}}})) })).map_err(|error| error.to_string())?;
+        for spec in specifications() {
+            toolbox
+                .register(Arc::new(SnapshotTool {
+                    snapshot: snapshot.clone(),
+                    spec,
+                }))
+                .map_err(|error| error.to_string())?;
         }
         toolbox.allow(CALLER, NAMES.iter().copied());
         Ok(Self { toolbox })
-    }
-    pub fn specs(&self) -> Value {
-        serde_json::to_value(self.toolbox.list_for(CALLER)).unwrap_or(Value::Null)
     }
     pub fn call(&self, request: ContextRequest) -> Value {
         bounded_reply(

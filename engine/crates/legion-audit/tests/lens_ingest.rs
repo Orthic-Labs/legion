@@ -680,8 +680,15 @@ fn an_unreadable_denominator_file_leaves_a_named_coverage_gap() {
     );
     assert!(!ingested.complete);
     assert_eq!((ingested.examined, ingested.expected), (1, 2));
-    assert_eq!(ingested.coverage_gaps.len(), 1);
-    assert!(ingested.coverage_gaps[0].starts_with("reasoning-excerpt-coverage:"));
+    assert_eq!(ingested.coverage_gaps.len(), 2);
+    assert!(ingested
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("reasoning-excerpt-coverage:")));
+    assert!(ingested
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "reasoning-materialization-omitted:src/blob.rs:binary"));
     let recomputed = recompute_run(&run.run).unwrap();
     assert_eq!(recomputed.report.status, ReportStatus::Incomplete);
     assert_eq!(recomputed.report.claims["lensesRan"], json!([]));

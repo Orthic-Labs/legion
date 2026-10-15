@@ -54,6 +54,8 @@ fn run_bounded(
 
 pub const CASES_SCHEMA: &str = "legion-audit-bench-cases/1";
 pub const MAX_REPEATS: u32 = 10;
+pub const DEFAULT_TOKEN_BUDGET: u64 = 100_000;
+pub const DEFAULT_CASE_TOKEN_BUDGET: u64 = 10_000;
 
 fn valid_repeats(repeats: u32) -> bool {
     (1..=MAX_REPEATS).contains(&repeats)
@@ -807,12 +809,116 @@ pub fn aa_band(a: &[f64], b: &[f64]) -> Option<AaBand> {
 pub struct Options {
     pub legion: PathBuf,
     pub fixtures: Vec<String>,
+    pub cases: Vec<String>,
     pub repeat: u32,
+    pub token_budget: u64,
+    pub case_token_budget: u64,
+    pub claude: Option<PathBuf>,
+    pub model: Option<String>,
     pub aa: bool,
     pub with_lenses: bool,
     pub work_dir: Option<PathBuf>,
     pub keep: bool,
     pub json: bool,
+}
+
+#[derive(Debug, Clone)]
+struct TokenBudget {
+    limit: u64,
+    case_limit: u64,
+    remaining: u64,
+    reserved: u64,
+    actual: u64,
+    unknown_cases: u32,
+    overrun: u64,
+    halted: bool,
+    halt_reason: Option<String>,
+}
+
+impl TokenBudget {
+    fn new(limit: u64, case_limit: u64) -> Self {
+        Self {
+            limit,
+            case_limit,
+            remaining: limit,
+            reserved: 0,
+            actual: 0,
+            unknown_cases: 0,
+            overrun: 0,
+            halted: false,
+            halt_reason: None,
+        }
+    }
+
+    fn reserve_case(&mut self) -> Option<u64> {
+        if self.remaining == 0 || self.halted {
+            return None;
+        }
+        let allocation = self.remaining.min(self.case_limit);
+        self.remaining -= allocation;
+        self.reserved = self.reserved.saturating_add(allocation);
+        Some(allocation)
+    }
+
+    /// Unknown usage burns reservation; measured unused tokens return to shared budget.
+    fn settle_case(&mut self, allocation: u64, actual: Option<u64>) -> u64 {
+        let Some(actual) = actual else {
+            self.unknown_cases = self.unknown_cases.saturating_add(1);
+            self.halted = true;
+            self.halt_reason = Some("runtime-usage-unknown".into());
+            return allocation;
+        };
+        self.actual = self.actual.saturating_add(actual);
+        if actual < allocation {
+            self.remaining = self.remaining.saturating_add(allocation - actual);
+        } else if actual > allocation {
+            let overrun = actual - allocation;
+            self.overrun = self.overrun.saturating_add(overrun);
+            self.remaining = self.remaining.saturating_sub(overrun);
+            self.halted = true;
+            self.halt_reason = Some("actual-usage-exceeded-case-reservation".into());
+        }
+        actual
+    }
+
+    fn to_json(&self) -> Value {
+        json!({
+            "limitTokens": self.limit,
+            "perCaseLimitTokens": self.case_limit,
+            "remainingTokens": self.remaining,
+            "cumulativeCaseReservationsTokens": self.reserved,
+            "actualTokens": if self.unknown_cases == 0 { Some(self.actual) } else { None },
+            "knownActualTokens": self.actual,
+            "unknownUsageCases": self.unknown_cases,
+            "overrunTokens": self.overrun,
+            "halted": self.halted,
+            "haltReason": self.halt_reason,
+            "unknownUsagePolicy": "burn-full-case-reservation-and-halt-subsequent-model-cases"
+        })
+    }
+}
+
+fn observed_runtime_tokens(metrics: &Value) -> Option<u64> {
+    let usage = &metrics["runtime"]["usage"];
+    if usage["status"] != "reported" {
+        return None;
+    }
+    let input = usage["inputTokens"].as_u64()?;
+    let output = usage["outputTokens"].as_u64()?;
+    let retry = usage["retryTokens"].as_u64()?;
+    Some(input.saturating_add(output).saturating_add(retry))
+}
+
+fn validate_case_filter(
+    requested: &std::collections::BTreeSet<String>,
+    known: &std::collections::BTreeSet<String>,
+) -> Result<(), String> {
+    let unknown: Vec<_> = requested.difference(known).cloned().collect();
+    if unknown.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("unknown --case id(s): {}", unknown.join(", ")))
+    }
 }
 
 fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
@@ -887,25 +993,44 @@ fn load_cases(dir: &Path, fixture: &str) -> Result<CaseFile, String> {
     Ok(file)
 }
 
-fn runtime_usage(run: &Path, calls: u64) -> Value {
-    if calls == 0 {
-        return json!({"status":"reported","callCount":0,"inputTokens":0,"outputTokens":0,"cachedInputTokens":0,"retryTokens":0,"actualCost":{"status":"unknown","value":null}});
-    }
-    let dir = run.join("runtime-calls");
-    let entries = match fs::read_dir(&dir) {
-        Ok(entries) => entries,
-        Err(error) => {
-            return json!({"status":"unknown","reason":format!("cannot read runtime usage receipts: {error}"),"callCount":calls,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
-        }
+fn runtime_usage(run: &Path, runtime: &Value) -> Value {
+    let Some(mut calls) = runtime.get("calls").and_then(Value::as_u64) else {
+        return json!({"status":"unknown","reason":"runtime call count is missing or malformed","callCount":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
     };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == "json")
-        })
-        .collect();
+    let mut receipt_dirs = vec![(run.join("runtime-calls"), calls)];
+    if runtime
+        .get("followup")
+        .is_some_and(|value| !value.is_null() && !value.is_object())
+    {
+        return json!({"status":"unknown","reason":"follow-up receipt is malformed","callCount":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
+    }
+    if let Some(followup) = runtime.get("followup").filter(|value| value.is_object()) {
+        let Some(followup_calls) = followup.get("calls").and_then(Value::as_u64) else {
+            return json!({"status":"unknown","reason":"follow-up call count is missing or malformed","callCount":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
+        };
+        calls = calls.saturating_add(followup_calls);
+        if let Some(child_run) = followup.get("run").and_then(Value::as_str) {
+            let child_run = PathBuf::from(child_run);
+            let child_run = if child_run.is_absolute() { child_run } else { run.join(child_run) };
+            receipt_dirs.push((child_run.join("runtime-calls"), followup_calls));
+        } else if followup_calls > 0 {
+            return json!({"status":"unknown","reason":"follow-up run path is missing","callCount":calls,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
+        }
+    }
+    let mut paths = Vec::new();
+    let mut receipt_error = None;
+    for (dir, expected_calls) in &receipt_dirs {
+        if *expected_calls == 0 {
+            continue;
+        }
+        match fs::read_dir(dir) {
+            Ok(entries) => paths.extend(entries.filter_map(Result::ok).map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|extension| extension == "json"))),
+            Err(error) => receipt_error = Some(format!("cannot read {}: {error}", dir.display())),
+        }
+    }
+    if let Some(error) = receipt_error {
+        return json!({"status":"unknown","reason":error,"callCount":calls,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
+    }
     paths.sort();
     let mut totals = [0u64; 4];
     let mut complete = paths.len() as u64 == calls;
@@ -972,6 +1097,9 @@ fn audit_case(
     case: &Case,
     out: &Path,
     with_lenses: bool,
+    token_budget: Option<u64>,
+    claude: Option<&Path>,
+    model: Option<&str>,
 ) -> Result<AuditObservation, String> {
     let scope = parse_scope(&case.scope)?;
     git(clone, &["clean", "-fdxq"])?;
@@ -989,6 +1117,11 @@ fn audit_case(
         "--out".to_owned(),
         out.to_string_lossy().into_owned(),
     ];
+    let mut args = args;
+    if let Some(token_budget) = token_budget {
+        args.push("--run-token-budget".into());
+        args.push(token_budget.to_string());
+    }
     let started = std::time::Instant::now();
     let status = run_bounded(legion, &args, clone, Stdio::null(), AUDIT_TIMEOUT)?;
     let deterministic_wall_time_ms = started.elapsed().as_millis();
@@ -1038,6 +1171,15 @@ fn audit_case(
             "--run".to_owned(),
             out.to_string_lossy().into_owned(),
         ];
+        let mut runtime_args = runtime_args;
+        if let Some(claude) = claude {
+            runtime_args.push("--claude".into());
+            runtime_args.push(claude.to_string_lossy().into_owned());
+        }
+        if let Some(model) = model {
+            runtime_args.push("--model".into());
+            runtime_args.push(model.to_owned());
+        }
         let runtime_execution =
             run_bounded(legion, &runtime_args, clone, Stdio::null(), AUDIT_TIMEOUT);
         let elapsed_runtime_ms = started.elapsed().as_millis();
@@ -1065,7 +1207,7 @@ fn audit_case(
                         "complete": complete,
                         "command": runtime_command,
                         "wallTimeMs": elapsed_runtime_ms,
-                        "usage": runtime_usage(out, value.get("calls").and_then(Value::as_u64).unwrap_or(0)),
+                        "usage": runtime_usage(out, &value),
                         "output": runtime_path,
                         "reportStatus": value.get("reportStatus"),
                         "gaps": value.get("gaps"),
@@ -1263,9 +1405,26 @@ fn run_fixture(
     work: &Path,
     label: &str,
     fixture: &str,
+    token_budget: &mut TokenBudget,
 ) -> Result<FixtureRun, String> {
     let fixtures = bench.join("fixtures");
     let file = load_cases(&fixtures, fixture)?;
+    let cases: Vec<Case> = file
+        .cases
+        .iter()
+        .filter(|case| opts.cases.is_empty() || opts.cases.contains(&case.id))
+        .cloned()
+        .collect();
+    if !cases.iter().any(|case| case.ruled) {
+        return Ok(FixtureRun {
+            score: score_run_with_failures(&cases, &BTreeMap::new(), &std::collections::BTreeSet::new()),
+            split: file.split_label().to_owned(),
+            telemetry: BenchTelemetry::new(0, opts.with_lenses),
+            errors: Vec::new(),
+            case_metrics: BTreeMap::new(),
+            case_outcomes: BTreeMap::new(),
+        });
+    }
     let bundle = fixtures.join(format!("{fixture}.bundle"));
     let clone = work.join(label).join(fixture);
     if clone.exists() {
@@ -1285,11 +1444,11 @@ fn run_fixture(
     let mut case_metrics = BTreeMap::new();
     let mut case_outcomes = BTreeMap::new();
     let mut telemetry = BenchTelemetry::new(
-        file.cases.iter().filter(|case| case.ruled).count() as u32,
+        cases.iter().filter(|case| case.ruled).count() as u32,
         opts.with_lenses,
     );
     if let Err(error) = clone_result {
-        for case in file.cases.iter().filter(|case| case.ruled) {
+        for case in cases.iter().filter(|case| case.ruled) {
             telemetry.mark_missing();
             errors.push(format!("{fixture}/{}: clone failed: {error}", case.id));
             case_outcomes.insert(
@@ -1302,15 +1461,60 @@ fn run_fixture(
             );
         }
     }
-    for case in file.cases.iter().filter(|case| case.ruled && clone_ok) {
+    for case in cases.iter().filter(|case| case.ruled && clone_ok) {
         let out = work.join(label).join(format!("{fixture}.{}.out", case.id));
-        match audit_case(&opts.legion, &clone, case, &out, opts.with_lenses) {
+        let allocation = if opts.with_lenses {
+            token_budget.reserve_case()
+        } else {
+            None
+        };
+        if opts.with_lenses && allocation.is_none() {
+            telemetry.mark_missing();
+            failed_ids.insert(case.id.clone());
+            let reason = token_budget
+                .halt_reason
+                .as_deref()
+                .unwrap_or("benchmark token budget exhausted before case start");
+            errors.push(format!("{fixture}/{}: {reason}", case.id));
+            case_outcomes.insert(case.id.clone(), json!({
+                "attempt":1,
+                "status":"unstarted",
+                "reason":reason,
+                "benchmarkTokenBudget":{"status":if token_budget.halted { "halted-fail-closed" } else { "exhausted" },"allocationTokens":0}
+            }));
+            continue;
+        }
+        match audit_case(
+            &opts.legion,
+            &clone,
+            case,
+            &out,
+            opts.with_lenses,
+            allocation,
+            opts.claude.as_deref(),
+            opts.model.as_deref(),
+        ) {
             Ok(result) => {
+                let actual_tokens = if opts.with_lenses {
+                    observed_runtime_tokens(&result.metrics)
+                } else {
+                    None
+                };
+                let budget_overrun = allocation
+                    .zip(actual_tokens)
+                    .is_some_and(|(allocated, actual)| actual > allocated);
+                if let Some(allocation) = allocation {
+                    token_budget.settle_case(allocation, actual_tokens);
+                }
                 observed.insert(case.id.clone(), result.findings);
-                if !result.completed {
+                if !result.completed || budget_overrun {
                     failed_ids.insert(case.id.clone());
                 }
-                let result_errors = result.errors.clone();
+                let mut result_errors = result.errors.clone();
+                if budget_overrun {
+                    result_errors.push("actual runtime tokens exceeded case reservation".into());
+                    errors.push(format!("{fixture}/{}: actual runtime tokens exceeded case reservation", case.id));
+                }
                 let runtime_wall_time = result
                     .reasoning_wall_time_ms
                     .map(|value| json!({"status":"reported","value":value}))
@@ -1324,14 +1528,15 @@ fn run_fixture(
                         "deterministicAudit": {"status":"reported","value":result.deterministic_wall_time_ms},
                         "reasoningRuntime": runtime_wall_time
                     },
-                    "phaseWallTimeStatus": if opts.with_lenses { "runtime wall time measured; other phases unknown unless provider reports them" } else { "unknown: report does not expose per-phase durations" }
+                    "phaseWallTimeStatus": if opts.with_lenses { "runtime wall time measured; other phases unknown unless provider reports them" } else { "unknown: report does not expose per-phase durations" },
+                    "benchmarkTokenBudget": allocation.map(|allocated| json!({"status":if budget_overrun {"overrun"} else if actual_tokens.is_some(){"reconciled"}else{"unknown-burned-reservation"},"allocationTokens":allocated,"reportedActualTokens":actual_tokens}))
                 });
                 telemetry.observe(&metric);
                 case_outcomes.insert(
                     case.id.clone(),
                     json!({
                         "attempt": 1,
-                        "status": if result.completed { "completed" } else { "failed" },
+                        "status": if result.completed && !budget_overrun { "completed" } else { "failed" },
                         "finalReportAvailable": final_report_available,
                         "errors": result_errors,
                     }),
@@ -1347,10 +1552,15 @@ fn run_fixture(
                     "report": metric["report"].clone(),
                     "wallTimeMs": metric["wallTimeMs"].clone(),
                     "phaseWallTimeMs": metric["phaseWallTimeMs"].clone(),
-                    "phaseWallTimeStatus": metric["phaseWallTimeStatus"].clone()
+                    "phaseWallTimeStatus": metric["phaseWallTimeStatus"].clone(),
+                    "benchmarkTokenBudget": metric["benchmarkTokenBudget"].clone()
                 }));
             }
             Err(error) => {
+                if let Some(allocation) = allocation {
+                    // audit_case returns errors only before the separate model runtime starts.
+                    token_budget.settle_case(allocation, Some(0));
+                }
                 telemetry.mark_missing();
                 errors.push(format!("{fixture}/{}: {error}", case.id));
                 failed_ids.insert(case.id.clone());
@@ -1366,7 +1576,7 @@ fn run_fixture(
         }
     }
     Ok(FixtureRun {
-        score: score_run_with_failures(&file.cases, &observed, &failed_ids),
+        score: score_run_with_failures(&cases, &observed, &failed_ids),
         split: file.split_label().to_owned(),
         telemetry,
         errors,
@@ -1449,6 +1659,22 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
         eprintln!("legion-dev audit-bench: --repeats must be between 1 and {MAX_REPEATS}");
         return false;
     }
+    if opts.with_lenses && opts.token_budget == 0 {
+        eprintln!("legion-dev audit-bench: --token-budget must be positive with --with-lenses");
+        return false;
+    }
+    if opts.with_lenses && opts.case_token_budget == 0 {
+        eprintln!("legion-dev audit-bench: --case-token-budget must be positive with --with-lenses");
+        return false;
+    }
+    if !opts.with_lenses && (opts.claude.is_some() || opts.model.is_some()) {
+        eprintln!("legion-dev audit-bench: --claude and --model require --with-lenses");
+        return false;
+    }
+    if opts.model.as_deref().is_some_and(|model| model.trim().is_empty()) {
+        eprintln!("legion-dev audit-bench: --model must not be empty");
+        return false;
+    }
     if !opts.legion.is_file() {
         eprintln!(
             "legion-dev audit-bench: --legion {} is not a file",
@@ -1464,6 +1690,19 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
                 opts.legion.display()
             );
             return false;
+        }
+    }
+    if let Some(claude) = opts.claude.clone() {
+        if !claude.is_file() {
+            eprintln!("legion-dev audit-bench: --claude {} is not a file", claude.display());
+            return false;
+        }
+        match fs::canonicalize(claude) {
+            Ok(path) => opts.claude = Some(path),
+            Err(error) => {
+                eprintln!("legion-dev audit-bench: cannot resolve --claude {}: {error}", claude.display());
+                return false;
+            }
         }
     }
     match run_inner(root, &opts) {
@@ -1485,6 +1724,16 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     if fixtures.is_empty() {
         return Err("no fixture bundles found".into());
     }
+    let requested_cases: std::collections::BTreeSet<String> =
+        opts.cases.iter().cloned().collect();
+    let mut fixture_splits = BTreeMap::new();
+    let mut known_cases = std::collections::BTreeSet::new();
+    for fixture in &fixtures {
+        let file = load_cases(&bench.join("fixtures"), fixture)?;
+        fixture_splits.insert(fixture.clone(), file.split_label().to_owned());
+        known_cases.extend(file.cases.into_iter().map(|case| case.id));
+    }
+    validate_case_filter(&requested_cases, &known_cases)?;
     let work_root = opts
         .work_dir
         .clone()
@@ -1494,13 +1743,6 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     // Absolute paths: git runs with its own current directory.
     let work =
         fs::canonicalize(&work).map_err(|e| format!("cannot resolve {}: {e}", work.display()))?;
-    let fixture_splits: BTreeMap<String, String> = fixtures
-        .iter()
-        .map(|fixture| {
-            load_cases(&bench.join("fixtures"), fixture)
-                .map(|file| (fixture.clone(), file.split_label().to_owned()))
-        })
-        .collect::<Result<_, _>>()?;
 
     let arms: &[&str] = if opts.aa { &["A", "B"] } else { &["A"] };
     let mut arm_scores: Vec<Vec<RunScore>> = Vec::new();
@@ -1509,6 +1751,7 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     let mut errors = Vec::new();
     let mut case_metrics = serde_json::Map::new();
     let mut case_outcomes = serde_json::Map::new();
+    let mut token_budget = TokenBudget::new(opts.token_budget, opts.case_token_budget);
     for arm in arms {
         let mut runs = Vec::new();
         let mut split_runs: BTreeMap<String, Vec<RunScore>> = BTreeMap::new();
@@ -1519,7 +1762,7 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
             let mut per_split_scores: BTreeMap<String, RunScore> = BTreeMap::new();
             let mut per_split_telemetry: BTreeMap<String, BenchTelemetry> = BTreeMap::new();
             for fixture in &fixtures {
-                let result = run_fixture(opts, &bench, &work, &label, fixture)?;
+                let result = run_fixture(opts, &bench, &work, &label, fixture, &mut token_budget)?;
                 total.merge(&result.score);
                 per_split_scores
                     .entry(result.split.clone())
@@ -1550,7 +1793,10 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     }
 
     fn recalls(runs: &[RunScore]) -> Vec<f64> {
-        runs.iter().filter_map(RunScore::recall).collect()
+        runs.iter()
+            .filter(|run| run.planned_cases > 0 && run.completed_cases == run.planned_cases)
+            .filter_map(RunScore::recall)
+            .collect()
     }
     let band = if opts.aa {
         aa_band(&recalls(&arm_scores[0]), &recalls(&arm_scores[1]))
@@ -1605,6 +1851,12 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
         "fixtures": fixtures,
         "repeat": opts.repeat,
         "repeats": opts.repeat,
+        "caseFilter": if requested_cases.is_empty() { None::<Vec<String>> } else { Some(requested_cases.iter().cloned().collect()) },
+        "benchmarkTokenBudget": if opts.with_lenses { token_budget.to_json() } else { json!({"status":"not-requested"}) },
+        "runtimeIdentity": if opts.with_lenses { json!({
+            "claude": opts.claude.as_ref().map(|path| path.to_string_lossy().into_owned()).unwrap_or_else(|| "PATH-default".into()),
+            "model": opts.model.as_deref().unwrap_or("host-default")
+        }) } else { Value::Null },
         "fixtureSplits": fixture_splits,
         "aggregateScope": "all selected fixtures across splits; use splitResults for split-specific comparisons",
         "ablationIdentity": if opts.with_lenses { "deterministic-plus-reasoning" } else { "deterministic-only" },
@@ -1724,6 +1976,79 @@ mod tests {
         assert_eq!(interval["min"], 8);
         assert_eq!(interval["max"], 12);
         assert_eq!(interval["halfRange"], 2.0);
+    }
+
+    #[test]
+    fn token_budget_reconciles_exact_usage_and_exhausts_next_case() {
+        let mut budget = TokenBudget::new(DEFAULT_CASE_TOKEN_BUDGET, DEFAULT_CASE_TOKEN_BUDGET);
+        let allocation = budget.reserve_case().unwrap();
+        assert_eq!(allocation, DEFAULT_CASE_TOKEN_BUDGET);
+        assert_eq!(budget.settle_case(allocation, Some(allocation)), allocation);
+        assert_eq!(budget.remaining, 0);
+        assert!(budget.reserve_case().is_none());
+        assert_eq!(budget.to_json()["actualTokens"], allocation);
+    }
+
+    #[test]
+    fn case_reservation_is_configurable_but_capped_by_aggregate_remaining() {
+        let mut budget = TokenBudget::new(7, 50_000);
+        assert_eq!(budget.reserve_case(), Some(7));
+        budget.settle_case(7, Some(2));
+        assert_eq!(budget.remaining, 5);
+        assert_eq!(budget.reserve_case(), Some(5));
+        assert_eq!(budget.to_json()["perCaseLimitTokens"], 50_000);
+    }
+
+    #[test]
+    fn unknown_usage_burns_full_shared_reservation() {
+        let mut budget = TokenBudget::new(DEFAULT_CASE_TOKEN_BUDGET * 2, DEFAULT_CASE_TOKEN_BUDGET);
+        let allocation = budget.reserve_case().unwrap();
+        budget.settle_case(allocation, None);
+        assert_eq!(budget.remaining, DEFAULT_CASE_TOKEN_BUDGET);
+        assert!(budget.halted);
+        assert_eq!(budget.unknown_cases, 1);
+        assert_eq!(budget.to_json()["actualTokens"], Value::Null);
+        assert!(budget.reserve_case().is_none());
+    }
+
+    #[test]
+    fn measured_overrun_halts_later_cases() {
+        let mut budget = TokenBudget::new(20, 10);
+        let allocation = budget.reserve_case().unwrap();
+        budget.settle_case(allocation, Some(11));
+        assert_eq!(budget.overrun, 1);
+        assert!(budget.halted);
+        assert!(budget.reserve_case().is_none());
+    }
+
+    #[test]
+    fn aa_arms_share_one_token_budget_ledger() {
+        let mut budget = TokenBudget::new(DEFAULT_CASE_TOKEN_BUDGET, DEFAULT_CASE_TOKEN_BUDGET);
+        let arm_a = budget.reserve_case().unwrap();
+        budget.settle_case(arm_a, Some(arm_a / 2));
+        let arm_b = budget.reserve_case().unwrap();
+        budget.settle_case(arm_b, Some(arm_b));
+        assert_eq!(budget.actual, DEFAULT_CASE_TOKEN_BUDGET);
+        assert_eq!(budget.remaining, 0);
+        assert!(budget.reserve_case().is_none());
+    }
+
+    #[test]
+    fn runtime_token_usage_requires_complete_reported_actuals() {
+        let reported = json!({"runtime":{"usage":{"status":"reported","inputTokens":9,"outputTokens":4,"retryTokens":1,"cachedInputTokens":2}}});
+        assert_eq!(observed_runtime_tokens(&reported), Some(14));
+        let unknown = json!({"runtime":{"usage":{"status":"unknown","inputTokens":9,"outputTokens":4,"retryTokens":1}}});
+        assert_eq!(observed_runtime_tokens(&unknown), None);
+    }
+
+    #[test]
+    fn case_filter_rejects_unknown_ids_before_execution() {
+        let requested = std::collections::BTreeSet::from(["missing".to_owned()]);
+        let known = std::collections::BTreeSet::from(["present".to_owned()]);
+        assert_eq!(
+            validate_case_filter(&requested, &known).unwrap_err(),
+            "unknown --case id(s): missing"
+        );
     }
 
     #[test]
@@ -1888,8 +2213,12 @@ mod tests {
             std::env::temp_dir().join(format!("audit-bench-runtime-usage-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("runtime-calls")).unwrap();
-        assert_eq!(runtime_usage(&root, 1)["status"], "unknown");
-        assert!(runtime_usage(&root, 1)["inputTokens"].is_null());
+        let runtime = json!({"calls":1});
+        assert_eq!(runtime_usage(&root, &runtime)["status"], "unknown");
+        assert!(runtime_usage(&root, &runtime)["inputTokens"].is_null());
+        let missing_calls = runtime_usage(&root, &json!({"status":"done"}));
+        assert_eq!(missing_calls["status"], "unknown");
+        assert_eq!(missing_calls["callCount"], Value::Null);
         fs::write(
             root.join("runtime-calls/call.json"),
             serde_json::to_vec(&json!({"observation":{"usage":{
@@ -1901,11 +2230,39 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let usage = runtime_usage(&root, 1);
+        let usage = runtime_usage(&root, &runtime);
         assert_eq!(usage["status"], "reported");
         assert_eq!(usage["inputTokens"], 10);
         assert_eq!(usage["cachedInputTokens"], 3);
         assert_eq!(usage["actualCost"]["status"], "unknown");
+
+        let followup = root.join("variant");
+        fs::create_dir_all(followup.join("runtime-calls")).unwrap();
+        fs::write(
+            followup.join("runtime-calls/variant-call.json"),
+            serde_json::to_vec(&json!({"observation":{"usage":{
+                "inputTokens":5,
+                "outputTokens":1,
+                "cachedInputTokens":0,
+                "retryTokens":0
+            }}}))
+            .unwrap(),
+        )
+        .unwrap();
+        let runtime_with_followup = json!({
+            "calls":1,
+            "followup":{"run":followup.to_string_lossy(),"calls":1}
+        });
+        let usage = runtime_usage(&root, &runtime_with_followup);
+        assert_eq!(usage["status"], "reported");
+        assert_eq!(usage["callCount"], 2);
+        assert_eq!(usage["inputTokens"], 15);
+        assert_eq!(usage["outputTokens"], 5);
+        let missing_followup_calls = runtime_usage(
+            &root,
+            &json!({"calls":1,"followup":{"run":followup.to_string_lossy()}}),
+        );
+        assert_eq!(missing_followup_calls["status"], "unknown");
         let _ = fs::remove_dir_all(root);
     }
 

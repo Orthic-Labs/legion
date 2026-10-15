@@ -75,7 +75,8 @@ pub struct AuditArgs {
     /// always samples.
     #[arg(long = "coverage", default_value = "auto", value_parser = ["auto", "exhaustive", "risk-sampled"])]
     pub coverage: String,
-    /// Estimated input tokens the whole run (all seats) may use.
+    /// Total token admission budget across all model calls: input estimate plus output reserve.
+    /// Actual input counts cached tokens once; retry usage is reconciled & unknown usage stays unknown.
     #[arg(long = "run-token-budget", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_RUN_TOKEN_BUDGET)]
     pub run_token_budget: u64,
     /// Most seats across all waves; the plan refuses to freeze past it.
@@ -194,6 +195,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     })?;
     let frozen_snapshot = legion_audit::snapshot::FrozenSnapshot::capture(resolved_scope)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let frozen_snapshot = imported_direct_snapshot(&args, frozen_snapshot)?;
     let root = frozen_snapshot.manifest.execution_root.clone();
     let inventory_filter = frozen_snapshot.manifest.scope.inventory_filter();
     let scope = AuditScope {
@@ -4092,6 +4094,80 @@ fn record_retention_failure(
     provider_failures.entry(index).or_default().push(gap);
 }
 
+fn read_provider_plan_document(path: &std::path::Path) -> Result<Value, CommandError> {
+    use std::io::Read;
+    const LIMIT: u64 = 64 * 1024 * 1024;
+    let file = std::fs::File::open(path).map_err(super::io_error)?;
+    let mut bytes = Vec::new();
+    file.take(LIMIT + 1)
+        .read_to_end(&mut bytes)
+        .map_err(super::io_error)?;
+    if bytes.len() as u64 > LIMIT {
+        return Err(CommandError::usage("provider plan exceeds byte limit"));
+    }
+    serde_json::from_slice(&bytes)
+        .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))
+}
+
+/// Imported results retain their original execution-root identity only after
+/// matching an independently captured current source scope. Signed inputs also
+/// authenticate their exact specs & context before their snapshot is selected.
+fn imported_direct_snapshot(
+    args: &AuditArgs,
+    fresh: legion_audit::snapshot::FrozenSnapshot,
+) -> Result<legion_audit::snapshot::FrozenSnapshot, CommandError> {
+    let Some(path) = args.provider_plan.as_ref() else {
+        return Ok(fresh);
+    };
+    let value = read_provider_plan_document(path)?;
+    let sealed = plan_is_sealed(&value);
+    let Some(manifest) = value
+        .pointer("/reviewContext/snapshotManifest")
+        .and_then(Value::as_str)
+    else {
+        if sealed {
+            return Err(CommandError::integrity(
+                "sealed provider plan requires frozen snapshot context",
+            ));
+        }
+        return Ok(fresh);
+    };
+    let imported = legion_audit::snapshot::FrozenSnapshot::open(std::path::Path::new(manifest))
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    if value
+        .pointer("/reviewContext/snapshotKey")
+        .and_then(Value::as_str)
+        != Some(imported.manifest.key.as_str())
+        || imported.manifest.key != fresh.manifest.key
+        || imported.manifest.scope.source_root != fresh.manifest.scope.source_root
+    {
+        return Err(CommandError::integrity(
+            "imported provider snapshot differs from current requested source scope",
+        ));
+    }
+    imported
+        .verify_source_current()
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    if sealed {
+        let specifications = parse_provider_plan_value(&value)?;
+        for spec in &specifications {
+            if spec.reasoning.get("reviewContext") != value.get("reviewContext") {
+                return Err(CommandError::integrity(
+                    "imported snapshot context differs from sealed provider specification",
+                ));
+            }
+        }
+        let root = &imported.manifest.execution_root;
+        let filter = imported.manifest.scope.inventory_filter();
+        let source = super::audit_inventory_source_scoped(root, filter.as_ref())?;
+        let key = plan_claimed_signature(&value)
+            .map(|_| plan_verification_key(path))
+            .transpose()?;
+        verify_sealed_plan(&value, root, &*source, &specifications, key.as_deref())?;
+    }
+    Ok(imported)
+}
+
 fn direct_application(
     args: &AuditArgs,
     root: &std::path::Path,
@@ -4114,9 +4190,7 @@ fn direct_application(
         ));
     }
     let source = super::audit_inventory_source_scoped(root, only_paths)?;
-    let plan_value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(plan).map_err(super::io_error)?)
-            .map_err(|error| CommandError::usage(format!("invalid provider plan: {error}")))?;
+    let plan_value = read_provider_plan_document(plan)?;
     let specifications = parse_provider_plan_value(&plan_value)?;
     let mut read_results = Vec::new();
     for path in &args.provider_results {

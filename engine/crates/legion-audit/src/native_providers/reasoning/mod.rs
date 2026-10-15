@@ -955,6 +955,79 @@ fn build_invocations(
     root: &Path,
     scanner_candidates: Option<&[ScannerCandidate]>,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    let mut budget = seat_part_budget(provider);
+    let seat_tokens = provider
+        .configuration
+        .get("coverage")
+        .and_then(|coverage| coverage.get("seatTokenBudget"))
+        .and_then(Value::as_u64);
+    let target = seat_tokens.map(|tokens| {
+        tokens.saturating_mul(4).saturating_sub(
+            coverage_plan::SEAT_PACKET_RESERVE_BYTES as u64
+                + crate::next::DEFAULT_OUTPUT_TOKENS.saturating_mul(4),
+        )
+    });
+    // Refine only materialization, never the frozen review set, promotion order,
+    // part ceiling or scope. Every candidate is rebuilt from the same inputs.
+    // A single irreducible chunk still reaches normal explicit size refusal.
+    for attempt in 0..8 {
+        let built = build_invocations_with_budget(
+            plan,
+            provider,
+            inventory,
+            denominator,
+            invocation_epoch,
+            root,
+            scanner_candidates,
+            budget,
+        )?;
+        let (Some(target), Some(current)) = (target, budget) else {
+            return Ok(built);
+        };
+        let mut largest = 0u64;
+        for request in &built.0 {
+            let work = PendingLensWork {
+                provider_id: provider.id.clone(),
+                lens_ids: provider.lens_ids.clone(),
+                status: "pending-host".into(),
+                request: request.clone(),
+                promotion: None,
+            };
+            let size = serde_json::to_vec_pretty(&work)
+                .map_err(|error| AuditError::Invalid(error.to_string()))?
+                .len() as u64;
+            largest = largest.max(size);
+        }
+        if largest <= target || attempt == 7 {
+            return Ok(built);
+        }
+        let ratio_cap =
+            (current.cap_bytes as u128).saturating_mul(target as u128) / largest.max(1) as u128;
+        let next_cap = usize::try_from(ratio_cap)
+            .unwrap_or(current.cap_bytes)
+            .saturating_sub(1024)
+            .max(1);
+        if next_cap >= current.cap_bytes {
+            return Ok(built);
+        }
+        budget = Some(excerpts::PartBudget {
+            cap_bytes: next_cap,
+            ..current
+        });
+    }
+    unreachable!("bounded packet refinement returns on its final attempt")
+}
+
+fn build_invocations_with_budget(
+    plan: &FrozenPlan,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    denominator: &InventoryDenominator,
+    invocation_epoch: &str,
+    root: &Path,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+    part_budget: Option<excerpts::PartBudget>,
+) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
     let contract = provider
         .configuration
         .get("runner")
@@ -995,7 +1068,6 @@ fn build_invocations(
     // (plus files promoted by deterministic findings); an exhaustive lens, or a
     // plan without a coverage plan, partitions the whole denominator exactly as
     // before.
-    let part_budget = seat_part_budget(provider);
     // Trigger applicability & mandatory witnesses are frozen before risk
     // selection. Legacy plans expose their missing frozen binding explicitly.
     let actual_sides = crate::inventory::snapshot_source_sides(root)?;

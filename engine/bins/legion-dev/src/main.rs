@@ -214,8 +214,23 @@ enum Command {
         /// Fixture name (`<name>.bundle`); repeatable. Default: every bundle.
         #[arg(long = "fixture")]
         fixtures: Vec<String>,
+        /// Case id to run; repeatable. Selected cases alone form scoring denominators.
+        #[arg(long = "case")]
+        cases: Vec<String>,
         #[arg(long = "repeats", alias = "repeat", default_value_t = 1)]
         repeat: u32,
+        /// Aggregate model-token allowance shared by all cases, repeats and A/A arms.
+        #[arg(long = "token-budget", default_value_t = audit_bench::DEFAULT_TOKEN_BUDGET)]
+        token_budget: u64,
+        /// Maximum token reservation for one case; bounded by aggregate remaining.
+        #[arg(long = "case-token-budget", default_value_t = audit_bench::DEFAULT_CASE_TOKEN_BUDGET)]
+        case_token_budget: u64,
+        /// Native Claude executable forwarded to `audit run-reasoning`.
+        #[arg(long)]
+        claude: Option<std::path::PathBuf>,
+        /// Model id forwarded to `audit run-reasoning`.
+        #[arg(long)]
+        model: Option<String>,
         /// Run an identical second arm and report the A/A band.
         #[arg(long)]
         aa: bool,
@@ -328,7 +343,12 @@ fn main() -> ExitCode {
         Command::AuditBench {
             legion,
             fixtures,
+            cases,
             repeat,
+            token_budget,
+            case_token_budget,
+            claude,
+            model,
             aa,
             with_lenses,
             work_dir,
@@ -339,7 +359,12 @@ fn main() -> ExitCode {
             audit_bench::Options {
                 legion,
                 fixtures,
+                cases,
                 repeat,
+                token_budget,
+                case_token_budget,
+                claude,
+                model,
                 aa,
                 with_lenses,
                 work_dir,
@@ -387,8 +412,18 @@ mod tests {
             "/opt/legion",
             "--fixture",
             "rust-ledger",
+            "--case",
+            "rust-cr-frozen-debit",
             "--repeats",
             "3",
+            "--token-budget",
+            "8000",
+            "--case-token-budget",
+            "3000",
+            "--claude",
+            "/opt/claude",
+            "--model",
+            "sonnet-test",
             "--aa",
             "--with-lenses",
         ])
@@ -396,13 +431,23 @@ mod tests {
         match cli.command {
             Command::AuditBench {
                 fixtures,
+                cases,
                 repeat,
+                token_budget,
+                case_token_budget,
+                claude,
+                model,
                 aa,
                 with_lenses,
                 ..
             } => {
                 assert_eq!(fixtures, vec!["rust-ledger"]);
+                assert_eq!(cases, vec!["rust-cr-frozen-debit"]);
                 assert_eq!(repeat, 3);
+                assert_eq!(token_budget, 8000);
+                assert_eq!(case_token_budget, 3000);
+                assert_eq!(claude, Some(std::path::PathBuf::from("/opt/claude")));
+                assert_eq!(model.as_deref(), Some("sonnet-test"));
                 assert!(aa);
                 assert!(with_lenses);
             }

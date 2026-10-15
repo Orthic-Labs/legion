@@ -87,6 +87,11 @@ fn command(binary: &Path, cwd: &Path) -> OwnedCommand {
         "LOGNAME",
     ]);
     command.windows_hide();
+    // Normal OwnedCommand spawn retains process-group/job containment &
+    // terminate-on-Drop on every supported host. Parent-death SIGTERM is an
+    // additional Linux-only direct-child safeguard; macOS has no equivalent
+    // hard-parent-exit guarantee in this owner, & rejects enabling this option.
+    #[cfg(target_os = "linux")]
     command.kill_on_parent_exit(true);
     command
         .command_mut()
@@ -515,6 +520,31 @@ pub fn observation_value(observation: &Observation) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn owned_native_launcher_supports_current_platform_without_model_call() {
+        // Exercise production launch policy using this Rust test executable,
+        // never installed Claude. In particular, macOS must not request the
+        // Linux-only parent-death primitive before its first capability probe.
+        let binary = std::env::current_exe().unwrap();
+        let cwd = std::env::current_dir().unwrap();
+        let mut launch = command(&binary, &cwd);
+        assert!(launch.env_is_cleared());
+        launch
+            .command_mut()
+            .arg("--help")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let mut child = launch
+            .spawn()
+            .expect("owned native launch must support current platform");
+        assert!(child.id() > 0);
+        let status = child
+            .wait_timeout(Duration::from_secs(5))
+            .unwrap()
+            .expect("simulated native help must finish within bound");
+        assert!(status.success());
+    }
     fn empty() -> (Observation, UsageReceipt) {
         let usage = UsageReceipt {
             reservation_id: "reservation".into(),
@@ -546,15 +576,32 @@ mod tests {
     #[test]
     fn creation_time_preserves_observed_precision_and_missing_identity() {
         let elapsed = Duration::new(123, 456);
-        let observed = creation_time_value(SystemTime::UNIX_EPOCH.checked_add(elapsed));
-        assert_eq!(observed["unixSeconds"], 123);
-        assert_eq!(observed["nanoseconds"], 456);
+        let time = SystemTime::UNIX_EPOCH.checked_add(elapsed).unwrap();
+        let captured = time.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        // Serialize actual host observation: Windows SystemTime stores 100ns
+        // ticks, so constructing 456ns captures 400ns rather than inventing 56ns.
+        #[cfg(windows)]
+        assert_eq!(captured.subsec_nanos(), elapsed.subsec_nanos() / 100 * 100);
+        #[cfg(unix)]
+        assert_eq!(captured, elapsed);
+        let observed = creation_time_value(Some(time));
+        assert_eq!(observed["unixSeconds"], captured.as_secs());
+        assert_eq!(observed["nanoseconds"], captured.subsec_nanos());
         assert!(observed["source"].is_string());
         assert_eq!(creation_time_value(None), Value::Null);
-        let (observation, _) = empty();
+        let (mut observation, _) = empty();
+        assert_eq!(
+            observation_value(&observation)["processCreationTime"],
+            Value::Null
+        );
         assert_eq!(
             observation_value(&observation)["processCreationTicks"],
             Value::Null
+        );
+        observation.process_creation_time = Some(time);
+        assert_eq!(
+            observation_value(&observation)["processCreationTime"],
+            observed
         );
     }
     #[test]

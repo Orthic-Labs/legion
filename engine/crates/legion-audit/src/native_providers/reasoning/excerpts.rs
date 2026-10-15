@@ -1097,10 +1097,27 @@ pub struct PartBudget {
     pub listing_copies: usize,
 }
 
+// Packets are rendered as pretty JSON nested under request.packet.excerpts.
+// Charge indentation as well as escaping; final envelope sizing in mod.rs
+// accounts for schema, metadata, coverage listings & continuation records.
+fn rendered_excerpt_cost(excerpt: &Excerpt) -> usize {
+    serde_json::to_vec_pretty(excerpt).map_or(excerpt.content.len(), |bytes| {
+        bytes
+            .len()
+            .saturating_add(
+                bytes
+                    .iter()
+                    .filter(|byte| **byte == b'\n')
+                    .count()
+                    .saturating_mul(8),
+            )
+            .saturating_add(2)
+    })
+}
+
 impl PartBudget {
     fn chunk_cost(&self, excerpt: &Excerpt) -> usize {
-        let json = serde_json::to_vec(excerpt).map_or(excerpt.content.len(), |bytes| bytes.len());
-        json + 1 + self.listing_copies * (2 * excerpt.path.len() + 32)
+        rendered_excerpt_cost(excerpt) + self.listing_copies * (2 * excerpt.path.len() + 32)
     }
 }
 
@@ -1160,11 +1177,7 @@ pub fn review_item_cost(
         Err(_) => listing(path),
         Ok(chunks) => chunks
             .iter()
-            .map(|excerpt| {
-                serde_json::to_vec(excerpt).map_or(excerpt.content.len(), |bytes| bytes.len())
-                    + 1
-                    + listing(&excerpt.path)
-            })
+            .map(|excerpt| rendered_excerpt_cost(excerpt) + listing(&excerpt.path))
             .sum(),
     }
 }

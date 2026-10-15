@@ -1,5 +1,87 @@
 use std::process::Command;
 
+fn fixture_git(root: &std::path::Path, args: &[&str]) {
+    let mut child = Command::new("git")
+        .current_dir(root)
+        .args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env(
+            "GIT_CONFIG_GLOBAL",
+            if cfg!(windows) { "NUL" } else { "/dev/null" },
+        )
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert!(status.success(), "fixture Git failed: {args:?}");
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("fixture Git deadline: {args:?}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+fn init_fixture_git(root: &std::path::Path) {
+    fixture_git(root, &["init", "-q", "--template="]);
+    fixture_git(root, &["config", "user.name", "Audit Fixture"]);
+    fixture_git(root, &["config", "user.email", "audit@example.invalid"]);
+    fixture_git(root, &["add", "."]);
+    fixture_git(root, &["commit", "-qm", "fixture source"]);
+}
+fn fixture_snapshot(root: &std::path::Path) -> legion_audit::snapshot::FrozenSnapshot {
+    init_fixture_git(root);
+    legion_audit::snapshot::FrozenSnapshot::capture(
+        legion_audit::scope::ResolvedScope::resolve(
+            root,
+            legion_audit::scope::ScopeSpec::Repo,
+            None,
+        )
+        .unwrap(),
+    )
+    .unwrap()
+}
+fn remove_fixture(root: &std::path::Path) {
+    let Ok(meta) = std::fs::symlink_metadata(root) else {
+        return;
+    };
+    if meta.is_dir() && !meta.file_type().is_symlink() {
+        let mut permissions = meta.permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            permissions.set_mode(permissions.mode() | 0o700);
+        }
+        #[cfg(not(unix))]
+        permissions.set_readonly(false);
+        std::fs::set_permissions(root, permissions).unwrap();
+        for entry in std::fs::read_dir(root).unwrap() {
+            remove_fixture(&entry.unwrap().path());
+        }
+        std::fs::remove_dir(root).unwrap();
+    } else {
+        #[cfg(not(unix))]
+        {
+            let mut permissions = meta.permissions();
+            permissions.set_readonly(false);
+            std::fs::set_permissions(root, permissions).unwrap();
+        }
+        std::fs::remove_file(root).unwrap();
+    }
+}
+
 /// Rewritten from the retired `native_rules_evaluate_blueprint_bound_source`:
 /// Legion (Rust) has no Blueprint/Membrane dependency, so `rules` evaluates
 /// against its own local-filesystem inventory directly — there is no packet
@@ -12,6 +94,7 @@ fn native_rules_evaluate_local_inventory_bound_source() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(
         root.join("src/service.rs"),
@@ -19,6 +102,10 @@ fn native_rules_evaluate_local_inventory_bound_source() {
     )
     .unwrap();
     let root = std::fs::canonicalize(root).unwrap();
+    assert!(
+        !root.join(".git").exists(),
+        "standalone rules fixture must remain nongit"
+    );
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -56,13 +143,35 @@ fn native_rules_evaluate_local_inventory_bound_source() {
         result["inventoryDigest"]
     );
 
+    let snapshot = fixture_snapshot(&root);
+    let frozen_rules = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "rules",
+            "--manifest",
+            manifest.to_str().unwrap(),
+            "--root",
+            snapshot.manifest.execution_root.to_str().unwrap(),
+            "--provider",
+            "native.security.rules",
+            "--pack",
+            "security.native-workspace",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        frozen_rules.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&frozen_rules.stderr)
+    );
     // Artifacts live outside the scanned root so writing them cannot change
     // the inventory the rule result was bound to.
     let artifacts = root.with_extension("artifacts");
     std::fs::create_dir_all(&artifacts).unwrap();
     let result_path = artifacts.join("rule-result.json");
-    std::fs::write(&result_path, &output.stdout).unwrap();
+    std::fs::write(&result_path, &frozen_rules.stdout).unwrap();
     let plan = serde_json::json!({
+        "reviewContext": {"snapshotManifest": snapshot.manifest_path, "snapshotKey": snapshot.manifest.key},
         "providers": [{
             "schemaVersion": 2,
             "id": "native.security.rules",
@@ -139,11 +248,15 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::create_dir_all(root.join(".audit/inputs")).unwrap();
     std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
+    assert!(
+        !root.join(".git").exists(),
+        "standalone rules fixture must remain nongit"
+    );
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     let rules = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -169,7 +282,27 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
     // Legion has no external context engine to fall back from: the local
     // filesystem inventory is the only source, so there is nothing to notice.
     assert_eq!(rules_summary["contextNotices"], serde_json::json!([]));
+    let snapshot = fixture_snapshot(&root);
+    let frozen_rules = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "rules",
+            "--manifest",
+            manifest.to_str().unwrap(),
+            "--root",
+            snapshot.manifest.execution_root.to_str().unwrap(),
+            "--provider",
+            "native.fixture",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        frozen_rules.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&frozen_rules.stderr)
+    );
     let plan = serde_json::json!({
+        "reviewContext": {"snapshotManifest": snapshot.manifest_path, "snapshotKey": snapshot.manifest.key},
         "providers": [{
             "schemaVersion": 2,
             "id": "native.fixture",
@@ -201,7 +334,7 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
     let plan_path = root.join(".audit/inputs/provider-plan.json");
     let result_path = root.join(".audit/inputs/provider-result.json");
     std::fs::write(&plan_path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
-    std::fs::write(&result_path, &rules.stdout).unwrap();
+    std::fs::write(&result_path, &frozen_rules.stdout).unwrap();
     let audit_out = root.join(".audit/output");
     let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
@@ -237,7 +370,7 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
     // No degraded-context notice is recorded on the report claims either —
     // there is no external context engine for Legion to have fallen back from.
     assert!(report["claims"].get("contextNotices").is_none());
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
@@ -247,10 +380,11 @@ fn native_audit_composes_builtin_rule_executor_without_host_config() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
+    init_fixture_git(&root);
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     let out = root.join("audit");
@@ -289,7 +423,7 @@ fn native_audit_composes_builtin_rule_executor_without_host_config() {
     assert_eq!(summary["processExecution"], "complete");
     assert!(out.join("report.json").is_file());
     assert!(out.join("execution.json").is_file());
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
@@ -299,7 +433,7 @@ fn native_rules_report_unproven_for_invalid_source_bytes() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(root.join("src/binary.rs"), [0xff, 0xfe]).unwrap();
     let root = std::fs::canonicalize(root).unwrap();
@@ -333,7 +467,7 @@ fn native_rules_report_unproven_for_invalid_source_bytes() {
         .unwrap()
         .iter()
         .any(|gap| gap.as_str().unwrap().contains("source-invalid-utf8")));
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
@@ -343,7 +477,7 @@ fn native_rules_emits_selector_bound_denominator() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::create_dir_all(root.join("docs")).unwrap();
     std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
@@ -381,7 +515,7 @@ fn native_rules_emits_selector_bound_denominator() {
         result["denominatorDigest"],
         result["providerResult"]["coverage"]["denominator_digest"]
     );
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }
 
 #[test]
@@ -391,10 +525,11 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    let _ = std::fs::remove_dir_all(&root);
+    remove_fixture(&root);
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(root.join("src/service.rs"), "fn service() {}\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
+    init_fixture_git(&root);
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     let out = root.join("audit");
@@ -445,5 +580,5 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     let plan: serde_json::Value =
         serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
     assert_eq!(plan["seal"]["authenticity"], "hmac-sha256");
-    std::fs::remove_dir_all(root).unwrap();
+    remove_fixture(&root);
 }

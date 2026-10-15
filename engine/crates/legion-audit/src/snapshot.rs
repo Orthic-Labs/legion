@@ -424,10 +424,14 @@ impl FrozenSnapshot {
             .manifest_path
             .parent()
             .ok_or_else(|| invalid("snapshot parent missing"))?;
-        StateDir::open(parent)
-            .map_err(io)?
-            .write_new(name, bytes)
-            .map_err(io)?;
+        let directory = StateDir::open(parent).map_err(io)?;
+        if let Some(existing) = directory.read_opt(name, MAX_MANIFEST_BYTES).map_err(io)? {
+            if existing != bytes {
+                return Err(invalid("snapshot context artifact content changed"));
+            }
+        } else {
+            directory.write_new(name, bytes).map_err(io)?;
+        }
         Ok(parent.join(name))
     }
     pub fn open(manifest_path: &Path) -> Result<Self, AuditError> {
@@ -962,6 +966,23 @@ mod tests {
         );
         assert!(snapshot.manifest.scope.changed_paths.is_empty());
         assert!(!snapshot.manifest.files.contains_key("added.rs"));
+    }
+    #[test]
+    fn immutable_context_artifact_reuse_requires_identical_bytes() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Repo);
+        let path = snapshot
+            .write_context_artifact("graph-context.json", b"{}")
+            .unwrap();
+        assert_eq!(
+            snapshot
+                .write_context_artifact("graph-context.json", b"{}")
+                .unwrap(),
+            path
+        );
+        assert!(snapshot
+            .write_context_artifact("graph-context.json", b"{\"changed\":true}")
+            .is_err());
     }
     #[test]
     fn dirty_bytes_ref_moves_and_untracked_membership_invalidate_resume() {

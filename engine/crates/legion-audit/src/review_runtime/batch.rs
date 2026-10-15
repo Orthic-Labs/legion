@@ -3,7 +3,7 @@
 use super::{action, action_schema, digest, invalid, native, Controller, Observation, SYSTEM};
 use crate::{
     error::AuditError,
-    native_providers::reasoning::{self, ingest, lens_plan, lens_schemas, PendingLensWork},
+    native_providers::reasoning::{self, ingest, PendingLensWork},
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,17 +14,25 @@ pub(super) struct BatchReview {
     pub gaps: Vec<String>,
 }
 pub(super) fn compatible(works: &[PendingLensWork]) -> bool {
-    if works.len() < 2 || works.len() > 8 {
-        return false;
-    }
-    let Some(first) = works[0].request.packet.get("excerpts") else {
-        return false;
+    initial_prompt(works).is_ok_and(|prompt| prompt.is_some())
+}
+pub(super) fn initial_prompt(works: &[PendingLensWork]) -> Result<Option<Value>, AuditError> {
+    let Some(mut prompt) = ingest::shared_seat_payload(works)? else {
+        return Ok(None);
     };
-    !first.is_null()
-        && works.iter().all(|work| {
-            work.request.provider_id != "legacy.security.adjudication"
-                && work.request.packet.get("excerpts") == Some(first)
-        })
+    prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:excerpts} resolves only to sharedContext.excerpts. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
+    prompt["contextTools"] = super::tools::specs();
+    prompt["conversation"] = json!([]);
+    // Both planning & transport must choose the same physical split before
+    // authorization. No shared-byte credit applies to fallback singles.
+    if native::rendered_input(&prompt)?.len() > super::MAX_REQUEST_BYTES / 2 {
+        return Ok(None);
+    }
+    let (_, rendered) = super::rendered_request(&prompt, SYSTEM, &action_schema(), None)?;
+    if super::request_bytes(&rendered)? > super::MAX_REQUEST_BYTES as u64 {
+        return Ok(None);
+    }
+    Ok(Some(prompt))
 }
 impl Controller<'_> {
     pub(super) fn review_batch(
@@ -33,13 +41,11 @@ impl Controller<'_> {
         works: &[PendingLensWork],
         initial: Option<String>,
     ) -> Result<BatchReview, AuditError> {
-        if !compatible(works) {
-            return Err(invalid("incompatible shared-seat packets"));
-        }
-        let shared = json!({"excerpts":works[0].request.packet["excerpts"]});
-        let shared_digest = digest(&shared)?;
+        let mut prompt = initial_prompt(works)?
+            .ok_or_else(|| AuditError::BoundExceeded("shared-seat-split-required".into()))?;
+        let shared = prompt["sharedContext"].clone();
+        let shared_digest = prompt["sharedContextDigest"].clone();
         let mut logical = BTreeMap::new();
-        let mut requests = Vec::new();
         for work in works {
             if logical
                 .insert(work.request.request_id.clone(), work.clone())
@@ -47,17 +53,6 @@ impl Controller<'_> {
             {
                 return Err(invalid("duplicate request IDs in shared seat"));
             }
-            let mut compact = work.request.packet.clone();
-            compact["excerpts"] = json!({"$sharedContext":"excerpts"});
-            let lens = lens_plan::lens_id_for_provider(&work.provider_id);
-            requests.push(json!({"requestId":work.request.request_id,"providerId":work.provider_id,"planDigest":work.request.plan_digest,"packetDigest":digest(&work.request.packet)?,"packet":compact,"findingSchema":lens.and_then(lens_schemas::lens_report_schema)}));
-        }
-        let mut prompt = json!({"task":"Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:excerpts} resolves only to sharedContext.excerpts. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.","sharedContext":shared,"sharedContextDigest":shared_digest,"lenses":requests,"contextTools":self.tools.specs(),"conversation":[]});
-        // Split before physical authorization if envelope would exceed cap.
-        if native::rendered_input(&prompt)?.len() > super::MAX_REQUEST_BYTES / 2 {
-            return Err(AuditError::BoundExceeded(
-                "shared-seat-split-required".into(),
-            ));
         }
         let schema = action_schema();
         let mut initial = initial;
