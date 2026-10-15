@@ -6,6 +6,10 @@ license.workspace = true
 [[bin]]
 name = "legion"
 path = "src/main.rs"
+[[test]]
+name = "audit_review_runtime"
+path = "tests/audit_review_runtime.rs"
+harness = false
 [dependencies]
 legion-apple = { path = "../../crates/legion-apple" }
 clap.workspace = true

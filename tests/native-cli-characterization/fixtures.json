@@ -485,6 +485,24 @@
       }
     },
     {
+      "id": "audit-run-reasoning-help",
+      "command": "audit",
+      "subcommand": "run-reasoning",
+      "argv": [
+        "audit",
+        "run-reasoning",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "run-reasoning",
+          "--run"
+        ]
+      }
+    },
+    {
       "id": "run-help",
       "command": "run",
       "argv": [

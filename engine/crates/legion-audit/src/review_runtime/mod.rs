@@ -85,21 +85,14 @@ pub(super) fn persist(dir: &Path, name: &str, value: &Value) -> Result<PathBuf, 
     fs::rename(&temporary, &path).map_err(|error| invalid(error.to_string()))?;
     Ok(path)
 }
-struct RunLock(PathBuf);
-impl Drop for RunLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.0);
-    }
-}
-fn lock(run: &Path) -> Result<RunLock, AuditError> {
-    let path = run.join("review-runtime.lock");
-    let mut file = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&path)
-        .map_err(|_| invalid("incomplete:runtime-already-active: review-runtime.lock exists"))?;
-    write!(file, "{}", std::process::id()).map_err(|error| invalid(error.to_string()))?;
-    Ok(RunLock(path))
+fn lock(run: &Path) -> Result<rightkit_fs::FileLock, AuditError> {
+    // Kernel ownership survives neither exit nor crash. Keep the lock inode;
+    // unlinking it could give contenders separate files & simultaneous holds.
+    rightkit_fs::FileLock::acquire(
+        &run.join("review-runtime.lock"),
+        &rightkit_fs::LockOptions::default().labeled("audit-review-runtime"),
+    )
+    .map_err(|error| invalid(format!("incomplete:runtime-already-active:{error}")))
 }
 
 #[derive(Deserialize)]

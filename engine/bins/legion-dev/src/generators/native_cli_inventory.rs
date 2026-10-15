@@ -98,7 +98,84 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
         }
     }
 
+    // Audit dispatch is a nested match: its selected subcommand chooses
+    // between the legacy audit command & the native reasoning runtime. Keep
+    // both concrete handlers in inventory rather than classifying the outer
+    // `match args.command` expression as unknown.
+    let nested_match_re = Regex::new(r"Command::([A-Za-z]+)\([^)]*\) => match [^{]+\{").unwrap();
+    let handler_start_re = Regex::new(r"^\s*(commands::[a-z_]+::run)\s*\(").unwrap();
+    for cap in nested_match_re.captures_iter(&body) {
+        let variant = kebab(&cap[1]);
+        let open_at = cap.get(0).unwrap().end() - 1; // opening `{`
+        let mut depth: i32 = 1;
+        let mut i = open_at + 1;
+        let mut close_at = None;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close_at = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        if let Some(close) = close_at {
+            let match_body = &body[open_at + 1..close];
+            let arms = top_level_match_arms(match_body);
+            let handlers: Option<Vec<&str>> = arms
+                .iter()
+                .map(|arm| {
+                    handler_start_re
+                        .captures(arm)
+                        .map(|handler| handler.get(1).unwrap().as_str())
+                })
+                .collect();
+            if let Some(handlers) = handlers.filter(|handlers| !handlers.is_empty()) {
+                map.insert(variant, handlers.join(" | "));
+            }
+        }
+    }
+
     Ok(map)
+}
+
+/// Return each arm's expression slice, recognizing `=>` only at match-body
+/// top level. Nested closures or blocks cannot make an unsupported arm appear
+/// supported.
+fn top_level_match_arms(source: &str) -> Vec<&str> {
+    let bytes = source.as_bytes();
+    let (mut braces, mut parens, mut brackets) = (0i32, 0i32, 0i32);
+    let mut expression_start = None;
+    let mut arms = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if braces == 0 && parens == 0 && brackets == 0 && bytes[i..].starts_with(b"=>") {
+            if let Some(start) = expression_start.replace(i + 2) {
+                arms.push(&source[start..i]);
+            }
+            i += 2;
+            continue;
+        }
+        match bytes[i] {
+            b'{' => braces += 1,
+            b'}' => braces -= 1,
+            b'(' => parens += 1,
+            b')' => parens -= 1,
+            b'[' => brackets += 1,
+            b']' => brackets -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    if let Some(start) = expression_start {
+        arms.push(&source[start..]);
+    }
+    arms
 }
 
 /// Return the kebab-case variant names of a typed clap enum. A missing enum,
@@ -810,5 +887,49 @@ mod tests {
     fn enum_values_errors_when_enum_is_missing() {
         let source = "enum OtherCommand {\n    Run(RunArgs),\n}\n";
         assert!(enum_values(source, "RunCommand").is_err());
+    }
+
+    #[test]
+    fn dispatch_map_resolves_nested_audit_handlers_without_inventing_unknown_routes() {
+        let source = r#"
+async fn dispatch(cli: Cli) {
+    let result: CommandResult = match command {
+        Command::Audit(args) => match args.command {
+            Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
+            None => commands::audit::run(args.legacy, cancellation.clone()).await,
+        },
+        Command::Unknown(args) => match args.command {
+            Some(_) => opaque::unknown(args).await,
+        },
+    };
+}
+"#;
+
+        let dispatch = rust_dispatch_map(source).unwrap();
+        assert_eq!(
+            dispatch.get("audit").map(String::as_str),
+            Some("commands::audit_runtime::run | commands::audit::run")
+        );
+        let unknown = dispatch.get("unknown").unwrap();
+        assert_eq!(classify_rust(unknown).tier, "unknown");
+    }
+
+    #[test]
+    fn dispatch_map_keeps_mixed_nested_handlers_unknown() {
+        let source = r#"
+async fn dispatch(cli: Cli) {
+    let result: CommandResult = match command {
+        Command::Mixed(args) => match args.command {
+            Some(Known(args)) => commands::audit_runtime::run(args).await,
+            None => opaque::unknown(args).await,
+        },
+    };
+}
+"#;
+
+        let dispatch = rust_dispatch_map(source).unwrap();
+        let mixed = dispatch.get("mixed").unwrap();
+        assert_eq!(mixed, "match args.command {");
+        assert_eq!(classify_rust(mixed).tier, "unknown");
     }
 }
