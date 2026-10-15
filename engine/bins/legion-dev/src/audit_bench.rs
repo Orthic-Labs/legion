@@ -400,12 +400,15 @@ fn report_metrics(report: &Value) -> Value {
             let candidates = ["rawScannerCandidates", "scannerCandidates", "candidates"]
                 .iter()
                 .find_map(|key| details.get(*key).and_then(Value::as_array))?;
+            let source_field = ["rawScannerCandidates", "scannerCandidates", "candidates"]
+                .iter()
+                .find(|key| details.get(**key).and_then(Value::as_array).is_some())
+                .copied()
+                .unwrap_or("unknown");
             Some(json!({
                 "provider": row.get("provider").cloned().unwrap_or(Value::Null),
                 "count": candidates.len(),
-                "sourceField": ["rawScannerCandidates", "scannerCandidates", "candidates"]
-                    .iter().find(|key| details.get(**key).and_then(Value::as_array).is_some())
-                    .copied().unwrap_or("unknown")
+                "sourceField": source_field
             }))
         })
         .collect();
