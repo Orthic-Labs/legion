@@ -15,6 +15,7 @@
 //! except `legacy.security.adjudication`, which is planned and executed by
 //! `security_adjudication.rs`.
 
+use super::pattern_cards;
 use serde_json::{json, Value};
 
 /// How a lens's file excerpts must be scoped when built into its packet.
@@ -115,6 +116,9 @@ impl LensPlan {
             "requiresVerifyPass": self.requires_verify_pass,
             "ponytailTags": self.ponytail_tags,
             "cues": self.cues,
+            // Semantic cards sharpen this lens without creating another
+            // provider or changing frozen-plan trigger evaluation.
+            "patternCards": pattern_cards::packet_cards_for_lens(self.lens),
         });
         if let Some(bundle) = bundle_for_lens(self.lens) {
             packet["bundle"] = json!({
@@ -751,8 +755,22 @@ mod tests {
             "requiresVerifyPass",
             "ponytailTags",
             "cues",
+            "patternCards",
         ] {
             assert!(obj.contains_key(key), "missing key {key}");
         }
+    }
+
+    #[test]
+    fn lens_packet_contains_only_cards_for_its_existing_owner() {
+        let correctness = lens_plan_packet_value("reasoning.correctness").expect("plan");
+        let correctness_cards = correctness["patternCards"].as_array().expect("cards");
+        assert!(!correctness_cards.is_empty());
+        assert!(correctness_cards
+            .iter()
+            .all(|card| card["ownerLens"] == "correctness"));
+
+        let architecture = lens_plan_packet_value("reasoning.architecture").expect("plan");
+        assert_eq!(architecture["patternCards"].as_array().unwrap().len(), 0);
     }
 }

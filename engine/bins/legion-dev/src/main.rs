@@ -205,8 +205,8 @@ enum Command {
         diagnostic: bool,
     },
     /// Score an installed `legion audit` against the planted-case fixtures in `evals/audit-bench/`.
-    /// Deterministic phase only; it never invokes a model. `--repeat N` repeats the run and `--aa`
-    /// adds an identical twin arm to report the A/A recall band.
+    /// Deterministic audit baseline; optionally run the installed host's controlled reviewer.
+    /// `--repeats N` repeats the run (1..=10); `--aa` adds identical twin arms for an A/A band.
     AuditBench {
         /// Installed `legion` binary to measure.
         #[arg(long)]
@@ -214,12 +214,12 @@ enum Command {
         /// Fixture name (`<name>.bundle`); repeatable. Default: every bundle.
         #[arg(long = "fixture")]
         fixtures: Vec<String>,
-        #[arg(long, default_value_t = 1)]
+        #[arg(long = "repeats", alias = "repeat", default_value_t = 1)]
         repeat: u32,
         /// Run an identical second arm and report the A/A band.
         #[arg(long)]
         aa: bool,
-        /// Reserved for the reasoning-lens phase; currently rejected.
+        /// Run bounded `legion audit run-reasoning` after each deterministic audit.
         #[arg(long = "with-lenses")]
         with_lenses: bool,
         /// Scratch directory for clones and audit output (default: `.cache/audit-bench`).
@@ -387,9 +387,10 @@ mod tests {
             "/opt/legion",
             "--fixture",
             "rust-ledger",
-            "--repeat",
+            "--repeats",
             "3",
             "--aa",
+            "--with-lenses",
         ])
         .expect("audit-bench arguments should parse");
         match cli.command {
@@ -403,8 +404,25 @@ mod tests {
                 assert_eq!(fixtures, vec!["rust-ledger"]);
                 assert_eq!(repeat, 3);
                 assert!(aa);
-                assert!(!with_lenses);
+                assert!(with_lenses);
             }
+            _ => panic!("unexpected command parsed"),
+        }
+    }
+
+    #[test]
+    fn audit_bench_keeps_legacy_repeat_alias() {
+        let cli = Cli::try_parse_from([
+            "legion-dev",
+            "audit-bench",
+            "--legion",
+            "/opt/legion",
+            "--repeat",
+            "2",
+        ])
+        .expect("legacy repeat alias should parse");
+        match cli.command {
+            Command::AuditBench { repeat, .. } => assert_eq!(repeat, 2),
             _ => panic!("unexpected command parsed"),
         }
     }

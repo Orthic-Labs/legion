@@ -57,18 +57,20 @@ incomplete states in either mode. Each reasoning lens reports `lensCoverage`:
 `{mode, denominator, reviewSet, examined, strata: [{name, N, n, findings, confidence}]}`. Statistical
 statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
 
-## Reasoning lens packets (step 7 detail)
+## Native reasoning runtime (step 7 detail)
 
-The engine has no in-process reasoning host; the CLI process is the trusted host for ingest. For each
-selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` work packet to
+The supported execution path is `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`;
+lifecycle, frozen scope, host tools, verifier, usage, and prerequisites are defined in
+[reasoning runtime](reasoning-runtime.md). The packet/result details below also describe the lower-level
+manual ingest interface. Do not dispatch subagents as normal Stage 2 execution.
+
+For each selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` work packet to
 `<run-dir>/lens-packets/<provider>.json`, lists it under `lensWork` and `reasoningLensesPending`, and
-generates a random per-run epoch key at `<run-dir>/epoch.key` (mode 0600; only its digest appears in
+generates a per-run epoch key at `<run-dir>/epoch.key` (mode 0600; only its digest appears in
 `plan.json` `epoch.digest` and the report claim `reasoningEpochDigest`). Never read, copy, or print the
-key. The session dispatches bundled seats listed in `<run-dir>/lens-dispatch.json` (bundle id, packet
-files, tier, wave) in resumable waves: at most `CHILD_AGENTS_MAX` seats run at once, judgment seats first.
-A stopped run resumes at the first seat without an ingested result. There is no lifetime seat limit; the
-run budget in `lens-dispatch.json` bounds the work. Each seat is one fresh-context subagent at the tier
-`lens-routing.md` assigns, and it writes one result file per bundled lens:
+key. `run-reasoning` consumes selected frozen packets in the existing run and writes authenticated
+delivery, runtime-call, verification, and ingest evidence. The lower-level result shape remains useful
+for integrations that supply a result directly:
 
 ```json
 {"schemaVersion": 1, "kind": "legion-lens-result", "provider": "reasoning.security",
@@ -106,7 +108,7 @@ older receipts.
 - `excerptCoverage` (in `request.packet`): what the packet proves was examined. `basis:
   "bounded-excerpts"` lists `examinedPaths` (excerpt present and untruncated), `truncatedPaths` (cut at
   the per-file cap), and `omittedPaths` (no excerpt). Examined coverage is derived from this, never from
-  `complete: true`, which only attests the subagent finished. A denominator path that is truncated or
+`complete: true`, which only attests that result producer finished. A denominator path that is truncated or
   omitted yields the gap `reasoning-excerpt-coverage:<provider>:<examined>/<expected> paths examined (...)`;
   the receipt is then `partial`, the lens does not count in `reasoningLensesRan`, and the report stays
   incomplete. Review truncated/omitted paths by reading the files, then rerun the audit; a packet with

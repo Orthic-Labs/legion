@@ -70,8 +70,8 @@ enum Command {
     Schedule(commands::schedule::ScheduleArgs),
     /// Produce the frozen audit provider plan for a repository.
     Plan(commands::plan::PlanArgs),
-    /// Run an evidence-governed repository audit.
-    Audit(commands::audit::AuditArgs),
+    /// Run an evidence-governed repository audit or a frozen reasoning run.
+    Audit(AuditCommandArgs),
     /// Verify audit facts against a sealed provider plan.
     Verify(commands::verify::VerifyArgs),
     /// Explain an audit finding or coverage gap by id (not capabilities).
@@ -158,6 +158,18 @@ enum Command {
     Setup(commands::setup::SetupArgs),
     /// Dispatch to the Rust port of a `skills/**/scripts/**` CLI (`--list` to enumerate).
     Script(commands::script::ScriptArgs),
+}
+#[derive(Debug, clap::Args)]
+struct AuditCommandArgs {
+    #[command(subcommand)]
+    command: Option<AuditSubcommand>,
+    #[command(flatten)]
+    legacy: commands::audit::AuditArgs,
+}
+#[derive(Debug, Subcommand)]
+enum AuditSubcommand {
+    /// Run the frozen reasoning plan in an existing audit run directory.
+    RunReasoning(commands::audit_runtime::RunReasoningArgs),
 }
 #[derive(Clone, Debug, clap::Args)]
 struct M1ConfigArgs {
@@ -1621,7 +1633,10 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Serve(args) => native_m1_serve(args).await,
         Command::Catalog(args) => commands::catalog::run(args),
         Command::Policy(args) => commands::policy::run(args),
-        Command::Audit(args) => commands::audit::run(args, cancellation.clone()).await,
+        Command::Audit(args) => match args.command {
+            Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
+            None => commands::audit::run(args.legacy, cancellation.clone()).await,
+        },
         Command::Host(args) => commands::host_runtime::run(args),
         Command::Decision(args) => commands::decision::run(args),
         Command::Handoff(args) => commands::handoff::run(args),
@@ -1669,6 +1684,16 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
 fn finish(result: CommandResult) -> i32 {
     match result {
         Ok(mut value) => {
+            if let Some(code) = value.get("__json_exit_code").and_then(Value::as_i64) {
+                if let Some(object) = value.as_object_mut() {
+                    object.shift_remove("__json_exit_code");
+                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".into())
+                );
+                return code as i32;
+            }
             if let Some(code) = value.get("__exit_code").and_then(Value::as_i64) {
                 return code as i32;
             }

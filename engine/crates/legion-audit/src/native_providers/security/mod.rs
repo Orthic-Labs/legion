@@ -9,7 +9,9 @@ pub mod imported_sarif;
 pub mod opengrep;
 pub mod packs;
 pub mod producer;
+pub mod scanners;
 pub mod secrets;
 pub mod supply_chain;
+pub mod suppressions;
 
 pub use adapter::SecurityProviderExecutor;

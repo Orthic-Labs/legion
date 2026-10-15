@@ -1,6 +1,7 @@
 {
   "schema": "legion-audit-bench-cases/1",
   "fixture": "rust-ledger",
+  "split": "tuning",
   "language": "rust",
   "base": "base",
   "cases": [

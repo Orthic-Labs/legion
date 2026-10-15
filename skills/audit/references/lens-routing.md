@@ -4,34 +4,16 @@ Read this file before Stage 2 of `/audit` or every iteration of `/audit-fix`.
 
 ## Execution boundary
 
-The reasoning lenses run on native host subagents or inline in main session, never on external
-model APIs. This is the locked audit-specific exception: prior provider limits and network
-registration repeatedly hung full audit runs. Do not route lenses through an external model worker
-or HTTP model provider.
+Reasoning runs through `legion audit run-reasoning`, which launches fresh, one-turn native Claude
+processes under host-enforced settings. It is not a subagent fan-out. Each call receives a bounded
+snapshot-only toolbox; shell, edits, MCP, plugins, and subagents are disabled. Runtime lifecycle,
+scope, usage, and prerequisite behavior live in [reasoning runtime](reasoning-runtime.md).
 
 The read-only lenses are `doc-drift`, `architecture`, `correctness`, `ai-slop`, `naming`,
 `dead-file`, `schema`, `security`, `minimize`, and `performance`, plus conditional `a11y`,
-`data-safety`, `resilience`, `platform-parity`, and `release-readiness`. Fan the applicable lenses
-out in bundled seats (see Bundled seats below) and dispatched in resumable waves, judgment seats first.
-
-## Bundled seats
-
-One seat reads an excerpt part once and answers every lens it bundles, so bundled lenses share model
-tokens rather than re-reading the same text. Each seat writes one result file per bundled lens. The
-bundle plan lives in `<run-dir>/lens-dispatch.json` (bundle id, packet files, tier, wave).
-
-| Seat | Lenses | Tier |
-|---|---|---|
-| J1 | security, correctness, schema/contract drift | judgment |
-| J2 | architecture, doc-drift | judgment |
-| S1 | performance, resilience, data-safety, minimize | specialist |
-| S2 | ai-slop, standards | specialist |
-| M1 | breadth triage, naming, dead-file | mechanical |
-
-Conditional lenses (a11y, platform-parity, release-readiness) join S1 or S2 when their trigger fires.
-Excerpt mode per seat follows the rules in Input contract below; the seat plan does not override them.
-The plan is size-gated before any seat starts: a plan that exceeds the run budget is refused, and the
-refusal names how far over each bundle is.
+`data-safety`, `resilience`, `platform-parity`, and `release-readiness`. The frozen provider plan
+determines eligible lenses. Pattern cards only refine matching existing lenses; see
+[pattern cards](pattern-cards.md). They do not add broad domains or bypass scope/applicability.
 
 ## Input contract
 
@@ -53,8 +35,7 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 
 ## Semantic routing
 
-When explicit specifications or standards are present, run two independent contracts in the same
-dispatch plan:
+When explicit specifications or standards are present, preserve two independent contracts:
 
 - Route SPEC fidelity to `correctness`, with only exact requirements, acceptance criteria, public
   contracts, applicable ADR consequences, and scoped implementation evidence. Preserve per-
@@ -67,21 +48,11 @@ Absent spec/standards input is typed `unproven` unless whole-repo non-applicabil
 justified with searched scope and reason. Present but incomplete or inaccessible input is typed
 `unproven` with missing evidence. Neither is silently clean, and one axis never closes the other.
 
-## Model routing
+## Model selection
 
-- Tier follows the kind of reasoning, not a blanket floor: judgment lenses carry the false-negative
-  risk, so a lowest-tier seat is not acceptable for them. (Restored: the all-lowest-tier rule of
-  2026-09-19 left every lens on the cheapest model and the judgment lenses under-reasoned.)
-- `security`, `architecture`, and `correctness` run on the strongest available native tier. They
-  decide exploitability, structural shape, and real bugs, and a miss there is expensive.
-- `schema`, `minimize`, `doc-drift`, `data-safety`, `resilience`, `release-readiness`, `ai-slop`, `naming`, and `performance` are judgment lenses and run on at least the mid tier; they receive raw logic, exact contracts, or failure-mode evidence. `ai-slop` carries the suite's highest false-positive risk, so its findings stay capped as `manual.md` states.
-- The mid tier is the specialist seat tier (S1, S2; Sonnet or Sol 6.1). The judgment seat tier (J1, J2) is Opus or Sol. The mechanical seat tier (M1) is Haiku or Luna.
-- `dead-file`, `a11y`, and `platform-parity` are mechanical:
-  the lowest available native tier is fine. They receive scoped evidence; a11y and platform parity
-  still receive relevant raw excerpts.
-- If a tier is unavailable on the host, use the next tier down and record the downgrade in the lens
-  output; never silently relabel a lowest-tier run as a judgment-tier run.
-- Conditional lenses spawn only when their trigger fires.
+The runtime accepts a native Claude model override with `--model`; capability preflight must pass
+before execution. It does not silently downgrade tiers or substitute another provider. An unavailable
+binary/model or missing safe control leaves reasoning incomplete; see [reasoning runtime](reasoning-runtime.md).
 - `minimize` reads raw bodies and `references/ponytail-lens.md`; a skeleton alone cannot distinguish
   dead abstraction from a real DI, test, or extension seam.
 - Semantic lanes read [semantic review](semantic-review.md) for test-quality, design-smell,
@@ -100,17 +71,14 @@ plan, and a pack that matches no scoped file is simply not loaded.
 | `.github/workflows/*.y{,a}ml` | [rubrics/github-workflow.md](rubrics/github-workflow.md) | `security`, `release-readiness` |
 | `**/Cargo.toml` | [rubrics/cargo-toml.md](rubrics/cargo-toml.md) | `security`, `release-readiness`, `minimize` |
 
-## Correctness verify-pass
+## Finding verification
 
-Correctness lenses can over-claim. Every correctness finding must survive either a deterministic
-reproduction run by the main agent or an adversarial skeptic pass prompted to refute it. A claim
-without verification does not render as a finding.
+Every proposed finding is sent to an independent, fresh verifier context without the author's
+conversation or tools. It must uphold with frozen-source anchors and a concrete case, contradict
+with anchored counterevidence, or remain unresolved. Unresolved findings are retained as unverified;
+they are not silently withdrawn. This verifier is separate from any later product-level reproduction.
 
 ## Reconciliation
 
-The main session reads every lens output, deduplicates across lenses and scanners, re-checks every
-`file:line` locally, assigns severity/evidence/fixability, resolves contradictions, and owns the
-final report. Review seats suggest findings; scanner evidence and local verification decide.
-
-If parallel seats are unavailable or constrained, run the lenses inline over `facts.json` and the
-scoped reads. Preserve the same evidence and verification rules.
+The runtime ingests verified lens output, then recomputes the report. The final report remains
+authoritative; incomplete runtime, snapshot, scanner, or verification evidence prevents completion.

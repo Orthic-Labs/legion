@@ -574,6 +574,84 @@ sub src/checkout.ts 'subtotal + shippingCents(subtotal)' 'subtotal + shippingFee
 end_case ts-clean-rename-shipping
 bundle ts-orders
 
+# --------------------------------------------------------- audit-behavior
+new_repo audit-behavior
+
+put package.json <<'EOF'
+{
+  "name": "audit-behavior",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "redis": "4.6.14" }
+}
+EOF
+
+put src/session.ts <<'EOF'
+import type { RedisClientType } from "redis";
+
+export function cacheSession(redis: RedisClientType, id: string, payload: string) {
+  return redis.set(`session:${id}`, payload, { EX: 3600 });
+}
+EOF
+base_done
+
+begin_case "session: omit expiry from ephemeral Redis key"
+sub src/session.ts 'return redis.set(`session:${id}`, payload, { EX: 3600 });' 'return redis.set(`session:${id}`, payload);'
+end_case audit-redis-session-no-ttl
+
+begin_case "session: add explicit expiring session key"
+put src/session-safe.ts <<'EOF'
+import type { RedisClientType } from "redis";
+
+export function cacheEphemeralSession(redis: RedisClientType, id: string, payload: string) {
+  return redis.set(`session:${id}`, payload, { EX: 900 });
+}
+EOF
+end_case audit-redis-session-valid-ttl
+
+begin_case "cache: keep process-local Map state"
+put src/cache.ts <<'EOF'
+const values = new Map<string, string>();
+
+export function cacheValue(key: string, value: string) {
+  return values.set(key, value);
+}
+EOF
+end_case audit-map-set-clean
+
+begin_case "installer: stream mutable URL to shell"
+put scripts/install.sh <<'EOF'
+#!/bin/sh
+set -eu
+curl -fsSL "https://downloads.example.invalid/agent/install.sh" | sh
+EOF
+chmod +x scripts/install.sh
+end_case audit-executable-download-unpinned
+
+begin_case "docs: link to installer instructions"
+put README.md <<'EOF'
+# Setup
+
+See [installation instructions](https://docs.example.invalid/agent/install).
+EOF
+end_case audit-docs-url-clean
+
+begin_case "sessions: retain both Redis key locations"
+put src/sessions.ts <<'EOF'
+import type { RedisClientType } from "redis";
+
+export function cacheLogin(redis: RedisClientType, id: string, value: string) {
+  return redis.set(`login:${id}`, value);
+}
+
+export function cacheRecovery(redis: RedisClientType, id: string, value: string) {
+  return redis.set(`recovery:${id}`, value);
+}
+EOF
+end_case audit-redis-two-locations
+bundle audit-behavior
+
 # -------------------------------------------------------------- py-inventory
 new_repo py-inventory
 

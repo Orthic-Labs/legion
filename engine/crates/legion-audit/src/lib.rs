@@ -3,6 +3,7 @@
 mod dag;
 mod error;
 mod execution;
+pub mod graph_context;
 mod integrity;
 mod inventory;
 pub mod native_providers;
@@ -11,6 +12,10 @@ mod normalize;
 pub mod p12_pipeline;
 mod plan;
 mod report;
+pub mod review_runtime;
+pub mod scope;
+pub mod snapshot;
+pub mod source_cache;
 mod verify;
 pub mod wf_port;
 mod worktree;

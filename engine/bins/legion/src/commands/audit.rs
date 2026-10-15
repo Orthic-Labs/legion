@@ -165,18 +165,59 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             args.root.display()
         )));
     }
-    let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
-    // Node parity: diff scope (--type/--base/--base-commit/--dir) is resolved
-    // exactly like tools/audit/collect-facts.mjs scopeFor/changedFiles and
-    // recorded in the plan and facts documents. It never changes the frozen
-    // provider denominator — matching Node, where scope annotates facts
-    // instead of filtering. A ref Node's gitRef would reject is recorded raw in
-    // the plan; the facts document then omits scope and the run is incomplete,
-    // mirroring Node's crashed facts collection without a CLI-level error.
-    let scope = audit_scope(&root, &args);
-    // Diff scope narrows the frozen denominator to the changed files: every
-    // inventory the run builds (plan, lens basis, binding, direct plan) uses it.
-    let inventory_filter = scope.inventory_filter();
+    let source_root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
+    let scope_spec = if let Some(base) = &args.base_commit {
+        legion_audit::scope::ScopeSpec::Range {
+            base: base.clone(),
+            head: "WORKTREE".into(),
+        }
+    } else if let Some(base) = &args.base {
+        legion_audit::scope::ScopeSpec::Branch(base.clone())
+    } else {
+        legion_audit::scope::ScopeSpec::parse(args.r#type.as_deref().unwrap_or("repo"))
+            .map_err(|error| CommandError::usage(error.to_string()))?
+    };
+    let resolved_scope = legion_audit::scope::ResolvedScope::resolve(
+        &source_root,
+        scope_spec,
+        args.dir
+            .as_ref()
+            .and_then(|dir| clean_path(&dir.to_string_lossy())),
+    )
+    .map_err(|error| {
+        let message = error.to_string();
+        if message.contains("blocked:") {
+            CommandError::internal(message)
+        } else {
+            CommandError::incomplete(message)
+        }
+    })?;
+    let frozen_snapshot = legion_audit::snapshot::FrozenSnapshot::capture(resolved_scope)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let root = frozen_snapshot.manifest.execution_root.clone();
+    let inventory_filter = frozen_snapshot.manifest.scope.inventory_filter();
+    let scope = AuditScope {
+        mode: if frozen_snapshot.manifest.scope.spec.is_diff() {
+            "diff"
+        } else {
+            "whole-repo"
+        },
+        scope_type: args.r#type.clone().unwrap_or_else(|| "all".into()),
+        base: args.base.clone(),
+        base_commit: args.base_commit.clone(),
+        dir: frozen_snapshot.manifest.scope.path_prefix.clone(),
+        changed_files: frozen_snapshot
+            .manifest
+            .scope
+            .changed_paths
+            .iter()
+            .cloned()
+            .collect(),
+        changed_hunks: std::collections::BTreeMap::new(),
+        head: Some(frozen_snapshot.manifest.scope.selected_oid.clone()),
+        facts_unavailable: false,
+        snapshot: Some(frozen_snapshot.manifest.clone()),
+    };
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
     let native_application_configured =
         std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some();
@@ -224,7 +265,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             (Arc::new(application), notices, Some(scratch), true)
         };
     if args.out.is_some() {
-        if let Some(notice) = audit_dir_ignore_notice(&root) {
+        if let Some(notice) = audit_dir_ignore_notice(&source_root) {
             context_notices.push(notice);
         }
     }
@@ -283,7 +324,95 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             None => None,
         },
     };
-    let review_context = review_context(&root, &scope);
+    let mut review_context = review_context(&root, &scope);
+    review_context["snapshotManifest"] = json!(frozen_snapshot.manifest_path);
+    review_context["snapshot"] = json!({
+        "schemaVersion": frozen_snapshot.manifest.schema_version,
+        "headKind": frozen_snapshot.manifest.scope.head_kind,
+        "head": frozen_snapshot.manifest.scope.selected_oid,
+        "sourceRepository": source_root,
+        "executionRoot": frozen_snapshot.manifest.execution_root,
+        "baselineRoot": frozen_snapshot.manifest.baseline_root,
+        "executionPolicy": frozen_snapshot.manifest.execution_policy,
+        "gaps": frozen_snapshot.manifest.gaps,
+    });
+    review_context["snapshotKey"] = json!(frozen_snapshot.manifest.key);
+    review_context["sourceRepository"] = json!(source_root);
+    let frozen_sources = frozen_snapshot
+        .manifest
+        .files
+        .keys()
+        .map(|path| {
+            frozen_snapshot
+                .read(
+                    path,
+                    legion_audit::snapshot::SnapshotSide::Selected,
+                    32 * 1024 * 1024,
+                )
+                .map(|bytes| (path.clone(), bytes))
+        })
+        .collect::<Result<std::collections::BTreeMap<_, _>, _>>()
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let resolver_files = frozen_snapshot
+        .manifest
+        .files
+        .iter()
+        .filter(|(path, _)| {
+            path.ends_with("Cargo.toml")
+                || path.ends_with("package.json")
+                || path.contains("tsconfig")
+                || path.ends_with("jsconfig.json")
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let resolver_digest = legion_audit::digest(&resolver_files)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let mut graph_cache = legion_audit::source_cache::SourceCache::open(
+        &source_root.join(".legion-cache/audit-source"),
+        legion_audit::source_cache::DEFAULT_MAX_BYTES,
+    )
+    .map_err(super::io_error)?;
+    let graph_context = legion_audit::graph_context::build_graph_context_cached(
+        &frozen_sources,
+        None,
+        &resolver_digest,
+        &mut graph_cache,
+    );
+    let graph_paths: Vec<_> = if frozen_snapshot.manifest.scope.spec.is_diff() {
+        frozen_snapshot
+            .manifest
+            .scope
+            .changed_paths
+            .iter()
+            .cloned()
+            .collect()
+    } else {
+        frozen_snapshot.manifest.files.keys().cloned().collect()
+    };
+    let graph_artifact = frozen_snapshot
+        .manifest_path
+        .parent()
+        .ok_or_else(|| CommandError::integrity("snapshot parent missing"))?
+        .join("graph-context.json");
+    frozen_snapshot
+        .write_context_artifact(
+            "graph-context.json",
+            &serde_json::to_vec(&graph_context).map_err(super::io_error)?,
+        )
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    review_context["graphContext"] = json!({
+        "contractVersion": graph_context.contract_version,
+        "blueprintVersion": graph_context.blueprint_version,
+        "scopedBytesDigest": graph_context.scoped_bytes_digest,
+        "coveredFilesDigest": graph_context.covered_files_digest,
+        "resolverConfigDigest": graph_context.resolver_config_digest,
+        "coverageFloor": graph_context.coverage_floor,
+        "artifact": graph_artifact,
+        "blastRadius": graph_context.compact_blast_radius(&graph_paths, 256),
+        "truncated": graph_context.truncated,
+    });
+    let graph_cache_stats = graph_cache.stats.clone();
+    drop(graph_cache);
+    drop(frozen_sources);
     // The coverage request freezes with the provider spec (like the review
     // context), so the executed plan and the lens basis plan, which compile
     // independently, derive the same review sets.
@@ -311,7 +440,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     if !direct {
         bind_runtime_visual_capture_source(&mut selected_specs);
     }
-    let declared_input_gaps = [runtime_gaps, visual_gaps].concat();
+    let mut declared_input_gaps = [runtime_gaps, visual_gaps].concat();
+    declared_input_gaps.extend(frozen_snapshot.manifest.gaps.iter().cloned());
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -432,8 +562,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
             "repository": repository_id,
+            "sourceRepository": source_root,
+            "snapshotManifest": frozen_snapshot.manifest_path,
             "profile": args.profile,
             "scope": scope.plan_json(),
+            "reviewContext": review_context,
+            "sourcePerformance": {"snapshot": frozen_snapshot.manifest.source_cache, "graph": graph_cache_stats},
             "planDigest": plan_digest.clone(),
                 "planSignature": plan_signature.clone(),
                 "seal": {"digest": plan_digest, "authenticity": "hmac-sha256", "signature": plan_signature},
@@ -483,8 +617,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 } else {
                     None
                 };
-            let mut report = legion_audit::canonical_report(&root.to_string_lossy(), &execution)
-                .map_err(|error| CommandError::integrity(error.to_string()))?;
+            let mut report =
+                legion_audit::canonical_report(&source_root.to_string_lossy(), &execution)
+                    .map_err(|error| CommandError::integrity(error.to_string()))?;
             let parity_gaps = native_audit_parity_gaps(
                 execution.planned_providers.len(),
                 execution.results.len(),
@@ -662,11 +797,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 &report,
                 run_report_scope(
                     &report,
-                    if args.base.is_some() || args.base_commit.is_some() {
-                        "diff"
-                    } else {
-                        "whole"
-                    },
+                    &frozen_snapshot.manifest.scope.spec.label(),
                     &root,
                     &review_context,
                     &execution.inventory_digest,
@@ -685,8 +816,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "schemaVersion": 1,
                     "kind": "audit-provider-plan",
                     "repository": root,
+                    "sourceRepository": source_root,
+                    "snapshotManifest": frozen_snapshot.manifest_path,
                     "profile": args.profile,
                     "scope": scope.plan_json(),
+                    "reviewContext": review_context,
+                    "sourcePerformance": {"snapshot": frozen_snapshot.manifest.source_cache, "graph": graph_cache_stats},
                     "binding": {
                         "repositoryRevision": execution.generation,
                         "inventoryDigest": execution.inventory_digest,
@@ -737,7 +872,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             Ok(json!({
                 "schemaVersion": 1,
                 "kind": "repository-audit-report",
-                "root": root,
+                "root": source_root,
+                "executionRoot": root,
+                "snapshotManifest": frozen_snapshot.manifest_path,
                 "profile": args.profile,
                 "scope": scope.plan_json(),
                 "planDigest": execution.plan_digest,
@@ -1144,13 +1281,8 @@ fn plan_followup_recompute(
     Ok((recomputed, follow))
 }
 
-/// Scope recorded in a v2 report: the spec (`whole`/`diff`) and the inventory
-/// generation the run was bound to.
-/// Scope of a freshly executed run, filled from the run's own data: `head` is
-/// the git HEAD (else the inventory generation), `baseRefOid`/`mergeBaseOid`
-/// come from the frozen review-context baseline of a diff-scoped run, and
-/// `snapshotKey` is the digest of the inventory the plan was frozen over (the
-/// content of the run's `inventory.json`). Absent data stays absent.
+/// Scope of a freshly executed run: commit identities & snapshot key come
+/// from frozen review context. Legacy imported plans retain inventory fallback.
 fn run_report_scope(
     report: &legion_contracts::ReportV1,
     spec: &str,
@@ -1166,7 +1298,7 @@ fn run_report_scope(
             .filter(|value| !value.is_empty())
             .map(ToOwned::to_owned)
     };
-    scope.base_ref_oid = oid("/baseline/commit");
+    scope.base_ref_oid = oid("/baseline/baseRefOid").or_else(|| oid("/baseline/commit"));
     scope.merge_base_oid = oid("/baseline/mergeBase");
     if let Some(head) = oid("/head").or_else(|| {
         git_stdout(root, &["rev-parse", "HEAD"])
@@ -1175,7 +1307,10 @@ fn run_report_scope(
     }) {
         scope.head = head;
     }
-    if !inventory_digest.is_empty() {
+    if let Some(key) = oid("/snapshotKey") {
+        scope.snapshot_key = Some(key);
+        scope.index_schema_version = Some(legion_audit::scope::SCOPE_SCHEMA_VERSION);
+    } else if !inventory_digest.is_empty() {
         scope.snapshot_key = Some(inventory_digest.to_owned());
     }
     scope
@@ -1210,7 +1345,7 @@ fn render_report_json(
     legion_report::render_json_schema(&v2, schema).map_err(super::io_error)
 }
 
-fn write_run_reports(
+pub(super) fn write_run_reports(
     dir: &std::path::Path,
     report: &legion_contracts::ReportV1,
     schema: u32,
@@ -1304,7 +1439,9 @@ fn ingest_output(
 }
 
 /// A provider spec from the native registry by id (no application is built).
-fn registry_provider_spec(id: &str) -> Result<legion_contracts::ProviderSpec, CommandError> {
+pub(super) fn registry_provider_spec(
+    id: &str,
+) -> Result<legion_contracts::ProviderSpec, CommandError> {
     let registry = native_provider_registry_path()
         .ok_or_else(|| CommandError::incomplete("native Audit provider registry is unavailable"))?;
     let value: Value = serde_json::from_slice(&std::fs::read(&registry).map_err(super::io_error)?)
@@ -1658,12 +1795,9 @@ fn lens_work_items(
 /// letting run artifacts show up as untracked files.
 fn audit_dir_ignore_notice(root: &std::path::Path) -> Option<String> {
     git_stdout(root, &["rev-parse", "--is-inside-work-tree"])?;
-    let ignored = std::process::Command::new("git")
-        .args(["check-ignore", "-q", ".audit/"])
-        .current_dir(root)
-        .status()
-        .ok()?
-        .success();
+    let ignored = legion_audit::scope::GitRunner::new(root)
+        .run(&["check-ignore", "-q", ".audit/"])
+        .is_ok();
     (!ignored).then(|| {
         "audit-run-dir-not-ignored: add `.audit/` to .gitignore (or .git/info/exclude); run directories under .audit/ are otherwise reported as untracked files"
             .to_owned()
@@ -2899,6 +3033,7 @@ struct AuditScope {
     /// `HEAD` at scope resolution (diff-scoped audits only).
     head: Option<String>,
     facts_unavailable: bool,
+    snapshot: Option<legion_audit::snapshot::SnapshotManifest>,
 }
 
 /// Scope types that name a changed-file set on their own.
@@ -2912,7 +3047,11 @@ impl AuditScope {
     /// and never narrows the denominator.
     fn narrows_inventory(&self) -> bool {
         !self.facts_unavailable
-            && (self.base.is_some()
+            && (self
+                .snapshot
+                .as_ref()
+                .is_some_and(|s| s.scope.spec.is_diff())
+                || self.base.is_some()
                 || self.base_commit.is_some()
                 || scope_type_selects_changes(&self.scope_type))
     }
@@ -2931,6 +3070,7 @@ impl AuditScope {
             "base": self.base,
             "baseCommit": self.base_commit,
             "dir": self.dir,
+            "snapshot": self.snapshot,
         });
         if self.narrows_inventory() {
             scope["head"] = json!(self.head);
@@ -2948,6 +3088,7 @@ impl AuditScope {
             "base_commit": self.base_commit,
             "dir": self.dir,
             "changed_files": self.changed_files,
+            "snapshot": self.snapshot,
         });
         if self.narrows_inventory() {
             scope["head"] = json!(self.head);
@@ -3011,18 +3152,9 @@ fn git_ref_is_valid(reference: &Option<String>) -> bool {
 }
 
 fn git_stdout(root: &std::path::Path, git_args: &[&str]) -> Option<String> {
-    // Unquoted paths: with the default core.quotePath, non-ASCII paths come back
-    // quoted and would silently drop out of a diff-scoped denominator.
-    let output = std::process::Command::new("git")
-        .args(["-c", "core.quotePath=false"])
-        .args(git_args)
-        .current_dir(root)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+    legion_audit::scope::GitRunner::new(root)
+        .text(git_args)
+        .ok()
 }
 
 fn push_changed_files(files: &mut Vec<String>, root: &std::path::Path, git_args: &[&str]) {
@@ -3142,6 +3274,7 @@ fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
         changed_hunks,
         head,
         facts_unavailable: !refs_valid,
+        snapshot: None,
     }
 }
 
@@ -3261,6 +3394,19 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
             "mergeBase": Value::Null,
         },
     });
+    if let Some(snapshot) = &scope.snapshot {
+        context["head"] = json!(snapshot.scope.selected_oid);
+        context["sourceRepository"] = json!(snapshot.scope.source_root);
+        context["baseline"] = json!({
+            "status": if snapshot.scope.baseline_oid.is_some() || snapshot.scope.head_kind == "index" || matches!(snapshot.scope.spec, legion_audit::scope::ScopeSpec::Uncommitted) { "resolved" } else { "not-applicable" },
+            "kind": "immutable-snapshot",
+            "commit": snapshot.scope.baseline_oid,
+            "baseRefOid": snapshot.scope.base_ref_oid,
+            "mergeBase": snapshot.scope.merge_base_oid,
+            "root": snapshot.baseline_root,
+        });
+        return context;
+    }
     if scope.narrows_inventory() {
         context["changedHunks"] = json!(scope.changed_hunks);
         context["head"] = json!(scope.head);
@@ -3635,6 +3781,18 @@ fn native_registry_application(
     let mut registry = legion_audit::NativeProviderRegistry::new(root.to_path_buf())
         .with_scratch(scratch.clone())
         .with_external_project_tool(external_tool);
+    if root.join(".legion-audit-snapshot").is_file() {
+        let manifest = root
+            .parent()
+            .ok_or_else(|| CommandError::integrity("snapshot parent missing"))?
+            .join("manifest.json");
+        let snapshot = legion_audit::snapshot::FrozenSnapshot::open(&manifest)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+        if snapshot.manifest.execution_root != root {
+            return Err(CommandError::integrity("snapshot root binding mismatch"));
+        }
+        registry.security = registry.security.with_snapshot_manifest(manifest);
+    }
     if let Some(enrollment) = enrollment {
         registry = registry.with_attested_runs(enrollment);
     }
@@ -4538,6 +4696,7 @@ mod closure_tests {
             changed_hunks: std::collections::BTreeMap::new(),
             head: None,
             facts_unavailable: false,
+            snapshot: None,
         };
         let context = review_context(std::path::Path::new("."), &scope);
         assert_eq!(context["baseline"]["status"], "not-applicable");

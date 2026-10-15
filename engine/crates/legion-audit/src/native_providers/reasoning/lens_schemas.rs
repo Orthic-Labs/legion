@@ -118,23 +118,22 @@ fn minimize_schema() -> Value {
 }
 
 /// `correctness`: adds `verifyStatus` restricted to exclude `not-applicable`
-/// (every correctness finding must survive reproduction or a skeptic pass —
-/// `not-applicable` would mean it never rendered per the verify-pass rule)
-/// and a required `verificationMethod`.
+/// Unresolved findings remain visible; authenticated host verification decides
+/// whether a result is complete. A verified finding requires its method.
 fn correctness_schema() -> Value {
     let mut properties = base_properties();
-    properties["verifyStatus"] = json!({ "type": "string", "enum": ["verified"] });
+    properties["verifyStatus"] = json!({ "type": "string", "enum": ["verified", "unverified"] });
     properties["verificationMethod"] = json!({
         "type": "string",
         "enum": ["deterministic-reproduction", "adversarial-skeptic-pass"]
     });
-    let mut required = base_required();
-    required.push("verificationMethod");
+    let required = base_required();
     json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": "https://legion.audit/schemas/audit.lens.correctness.v1",
         "title": "correctness finding",
         "type": "object",
+        "allOf": [{"if": {"properties": {"verifyStatus": {"const": "verified"}}, "required": ["verifyStatus"]}, "then": {"required": ["verificationMethod"]}}],
         "properties": properties,
         "required": required,
         "additionalProperties": true
@@ -603,13 +602,16 @@ pub fn validate_finding(lens: &str, finding: &Value) -> Result<(), Vec<Validatio
     }
 
     let verify_allowed: &[&str] = if lens == "correctness" {
-        &["verified"]
+        &["verified", "unverified"]
     } else {
         VERIFY_STATUSES
     };
     require_enum(finding, "verifyStatus", verify_allowed, &mut errors);
 
-    if lens == "correctness" {
+    if lens == "correctness"
+        && (finding.get("verifyStatus").and_then(Value::as_str) == Some("verified")
+            || finding.get("verificationMethod").is_some())
+    {
         match finding.get("verificationMethod").and_then(Value::as_str) {
             Some("deterministic-reproduction") | Some("adversarial-skeptic-pass") => {}
             Some(other) => errors.push(ValidationError {
@@ -745,20 +747,19 @@ mod tests {
     }
 
     #[test]
-    fn correctness_requires_verified_status_and_method() {
+    fn correctness_retains_unverified_findings_but_verified_requires_method() {
         let finding = valid_finding("correctness");
-        // valid_finding uses "unverified" and no verificationMethod: both
-        // must fail for the correctness lens's verify-pass rule.
-        let errors = validate_finding("correctness", &finding).unwrap_err();
-        assert!(errors.iter().any(|error| error.field == "verifyStatus"));
+        assert!(validate_finding("correctness", &finding).is_ok());
+        let mut verified = finding.clone();
+        verified["verifyStatus"] = json!("verified");
+        let errors = validate_finding("correctness", &verified).unwrap_err();
         assert!(errors
             .iter()
             .any(|error| error.field == "verificationMethod"));
-
-        let mut good = finding.clone();
-        good["verifyStatus"] = json!("verified");
-        good["verificationMethod"] = json!("deterministic-reproduction");
-        assert!(validate_finding("correctness", &good).is_ok());
+        verified["verificationMethod"] = json!("adversarial-skeptic-pass");
+        assert!(validate_finding("correctness", &verified).is_ok());
+        verified["verifyStatus"] = json!("not-applicable");
+        assert!(validate_finding("correctness", &verified).is_err());
     }
 
     #[test]

@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "suite": "audit-semantic-pattern-cards-v1",
+  "qualification": "authored-fixtures-not-yet-benchmarked",
+  "cases": [
+    {
+      "card": "return-key-consumer-migration",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "return-key-reader-still-uses-old-name", "expected": "finding", "scenario": "A changed endpoint renames accountId to ownerId; a traced in-repository client still reads accountId." },
+        { "id": "return-key-all-readers-migrated", "expected": "no-finding", "scenario": "The endpoint renames accountId and every traced caller in the same change reads ownerId." },
+        { "id": "return-key-consumer-outside-evidence", "expected": "unknown", "scenario": "The serialized key disappears, but the repository boundary prevents establishing whether external consumers exist." }
+      ]
+    },
+    {
+      "card": "interactive-state-derived-output",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "interactive-state-output-disconnected", "expected": "finding", "scenario": "A watched-category toggle changes state, while its alert output still uses a separate static list." },
+        { "id": "interactive-state-presentational-only", "expected": "no-finding", "scenario": "A star toggle changes only the star appearance; no other output is intended to follow it." },
+        { "id": "interactive-state-output-relationship-unclear", "expected": "unknown", "scenario": "A state value and output have similar names, but no evidence establishes that the output should depend on the state." }
+      ]
+    },
+    {
+      "card": "upsert-replay-workflow-state",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "upsert-replay-resets-state", "expected": "finding", "scenario": "A replayed webhook updates an existing order and overwrites its advanced status with pending." },
+        { "id": "upsert-omits-state-column", "expected": "no-finding", "scenario": "Conflict update changes profile fields and omits the workflow status column." },
+        { "id": "upsert-wrapper-guard-unavailable", "expected": "unknown", "scenario": "The visible upsert writes status, but a referenced wrapper or trigger may constrain it and is unavailable." }
+      ]
+    },
+    {
+      "card": "migration-later-object-order",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "migration-uses-later-column", "expected": "finding", "scenario": "Migration 020 creates a policy that reads a column first added in migration 030." },
+        { "id": "migration-object-created-earlier", "expected": "no-finding", "scenario": "The referenced column is created by migration 010 before the policy migration." },
+        { "id": "migration-object-origin-unresolved", "expected": "unknown", "scenario": "The reference exists, but its guaranteed baseline or external creation order cannot be established." }
+      ]
+    },
+    {
+      "card": "postgres-definer-searchpath-and-public-execute",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "definer-mutable-path-public-execute", "expected": "finding", "scenario": "A SECURITY DEFINER function has caller-influenced name resolution and its effective ACL permits PUBLIC execution." },
+        { "id": "definer-pinned-and-restricted", "expected": "no-finding", "scenario": "The function pins a safe search_path, revokes PUBLIC execution, and grants only intended roles." },
+        { "id": "definer-effective-acl-unavailable", "expected": "unknown", "scenario": "The function excerpt shows SECURITY DEFINER, but effective grants and revokes are outside available evidence." }
+      ]
+    },
+    {
+      "card": "supabase-single-missing-row-response",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "single-result-error-becomes-500", "expected": "finding", "scenario": "A request-derived identifier reaches .single(); returned PGRST116 is surfaced as a 500 instead of not-found." },
+        { "id": "single-maybe-single-not-found", "expected": "no-finding", "scenario": "The handler uses .maybeSingle() and maps data === null to 404." },
+        { "id": "single-error-path-not-visible", "expected": "unknown", "scenario": "The query uses .single(), but returned result-error handling is outside the supplied source trace." }
+      ]
+    },
+    {
+      "card": "qualified-function-create-unqualified-comment",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "function-comment-schema-mismatch", "expected": "finding", "scenario": "A migration creates public.refresh() and comments on unqualified refresh() without a migration-level search_path guarantee." },
+        { "id": "function-comment-matches-schema", "expected": "no-finding", "scenario": "COMMENT ON FUNCTION public.refresh() uses the same schema and signature as CREATE." },
+        { "id": "function-comment-session-path-unknown", "expected": "unknown", "scenario": "The CREATE and COMMENT differ in qualification, but applying-session search_path is not available." }
+      ]
+    },
+    {
+      "card": "environment-read-before-config-loader",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "env-import-before-loader", "expected": "finding", "scenario": "The entry imports a client before loadEnvFile; the client captures process.env.API_URL at module evaluation." },
+        { "id": "env-load-before-dynamic-import", "expected": "no-finding", "scenario": "The entry loads environment values before dynamically importing the client module." },
+        { "id": "env-top-level-read-only", "expected": "unknown", "scenario": "A module reads process.env at top level, but entry import/load order is unavailable." }
+      ]
+    },
+    {
+      "card": "react-render-state-and-eager-initializer-effects",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "react-render-setter-unconditional", "expected": "finding", "scenario": "A component calls a state setter unconditionally during render, or eagerly reparses a large payload on every render." },
+        { "id": "react-guarded-derive-or-lazy-pure", "expected": "no-finding", "scenario": "A setter is guarded by a prop-versus-state comparison, or expensive pure initialization uses useState(() => value)." },
+        { "id": "react-setter-context-unavailable", "expected": "unknown", "scenario": "A setter call is visible but its enclosing callback/effect/render scope is omitted." }
+      ]
+    },
+    {
+      "card": "promise-all-independent-partial-effects",
+      "owner_lens": "performance",
+      "cases": [
+        { "id": "promise-all-partial-webhook-effects", "expected": "finding", "scenario": "Promise.all sends independent webhooks and retry state cannot identify which deliveries completed after a rejection." },
+        { "id": "promise-all-read-aggregation", "expected": "no-finding", "scenario": "Promise.all gathers independent reads and the caller requires every value before continuing." },
+        { "id": "promise-all-operation-kind-unclear", "expected": "unknown", "scenario": "Promise.all is visible, but operation effects and recovery semantics are unavailable." }
+      ]
+    }
+  ]
+}

@@ -500,6 +500,28 @@ pub fn compile_followup(
             "the working tree no longer matches the frozen revision; rerun the audit".into(),
         ));
     }
+    let review_context = parent_plan
+        .get("reviewContext")
+        .cloned()
+        .ok_or_else(|| invalid("variant follow-up requires parent frozen reviewContext"))?;
+    let manifest = review_context
+        .get("snapshotManifest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("variant follow-up requires immutable snapshot"))?;
+    let snapshot = crate::snapshot::FrozenSnapshot::open(Path::new(manifest))?;
+    snapshot.verify_source_current()?;
+    if review_context.get("snapshotKey").and_then(Value::as_str)
+        != Some(snapshot.manifest.key.as_str())
+    {
+        return Err(invalid("variant follow-up snapshot identity mismatch"));
+    }
+    let mut variant_spec = variant_spec.clone();
+    variant_spec
+        .reasoning
+        .as_object_mut()
+        .ok_or_else(|| invalid("variant reasoning contract must be object"))?
+        .insert("reviewContext".into(), review_context.clone());
+    let parent_dispatch = read_json(&parent_run.join("lens-dispatch.json"))?;
     let variant_seeds = seeds(parent_run, &confirmed)?;
     let (analysis_paths, scope_relations) =
         expanded_scope(&root, &inventory, &paths, &variant_seeds)?;
@@ -510,6 +532,7 @@ pub fn compile_followup(
         &paths,
         &analysis_paths,
         &scope_relations,
+        &review_context,
     ) {
         return Ok(Some(existing));
     }
@@ -521,7 +544,7 @@ pub fn compile_followup(
     debug_assert_eq!(epoch, loaded);
     let plan = AuditPlan::compile_followup(
         &inventory,
-        variant_spec,
+        &variant_spec,
         &paths,
         &analysis_paths,
         &scope_relations,
@@ -596,6 +619,9 @@ pub fn compile_followup(
         "schemaVersion": 1,
         "kind": "audit-provider-plan",
         "repository": repository,
+        "reviewContext": review_context,
+        "snapshotManifest": snapshot.manifest_path,
+        "nativePlan": {"schemaVersion":1,"digest":plan.digest(),"signature":plan.signature(),"plan":plan.plan()},
         "binding": {
             "repositoryRevision": execution.generation,
             "inventoryDigest": execution.inventory_digest,
@@ -626,6 +652,23 @@ pub fn compile_followup(
     // Writes the single packet or every numbered part plus the part index, and
     // removes stale packet files of an earlier partitioning.
     write_lens_packets(&packet_dir, &works)?;
+    let limit = |name: &str, fallback: u64| {
+        parent_dispatch
+            .pointer(&format!("/limits/{name}"))
+            .and_then(Value::as_u64)
+            .unwrap_or(fallback)
+    };
+    let defaults = super::ingest::DispatchLimits::default();
+    super::ingest::write_lens_dispatch(
+        &dir,
+        &works,
+        &super::ingest::DispatchLimits {
+            seat_token_budget: limit("seatTokenBudget", defaults.seat_token_budget),
+            wave_width: limit("waveWidth", defaults.wave_width),
+            run_token_budget: limit("runTokenBudget", defaults.run_token_budget),
+            max_total_seats: limit("maxTotalSeats", defaults.max_total_seats),
+        },
+    )?;
     write_atomic(
         &dir,
         "execution.json",
@@ -674,12 +717,23 @@ fn reuse(
     paths: &[String],
     analysis_paths: &[String],
     scope_relations: &Value,
+    review_context: &Value,
 ) -> Option<FollowupPlanned> {
     let plan_json = read_json(&dir.join("plan.json")).ok()?;
     let frozen: AuditPlan =
         serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE)).ok()?).ok()?;
     let binding = frozen.followup_binding()?;
-    let matches = binding.get("parentPlanDigest").and_then(Value::as_str) == Some(parent_digest)
+    let context_matches = plan_json.get("reviewContext") == Some(review_context)
+        && frozen.providers.iter().all(|provider| {
+            provider
+                .configuration
+                .get("reasoning")
+                .and_then(|reasoning| reasoning.get("reviewContext"))
+                == Some(review_context)
+        })
+        && dir.join("lens-dispatch.json").is_file();
+    let matches = context_matches
+        && binding.get("parentPlanDigest").and_then(Value::as_str) == Some(parent_digest)
         && binding.get("confirmedDigest").and_then(Value::as_str) == Some(confirmed_digest)
         && binding.get("confirmedPaths") == Some(&json!(paths))
         && binding.get("analysisPaths") == Some(&json!(analysis_paths))

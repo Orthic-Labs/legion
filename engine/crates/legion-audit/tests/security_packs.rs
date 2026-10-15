@@ -854,6 +854,8 @@ fn scanner(id: &str, path: &str, line: u64, excerpt: &str) -> ScannerCandidate {
         line: Some(line),
         message: "Potentially attacker-controlled input reaches a process sink.".to_owned(),
         evidence_excerpt: Some(excerpt.to_owned()),
+        domain: "security".into(),
+        ..ScannerCandidate::default()
     }
 }
 

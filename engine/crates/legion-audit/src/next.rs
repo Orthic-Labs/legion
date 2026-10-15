@@ -5,7 +5,7 @@
 //! state:
 //!
 //! * the frozen plan, `lens-dispatch.json` (`seatId`, `wave`, `tier`, packets
-//!   per seat, optional `reasoningBudget`);
+//!   per seat, required bounded `reasoningBudget`);
 //! * the ingested results: one `lens-receipts/<packet>.json` per finished
 //!   packet, and for the security adjudicator the `adjudicationLedger` inside
 //!   its receipt (what is still required, what was voided or contested);
@@ -19,7 +19,7 @@
 //!
 //! Termination is explicit. Limits: two attempts per seat; three adjudication
 //! rounds plus one confirmation-only fourth round; a total issuance cap of `2 x plan seats + 3 x adjudication
-//! candidates`; an optional frozen reasoning budget. Hitting a limit ends the
+//! candidates`; a required frozen reasoning budget. Hitting a limit ends the
 //! run as `incomplete:retry-exhausted` (listing the items) or
 //! `budget-exhausted`, never a silent loop.
 //!
@@ -71,9 +71,8 @@ pub const MAX_ADJUDICATION_ROUNDS: u32 = 3;
 pub const CONFIRMATION_ROUND: u32 = MAX_ADJUDICATION_ROUNDS + 1;
 /// Seats per wave when the plan records no `limits.waveWidth`.
 pub const DEFAULT_WAVE_WIDTH: u64 = 16;
-/// Token estimate charged to the judgment budget for a single-candidate
-/// adjudication item (a labelled estimate, not a tokenizer count).
-pub const STAGE_ITEM_TOKENS: u64 = 2_000;
+/// Default output reservation for legacy dispatch plans. Never an input estimate.
+pub const DEFAULT_OUTPUT_TOKENS: u64 = 4_096;
 
 pub const DISPATCH_FILE: &str = "lens-dispatch.json";
 pub const STATE_FILE: &str = "next-state.json";
@@ -136,12 +135,19 @@ struct State {
     /// Item keys issued in the current round.
     #[serde(default)]
     round_keys: Vec<String>,
+    /// Monotonic reservations. Unknown usage never releases admission capacity.
+    #[serde(default)]
+    reservations: BTreeMap<String, Reservation>,
+    #[serde(default)]
+    terminal_status: Option<String>,
+    #[serde(default)]
+    budget_blocked: Vec<String>,
 }
 
 impl State {
     fn fresh(dispatch_digest: &str) -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             kind: STATE_KIND.to_owned(),
             dispatch_digest: dispatch_digest.to_owned(),
             issuances: 0,
@@ -149,6 +155,9 @@ impl State {
             leases: BTreeMap::new(),
             adjudication_round: 0,
             round_keys: Vec::new(),
+            reservations: BTreeMap::new(),
+            terminal_status: None,
+            budget_blocked: Vec::new(),
         }
     }
 }
@@ -198,6 +207,9 @@ struct AdjSnapshot {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct Budget {
+    total: u64,
+    per_call: u64,
+    output: u64,
     judgment: Option<u64>,
     specialist: Option<u64>,
     mechanical: Option<u64>,
@@ -219,7 +231,9 @@ struct Snapshot {
 
 impl Snapshot {
     fn issuance_cap(&self) -> u64 {
-        2 * self.plan_seats + 3 * self.adjudication_candidates
+        self.plan_seats
+            .saturating_mul(2)
+            .saturating_add(self.adjudication_candidates.saturating_mul(3))
     }
 }
 
@@ -287,22 +301,127 @@ struct Decision {
     blockers: Vec<String>,
 }
 
+/// Admission uses conservative reservations, not claimed physical usage. Actual
+/// usage above reservation increases spend; unknown/below-reservation usage
+/// retains its reservation, so a late receipt cannot replay freed capacity.
 fn budget_allows(snapshot: &Snapshot, state: &State, tier: &str, tokens: u64) -> bool {
     let Some(budget) = &snapshot.budget else {
-        return true;
+        return false;
     };
-    if budget.max_seats.is_some_and(|max| state.issuances >= max) {
+    budget_allows_tokens(budget, state, tier, tokens, true)
+}
+
+fn budget_allows_tokens(
+    budget: &Budget,
+    state: &State,
+    tier: &str,
+    tokens: u64,
+    new_call: bool,
+) -> bool {
+    if new_call && budget.max_seats.is_none_or(|max| state.issuances >= max) {
         return false;
     }
     let limit = match tier {
         "specialist" => budget.specialist,
         "mechanical" => budget.mechanical,
-        _ => budget.judgment,
-    };
-    match limit {
-        Some(limit) => state.spent.get(tier).copied().unwrap_or(0) + tokens <= limit,
-        None => true,
+        "judgment" => budget.judgment,
+        _ => return false,
     }
+    .unwrap_or(budget.total);
+    let total = state
+        .spent
+        .values()
+        .fold(0u64, |sum, value| sum.saturating_add(*value));
+    state.terminal_status.is_none()
+        && total
+            .checked_add(tokens)
+            .is_some_and(|sum| sum <= budget.total)
+        && state
+            .spent
+            .get(tier)
+            .copied()
+            .unwrap_or(0)
+            .checked_add(tokens)
+            .is_some_and(|sum| sum <= limit)
+        && (!new_call || tokens <= budget.per_call)
+}
+
+/// Byte-derived estimate; the host must preflight the complete rendered
+/// request (messages, schemas, tools & tool replies) immediately before send.
+pub fn estimated_request_tokens(rendered_bytes: u64, output_tokens: u64) -> u64 {
+    rendered_bytes.div_ceil(4).saturating_add(output_tokens)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Reservation {
+    call_id: String,
+    tier: String,
+    planned_tokens: u64,
+    reserved_tokens: u64,
+    output_token_limit: u64,
+    retry: bool,
+    transport_authorized: bool,
+    usage: Option<UsageReceipt>,
+}
+
+/// Host input for every physical model attempt, including reflection, retry,
+/// correction & requests containing tool replies. Never count unread tool data.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BudgetCall {
+    /// `next` reservation for the first transport, or None for an extra call.
+    pub reservation_id: Option<String>,
+    pub call_id: String,
+    pub tier: String,
+    pub rendered_request_bytes: u64,
+    pub output_token_limit: u64,
+    pub retry: bool,
+}
+
+/// Trusted host usage. Cached input is a subset of input_tokens; retry_tokens
+/// records additional provider retry usage NOT already in input/output. Each
+/// host-controlled retry still needs its own reservation before transport.
+/// None means unknown, including failures with no provider usage response.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageReceipt {
+    pub reservation_id: String,
+    pub receipt_id: String,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub cached_input_tokens: Option<u64>,
+    pub retry_tokens: Option<u64>,
+    pub failed: bool,
+}
+
+fn reservation_id(dispatch_digest: &str, key: &str, attempt: u32) -> String {
+    digest_hex(format!("{dispatch_digest}\0{key}\0{attempt}").as_bytes())
+}
+
+fn record_reservation(
+    state: &mut State,
+    key: &str,
+    attempt: u32,
+    tier: &str,
+    tokens: u64,
+    output: u64,
+) -> String {
+    let id = reservation_id(&state.dispatch_digest, key, attempt);
+    state.reservations.insert(
+        id.clone(),
+        Reservation {
+            call_id: format!("{key}:attempt-{attempt}"),
+            tier: tier.to_owned(),
+            planned_tokens: tokens,
+            reserved_tokens: tokens,
+            output_token_limit: output,
+            retry: attempt > 1,
+            transport_authorized: false,
+            usage: None,
+        },
+    );
+    id
 }
 
 fn blocker_reason(blocker: &str) -> &'static str {
@@ -318,6 +437,16 @@ fn blocker_reason(blocker: &str) -> &'static str {
 /// One step of the driver. Mutates `state` (leases, counters, round) and
 /// returns what to hand out. Pure given `(snapshot, state, now, lease)`.
 fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) -> Decision {
+    if let Some(status) = &state.terminal_status {
+        return Decision {
+            status: status.clone(),
+            wave: None,
+            issued: Vec::new(),
+            exhausted: Vec::new(),
+            budget_blocked: state.budget_blocked.clone(),
+            blockers: Vec::new(),
+        };
+    }
     let mut exhausted: Vec<(String, String)> = Vec::new();
     let mut work: Vec<Work> = Vec::new();
     let mut lens_unmet = 0usize;
@@ -431,7 +560,8 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
     let width = snapshot.wave_width.max(1) as usize;
     let mut capacity = width.saturating_sub(active.len());
     let mut newly: BTreeSet<String> = BTreeSet::new();
-    let mut budget_blocked: Vec<String> = Vec::new();
+    let previously_blocked = !state.budget_blocked.is_empty();
+    let mut budget_blocked: Vec<String> = state.budget_blocked.clone();
     for item in pending {
         if capacity == 0 {
             break;
@@ -440,8 +570,10 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             exhausted.push((item.key.clone(), "issuance-cap".to_owned()));
             continue;
         }
-        if !budget_allows(snapshot, state, &item.tier, item.tokens) {
-            budget_blocked.push(item.key.clone());
+        if previously_blocked || !budget_allows(snapshot, state, &item.tier, item.tokens) {
+            if !budget_blocked.contains(&item.key) {
+                budget_blocked.push(item.key.clone());
+            }
             continue;
         }
         let attempts = state
@@ -458,7 +590,16 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             },
         );
         state.issuances += 1;
-        *state.spent.entry(item.tier.clone()).or_insert(0) += item.tokens;
+        let spent = state.spent.entry(item.tier.clone()).or_insert(0);
+        *spent = spent.saturating_add(item.tokens);
+        record_reservation(
+            state,
+            &item.key,
+            attempts,
+            &item.tier,
+            item.tokens,
+            snapshot.budget.as_ref().map_or(0, |budget| budget.output),
+        );
         newly.insert(item.key.clone());
         capacity -= 1;
     }
@@ -508,6 +649,14 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             format!("incomplete:{}", reasons.join(","))
         }
     };
+    if !budget_blocked.is_empty() {
+        state.budget_blocked = budget_blocked.clone();
+        // Existing in-flight calls can finish, but no correction/retry/new call
+        // can be authorized after exhaustion. Candidate receipts remain intact.
+        if returned.is_empty() {
+            state.terminal_status = Some(status.clone());
+        }
+    }
     Decision {
         status,
         wave: returned_wave,
@@ -543,6 +692,11 @@ fn write_file(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, AuditErro
     let temporary = dir.join(format!(".{name}.tmp-{}", std::process::id()));
     fs::write(&temporary, bytes)
         .map_err(|error| invalid(format!("could not write {}: {error}", temporary.display())))?;
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)
+        .and_then(|file| file.sync_all())
+        .map_err(|error| invalid(format!("could not sync {}: {error}", temporary.display())))?;
     fs::rename(&temporary, &destination).map_err(|error| {
         invalid(format!(
             "could not publish {}: {error}",
@@ -601,14 +755,90 @@ fn parse_seat(seat: &Value, width: u64) -> Option<LensSeat> {
     })
 }
 
-fn parse_budget(dispatch: &Value) -> Option<Budget> {
-    let budget = dispatch.get("reasoningBudget").filter(|v| v.is_object())?;
-    let field = |name: &str| budget.get(name).and_then(Value::as_u64);
-    Some(Budget {
-        judgment: field("judgment"),
-        specialist: field("specialist"),
-        mechanical: field("mechanical"),
-        max_seats: field("maxSeats"),
+fn parse_budget(dispatch: &Value) -> Result<Budget, AuditError> {
+    let positive = |value: Option<&Value>, name: &str| -> Result<u64, AuditError> {
+        value
+            .and_then(Value::as_u64)
+            .filter(|value| *value > 0)
+            .ok_or_else(|| {
+                invalid(format!(
+                    "reasoning budget missing/malformed positive {name}"
+                ))
+            })
+    };
+    let (source, total, per_call, output, max_seats) =
+        if let Some(source) = dispatch.get("reasoningBudget") {
+            if !source.is_object() {
+                return Err(invalid("reasoningBudget must be an object"));
+            }
+            if source.get("schemaVersion").is_some() {
+                if source.get("schemaVersion").and_then(Value::as_u64) != Some(2) {
+                    return Err(invalid("unsupported reasoningBudget schemaVersion"));
+                }
+                (
+                    source,
+                    positive(source.get("totalTokens"), "totalTokens")?,
+                    positive(source.get("perCallTokens"), "perCallTokens")?,
+                    positive(source.get("outputTokens"), "outputTokens")?,
+                    positive(source.get("maxSeats"), "maxSeats")?,
+                )
+            } else {
+                // Explicit legacy top-level migration. Every declared tier must be
+                // valid, & their sum becomes the immutable total bound.
+                let mut total = 0u64;
+                for tier in ["judgment", "specialist", "mechanical"] {
+                    if let Some(value) = source.get(tier) {
+                        total = total
+                            .checked_add(positive(Some(value), tier)?)
+                            .ok_or_else(|| invalid("legacy reasoning budget overflow"))?;
+                    }
+                }
+                if total == 0 {
+                    return Err(invalid("legacy reasoningBudget has no bounded tiers"));
+                }
+                (
+                    source,
+                    total,
+                    total,
+                    DEFAULT_OUTPUT_TOKENS.min(total),
+                    positive(source.get("maxSeats"), "maxSeats")?,
+                )
+            }
+        } else {
+            // Old producer wrote limits.*. Migrate explicitly; missing fields are
+            // errors rather than an unlimited plan.
+            let source = dispatch
+                .get("limits")
+                .ok_or_else(|| invalid("reasoning budget missing"))?;
+            let total = positive(source.get("runTokenBudget"), "limits.runTokenBudget")?;
+            let per_call = positive(source.get("seatTokenBudget"), "limits.seatTokenBudget")?;
+            (
+                source,
+                total,
+                per_call,
+                DEFAULT_OUTPUT_TOKENS.min(per_call),
+                positive(source.get("maxTotalSeats"), "limits.maxTotalSeats")?,
+            )
+        };
+    if output > per_call || per_call > total {
+        return Err(invalid(
+            "reasoning budget requires outputTokens <= perCallTokens <= totalTokens",
+        ));
+    }
+    let tier = |name: &str| -> Result<Option<u64>, AuditError> {
+        source
+            .get(name)
+            .map(|value| positive(Some(value), name))
+            .transpose()
+    };
+    Ok(Budget {
+        total,
+        per_call,
+        output,
+        max_seats: Some(max_seats),
+        judgment: tier("judgment")?,
+        specialist: tier("specialist")?,
+        mechanical: tier("mechanical")?,
     })
 }
 
@@ -624,7 +854,7 @@ fn parse_outstanding(entry: &str, batches: &[Value]) -> Result<AdjItem, String> 
             .iter()
             .find(|batch| batch.get("batchId").and_then(Value::as_str) == Some(id))
             .and_then(|batch| batch.get("estimatedTokens").and_then(Value::as_u64))
-            .unwrap_or(STAGE_ITEM_TOKENS)
+            .unwrap_or(0)
     };
     if let Some(rest) = entry.strip_prefix("batch:") {
         let id = rest.split(':').next().unwrap_or(rest);
@@ -645,7 +875,7 @@ fn parse_outstanding(entry: &str, batches: &[Value]) -> Result<AdjItem, String> 
                 candidate_id: Some(id.to_owned()),
                 batch_id: None,
                 reason: None,
-                tokens: STAGE_ITEM_TOKENS,
+                tokens: 0,
             });
         }
     }
@@ -657,7 +887,7 @@ fn parse_outstanding(entry: &str, batches: &[Value]) -> Result<AdjItem, String> 
             candidate_id: Some(id.to_owned()),
             batch_id: None,
             reason: (!reason.is_empty()).then(|| reason.to_owned()),
-            tokens: STAGE_ITEM_TOKENS,
+            tokens: 0,
         });
     }
     Err(entry.to_owned())
@@ -727,6 +957,10 @@ fn load_adjudication(run_dir: &Path) -> Result<Option<(AdjSnapshot, AdjContext, 
                     .get("complete")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
+                if complete && !packet_receipt_complete(&receipt) {
+                    complete = false;
+                    blockers.push("evidence-incomplete".to_owned());
+                }
                 let mut contested = false;
                 for entry in strings(ledger.get("outstanding")) {
                     if entry.starts_with("contested:") {
@@ -761,7 +995,7 @@ fn load_adjudication(run_dir: &Path) -> Result<Option<(AdjSnapshot, AdjContext, 
                 tokens: batch
                     .get("estimatedTokens")
                     .and_then(Value::as_u64)
-                    .unwrap_or(STAGE_ITEM_TOKENS),
+                    .unwrap_or(0),
             };
             required.insert(item.key.clone(), item);
         }
@@ -785,6 +1019,32 @@ struct Loaded {
     snapshot: Snapshot,
     dispatch_digest: String,
     adjudication: Option<AdjContext>,
+}
+
+fn packet_receipt_complete(receipt: &Value) -> bool {
+    if receipt.pointer("/result/complete").and_then(Value::as_bool) == Some(true) {
+        return true;
+    }
+    // A numbered part carries the deliberate provider-scope gap until every
+    // other part lands. It is finished only if that is its sole gap & trusted
+    // host delivery/verification evidence exists for its own bytes.
+    receipt.get("part").is_some()
+        && receipt
+            .pointer("/result/details/deliveryEvidence")
+            .is_some()
+        && receipt
+            .pointer("/result/details/verificationEvidence")
+            .is_some()
+        && receipt
+            .pointer("/result/coverage_gaps")
+            .and_then(Value::as_array)
+            .is_some_and(|gaps| {
+                !gaps.is_empty()
+                    && gaps.iter().all(|gap| {
+                        gap.as_str()
+                            .is_some_and(|gap| gap.starts_with("reasoning-part-scope:"))
+                    })
+            })
 }
 
 fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
@@ -818,7 +1078,10 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             if name.ends_with(".json") && !name.starts_with('.') {
-                done.insert(name);
+                let receipt = read_json(&entry.path())?;
+                if packet_receipt_complete(&receipt) {
+                    done.insert(name);
+                }
             }
         }
     }
@@ -832,6 +1095,34 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         context = Some(ctx);
         adjudication_candidates = count;
     }
+    let budget = parse_budget(&dispatch)?;
+    for seat in &mut seats {
+        let mut bytes = 0u64;
+        for packet in &seat.packets {
+            if Path::new(packet).file_name().and_then(|name| name.to_str()) != Some(packet.as_str())
+            {
+                return Err(invalid(
+                    "lens packet must be a file name inside lens-packets",
+                ));
+            }
+            let content =
+                fs::read(run_dir.join(LENS_PACKET_DIR).join(packet)).map_err(|error| {
+                    invalid(format!(
+                        "budget cannot read delivered packet {packet}: {error}"
+                    ))
+                })?;
+            bytes = bytes.saturating_add(content.len() as u64);
+        }
+        seat.estimated_tokens = estimated_request_tokens(bytes, budget.output);
+    }
+    if let (Some(snapshot), Some(context)) = (&mut adjudication, &context) {
+        for item in &mut snapshot.required {
+            let body = adjudication_body(context, item, CONFIRMATION_ROUND)?;
+            let bytes =
+                serde_json::to_vec_pretty(&body).map_err(|error| invalid(error.to_string()))?;
+            item.tokens = estimated_request_tokens(bytes.len() as u64, budget.output);
+        }
+    }
     Ok(Loaded {
         snapshot: Snapshot {
             seats,
@@ -840,7 +1131,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
             adjudication,
             adjudication_candidates,
             wave_width: width,
-            budget: parse_budget(&dispatch),
+            budget: Some(budget),
         },
         dispatch_digest: digest_hex(&bytes),
         adjudication: context,
@@ -850,15 +1141,408 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
 fn load_state(run_dir: &Path, dispatch_digest: &str) -> Result<State, AuditError> {
     let path = run_dir.join(STATE_FILE);
     if !path.is_file() {
+        if fs::read_dir(run_dir.join(LENS_RECEIPT_DIR)).is_ok_and(|mut entries| {
+            entries.any(|entry| {
+                entry.is_ok_and(|entry| {
+                    entry
+                        .path()
+                        .extension()
+                        .is_some_and(|extension| extension == "json")
+                })
+            })
+        }) {
+            return Err(invalid(
+                "existing lens receipts have no budget state; cannot reset spent usage",
+            ));
+        }
         return Ok(State::fresh(dispatch_digest));
     }
-    let state: State = serde_json::from_value(read_json(&path)?)
+    let mut state: State = serde_json::from_value(read_json(&path)?)
         .map_err(|error| invalid(format!("{STATE_FILE} is invalid: {error}")))?;
     if state.kind != STATE_KIND || state.dispatch_digest != dispatch_digest {
-        // A re-frozen plan owns a fresh state.
-        return Ok(State::fresh(dispatch_digest));
+        return Err(invalid("dispatch identity changed; preserve this run & freeze into a new run directory (budget cannot reset)"));
     }
+    if state.schema_version > 2 {
+        return Err(invalid("unsupported budget state schema"));
+    }
+    if state.issuances > 0 && state.spent.is_empty() {
+        return Err(invalid(
+            "persisted issuances have no budget spend; cannot safely migrate",
+        ));
+    }
+    let mut minimum: BTreeMap<String, u64> = BTreeMap::new();
+    for entry in state.reservations.values() {
+        if entry.output_token_limit == 0
+            || entry.reserved_tokens < entry.output_token_limit
+            || !matches!(
+                entry.tier.as_str(),
+                "judgment" | "specialist" | "mechanical"
+            )
+        {
+            return Err(invalid("malformed persisted budget reservation"));
+        }
+        let reported = entry.usage.as_ref().map_or(0, |usage| {
+            usage
+                .input_tokens
+                .unwrap_or(0)
+                .saturating_add(usage.output_tokens.unwrap_or(0))
+                .saturating_add(usage.retry_tokens.unwrap_or(0))
+        });
+        let total = minimum.entry(entry.tier.clone()).or_insert(0);
+        *total = total.saturating_add(entry.reserved_tokens.max(reported));
+    }
+    if state.issuances < state.reservations.len() as u64
+        || minimum
+            .iter()
+            .any(|(tier, tokens)| state.spent.get(tier).copied().unwrap_or(0) < *tokens)
+    {
+        return Err(invalid(
+            "persisted budget spend understates reservations/usage",
+        ));
+    }
+    // Preserve legacy spent counters; no receipt can turn unknown legacy usage
+    // into zero or create new capacity.
+    state.schema_version = 2;
     Ok(state)
+}
+
+/// Cross-process exclusion for every budget read/modify/write. OS releases
+/// this advisory lock on process exit, including crashes; a busy lock denies
+/// admission. Never unlink the lock file (that would split concurrent locks).
+struct StateLock {
+    _file: fs::File,
+}
+impl StateLock {
+    fn acquire(run_dir: &Path) -> Result<Self, AuditError> {
+        fs::create_dir_all(run_dir).map_err(|error| invalid(error.to_string()))?;
+        let path = run_dir.join(".next-state.lock");
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .map_err(|error| {
+                invalid(format!(
+                    "budget lock unavailable ({}): {error}",
+                    path.display()
+                ))
+            })?;
+        file.try_lock().map_err(|error| {
+            invalid(format!(
+                "budget state locked/unavailable ({}): {error}",
+                path.display()
+            ))
+        })?;
+        Ok(Self { _file: file })
+    }
+}
+
+fn save_state(run_dir: &Path, state: &State) -> Result<(), AuditError> {
+    let bytes = serde_json::to_vec_pretty(state).map_err(|error| invalid(error.to_string()))?;
+    write_file(run_dir, STATE_FILE, &bytes)?;
+    Ok(())
+}
+
+fn budget_summary(state: &State) -> Value {
+    let mut input = 0u64;
+    let mut output = 0u64;
+    let mut cached = 0u64;
+    let mut retry = 0u64;
+    let mut unknown = 0usize;
+    let mut failures = 0usize;
+    let mut overrun = 0u64;
+    let mut output_cap_overrun = 0u64;
+    for reservation in state.reservations.values() {
+        match &reservation.usage {
+            Some(usage) => {
+                input = input.saturating_add(usage.input_tokens.unwrap_or(0));
+                output = output.saturating_add(usage.output_tokens.unwrap_or(0));
+                cached = cached.saturating_add(usage.cached_input_tokens.unwrap_or(0));
+                retry = retry.saturating_add(usage.retry_tokens.unwrap_or(0));
+                failures += usize::from(usage.failed);
+                output_cap_overrun = output_cap_overrun.saturating_add(
+                    usage
+                        .output_tokens
+                        .unwrap_or(0)
+                        .saturating_sub(reservation.output_token_limit),
+                );
+                if usage.input_tokens.is_none()
+                    || usage.output_tokens.is_none()
+                    || usage.cached_input_tokens.is_none()
+                    || usage.retry_tokens.is_none()
+                {
+                    unknown += 1;
+                }
+                let reported = usage
+                    .input_tokens
+                    .unwrap_or(0)
+                    .saturating_add(usage.output_tokens.unwrap_or(0))
+                    .saturating_add(usage.retry_tokens.unwrap_or(0));
+                overrun =
+                    overrun.saturating_add(reported.saturating_sub(reservation.reserved_tokens));
+            }
+            None => unknown += 1,
+        }
+    }
+    let known = unknown == 0 && state.issuances == state.reservations.len() as u64;
+    json!({
+        "admissionBasis": "conservative byte estimate plus output reservation; actual physical usage may exceed reservation",
+        "plannedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.planned_tokens)),
+        "reservedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.reserved_tokens)),
+        "chargedByTier": state.spent,
+        "actual": {
+            "status": if known { "known" } else { "unknown" },
+            "inputTokens": if known { Some(input) } else { None },
+            "outputTokens": if known { Some(output) } else { None },
+            "cachedInputTokens": if known { Some(cached) } else { None },
+            "retryTokens": if known { Some(retry) } else { None },
+            "knownInputTokens": input, "knownOutputTokens": output,
+            "knownCachedInputTokens": cached, "knownRetryTokens": retry,
+        },
+        "unknownUsageCalls": unknown,
+        "legacyUnknownUsageCalls": state.issuances.saturating_sub(state.reservations.len() as u64),
+        "retryCalls": state.reservations.values().filter(|reservation| reservation.retry).count(),
+        "failedCalls": failures, "actualOverrunTokens": overrun,
+        "outputCapOverrunTokens": output_cap_overrun,
+        "terminalStatus": state.terminal_status,
+    })
+}
+
+/// Read the same locked ledger used for admission when rebuilding reports.
+/// Planned but unused reservations are not physical calls; every authorized
+/// call requires reconciled actuals, including explicit zeros for known usage.
+pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditError> {
+    if !run_dir.join(STATE_FILE).is_file() {
+        return Ok(run_dir.join(DISPATCH_FILE).is_file().then(|| {
+            json!({
+                "budget":{"actual":{"status":"unknown"}},
+                "gaps":["reasoning-budget-state-missing"]
+            })
+        }));
+    }
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    let state = load_state(run_dir, &loaded.dispatch_digest)?;
+    let mut gaps = Vec::new();
+    if let Some(status) = &state.terminal_status {
+        gaps.push(format!("reasoning-budget-terminal:{status}"));
+    }
+    if state.issuances > state.reservations.len() as u64 {
+        gaps.push("reasoning-budget-usage-unknown:legacy-issuances".into());
+    }
+    for reservation in state
+        .reservations
+        .values()
+        .filter(|entry| entry.transport_authorized)
+    {
+        match &reservation.usage {
+            Some(usage) => {
+                if usage.input_tokens.is_none()
+                    || usage.output_tokens.is_none()
+                    || usage.cached_input_tokens.is_none()
+                    || usage.retry_tokens.is_none()
+                {
+                    gaps.push(format!(
+                        "reasoning-budget-usage-unknown:{}",
+                        reservation.call_id
+                    ));
+                    if usage.failed {
+                        gaps.push(format!(
+                            "reasoning-budget-call-failed:{}",
+                            reservation.call_id
+                        ));
+                    }
+                }
+            }
+            None => gaps.push(format!(
+                "reasoning-budget-usage-missing:{}",
+                reservation.call_id
+            )),
+        }
+    }
+    Ok(Some(json!({"budget":budget_summary(&state),"gaps":gaps})))
+}
+
+/// Preflight every exact rendered request before transport. Returned
+/// authorization is one-shot; replaying call_id or reservation_id is rejected.
+/// Initial `next` reservations are upgraded in-place so host/schema overhead is
+/// charged without double-counting packet bytes. Extra calls get new entries.
+pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    let mut state = load_state(run_dir, &loaded.dispatch_digest)?;
+    if let Some(status) = &state.terminal_status {
+        return Ok(
+            json!({"authorized":false,"status":status,"complete":false,"callId":call.call_id,"budget":budget_summary(&state)}),
+        );
+    }
+    let budget = loaded
+        .snapshot
+        .budget
+        .as_ref()
+        .ok_or_else(|| invalid("reasoning budget missing"))?;
+    if call.call_id.trim().is_empty()
+        || call.rendered_request_bytes == 0
+        || call.output_token_limit == 0
+        || call.output_token_limit > budget.output
+    {
+        return Err(invalid(
+            "call requires nonempty ID, full rendered bytes & output cap within frozen budget",
+        ));
+    }
+    if state
+        .reservations
+        .values()
+        .any(|entry| entry.transport_authorized && entry.call_id == call.call_id)
+    {
+        return Err(invalid(
+            "call already authorized; replay requires a new bounded attempt",
+        ));
+    }
+    let tokens = estimated_request_tokens(call.rendered_request_bytes, call.output_token_limit);
+    let (id, previous, new_call) = match &call.reservation_id {
+        Some(id) => {
+            let previous = state
+                .reservations
+                .get(id)
+                .ok_or_else(|| invalid("reservation is not in this frozen run"))?;
+            if previous.transport_authorized || previous.usage.is_some() {
+                return Err(invalid("reservation already consumed"));
+            }
+            if previous.tier != call.tier {
+                return Err(invalid("reservation tier changed"));
+            }
+            if !state.leases.iter().any(|(key, lease)| {
+                reservation_id(&state.dispatch_digest, key, lease.attempts) == *id
+            }) {
+                return Err(invalid("reservation belongs to a superseded seat attempt"));
+            }
+            (id.clone(), previous.reserved_tokens, false)
+        }
+        None => {
+            let id = reservation_id(
+                &state.dispatch_digest,
+                &format!("host-call:{}", call.call_id),
+                1,
+            );
+            if state.reservations.contains_key(&id) {
+                return Err(invalid("call ID already reserved"));
+            }
+            (id, 0, true)
+        }
+    };
+    let reserved = previous.max(tokens);
+    let additional = reserved.saturating_sub(previous);
+    if (new_call && !state.budget_blocked.is_empty())
+        || reserved > budget.per_call
+        || !budget_allows_tokens(budget, &state, &call.tier, additional, new_call)
+    {
+        state
+            .terminal_status
+            .get_or_insert_with(|| "budget-exhausted".to_owned());
+        state.budget_blocked.push(call.call_id.clone());
+        save_state(run_dir, &state)?;
+        return Ok(
+            json!({"authorized": false, "status": "budget-exhausted", "complete": false, "callId": call.call_id, "budget": budget_summary(&state)}),
+        );
+    }
+    if new_call && state.issuances >= loaded.snapshot.issuance_cap() {
+        return Err(invalid(
+            "issuance cap reached; extra attempt cannot be authorized",
+        ));
+    }
+    if new_call {
+        state.issuances += 1;
+    }
+    let spent = state.spent.entry(call.tier.clone()).or_insert(0);
+    *spent = spent.saturating_add(additional);
+    let planned = state
+        .reservations
+        .get(&id)
+        .map_or(tokens, |entry| entry.planned_tokens);
+    let retry = call.retry || state.reservations.get(&id).is_some_and(|entry| entry.retry);
+    state.reservations.insert(
+        id.clone(),
+        Reservation {
+            call_id: call.call_id.clone(),
+            tier: call.tier.clone(),
+            planned_tokens: planned,
+            reserved_tokens: reserved,
+            output_token_limit: call.output_token_limit,
+            retry,
+            transport_authorized: true,
+            usage: None,
+        },
+    );
+    save_state(run_dir, &state)?;
+    Ok(
+        json!({"authorized": true, "reservationId": id, "callId": call.call_id, "reservedTokens": reserved,
+        "outputTokenLimit": call.output_token_limit, "budget": budget_summary(&state)}),
+    )
+}
+
+/// Idempotently reconcile one trusted provider receipt. Conflicting receipts
+/// are errors. Unknown actuals retain admission charge; overruns are recorded
+/// & prohibit further transport without erasing any findings/receipts.
+pub fn reconcile_usage(run_dir: &Path, receipt: &UsageReceipt) -> Result<Value, AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    let mut state = load_state(run_dir, &loaded.dispatch_digest)?;
+    if receipt.receipt_id.trim().is_empty() {
+        return Err(invalid("usage receipt ID missing"));
+    }
+    if let (Some(input), Some(cached)) = (receipt.input_tokens, receipt.cached_input_tokens) {
+        if cached > input {
+            return Err(invalid("cached input exceeds total input tokens"));
+        }
+    }
+    for (id, entry) in &state.reservations {
+        if id != &receipt.reservation_id
+            && entry
+                .usage
+                .as_ref()
+                .is_some_and(|usage| usage.receipt_id == receipt.receipt_id)
+        {
+            return Err(invalid(
+                "usage receipt already bound to another reservation",
+            ));
+        }
+    }
+    let entry = state
+        .reservations
+        .get_mut(&receipt.reservation_id)
+        .ok_or_else(|| invalid("usage reservation missing"))?;
+    if !entry.transport_authorized {
+        return Err(invalid("usage has no transport authorization"));
+    }
+    if let Some(existing) = &entry.usage {
+        if existing != receipt {
+            return Err(invalid("conflicting usage receipt for reservation"));
+        }
+        return Ok(
+            json!({"status": "reconciled", "idempotent": true, "budget": budget_summary(&state)}),
+        );
+    }
+    let reported = receipt
+        .input_tokens
+        .unwrap_or(0)
+        .saturating_add(receipt.output_tokens.unwrap_or(0))
+        .saturating_add(receipt.retry_tokens.unwrap_or(0));
+    let extra = reported.saturating_sub(entry.reserved_tokens);
+    let output_excess = receipt
+        .output_tokens
+        .unwrap_or(0)
+        .saturating_sub(entry.output_token_limit);
+    let tier = entry.tier.clone();
+    entry.usage = Some(receipt.clone());
+    if extra > 0 || output_excess > 0 {
+        let spent = state.spent.entry(tier).or_insert(0);
+        *spent = spent.saturating_add(extra);
+        state.terminal_status = Some("incomplete:budget-overrun".to_owned());
+    }
+    save_state(run_dir, &state)?;
+    Ok(json!({"status": "reconciled", "idempotent": false, "budget": budget_summary(&state)}))
 }
 
 fn model_tier(tier: &str) -> &'static str {
@@ -875,13 +1559,11 @@ fn adjudication_seat_id(key: &str) -> String {
 
 /// Writes the deterministic seat packet for an adjudication item and returns
 /// `(packet path, result path)`.
-fn materialize(
-    run_dir: &Path,
+fn adjudication_body(
     context: &AdjContext,
     item: &AdjItem,
-    seat_id: &str,
     round: u32,
-) -> Result<(PathBuf, PathBuf), AuditError> {
+) -> Result<Value, AuditError> {
     let body = if item.stage == BATCH_STAGE {
         let id = item.batch_id.as_deref().unwrap_or_default();
         let batch = context
@@ -922,6 +1604,17 @@ fn materialize(
             "packet": work.packet,
         })
     };
+    Ok(body)
+}
+
+fn materialize(
+    run_dir: &Path,
+    context: &AdjContext,
+    item: &AdjItem,
+    seat_id: &str,
+    round: u32,
+) -> Result<(PathBuf, PathBuf), AuditError> {
+    let body = adjudication_body(context, item, round)?;
     let bytes = serde_json::to_vec_pretty(&body).map_err(|error| invalid(error.to_string()))?;
     let packet = write_file(
         &run_dir.join(ADJUDICATION_DIR).join("packets"),
@@ -947,6 +1640,7 @@ fn paths_json(paths: &[PathBuf]) -> Value {
 /// Computes the next ready wave for `run_dir`, records leases, and returns the
 /// CLI document (`kind: legion-audit-next`).
 pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
     let loaded = load(run_dir)?;
     let before = load_state(run_dir, &loaded.dispatch_digest)?;
     let mut state = before.clone();
@@ -957,6 +1651,9 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
         options.lease_ms,
     );
 
+    // Save admission BEFORE materializing or exposing work. A failed output
+    // operation can strand a reservation, never issue uncharged work.
+    save_state(run_dir, &state)?;
     let mut seats_out: Vec<Value> = Vec::new();
     for (work, lease) in &decision.issued {
         match work.kind {
@@ -988,6 +1685,10 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                     "packetPaths": paths_json(&packets),
                     "resultPaths": paths_json(&results),
                     "estimatedTokens": seat.estimated_tokens,
+                    "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
+                    "requiresCallAuthorization": true,
+                    "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
                     "issuedAtMs": lease.issued_at_ms,
                     "leaseExpiresAtMs": lease.expires_at_ms,
@@ -1022,6 +1723,10 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                     "packetPaths": paths_json(&[packet]),
                     "resultPaths": paths_json(&[result]),
                     "estimatedTokens": item.tokens,
+                    "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
+                    "requiresCallAuthorization": true,
+                    "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
                     "issuedAtMs": lease.issued_at_ms,
                     "leaseExpiresAtMs": lease.expires_at_ms,
@@ -1084,6 +1789,8 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
             .iter()
             .map(|(item, reason)| json!({"item": item, "reason": reason}))
             .collect::<Vec<_>>(),
+        "budget": budget_summary(&state),
+        "complete": decision.status == "done",
         "budgetBlocked": decision.budget_blocked,
         "blockers": decision.blockers,
         "next": next_step,
@@ -1110,6 +1817,16 @@ mod tests {
         }
     }
 
+    fn test_budget() -> Budget {
+        Budget {
+            total: 10_000_000,
+            per_call: 1_000_000,
+            output: 100,
+            max_seats: Some(10_000),
+            ..Budget::default()
+        }
+    }
+
     fn snapshot(seats: Vec<LensSeat>) -> Snapshot {
         Snapshot {
             plan_seats: seats.len() as u64,
@@ -1118,7 +1835,7 @@ mod tests {
             adjudication: None,
             adjudication_candidates: 0,
             wave_width: 16,
-            budget: None,
+            budget: Some(test_budget()),
         }
     }
 
@@ -1438,7 +2155,7 @@ mod tests {
         let mut snap = snapshot(vec![seat(1, 1, "judgment")]);
         snap.budget = Some(Budget {
             judgment: Some(50),
-            ..Budget::default()
+            ..test_budget()
         });
         let mut state = State::fresh("d");
         let decision = decide(&snap, &mut state, 0, LEASE);
@@ -1450,7 +2167,7 @@ mod tests {
         let mut two = snapshot(vec![seat(1, 1, "specialist"), seat(2, 1, "specialist")]);
         two.budget = Some(Budget {
             specialist: Some(150),
-            ..Budget::default()
+            ..test_budget()
         });
         let mut state = State::fresh("d");
         let decision = decide(&two, &mut state, 0, LEASE);
@@ -1507,7 +2224,39 @@ mod tests {
 
     fn write_value(path: &Path, value: &Value) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path, serde_json::to_vec_pretty(value).unwrap()).unwrap();
+        let mut value = value.clone();
+        if path.file_name().is_some_and(|name| name == DISPATCH_FILE) {
+            if value.get("reasoningBudget").is_none() {
+                value["reasoningBudget"] = json!({"schemaVersion":2,"totalTokens":10_000_000,"perCallTokens":1_000_000,"outputTokens":100,"maxSeats":10_000});
+            }
+            for seat in value["seats"].as_array().into_iter().flatten() {
+                for packet in seat["packets"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                {
+                    let packet = path.parent().unwrap().join(LENS_PACKET_DIR).join(packet);
+                    if !packet.exists() {
+                        fs::create_dir_all(packet.parent().unwrap()).unwrap();
+                        fs::write(packet, b"{}").unwrap();
+                    }
+                }
+            }
+        }
+        if path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == LENS_RECEIPT_DIR)
+        {
+            if !value.get("result").is_some_and(Value::is_object) {
+                value["result"] = json!({});
+            }
+            if value["result"].get("complete").is_none() {
+                value["result"]["complete"] = json!(true);
+            }
+        }
+        fs::write(path, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
     }
 
     fn options(now_ms: u64) -> NextOptions {
@@ -1579,7 +2328,7 @@ mod tests {
     }
 
     #[test]
-    fn a_refrozen_plan_starts_a_fresh_state() {
+    fn a_refrozen_plan_cannot_reset_budget_state() {
         let run = temp_run("refrozen");
         let plan = |packet: &str| json!({"seats": [{"seat": 1, "wave": 1, "tier": "judgment", "providers": ["reasoning.a"], "packets": [packet]}]});
         write_value(&run.join(DISPATCH_FILE), &plan("reasoning.a.json"));
@@ -1590,10 +2339,12 @@ mod tests {
             "incomplete:retry-exhausted"
         );
         write_value(&run.join(DISPATCH_FILE), &plan("reasoning.b.json"));
-        let fresh = next(&run, &options(3 * LEASE)).unwrap();
-        assert_eq!(fresh["status"], "wave");
-        assert_eq!(fresh["seats"][0]["seatId"], "seat-001");
-        assert_eq!(fresh["seats"][0]["attempt"], 1);
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        assert!(next(&run, &options(3 * LEASE))
+            .unwrap_err()
+            .to_string()
+            .contains("budget cannot reset"));
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
         let _ = fs::remove_dir_all(&run);
     }
 
@@ -1635,6 +2386,10 @@ mod tests {
         let batch_packet = read_json(&packet_path).unwrap();
         assert_eq!(batch_packet["batchId"], "batch-0001");
         assert_eq!(batch_packet["contextId"], "adjudicator:i");
+        assert_eq!(
+            round1["seats"][0]["estimatedTokens"],
+            estimated_request_tokens(fs::read(&packet_path).unwrap().len() as u64, 100)
+        );
         assert_eq!(next(&run, &options(10)).unwrap(), round1);
 
         // The batch was ingested and the ledger asks for a spot-check.
@@ -1681,5 +2436,335 @@ mod tests {
         );
         assert_eq!(next(&run, &options(40)).unwrap()["status"], "done");
         let _ = fs::remove_dir_all(&run);
+    }
+    #[test]
+    fn missing_malformed_or_unbounded_budgets_fail_closed() {
+        for value in [
+            json!({}),
+            json!({"reasoningBudget":null}),
+            json!({"reasoningBudget":{}}),
+            json!({"reasoningBudget":{"judgment":100}}),
+            json!({"limits":{"runTokenBudget":100,"seatTokenBudget":"100","maxTotalSeats":2}}),
+            json!({"reasoningBudget":{"schemaVersion":2,"totalTokens":100,"perCallTokens":50,"outputTokens":51,"maxSeats":2}}),
+        ] {
+            assert!(parse_budget(&value).is_err(), "must reject {value}");
+        }
+        let mut snap = snapshot(vec![seat(1, 1, "judgment")]);
+        snap.budget = None;
+        assert_eq!(
+            decide(&snap, &mut State::fresh("d"), 0, LEASE).status,
+            "budget-exhausted"
+        );
+    }
+
+    #[test]
+    fn legacy_budget_migration_has_total_and_call_bounds() {
+        let budget = parse_budget(
+            &json!({"limits":{"runTokenBudget":10000,"seatTokenBudget":5000,"maxTotalSeats":2}}),
+        )
+        .unwrap();
+        assert_eq!(
+            (budget.total, budget.per_call, budget.max_seats),
+            (10000, 5000, Some(2))
+        );
+        let legacy = parse_budget(
+            &json!({"reasoningBudget":{"judgment":5000,"specialist":6000,"maxSeats":3}}),
+        )
+        .unwrap();
+        assert_eq!(legacy.total, 11000);
+    }
+
+    #[test]
+    fn output_reserve_retry_total_tier_and_count_are_enforced() {
+        assert_eq!(estimated_request_tokens(401, 77), 178);
+        let mut snap = snapshot(vec![seat(1, 1, "judgment"), seat(2, 1, "specialist")]);
+        snap.budget = Some(Budget {
+            total: 150,
+            ..test_budget()
+        });
+        let mut state = State::fresh("d");
+        let decision = decide(&snap, &mut state, 0, LEASE);
+        assert_eq!(keys(&decision), ["seat-001"]);
+        assert_eq!(state.spent["judgment"], 100);
+        snap.done.insert("reasoning.p1.json".into());
+        assert_eq!(
+            decide(&snap, &mut state, LEASE, LEASE).status,
+            "budget-exhausted"
+        );
+        let mut retry = snapshot(vec![seat(1, 1, "judgment")]);
+        retry.budget = Some(Budget {
+            total: 150,
+            ..test_budget()
+        });
+        let mut state = State::fresh("d");
+        decide(&retry, &mut state, 0, LEASE);
+        assert_eq!(
+            decide(&retry, &mut state, LEASE, LEASE).status,
+            "budget-exhausted"
+        );
+        assert_eq!(state.issuances, 1);
+        let tier = Budget {
+            specialist: Some(99),
+            ..test_budget()
+        };
+        assert!(!budget_allows_tokens(
+            &tier,
+            &State::fresh("d"),
+            "specialist",
+            100,
+            true
+        ));
+        let count = Budget {
+            max_seats: Some(1),
+            ..test_budget()
+        };
+        assert!(!budget_allows_tokens(&count, &state, "judgment", 1, true));
+    }
+
+    fn budget_run(name: &str, total: u64) -> PathBuf {
+        let run = temp_run(name);
+        write_value(
+            &run.join(DISPATCH_FILE),
+            &json!({
+                "reasoningBudget":{"schemaVersion":2,"totalTokens":total,"perCallTokens":total,"outputTokens":10,"maxSeats":4},
+                "seats":[{"seat":1,"tier":"judgment","packets":["reasoning.a.json"]},{"seat":2,"tier":"judgment","packets":["reasoning.b.json"]}]
+            }),
+        );
+        run
+    }
+
+    fn call(id: &str) -> BudgetCall {
+        BudgetCall {
+            reservation_id: None,
+            call_id: id.into(),
+            tier: "judgment".into(),
+            rendered_request_bytes: 40,
+            output_token_limit: 10,
+            retry: false,
+        }
+    }
+
+    #[test]
+    fn reservations_resume_reject_replay_and_reconcile_idempotently() {
+        let run = budget_run("usage", 100);
+        let admitted = reserve_call(&run, &call("first")).unwrap();
+        assert_eq!(admitted["authorized"], true);
+        assert!(reserve_call(&run, &call("first")).is_err());
+        let receipt = UsageReceipt {
+            reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+            receipt_id: "receipt-1".into(),
+            input_tokens: Some(5),
+            output_tokens: Some(3),
+            cached_input_tokens: Some(2),
+            retry_tokens: Some(0),
+            failed: false,
+        };
+        let first = reconcile_usage(&run, &receipt).unwrap();
+        let bytes = fs::read(run.join(STATE_FILE)).unwrap();
+        assert_eq!(first["budget"]["actual"]["inputTokens"], 5);
+        assert_eq!(reconcile_usage(&run, &receipt).unwrap()["idempotent"], true);
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), bytes);
+        let mut conflict = receipt.clone();
+        conflict.output_tokens = Some(4);
+        assert!(reconcile_usage(&run, &conflict).is_err());
+        let mut retry = call("retry");
+        retry.retry = true;
+        reserve_call(&run, &retry).unwrap();
+        let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+        assert_eq!(
+            state.spent["judgment"], 40,
+            "known cheaper actuals never replay capacity"
+        );
+        assert_eq!(budget_summary(&state)["retryCalls"], 1);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn unknown_failed_usage_is_not_zero_and_actual_overrun_stops_calls() {
+        let run = budget_run("unknown", 100);
+        let admitted = reserve_call(&run, &call("first")).unwrap();
+        let mut receipt = UsageReceipt {
+            reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+            receipt_id: "receipt-1".into(),
+            input_tokens: None,
+            output_tokens: None,
+            cached_input_tokens: None,
+            retry_tokens: None,
+            failed: true,
+        };
+        let summary = reconcile_usage(&run, &receipt).unwrap();
+        assert_eq!(summary["budget"]["actual"]["status"], "unknown");
+        assert!(summary["budget"]["actual"]["inputTokens"].is_null());
+        let second = reserve_call(&run, &call("second")).unwrap();
+        receipt.reservation_id = second["reservationId"].as_str().unwrap().into();
+        receipt.receipt_id = "receipt-2".into();
+        receipt.input_tokens = Some(150);
+        assert_eq!(
+            reconcile_usage(&run, &receipt).unwrap()["budget"]["actualOverrunTokens"],
+            130
+        );
+        assert_eq!(
+            reserve_call(&run, &call("third")).unwrap()["authorized"],
+            false
+        );
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn next_reserves_full_packet_bytes_and_host_overhead_before_send() {
+        let run = budget_run("rendered", 10000);
+        fs::write(
+            run.join(LENS_PACKET_DIR).join("reasoning.a.json"),
+            vec![b'x'; 1000],
+        )
+        .unwrap();
+        let wave = next(&run, &options(0)).unwrap();
+        assert_eq!(wave["seats"][0]["budgetReservationTokens"], 260);
+        let mut request = call("transport");
+        request.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
+        request.rendered_request_bytes = 2000;
+        let authorized = reserve_call(&run, &request).unwrap();
+        assert_eq!(authorized["reservedTokens"], 510);
+        assert!(reserve_call(&run, &request).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn concurrent_calls_cannot_reserve_more_than_remaining() {
+        use std::sync::{Arc, Barrier};
+        let run = budget_run("concurrent", 30);
+        let barrier = Arc::new(Barrier::new(3));
+        let workers: Vec<_> = ["one", "two"]
+            .into_iter()
+            .map(|name| {
+                let run = run.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    reserve_call(&run, &call(name))
+                })
+            })
+            .collect();
+        barrier.wait();
+        let admitted = workers
+            .into_iter()
+            .filter_map(|worker| worker.join().unwrap().ok())
+            .filter(|value| value["authorized"] == true)
+            .count();
+        assert_eq!(admitted, 1);
+        let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+        assert_eq!(state.spent["judgment"], 20);
+        let _ = fs::remove_dir_all(run);
+    }
+    #[test]
+    fn partial_receipts_and_lost_state_cannot_claim_completion() {
+        let run = budget_run("partial-receipt", 10000);
+        next(&run, &options(0)).unwrap();
+        write_value(
+            &run.join(LENS_RECEIPT_DIR).join("reasoning.a.json"),
+            &json!({"result":{"complete":false,"coverage_gaps":["delivery-unverified"]}}),
+        );
+        write_value(
+            &run.join(LENS_RECEIPT_DIR).join("reasoning.b.json"),
+            &json!({"result":{"complete":false,"coverage_gaps":["verification-unresolved"]}}),
+        );
+        assert_ne!(next(&run, &options(1)).unwrap()["status"], "done");
+        fs::remove_file(run.join(STATE_FILE)).unwrap();
+        assert!(next(&run, &options(2))
+            .unwrap_err()
+            .to_string()
+            .contains("cannot reset spent"));
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn finished_numbered_parts_accept_only_provider_scope_gap() {
+        let part = json!({"part":{"number":1,"total":2},"result":{"complete":false,
+            "coverage_gaps":["reasoning-part-scope:reasoning.test:part 1/2"],
+            "details":{"deliveryEvidence":{},"verificationEvidence":{}}}});
+        assert!(packet_receipt_complete(&part));
+        let mut missing = part.clone();
+        missing["result"]["coverage_gaps"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("verification-unresolved"));
+        assert!(!packet_receipt_complete(&missing));
+    }
+    #[test]
+    fn reissued_retry_cannot_be_cleared_by_host_default_and_report_keeps_usage_gaps() {
+        let run = budget_run("retry-summary", 10000);
+        next(&run, &options(0)).unwrap();
+        let retry = next(&run, &options(LEASE)).unwrap();
+        let mut host_call = call("resumed-retry");
+        host_call.reservation_id =
+            Some(retry["seats"][0]["reservationId"].as_str().unwrap().into());
+        let admitted = reserve_call(&run, &host_call).unwrap();
+        assert!(admitted["budget"]["retryCalls"].as_u64().unwrap() >= 1);
+        let report = persisted_budget_report(&run).unwrap().unwrap();
+        assert!(report["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap.as_str().unwrap().contains("usage-missing")));
+        reconcile_usage(
+            &run,
+            &UsageReceipt {
+                reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+                receipt_id: "retry-failed".into(),
+                input_tokens: None,
+                output_tokens: None,
+                cached_input_tokens: None,
+                retry_tokens: None,
+                failed: true,
+            },
+        )
+        .unwrap();
+        let report = persisted_budget_report(&run).unwrap().unwrap();
+        assert!(report["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap.as_str().unwrap().contains("usage-unknown")));
+        assert!(report["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap.as_str().unwrap().contains("call-failed")));
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn reported_overrun_denies_other_already_issued_seat_after_resume() {
+        let run = budget_run("issued-overrun", 10000);
+        let wave = next(&run, &options(0)).unwrap();
+        let mut first = call("first-seat");
+        first.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
+        reserve_call(&run, &first).unwrap();
+        reconcile_usage(
+            &run,
+            &UsageReceipt {
+                reservation_id: first.reservation_id.unwrap(),
+                receipt_id: "overrun".into(),
+                input_tokens: Some(1),
+                output_tokens: Some(11),
+                cached_input_tokens: Some(0),
+                retry_tokens: Some(0),
+                failed: false,
+            },
+        )
+        .unwrap();
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        let mut second = call("second-seat");
+        second.reservation_id = Some(wave["seats"][1]["reservationId"].as_str().unwrap().into());
+        let denied = reserve_call(&run, &second).unwrap();
+        assert_eq!(denied["authorized"], false);
+        assert_eq!(denied["status"], "incomplete:budget-overrun");
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
+        assert!(persisted_budget_report(&run).unwrap().unwrap()["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap.as_str().unwrap().contains("budget-overrun")));
+        let _ = fs::remove_dir_all(run);
     }
 }

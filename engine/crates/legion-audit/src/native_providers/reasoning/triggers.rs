@@ -19,7 +19,12 @@
 //! a small bounded raw-byte scan for the two triggers (`platform-parity`,
 //! `resilience`) that need a content signature rather than a path shape.
 
-use std::path::Path;
+use std::{io::Read, path::Path};
+
+use legion_contracts::canonical_digest;
+use serde_json::{json, Value};
+
+use crate::error::AuditError;
 
 /// One evaluated trigger: whether it fired, and the human-readable evidence
 /// (grep hit or file path) recorded regardless of outcome, so a
@@ -34,6 +39,68 @@ pub struct TriggerEvaluation {
     /// The specific paths that fired the trigger, if any. Empty when not
     /// fired.
     pub evidence_paths: Vec<String>,
+    /// Content-based trigger checks that could not rule applicability out.
+    /// These paths remain required work, never checked-zero exclusions.
+    pub unavailable_paths: Vec<String>,
+}
+
+impl TriggerEvaluation {
+    pub fn required_paths(&self) -> Vec<String> {
+        self.evidence_paths
+            .iter()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
+    /// Unknown applicability keeps one deterministic review surface available;
+    /// every unavailable path remains a gap, without forcing exhaustive review.
+    pub fn applicable_paths(&self) -> Vec<String> {
+        let witnesses = self.required_paths();
+        if !witnesses.is_empty() {
+            return witnesses;
+        }
+        self.unavailable_paths
+            .iter()
+            .min()
+            .cloned()
+            .into_iter()
+            .collect()
+    }
+
+    /// Frozen before coverage selection; bound to the full applicable inventory.
+    pub fn snapshot(&self, inventory_digest: &str, paths: &[String]) -> Result<Value, AuditError> {
+        self.snapshot_with_source_sides(inventory_digest, paths, &std::collections::BTreeMap::new())
+    }
+
+    pub fn snapshot_with_source_sides(
+        &self,
+        inventory_digest: &str,
+        paths: &[String],
+        source_sides: &std::collections::BTreeMap<String, String>,
+    ) -> Result<Value, AuditError> {
+        let checked: std::collections::BTreeSet<&str> = paths.iter().map(String::as_str).collect();
+        let checked_digest =
+            canonical_digest(&checked).map_err(|error| AuditError::Invalid(error.to_string()))?;
+        let mut value = json!({
+            "schemaVersion": 1,
+            "lens": self.lens,
+            "fired": self.fired,
+            "reason": self.reason,
+            "evidencePaths": self.evidence_paths,
+            "unavailablePaths": self.unavailable_paths,
+            "mandatoryWitnessPaths": self.required_paths(),
+            "checkedPathsDigest": checked_digest,
+            "sourceSides": source_sides,
+            "inventoryDigest": inventory_digest,
+            "applicability": if self.fired { "triggered" } else if self.unavailable_paths.is_empty() { "not-applicable" } else { "unavailable" },
+        });
+        let digest =
+            canonical_digest(&value).map_err(|error| AuditError::Invalid(error.to_string()))?;
+        value["digest"] = json!(digest);
+        Ok(value)
+    }
 }
 
 /// Bound on how many bytes of any one file are scanned for a content-based
@@ -42,11 +109,30 @@ pub struct TriggerEvaluation {
 /// in the file, not to read the whole file.
 const CONTENT_SCAN_CAP_BYTES: usize = 64 * 1024;
 
-fn read_head(root: &Path, path: &str) -> Option<String> {
-    let full = root.join(path);
-    let bytes = std::fs::read(full).ok()?;
-    let capped = &bytes[..bytes.len().min(CONTENT_SCAN_CAP_BYTES)];
-    Some(String::from_utf8_lossy(capped).into_owned())
+fn read_head(root: &Path, path: &str) -> Result<(String, bool), ()> {
+    if crate::inventory::frozen_snapshot(root)
+        .map_err(|_| ())?
+        .is_some()
+    {
+        // Oversized sealed content remains applicability-unknown rather than
+        // reading unbound live bytes or silently declaring checked-zero.
+        let (bytes, _) =
+            super::excerpts::source_bytes(root, path, CONTENT_SCAN_CAP_BYTES).map_err(|_| ())?;
+        return Ok((String::from_utf8_lossy(&bytes).into_owned(), false));
+    }
+    let canonical_root = root.canonicalize().map_err(|_| ())?;
+    let canonical_path = root.join(path).canonicalize().map_err(|_| ())?;
+    if !canonical_path.starts_with(&canonical_root) {
+        return Err(());
+    }
+    let file = std::fs::File::open(canonical_path).map_err(|_| ())?;
+    let mut bytes = Vec::new();
+    file.take((CONTENT_SCAN_CAP_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|_| ())?;
+    let truncated = bytes.len() > CONTENT_SCAN_CAP_BYTES;
+    bytes.truncate(CONTENT_SCAN_CAP_BYTES);
+    Ok((String::from_utf8_lossy(&bytes).into_owned(), truncated))
 }
 
 fn has_extension(path: &str, extensions: &[&str]) -> bool {
@@ -78,6 +164,7 @@ fn evaluate_a11y(paths: &[String]) -> TriggerEvaluation {
             "checked JSX/TSX/HTML/Vue/Svelte extensions across the denominator; zero hits".into()
         },
         evidence_paths: hits,
+        unavailable_paths: Vec::new(),
     }
 }
 
@@ -118,6 +205,7 @@ fn evaluate_data_safety(paths: &[String]) -> TriggerEvaluation {
             "checked migration/SQL/storage/telemetry path signatures; zero hits".into()
         },
         evidence_paths: hits,
+        unavailable_paths: Vec::new(),
     }
 }
 
@@ -147,17 +235,23 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
         "child_process.spawn",
         "subprocess.Popen",
     ];
+    let mut unavailable = Vec::new();
     for path in paths {
         if hits.contains(path) || !has_extension(path, &content_extensions) {
             continue;
         }
-        if let Some(content) = read_head(root, path) {
-            if content_needles
-                .iter()
-                .any(|needle| content.contains(needle))
-            {
-                hits.push(path.clone());
+        match read_head(root, path) {
+            Ok((content, truncated)) => {
+                if content_needles
+                    .iter()
+                    .any(|needle| content.contains(needle))
+                {
+                    hits.push(path.clone());
+                } else if truncated {
+                    unavailable.push(path.clone());
+                }
             }
+            Err(()) => unavailable.push(path.clone()),
         }
     }
     let fired = !hits.is_empty();
@@ -170,10 +264,11 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
                 hits.len()
             )
         } else {
-            "checked sidecar/child-process/server/queue path and spawn-site signatures; zero hits"
+            "checked sidecar/child-process/server/queue path and spawn-site signatures; zero confirmed hits; unavailable content checks remain explicit"
                 .into()
         },
         evidence_paths: hits,
+        unavailable_paths: unavailable,
     }
 }
 
@@ -181,18 +276,24 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
 /// (TS/JS) content signatures, per `manual.md` line 275.
 fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation {
     let mut hits = Vec::new();
+    let mut unavailable = Vec::new();
     for path in paths {
         let is_rust = has_extension(path, &[".rs"]);
         let is_ts = has_extension(path, &[".ts", ".tsx", ".js", ".jsx"]);
         if !is_rust && !is_ts {
             continue;
         }
-        if let Some(content) = read_head(root, path) {
-            let matched = (is_rust && content.contains("cfg(target_os"))
-                || (is_ts && content.contains("usePlatform"));
-            if matched {
-                hits.push(path.clone());
+        match read_head(root, path) {
+            Ok((content, truncated)) => {
+                let matched = (is_rust && content.contains("cfg(target_os"))
+                    || (is_ts && content.contains("usePlatform"));
+                if matched {
+                    hits.push(path.clone());
+                } else if truncated {
+                    unavailable.push(path.clone());
+                }
             }
+            Err(()) => unavailable.push(path.clone()),
         }
     }
     let fired = !hits.is_empty();
@@ -205,9 +306,10 @@ fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation 
                 hits.len()
             )
         } else {
-            "checked cfg(target_os / usePlatform content signature across .rs/.ts/.tsx/.js/.jsx; zero hits".into()
+            "checked cfg(target_os / usePlatform content signature across .rs/.ts/.tsx/.js/.jsx; zero confirmed hits; unavailable content checks remain explicit".into()
         },
         evidence_paths: hits,
+        unavailable_paths: unavailable,
     }
 }
 
@@ -241,6 +343,7 @@ fn evaluate_release_readiness(paths: &[String]) -> TriggerEvaluation {
             "checked publish/signing/updater/tauri.conf.json path signatures; zero hits".into()
         },
         evidence_paths: hits,
+        unavailable_paths: Vec::new(),
     }
 }
 
@@ -360,6 +463,23 @@ mod tests {
         let paths = vec!["src/run.rs".to_string()];
         let evaluation = evaluate_trigger(dir.path(), "resilience", &paths).unwrap();
         assert!(evaluation.fired);
+    }
+
+    #[test]
+    fn unreadable_or_capped_content_is_unknown_not_checked_zero() {
+        let dir = ScratchDir::new();
+        write(
+            dir.path(),
+            "src/large.rs",
+            &"x".repeat(CONTENT_SCAN_CAP_BYTES + 1),
+        );
+        let paths = vec!["src/large.rs".into(), "src/missing.rs".into()];
+        let evaluation = evaluate_trigger(dir.path(), "platform-parity", &paths).unwrap();
+        assert!(!evaluation.fired);
+        assert_eq!(evaluation.unavailable_paths, paths);
+        assert_eq!(evaluation.required_paths(), paths);
+        let snapshot = evaluation.snapshot("frozen-inventory", &paths).unwrap();
+        assert_eq!(snapshot["applicability"], "unavailable");
     }
 
     #[test]

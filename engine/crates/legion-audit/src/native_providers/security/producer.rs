@@ -62,6 +62,9 @@ use crate::{
     plan::AuditProvider,
 };
 
+#[path = "scanner_tools.rs"]
+mod scanner_tools;
+
 const POLICY_ID: &str = "audit-security-producer-v1";
 const SARIF_FILE_LIMIT: usize = 16;
 const SARIF_BYTE_LIMIT: u64 = 8 * 1024 * 1024;
@@ -105,6 +108,7 @@ pub struct ArtifactProducer {
     search_path: Option<Vec<PathBuf>>,
     sandbox: SandboxPolicy,
     osv_database: Option<PathBuf>,
+    snapshot_manifest: Option<PathBuf>,
     timeout_ms: u64,
     output_limit: usize,
 }
@@ -125,6 +129,7 @@ impl ArtifactProducer {
             search_path: None,
             sandbox: SandboxPolicy::Required,
             osv_database,
+            snapshot_manifest: None,
             timeout_ms: 120_000,
             output_limit: 8 * 1024 * 1024,
         }
@@ -152,6 +157,12 @@ impl ArtifactProducer {
         self
     }
 
+    /// Immutable scope snapshot used for exact diff-bound policy checks.
+    pub fn with_snapshot_manifest(mut self, path: impl Into<PathBuf>) -> Self {
+        self.snapshot_manifest = Some(path.into());
+        self
+    }
+
     pub fn with_bounds(mut self, timeout_ms: u64, output_limit: usize) -> Self {
         self.timeout_ms = timeout_ms;
         self.output_limit = output_limit;
@@ -170,6 +181,8 @@ impl ArtifactProducer {
             scratch,
         };
         match provider.id.as_str() {
+            id if super::scanners::tool_for(id).is_some() => run.named_scanner(),
+            "security.suppression-changes" => run.suppression_changes(),
             "security.opengrep" => run.opengrep(),
             "structural.ast-grep" => run.ast_grep(),
             "container.iac" => run.container_iac(),
@@ -335,6 +348,25 @@ impl<'a> Run<'a> {
         accepted: &[i32],
         extra_env: &[(&str, String)],
     ) -> Result<ToolRun, String> {
+        self.run_tool_at(
+            names,
+            args,
+            accepted,
+            extra_env,
+            self.root(),
+            self.producer.timeout_ms,
+        )
+    }
+
+    fn run_tool_at(
+        &self,
+        names: &[&str],
+        args: Vec<String>,
+        accepted: &[i32],
+        extra_env: &[(&str, String)],
+        cwd: &Path,
+        timeout_ms: u64,
+    ) -> Result<ToolRun, String> {
         let primary = names.first().copied().unwrap_or("tool");
         let Some((tool, executable)) = self.producer.find_tool(names) else {
             return Err(format!("tool-missing:{primary}"));
@@ -344,7 +376,7 @@ impl<'a> Run<'a> {
         let executable_bytes =
             fs::read(&canonical).map_err(|_| format!("tool-missing:{primary}"))?;
         let executable_digest = digest(&executable_bytes);
-        let root_text = self.root().to_string_lossy().into_owned();
+        let root_text = cwd.to_string_lossy().into_owned();
 
         let mut environment: BTreeMap<String, String> = ENVIRONMENT_NAMES
             .iter()
@@ -373,7 +405,8 @@ impl<'a> Run<'a> {
                     &executable_text,
                     &args,
                     &root_text,
-                    legion_effects::SandboxMode::DenyNetwork,
+                    // Source scanners never need to write into their project.
+                    legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
                     &self.scratch.path.join("sandbox"),
                 ) {
                     Ok(auth) => {
@@ -421,7 +454,7 @@ impl<'a> Run<'a> {
             environment_allowlist: allowlist,
             requires_network_sandbox: requires_sandbox,
             sandbox,
-            timeout_ms: self.producer.timeout_ms,
+            timeout_ms,
             stdout_limit: self.producer.output_limit,
             stderr_limit: self.producer.output_limit,
             version_args: version_args.unwrap_or_else(|| vec!["--version".into()]),

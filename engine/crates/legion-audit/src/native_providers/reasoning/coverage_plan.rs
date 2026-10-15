@@ -413,6 +413,7 @@ pub fn gather_facts(
     changed: &BTreeSet<String>,
 ) -> BTreeMap<String, FileFacts> {
     let churn = git_churn(root);
+    let snapshot = crate::inventory::frozen_snapshot(root).ok().flatten();
     let mut dependency_counts: BTreeMap<&str, u32> = BTreeMap::new();
     for entry in &inventory.entries {
         for dependency in &entry.dependencies {
@@ -423,9 +424,24 @@ pub fn gather_facts(
         .entries
         .iter()
         .map(|entry| {
-            let size = std::fs::metadata(root.join(&entry.path))
-                .map(|metadata| metadata.len())
-                .unwrap_or(0);
+            let size = snapshot
+                .as_ref()
+                .and_then(|(snapshot, side)| {
+                    let files = if *side == crate::snapshot::SnapshotSide::Base
+                        || !snapshot.manifest.files.contains_key(&entry.path)
+                            && snapshot.manifest.scope.changed_paths.contains(&entry.path)
+                    {
+                        &snapshot.manifest.base_files
+                    } else {
+                        &snapshot.manifest.files
+                    };
+                    files.get(&entry.path).map(|file| file.bytes as u64)
+                })
+                .unwrap_or_else(|| {
+                    std::fs::metadata(root.join(&entry.path))
+                        .map(|metadata| metadata.len())
+                        .unwrap_or(0)
+                });
             let stem = Path::new(&entry.path)
                 .file_stem()
                 .and_then(|stem| stem.to_str())
@@ -548,10 +564,23 @@ pub fn plan_coverage(
     lenses: &[LensInput],
     request: &CoverageRequest,
 ) -> Result<BTreeMap<String, Value>, AuditError> {
+    plan_coverage_with_witnesses(seed_basis, facts, lenses, request, &BTreeMap::new())
+}
+
+/// Conditional trigger witnesses are fixed before sampling & join mandatory
+/// work in their bundle. Declared unsampled paths retain their existing policy.
+pub fn plan_coverage_with_witnesses(
+    seed_basis: &Value,
+    facts: &BTreeMap<String, FileFacts>,
+    lenses: &[LensInput],
+    request: &CoverageRequest,
+    witnesses: &BTreeMap<String, BTreeSet<String>>,
+) -> Result<BTreeMap<String, Value>, AuditError> {
     let seed = canonical_digest(&json!({
         "kind": "legion-coverage-seed:v1",
         "basis": seed_basis,
         "request": request.to_value(),
+        "mandatoryWitnesses": witnesses,
     }))
     .map_err(|error| AuditError::Invalid(error.to_string()))?;
 
@@ -660,6 +689,7 @@ pub fn plan_coverage(
                     "denominator": paths.len(),
                     "reviewSet": paths,
                     "reviewSetDigest": digest,
+                    "mandatoryWitnessPaths": witnesses.get(&lens.provider_id).cloned().unwrap_or_default(),
                     "strata": [{"name": "all", "N": lens.paths.len(), "n": lens.paths.len(), "paths": Value::Null}],
                     "excluded": {"count": 0},
                     "declaredUnsampled": 0,
@@ -672,6 +702,22 @@ pub fn plan_coverage(
 
     // ---- risk-sampled -------------------------------------------------------
     let universe: BTreeSet<&str> = denominators.values().flatten().copied().collect();
+    let bundle_witnesses: BTreeMap<&str, BTreeSet<&str>> = bundle_lenses
+        .iter()
+        .map(|(bundle, members)| {
+            let paths = members
+                .iter()
+                .flat_map(|lens| {
+                    witnesses
+                        .get(&lens.provider_id)
+                        .into_iter()
+                        .flatten()
+                        .map(String::as_str)
+                })
+                .collect();
+            (*bundle, paths)
+        })
+        .collect();
     let eligible: Vec<&str> = universe
         .iter()
         .copied()
@@ -728,11 +774,12 @@ pub fn plan_coverage(
         .collect();
     let mut full_cost: BTreeMap<&'static str, u64> = BTreeMap::new();
     for bundle in &present {
-        let tokens: u64 = eligible
+        let tokens: u64 = denominators[bundle.id]
             .iter()
-            .filter(|path| denominators[bundle.id].contains(**path))
+            .filter(|path| !is_lens_excluded(path) || bundle_witnesses[bundle.id].contains(**path))
             .map(|path| {
-                let mandatory = mandatory_set.contains(path);
+                let mandatory =
+                    mandatory_set.contains(path) || bundle_witnesses[bundle.id].contains(*path);
                 estimate_bytes(
                     sample_mode(bundle, mandatory),
                     facts.get(*path).map_or(0, |f| f.size),
@@ -776,10 +823,10 @@ pub fn plan_coverage(
     let mandatory_required: BTreeMap<&'static str, u64> = present
         .iter()
         .map(|bundle| {
-            let bytes: u64 = eligible
+            let bytes: u64 = denominators[bundle.id]
                 .iter()
                 .filter(|path| {
-                    mandatory_set.contains(**path) && denominators[bundle.id].contains(**path)
+                    mandatory_set.contains(**path) || bundle_witnesses[bundle.id].contains(**path)
                 })
                 .map(|path| {
                     estimate_bytes(
@@ -828,9 +875,25 @@ pub fn plan_coverage(
                 .map(|path| (*path).to_owned())
                 .collect()
         };
-        let m = keep(&mandatory);
-        let h = keep(&hotspots);
-        let r = keep(&remainder);
+        let mut m = keep(&mandatory);
+        // Only the applicable bundle inherits witnesses. Other bundles keep
+        // their risk sample; trigger coverage never silently makes all lenses exhaustive.
+        m.extend(
+            bundle_witnesses[bundle.id]
+                .iter()
+                .filter(|path| den.contains(**path))
+                .map(|path| (*path).to_owned()),
+        );
+        m.sort();
+        m.dedup();
+        let h = keep(&hotspots)
+            .into_iter()
+            .filter(|path| !bundle_witnesses[bundle.id].contains(path.as_str()))
+            .collect::<Vec<_>>();
+        let r = keep(&remainder)
+            .into_iter()
+            .filter(|path| !bundle_witnesses[bundle.id].contains(path.as_str()))
+            .collect::<Vec<_>>();
         let m_refs: Vec<&str> = m.iter().map(String::as_str).collect();
         let h_refs: Vec<&str> = h.iter().map(String::as_str).collect();
         let r_refs: Vec<&str> = r.iter().map(String::as_str).collect();
@@ -895,12 +958,23 @@ pub fn plan_coverage(
         let excluded = lens
             .paths
             .iter()
-            .filter(|path| is_lens_excluded(path))
+            .filter(|path| {
+                is_lens_excluded(path) && !bundle_witnesses[bundle.id].contains(path.as_str())
+            })
             .count();
-        let in_den = |list: &[&str]| list.iter().filter(|p| denominator.contains(**p)).count();
-        let mandatory_n = in_den(&mandatory);
-        let hotspot_n = in_den(&hotspots);
-        let remainder_n = in_den(&remainder);
+        let mandatory_n = strata_paths.get("mandatory").map_or(0, Vec::len);
+        let hotspot_n = hotspots
+            .iter()
+            .filter(|path| {
+                denominator.contains(**path) && !bundle_witnesses[bundle.id].contains(**path)
+            })
+            .count();
+        let remainder_n = remainder
+            .iter()
+            .filter(|path| {
+                denominator.contains(**path) && !bundle_witnesses[bundle.id].contains(**path)
+            })
+            .count();
         let strata = json!([
             {"name": "mandatory", "N": mandatory_n, "n": strata_paths.get("mandatory").map_or(0, Vec::len),
              "paths": strata_paths.get("mandatory").cloned().unwrap_or_default()},
@@ -932,6 +1006,7 @@ pub fn plan_coverage(
                 "denominator": lens.paths.len(),
                 "reviewSet": review_set,
                 "reviewSetDigest": digest,
+                "mandatoryWitnessPaths": witnesses.get(&lens.provider_id).cloned().unwrap_or_default(),
                 "strata": strata,
                 "excluded": {"count": excluded},
                 "declaredUnsampled": declared_unsampled,

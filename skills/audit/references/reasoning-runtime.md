@@ -1,0 +1,58 @@
+# Audit reasoning runtime
+
+`legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]` runs frozen reasoning
+packets with native Claude. It is the current Stage 2 interface; `legion audit` freezes and scans,
+then this command runs lenses, verifies findings, ingests receipts, and recomputes the report.
+
+## Scope and source
+
+Run packets bind the selected provider plan and immutable source snapshot. Supported scopes include
+whole repository (`all|repo`), local changes (`local`), legacy unstaged-only (`uncommitted`), staged,
+committed, `commit:<ref>`, `branch[:base]`, `range:<base>..<head>`, `since-last`, and attested PR
+scopes. `--dir` restricts a path prefix. `local` includes committed-but-unpushed, staged, unstaged,
+and untracked changes; `uncommitted` intentionally keeps legacy unstaged-only meaning. The plan
+records selected/baseline identities, changed paths, and snapshot digests. Reasoning tools read this
+snapshot, not live repository files. Source drift, unavailable content, symlinks, submodules, or
+other snapshot gaps remain visible and can make a run incomplete. PR acquisition is bounded to
+attested metadata and object-only fetch into an isolated bare cache; it does not update repository
+refs or index.
+
+`since-last` uses the last validated completed report; history advances only after full reconciliation.
+An incomplete run cannot become the next baseline.
+
+## Host boundary and lifecycle
+
+The host preflights Claude CLI capabilities and starts one-turn processes with native tools, MCP,
+shell, plugins, subagents, and session persistence disabled. The only model-call tools are
+host-provided read-only operations over the frozen snapshot: `audit.read_file`, `audit.search_code`,
+`audit.list_files`, `audit.read_diff`, and lexical `audit.find_callers`. Reads and replies have
+bounded size, lines, file count, elapsed time, and snapshot identity. Caller results are lexical
+evidence, not a semantic call graph. Missing safe controls or native executable produces a typed
+incomplete result; no API provider fallback is used.
+
+Each call reserves budget before transport; observed usage is reconciled afterward. Usage fields
+remain unknown when the native result omits them. Missing usage is never recorded as zero, and every
+additional call requires its own reservation. The runtime retains partial findings and gaps when
+budget or runtime work stops. A separate fresh verifier receives each proposed finding and compact
+source evidence without the author's context or tools. It may uphold with anchored evidence,
+contradict with anchored counterevidence, or leave the claim unresolved; unresolved findings are
+retained as unverified. Ingested receipts are authenticated and the report is recomputed. `done`
+requires complete applicable work, no unresolved runtime/snapshot/report gaps, and final report
+reconciliation.
+
+The renderer's findings and status remain the machine source of truth. A completed run is not a
+claim that semantic recall or provider accuracy has been benchmark-qualified.
+
+## Offline scanner prerequisites
+
+Named security scanners run only when their frozen provider is selected and applicable. The runner
+requires each executable on host `PATH`; a missing binary is `tool-missing:<tool>`, never clean.
+Current named integrations are Squawk, Zizmor, ShellCheck, TFLint, Kubeconform, Kube-Linter,
+Brakeman, and GolangCI-Lint. Kubeconform additionally requires a host-pinned local schema tree with
+recorded version and digest; remote schema fetching is not a fallback. Project/root grouping and
+file applicability are provider-specific. Install/readiness checks belong to `legion doctor`; an
+absent tool remains a coverage gap.
+
+Pattern cards refine existing lens review and are selected only when lens metadata and repository
+applicability match. See [canonical pattern cards](pattern-cards.md) and
+[lens routing](lens-routing.md).

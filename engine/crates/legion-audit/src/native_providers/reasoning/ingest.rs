@@ -21,9 +21,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use hmac::{Hmac, KeyInit, Mac};
 use legion_contracts::{
-    canonical_digest, Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
-    ReportStatus, ReportV1,
+    canonical_digest, canonical_json_bytes, Coverage, FindingId, FindingRef, ProviderId,
+    ProviderResult, ProviderStatus, ReportStatus, ReportV1,
 };
 use serde::Serialize;
 use serde_json::{json, Map, Value};
@@ -38,8 +39,8 @@ use super::{
         ConfirmedSecurityFinding, ScannerCandidate, TriageContext, ADJUDICATOR_PROVIDER_ID,
     },
     verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
-    ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
-    REASONING_RECEIPT_SCHEMA_VERSION,
+    ReasoningHostResponse, ReasoningInvocation, ReasoningReceipt, REASONING_PROVIDER_IDS,
+    REASONING_RECEIPT_KIND, REASONING_RECEIPT_SCHEMA_VERSION,
 };
 use crate::plan::{AuditPlan, PROVIDER_UNIVERSE_BOUND};
 
@@ -61,6 +62,564 @@ const EPOCH_DOMAIN: &[u8] = b"legion-audit-epoch:v1";
 /// Prominent label of a risk-sampled run (Astra D2).
 pub const SAMPLED_AUDIT_LABEL: &str = "whole-repository risk-sampled audit";
 const NOT_COMPLETE_GAP: &str = "selected reasoning lenses did not complete";
+
+const RUNTIME_DELIVERY_DIR: &str = "runtime-delivery";
+const RUNTIME_DELIVERY_DOMAIN: &str = "legion-audit-runtime-delivery:v1";
+
+fn runtime_delivery_name(request: &ReasoningInvocation) -> String {
+    format!(
+        "{}.json",
+        hex::encode(Sha256::digest(request.request_id.as_bytes()))
+    )
+}
+
+fn runtime_delivery_message(
+    request: &ReasoningInvocation,
+    evidence: &Value,
+    epoch: &str,
+) -> Result<Value, AuditError> {
+    Ok(json!({
+        "schemaVersion":1, "kind":"legion-audit-runtime-delivery", "macDomain":RUNTIME_DELIVERY_DOMAIN,
+        "requestId":request.request_id, "planDigest":request.plan_digest,
+        "inventoryDigest":request.inventory_digest, "inventoryGeneration":request.inventory_generation,
+        "packetDigest":canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?,
+        "epochDigest":epoch, "evidence":evidence,
+    }))
+}
+
+/// Trusted runtime only: mint AFTER actual transport delivers complete packet.
+/// The epoch key remains in this host process; model output is never evidence.
+pub fn mint_runtime_delivery(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    evidence: &Value,
+) -> Result<Value, AuditError> {
+    super::validate_delivery_evidence(request, evidence).map_err(invalid)?;
+    request.validate().map_err(invalid)?;
+    let (key, epoch) = load_epoch(run_dir)?;
+    let message = runtime_delivery_message(request, evidence, &epoch)?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(&key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&message).map_err(|error| invalid(error.to_string()))?);
+    let envelope = json!({"message":message,"authentication":{"alg":"HMAC-SHA256","mac":hex::encode(mac.finalize().into_bytes())}});
+    let path = write_atomic(
+        &run_dir.join(RUNTIME_DELIVERY_DIR),
+        &runtime_delivery_name(request),
+        &serde_json::to_vec_pretty(&envelope).map_err(|error| invalid(error.to_string()))?,
+    )?;
+    Ok(json!({"path":path,"receiptId":evidence.get("receiptId"),"requestId":request.request_id}))
+}
+
+fn runtime_delivery(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    key: &[u8],
+    epoch: &str,
+) -> Result<Option<Value>, AuditError> {
+    let path = run_dir
+        .join(RUNTIME_DELIVERY_DIR)
+        .join(runtime_delivery_name(request));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let envelope = read_json(&path)?;
+    let evidence = envelope
+        .pointer("/message/evidence")
+        .ok_or_else(|| invalid("runtime delivery evidence missing"))?;
+    let expected = runtime_delivery_message(request, evidence, epoch)?;
+    if envelope.get("message") != Some(&expected)
+        || envelope
+            .pointer("/authentication/alg")
+            .and_then(Value::as_str)
+            != Some("HMAC-SHA256")
+    {
+        return Err(invalid("runtime delivery binding mismatch"));
+    }
+    let presented = envelope
+        .pointer("/authentication/mac")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("runtime delivery MAC missing"))?;
+    let presented =
+        hex::decode(presented).map_err(|_| invalid("runtime delivery MAC malformed"))?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&expected).map_err(|error| invalid(error.to_string()))?);
+    mac.verify_slice(&presented)
+        .map_err(|_| invalid("runtime delivery MAC invalid"))?;
+    super::validate_delivery_evidence(request, evidence).map_err(invalid)?;
+    Ok(Some(evidence.clone()))
+}
+
+const RUNTIME_VERIFICATION_DIR: &str = "runtime-verification";
+const RUNTIME_VERIFICATION_DOMAIN: &str = "legion-audit-runtime-verification:v1";
+
+pub(super) fn validate_runtime_verification(
+    request: &ReasoningInvocation,
+    evidence: &Value,
+) -> Result<(), AuditError> {
+    let digest = canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?;
+    if evidence.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || evidence.get("kind").and_then(Value::as_str) != Some("legion-runtime-verification")
+        || evidence.get("requestId").and_then(Value::as_str) != Some(request.request_id.as_str())
+        || evidence.get("packetDigest").and_then(Value::as_str) != Some(digest.as_str())
+    {
+        return Err(invalid("runtime verification binding malformed"));
+    }
+    let rows = evidence
+        .get("findings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| invalid("runtime verification finding ledger missing"))?;
+    let mut ids = BTreeSet::new();
+    let actor = |value: &Value| -> Result<(String, u64), AuditError> {
+        let context = value
+            .get("contextId")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| invalid("verification context ID missing"))?;
+        let pid = value
+            .get("processId")
+            .and_then(Value::as_u64)
+            .filter(|pid| *pid > 0)
+            .ok_or_else(|| invalid("verification process ID missing"))?;
+        if value.get("processCreated").and_then(Value::as_bool) != Some(true)
+            || value
+                .get("responseDigest")
+                .and_then(Value::as_str)
+                .is_none_or(|value| value.is_empty())
+        {
+            return Err(invalid(
+                "verification host process/response observation missing",
+            ));
+        }
+        Ok((context.to_owned(), pid))
+    };
+    for row in rows {
+        let id = row
+            .get("findingId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| invalid("verification finding ID missing"))?;
+        if !ids.insert(id) {
+            return Err(invalid("duplicate verification finding ID"));
+        }
+        let original = row
+            .get("authorFinding")
+            .ok_or_else(|| invalid("verification author finding missing"))?;
+        let original_digest =
+            canonical_digest(original).map_err(|error| invalid(error.to_string()))?;
+        if original.get("id").and_then(Value::as_str) != Some(id)
+            || row.get("findingDigest").and_then(Value::as_str) != Some(original_digest.as_str())
+        {
+            return Err(invalid(
+                "verification author finding identity/digest mismatch",
+            ));
+        }
+        if row
+            .get("reason")
+            .and_then(Value::as_str)
+            .is_none_or(|reason| reason.trim().is_empty())
+        {
+            return Err(invalid("verification disposition reason missing"));
+        }
+        let author = actor(row.get("author").unwrap_or(&Value::Null))?;
+        let verdict = row.get("verdict").and_then(Value::as_str).unwrap_or("");
+        if !matches!(verdict, "upheld" | "contradicted" | "unresolved") {
+            return Err(invalid("unknown host verification verdict"));
+        }
+        match row.get("reviewer").filter(|value| !value.is_null()) {
+            Some(reviewer) => {
+                let reviewer = actor(reviewer)?;
+                if author.0 == reviewer.0 || author.1 == reviewer.1 {
+                    return Err(invalid(
+                        "verification requires distinct host-observed process & context",
+                    ));
+                }
+            }
+            None if verdict == "unresolved" => {}
+            None => {
+                return Err(invalid(
+                    "verified disposition has no independent reviewer process",
+                ))
+            }
+        }
+        if verdict == "contradicted"
+            && row
+                .get("contradictionAnchorsVerified")
+                .and_then(Value::as_bool)
+                != Some(true)
+        {
+            return Err(invalid(
+                "contradicted finding has no verified source contradiction",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Host-only independent verification receipt, isolated from model output.
+pub fn mint_runtime_verification(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    evidence: &Value,
+) -> Result<Value, AuditError> {
+    validate_runtime_verification(request, evidence)?;
+    request.validate().map_err(invalid)?;
+    let (key, epoch) = load_epoch(run_dir)?;
+    let mut message = runtime_delivery_message(request, evidence, &epoch)?;
+    message["kind"] = json!("legion-audit-runtime-verification");
+    message["macDomain"] = json!(RUNTIME_VERIFICATION_DOMAIN);
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(&key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&message).map_err(|error| invalid(error.to_string()))?);
+    let envelope = json!({"message":message,"authentication":{"alg":"HMAC-SHA256","mac":hex::encode(mac.finalize().into_bytes())}});
+    let path = write_atomic(
+        &run_dir.join(RUNTIME_VERIFICATION_DIR),
+        &runtime_delivery_name(request),
+        &serde_json::to_vec_pretty(&envelope).map_err(|error| invalid(error.to_string()))?,
+    )?;
+    Ok(json!({"path":path,"requestId":request.request_id}))
+}
+
+fn runtime_verification(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    key: &[u8],
+    epoch: &str,
+) -> Result<Option<Value>, AuditError> {
+    let path = run_dir
+        .join(RUNTIME_VERIFICATION_DIR)
+        .join(runtime_delivery_name(request));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let envelope = read_json(&path)?;
+    let evidence = envelope
+        .pointer("/message/evidence")
+        .ok_or_else(|| invalid("runtime verification evidence missing"))?;
+    let mut expected = runtime_delivery_message(request, evidence, epoch)?;
+    expected["kind"] = json!("legion-audit-runtime-verification");
+    expected["macDomain"] = json!(RUNTIME_VERIFICATION_DOMAIN);
+    if envelope.get("message") != Some(&expected)
+        || envelope
+            .pointer("/authentication/alg")
+            .and_then(Value::as_str)
+            != Some("HMAC-SHA256")
+    {
+        return Err(invalid("runtime verification binding mismatch"));
+    }
+    let presented = envelope
+        .pointer("/authentication/mac")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("runtime verification MAC missing"))?;
+    let presented =
+        hex::decode(presented).map_err(|_| invalid("runtime verification MAC malformed"))?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&expected).map_err(|error| invalid(error.to_string()))?);
+    mac.verify_slice(&presented)
+        .map_err(|_| invalid("runtime verification MAC invalid"))?;
+    validate_runtime_verification(request, evidence)?;
+    Ok(Some(evidence.clone()))
+}
+
+pub(super) fn verification_projection_gaps(
+    provider_id: &str,
+    proof: Option<&Value>,
+    findings: &[Value],
+    withdrawn: &[Value],
+) -> Result<Vec<String>, AuditError> {
+    let Some(proof) = proof else {
+        return Ok(vec![format!("verification-unverified:{provider_id}:missing authenticated independent verification receipt")]);
+    };
+    let rows = proof["findings"]
+        .as_array()
+        .ok_or_else(|| invalid("verification ledger malformed"))?;
+    let mut accounted = BTreeSet::new();
+    let mut gaps = Vec::new();
+    for row in rows {
+        let id = row["findingId"]
+            .as_str()
+            .ok_or_else(|| invalid("verification ID missing"))?;
+        let verdict = row["verdict"].as_str().unwrap_or("");
+        let original = &row["authorFinding"];
+        let live = findings
+            .iter()
+            .find(|finding| finding.get("id").and_then(Value::as_str) == Some(id));
+        let dropped = withdrawn
+            .iter()
+            .find(|finding| finding.get("id").and_then(Value::as_str) == Some(id));
+        match verdict {
+            "upheld" | "unresolved" => {
+                let finding =
+                    live.ok_or_else(|| invalid(format!("verification lost live finding {id}")))?;
+                if dropped.is_some() {
+                    return Err(invalid("finding both live & withdrawn"));
+                }
+                let correctness = provider_id == "reasoning.correctness"
+                    || original.get("lens").and_then(Value::as_str) == Some("correctness");
+                let clean = |finding: &Value| {
+                    let mut value = finding.clone();
+                    if let Some(object) = value.as_object_mut() {
+                        object.remove("verifyStatus");
+                        if correctness {
+                            object.remove("verificationMethod");
+                        }
+                    }
+                    value
+                };
+                if clean(finding) != clean(original) {
+                    return Err(invalid(format!(
+                        "verification changed finding {id} beyond allowed status fields"
+                    )));
+                }
+                let expected = if verdict == "upheld" {
+                    "verified"
+                } else {
+                    "unverified"
+                };
+                if finding.get("verifyStatus").and_then(Value::as_str) != Some(expected)
+                    || (correctness
+                        && finding.get("verificationMethod").and_then(Value::as_str)
+                            != Some("adversarial-skeptic-pass"))
+                {
+                    return Err(invalid(
+                        "finding verification fields disagree with host receipt",
+                    ));
+                }
+                if verdict == "unresolved" {
+                    gaps.push(format!("verification-unresolved:{provider_id}:{id}"));
+                }
+            }
+            "contradicted" => {
+                if live.is_some() {
+                    return Err(invalid("contradicted finding still marked live"));
+                }
+                let withdrawal = dropped.ok_or_else(|| {
+                    invalid(format!("verified contradiction lost withdrawal {id}"))
+                })?;
+                let disproof = withdrawal
+                    .get("disproof")
+                    .ok_or_else(|| invalid("withdrawal disproof missing"))?;
+                let anchors = row
+                    .get("evidence")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| invalid("contradiction anchor evidence missing"))?;
+                if !anchors.contains(disproof) {
+                    return Err(invalid(
+                        "withdrawal disproof differs from host contradiction evidence",
+                    ));
+                }
+            }
+            _ => return Err(invalid("unknown verification disposition")),
+        }
+        accounted.insert(id);
+    }
+    for finding in findings.iter().chain(withdrawn) {
+        if finding
+            .get("id")
+            .and_then(Value::as_str)
+            .is_none_or(|id| !accounted.contains(id))
+        {
+            return Err(invalid(
+                "finding/withdrawal missing host verification disposition",
+            ));
+        }
+    }
+    Ok(gaps)
+}
+
+fn verification_result_gaps(
+    provider_id: &str,
+    proof: Option<&Value>,
+    findings: &[Value],
+    withdrawn: &[Value],
+    frozen: &FrozenFiles<'_>,
+) -> Result<Vec<String>, AuditError> {
+    let gaps = verification_projection_gaps(provider_id, proof, findings, withdrawn)?;
+    for row in proof
+        .and_then(|proof| proof.get("findings"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if row.get("verdict").and_then(Value::as_str) == Some("contradicted") {
+            for anchor in row
+                .get("evidence")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                frozen.check("host verification contradiction", Some(anchor))?;
+            }
+        }
+    }
+    Ok(gaps)
+}
+
+const RUNTIME_ADJUDICATION_DIR: &str = "runtime-adjudication";
+const RUNTIME_ADJUDICATION_DOMAIN: &str = "legion-audit-runtime-adjudication:v1";
+
+fn validate_runtime_adjudication(
+    request: &ReasoningInvocation,
+    packet: &Value,
+    observation: &Value,
+) -> Result<(), AuditError> {
+    if request.provider_id != ADJUDICATOR_PROVIDER_ID
+        || observation.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || observation.get("kind").and_then(Value::as_str)
+            != Some("legion-adjudication-stage-observation")
+        || observation
+            .get("workItemId")
+            .and_then(Value::as_str)
+            .is_none_or(|id| id.is_empty())
+        || observation
+            .get("observedContextId")
+            .and_then(Value::as_str)
+            .is_none_or(|id| id.is_empty())
+        || observation
+            .get("processId")
+            .and_then(Value::as_u64)
+            .is_none_or(|pid| pid == 0)
+        || observation.get("processCreated").and_then(Value::as_bool) != Some(true)
+        || observation
+            .get("responseDigest")
+            .and_then(Value::as_str)
+            .is_none_or(|id| id.is_empty())
+        || observation.get("complete").and_then(Value::as_bool) != Some(true)
+        || observation.get("truncated").and_then(Value::as_bool) != Some(false)
+    {
+        return Err(invalid(
+            "runtime adjudication observation malformed/incomplete",
+        ));
+    }
+    let child =
+        if packet.get("kind").and_then(Value::as_str) == Some("legion-audit-adjudication-seat") {
+            packet
+                .get("packet")
+                .ok_or_else(|| invalid("runtime stage wrapper has no child packet"))?
+        } else {
+            packet
+        };
+    let packet_digest = canonical_digest(child).map_err(|error| invalid(error.to_string()))?;
+    let bytes = canonical_json_bytes(child)
+        .map_err(|error| invalid(error.to_string()))?
+        .len() as u64;
+    if observation.get("workPacketDigest").and_then(Value::as_str) != Some(packet_digest.as_str())
+        || observation
+            .get("deliveredPacketBytes")
+            .and_then(Value::as_u64)
+            != Some(bytes)
+    {
+        return Err(invalid(
+            "runtime adjudication delivery does not bind exact child packet",
+        ));
+    }
+    Ok(())
+}
+
+/// Authenticated observation of exactly the child packet actually sent. This
+/// never claims delivery of the parent packet or of another stage's evidence.
+pub fn mint_runtime_adjudication(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    stage_packet: &Value,
+    observation: &Value,
+) -> Result<Value, AuditError> {
+    request.validate().map_err(invalid)?;
+    validate_runtime_adjudication(request, stage_packet, observation)?;
+    let (key, epoch) = load_epoch(run_dir)?;
+    let payload = json!({"stagePacket":stage_packet,"observation":observation});
+    let mut message = runtime_delivery_message(request, &payload, &epoch)?;
+    message["kind"] = json!("legion-audit-runtime-adjudication");
+    message["macDomain"] = json!(RUNTIME_ADJUDICATION_DOMAIN);
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(&key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&message).map_err(|error| invalid(error.to_string()))?);
+    let envelope = json!({"message":message,"authentication":{"alg":"HMAC-SHA256","mac":hex::encode(mac.finalize().into_bytes())}});
+    let identity = json!([
+        request.request_id,
+        observation.get("workItemId"),
+        observation.get("observedContextId")
+    ]);
+    let name = format!(
+        "{}.json",
+        hex::encode(Sha256::digest(
+            canonical_json_bytes(&identity).map_err(|error| invalid(error.to_string()))?
+        ))
+    );
+    let path = write_atomic(
+        &run_dir.join(RUNTIME_ADJUDICATION_DIR),
+        &name,
+        &serde_json::to_vec_pretty(&envelope).map_err(|error| invalid(error.to_string()))?,
+    )?;
+    Ok(json!({"path":path,"workItemId":observation.get("workItemId")}))
+}
+
+fn runtime_adjudication(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+    key: &[u8],
+    epoch: &str,
+) -> Result<Vec<Value>, AuditError> {
+    let directory = run_dir.join(RUNTIME_ADJUDICATION_DIR);
+    if !directory.exists() {
+        return Ok(Vec::new());
+    }
+    let mut paths = fs::read_dir(&directory)
+        .map_err(|error| invalid(error.to_string()))?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| invalid(error.to_string()))?;
+    paths.sort();
+    let mut observations = Vec::new();
+    for path in paths.into_iter().filter(|path| {
+        path.extension()
+            .is_some_and(|extension| extension == "json")
+    }) {
+        let envelope = read_json(&path)?;
+        if envelope
+            .pointer("/message/requestId")
+            .and_then(Value::as_str)
+            != Some(request.request_id.as_str())
+        {
+            continue;
+        }
+        let payload = envelope
+            .pointer("/message/evidence")
+            .ok_or_else(|| invalid("runtime stage payload missing"))?;
+        let packet = payload
+            .get("stagePacket")
+            .ok_or_else(|| invalid("runtime stage packet missing"))?;
+        let observation = payload
+            .get("observation")
+            .ok_or_else(|| invalid("runtime stage observation missing"))?;
+        let mut expected = runtime_delivery_message(request, payload, epoch)?;
+        expected["kind"] = json!("legion-audit-runtime-adjudication");
+        expected["macDomain"] = json!(RUNTIME_ADJUDICATION_DOMAIN);
+        if envelope.get("message") != Some(&expected)
+            || envelope
+                .pointer("/authentication/alg")
+                .and_then(Value::as_str)
+                != Some("HMAC-SHA256")
+        {
+            return Err(invalid("runtime stage parent binding mismatch"));
+        }
+        let presented = envelope
+            .pointer("/authentication/mac")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("runtime stage MAC missing"))?;
+        let presented =
+            hex::decode(presented).map_err(|_| invalid("runtime stage MAC malformed"))?;
+        let mut mac =
+            Hmac::<Sha256>::new_from_slice(key).map_err(|error| invalid(error.to_string()))?;
+        mac.update(&canonical_json_bytes(&expected).map_err(|error| invalid(error.to_string()))?);
+        mac.verify_slice(&presented)
+            .map_err(|_| invalid("runtime stage MAC invalid"))?;
+        validate_runtime_adjudication(request, packet, observation)?;
+        observations.push(observation.clone());
+    }
+    Ok(observations)
+}
 
 /// Lens-schema finding fields (`lens_schemas.rs`: the shared shape plus the
 /// per-lens extras `verificationMethod`, `ponytailTag`, `parentFindingId`)
@@ -222,6 +781,8 @@ fn safe_relative(path: &str) -> bool {
 struct FrozenFiles<'a> {
     root: &'a Path,
     digests: BTreeMap<String, String>,
+    snapshot: Option<&'a crate::snapshot::FrozenSnapshot>,
+    source_sides: BTreeMap<String, String>,
 }
 
 impl FrozenFiles<'_> {
@@ -257,19 +818,46 @@ impl FrozenFiles<'_> {
                 "{who}: anchor.path {path} is not a safe relative path"
             )));
         }
-        let expected = self.digests.get(path).ok_or_else(|| {
-            invalid(format!(
-                "{who}: anchor path {path} is not in the frozen inventory"
-            ))
-        })?;
-        let bytes = fs::read(self.root.join(path))
-            .map_err(|error| io(error, &format!("{who}: could not read anchor file {path}")))?;
-        let actual = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
-        if &actual != expected {
-            return Err(AuditError::SourceDrift(format!(
-                "{who}: {path} differs from the frozen revision"
-            )));
-        }
+        let side = object
+            .get("sourceSide")
+            .and_then(Value::as_str)
+            .or_else(|| self.source_sides.get(path).map(String::as_str))
+            .unwrap_or("selected");
+        let bytes = if let Some(snapshot) = self.snapshot {
+            let selected_side = match side {
+                "selected" => crate::snapshot::SnapshotSide::Selected,
+                "base"
+                    if snapshot.manifest.scope.changed_paths.contains(path)
+                        && snapshot.manifest.base_files.contains_key(path) =>
+                {
+                    crate::snapshot::SnapshotSide::Base
+                }
+                _ => {
+                    return Err(invalid(format!(
+                        "{who}: source side {side} not available for {path}"
+                    )))
+                }
+            };
+            snapshot.read(path, selected_side, 32 * 1024 * 1024)?
+        } else {
+            if side != "selected" {
+                return Err(invalid("base anchor requires immutable snapshot"));
+            }
+            let expected = self.digests.get(path).ok_or_else(|| {
+                invalid(format!(
+                    "{who}: anchor path {path} is not in the frozen inventory"
+                ))
+            })?;
+            let bytes = fs::read(self.root.join(path))
+                .map_err(|error| io(error, &format!("{who}: could not read anchor file {path}")))?;
+            let actual = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+            if &actual != expected {
+                return Err(AuditError::SourceDrift(format!(
+                    "{who}: {path} differs from the frozen revision"
+                )));
+            }
+            bytes
+        };
         let content = String::from_utf8_lossy(&bytes).replace("\r\n", "\n");
         let needle = text.replace("\r\n", "\n");
         let found = content.match_indices(needle.as_str()).any(|(index, _)| {
@@ -665,9 +1253,13 @@ fn packet_coverage(
         .unwrap_or("unrecorded");
     match basis {
         "bounded-excerpts" => {
-            let mut included = string_list(coverage.and_then(|value| value.get("examinedPaths")))
-                .into_iter()
-                .collect::<BTreeSet<_>>();
+            let mut included = string_list(coverage.and_then(|value| {
+                value
+                    .get("materializedPaths")
+                    .or_else(|| value.get("examinedPaths"))
+            }))
+            .into_iter()
+            .collect::<BTreeSet<_>>();
             if let Some(sampled) = &sampled {
                 // Identical-content aliases are credited with their canonical
                 // path's excerpt.
@@ -1100,15 +1692,63 @@ pub fn ingest_lens_result(
     }
 
     // --- anchors against the frozen bytes ---------------------------------------
-    let source = FilesystemInventorySource::new(&root)?;
-    let inventory = source.inventory(&request.repository_id)?;
-    if inventory.generation != request.inventory_generation {
+    let snapshot = plan
+        .pointer("/reviewContext/snapshotManifest")
+        .and_then(Value::as_str)
+        .map(|path| crate::snapshot::FrozenSnapshot::open(Path::new(path)))
+        .transpose()?;
+    if let Some(snapshot) = &snapshot {
+        let native = verify_persisted_native_plan(&plan, &execution, run_dir)?
+            .ok_or_else(|| invalid("snapshot ingestion requires a sealed native plan"))?;
+        let sealed_context = native
+            .providers
+            .iter()
+            .find(|provider| provider.id.as_str() == provider_id)
+            .and_then(|provider| provider.configuration.get("reasoning"))
+            .and_then(|reasoning| reasoning.get("reviewContext"));
+        if sealed_context != plan.get("reviewContext") {
+            return Err(invalid(
+                "anchor review context differs from sealed provider configuration",
+            ));
+        }
+        snapshot.verify_source_current()?;
+        if plan
+            .pointer("/reviewContext/snapshotKey")
+            .and_then(Value::as_str)
+            != Some(snapshot.manifest.key.as_str())
+        {
+            return Err(invalid(
+                "anchor snapshot key differs from frozen review context",
+            ));
+        }
+    }
+    // Restore the exact native inventory scope from the verified snapshot,
+    // never from model-authored denominator paths or a mutable outer scope.
+    let inventory = FilesystemInventorySource::new(&root)?
+        .with_only_paths(
+            snapshot
+                .as_ref()
+                .and_then(|snapshot| snapshot.manifest.scope.inventory_filter()),
+        )
+        .inventory(&request.repository_id)?;
+    if inventory.generation != request.inventory_generation
+        || inventory.digest != request.inventory_digest
+    {
         return Err(AuditError::SourceDrift(
-            "the working tree no longer matches the frozen revision; rerun the audit".into(),
+            "the scoped snapshot no longer matches the frozen inventory; rerun the audit".into(),
         ));
     }
     let frozen = FrozenFiles {
         root: &root,
+        snapshot: snapshot.as_ref(),
+        source_sides: request
+            .packet
+            .get("sourceSides")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(|error| invalid(format!("packet sourceSides malformed: {error}")))?
+            .unwrap_or_default(),
         digests: inventory
             .entries
             .iter()
@@ -1201,6 +1841,12 @@ pub fn ingest_lens_result(
     // Staged adjudication: the per-stage ledger and any gaps it implies.
     let mut adjudication_ledger: Option<Value> = None;
     let mut ledger_gaps: Vec<String> = Vec::new();
+    let stage_observations = if provider_id == ADJUDICATOR_PROVIDER_ID {
+        runtime_adjudication(run_dir, request, &key, &digest)?
+    } else {
+        Vec::new()
+    };
+    let mut stage_context_attested = false;
     if provider_id == ADJUDICATOR_PROVIDER_ID {
         match request.packet.get("scannerCandidates") {
             Some(Value::Array(items))
@@ -1234,8 +1880,20 @@ pub fn ingest_lens_result(
                         "{who}: adjudication plan does not match the batch candidates and parent packet digest"
                     )));
                 }
-                let outcome = evaluate_adjudication(&plan, &candidates, &submitted_verdicts)
+                let stage_gaps = super::security_adjudication::validate_stage_observations(
+                    &plan,
+                    &candidates,
+                    &submitted_verdicts,
+                    &stage_observations,
+                )
+                .map_err(|error| invalid(format!("{who}: {error}")))?;
+                stage_context_attested = !stage_observations.is_empty() && stage_gaps.is_empty();
+                ledger_gaps.extend(stage_gaps);
+                let mut outcome = evaluate_adjudication(&plan, &candidates, &submitted_verdicts)
                     .map_err(|error| invalid(format!("{who}: {error}")))?;
+                if !stage_context_attested {
+                    outcome.ledger.complete = false;
+                }
                 for verdict in outcome
                     .verdicts
                     .iter()
@@ -1249,7 +1907,11 @@ pub fn ingest_lens_result(
                         )));
                     }
                 }
-                let confirmed = confirmed_findings(&candidates, &outcome.verdicts);
+                let confirmed = if stage_context_attested {
+                    confirmed_findings(&candidates, &outcome.verdicts)
+                } else {
+                    Vec::new()
+                };
                 verdict_details = Some((
                     serde_json::to_value(&outcome.verdicts)
                         .map_err(|error| invalid(error.to_string()))?,
@@ -1350,7 +2012,9 @@ pub fn ingest_lens_result(
                         )));
                     }
                 }
-                let confirmed = confirmed_findings(&candidates, &verdicts);
+                // Legacy derived contexts carry no authenticated stage isolation.
+                // Keep raw findings, but never promote them to host-confirmed.
+                let confirmed: Vec<ConfirmedSecurityFinding> = Vec::new();
                 verdict_details = Some((
                     serde_json::to_value(&verdicts).map_err(|error| invalid(error.to_string()))?,
                     serde_json::to_value(&confirmed).map_err(|error| invalid(error.to_string()))?,
@@ -1413,6 +2077,76 @@ pub fn ingest_lens_result(
         part,
     );
     coverage.gaps.append(&mut ledger_gaps);
+    coverage.gaps.extend(super::required_packet_gaps(request));
+    let verification = runtime_verification(run_dir, request, &key, &digest)?;
+    if stage_observations.is_empty() {
+        coverage.gaps.extend(verification_result_gaps(
+            provider_id,
+            verification.as_ref(),
+            &findings,
+            &withdrawn,
+            &frozen,
+        )?);
+    }
+    let delivery = runtime_delivery(run_dir, request, &key, &digest)?;
+    if delivery.is_none() && stage_observations.is_empty() {
+        coverage.gaps.push(format!(
+            "delivery-unverified:{provider_id}:missing authenticated host transport receipt"
+        ));
+        coverage.examined = 0;
+        coverage.detail["examined"] = json!(0);
+        coverage.detail["examinedPaths"] = json!([]);
+    }
+    // Trigger witnesses are frozen before sampling; packets cannot replace
+    // them with model-authored or post-freeze trigger claims.
+    if let Some(provider) = plan
+        .pointer("/nativePlan/plan/providers")
+        .and_then(Value::as_array)
+        .and_then(|providers| {
+            providers
+                .iter()
+                .find(|provider| provider.get("id").and_then(Value::as_str) == Some(provider_id))
+        })
+    {
+        if provider.pointer("/configuration/triggerEvidence")
+            != request.packet.get("triggerEvidence")
+        {
+            coverage
+                .gaps
+                .push(format!("trigger-binding-mismatch:{provider_id}"));
+        }
+    }
+    if let Some(witnesses) = request
+        .packet
+        .pointer("/triggerEvidence/mandatoryWitnessPaths")
+        .and_then(Value::as_array)
+    {
+        let materialized: BTreeSet<String> = string_list(
+            request
+                .packet
+                .pointer("/excerptCoverage/materializedPaths")
+                .or_else(|| request.packet.pointer("/excerptCoverage/examinedPaths")),
+        )
+        .into_iter()
+        .collect();
+        let review: BTreeSet<String> = string_list(
+            request
+                .packet
+                .pointer("/part/paths")
+                .or_else(|| request.packet.pointer("/excerptCoverage/selectedPaths")),
+        )
+        .into_iter()
+        .collect();
+        for witness in witnesses.iter().filter_map(Value::as_str) {
+            // Multi-part requests prove their own part; other parts reconcile
+            // through their exact selected-path denominator.
+            if (part.is_none() || review.contains(witness)) && !materialized.contains(witness) {
+                coverage.gaps.push(format!(
+                    "trigger-witness-undelivered:{provider_id}:{witness}"
+                ));
+            }
+        }
+    }
     // The batch entry point adjudicates under `ContextPolicy::Derived`: the
     // per-candidate context id is derived from the packet digest and the
     // candidate id, so naming it proves nothing about the context the verdict
@@ -1422,6 +2156,7 @@ pub fn ingest_lens_result(
     if provider_id == ADJUDICATOR_PROVIDER_ID
         && candidates_supplied
         && !submitted_verdicts.is_empty()
+        && !stage_context_attested
     {
         let unnamed = submitted_verdicts
             .iter()
@@ -1466,6 +2201,19 @@ pub fn ingest_lens_result(
         }),
     );
     details.insert("packetCoverage".into(), coverage.detail.clone());
+    if let Some(evidence) = delivery {
+        details.insert("deliveryEvidence".into(), evidence);
+    }
+    if let Some(evidence) = verification {
+        details.insert("verificationEvidence".into(), evidence);
+    }
+    if !stage_observations.is_empty() {
+        details.insert(
+            "adjudicationDeliveryEvidence".into(),
+            json!(stage_observations),
+        );
+        details.insert("rawAdjudicationVerdicts".into(), json!(submitted_verdicts));
+    }
     if let Some((verdicts, confirmed)) = verdict_details {
         details.insert("securityVerdicts".into(), verdicts);
         details.insert("securityConfirmed".into(), confirmed);
@@ -1940,6 +2688,7 @@ fn merge_parts(
     let mut semantic_reviews: Vec<(u32, Value)> = Vec::new();
     let mut change_risks: Vec<(u32, Value)> = Vec::new();
     let mut ingested: Vec<u32> = Vec::new();
+    let mut inherited_gaps = BTreeSet::new();
     // Risk-sampled lenses: review-set expectation and alias credit.
     let mut sampled_meta: Option<(usize, usize, usize, String, String, usize)> = None;
     let mut alias_pairs: Vec<(String, String)> = Vec::new();
@@ -1970,6 +2719,22 @@ fn merge_parts(
             )));
         }
         ingested.push(*number);
+        // Only this deliberate part-scope gap is resolved by unioning parts.
+        // Authentication, unresolved verification & source delivery gaps survive.
+        let scope_gap = format!("reasoning-part-scope:{provider}:part {number}/{total}");
+        inherited_gaps.extend(
+            result
+                .coverage_gaps
+                .iter()
+                .chain(coverage.gaps.iter())
+                .filter(|gap| *gap != &scope_gap)
+                .cloned(),
+        );
+        if !result.complete && result.coverage_gaps.is_empty() && coverage.gaps.is_empty() {
+            inherited_gaps.insert(format!(
+                "reasoning-part-incomplete:{provider}:part {number}/{total}"
+            ));
+        }
         if over_ceiling.is_null() {
             if let Some(value) = packet_coverage.get("overCeiling").filter(|v| !v.is_null()) {
                 over_ceiling = value.clone();
@@ -2156,7 +2921,7 @@ fn merge_parts(
     let examined = (review_examined + declared_unsampled).min(expected);
     let pending: Vec<u32> = (1..=total).filter(|n| !ingested.contains(n)).collect();
 
-    let mut gaps = Vec::new();
+    let mut gaps = inherited_gaps.into_iter().collect::<Vec<_>>();
     if !pending.is_empty() {
         gaps.push(format!(
             "reasoning-parts-pending:{provider}:{}/{}",
@@ -2696,9 +3461,8 @@ pub fn lens_size_report(work: &[PendingLensWork], limits: &LensSizeLimits) -> Va
     for provider in order {
         let mut part_sizes: Vec<(u32, u64)> = Vec::new();
         for item in work.iter().filter(|item| item.provider_id == provider) {
-            // Seat reading load: the packet itself (it carries only the
-            // inventory digest and snapshot reference, never the inventory).
-            let bytes = serde_json::to_vec(&item.request.packet)
+            // Full delivered packet envelope: request/schema/contracts included.
+            let bytes = serde_json::to_vec_pretty(item)
                 .map(|bytes| bytes.len() as u64)
                 .unwrap_or(0);
             part_sizes.push((item.part().map_or(1, |part| part.number), bytes));
@@ -2760,7 +3524,7 @@ pub struct DispatchLimits {
     pub seat_token_budget: u64,
     /// Seats per wave (`CHILD_AGENTS_MAX`).
     pub wave_width: u64,
-    /// Estimated input tokens across every seat; the plan refuses past it.
+    /// Estimated input + reserved output tokens across all calls, including retries.
     pub run_token_budget: u64,
     /// Seats across all waves; the plan refuses past it.
     pub max_total_seats: u64,
@@ -2804,23 +3568,25 @@ struct SeatDraft {
 
 /// Bundled dispatch plan for a pending-work set: lens packets that read the
 /// same excerpt part (same bundle, part number, review set, mode) share one
-/// seat that reads the part once and answers every lens of the bundle,
+/// seat answering every lens; accounting still charges repeated packet bytes,
 /// writing one result file per provider. Seats are ordered judgment tier
 /// first and scheduled in waves of `wave_width`. The plan refuses (a
 /// `violations` entry) when a seat exceeds the seat budget, the run exceeds
 /// its estimated token budget, or the run needs more than `max_total_seats`
 /// seats, and reports how far over each bundle is. Pure and deterministic.
 ///
-/// `estimatedTokens` is the seat-based run estimate (excerpt tokens counted
-/// once per seat plus each lens's own instruction overhead), a labelled
-/// estimate (bytes / 4), not a tokenizer count.
+/// `estimatedTokens` charges every complete serialized packet, including
+/// repeated excerpts, plus output reserve. Common references may reduce this
+/// only once transport actually consumes them. Bytes / 4 remains an estimate.
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
+    let output_tokens =
+        crate::next::DEFAULT_OUTPUT_TOKENS.min((limits.seat_token_budget / 4).max(1));
     let mut drafts: Vec<SeatDraft> = Vec::new();
     let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
     let mut sampled = false;
     for (position, item) in work.iter().enumerate() {
         let packet = &item.request.packet;
-        let total = serde_json::to_vec(packet).map_or(0, |bytes| bytes.len() as u64);
+        let total = serde_json::to_vec_pretty(item).map_or(u64::MAX, |bytes| bytes.len() as u64);
         let excerpt_bytes = packet
             .get("excerpts")
             .filter(|value| !value.is_null())
@@ -2878,8 +3644,9 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             Some(index) => {
                 let draft = &mut drafts[index];
                 draft.members.push(position);
-                draft.excerpt_bytes = draft.excerpt_bytes.max(excerpt_bytes);
-                draft.overhead_bytes += overhead;
+                // Packets still duplicate excerpts; charge each delivered copy.
+                draft.excerpt_bytes = draft.excerpt_bytes.saturating_add(excerpt_bytes);
+                draft.overhead_bytes = draft.overhead_bytes.saturating_add(overhead);
             }
             None => {
                 by_key.insert(key, drafts.len());
@@ -2911,8 +3678,8 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     for (index, draft) in drafts.iter().enumerate() {
         let number = index as u64 + 1;
         let bytes = draft.excerpt_bytes + draft.overhead_bytes;
-        let tokens = estimate_tokens(bytes);
-        total_tokens += tokens;
+        let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
+        total_tokens = total_tokens.saturating_add(tokens);
         total_bytes += bytes;
         unique_excerpt_bytes += draft.excerpt_bytes;
         let entry = bundles.entry(draft.bundle.clone()).or_insert((0, 0));
@@ -2932,6 +3699,9 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "wave": (number - 1) / wave_width + 1,
             "part": draft.part,
             "estimatedTokens": tokens,
+            "estimatedInputTokens": estimate_tokens(bytes),
+            "outputTokenLimit": output_tokens,
+            "deliveredPacketBytes": bytes,
             "providers": draft.members.iter().map(|i| work[*i].provider_id.clone()).collect::<Vec<_>>(),
             "lensIds": draft.members.iter().flat_map(|i| work[*i].lens_ids.clone()).collect::<Vec<_>>(),
             "packets": draft.members.iter().map(|i| work[*i].packet_file_name()).collect::<Vec<_>>(),
@@ -2949,7 +3719,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     let bundle_rows: Vec<Value> = bundles
         .iter()
         .map(|(id, (seat_count, tokens))| {
-            let budget = limits.run_token_budget * u64::from(bundle_share_bp(id)) / 10_000;
+            let budget = limits.run_token_budget.saturating_mul(u64::from(bundle_share_bp(id))) / 10_000;
             let over = tokens.saturating_sub(budget);
             if over > 0 && budget > 0 {
                 // A share is an allocation target, not a limit: only the run
@@ -2999,13 +3769,20 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
-        "estimateBasis": "estimate: seat excerpt bytes read once + per-lens packet overhead, bytes / 4",
+        "estimateBasis": "estimate: full delivered packet JSON bytes / 4 plus output reserve per seat; host preflights exact rendered request before transport",
         "byteBasis": {
-            "packetBytes": "seat-read bytes: each seat's excerpts counted once plus every bundled lens's own packet overhead (equals seatReadBytes)",
-            "seatReadBytes": "bytes the seats read: shared excerpts once per seat plus per-lens overhead",
-            "perLensPacketBytes": "sum of every lens packet written to disk, each carrying its own copy of the shared excerpts (equals seatReadBytes + sharedExcerptBytesSaved)",
-            "uniqueExcerptBytes": "excerpt bytes summed once per seat, overhead excluded",
-            "sharedExcerptBytesSaved": "excerpt bytes the bundled seats do not re-read because lenses share a part",
+            "packetBytes": "every serialized packet envelope, including duplicated excerpts, contracts & schema",
+            "seatReadBytes": "same full packet bytes; actual delivery requires host receipt",
+            "perLensPacketBytes": "every serialized packet envelope; no physical sharing assumed",
+            "uniqueExcerptBytes": "excerpt bytes across delivered packet copies; not deduplicated",
+            "sharedExcerptBytesSaved": "zero until host consumes shared evidence references",
+        },
+        "reasoningBudget": {
+            "schemaVersion": 2,
+            "totalTokens": limits.run_token_budget,
+            "perCallTokens": limits.seat_token_budget,
+            "outputTokens": output_tokens,
+            "maxSeats": limits.max_total_seats,
         },
         "coverageMode": if sampled { coverage_plan::MODE_RISK_SAMPLED } else { coverage_plan::MODE_EXHAUSTIVE },
         "limits": {
@@ -3023,7 +3800,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "seatReadBytes": total_bytes,
         "perLensPacketBytes": per_lens_bytes,
         "uniqueExcerptBytes": unique_excerpt_bytes,
-        "sharedExcerptBytesSaved": per_lens_bytes.saturating_sub(total_bytes),
+        "sharedExcerptBytesSaved": 0,
         "estimatedTokens": total_tokens,
         "withinLimits": violations.is_empty(),
         "violations": violations,
@@ -3200,10 +3977,14 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let mut gaps: BTreeSet<String> = stored
         .gaps
         .iter()
-        .filter(|gap| !original_gaps.contains(gap))
+        .filter(|gap| !original_gaps.contains(gap) && !gap.starts_with("reasoning-budget-"))
         .cloned()
         .collect();
     gaps.extend(rebuilt.gaps.iter().cloned());
+    let budget_report = crate::next::persisted_budget_report(run_dir)?;
+    if let Some(budget) = &budget_report {
+        gaps.extend(string_list(budget.get("gaps")));
+    }
     let variant_paths = confirmed_paths(&confirmed_security);
     let mut findings = rebuilt.findings.clone();
     let mut followup_claim: Option<Value> = None;
@@ -3249,6 +4030,11 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
 
     let mut report = stored;
     report.status = status;
+    if let Some(budget) = budget_report {
+        report
+            .claims
+            .insert("reasoningBudget".into(), budget["budget"].clone());
+    }
     report.findings = findings;
     report.gaps = gaps.into_iter().collect();
     for (name, value) in rebuilt.claims.iter() {
@@ -4392,5 +5178,230 @@ mod visual_execution_shape_tests {
             visual_result_index_for_unbound_plan(&execution, &outer).unwrap(),
             None
         );
+    }
+}
+
+#[cfg(test)]
+mod runtime_evidence_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    fn setup() -> (PathBuf, ReasoningInvocation) {
+        static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        let run = std::env::temp_dir().join(format!(
+            "legion-runtime-proof-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&run).unwrap();
+        create_epoch(&run).unwrap();
+        let request = ReasoningInvocation {
+            schema_version: 1,
+            kind: super::super::REASONING_INVOCATION_KIND.into(),
+            request_id: "request-one".into(),
+            provider_id: "reasoning.correctness".into(),
+            contract: "review".into(),
+            plan_digest: "plan".into(),
+            plan_signature: "signature".into(),
+            repository_id: "repo".into(),
+            inventory_generation: "revision".into(),
+            inventory_digest: "inventory".into(),
+            denominator_digest: "denominator".into(),
+            denominator_count: 0,
+            denominator_paths: Vec::new(),
+            packet: json!({"excerpts":[]}),
+        };
+        (run, request)
+    }
+
+    fn delivery(request: &ReasoningInvocation) -> Value {
+        json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":"delivery-one",
+            "requestId":request.request_id,"packetDigest":canonical_digest(&request.packet).unwrap(),
+            "deliveredPacketBytes":canonical_json_bytes(&request.packet).unwrap().len(),"complete":true,"truncated":false,"chunks":[]})
+    }
+
+    #[test]
+    fn delivery_sidecar_authenticates_exact_binding_and_rejects_tampering() {
+        let (run, request) = setup();
+        let (key, epoch) = load_epoch(&run).unwrap();
+        assert!(runtime_delivery(&run, &request, &key, &epoch)
+            .unwrap()
+            .is_none());
+        let proof = delivery(&request);
+        let minted = mint_runtime_delivery(&run, &request, &proof).unwrap();
+        assert_eq!(
+            runtime_delivery(&run, &request, &key, &epoch).unwrap(),
+            Some(proof)
+        );
+        let path = PathBuf::from(minted["path"].as_str().unwrap());
+        let mut tampered = read_json(&path).unwrap();
+        tampered["message"]["evidence"]["receiptId"] = json!("forged");
+        fs::write(path, serde_json::to_vec(&tampered).unwrap()).unwrap();
+        assert!(runtime_delivery(&run, &request, &key, &epoch).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    fn verification(request: &ReasoningInvocation) -> Value {
+        let original = json!({"id":"finding-one","title":"original","verifyStatus":"verified"});
+        json!({"schemaVersion":1,"kind":"legion-runtime-verification","requestId":request.request_id,
+            "packetDigest":canonical_digest(&request.packet).unwrap(),"findings":[{
+                "findingId":"finding-one","findingDigest":canonical_digest(&original).unwrap(),"authorFinding":original,
+                "verdict":"unresolved","author":{"contextId":"author","processId":100,"processCreated":true,"responseDigest":"author-response"},
+                "reviewer":null,"reason":"budget exhausted before verifier","evidence":[],"contradictionAnchorsVerified":false}]})
+    }
+
+    #[test]
+    fn unresolved_is_retained_and_id_only_or_same_context_proof_cannot_verify() {
+        let (run, request) = setup();
+        let proof = verification(&request);
+        mint_runtime_verification(&run, &request, &proof).unwrap();
+        let (key, epoch) = load_epoch(&run).unwrap();
+        assert_eq!(
+            runtime_verification(&run, &request, &key, &epoch).unwrap(),
+            Some(proof.clone())
+        );
+        let frozen = FrozenFiles {
+            root: &run,
+            digests: BTreeMap::new(),
+            snapshot: None,
+            source_sides: BTreeMap::new(),
+        };
+        let finding = json!({"id":"finding-one","title":"original","verifyStatus":"unverified","verificationMethod":"adversarial-skeptic-pass"});
+        let gaps = verification_result_gaps(
+            "reasoning.correctness",
+            Some(&proof),
+            &[finding],
+            &[],
+            &frozen,
+        )
+        .unwrap();
+        assert!(gaps[0].contains("verification-unresolved"));
+        let mut forged = proof.clone();
+        forged["findings"][0]["verdict"] = json!("upheld");
+        assert!(mint_runtime_verification(&run, &request, &forged).is_err());
+        forged["findings"][0]["reviewer"] = forged["findings"][0]["author"].clone();
+        assert!(mint_runtime_verification(&run, &request, &forged).is_err());
+        let mut id_only = proof;
+        id_only["findings"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("authorFinding");
+        assert!(mint_runtime_verification(&run, &request, &id_only).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+    fn part_result(number: u32, extra_gap: Option<&str>) -> ProviderResult {
+        let scope_gap = format!("reasoning-part-scope:reasoning.correctness:part {number}/2");
+        let mut gaps = vec![scope_gap];
+        gaps.extend(extra_gap.map(str::to_owned));
+        ProviderResult {
+            schema_version: 1,
+            provider: ProviderId::new("reasoning.correctness").unwrap(),
+            applicable: true,
+            required: true,
+            status: ProviderStatus::Partial,
+            complete: false,
+            coverage: Some(Coverage {
+                denominator_digest: "denominator".into(),
+                expected: 2,
+                examined: 1,
+                gaps: gaps.clone(),
+            }),
+            findings: Vec::new(),
+            coverage_gaps: gaps,
+            degradation: Vec::new(),
+            details: BTreeMap::from([(
+                "packetCoverage".into(),
+                json!({"part":{"number":number,"total":2},"examinedPaths":[format!("file-{number}")]}),
+            )]),
+        }
+    }
+
+    #[test]
+    fn merging_all_parts_preserves_unresolved_and_missing_delivery_gaps() {
+        for gap in [
+            "verification-unresolved:reasoning.correctness:finding-one",
+            "delivery-unverified:reasoning.correctness",
+        ] {
+            let (merged, progress) = merge_parts(
+                "reasoning.correctness",
+                vec![
+                    (1, 2, part_result(1, Some(gap))),
+                    (2, 2, part_result(2, None)),
+                ],
+            )
+            .unwrap();
+            assert!(progress.pending.is_empty());
+            assert!(!merged.complete);
+            assert!(merged.coverage_gaps.iter().any(|value| value == gap));
+            assert!(!merged
+                .coverage_gaps
+                .iter()
+                .any(|value| value.starts_with("reasoning-part-scope:")));
+            assert_eq!(merged.status, ProviderStatus::Partial);
+        }
+        let (merged, _) = merge_parts(
+            "reasoning.correctness",
+            vec![(1, 2, part_result(1, None)), (2, 2, part_result(2, None))],
+        )
+        .unwrap();
+        assert!(merged.complete);
+    }
+
+    #[test]
+    fn non_correctness_projection_uses_host_verdict_without_foreign_schema_fields() {
+        let (run, request) = setup();
+        let mut proof = verification(&request);
+        proof["findings"][0]["authorFinding"]["lens"] = json!("data-safety");
+        proof["findings"][0]["findingDigest"] =
+            json!(canonical_digest(&proof["findings"][0]["authorFinding"]).unwrap());
+        let mut finding = proof["findings"][0]["authorFinding"].clone();
+        finding["verifyStatus"] = json!("unverified");
+        let gaps = verification_projection_gaps(
+            "reasoning.data-safety",
+            Some(&proof),
+            &[finding.clone()],
+            &[],
+        )
+        .unwrap();
+        assert!(gaps
+            .iter()
+            .any(|gap| gap.contains("verification-unresolved")));
+        proof["findings"][0]["verdict"] = json!("upheld");
+        finding["verifyStatus"] = json!("verified");
+        assert!(verification_projection_gaps(
+            "reasoning.data-safety",
+            Some(&proof),
+            &[finding],
+            &[]
+        )
+        .unwrap()
+        .is_empty());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn staged_delivery_is_authenticated_without_claiming_parent_delivery() {
+        let (run, mut request) = setup();
+        request.provider_id = ADJUDICATOR_PROVIDER_ID.into();
+        let packet = json!({"kind":"legion-audit-adjudication-seat","itemId":"item-one","packet":{"candidate":"one"}});
+        let observation = json!({"schemaVersion":1,"kind":"legion-adjudication-stage-observation","workItemId":"item-one",
+            "observedContextId":"native-child-one","processId":100,"processCreated":true,"responseDigest":"response-one",
+            "complete":true,"truncated":false,"workPacketDigest":canonical_digest(&packet["packet"]).unwrap(),
+            "deliveredPacketBytes":canonical_json_bytes(&packet["packet"]).unwrap().len()});
+        let minted = mint_runtime_adjudication(&run, &request, &packet, &observation).unwrap();
+        let (key, epoch) = load_epoch(&run).unwrap();
+        assert_eq!(
+            runtime_adjudication(&run, &request, &key, &epoch).unwrap(),
+            vec![observation]
+        );
+        assert!(runtime_delivery(&run, &request, &key, &epoch)
+            .unwrap()
+            .is_none());
+        let path = PathBuf::from(minted["path"].as_str().unwrap());
+        let mut envelope = read_json(&path).unwrap();
+        envelope["message"]["evidence"]["stagePacket"]["packet"] = json!({"candidate":"other"});
+        fs::write(path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        assert!(runtime_adjudication(&run, &request, &key, &epoch).is_err());
+        let _ = fs::remove_dir_all(run);
     }
 }

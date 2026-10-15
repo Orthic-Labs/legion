@@ -1,13 +1,19 @@
+use rightkit_fs::state::StateDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use walkdir::{DirEntry, WalkDir};
 
-use crate::{error::AuditError, integrity::digest};
+use crate::{
+    error::AuditError,
+    integrity::digest,
+    snapshot::{FrozenSnapshot, SnapshotSide},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -89,7 +95,14 @@ impl InventorySource for FilesystemInventorySource {
         // part of the project: tracked files plus untracked files that are not
         // ignored. Build output, caches and vendored trees stay out, as they did
         // under the JavaScript engine's git-aware inventory.
-        let git_files = git_project_files(&self.root);
+        let frozen = frozen_snapshot(&self.root)?;
+        // Frozen snapshots live below the source repository and inherit its
+        // `.git` directory. Their manifest, not parent Git, defines inventory.
+        let git_files = if frozen.is_some() {
+            None
+        } else {
+            git_project_files(&self.root)
+        };
         let walker = WalkDir::new(&self.root)
             .follow_links(false)
             .into_iter()
@@ -109,6 +122,18 @@ impl InventorySource for FilesystemInventorySource {
                 AuditError::Invalid(format!("inventory path escaped Audit root: {error}"))
             })?;
             let path = relative.to_string_lossy().replace('\\', "/");
+            if path == ".legion-audit-snapshot" {
+                continue;
+            }
+            if let Some((snapshot, side)) = &frozen {
+                let files = match side {
+                    SnapshotSide::Selected => &snapshot.manifest.files,
+                    SnapshotSide::Base => &snapshot.manifest.base_files,
+                };
+                if !files.contains_key(&path) {
+                    continue;
+                }
+            }
             if git_files
                 .as_ref()
                 .is_some_and(|files| !files.contains(&path))
@@ -122,7 +147,9 @@ impl InventorySource for FilesystemInventorySource {
             {
                 continue;
             }
-            let bytes = if file_type.is_symlink() {
+            let bytes = if let Some((snapshot, side)) = &frozen {
+                snapshot.read(&path, *side, 32 * 1024 * 1024)?
+            } else if file_type.is_symlink() {
                 std::fs::read_link(entry.path())
                     .map_err(|error| {
                         AuditError::Invalid(format!(
@@ -141,30 +168,23 @@ impl InventorySource for FilesystemInventorySource {
                     ))
                 })?
             };
-            entries.push(InventoryEntry {
-                path,
-                symbols: Vec::new(),
-                dependencies: relative
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .map(|name| manifest_dependencies(name, &bytes))
-                    .unwrap_or_default(),
-                package_scripts: if relative.file_name().and_then(|name| name.to_str())
-                    == Some("package.json")
+            entries.push(inventory_entry(path, &bytes));
+        }
+        if let Some((snapshot, SnapshotSide::Selected)) = &frozen {
+            let selected = &snapshot.manifest.files;
+            for path in &snapshot.manifest.scope.changed_paths {
+                if selected.contains_key(path)
+                    || !snapshot.manifest.base_files.contains_key(path)
+                    || self
+                        .only_paths
+                        .as_ref()
+                        .is_some_and(|only| !only.contains(path))
                 {
-                    let mut scripts: Vec<String> = serde_json::from_slice::<Value>(&bytes)
-                        .ok()
-                        .and_then(|value| value.get("scripts").and_then(Value::as_object).cloned())
-                        .map(|scripts| scripts.keys().cloned().collect())
-                        .unwrap_or_default();
-                    scripts.sort();
-                    scripts
-                } else {
-                    Vec::new()
-                },
-                source_file: is_source_path(relative),
-                digest: Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes)))),
-            });
+                    continue;
+                }
+                let bytes = snapshot.read(path, SnapshotSide::Base, 32 * 1024 * 1024)?;
+                entries.push(inventory_entry(path.clone(), &bytes));
+            }
         }
         entries.sort_by(|left, right| left.path.cmp(&right.path));
         let content_digest = legion_contracts::canonical_digest(&entries)
@@ -174,6 +194,101 @@ impl InventorySource for FilesystemInventorySource {
             format!("filesystem:{content_digest}"),
             entries,
         )
+    }
+}
+
+/// Recognizes immutable Audit snapshots only when their exact marker,
+/// manifest identity, and execution/baseline root all agree. A malformed
+/// marker is an error, never permission to fall back to the parent Git tree.
+pub(crate) fn frozen_snapshot(
+    root: &Path,
+) -> Result<Option<(Arc<FrozenSnapshot>, SnapshotSide)>, AuditError> {
+    let marker = root.join(".legion-audit-snapshot");
+    let metadata = match std::fs::symlink_metadata(&marker) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(AuditError::Invalid(format!(
+                "could not inspect Audit snapshot marker: {error}"
+            )))
+        }
+    };
+    if !metadata.file_type().is_file() {
+        return Err(AuditError::Invalid(
+            "Audit snapshot marker must be a regular file".into(),
+        ));
+    }
+    let marker_bytes = StateDir::open(root)
+        .and_then(|dir| dir.read(".legion-audit-snapshot", 2))
+        .map_err(|error| {
+            AuditError::Invalid(format!(
+                "could not safely read Audit snapshot marker: {error}"
+            ))
+        })?;
+    if marker_bytes != b"1\n" {
+        return Err(AuditError::Invalid(
+            "Audit snapshot marker has an unsupported identity".into(),
+        ));
+    }
+    let root = std::fs::canonicalize(root).map_err(|error| {
+        AuditError::Invalid(format!("could not resolve Audit snapshot root: {error}"))
+    })?;
+    let snapshot = FrozenSnapshot::for_execution_root(&root)?;
+    let side = if snapshot.manifest.execution_root == root {
+        SnapshotSide::Selected
+    } else if snapshot.manifest.baseline_root == root {
+        SnapshotSide::Base
+    } else {
+        return Err(AuditError::Invalid(
+            "Audit snapshot root does not match its validated manifest".into(),
+        ));
+    };
+    Ok(Some((snapshot, side)))
+}
+
+/// Deleted paths in a selected snapshot are represented by their frozen base
+/// bytes in provider plans, while execution root remains unchanged.
+pub(crate) fn snapshot_source_sides(
+    root: &Path,
+) -> Result<std::collections::BTreeMap<String, String>, AuditError> {
+    let mut sides = std::collections::BTreeMap::new();
+    if let Some((snapshot, SnapshotSide::Selected)) = frozen_snapshot(root)? {
+        for path in &snapshot.manifest.scope.changed_paths {
+            if !snapshot.manifest.files.contains_key(path)
+                && snapshot.manifest.base_files.contains_key(path)
+            {
+                sides.insert(path.clone(), "base".into());
+            }
+        }
+    }
+    Ok(sides)
+}
+
+fn inventory_entry(path: String, bytes: &[u8]) -> InventoryEntry {
+    let relative = Path::new(&path);
+    InventoryEntry {
+        path,
+        symbols: Vec::new(),
+        dependencies: relative
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| manifest_dependencies(name, bytes))
+            .unwrap_or_default(),
+        package_scripts: if relative.file_name().and_then(|name| name.to_str())
+            == Some("package.json")
+        {
+            let mut scripts: Vec<String> = serde_json::from_slice::<Value>(bytes)
+                .ok()
+                .and_then(|value| value.get("scripts").and_then(Value::as_object).cloned())
+                .map(|scripts| scripts.keys().cloned().collect())
+                .unwrap_or_default();
+            scripts.sort();
+            scripts
+        } else {
+            Vec::new()
+        },
+        source_file: is_source_path(relative),
+        digest: Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes)))),
     }
 }
 

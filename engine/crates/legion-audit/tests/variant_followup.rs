@@ -13,7 +13,10 @@ use std::{
 
 use legion_audit::native_providers::reasoning::{
     followup::{compile_followup, FOLLOWUP_DIR, FROZEN_PLAN_FILE, VARIANT_PROVIDER_ID},
-    ingest::{create_epoch, ingest_lens_result, recompute_run, EPOCH_KEY_FILE, LENS_PACKET_DIR},
+    ingest::{
+        create_epoch, ingest_lens_result, load_epoch, recompute_run, write_lens_dispatch,
+        DispatchLimits, EPOCH_KEY_FILE, LENS_PACKET_DIR,
+    },
     pending_lens_work_with_candidates, scanner_candidates_from_execution,
     security_adjudication::{build_adjudication_plan, required_items, TriageContext},
     PendingLensWork, ReasoningProviderExecutor, ScannerCandidate, ADJUDICATOR_PROVIDER_ID,
@@ -27,8 +30,10 @@ use legion_contracts::{
 };
 use serde_json::{json, Value};
 
+mod common;
+use common::{authenticate, record_budget_usage, verify, FindingDisposition};
+
 const SCANNER_PROVIDER_ID: &str = "fixture.scanner";
-const KEY: &[u8] = b"variant-followup-fixture-signing-key";
 const DB_SOURCE: &str = "fn run(q: &str) {\n    db.execute(&format!(\"select {q}\"));\n}\n";
 const DB_ANCHOR: &str = "db.execute(&format!(\"select {q}\"));";
 const ALT_ANCHOR: &str = "pub fn other_query(q: &str) { db.execute(&format!(\"select {q}\")); }";
@@ -46,6 +51,30 @@ fn temp_dir(name: &str) -> PathBuf {
     ));
     fs::create_dir_all(&dir).unwrap();
     fs::canonicalize(dir).unwrap()
+}
+
+/// Fixture Git effects stay inside this newly-created temporary repository.
+fn fixture_git(root: &Path, args: &[&str]) {
+    let mut command = rightkit_child_process::OwnedCommand::new("git");
+    command
+        .command_mut()
+        .current_dir(root)
+        .args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    let mut child = command.spawn().unwrap();
+    assert!(child
+        .wait_timeout(std::time::Duration::from_secs(10))
+        .unwrap()
+        .unwrap()
+        .success());
 }
 
 /// A hand-built candidate generator. Every non-deterministic provider must name
@@ -227,15 +256,42 @@ fn setup_with_source(name: &str, db_source: &str) -> Run {
         "pub fn independent() {}\n",
     )
     .unwrap();
+    fixture_git(&root, &["init", "-q"]);
+    fixture_git(&root, &["config", "user.name", "Audit Fixture"]);
+    fixture_git(&root, &["config", "user.email", "audit@example.invalid"]);
+    fixture_git(&root, &["add", "src"]);
+    fixture_git(&root, &["commit", "-qm", "fixture source"]);
+    let source_root = root;
+    let snapshot = legion_audit::snapshot::FrozenSnapshot::capture(
+        legion_audit::scope::ResolvedScope::resolve(
+            &source_root,
+            legion_audit::scope::ScopeSpec::Repo,
+            None,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let root = snapshot.manifest.execution_root.clone();
     let repository = root.to_string_lossy().into_owned();
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
         .inventory(&repository)
         .unwrap();
-    let specs = [scanner_spec(), adjudication_spec(), variant_spec()];
+    let run = source_root.join(".audit").join("run");
+    let epoch = create_epoch(&run).unwrap();
+    let (key, _) = load_epoch(&run).unwrap();
+    let review_context = json!({
+        "snapshotManifest": snapshot.manifest_path,
+        "snapshotKey": snapshot.manifest.key,
+        "sourceRepository": source_root,
+    });
+    let mut specs = [scanner_spec(), adjudication_spec(), variant_spec()];
+    for spec in &mut specs {
+        spec.reasoning["reviewContext"] = review_context.clone();
+    }
     let plan = AuditPlan::compile_with_root(Some(&root), &inventory, &specs)
         .unwrap()
-        .freeze(Some(KEY))
+        .freeze(Some(key.as_slice()))
         .unwrap();
     let executor = Fixture {
         reasoning: ReasoningProviderExecutor::unavailable(&root),
@@ -255,15 +311,22 @@ fn setup_with_source(name: &str, db_source: &str) -> Run {
             .find(|work| work.provider_id == ADJUDICATOR_PROVIDER_ID)
             .unwrap();
 
-    let run = root.join(".audit").join("run");
     fs::create_dir_all(run.join("lens-packets")).unwrap();
-    let epoch = create_epoch(&run).unwrap();
+    write_lens_dispatch(
+        &run,
+        std::slice::from_ref(&adjudication),
+        &DispatchLimits::default(),
+    )
+    .unwrap();
     write_json(
         &run.join("plan.json"),
         &json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
             "repository": root,
+            "reviewContext": review_context,
+            "snapshotManifest": snapshot.manifest_path,
+            "nativePlan": {"schemaVersion": 1, "digest": plan.digest(), "signature": plan.signature(), "plan": plan.plan()},
             "binding": {
                 "repositoryRevision": execution.generation,
                 "inventoryDigest": execution.inventory_digest,
@@ -375,6 +438,110 @@ fn staged_verdicts(run: &Run, confirm_sql: bool) -> Vec<Value> {
     submitted
 }
 
+fn mint_stage_receipts(run: &Run, verdicts: &[Value]) {
+    use legion_audit::native_providers::reasoning::{
+        ingest::mint_runtime_adjudication,
+        security_adjudication::{stage_observation, stage_work_item},
+    };
+
+    let request = &run.adjudication.request;
+    let candidates: Vec<ScannerCandidate> =
+        serde_json::from_value(request.packet["scannerCandidates"].clone()).unwrap();
+    let parent_digest = request.packet["candidateWorkItems"]["parentPacketDigest"]
+        .as_str()
+        .unwrap();
+    let plan =
+        build_adjudication_plan(&candidates, &TriageContext::default(), parent_digest).unwrap();
+    let delivered_excerpts = request
+        .packet
+        .get("excerpts")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let mut ordinal = 0u64;
+    let mut mint = |stage_packet: Value, rows: Vec<Value>| {
+        ordinal += 1;
+        let host = json!({
+            "sent": true,
+            "processCreated": true,
+            "error": null,
+            "contextId": format!("fixture-stage-context-{ordinal}"),
+            "processId": 20_000 + ordinal,
+            "responseDigest": format!("fixture-stage-response-{ordinal}"),
+            "deliveredExcerpts": delivered_excerpts,
+        });
+        record_budget_usage(
+            &run.run,
+            request,
+            "fixture-adjudication-stage",
+            legion_contracts::canonical_json_bytes(&stage_packet)
+                .unwrap()
+                .len() as u64
+                + 256,
+        );
+        let observation = stage_observation(&stage_packet, &rows, &host, &candidates).unwrap();
+        mint_runtime_adjudication(&run.run, request, &stage_packet, &observation).unwrap();
+    };
+
+    for batch in &plan.batches {
+        let rows = verdicts
+            .iter()
+            .filter(|row| row["stage"] == "batch" && row["workItemId"] == batch.item_id)
+            .cloned()
+            .collect::<Vec<_>>();
+        if rows.is_empty() {
+            continue;
+        }
+        mint(
+            json!({
+                "schemaVersion": 1,
+                "kind": "legion-audit-adjudication-seat",
+                "stage": "batch",
+                "round": 1,
+                "batchId": batch.batch_id,
+                "itemId": batch.item_id,
+                "contextId": batch.context_id,
+                "parentPacketDigest": parent_digest,
+                "packet": batch.packet,
+            }),
+            rows,
+        );
+    }
+
+    for row in verdicts.iter().filter(|row| row["stage"] != "batch") {
+        let stage = row["stage"].as_str().unwrap();
+        let id = row["candidateId"].as_str().unwrap();
+        let candidate = candidates
+            .iter()
+            .find(|candidate| candidate.finding_id == id)
+            .unwrap();
+        let work = stage_work_item(candidate, parent_digest, stage).unwrap();
+        let stage_packet = json!({
+            "schemaVersion": 1,
+            "kind": "legion-audit-adjudication-seat",
+            "stage": stage,
+            "round": 1,
+            "candidateId": id,
+            "itemId": work.item_id,
+            "contextId": work.context_id,
+            "parentPacketDigest": parent_digest,
+            "packet": work.packet,
+        });
+        mint(stage_packet, vec![row.clone()]);
+    }
+}
+
+fn authenticated_adjudication_result(run: &Run, confirm_sql: bool) -> Value {
+    let mut result = adjudication_result(run, confirm_sql);
+    mint_stage_receipts(run, result["verdicts"].as_array().unwrap());
+    verify(
+        &run.run,
+        &run.adjudication.request,
+        &mut result,
+        FindingDisposition::Upheld,
+    );
+    result
+}
+
 fn adjudication_result(run: &Run, confirm_sql: bool) -> Value {
     let findings = if confirm_sql {
         json!([{
@@ -451,6 +618,16 @@ fn variant_part_result(work: &PendingLensWork, findings: Value) -> Value {
     })
 }
 
+fn ingest_fixture(
+    run_dir: &Path,
+    work: &PendingLensWork,
+    mut result: Value,
+    disposition: FindingDisposition,
+) -> legion_audit::native_providers::reasoning::ingest::IngestedLens {
+    authenticate(run_dir, &work.request, &mut result, disposition);
+    ingest_lens_result(run_dir, work.provider_id.as_str(), &result).unwrap()
+}
+
 /// The variant lens parts on disk of the follow-up, in part order.
 fn variant_parts(run: &Run) -> Vec<PendingLensWork> {
     let lens_dir = run.run.join(FOLLOWUP_DIR).join(LENS_PACKET_DIR);
@@ -515,7 +692,7 @@ fn confirmed_run_with_source(name: &str, db_source: &str) -> Run {
     ingest_lens_result(
         &run.run,
         ADJUDICATOR_PROVIDER_ID,
-        &adjudication_result(&run, true),
+        &authenticated_adjudication_result(&run, true),
     )
     .unwrap();
     run
@@ -525,6 +702,13 @@ fn confirmed_run_with_source(name: &str, db_source: &str) -> Run {
 fn adjudication_under_derived_context_policy_records_a_gap_not_an_attestation() {
     let run = setup("derived-context");
     let result = adjudication_result(&run, true);
+    let mut result = result;
+    authenticate(
+        &run.run,
+        &run.adjudication.request,
+        &mut result,
+        FindingDisposition::Upheld,
+    );
     ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap();
     let recomputed = recompute_run(&run.run).unwrap();
     assert!(
@@ -571,6 +755,12 @@ fn historical_batch_packet_without_child_items_remains_ingestable_as_derived() {
         &serde_json::to_value(&run.adjudication).unwrap(),
     );
 
+    authenticate(
+        &run.run,
+        &run.adjudication.request,
+        &mut result,
+        FindingDisposition::Upheld,
+    );
     ingest_lens_result(&run.run, ADJUDICATOR_PROVIDER_ID, &result).unwrap();
     let recomputed = recompute_run(&run.run).unwrap();
     assert!(recomputed.report.gaps.iter().any(|gap| {
@@ -605,6 +795,18 @@ fn confirmed_verdict_leaves_the_pending_gap_and_compiles_a_scoped_followup() {
     assert_eq!(frozen.providers.len(), 1);
     assert_eq!(frozen.providers[0].id, VARIANT_PROVIDER_ID);
     assert_eq!(frozen.providers[0].configuration["denominatorCount"], 4);
+    let parent_context = read_json(&run.run.join("plan.json"))["reviewContext"].clone();
+    let child_plan = read_json(&dir.join("plan.json"));
+    assert_eq!(child_plan["reviewContext"], parent_context);
+    assert_eq!(
+        frozen.providers[0].configuration["reasoning"]["reviewContext"],
+        parent_context,
+    );
+    assert_eq!(
+        child_plan["nativePlan"]["digest"],
+        child_plan["seal"]["digest"]
+    );
+    assert!(dir.join("lens-dispatch.json").is_file());
     assert_eq!(
         planned.analysis_paths,
         vec![
@@ -696,12 +898,12 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
         "line": 1,
         "text": ALT_ANCHOR,
     });
-    let ingested = ingest_lens_result(
+    let ingested = ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([sibling_finding])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([sibling_finding])),
+        FindingDisposition::Upheld,
+    );
     assert!(ingested.complete);
     assert_eq!((ingested.examined, ingested.expected), (4, 4));
 
@@ -739,7 +941,13 @@ fn variant_findings_cannot_anchor_outside_the_frozen_analysis_scope() {
         "line": 1,
         "text": "pub fn independent() {}",
     });
-    let result = variant_result(&run, json!([finding]));
+    let mut result = variant_result(&run, json!([finding]));
+    authenticate(
+        &run.run.join(FOLLOWUP_DIR),
+        &variant_packet(&run).request,
+        &mut result,
+        FindingDisposition::Upheld,
+    );
 
     let error = match ingest_lens_result(&run.run.join(FOLLOWUP_DIR), VARIANT_PROVIDER_ID, &result)
     {
@@ -757,12 +965,12 @@ fn a_variant_result_with_no_variants_also_clears_the_gap() {
     compile_followup(&run.run, &variant_spec())
         .unwrap()
         .unwrap();
-    ingest_lens_result(
+    ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([])),
+        FindingDisposition::Upheld,
+    );
     let after = recompute_run(&run.run).unwrap();
     assert!(
         !has_pending_gap(&after.report.gaps),
@@ -782,12 +990,12 @@ fn omitting_the_variant_result_keeps_the_gap() {
     assert!(has_pending_gap(&recomputed.report.gaps));
 
     // Neither is a follow-up whose ingested receipt has gone missing.
-    ingest_lens_result(
+    ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(!has_pending_gap(
         &recompute_run(&run.run).unwrap().report.gaps
     ));
@@ -804,36 +1012,37 @@ fn tampering_with_the_parent_digest_keeps_the_gap() {
     compile_followup(&run.run, &variant_spec())
         .unwrap()
         .unwrap();
-    ingest_lens_result(
+    ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(!has_pending_gap(
         &recompute_run(&run.run).unwrap().report.gaps
     ));
     let mut plan = read_json(&run.run.join("plan.json"));
     plan["seal"]["digest"] = json!(format!("sha256:{}", "0".repeat(64)));
     write_json(&run.run.join("plan.json"), &plan);
-    let tampered = recompute_run(&run.run).unwrap();
-    assert!(has_pending_gap(&tampered.report.gaps));
-    assert_eq!(
-        tampered.report.claims["securityVariantFollowup"]["status"],
-        "invalid"
-    );
+    let error = match recompute_run(&run.run) {
+        Ok(_) => panic!("a parent seal differing from its native plan must be rejected"),
+        Err(error) => error,
+    };
+    assert!(error
+        .to_string()
+        .contains("nativePlan identity differs from frozen execution"));
 
     // (2) The follow-up plan is rebound to a different parent digest.
     let run = confirmed_run("tamper-binding");
     compile_followup(&run.run, &variant_spec())
         .unwrap()
         .unwrap();
-    ingest_lens_result(
+    ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([])),
+        FindingDisposition::Upheld,
+    );
     let frozen_path = run.run.join(FOLLOWUP_DIR).join(FROZEN_PLAN_FILE);
     let mut frozen = read_json(&frozen_path);
     frozen["bounds"]["followup"]["parentPlanDigest"] = json!(format!("sha256:{}", "1".repeat(64)));
@@ -852,12 +1061,12 @@ fn a_follow_up_scoped_to_other_paths_does_not_clear_the_gap() {
     compile_followup(&run.run, &variant_spec())
         .unwrap()
         .unwrap();
-    ingest_lens_result(
+    ingest_fixture(
         &run.run.join(FOLLOWUP_DIR),
-        VARIANT_PROVIDER_ID,
-        &variant_result(&run, json!([])),
-    )
-    .unwrap();
+        &variant_packet(&run),
+        variant_result(&run, json!([])),
+        FindingDisposition::Upheld,
+    );
     let frozen_path = run.run.join(FOLLOWUP_DIR).join(FROZEN_PLAN_FILE);
     let mut frozen = read_json(&frozen_path);
     frozen["bounds"]["followup"]["confirmedPaths"] = json!(["src/other.rs"]);
@@ -873,7 +1082,7 @@ fn no_confirmed_findings_means_no_followup_and_no_gap() {
     ingest_lens_result(
         &run.run,
         ADJUDICATOR_PROVIDER_ID,
-        &adjudication_result(&run, false),
+        &authenticated_adjudication_result(&run, false),
     )
     .unwrap();
     let recomputed = recompute_run(&run.run).unwrap();
@@ -939,12 +1148,12 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
     // One part missing: pending, and the gap names the missing part.
     let dir = run.run.join(FOLLOWUP_DIR);
     for part in &parts[..total - 1] {
-        ingest_lens_result(
+        ingest_fixture(
             &dir,
-            VARIANT_PROVIDER_ID,
-            &variant_part_result(part, json!([])),
-        )
-        .unwrap();
+            part,
+            variant_part_result(part, json!([])),
+            FindingDisposition::Upheld,
+        );
     }
     let partial = recompute_run(&run.run).unwrap();
     assert!(
@@ -961,12 +1170,12 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
     );
 
     // Every part ingested: the variant denominator is covered and the gap clears.
-    ingest_lens_result(
+    ingest_fixture(
         &dir,
-        VARIANT_PROVIDER_ID,
-        &variant_part_result(&parts[total - 1], json!([])),
-    )
-    .unwrap();
+        &parts[total - 1],
+        variant_part_result(&parts[total - 1], json!([])),
+        FindingDisposition::Upheld,
+    );
     let after = recompute_run(&run.run).unwrap();
     assert!(
         !has_pending_gap(&after.report.gaps),

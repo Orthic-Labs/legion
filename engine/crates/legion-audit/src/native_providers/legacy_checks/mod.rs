@@ -2740,20 +2740,152 @@ fn native_react_hooks(files: &[(InventoryEntry, String)], output: &mut LegacyChe
     }
 }
 
+/// Shell/PowerShell download syntax is evidence; a URL by itself is not.
+fn download_asset(command: &str) -> Option<String> {
+    let output = regex::Regex::new(
+        r#"(?:^|\s)(?:-o|-O|--output|--output-document|-OutFile)(?:=|\s+)['"]?([^\s'";|]+)"#,
+    )
+    .ok()?;
+    output
+        .captures(command)
+        .map(|capture| capture[1].to_owned())
+        .filter(|asset| !asset.starts_with("https://") && !asset.starts_with("http://"))
+        .or_else(|| {
+            // wget defaults to the URL basename; curl does so only with -O.
+            if !command.contains("wget")
+                && !command
+                    .split_whitespace()
+                    .any(|arg| arg == "-O" || arg == "--remote-name")
+            {
+                return None;
+            }
+            let url = command
+                .split_whitespace()
+                .find(|arg| arg.starts_with("https://") || arg.starts_with("http://"))?;
+            let name = url
+                .trim_matches(['\'', '"'])
+                .split('?')
+                .next()?
+                .rsplit('/')
+                .next()?;
+            (!name.is_empty()).then(|| name.to_owned())
+        })
+}
+
+fn executable_download(command: &str, following: &str) -> Option<Option<String>> {
+    let trimmed = command.trim_start();
+    if trimmed.starts_with('#') || trimmed.starts_with("//") {
+        return None;
+    }
+    let downloader = regex::Regex::new(
+        r"(?i)(?:^|[;&|]|\brun:)\s*(?:sudo\s+)?(?:curl|wget|Invoke-WebRequest|iwr)\b",
+    )
+    .ok()?;
+    if !downloader.is_match(command) || !contains_any(command, &["https://", "http://"]) {
+        return None;
+    }
+    let piped = regex::Regex::new(
+        r"(?i)\|\s*(?:sudo\s+)?(?:sh|bash|zsh|pwsh|powershell|iex|Invoke-Expression)\b",
+    )
+    .ok()?
+    .is_match(command);
+    let asset = download_asset(command);
+    if piped {
+        return Some(asset);
+    }
+    let asset = asset?;
+    let basename = asset.rsplit('/').next().unwrap_or(&asset);
+    // Require the downloaded path in the executable/install sink itself.
+    let quoted = regex::escape(&asset);
+    let base = regex::escape(basename);
+    let combined = format!("{command}\n{following}");
+    let sink = regex::Regex::new(&format!(r#"(?im)(?:^|[;\n&])\s*(?:sudo\s+)?(?:(?:sh|bash|zsh|pwsh|powershell|msiexec|installer|dpkg|rpm)\b[^\n;]*['"]?{quoted}(?:['"\s;]|$)|(?:\./|&\s*['"]?){base}(?:['"\s;]|$))"#)).ok()?;
+    let installation = regex::Regex::new(&format!(
+        r#"(?im)\b(?:install|chmod)\s+[^\n;]*['"]?{quoted}(?:['"\s;]|$)"#
+    ))
+    .ok()?;
+    (sink.is_match(&combined) || installation.is_match(&combined)).then_some(Some(asset))
+}
+
+fn bound_integrity(asset: Option<&str>, command: &str, following: &str, preceding: &str) -> bool {
+    let Some(asset) = asset else {
+        return false;
+    }; // A pipe executes before later verification.
+       // A literal immutable checksum must name this exact downloaded asset.
+       // Mentions of integrity, an unrelated SHA, or a URL's @ do not bind it.
+    let asset = regex::escape(asset);
+    let checksum = regex::Regex::new(&format!(
+        r#"(?im)^\s*(?:echo|printf)\s+['"][0-9a-f]{{64}}[ \t]+\*?{asset}['"][^\n]*\|\s*(?:sha256sum\s+(?:-c|--check)|shasum\s+-a\s+256\s+-c)\b"#
+    ));
+    let Ok(checksum) = checksum else {
+        return false;
+    };
+    let all = format!("{command}\n{following}");
+    let Some(verification) = checksum.find(&all) else {
+        return false;
+    };
+    let verification_tail = all[verification.end()..]
+        .split('\n')
+        .next()
+        .unwrap_or_default();
+    let failure_exits = regex::Regex::new(r"^\s*(?:-\s*)?\|\|\s*(?:exit|return)\b")
+        .is_ok_and(|pattern| pattern.is_match(verification_tail));
+    let errexit = preceding
+        .lines()
+        .rev()
+        .find_map(|line| {
+            let line = line.trim();
+            if line.starts_with("set +e") {
+                Some(false)
+            } else if line.starts_with("set -")
+                && line
+                    .split_whitespace()
+                    .nth(1)
+                    .is_some_and(|flags| flags.contains('e'))
+            {
+                Some(true)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(false)
+        && !verification_tail.contains("||");
+    // Verification after execution offers no protection. Fail closed where
+    // ordering cannot establish a bound integrity check before the sink.
+    let execution = regex::Regex::new(&format!(r#"(?im)(?:^|[;\n&])\s*(?:sudo\s+)?(?:sh|bash|zsh|pwsh|powershell|msiexec|installer|dpkg|rpm|install|chmod)\b[^\n;]*{asset}(?:['"\s;]|$)|(?:^|[;\n&])\s*\./{asset}(?:['"\s;]|$)"#)).ok();
+    execution
+        .and_then(|pattern| pattern.find(&all))
+        .is_some_and(|sink| {
+            if verification.end() > sink.start() {
+                return false;
+            }
+            let bound_chain = regex::Regex::new(r"^\s*(?:-\s*)?&&\s*$")
+                .is_ok_and(|pattern| pattern.is_match(&all[verification.end()..sink.start()]));
+            failure_exits || errexit || bound_chain
+        })
+}
+
 fn native_binary_pins(files: &[(InventoryEntry, String)], output: &mut LegacyCheckOutput) {
     for (entry, text) in files {
-        for (line, value) in text.lines().enumerate() {
-            if contains_any(value, &["https://", "http://"])
-                && !contains_any(value, &["sha256", "integrity", "@"])
-            {
-                push_candidate(
-                    output,
-                    "security.binary-unpinned",
-                    "high",
-                    &entry.path,
-                    line + 1,
-                    "downloaded binary URL has no visible immutable digest",
-                );
+        let lines = text.lines().collect::<Vec<_>>();
+        for (index, command) in lines.iter().enumerate() {
+            let following = lines
+                .iter()
+                .skip(index + 1)
+                .take(20)
+                .copied()
+                .collect::<Vec<_>>()
+                .join("\n");
+            let Some(asset) = executable_download(command, &following) else {
+                continue;
+            };
+            let preceding = lines[..index].join("\n");
+            if !bound_integrity(asset.as_deref(), command, &following, &preceding) {
+                push_candidate(output, "security.binary-unpinned", "high", &entry.path, index + 1,
+                    "Executable download reaches an install or execution sink without a bound immutable digest.");
+                if let Some(candidate) = output.candidates.last_mut() {
+                    candidate["applicability"] = json!({"status":"applicable","sink":"executable-download","asset":asset,"integrity":"unbound-or-unknown"});
+                }
             }
         }
     }
@@ -3704,5 +3836,69 @@ fn command_name(command: CommandShape) -> &'static str {
         CommandShape::Native { .. } => "native",
         CommandShape::Fixed { .. } => "fixed",
         CommandShape::Named { .. } => "named",
+    }
+}
+
+#[cfg(test)]
+mod binary_integrity_tests {
+    use super::*;
+
+    fn candidates(path: &str, source: &str) -> Vec<Value> {
+        let entry = serde_json::from_value(json!({"path":path,"sourceFile":true})).unwrap();
+        let mut output = LegacyCheckOutput::default();
+        native_binary_pins(&[(entry, source.into())], &mut output);
+        output.candidates
+    }
+
+    #[test]
+    fn executable_download_requires_bound_asset_integrity_before_execution() {
+        let hash = "a".repeat(64);
+        let download = "curl -fsSL https://example.invalid/tool -o tool";
+        for source in [
+            format!("{download}\nchmod +x tool\n./tool\n"),
+            format!("{download}\necho '{hash} other-tool' | sha256sum -c -\n./tool\n"),
+            format!("{download}\necho '{hash} tool' | sha256sum -c -\n./tool\n"),
+            format!("{download}\n./tool\necho '{hash} tool' | sha256sum -c -\n"),
+            "curl -fsSL https://example.invalid/@latest/install.sh | sh\n".into(),
+        ] {
+            let rows = candidates("tests/fixtures/install.sh", &source);
+            assert_eq!(rows.len(), 1, "{source}");
+            assert_eq!(rows[0]["ruleId"], "security.binary-unpinned");
+            assert_eq!(rows[0]["severityHint"], "high");
+        }
+        let verified = format!("set -e\n{download}\necho '{hash} tool' | sha256sum -c -\n./tool\n");
+        assert!(candidates("install.sh", &verified).is_empty());
+    }
+
+    #[test]
+    fn ordinary_urls_documentation_images_and_comment_mentions_are_not_binaries() {
+        for (path, source) in [
+            (
+                "README.md",
+                "Documentation: https://example.invalid/guide\n",
+            ),
+            (
+                "src/view.ts",
+                "const image = 'https://example.invalid/logo.png';\n",
+            ),
+            (
+                "notes/install.sh",
+                "# curl https://example.invalid/install.sh | sh\n",
+            ),
+            (
+                "fetch.sh",
+                "curl https://example.invalid/readme.txt -o readme.txt\ncat readme.txt\n",
+            ),
+            (
+                "fetch.sh",
+                "curl https://example.invalid/image.png -o image.png\n",
+            ),
+            (
+                "notes.ts",
+                "console.log('curl https://example.invalid/install.sh | sh');\n",
+            ),
+        ] {
+            assert!(candidates(path, source).is_empty(), "{source}");
+        }
     }
 }

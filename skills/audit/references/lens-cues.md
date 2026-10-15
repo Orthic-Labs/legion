@@ -26,6 +26,8 @@ comments. If you want PR-inline delivery specifically, use the host's PR review 
 
 ## Lens cues (high-signal heuristics, applied within the relevant lens)
 
+Versioned semantic patterns for existing lenses are defined in [`pattern-cards.md`](pattern-cards.md); the native packet selects only cards owned by its current lens. These cards require source traces and explicit falsifiers, and unresolved traces remain unknown.
+
 - `ai-slop` / `minimize`: swallowed exceptions (catch only to log + continue), functions with >3 boolean args, single-implementation interfaces that only forward, comments that restate the code, **identical comment blocks repeated across files** (LLM copy-paste tell), commented-out code blocks.
 - `minimize`: tool sprawl — two deps doing the same job (e.g. two HTTP clients) or conflicting versions of a core lib (read the `outdated` + dependency list).
 - `architecture`: stack suitability (is the tech overkill/misfit for the domain?) and the `negative_space.missing` list — absent tests / CI / lockfile / LICENSE are real findings, not nitpicks.

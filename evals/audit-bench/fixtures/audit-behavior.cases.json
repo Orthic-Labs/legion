@@ -1,0 +1,93 @@
+{
+  "schema": "legion-audit-bench-cases/1",
+  "fixture": "audit-behavior",
+  "split": "tuning",
+  "language": "typescript & shell",
+  "base": "base",
+  "cases": [
+    {
+      "id": "audit-redis-session-no-ttl",
+      "kind": "planted",
+      "scope": "range:base..audit-redis-session-no-ttl",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Ephemeral session data is written to Redis without an expiry",
+      "expected": [
+        {
+          "path": "src/session.ts",
+          "lineRange": [4, 4],
+          "lens": "security",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "audit-redis-session-valid-ttl",
+      "kind": "clean",
+      "scope": "range:base..audit-redis-session-valid-ttl",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Ephemeral Redis session data has an explicit positive expiry",
+      "expected": []
+    },
+    {
+      "id": "audit-map-set-clean",
+      "kind": "clean",
+      "scope": "range:base..audit-map-set-clean",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Process-local Map.set is not a Redis persistence operation",
+      "expected": []
+    },
+    {
+      "id": "audit-executable-download-unpinned",
+      "kind": "planted",
+      "scope": "range:base..audit-executable-download-unpinned",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Executable installer streams a mutable URL directly into a shell",
+      "expected": [
+        {
+          "path": "scripts/install.sh",
+          "lineRange": [3, 3],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "audit-docs-url-clean",
+      "kind": "clean",
+      "scope": "range:base..audit-docs-url-clean",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Documentation links to installation instructions without executing them",
+      "expected": []
+    },
+    {
+      "id": "audit-redis-two-locations",
+      "kind": "planted",
+      "scope": "range:base..audit-redis-two-locations",
+      "category": "security",
+      "ruled": true,
+      "ruling": "construction",
+      "summary": "Two independent ephemeral Redis writes lack expiry and need distinct locations",
+      "expected": [
+        {
+          "path": "src/sessions.ts",
+          "lineRange": [4, 4],
+          "lens": "security",
+          "severity": "medium"
+        },
+        {
+          "path": "src/sessions.ts",
+          "lineRange": [8, 8],
+          "lens": "security",
+          "severity": "medium"
+        }
+      ]
+    }
+  ]
+}

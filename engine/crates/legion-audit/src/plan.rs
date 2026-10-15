@@ -134,6 +134,7 @@ fn plan_lens_coverage(
     inventory: &InventoryEnvelope,
     specs: &[ProviderSpec],
     candidates: &[InventoryDenominator],
+    trigger_evidence: &BTreeMap<String, Value>,
 ) -> Result<BTreeMap<String, Value>, AuditError> {
     let mut lenses = Vec::new();
     let mut request = coverage_plan::CoverageRequest::default();
@@ -164,7 +165,21 @@ fn plan_lens_coverage(
         return Ok(BTreeMap::new());
     }
     let facts = coverage_plan::gather_facts(root, inventory, &changed);
-    coverage_plan::plan_coverage(
+    let witnesses = trigger_evidence
+        .iter()
+        .map(|(provider, evidence)| {
+            let paths = evidence
+                .get("mandatoryWitnessPaths")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect();
+            (provider.clone(), paths)
+        })
+        .collect();
+    coverage_plan::plan_coverage_with_witnesses(
         &serde_json::json!({
             "repositoryId": inventory.repository_id,
             "inventoryDigest": inventory.digest,
@@ -172,6 +187,7 @@ fn plan_lens_coverage(
         &facts,
         &lenses,
         &request,
+        &witnesses,
     )
 }
 
@@ -240,34 +256,55 @@ impl AuditPlan {
                 "audit plan requires at least one frozen provider".into(),
             ));
         }
+        let source_sides = match root {
+            Some(root) => crate::inventory::snapshot_source_sides(root)?,
+            None => BTreeMap::new(),
+        };
+        let source_sides: BTreeMap<_, _> = source_sides
+            .into_iter()
+            .filter(|(path, _)| inventory.entries.iter().any(|entry| &entry.path == path))
+            .collect();
         let mut excluded_conditional_providers = Vec::new();
-        let filtered_specs: Vec<ProviderSpec>;
+        let mut trigger_evidence = BTreeMap::new();
+        let mut filtered_specs = Vec::new();
         let specs: &[ProviderSpec] = if let Some(root) = root {
             let paths: Vec<String> = inventory.paths().map(str::to_owned).collect();
-            filtered_specs = specs
-                .iter()
-                .filter(|spec| {
-                    if !lens_plan::is_conditional_lens_provider(spec.id.as_str()) {
-                        return true;
-                    }
-                    let Some(lens) = lens_plan::lens_id_for_provider(spec.id.as_str()) else {
-                        return true;
-                    };
-                    let Some(evaluation) = triggers::evaluate_trigger(root, lens, &paths) else {
-                        return true;
-                    };
-                    if evaluation.fired {
-                        return true;
-                    }
+            for spec in specs {
+                let evaluation = lens_plan::lens_id_for_provider(spec.id.as_str())
+                    .and_then(|lens| triggers::evaluate_trigger(root, lens, &paths));
+                let Some(evaluation) = evaluation else {
+                    filtered_specs.push(spec.clone());
+                    continue;
+                };
+                if !evaluation.fired && evaluation.unavailable_paths.is_empty() {
                     excluded_conditional_providers.push(ExcludedConditionalProvider {
                         id: spec.id.to_string(),
-                        lens: lens.to_owned(),
+                        lens: evaluation.lens.to_owned(),
                         reason: evaluation.reason,
                     });
-                    false
-                })
-                .cloned()
-                .collect();
+                    continue;
+                }
+                let witnesses = evaluation.applicable_paths();
+                trigger_evidence.insert(
+                    spec.id.to_string(),
+                    evaluation.snapshot_with_source_sides(
+                        &inventory.digest,
+                        &paths,
+                        &source_sides,
+                    )?,
+                );
+                let mut applicable = spec.clone();
+                // Trigger witnesses must belong to the same selector-bound
+                // denominator used by execution, resume & ingest. Never issue
+                // a conditional lens with an empty successful review set.
+                if !witnesses.is_empty() {
+                    applicable.selector = serde_json::json!({
+                        "op": "any",
+                        "selectors": [spec.selector, {"op": "paths", "paths": witnesses}],
+                    });
+                }
+                filtered_specs.push(applicable);
+            }
             filtered_specs.as_slice()
         } else {
             specs
@@ -286,7 +323,13 @@ impl AuditPlan {
         // provider. Needs a filesystem root (sizes, churn); without one every
         // lens keeps the exhaustive, selector-bound behaviour.
         let coverage_configs = match root {
-            Some(root) => plan_lens_coverage(root, inventory, specs, &candidate_denominators)?,
+            Some(root) => plan_lens_coverage(
+                root,
+                inventory,
+                specs,
+                &candidate_denominators,
+                &trigger_evidence,
+            )?,
             None => BTreeMap::new(),
         };
         let providers = specs
@@ -409,6 +452,17 @@ impl AuditPlan {
                 if let Some(coverage) = coverage_configs.get(spec.id.as_str()) {
                     configuration.insert("coverage".into(), coverage.clone());
                 }
+                if let Some(evidence) = trigger_evidence.get(spec.id.as_str()) {
+                    configuration.insert("triggerEvidence".into(), evidence.clone());
+                }
+                let provider_sides: BTreeMap<_, _> = source_sides
+                    .iter()
+                    .filter(|(path, _)| {
+                        denominator.entries.iter().any(|entry| &entry.path == *path)
+                    })
+                    .map(|(path, side)| (path.clone(), side.clone()))
+                    .collect();
+                configuration.insert("sourceSides".into(), serde_json::json!(provider_sides));
                 // A provider whose selector matches nothing does not apply to
                 // this repository, so it is never `required`.
                 let applicable =

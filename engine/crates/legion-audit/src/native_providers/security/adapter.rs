@@ -21,7 +21,7 @@ use crate::{
 use super::{
     ast_grep, container_iac, dependency_osv, imported_sarif, opengrep, packs,
     producer::{ArtifactProducer, Production},
-    secrets, supply_chain,
+    scanners, secrets, supply_chain, suppressions,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -55,6 +55,13 @@ impl SecurityProviderExecutor {
 
     pub fn with_producer(mut self, producer: ArtifactProducer) -> Self {
         self.producer = Some(producer);
+        self
+    }
+
+    pub fn with_snapshot_manifest(mut self, path: impl Into<std::path::PathBuf>) -> Self {
+        if let Some(producer) = self.producer.take() {
+            self.producer = Some(producer.with_snapshot_manifest(path));
+        }
         self
     }
 
@@ -123,6 +130,8 @@ impl SecurityProviderExecutor {
     fn analyze_input(provider: &AuditProvider, input: &Value) -> Option<Value> {
         let input = input.clone();
         Some(match provider.id.as_str() {
+            id if scanners::tool_for(id).is_some() => scanners::analyze(&input),
+            "security.suppression-changes" => suppressions::analyze(&input),
             "container.iac" => container_iac::analyze(&input),
             "dependency.osv" => dependency_osv::analyze(&input),
             "secrets.current-history" => secrets::analyze(&input),

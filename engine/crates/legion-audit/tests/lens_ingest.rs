@@ -24,6 +24,9 @@ use legion_contracts::{
 };
 use serde_json::{json, Value};
 
+mod common;
+use common::{authenticate, FindingDisposition};
+
 const KEY: &[u8] = b"lens-ingest-fixture-signing-key";
 const PROVIDER: &str = "reasoning.naming";
 
@@ -234,6 +237,15 @@ fn lens_result(run: &Run, findings: Value, withdrawn: Value) -> Value {
     })
 }
 
+fn ingest_fixture(
+    run: &Run,
+    mut result: Value,
+    disposition: FindingDisposition,
+) -> legion_audit::native_providers::reasoning::ingest::IngestedLens {
+    authenticate(&run.run, &run.work.request, &mut result, disposition);
+    ingest_lens_result(&run.run, PROVIDER, &result).unwrap()
+}
+
 fn finding(anchor_text: &str, line: u64) -> Value {
     json!({
         "id": "naming-1",
@@ -300,8 +312,11 @@ fn invalid_retained_output_proof_blocks_ingest_before_any_receipt_write() {
 #[test]
 fn ingest_round_trip_counts_the_lens_as_ran_and_clean_is_reachable() {
     let run = setup("roundtrip");
-    let ingested =
-        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    let ingested = ingest_fixture(
+        &run,
+        lens_result(&run, json!([]), json!([])),
+        FindingDisposition::Upheld,
+    );
     assert_eq!(ingested.provider, PROVIDER);
     assert!(run
         .run
@@ -331,10 +346,29 @@ fn ingest_round_trip_counts_the_lens_as_ran_and_clean_is_reachable() {
 }
 
 #[test]
+fn a_materialized_packet_without_host_receipts_is_not_completion() {
+    let run = setup("missing-host-receipts");
+    ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    let recomputed = recompute_run(&run.run).unwrap();
+    assert_eq!(recomputed.report.status, ReportStatus::Incomplete);
+    assert_eq!(recomputed.report.claims["lensesRan"], json!([]));
+    assert!(recomputed
+        .report
+        .gaps
+        .iter()
+        .any(|gap| gap.starts_with("delivery-unverified:")));
+    assert!(recomputed
+        .report
+        .gaps
+        .iter()
+        .any(|gap| gap.starts_with("verification-unverified:")));
+}
+
+#[test]
 fn ingested_findings_with_valid_anchors_become_report_findings() {
     let run = setup("findings");
     let result = lens_result(&run, json!([finding("a - b", 2)]), json!([]));
-    let ingested = ingest_lens_result(&run.run, PROVIDER, &result).unwrap();
+    let ingested = ingest_fixture(&run, result, FindingDisposition::Upheld);
     assert_eq!(ingested.findings, 1);
     assert_eq!(ingested.anchors_verified, 1);
     let recomputed = recompute_run(&run.run).unwrap();
@@ -393,12 +427,8 @@ fn ingest_rejects_withdrawals_without_a_disproving_line() {
         json!([]),
         json!([{"id": "naming-9", "reason": "not a bug", "disproof": {"path": "src/lib.rs", "line": 2, "text": "a - b"}}]),
     );
-    assert_eq!(
-        ingest_lens_result(&run.run, PROVIDER, &proven)
-            .unwrap()
-            .withdrawn,
-        1
-    );
+    let ingested = ingest_fixture(&run, proven, FindingDisposition::Upheld);
+    assert_eq!(ingested.withdrawn, 1);
 }
 
 #[test]
@@ -439,7 +469,11 @@ fn ingest_rejects_a_working_tree_that_drifted_from_the_frozen_revision() {
 #[test]
 fn a_tampered_or_foreign_receipt_is_not_counted() {
     let run = setup("tamper");
-    ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    ingest_fixture(
+        &run,
+        lens_result(&run, json!([]), json!([])),
+        FindingDisposition::Upheld,
+    );
     let receipt_path = run
         .run
         .join("lens-receipts")
@@ -611,8 +645,11 @@ fn oversized_file_is_chunked_not_truncated_and_stays_covered() {
         run.work.request.packet["excerptCoverage"]["truncatedPaths"],
         json!([])
     );
-    let ingested =
-        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    let ingested = ingest_fixture(
+        &run,
+        lens_result(&run, json!([]), json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(ingested.complete, "{:?}", ingested.coverage_gaps);
     assert_eq!((ingested.examined, ingested.expected), (1, 1));
     let recomputed = recompute_run(&run.run).unwrap();
@@ -636,8 +673,11 @@ fn an_unreadable_denominator_file_leaves_a_named_coverage_gap() {
     let omitted = &run.work.request.packet["excerptCoverage"]["omittedPaths"];
     assert_eq!(omitted[0]["path"], json!("src/blob.rs"));
     assert_eq!(omitted[0]["reason"], json!("binary"));
-    let ingested =
-        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    let ingested = ingest_fixture(
+        &run,
+        lens_result(&run, json!([]), json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(!ingested.complete);
     assert_eq!((ingested.examined, ingested.expected), (1, 2));
     assert_eq!(ingested.coverage_gaps.len(), 1);
@@ -651,7 +691,7 @@ fn an_unreadable_denominator_file_leaves_a_named_coverage_gap() {
 fn finding_summary_carries_confidence_and_verify_status() {
     let run = setup("triage-fields");
     let result = lens_result(&run, json!([finding("a - b", 2)]), json!([]));
-    ingest_lens_result(&run.run, PROVIDER, &result).unwrap();
+    let ingested = ingest_fixture(&run, result, FindingDisposition::Unresolved);
     let recomputed = recompute_run(&run.run).unwrap();
     let evidence = &recomputed.report.findings[0].evidence;
     assert_eq!(evidence["confidence"], json!("likely"));
@@ -664,13 +704,20 @@ fn finding_summary_carries_confidence_and_verify_status() {
     assert_eq!(finding.message, "add subtracts instead of adding");
     assert_eq!(finding.title, "use +");
     assert_eq!(finding.locations, vec!["src/lib.rs:2".to_owned()]);
+    assert!(ingested
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("verification-unresolved:")));
 }
 
 #[test]
 fn untruncated_excerpts_report_exact_examined_coverage() {
     let run = setup("exact-coverage");
-    let ingested =
-        ingest_lens_result(&run.run, PROVIDER, &lens_result(&run, json!([]), json!([]))).unwrap();
+    let ingested = ingest_fixture(
+        &run,
+        lens_result(&run, json!([]), json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(ingested.complete);
     assert_eq!((ingested.examined, ingested.expected), (1, 1));
 }

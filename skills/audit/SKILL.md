@@ -72,52 +72,14 @@ overrides it.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
-7. Read [lens routing](references/lens-routing.md) & [lens cues](references/lens-cues.md) before
-   dispatch. Include each applicable lens cue in its packet. Group applicable reasoning lenses into
-   bundled seats (see [lens routing](references/lens-routing.md) Bundled seats). One native subagent
-   per seat reads its excerpts once and answers every lens it bundles, tiered by seat kind (judgment
-   for `security`, `architecture`, `correctness`, and schema; specialist for the S-seats; mechanical
-   for breadth triage, naming, and dead-file). Drive dispatch with `legion audit next --run <run-dir>`
-   (a pure function of `lens-dispatch.json`, the ingested receipts and adjudication ledger, and the seat
-   leases in `next-state.json`). Loop: `next` -> dispatch every seat of the returned wave (at most
-   `CHILD_AGENTS_MAX`/16 in parallel, each seat at its own `modelTier` from the plan, fresh context,
-   reading `packetPaths` and writing `resultPaths`) -> one batch ingest of the wave's results
-   (`legion audit ingest --run <run-dir> --result <file> ...`) -> `next` again. Repeated `next` calls
-   without new results return the same wave; a seat unanswered when its lease (default 20 minutes)
-   expires is reissued and counts an attempt (two per seat). Adjudication seats come from the same loop in
-   rounds (batches; confirmations, spot-checks and individual reviews; voided-batch reruns; then one confirmation-only closing round), each seat
-   with its own packet; merge every adjudication seat result into the single cumulative
-   `legacy.security.adjudication` result (all verdicts so far) before ingesting. Stop on `done`;
-   `incomplete:<reasons>` (for example `retry-exhausted`, `adjudication-contested`) and
-   `budget-exhausted` end the loop as typed gaps, never as a clean verdict. Inline execution is fallback
-   only when no native seat is available. Reason only inside frozen-plan providers.
-   The engine has no in-process lens host: `legion audit --out <run-dir>` freezes a per-run epoch key
-   and emits each reasoning lens as a `pending-host` packet at `<run-dir>/lens-packets/<provider>.json`,
-   listed under `lensWork` / `reasoningLensesPending`; `reasoningLensesRan` counts a lens only after
-   the CLI ingests its result. Read `lens-dispatch.json` and every packet it names. Each seat writes a
-   `legion-lens-result` JSON file per bundled lens whose every finding carries a verbatim code anchor
-   (`anchor: {path, line, text}`; see the execution contract). Apply the refutation rule (a finding is
-   withdrawn only by citing, as a `disproof` anchor, the line that disproves it). Then run
-   `legion audit ingest --run <run-dir> --result <file> [--result <file> ...]` once per wave (results name
-   their provider; `--provider <id>` overrides):
-   the CLI is the trusted host, rejects any anchor that does not match the file bytes at the frozen
-   revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
-   `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not
-   ingested stays `pending-host` and keeps the audit non-clean. The adjudication packet carries
-   `scannerCandidates` plus the batch plan (`triage`, `clusters`, `batches`, `confirmations`), bound to the
-   batch packet digest. Each batch runs in one fresh Oracle context, separate from any
-   generator context, and yields exactly one verdict per candidate; the batch is an aggregation boundary
-   only. Every surviving verdict then gets a single-candidate confirmation, and seeded spot-checks of
-   false-positive verdicts run per batch (execution contract, Security adjudication). Each verdict carries
-   its `clusterId` and `workPacketDigest`. Echoed identifiers bind the result to its packet but do not
-   attest which context produced it, so CLI/model results retain the typed derived-context coverage gap. `scannerCandidates: null` means unavailable; `[]`
-   means scanner completed with no candidates. Every packet carries
-   `excerptCoverage`, and omitted/truncated excerpts leave a `reasoning-excerpt-coverage` gap (partial
-   receipt). The `minimize` packet carries full `ponytail-lens.md`, including DI, test, &
-   extension-point false-positive exceptions. Confirmed security verdicts additionally require the
-   variant-analysis follow-up
-   (`legion audit ingest --run <run-dir> --followup`, see the execution contract); until that
-   follow-up is ingested and verifies, `security-variant-analysis-pending` keeps the audit incomplete.
+7. Read [reasoning runtime](references/reasoning-runtime.md), [lens routing](references/lens-routing.md),
+   [lens cues](references/lens-cues.md), and [pattern cards](references/pattern-cards.md). Run
+   `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`. Native host executes
+   bounded one-turn calls over frozen packets, grants snapshot-only tools, records usage as known or
+   unknown, independently verifies findings, ingests authenticated receipts, and recomputes report.
+   Missing prerequisites, exhausted budget, and unresolved evidence remain typed gaps. Cards sharpen
+   existing lenses and are selected only when applicable; they do not create new domains.
+   See [execution contract](references/execution-contract.md) for packet and ingest invariants.
 8. Apply [semantic review](references/semantic-review.md) when a repository supplies explicit
    specifications or standards. Reuse `correctness` for SPEC fidelity & `ai-slop` for STANDARDS,
    with independent inputs, reports, & verdicts; missing inputs are typed `unproven` or

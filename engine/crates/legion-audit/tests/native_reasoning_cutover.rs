@@ -10,9 +10,9 @@ use std::sync::Arc;
 
 use hmac::{Hmac, KeyInit, Mac};
 use legion_audit::native_providers::reasoning::{
-    ReasoningHost, ReasoningHostError, ReasoningHostResponse, ReasoningInvocation,
-    ReasoningProviderExecutor, ReasoningReceipt, REASONING_MAC_DOMAIN, REASONING_PROVIDER_IDS,
-    REASONING_RECEIPT_BOUND_FIELDS,
+    delivery_chunk_manifest, required_packet_gaps, ReasoningHost, ReasoningHostError,
+    ReasoningHostResponse, ReasoningInvocation, ReasoningProviderExecutor, ReasoningReceipt,
+    REASONING_MAC_DOMAIN, REASONING_PROVIDER_IDS, REASONING_RECEIPT_BOUND_FIELDS,
 };
 use legion_audit::{AuditPlan, InventoryEntry, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::{
@@ -22,20 +22,57 @@ use legion_contracts::{
 use serde_json::{json, Value};
 use sha2::Sha256;
 
+fn fixture_root() -> &'static std::path::Path {
+    static ROOT: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root =
+            std::env::temp_dir().join(format!("legion-reasoning-cutover-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("src/lib.rs"),
+            "fixture source\n// cfg(target_os and Command::new( trigger fixtures\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join("migrations")).unwrap();
+        std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
+        std::fs::write(root.join("src/ui.tsx"), "<button>fixture</button>\n").unwrap();
+        std::fs::write(
+            root.join("migrations/001.sql"),
+            "CREATE TABLE fixture(id INTEGER);\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join(".github/workflows/release.yml"),
+            "publish: false\n",
+        )
+        .unwrap();
+        root
+    })
+    .as_path()
+}
+
 const KEY: &[u8] = b"native-reasoning-fixture-trusted-key";
 
 fn inventory() -> InventoryEnvelope {
     InventoryEnvelope::new(
         "fixture-repository",
         "fixture-generation",
-        vec![InventoryEntry {
-            path: "src/lib.rs".into(),
+        [
+            "src/lib.rs",
+            "src/ui.tsx",
+            "migrations/001.sql",
+            ".github/workflows/release.yml",
+        ]
+        .into_iter()
+        .map(|path| InventoryEntry {
+            path: path.into(),
             symbols: Vec::new(),
             dependencies: Vec::new(),
             package_scripts: Vec::new(),
             source_file: true,
             digest: None,
-        }],
+        })
+        .collect(),
     )
     .unwrap()
 }
@@ -80,7 +117,7 @@ fn review_context() -> Value {
 
 fn plan(id: &str) -> (legion_audit::FrozenPlan, InventoryEnvelope) {
     let inventory = inventory();
-    let plan = AuditPlan::compile(&inventory, &[spec(id)])
+    let plan = AuditPlan::compile_with_root(Some(fixture_root()), &inventory, &[spec(id)])
         .unwrap()
         .freeze(Some(KEY))
         .unwrap();
@@ -89,6 +126,17 @@ fn plan(id: &str) -> (legion_audit::FrozenPlan, InventoryEnvelope) {
 
 fn result(request: &ReasoningInvocation) -> ProviderResult {
     let mut details = BTreeMap::new();
+    details.insert("deliveryEvidence".into(), json!({
+        "schemaVersion": 1, "kind": "legion-evidence-delivery", "source": "host-transport",
+        "receiptId": format!("fixture-delivery:{}", request.request_id),
+        "requestId": request.request_id, "packetDigest": canonical_digest(&request.packet).unwrap(),
+        "deliveredPacketBytes": canonical_json_bytes(&request.packet).unwrap().len(),
+        "complete": true, "truncated": false, "chunks": delivery_chunk_manifest(request).unwrap()
+    }));
+    details.insert("verificationEvidence".into(), json!({
+        "schemaVersion": 1, "kind": "legion-runtime-verification", "requestId": request.request_id,
+        "packetDigest": canonical_digest(&request.packet).unwrap(), "findings": []
+    }));
     match request.provider_id.as_str() {
         "reasoning.architecture" => {
             details.insert(
@@ -122,21 +170,27 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
         }
         _ => {}
     }
+    let gaps = required_packet_gaps(request);
+    let complete = gaps.is_empty();
     ProviderResult {
         schema_version: 1,
         provider: ProviderId::new(&request.provider_id).unwrap(),
         applicable: true,
         required: true,
-        status: ProviderStatus::Complete,
-        complete: true,
+        status: if complete {
+            ProviderStatus::Complete
+        } else {
+            ProviderStatus::Partial
+        },
+        complete,
         coverage: Some(Coverage {
             denominator_digest: request.denominator_digest.clone(),
             expected: request.denominator_count,
             examined: request.denominator_count,
-            gaps: Vec::new(),
+            gaps: gaps.clone(),
         }),
         findings: Vec::new(),
-        coverage_gaps: Vec::new(),
+        coverage_gaps: gaps,
         degradation: Vec::new(),
         details,
     }
@@ -250,7 +304,7 @@ fn signed_host_result_is_bound_and_reaches_report_execution() {
         calls: AtomicUsize::new(0),
         tamper: false,
     });
-    let executor = ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec());
+    let executor = ReasoningProviderExecutor::new(fixture_root(), host.clone(), KEY.to_vec());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(host.calls.load(Ordering::SeqCst), 1);
     assert!(report.gaps.is_empty(), "{:?}", report.gaps);
@@ -289,11 +343,12 @@ fn diff_review_cannot_claim_whole_repo_non_applicability() {
     let inventory = inventory();
     let mut provider = spec("reasoning.correctness");
     provider.reasoning["reviewContext"]["mode"] = json!("diff");
-    let plan = AuditPlan::compile(&inventory, &[provider])
+    let plan = AuditPlan::compile_with_root(Some(fixture_root()), &inventory, &[provider])
         .unwrap()
         .freeze(Some(KEY))
         .unwrap();
-    let executor = ReasoningProviderExecutor::new(".", Arc::new(NonApplicableHost), KEY.to_vec());
+    let executor =
+        ReasoningProviderExecutor::new(fixture_root(), Arc::new(NonApplicableHost), KEY.to_vec());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert!(!report.results[0].result.complete);
     assert!(report
@@ -309,7 +364,7 @@ fn receipt_tampering_is_rejected_and_cannot_complete_provider() {
         calls: AtomicUsize::new(0),
         tamper: true,
     });
-    let executor = ReasoningProviderExecutor::new(".", host, KEY.to_vec());
+    let executor = ReasoningProviderExecutor::new(fixture_root(), host, KEY.to_vec());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert!(!report.results[0].result.complete);
     assert!(report
@@ -321,8 +376,11 @@ fn receipt_tampering_is_rejected_and_cannot_complete_provider() {
 #[test]
 fn detail_finding_without_top_level_projection_is_rejected() {
     let (plan, inventory) = plan("reasoning.architecture");
-    let executor =
-        ReasoningProviderExecutor::new(".", Arc::new(OrphanDetailFindingHost), KEY.to_vec());
+    let executor = ReasoningProviderExecutor::new(
+        fixture_root(),
+        Arc::new(OrphanDetailFindingHost),
+        KEY.to_vec(),
+    );
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert!(!report.results[0].result.complete);
     assert!(report
@@ -338,7 +396,7 @@ fn replay_and_missing_host_are_typed_incomplete_results() {
         calls: AtomicUsize::new(0),
         tamper: false,
     });
-    let executor = ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec());
+    let executor = ReasoningProviderExecutor::new(fixture_root(), host.clone(), KEY.to_vec());
     let first = executor
         .execute_bound(&plan, &plan.providers()[0], &inventory)
         .unwrap();
@@ -353,7 +411,7 @@ fn replay_and_missing_host_are_typed_incomplete_results() {
         .any(|gap| gap == "reasoning-replay-detected"));
     assert_eq!(host.calls.load(Ordering::SeqCst), 1);
 
-    let missing = ReasoningProviderExecutor::unavailable(".");
+    let missing = ReasoningProviderExecutor::unavailable(fixture_root());
     let result = missing
         .execute_bound(&plan, &plan.providers()[0], &inventory)
         .unwrap();
@@ -371,7 +429,7 @@ fn every_reasoning_id_executes_through_the_shared_native_registry() {
         .iter()
         .map(|id| spec(id))
         .collect::<Vec<_>>();
-    let plan = AuditPlan::compile(&inventory, &specs)
+    let plan = AuditPlan::compile_with_root(Some(fixture_root()), &inventory, &specs)
         .unwrap()
         .freeze(Some(KEY))
         .unwrap();
@@ -379,14 +437,22 @@ fn every_reasoning_id_executes_through_the_shared_native_registry() {
         calls: AtomicUsize::new(0),
         tamper: false,
     });
-    let executor = legion_audit::NativeProviderRegistry::new(".").with_reasoning(
-        ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec()),
+    let executor = legion_audit::NativeProviderRegistry::new(fixture_root()).with_reasoning(
+        ReasoningProviderExecutor::new(fixture_root(), host.clone(), KEY.to_vec()),
     );
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(host.calls.load(Ordering::SeqCst), 17);
     assert_eq!(report.results.len(), 17);
-    assert!(report.gaps.is_empty(), "{:?}", report.gaps);
-    assert!(report.results.iter().all(|entry| entry.result.complete));
+    assert!(
+        report
+            .gaps
+            .iter()
+            .any(|gap| gap.contains("scanner-candidates-unavailable")),
+        "{:?}",
+        report.gaps
+    );
+    assert!(report.results.iter().all(|entry| entry.result.complete
+        == (entry.provider.as_str() != "legacy.security.adjudication")));
 }
 
 #[test]
@@ -396,7 +462,7 @@ fn missing_trust_key_prevents_the_host_call() {
         calls: AtomicUsize::new(0),
         tamper: false,
     });
-    let executor = ReasoningProviderExecutor::new(".", host.clone(), Vec::new());
+    let executor = ReasoningProviderExecutor::new(fixture_root(), host.clone(), Vec::new());
     let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
     assert_eq!(host.calls.load(Ordering::SeqCst), 0);
     assert!(!report.results[0].result.complete);
@@ -431,10 +497,10 @@ impl ReasoningHost for CachedHost {
 fn a_new_executor_rejects_a_previously_signed_review_receipt() {
     let (plan, inventory) = plan("reasoning.architecture");
     let host = Arc::new(CachedHost(std::sync::Mutex::new(None)));
-    let first = ReasoningProviderExecutor::new(".", host.clone(), KEY.to_vec());
+    let first = ReasoningProviderExecutor::new(fixture_root(), host.clone(), KEY.to_vec());
     let first_report = legion_audit::execute(&plan, &inventory, &first).unwrap();
     assert!(first_report.results[0].result.complete);
-    let second = ReasoningProviderExecutor::new(".", host, KEY.to_vec());
+    let second = ReasoningProviderExecutor::new(fixture_root(), host, KEY.to_vec());
     let second_report = legion_audit::execute(&plan, &inventory, &second).unwrap();
     assert!(!second_report.results[0].result.complete);
     assert!(second_report
@@ -467,4 +533,33 @@ fn generic_executors_cannot_bypass_reasoning_authentication() {
         .gaps
         .iter()
         .any(|gap| gap.contains("authenticated plan-bound executor")));
+}
+
+#[test]
+fn signed_author_result_cannot_complete_without_independent_verification() {
+    struct AuthorOnlyHost;
+    impl ReasoningHost for AuthorOnlyHost {
+        fn invoke(
+            &self,
+            request: &ReasoningInvocation,
+        ) -> Result<ReasoningHostResponse, ReasoningHostError> {
+            let mut result = result(request);
+            result.details.remove("verificationEvidence");
+            let receipt = signed_receipt(request, &result);
+            Ok(ReasoningHostResponse { result, receipt })
+        }
+    }
+    let (plan, inventory) = plan("reasoning.architecture");
+    let executor =
+        ReasoningProviderExecutor::new(fixture_root(), Arc::new(AuthorOnlyHost), KEY.to_vec());
+    let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
+    assert!(!report.results[0].result.complete);
+    assert!(
+        report
+            .gaps
+            .iter()
+            .any(|gap| gap.contains("independent verification")),
+        "{:?}",
+        report.gaps
+    );
 }

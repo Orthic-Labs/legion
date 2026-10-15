@@ -5,7 +5,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -29,6 +29,9 @@ use legion_contracts::{
     ReportStatus,
 };
 use serde_json::{json, Value};
+
+mod common;
+use common::{authenticate, FindingDisposition};
 
 fn temp_dir(name: &str) -> PathBuf {
     static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -266,6 +269,15 @@ fn lens_result(item: &PendingLensWork) -> Value {
     })
 }
 
+fn ingest_fixture(
+    run: &Path,
+    item: &PendingLensWork,
+) -> legion_audit::native_providers::reasoning::ingest::IngestedLens {
+    let mut result = lens_result(item);
+    authenticate(run, &item.request, &mut result, FindingDisposition::Upheld);
+    ingest_lens_result(run, item.provider_id.as_str(), &result).unwrap()
+}
+
 fn frozen_coverage(env: &Env, provider: &str) -> FrozenCoverage {
     let plan = env.plan.plan();
     let found = plan
@@ -313,7 +325,7 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
         let paths = item.request.packet["part"]["paths"]
             .as_array()
             .cloned()
-            .unwrap_or_else(|| coverage["examinedPaths"].as_array().unwrap().clone());
+            .unwrap_or_else(|| coverage["materializedPaths"].as_array().unwrap().clone());
         homed.extend(paths.iter().map(|p| p.as_str().unwrap().to_owned()));
     }
     assert_eq!(homed, frozen.review_set);
@@ -321,9 +333,7 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
     let total = env.work.len();
     let mut last = None;
     for item in &env.work {
-        last = Some(
-            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
-        );
+        last = Some(ingest_fixture(&env.run, item));
     }
     let last = last.unwrap();
     assert!(last.complete, "{:?}", last.coverage_gaps);
@@ -377,9 +387,7 @@ fn a_review_set_path_that_could_not_be_examined_is_still_a_gap() {
     assert!(frozen.review_set.contains("src/auth/blob.rs"));
     let mut last = None;
     for item in &env.work {
-        last = Some(
-            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
-        );
+        last = Some(ingest_fixture(&env.run, item));
     }
     let last = last.unwrap();
     assert!(!last.complete);
@@ -660,6 +668,8 @@ fn candidate(path: &str, severity: &str, number: usize) -> ScannerCandidate {
         line: Some(3),
         message: "fixture".into(),
         evidence_excerpt: None,
+        domain: "security".into(),
+        ..ScannerCandidate::default()
     }
 }
 
@@ -850,9 +860,7 @@ fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
     write_lens_packets(&env.run.join(LENS_PACKET_DIR), &work).unwrap();
     let mut last = None;
     for item in &work {
-        last = Some(
-            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
-        );
+        last = Some(ingest_fixture(&env.run, item));
     }
     let last = last.unwrap();
     assert!(last.complete, "{:?}", last.coverage_gaps);
@@ -950,9 +958,7 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     std::fs::write(&promotion_path, &original).unwrap();
     let mut last = None;
     for item in &work {
-        last = Some(
-            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
-        );
+        last = Some(ingest_fixture(&env.run, item));
     }
     let last = last.unwrap();
     let gap = format!("lens-promotion-capped:{unpromoted}");
@@ -1065,17 +1071,12 @@ fn batched_ingest_matches_sequential_ingest() {
     };
     let sequential = build("ingest-sequential");
     for item in &sequential.work {
-        ingest_lens_result(
-            &sequential.run,
-            item.provider_id.as_str(),
-            &lens_result(item),
-        )
-        .unwrap();
+        ingest_fixture(&sequential.run, item);
         recompute_run(&sequential.run).unwrap();
     }
     let batched = build("ingest-batched");
     for item in &batched.work {
-        ingest_lens_result(&batched.run, item.provider_id.as_str(), &lens_result(item)).unwrap();
+        ingest_fixture(&batched.run, item);
     }
     let one = recompute_run(&batched.run).unwrap();
     let many = recompute_run(&sequential.run).unwrap();

@@ -21,3 +21,4 @@ flate2.workspace = true
 brotli.workspace = true
 legion-contracts = { path = "../../crates/legion-contracts" }
 legion-audit = { path = "../../crates/legion-audit" }
+rightkit-child-process = "=0.4.0"

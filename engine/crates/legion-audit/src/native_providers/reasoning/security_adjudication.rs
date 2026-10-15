@@ -32,7 +32,7 @@ use std::{
     path::{Component, Path},
 };
 
-use legion_contracts::{canonical_digest, ProviderResult};
+use legion_contracts::{canonical_digest, canonical_json_bytes, ProviderResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -343,12 +343,21 @@ pub fn create_adjudication_packet(
         context_id: adjudicator_context_id.to_string(),
         context_started_at: context_started_at.unwrap_or_else(chrono_now_rfc3339),
     };
+    let required_evidence = domain_required_evidence(
+        candidate
+            .evidence
+            .first()
+            .and_then(|item| item.get("domain"))
+            .and_then(Value::as_str)
+            .filter(|domain| !domain.is_empty())
+            .unwrap_or("security"),
+    );
     let unsigned = SecurityAdjudicationPacket {
         schema_version: 1,
         kind: "security-adjudication-packet".into(),
         candidate,
         adjudicator,
-        required_evidence: REQUIRED_EVIDENCE.iter().map(|s| s.to_string()).collect(),
+        required_evidence,
         packet_digest: String::new(),
     };
     let digest = canonical_digest(&unsigned)
@@ -409,9 +418,26 @@ pub struct SecurityVerdictInput {
     pub devils_advocate: Option<String>,
 }
 
+/// Nonsecurity findings bind a concrete invariant & trigger to their domain.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CandidateDomainProof {
+    pub domain: String,
+    pub invariant: String,
+    pub trigger: String,
+}
+
+fn default_verdict_domain() -> String {
+    "security".into()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityVerdict {
+    #[serde(default = "default_verdict_domain")]
+    pub domain: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain_proof: Option<CandidateDomainProof>,
     pub schema_version: u32,
     pub kind: String,
     pub candidate_id: String,
@@ -422,7 +448,9 @@ pub struct SecurityVerdict {
     pub verdict: SecurityVerdictKind,
     pub severity: Option<String>,
     pub exploitability: Option<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub threat_model: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub attacker_control: String,
     pub reachability: String,
     pub trust_boundaries: Vec<String>,
@@ -465,20 +493,69 @@ fn finalize_with_evidence(
     result: SecurityVerdictInput,
     cited_evidence: Vec<Value>,
 ) -> Result<SecurityVerdict, SecurityAdjudicationError> {
+    finalize_for_domain(packet, result, cited_evidence, None)
+}
+
+fn finalize_for_domain(
+    packet: &SecurityAdjudicationPacket,
+    result: SecurityVerdictInput,
+    cited_evidence: Vec<Value>,
+    domain_proof: Option<CandidateDomainProof>,
+) -> Result<SecurityVerdict, SecurityAdjudicationError> {
+    let domain = packet
+        .candidate
+        .evidence
+        .first()
+        .and_then(|item| item.get("domain"))
+        .and_then(Value::as_str)
+        .filter(|domain| !domain.is_empty())
+        .unwrap_or("security");
+    if !matches!(domain, "security" | "data" | "reliability" | "release") {
+        return Err(SecurityAdjudicationError::CandidateSetup {
+            id: packet.candidate.id.clone(),
+            reason: "candidate domain is unknown; no applicable proof contract".into(),
+        });
+    }
+    let security = domain == "security";
+    if !security {
+        let proof = domain_proof
+            .as_ref()
+            .filter(|proof| proof.domain == domain)
+            .ok_or_else(|| SecurityAdjudicationError::CandidateSetup {
+                id: packet.candidate.id.clone(),
+                reason: format!("{domain} verdict requires matching domainProof"),
+            })?;
+        check_text(&packet.candidate.id, "invariant", &proof.invariant, false)?;
+        check_text(&packet.candidate.id, "trigger", &proof.trigger, false)?;
+        if !non_blank(&result.proof) {
+            return Err(SecurityAdjudicationError::MissingProof(result.verdict));
+        }
+        if !non_blank(&result.devils_advocate) {
+            return Err(SecurityAdjudicationError::MissingDevilsAdvocate(
+                result.verdict,
+            ));
+        }
+    } else if domain_proof.is_some() {
+        return Err(SecurityAdjudicationError::CandidateSetup { id: packet.candidate.id.clone(), reason: "security verdict uses threatModel and attackerControl, not a nonsecurity domainProof".into() });
+    }
     if !verify_adjudication_packet(packet) {
         return Err(SecurityAdjudicationError::InvalidPacket);
     }
     // A blank string is no more an assessment than an absent one.
-    if !non_blank(&result.threat_model)
+    if (security && !non_blank(&result.threat_model))
         || !non_blank(&result.reachability)
         || !non_blank(&result.impact)
     {
         return Err(SecurityAdjudicationError::IncompleteVerdict);
     }
-    let threat_model = result
-        .threat_model
-        .clone()
-        .ok_or(SecurityAdjudicationError::IncompleteVerdict)?;
+    let threat_model = if security {
+        result
+            .threat_model
+            .clone()
+            .ok_or(SecurityAdjudicationError::IncompleteVerdict)?
+    } else {
+        String::new()
+    };
     let reachability = result
         .reachability
         .clone()
@@ -497,12 +574,16 @@ fn finalize_with_evidence(
             result.verdict,
         ));
     }
-    let attacker_control = result
-        .attacker_control
-        .clone()
-        .unwrap_or_else(|| "unproven".to_string());
+    let attacker_control = if security {
+        result
+            .attacker_control
+            .clone()
+            .unwrap_or_else(|| "unproven".to_string())
+    } else {
+        String::new()
+    };
     if surviving {
-        if attacker_control.trim().is_empty() || attacker_control == "unproven" {
+        if security && (attacker_control.trim().is_empty() || attacker_control == "unproven") {
             return Err(SecurityAdjudicationError::WeakAttackerControl(
                 result.verdict,
             ));
@@ -526,8 +607,15 @@ fn finalize_with_evidence(
     }
 
     let unsigned = SecurityVerdict {
+        domain: domain.into(),
+        domain_proof,
         schema_version: 1,
-        kind: "security-verdict".into(),
+        kind: if security {
+            "security-verdict"
+        } else {
+            "candidate-verdict"
+        }
+        .into(),
         candidate_id: packet.candidate.id.clone(),
         candidate_provider: packet.candidate.provider.clone(),
         adjudicator_provider: packet.adjudicator.provider.clone(),
@@ -551,7 +639,7 @@ fn finalize_with_evidence(
         devils_advocate: result.devils_advocate,
         cited_evidence,
         cluster_id: None,
-        variant_analysis_required: surviving,
+        variant_analysis_required: surviving && security,
         verdict_digest: String::new(),
     };
     let digest = canonical_digest(&unsigned)
@@ -565,7 +653,7 @@ fn finalize_with_evidence(
 /// One scanner (candidate-generator) result carried into the adjudication
 /// packet so a lens can reach a verdict per candidate instead of re-deriving
 /// scanner output.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannerCandidate {
     pub finding_id: String,
@@ -580,17 +668,121 @@ pub struct ScannerCandidate {
     /// The anchored source line, bounded and redacted.
     #[serde(default)]
     pub evidence_excerpt: Option<String>,
+    #[serde(default)]
+    pub end_line: Option<u64>,
+    /// Known, unknown, invalid, or conflicting. Unknown anchors stay live.
+    #[serde(default)]
+    pub location_status: String,
+    /// Original adapter location/evidence, recursively secret-redacted.
+    #[serde(default)]
+    pub source_mapping: Value,
+    #[serde(default)]
+    pub evidence_digest: String,
+    #[serde(default)]
+    pub domain: String,
 }
 
-/// Splits a `path:line` / `path:start-end` location.
-fn parse_location(location: &str) -> (String, Option<u64>) {
-    if let Some((path, range)) = location.rsplit_once(':') {
-        let start = range.split_once('-').map_or(range, |(start, _)| start);
-        if let Ok(line) = start.parse::<u64>() {
-            return (path.to_owned(), Some(line));
+/// Repository-relative anchors only; never turn traversal into a safe path.
+fn normalized_candidate_path(root: &Path, path: &str) -> Option<String> {
+    let normalized = path.replace('\\', "/");
+    let relative = if Path::new(&normalized).is_absolute() {
+        Path::new(&normalized)
+            .strip_prefix(root)
+            .ok()?
+            .to_str()?
+            .to_owned()
+    } else {
+        normalized
+    };
+    if relative.contains(':') || relative.chars().any(char::is_control) {
+        return None;
+    }
+    let mut parts = Vec::new();
+    for part in relative.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return None,
+            _ => parts.push(part),
         }
     }
-    (location.to_owned(), None)
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+fn parse_location(location: &str) -> (String, Option<u64>, Option<u64>) {
+    if let Some((path, range)) = location.rsplit_once(':') {
+        let (start, end) = range.split_once('-').unwrap_or((range, range));
+        if let Ok(line) = start.parse::<u64>() {
+            let end = end
+                .parse::<u64>()
+                .ok()
+                .filter(|end| line > 0 && *end >= line);
+            return (path.to_owned(), (line > 0).then_some(line), end);
+        }
+    }
+    (location.to_owned(), None, None)
+}
+
+fn safe_source_mapping(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(super::excerpts::redact_secrets(text).0),
+        Value::Array(items) => Value::Array(items.iter().map(safe_source_mapping).collect()),
+        Value::Object(items) => Value::Object(
+            items
+                .iter()
+                .map(|(key, value)| {
+                    let safe = match value {
+                        Value::String(text)
+                            if super::excerpts::redact_secrets(&format!("{key}={text}")).1 =>
+                        {
+                            Value::String("[REDACTED]".into())
+                        }
+                        _ => safe_source_mapping(value),
+                    };
+                    (key.clone(), safe)
+                })
+                .collect(),
+        ),
+        _ => value.clone(),
+    }
+}
+
+fn candidate_anchor(
+    root: &Path,
+    raw: &Value,
+) -> (Option<String>, Option<u64>, Option<u64>, String) {
+    let path = raw
+        .get("file")
+        .or_else(|| raw.get("path"))
+        .and_then(Value::as_str);
+    let line = raw
+        .get("line")
+        .or_else(|| raw.get("startLine"))
+        .and_then(Value::as_u64)
+        .filter(|line| *line > 0);
+    let end = raw.get("endLine").and_then(Value::as_u64).or(line);
+    let normalized = path.and_then(|path| normalized_candidate_path(root, path));
+    let status = if path.is_some() && normalized.is_none()
+        || raw
+            .get("line")
+            .or_else(|| raw.get("startLine"))
+            .is_some_and(|value| !value.is_null())
+            && line.is_none()
+        || raw
+            .get("endLine")
+            .is_some_and(|value| !value.is_null() && value.as_u64().is_none())
+        || end.zip(line).is_some_and(|(end, start)| end < start)
+    {
+        "invalid"
+    } else if normalized.is_some() && line.is_some() {
+        "known"
+    } else {
+        "unknown"
+    };
+    if status == "invalid" {
+        (None, None, None, status.into())
+    } else {
+        (normalized, line, end, status.into())
+    }
 }
 
 fn excerpt_line(root: &Path, path: &str, line: u64) -> Option<String> {
@@ -602,7 +794,12 @@ fn excerpt_line(root: &Path, path: &str, line: u64) -> Option<String> {
     {
         return None;
     }
-    let bytes = std::fs::read(root.join(relative)).ok()?;
+    let canonical_root = root.canonicalize().ok()?;
+    let canonical_file = root.join(relative).canonicalize().ok()?;
+    if !canonical_file.starts_with(&canonical_root) {
+        return None;
+    }
+    let bytes = std::fs::read(canonical_file).ok()?;
     let text = String::from_utf8_lossy(&bytes);
     let index = usize::try_from(line.checked_sub(1)?).ok()?;
     let source = text.lines().nth(index)?;
@@ -614,91 +811,153 @@ fn detail_entry<'a>(result: &'a ProviderResult, key: &str, id: &str) -> Option<&
     result.details.get(key)?.as_object()?.get(id)
 }
 
+/// Routing remains explicit: unknown families do not become security claims.
+pub fn candidate_domain(provider: &str, rule: &str) -> &'static str {
+    for identity in [rule, provider] {
+        let family = identity.to_ascii_lowercase();
+        if family.starts_with("data.") || family.contains(".data.") {
+            return "data";
+        }
+        if family.starts_with("release.") || family.contains(".release.") {
+            return "release";
+        }
+        if ["reliability", "resilience"]
+            .iter()
+            .any(|prefix| family.starts_with(prefix) || family.contains(&format!(".{prefix}.")))
+        {
+            return "reliability";
+        }
+        if ["security", "secrets", "credentials"]
+            .iter()
+            .any(|prefix| family.starts_with(prefix) || family.contains(&format!(".{prefix}.")))
+        {
+            return "security";
+        }
+    }
+    "unknown"
+}
+
+pub fn effective_candidate_domain(candidate: &ScannerCandidate) -> &str {
+    if candidate.domain.is_empty() {
+        candidate_domain(&candidate.provider, &candidate.rule)
+    } else {
+        &candidate.domain
+    }
+}
+
+fn domain_required_evidence(domain: &str) -> Vec<String> {
+    if domain == "security" {
+        return REQUIRED_EVIDENCE
+            .iter()
+            .map(|text| (*text).into())
+            .collect();
+    }
+    vec![
+        format!("domainProof.domain must equal {domain}"),
+        "domainProof.invariant: concrete data, reliability, or release invariant".into(),
+        "domainProof.trigger: executable trigger that violates or falsifies that invariant".into(),
+        "reachability and impact supported by source anchors".into(),
+        "proof: source trace or reproduction; uncertainty remains unresolved".into(),
+        "devilsAdvocate: counterevidence and false-positive challenge".into(),
+    ]
+}
+
 /// Candidates a candidate-generator `result` raised, in finding-id order.
 pub fn scanner_candidates(
     root: &Path,
     provider: &str,
     result: &ProviderResult,
 ) -> Vec<ScannerCandidate> {
-    let mut candidates = result
-        .findings
-        .iter()
-        .map(|finding| {
-            let id = finding.id.as_str();
-            let location = detail_entry(result, "findingLocations", id)
-                .and_then(Value::as_array)
-                .and_then(|locations| locations.iter().find_map(Value::as_str))
-                .map(parse_location);
-            let rule = detail_entry(result, "findingEvidence", id)
-                .and_then(Value::as_object)
-                .and_then(|evidence| {
-                    ["ruleId", "rule", "checkId"]
-                        .iter()
-                        .find_map(|key| evidence.get(*key).and_then(Value::as_str))
-                })
-                .unwrap_or(provider)
-                .to_owned();
-            let message = ["findingMessages", "findingTitles"]
-                .iter()
-                .find_map(|key| detail_entry(result, key, id).and_then(Value::as_str))
-                .unwrap_or_default()
-                .to_owned();
-            let (path, line) = match location {
-                Some((path, line)) => (Some(path), line),
-                None => (None, None),
-            };
-            let evidence_excerpt = path
-                .as_deref()
-                .zip(line)
-                .and_then(|(path, line)| excerpt_line(root, path, line));
-            ScannerCandidate {
-                finding_id: id.to_owned(),
-                provider: provider.to_owned(),
-                rule,
-                severity: finding.severity.clone(),
-                path,
-                line,
-                message,
-                evidence_excerpt,
-            }
-        })
-        .collect::<Vec<_>>();
-    // Candidate generators may not emit findings (`validate_result`); the
-    // native scanners carry theirs in `details.candidates` instead.
-    let raised = result
-        .details
-        .get("candidates")
-        .and_then(Value::as_array)
+    let mut raw = result.findings.iter().map(|finding| {
+        let id = finding.id.as_str();
+        let locations = detail_entry(result, "findingLocations", id).cloned().unwrap_or(Value::Null);
+        let evidence = detail_entry(result, "findingEvidence", id).cloned().unwrap_or(Value::Null);
+        let location = locations.as_array().and_then(|items| items.first()).and_then(Value::as_str);
+        let (file, line, end) = location.map(parse_location).unwrap_or_default();
+        let rule = ["ruleId", "rule", "checkId"].iter()
+            .find_map(|key| evidence.get(*key).and_then(Value::as_str)).unwrap_or(provider);
+        let message = ["findingMessages", "findingTitles"].iter()
+            .find_map(|key| detail_entry(result, key, id).and_then(Value::as_str)).unwrap_or_default();
+        json!({"id": id, "ruleId": rule, "severityHint": finding.severity,
+            "claim": message, "file": if file.is_empty() { None } else { Some(file) },
+            "line": line, "endLine": if line.is_some() && end.is_none() { Some(0) } else { end }, "adapterLocations": locations, "adapterEvidence": evidence})
+    }).collect::<Vec<_>>();
+    raw.extend(
+        result
+            .details
+            .get("candidates")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .cloned(),
+    );
+    let mut candidates = raw
         .into_iter()
-        .flatten()
-        .filter_map(|candidate| {
-            let id = candidate.get("id").and_then(Value::as_str)?;
+        .enumerate()
+        .map(|(index, candidate)| {
             let evidence = candidate
                 .get("evidence")
                 .and_then(Value::as_array)
                 .and_then(|items| items.first());
-            let path = evidence
-                .and_then(|item| item.get("file"))
+            let top_present = ["file", "path", "line", "startLine"]
+                .iter()
+                .any(|key| candidate.get(*key).is_some_and(|value| !value.is_null()));
+            let mut top = candidate_anchor(root, &candidate);
+            let nested = evidence.map(|item| candidate_anchor(root, item));
+            if candidate.get("endLine").is_none_or(Value::is_null) {
+                if let Some(nested) = nested
+                    .as_ref()
+                    .filter(|nested| nested.0 == top.0 && nested.1 == top.1)
+                {
+                    top.2 = nested.2;
+                }
+            }
+            let (path, line, end_line, location_status) = match (top_present, nested) {
+                (true, Some(nested))
+                    if top.3 == "known" && nested.3 == "known" && top != nested =>
+                {
+                    (None, None, None, "conflicting".into())
+                }
+                (true, Some(nested)) if top.3 == "unknown" && nested.3 == "known" => {
+                    if top
+                        .0
+                        .as_ref()
+                        .zip(nested.0.as_ref())
+                        .is_some_and(|(left, right)| left != right)
+                        || top
+                            .1
+                            .zip(nested.1)
+                            .is_some_and(|(left, right)| left != right)
+                    {
+                        (None, None, None, "conflicting".into())
+                    } else {
+                        nested
+                    }
+                }
+                (true, _) => top,
+                (false, Some(nested)) => nested,
+                (false, None) => top,
+            };
+            let source_mapping = safe_source_mapping(&candidate);
+            let evidence_digest = canonical_digest(&candidate).unwrap_or_default();
+            let id = candidate
+                .get("id")
                 .and_then(Value::as_str)
-                .map(ToOwned::to_owned);
-            let line = evidence
-                .and_then(|item| item.get("line"))
-                .and_then(Value::as_u64);
-            // A generator that already stored a redacted excerpt (the heuristic
-            // security packs) is trusted over re-reading the source line, so a
-            // matched secret is never copied into the adjudication packet.
+                .filter(|id| !id.trim().is_empty())
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| format!("unknown-id:{provider}:{index}:{evidence_digest}"));
             let evidence_excerpt = candidate
                 .get("redactedExcerpt")
                 .and_then(Value::as_str)
                 .filter(|excerpt| !excerpt.is_empty())
-                .map(ToOwned::to_owned)
+                .map(|excerpt| super::excerpts::redact_secrets(excerpt).0)
                 .or_else(|| {
                     path.as_deref()
                         .zip(line)
                         .and_then(|(path, line)| excerpt_line(root, path, line))
                 });
-            Some(ScannerCandidate {
-                finding_id: id.to_owned(),
+            ScannerCandidate {
+                finding_id: id,
                 provider: provider.to_owned(),
                 rule: candidate
                     .get("ruleId")
@@ -712,18 +971,58 @@ pub fn scanner_candidates(
                     .to_owned(),
                 path,
                 line,
-                message: candidate
-                    .get("claim")
+                end_line,
+                location_status,
+                source_mapping,
+                evidence_digest,
+                message: super::excerpts::redact_secrets(
+                    candidate
+                        .get("claim")
+                        .or_else(|| candidate.get("title"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default(),
+                )
+                .0,
+                domain: candidate
+                    .get("domain")
                     .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
+                    .filter(|domain| {
+                        matches!(
+                            *domain,
+                            "security" | "data" | "reliability" | "release" | "unknown"
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        candidate_domain(
+                            provider,
+                            candidate
+                                .get("ruleId")
+                                .and_then(Value::as_str)
+                                .unwrap_or(provider),
+                        )
+                    })
+                    .into(),
                 evidence_excerpt,
-            })
-        });
-    candidates.extend(raised);
+            }
+        })
+        .collect::<Vec<_>>();
     candidates.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
-    candidates.dedup_by(|left, right| left.finding_id == right.finding_id);
     candidates
+}
+
+fn validate_candidate_ids(
+    candidates: &[ScannerCandidate],
+) -> Result<(), SecurityAdjudicationError> {
+    let mut seen = BTreeSet::new();
+    for candidate in candidates {
+        if candidate.finding_id.trim().is_empty() || !seen.insert(candidate.finding_id.as_str()) {
+            return Err(SecurityAdjudicationError::CandidateSetup {
+                id: candidate.finding_id.clone(),
+                reason: "candidate IDs must be nonempty and unique".into(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// A confirmed (surviving) verdict reduced to what variant analysis needs.
@@ -838,6 +1137,11 @@ fn build_item_with(
             "path": candidate.path,
             "line": candidate.line,
             "excerpt": candidate.evidence_excerpt,
+            "endLine": candidate.end_line,
+            "locationStatus": candidate.location_status,
+            "sourceMapping": candidate.source_mapping,
+            "evidenceDigest": candidate.evidence_digest,
+            "domain": effective_candidate_domain(candidate),
         })],
         generated_at: Some(stamp.clone()),
     })
@@ -863,14 +1167,11 @@ pub fn adjudication_work_items(
     candidates: &[ScannerCandidate],
     packet_digest: &str,
 ) -> Result<Vec<CandidateAdjudicationItem>, SecurityAdjudicationError> {
-    let mut seen = BTreeSet::new();
-    let mut items = Vec::new();
-    for candidate in candidates {
-        if seen.insert(candidate.finding_id.as_str()) {
-            items.push(build_item(candidate, packet_digest)?);
-        }
-    }
-    Ok(items)
+    validate_candidate_ids(candidates)?;
+    candidates
+        .iter()
+        .map(|candidate| build_item(candidate, packet_digest))
+        .collect()
 }
 
 /// How a verdict's adjudicator context is established.
@@ -908,7 +1209,8 @@ fn parse_citations(value: &Value) -> Vec<Citation> {
         .flatten()
         .filter_map(|item| match item {
             Value::String(location) => {
-                let (file, line) = parse_location(location);
+                let (file, line, end) = parse_location(location);
+                end?;
                 Some(Citation {
                     file: normalize_cited_path(&file),
                     line: line.filter(|line| *line > 0)?,
@@ -1047,11 +1349,18 @@ fn validate_content(
     candidate: &ScannerCandidate,
     input: &SecurityVerdictInput,
     citations: &[Citation],
+    domain_proof: Option<&CandidateDomainProof>,
 ) -> Result<Vec<(&'static str, String)>, SecurityAdjudicationError> {
     let id = candidate.finding_id.as_str();
     let surviving = input.verdict.is_surviving();
     let mut forms = Vec::new();
-    for (field, text, mandatory, short_ok) in content_fields(input, surviving) {
+    let security = effective_candidate_domain(candidate) == "security";
+    let fields = content_fields(input, surviving || !security)
+        .into_iter()
+        .filter(|(field, _, _, _)| {
+            security || !matches!(*field, "threatModel" | "attackerControl")
+        });
+    for (field, text, mandatory, short_ok) in fields {
         match text {
             Some(text) => {
                 let form = check_text(id, field, text, short_ok)?;
@@ -1068,7 +1377,14 @@ fn validate_content(
             None => {}
         }
     }
-    if !surviving {
+    if let Some(proof) = domain_proof {
+        forms.push((
+            "invariant",
+            check_text(id, "invariant", &proof.invariant, false)?,
+        ));
+        forms.push(("trigger", check_text(id, "trigger", &proof.trigger, false)?));
+    }
+    if !surviving && security {
         return Ok(forms);
     }
     let Some(path) = candidate.path.as_deref().map(normalize_cited_path) else {
@@ -1228,11 +1544,32 @@ pub fn adjudicate_scanner_candidates_scoped(
     policy: ContextPolicy,
     scope: &AdjudicationScope<'_>,
 ) -> Result<Vec<SecurityVerdict>, SecurityAdjudicationError> {
+    validate_candidate_ids(candidates)?;
     let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
     for candidate in candidates {
         by_id
             .entry(candidate.finding_id.as_str())
             .or_insert(candidate);
+    }
+    if let AdjudicationScope::Batch { batch, clusters } = scope {
+        let computed = cluster_candidates(candidates)?;
+        let mut assigned = BTreeSet::new();
+        for cluster in *clusters {
+            if !batch.cluster_ids.contains(&cluster.cluster_id)
+                || !computed.iter().any(|expected| expected == cluster)
+                || cluster
+                    .member_ids
+                    .iter()
+                    .any(|member| !assigned.insert(member.as_str()))
+            {
+                return Err(SecurityAdjudicationError::CandidateSetup {
+                    id: cluster.representative_id.clone(),
+                    reason:
+                        "batch clusters must preserve evidenced equivalence and unique assignment"
+                            .into(),
+                });
+            }
+        }
     }
     // The candidates that need a verdict of their own.
     let adjudicated: Vec<ScannerCandidate> = match scope {
@@ -1348,10 +1685,19 @@ pub fn adjudicate_scanner_candidates_scoped(
             .iter()
             .map(|citation| json!({"file": citation.file, "line": citation.line}))
             .collect::<Vec<_>>();
-        let verdict = finalize_with_evidence(&item.packet, input.clone(), cited)
+        let domain_proof = value
+            .get("domainProof")
+            .cloned()
+            .map(serde_json::from_value::<CandidateDomainProof>)
+            .transpose()
+            .map_err(|error| SecurityAdjudicationError::MalformedVerdict {
+                id: id.into(),
+                reason: error.to_string(),
+            })?;
+        let verdict = finalize_for_domain(&item.packet, input.clone(), cited, domain_proof.clone())
             .map_err(|error| wrap(id, error))?;
-        let forms =
-            validate_content(candidate, &input, &citations).map_err(|error| wrap(id, error))?;
+        let forms = validate_content(candidate, &input, &citations, domain_proof.as_ref())
+            .map_err(|error| wrap(id, error))?;
         for (field, form) in forms {
             match seen_text.get(&form) {
                 Some(other) if other != id => {
@@ -1464,7 +1810,7 @@ pub fn confirmed_findings(
 ) -> Vec<ConfirmedSecurityFinding> {
     verdicts
         .iter()
-        .filter(|verdict| verdict.verdict.is_surviving())
+        .filter(|verdict| verdict.verdict.is_surviving() && verdict.domain == "security")
         .map(|verdict| {
             let candidate = candidates
                 .iter()
@@ -1748,16 +2094,12 @@ fn placeholder_value(candidate: &ScannerCandidate) -> bool {
 }
 
 fn normalized_excerpt(candidate: &ScannerCandidate) -> String {
-    let source = candidate
+    candidate
         .evidence_excerpt
         .as_deref()
-        .filter(|excerpt| !excerpt.trim().is_empty())
-        .unwrap_or(candidate.message.as_str());
-    source
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
+        .unwrap_or_default()
+        .trim()
+        .to_owned()
 }
 
 /// Identity of one candidate location: scanner rule, path, line and the
@@ -1767,6 +2109,8 @@ pub fn location_fingerprint(candidate: &ScannerCandidate) -> String {
     // leaves the candidate alone.
     digest_of(&json!({
         "kind": "candidate-location",
+        "provider": candidate.provider,
+        "endLine": candidate.end_line,
         "rule": candidate.rule,
         "path": candidate.path,
         "line": candidate.line,
@@ -1844,7 +2188,7 @@ fn rule_family(rule: &str) -> String {
         .to_lowercase()
 }
 
-/// Candidates with an identical rule and normalized sink/excerpt.
+/// Duplicate observations with identical provider, source anchor & evidence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cluster {
@@ -1858,23 +2202,42 @@ pub struct Cluster {
     pub member_ids: Vec<String>,
 }
 
-/// Fingerprint = rule + normalized sink/excerpt digest. Test/fixture location
-/// is part of the key (a refinement of the design): a verdict reached on a
-/// test file is never expanded onto production code or the reverse.
+fn equivalence_source_mapping(mapping: &Value) -> Value {
+    let mut context = mapping.clone();
+    if let Some(object) = context.as_object_mut() {
+        object.remove("id");
+    }
+    context
+}
+
+/// Merge only duplicate observations of the same anchored source instance.
+/// Missing evidence or location never establishes semantic equivalence.
 pub fn cluster_candidates(
     candidates: &[ScannerCandidate],
 ) -> Result<Vec<Cluster>, SecurityAdjudicationError> {
+    validate_candidate_ids(candidates)?;
     let mut groups: BTreeMap<String, Vec<&ScannerCandidate>> = BTreeMap::new();
-    let mut seen = BTreeSet::new();
     for candidate in candidates {
-        if !seen.insert(candidate.finding_id.as_str()) {
-            continue;
-        }
+        let excerpt = normalized_excerpt(candidate);
+        let anchored = candidate.path.as_deref().is_some_and(|path| {
+            normalized_candidate_path(Path::new(""), path).as_deref() == Some(path)
+        }) && candidate.line.is_some_and(|line| line > 0)
+            && !excerpt.is_empty()
+            && !matches!(
+                candidate.location_status.as_str(),
+                "invalid" | "conflicting"
+            );
         let fingerprint = digest_of(&json!({
-            "kind": "candidate-cluster",
+            "kind": "candidate-cluster-v2",
+            "provider": candidate.provider,
             "rule": candidate.rule,
-            "excerpt": normalized_excerpt(candidate),
-            "testPath": candidate.path.as_deref().is_some_and(path_is_test_or_fixture),
+            "path": candidate.path,
+            "line": candidate.line,
+            "endLine": candidate.end_line,
+            "excerpt": excerpt,
+            "sourceContext": equivalence_source_mapping(&candidate.source_mapping),
+            "sourceEvidenceDigest": candidate.evidence_digest,
+            "instanceId": if anchored { None } else { Some(&candidate.finding_id) },
         }))?;
         groups.entry(fingerprint).or_default().push(candidate);
     }
@@ -1928,13 +2291,16 @@ fn cluster_entry(cluster: &Cluster, by_id: &BTreeMap<&str, &ScannerCandidate>) -
     let locations = cluster
         .member_ids
         .iter()
-        .take(20)
         .map(|member| {
             let candidate = by_id.get(member.as_str()).copied();
             json!({
                 "findingId": member,
                 "path": candidate.and_then(|candidate| candidate.path.clone()),
                 "line": candidate.and_then(|candidate| candidate.line),
+                "endLine": candidate.and_then(|candidate| candidate.end_line),
+                "sourceMapping": candidate.map(|candidate| &candidate.source_mapping),
+                "evidenceDigest": candidate.map(|candidate| &candidate.evidence_digest),
+                "locationStatus": candidate.map(|candidate| &candidate.location_status),
             })
         })
         .collect::<Vec<_>>();
@@ -1951,6 +2317,12 @@ fn cluster_entry(cluster: &Cluster, by_id: &BTreeMap<&str, &ScannerCandidate>) -
             "line": representative.and_then(|candidate| candidate.line),
             "message": representative.map(|candidate| candidate.message.clone()),
             "excerpt": representative.and_then(|candidate| candidate.evidence_excerpt.clone()),
+            "endLine": representative.and_then(|candidate| candidate.end_line),
+            "sourceMapping": representative.map(|candidate| &candidate.source_mapping),
+            "evidenceDigest": representative.map(|candidate| &candidate.evidence_digest),
+            "locationStatus": representative.map(|candidate| &candidate.location_status),
+            "domain": representative.map(|candidate| effective_candidate_domain(candidate)),
+            "requiredEvidence": representative.map(|candidate| domain_required_evidence(effective_candidate_domain(candidate))),
         },
         "memberLocations": locations,
     })
@@ -1969,6 +2341,7 @@ pub fn adjudication_batches(
     candidates: &[ScannerCandidate],
     packet_digest: &str,
 ) -> Result<Vec<Batch>, SecurityAdjudicationError> {
+    validate_candidate_ids(candidates)?;
     let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
     for candidate in candidates {
         by_id
@@ -2028,7 +2401,7 @@ pub fn adjudication_batches(
                 "provider": ADJUDICATOR_PROVIDER_ID,
                 "contextId": context_id,
             },
-            "requiredEvidence": REQUIRED_EVIDENCE,
+            "requiredEvidenceByCandidateDomain": {"security":domain_required_evidence("security"),"data":domain_required_evidence("data"),"reliability":domain_required_evidence("reliability"),"release":domain_required_evidence("release")},
             "note": "one verdict per cluster representative; it is expanded to every member, which is then confirmed or spot-checked alone",
             "clusters": members
                 .iter()
@@ -2068,6 +2441,7 @@ pub fn build_adjudication_plan(
     context: &TriageContext,
     parent_packet_digest: &str,
 ) -> Result<AdjudicationPlan, SecurityAdjudicationError> {
+    validate_candidate_ids(candidates)?;
     let triage = triage_candidates(candidates, context);
     let clusters = cluster_candidates(&triage.remaining)?;
     let batches = adjudication_batches(&clusters, &triage.remaining, parent_packet_digest)?;
@@ -2306,6 +2680,501 @@ fn stage_item(
     scoped_item(&AdjudicationScope::Stage(stage), candidate, parent)
 }
 
+fn observation_error(id: &str, reason: &str) -> SecurityAdjudicationError {
+    SecurityAdjudicationError::CandidateSetup {
+        id: id.into(),
+        reason: reason.into(),
+    }
+}
+
+fn observation_string<'a>(
+    value: &'a Value,
+    key: &str,
+) -> Result<&'a str, SecurityAdjudicationError> {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| observation_error(key, "host stage observation field missing"))
+}
+
+fn candidate_evidence_identity(
+    candidate: &ScannerCandidate,
+) -> Result<String, SecurityAdjudicationError> {
+    if !candidate.evidence_digest.is_empty() {
+        Ok(candidate.evidence_digest.clone())
+    } else {
+        digest_of(candidate)
+    }
+}
+
+/// Derive only identities physically present in the delivered child packet.
+fn stage_packet_identities(
+    stage_packet: &Value,
+) -> Result<(String, String, Vec<String>, Vec<String>), SecurityAdjudicationError> {
+    if stage_packet.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || stage_packet.get("kind").and_then(Value::as_str)
+            != Some("legion-audit-adjudication-seat")
+    {
+        return Err(observation_error(
+            "stage",
+            "unsupported adjudication seat packet",
+        ));
+    }
+    let stage = observation_string(stage_packet, "stage")?;
+    if !matches!(
+        stage,
+        STAGE_BATCH | STAGE_CONFIRMATION | STAGE_SPOT_CHECK | STAGE_INDIVIDUAL
+    ) {
+        return Err(observation_error(
+            stage,
+            "unsupported host adjudication stage",
+        ));
+    }
+    let item = observation_string(stage_packet, "itemId")?;
+    let packet = stage_packet
+        .get("packet")
+        .ok_or_else(|| observation_error(item, "delivered child packet missing"))?;
+    let mut representatives = Vec::new();
+    let mut members = Vec::new();
+    if stage == STAGE_BATCH {
+        let clusters = packet
+            .get("clusters")
+            .and_then(Value::as_array)
+            .ok_or_else(|| observation_error(item, "delivered batch clusters missing"))?;
+        for cluster in clusters {
+            representatives.push(
+                observation_string(
+                    cluster.get("representative").unwrap_or(&Value::Null),
+                    "findingId",
+                )?
+                .to_owned(),
+            );
+            for location in cluster
+                .get("memberLocations")
+                .and_then(Value::as_array)
+                .ok_or_else(|| observation_error(item, "delivered cluster members missing"))?
+            {
+                members.push(observation_string(location, "findingId")?.to_owned());
+            }
+        }
+    } else {
+        let candidate = packet
+            .get("candidate")
+            .ok_or_else(|| observation_error(item, "delivered candidate missing"))?;
+        let id = observation_string(candidate, "id")?;
+        if stage_packet.get("candidateId").and_then(Value::as_str) != Some(id) {
+            return Err(observation_error(item, "stage candidate identity mismatch"));
+        }
+        representatives.push(id.to_owned());
+        members.push(id.to_owned());
+    }
+    for ids in [&mut representatives, &mut members] {
+        ids.sort();
+        if ids.is_empty() || ids.windows(2).any(|pair| pair[0] == pair[1]) {
+            return Err(observation_error(
+                item,
+                "delivered stage identities must be nonempty and unique",
+            ));
+        }
+    }
+    Ok((stage.into(), item.into(), representatives, members))
+}
+
+fn candidate_source_side(candidate: &ScannerCandidate) -> &str {
+    candidate
+        .source_mapping
+        .get("sourceSide")
+        .or_else(|| candidate.source_mapping.pointer("/evidence/0/sourceSide"))
+        .and_then(Value::as_str)
+        .unwrap_or("selected")
+}
+
+fn delivered_inline(packet: &Value, candidate: &ScannerCandidate) -> bool {
+    let Some(excerpt) = candidate
+        .evidence_excerpt
+        .as_deref()
+        .filter(|text| !text.trim().is_empty())
+    else {
+        return false;
+    };
+    let matches = |value: &Value| {
+        value.get("path").and_then(Value::as_str) == candidate.path.as_deref()
+            && value.get("line").and_then(Value::as_u64) == candidate.line
+            && value.get("excerpt").and_then(Value::as_str) == Some(excerpt)
+    };
+    if packet.pointer("/candidate/id").and_then(Value::as_str)
+        == Some(candidate.finding_id.as_str())
+    {
+        return packet
+            .pointer("/candidate/evidence")
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(matches));
+    }
+    packet
+        .get("clusters")
+        .and_then(Value::as_array)
+        .is_some_and(|clusters| {
+            clusters.iter().any(|cluster| {
+                let contains = cluster
+                    .get("memberLocations")
+                    .and_then(Value::as_array)
+                    .is_some_and(|members| {
+                        members.iter().any(|member| {
+                            member.get("findingId").and_then(Value::as_str)
+                                == Some(candidate.finding_id.as_str())
+                        })
+                    });
+                contains && cluster.get("representative").is_some_and(matches)
+            })
+        })
+}
+
+/// Trusted runtime helper. `host` must be process/transport observations from
+/// the host, never copied from model JSON. It derives a child-only receipt;
+/// signing/authentication belongs to ingest's per-run epoch sidecar.
+pub fn stage_observation(
+    stage_packet: &Value,
+    verdicts: &[Value],
+    host: &Value,
+    parent_candidates: &[ScannerCandidate],
+) -> Result<Value, SecurityAdjudicationError> {
+    validate_candidate_ids(parent_candidates)?;
+    let (stage, item, representatives, members) = stage_packet_identities(stage_packet)?;
+    if host.get("sent").and_then(Value::as_bool) != Some(true)
+        || host.get("processCreated").and_then(Value::as_bool) != Some(true)
+        || host.get("error").is_some_and(|value| !value.is_null())
+    {
+        return Err(observation_error(
+            &item,
+            "successful observed process and transport required",
+        ));
+    }
+    let context = observation_string(host, "contextId")?;
+    let pid = host
+        .get("processId")
+        .and_then(Value::as_u64)
+        .filter(|pid| *pid > 0)
+        .ok_or_else(|| observation_error(&item, "observed process ID missing"))?;
+    let response = observation_string(host, "responseDigest")?;
+    let packet = stage_packet
+        .get("packet")
+        .ok_or_else(|| observation_error(&item, "child packet missing"))?;
+    let mut verdict_digests = serde_json::Map::new();
+    for row in verdicts {
+        let id = observation_string(row, "candidateId")?;
+        if !representatives.iter().any(|expected| expected == id)
+            || row.get("stage").and_then(Value::as_str) != Some(stage.as_str())
+            || row.get("workItemId").and_then(Value::as_str) != Some(item.as_str())
+            || row.get("workPacketDigest").and_then(Value::as_str)
+                != Some(digest_of(packet)?.as_str())
+        {
+            return Err(observation_error(
+                id,
+                "observed verdict is not bound to the delivered stage",
+            ));
+        }
+        if verdict_digests
+            .insert(id.into(), json!(digest_of(row)?))
+            .is_some()
+        {
+            return Err(observation_error(id, "duplicate observed verdict"));
+        }
+    }
+    let mut sources = Vec::new();
+    for id in &members {
+        let candidate = parent_candidates
+            .iter()
+            .find(|candidate| &candidate.finding_id == id)
+            .ok_or_else(|| observation_error(id, "delivered candidate absent from parent"))?;
+        let Some((path, line)) = candidate.path.as_deref().zip(candidate.line) else {
+            continue;
+        };
+        if line == 0
+            || matches!(
+                candidate.location_status.as_str(),
+                "invalid" | "conflicting" | "unknown"
+            )
+        {
+            continue;
+        }
+        let end = candidate.end_line.unwrap_or(line);
+        let raw = host
+            .get("deliveredExcerpts")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .find(|excerpt| {
+                excerpt.get("path").and_then(Value::as_str) == Some(path)
+                    && excerpt
+                        .get("sourceSide")
+                        .and_then(Value::as_str)
+                        .unwrap_or("selected")
+                        == candidate_source_side(candidate)
+                    && excerpt.get("mode").and_then(Value::as_str) == Some("raw")
+                    && excerpt.get("truncated").and_then(Value::as_bool) != Some(true)
+                    && excerpt
+                        .get("redactedRanges")
+                        .and_then(Value::as_array)
+                        .is_none_or(Vec::is_empty)
+                    && excerpt
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .is_some_and(|content| {
+                            excerpt
+                                .get("startLine")
+                                .and_then(Value::as_u64)
+                                .zip(excerpt.get("endLine").and_then(Value::as_u64))
+                                .is_some_and(|(start, last)| {
+                                    last >= start
+                                        && content.lines().count() as u64 >= last - start + 1
+                                })
+                        })
+                    && excerpt
+                        .get("startLine")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|start| start > 0 && start <= line)
+                    && excerpt
+                        .get("endLine")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|last| last >= end)
+            });
+        let (last, delivery_kind, content_digest) = if let Some(raw) = raw {
+            (end, "raw-excerpt", digest_of(raw)?)
+        } else if delivered_inline(packet, candidate) {
+            (
+                line,
+                "inline-evidence",
+                digest_of(&candidate.evidence_excerpt)?,
+            )
+        } else {
+            continue;
+        };
+        sources.push(json!({"candidateId":id,"path":path,"sourceSide":candidate_source_side(candidate),"startLine":line,"endLine":last,
+            "evidenceDigest":candidate_evidence_identity(candidate)?,"deliveryKind":delivery_kind,"contentDigest":content_digest}));
+    }
+    Ok(
+        json!({"schemaVersion":1,"kind":"legion-adjudication-stage-observation","stage":stage,
+        "workItemId":item,"workPacketDigest":digest_of(packet)?,"candidateIds":representatives,
+        "deliveredCandidateIds":members,"observedContextId":context,"processId":pid,"processCreated":true,
+        "processCreationTicks":host.get("processCreationTicks"),"responseDigest":response,"verdictDigests":verdict_digests,
+        "deliveredPacketBytes":canonical_json_bytes(packet).map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))?.len(),
+        "complete":true,"truncated":false,"sourceDelivery":sources}),
+    )
+}
+
+/// Consume only observations authenticated by ingest's host epoch sidecar.
+/// Missing transport/source receipts are explicit gaps; mismatched identities,
+/// tampering, replay, or real context/process reuse are errors. Model context
+/// labels remain routing fields and confer no delivery/isolation authority.
+pub fn validate_stage_observations(
+    plan: &AdjudicationPlan,
+    candidates: &[ScannerCandidate],
+    submitted: &[Value],
+    observations: &[Value],
+) -> Result<Vec<String>, SecurityAdjudicationError> {
+    validate_candidate_ids(candidates)?;
+    let mut gaps = BTreeSet::new();
+    let mut seen_observations = BTreeSet::new();
+    let mut contexts = BTreeSet::new();
+    let mut processes = BTreeSet::new();
+    let mut matched = BTreeSet::new();
+    for observation in observations {
+        let item = observation_string(observation, "workItemId")?;
+        let stage = observation_string(observation, "stage")?;
+        if observation.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+            || observation.get("kind").and_then(Value::as_str)
+                != Some("legion-adjudication-stage-observation")
+            || observation.get("complete").and_then(Value::as_bool) != Some(true)
+            || observation.get("truncated").and_then(Value::as_bool) != Some(false)
+            || observation.get("processCreated").and_then(Value::as_bool) != Some(true)
+        {
+            return Err(observation_error(
+                item,
+                "incomplete or malformed authenticated stage observation",
+            ));
+        }
+        let context = observation_string(observation, "observedContextId")?;
+        let pid = observation
+            .get("processId")
+            .and_then(Value::as_u64)
+            .filter(|pid| *pid > 0)
+            .ok_or_else(|| observation_error(item, "observed process ID missing"))?;
+        let response_digest = observation_string(observation, "responseDigest")?;
+        if !seen_observations.insert((stage, item, context, response_digest))
+            || !contexts.insert(context)
+            || !processes.insert((
+                pid,
+                observation
+                    .get("processCreationTicks")
+                    .and_then(Value::as_u64),
+            ))
+        {
+            return Err(observation_error(
+                item,
+                "stage observation replay or actual host context/process reuse",
+            ));
+        }
+        let (packet, mut expected_ids, mut members) = if stage == STAGE_BATCH {
+            let batch = plan
+                .batches
+                .iter()
+                .find(|batch| batch.item_id == item)
+                .ok_or_else(|| observation_error(item, "observed batch is not in frozen plan"))?;
+            let clusters = plan
+                .clusters
+                .iter()
+                .filter(|cluster| batch.cluster_ids.contains(&cluster.cluster_id));
+            let mut representatives = Vec::new();
+            let mut members = Vec::new();
+            for cluster in clusters {
+                representatives.push(cluster.representative_id.clone());
+                members.extend(cluster.member_ids.clone());
+            }
+            (batch.packet.clone(), representatives, members)
+        } else if matches!(
+            stage,
+            STAGE_CONFIRMATION | STAGE_SPOT_CHECK | STAGE_INDIVIDUAL
+        ) {
+            let mut found = None;
+            for candidate in candidates {
+                let work = stage_work_item(candidate, &plan.parent_packet_digest, stage)?;
+                if work.item_id == item {
+                    found = Some((
+                        serde_json::to_value(work.packet).map_err(|error| {
+                            SecurityAdjudicationError::Digest(error.to_string())
+                        })?,
+                        vec![candidate.finding_id.clone()],
+                        vec![candidate.finding_id.clone()],
+                    ));
+                    break;
+                }
+            }
+            found.ok_or_else(|| {
+                observation_error(item, "observed individual stage is not in frozen plan")
+            })?
+        } else {
+            return Err(observation_error(item, "unknown authenticated stage"));
+        };
+        expected_ids.sort();
+        members.sort();
+        if observation.get("candidateIds") != Some(&json!(expected_ids))
+            || observation.get("deliveredCandidateIds") != Some(&json!(members))
+            || observation.get("workPacketDigest").and_then(Value::as_str)
+                != Some(digest_of(&packet)?.as_str())
+            || observation
+                .get("deliveredPacketBytes")
+                .and_then(Value::as_u64)
+                != Some(
+                    canonical_json_bytes(&packet)
+                        .map_err(|error| SecurityAdjudicationError::Digest(error.to_string()))?
+                        .len() as u64,
+                )
+        {
+            return Err(observation_error(
+                item,
+                "authenticated delivery differs from exact frozen stage packet",
+            ));
+        }
+        let verdicts = observation
+            .get("verdictDigests")
+            .and_then(Value::as_object)
+            .ok_or_else(|| observation_error(item, "host verdict digest ledger missing"))?;
+        let mut active = false;
+        for (id, digest) in verdicts {
+            if !expected_ids.contains(id) {
+                return Err(observation_error(
+                    id,
+                    "observed nonrepresentative or foreign verdict",
+                ));
+            }
+            let row = submitted.iter().find(|row| {
+                row.get("stage").and_then(Value::as_str) == Some(stage)
+                    && row.get("workItemId").and_then(Value::as_str) == Some(item)
+                    && row.get("candidateId").and_then(Value::as_str) == Some(id.as_str())
+            });
+            // Prior physical attempts remain authenticated history. Only the
+            // exact currently submitted row may supply completion evidence.
+            if let Some(row) = row {
+                if digest.as_str() == Some(digest_of(row)?.as_str()) {
+                    matched.insert((stage.to_owned(), item.to_owned(), id.clone()));
+                    active = true;
+                }
+            }
+        }
+        if !active {
+            continue;
+        }
+        let source_rows = observation
+            .get("sourceDelivery")
+            .and_then(Value::as_array)
+            .ok_or_else(|| observation_error(item, "host source delivery ledger missing"))?;
+        let mut source_ids = BTreeSet::new();
+        for source in source_rows {
+            let id = observation_string(source, "candidateId")?;
+            if !source_ids.insert(id) || !members.iter().any(|member| member == id) {
+                return Err(observation_error(
+                    id,
+                    "duplicate or foreign source delivery",
+                ));
+            }
+            let candidate = candidates
+                .iter()
+                .find(|candidate| candidate.finding_id == id)
+                .ok_or_else(|| observation_error(id, "source candidate absent"))?;
+            if source.get("path").and_then(Value::as_str) != candidate.path.as_deref()
+                || source.get("sourceSide").and_then(Value::as_str)
+                    != Some(candidate_source_side(candidate))
+                || source.get("startLine").and_then(Value::as_u64) != candidate.line
+                || source.get("evidenceDigest").and_then(Value::as_str)
+                    != Some(candidate_evidence_identity(candidate)?.as_str())
+            {
+                return Err(observation_error(
+                    id,
+                    "source delivery does not match frozen candidate evidence",
+                ));
+            }
+            observation_string(source, "contentDigest")?;
+            if source
+                .get("endLine")
+                .and_then(Value::as_u64)
+                .zip(candidate.end_line.or(candidate.line))
+                .is_none_or(|(delivered, required)| delivered < required)
+            {
+                gaps.insert(format!(
+                    "adjudication-source-unread:{stage}:{item}:{id}:required range not delivered"
+                ));
+            }
+        }
+        for id in &members {
+            let candidate = candidates
+                .iter()
+                .find(|candidate| &candidate.finding_id == id)
+                .ok_or_else(|| observation_error(id, "stage member absent"))?;
+            if context == generator_context_id(candidate) {
+                return Err(observation_error(
+                    id,
+                    "actual adjudicator context equals generator context",
+                ));
+            }
+            if !source_ids.contains(id.as_str()) {
+                gaps.insert(format!(
+                    "adjudication-source-unread:{stage}:{item}:{id}:source evidence not delivered"
+                ));
+            }
+        }
+    }
+    for row in submitted {
+        let stage = observation_string(row, "stage")?;
+        let item = observation_string(row, "workItemId")?;
+        let id = observation_string(row, "candidateId")?;
+        if !matched.contains(&(stage.into(), item.into(), id.into())) {
+            gaps.insert(format!("adjudication-host-unverified:{stage}:{item}:{id}:missing authenticated host observation"));
+        }
+    }
+    Ok(gaps.into_iter().collect())
+}
+
 /// Validate every submitted verdict of one single-candidate stage that is
 /// required; verdicts for candidates that are not required are ignored and
 /// recorded as superseded.
@@ -2374,6 +3243,7 @@ fn evaluate_internal(
     submitted: &[Value],
 ) -> Result<(AdjudicationOutcome, Vec<Requirement>), SecurityAdjudicationError> {
     let parent = plan.parent_packet_digest.as_str();
+    validate_candidate_ids(candidates)?;
     let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
     for candidate in candidates {
         by_id
@@ -2401,17 +3271,25 @@ fn evaluate_internal(
     let mut spot_values: Vec<&Value> = Vec::new();
     let mut individual_values: Vec<&Value> = Vec::new();
     let mut confirmation_values: Vec<&Value> = Vec::new();
-    for value in submitted {
+    let mut submitted_keys = BTreeSet::new();
+    for (index, value) in submitted.iter().enumerate() {
         let id = value
             .get("candidateId")
             .and_then(Value::as_str)
-            .unwrap_or("<unknown>")
+            .ok_or(SecurityAdjudicationError::MissingCandidateId(index))?
             .to_owned();
+        if !by_id.contains_key(id.as_str()) {
+            return Err(SecurityAdjudicationError::UnknownCandidate { index, id });
+        }
         let malformed = |reason: &str| SecurityAdjudicationError::MalformedVerdict {
             id: id.clone(),
             reason: reason.to_owned(),
         };
-        match value.get("stage").and_then(Value::as_str) {
+        let stage = value.get("stage").and_then(Value::as_str);
+        if !submitted_keys.insert((stage, id.clone())) {
+            return Err(SecurityAdjudicationError::DuplicateVerdict { index, id });
+        }
+        match stage {
             Some(STAGE_BATCH) => {
                 let batch_id = value
                     .get("batchId")
@@ -2422,6 +3300,27 @@ fn evaluate_internal(
                     .iter()
                     .find(|batch| batch.batch_id == batch_id)
                     .ok_or_else(|| malformed("batch verdict names an unknown batch"))?;
+                let representatives = batch
+                    .cluster_ids
+                    .iter()
+                    .filter_map(|id| clusters.get(id.as_str()))
+                    .map(|cluster| cluster.representative_id.as_str())
+                    .collect::<BTreeSet<_>>();
+                if !representatives.contains(id.as_str()) {
+                    return Err(malformed(
+                        "batch verdict must name a representative in this batch",
+                    ));
+                }
+                if batch_values
+                    .get(batch.batch_id.as_str())
+                    .is_some_and(|values| {
+                        values.iter().any(|value| {
+                            value.get("candidateId").and_then(Value::as_str) == Some(id.as_str())
+                        })
+                    })
+                {
+                    return Err(SecurityAdjudicationError::DuplicateVerdict { index, id });
+                }
                 batch_values
                     .entry(batch.batch_id.as_str())
                     .or_default()
@@ -2755,6 +3654,7 @@ pub fn required_items(
     submitted: &[Value],
 ) -> Result<Vec<StageItem>, SecurityAdjudicationError> {
     let (_, requirements) = evaluate_internal(plan, candidates, submitted)?;
+    validate_candidate_ids(candidates)?;
     let mut by_id: BTreeMap<&str, &ScannerCandidate> = BTreeMap::new();
     for candidate in candidates {
         by_id
@@ -3230,6 +4130,7 @@ mod scaled_tests {
             line: Some(10 + (index % 50) as u64),
             message: format!("{rule} matched"),
             evidence_excerpt: Some(excerpt.into()),
+            ..ScannerCandidate::default()
         }
     }
 
@@ -3239,12 +4140,14 @@ mod scaled_tests {
         let mut candidates = Vec::new();
         for index in 0..1300 {
             let family = index % 7;
-            candidates.push(candidate(
+            let mut observation = candidate(
                 index,
                 &format!("fam{family}.check"),
-                &format!("src/mod{}/file{index}.rs", index % 50),
+                &format!("src/family{family}/sink{}.rs", (index / 7) % 40),
                 &format!("call_sink_{}(input)", (index / 7) % 40),
-            ));
+            );
+            observation.line = Some(10);
+            candidates.push(observation);
         }
         for index in 1300..1380 {
             candidates.push(candidate(

@@ -30,6 +30,9 @@ use legion_contracts::{
 };
 use serde_json::{json, Value};
 
+mod common;
+use common::{authenticate, FindingDisposition};
+
 const KEY: &[u8] = b"reasoning-packets-fixture-signing-key";
 const RAW_PROVIDER: &str = "reasoning.performance";
 const RAW_LENS: &str = "performance";
@@ -254,6 +257,16 @@ fn part_result(item: &PendingLensWork, findings: Value) -> Value {
     })
 }
 
+fn ingest_fixture(
+    env: &Env,
+    item: &PendingLensWork,
+    mut result: Value,
+    disposition: FindingDisposition,
+) -> legion_audit::native_providers::reasoning::ingest::IngestedLens {
+    authenticate(&env.run, &item.request, &mut result, disposition);
+    ingest_lens_result(&env.run, env.provider, &result).unwrap()
+}
+
 fn finding(id: &str, path: &str, text: &str) -> Value {
     json!({
         "id": id,
@@ -444,7 +457,12 @@ fn a_hundred_kib_file_is_chunked_on_line_boundaries_with_full_line_coverage() {
 
     // Ingesting every part of a split file covers it.
     for item in &env.work {
-        ingest_lens_result(&env.run, env.provider, &part_result(item, json!([]))).unwrap();
+        ingest_fixture(
+            &env,
+            item,
+            part_result(item, json!([])),
+            FindingDisposition::Upheld,
+        );
     }
     let recomputed = recompute_run(&env.run).unwrap();
     assert_eq!(recomputed.report.status, ReportStatus::Clean);
@@ -457,7 +475,12 @@ fn all_parts_ingested_is_complete_and_all_but_one_names_the_outstanding_part() {
     assert!(total > 2);
 
     for item in env.work.iter().take(total - 1) {
-        ingest_lens_result(&env.run, env.provider, &part_result(item, json!([]))).unwrap();
+        ingest_fixture(
+            &env,
+            item,
+            part_result(item, json!([])),
+            FindingDisposition::Upheld,
+        );
     }
     let pending = recompute_run(&env.run).unwrap();
     assert_eq!(pending.report.status, ReportStatus::Incomplete);
@@ -476,8 +499,12 @@ fn all_parts_ingested_is_complete_and_all_but_one_names_the_outstanding_part() {
 
     // The last ingest reports the provider-level state.
     let last = &env.work[total - 1];
-    let ingested =
-        ingest_lens_result(&env.run, env.provider, &part_result(last, json!([]))).unwrap();
+    let ingested = ingest_fixture(
+        &env,
+        last,
+        part_result(last, json!([])),
+        FindingDisposition::Upheld,
+    );
     assert!(ingested.complete, "{:?}", ingested.coverage_gaps);
     assert_eq!(ingested.part, Some(total as u32));
     assert_eq!(ingested.parts_ingested, Some(total as u32));
@@ -502,12 +529,12 @@ fn all_parts_ingested_is_complete_and_all_but_one_names_the_outstanding_part() {
 fn ingesting_a_single_part_reports_the_provider_level_outstanding_work() {
     let env = build_env("ingest-one", RAW_PROVIDER, RAW_LENS, &many_files(60));
     let total = env.work.len();
-    let ingested = ingest_lens_result(
-        &env.run,
-        env.provider,
-        &part_result(&env.work[0], json!([])),
-    )
-    .unwrap();
+    let ingested = ingest_fixture(
+        &env,
+        &env.work[0],
+        part_result(&env.work[0], json![]),
+        FindingDisposition::Upheld,
+    );
     assert!(!ingested.complete);
     assert_eq!(ingested.parts_total, Some(total as u32));
     assert_eq!(ingested.parts_ingested, Some(1));
@@ -591,31 +618,34 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
         if index == last {
             continue;
         }
-        latest = Some(
-            ingest_lens_result(&env.run, env.provider, &part_result(item, json!([]))).unwrap(),
-        );
+        latest = Some(ingest_fixture(
+            &env,
+            item,
+            part_result(item, json![]),
+            FindingDisposition::Upheld,
+        ));
     }
     let before = latest.unwrap();
     assert_eq!((before.examined, before.expected), (19, 20));
     assert!(!before.complete);
 
-    let after = ingest_lens_result(
-        &env.run,
-        env.provider,
-        &part_result(&env.work[last], json!([])),
-    )
-    .unwrap();
+    let after = ingest_fixture(
+        &env,
+        &env.work[last],
+        part_result(&env.work[last], json![]),
+        FindingDisposition::Upheld,
+    );
     assert_eq!((after.examined, after.expected), (20, 20));
     assert!(after.complete, "{:?}", after.coverage_gaps);
 
     // One of the big file's parts alone never covers it.
     let alone = build_env("straddle-alone", RAW_PROVIDER, RAW_LENS, &files);
-    let only_last = ingest_lens_result(
-        &alone.run,
-        alone.provider,
-        &part_result(&alone.work[last], json!([])),
-    )
-    .unwrap();
+    let only_last = ingest_fixture(
+        &alone,
+        &alone.work[last],
+        part_result(&alone.work[last], json![]),
+        FindingDisposition::Upheld,
+    );
     assert_eq!((only_last.examined, only_last.expected), (0, 20));
     assert!(!only_last.complete);
 }
@@ -654,35 +684,38 @@ fn finding_ids_must_be_unique_across_parts() {
         filler_line(index, 1)
     };
 
-    ingest_lens_result(
-        &env.run,
-        env.provider,
-        &part_result(
+    ingest_fixture(
+        &env,
+        &env.work[0],
+        part_result(
             &env.work[0],
             json!([finding("p0001-a", &first_path, &text_for(&first_path))]),
         ),
-    )
-    .unwrap();
-    let duplicate = ingest_lens_result(
+        FindingDisposition::Unresolved,
+    );
+    let mut duplicate_result = part_result(
+        &env.work[1],
+        json!([finding("p0001-a", &other_path, &text_for(&other_path))]),
+    );
+    authenticate(
         &env.run,
-        env.provider,
-        &part_result(
-            &env.work[1],
-            json!([finding("p0001-a", &other_path, &text_for(&other_path))]),
-        ),
-    )
-    .unwrap_err()
-    .to_string();
+        &env.work[1].request,
+        &mut duplicate_result,
+        FindingDisposition::Unresolved,
+    );
+    let duplicate = ingest_lens_result(&env.run, env.provider, &duplicate_result)
+        .unwrap_err()
+        .to_string();
     assert!(duplicate.contains("unique across parts"), "{duplicate}");
-    ingest_lens_result(
-        &env.run,
-        env.provider,
-        &part_result(
+    ingest_fixture(
+        &env,
+        &env.work[1],
+        part_result(
             &env.work[1],
             json!([finding("p0002-a", &other_path, &text_for(&other_path))]),
         ),
-    )
-    .unwrap();
+        FindingDisposition::Unresolved,
+    );
     let recomputed = recompute_run(&env.run).unwrap();
     let ids: Vec<&str> = recomputed
         .report

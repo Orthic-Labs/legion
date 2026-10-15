@@ -1,6 +1,7 @@
 {
   "schema": "legion-audit-bench-cases/1",
   "fixture": "py-inventory",
+  "split": "tuning",
   "language": "python",
   "base": "base",
   "cases": [

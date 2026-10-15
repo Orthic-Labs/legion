@@ -31,11 +31,14 @@ use crate::{
 };
 
 pub mod coverage_plan;
+#[cfg(test)]
+mod coverage_regressions;
 pub mod excerpts;
 pub mod followup;
 pub mod ingest;
 pub mod lens_plan;
 pub mod lens_schemas;
+pub mod pattern_cards;
 pub mod security_adjudication;
 pub mod triggers;
 
@@ -563,6 +566,379 @@ fn seat_part_budget(provider: &AuditProvider) -> Option<excerpts::PartBudget> {
     })
 }
 
+/// Resolve frozen trigger evidence without re-evaluating a risk-selected set.
+fn trigger_evidence_for(
+    root: &Path,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    denominator_paths: &[String],
+) -> Result<Option<Value>, AuditError> {
+    let Some(lens) = lens_plan::lens_id_for_provider(&provider.id) else {
+        return Ok(None);
+    };
+    if !lens_plan::is_conditional_lens_provider(&provider.id) {
+        return Ok(None);
+    }
+    let evidence = match provider.configuration.get("triggerEvidence") {
+        Some(evidence) => evidence.clone(),
+        None => {
+            let paths = inventory.paths().map(str::to_owned).collect::<Vec<_>>();
+            let Some(evaluation) = triggers::evaluate_trigger(root, lens, &paths) else {
+                return Ok(None);
+            };
+            let source_sides = crate::inventory::snapshot_source_sides(root)?;
+            let source_sides = source_sides
+                .into_iter()
+                .filter(|(path, _)| paths.contains(path))
+                .collect();
+            let mut evidence =
+                evaluation.snapshot_with_source_sides(&inventory.digest, &paths, &source_sides)?;
+            evidence["binding"] = json!("unfrozen");
+            evidence
+        }
+    };
+    if provider.configuration.contains_key("triggerEvidence") {
+        let mut unsigned = evidence.clone();
+        let digest = unsigned
+            .as_object_mut()
+            .and_then(|object| object.remove("digest"));
+        let expected =
+            canonical_digest(&unsigned).map_err(|error| AuditError::Invalid(error.to_string()))?;
+        let checked: BTreeSet<&str> = inventory.paths().collect();
+        let actual_sides = crate::inventory::snapshot_source_sides(root)?;
+        let actual_sides: BTreeMap<_, _> = actual_sides
+            .into_iter()
+            .filter(|(path, _)| checked.contains(path.as_str()))
+            .collect();
+        let checked_digest =
+            canonical_digest(&checked).map_err(|error| AuditError::Invalid(error.to_string()))?;
+        if digest.as_ref().and_then(Value::as_str) != Some(expected.as_str())
+            || evidence.get("checkedPathsDigest").and_then(Value::as_str)
+                != Some(checked_digest.as_str())
+            || evidence
+                .get("sourceSides")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
+                != json!(actual_sides)
+            || evidence.get("lens").and_then(Value::as_str) != Some(lens)
+        {
+            return Err(AuditError::Invalid(format!(
+                "provider {} trigger snapshot binding mismatch",
+                provider.id
+            )));
+        }
+    }
+    let witnesses = evidence
+        .get("mandatoryWitnessPaths")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            AuditError::Invalid(format!(
+                "provider {} missing trigger witnesses",
+                provider.id
+            ))
+        })?;
+    let denominator: BTreeSet<&str> = denominator_paths.iter().map(String::as_str).collect();
+    let frozen = provider
+        .configuration
+        .get("coverage")
+        .and_then(coverage_plan::FrozenCoverage::from_value);
+    for witness in witnesses {
+        let path = witness
+            .as_str()
+            .ok_or_else(|| AuditError::Invalid("invalid trigger witness path".into()))?;
+        if !denominator.contains(path)
+            || frozen
+                .as_ref()
+                .is_some_and(|coverage| !coverage.review_set.contains(path))
+        {
+            return Err(AuditError::Invalid(format!(
+                "provider {} omits mandatory trigger witness {path}",
+                provider.id
+            )));
+        }
+    }
+    if evidence.get("inventoryDigest").and_then(Value::as_str) != Some(inventory.digest.as_str()) {
+        return Err(AuditError::SourceDrift(format!(
+            "provider {} trigger inventory changed",
+            provider.id
+        )));
+    }
+    if evidence.get("fired").and_then(Value::as_bool) == Some(true) && witnesses.is_empty() {
+        return Err(AuditError::Invalid(format!(
+            "provider {} fired trigger has no witness",
+            provider.id
+        )));
+    }
+    Ok(Some(evidence))
+}
+
+/// Every scanner candidate belongs to exactly one domain partition. Existing
+/// candidate adjudication remains lossless; nonsecurity semantic review needs
+/// its own authority contract and is an explicit gap until that stage ships.
+pub fn candidate_domain_partitions(candidates: &[ScannerCandidate]) -> Value {
+    let mut partitions: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for candidate in candidates {
+        let domain = match candidate.domain.as_str() {
+            "security" | "data" | "reliability" | "release" => candidate.domain.as_str(),
+            _ => "unknown",
+        };
+        partitions
+            .entry(domain)
+            .or_default()
+            .push(candidate.finding_id.as_str());
+    }
+    let partitions = partitions.into_iter().map(|(domain, mut ids)| {
+        ids.sort_unstable();
+        let lens = match domain {
+            "security" => Some("security"),
+            "data" => Some("data-safety"),
+            "reliability" => Some("resilience"),
+            "release" => Some("release-readiness"),
+            _ => None,
+        };
+        json!({
+            "domain": domain,
+            "candidateIds": ids,
+            "targetLens": lens,
+            "semanticReviewContract": lens.and_then(lens_plan::semantic_review_contract),
+            "status": if domain != "unknown" { "candidate-adjudication" } else { "domain-review-unavailable" },
+            "adjudicationDomainContract": if domain == "security" { json!(["threatModel", "attackerControl", "reachability", "impact", "proof", "evidence", "devilsAdvocate"]) } else if domain != "unknown" { json!(["domainProof.domain", "domainProof.invariant", "domainProof.trigger", "reachability", "impact", "proof", "evidence", "devilsAdvocate"]) } else { Value::Null },
+        })
+    }).collect::<Vec<_>>();
+    json!({"schemaVersion": 1, "candidateCount": candidates.len(), "partitions": partitions})
+}
+
+/// Gaps packet construction can establish without claiming host delivery.
+/// Ingest & direct host execution must carry these into terminal state.
+pub fn required_packet_gaps(request: &ReasoningInvocation) -> Vec<String> {
+    let mut gaps = Vec::new();
+    if request.provider_id == ADJUDICATOR_PROVIDER_ID
+        && request
+            .packet
+            .get("scannerCandidates")
+            .is_none_or(Value::is_null)
+    {
+        gaps.push("scanner-candidates-unavailable".into());
+    }
+    if let Some(trigger) = request
+        .packet
+        .get("triggerEvidence")
+        .filter(|value| !value.is_null())
+    {
+        if trigger.get("binding").and_then(Value::as_str) == Some("unfrozen") {
+            gaps.push("trigger-evidence-unfrozen".into());
+        }
+        for path in trigger
+            .get("unavailablePaths")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            gaps.push(format!("trigger-check-unavailable:{path}"));
+        }
+    }
+    for omission in request
+        .packet
+        .pointer("/excerptCoverage/omittedPaths")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        gaps.push(format!(
+            "reasoning-materialization-omitted:{}:{}",
+            omission
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+            omission
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+        ));
+    }
+    for path in request
+        .packet
+        .pointer("/excerptCoverage/truncatedPaths")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+    {
+        gaps.push(format!("reasoning-materialization-truncated:{path}"));
+    }
+    if request
+        .packet
+        .pointer("/part/overCeiling")
+        .is_some_and(|value| !value.is_null())
+    {
+        gaps.push("reasoning-materialization-part-ceiling".into());
+    }
+    for partition in request
+        .packet
+        .pointer("/candidateRouting/partitions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if partition.get("status").and_then(Value::as_str) == Some("domain-review-unavailable") {
+            gaps.push(format!(
+                "candidate-domain-review-unavailable:{}",
+                partition
+                    .get("domain")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+            ));
+        }
+    }
+    gaps
+}
+
+/// Expected excerpt identities for a transport delivery receipt. This records
+/// exact materialized chunk bytes/ranges; it makes no claim about reading.
+pub fn delivery_chunk_manifest(request: &ReasoningInvocation) -> Result<Vec<Value>, String> {
+    let mut chunks = Vec::new();
+    for excerpt in request
+        .packet
+        .get("excerpts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        chunks.push(json!({
+            "path": excerpt.get("path"),
+            "sourceSide": excerpt.get("sourceSide").and_then(Value::as_str).unwrap_or("selected"),
+            "chunk": excerpt.get("chunk"),
+            "chunks": excerpt.get("chunks"),
+            "startLine": excerpt.get("startLine"),
+            "endLine": excerpt.get("endLine"),
+            "excerptDigest": canonical_digest(excerpt).map_err(|error| error.to_string())?,
+        }));
+    }
+    Ok(chunks)
+}
+
+/// Validate host-reported delivery bindings. Caller must authenticate this
+/// record through trusted host transport before using it; model-authored
+/// metadata is never a transport receipt. Delivery still does not prove review.
+pub fn validate_delivery_evidence(
+    request: &ReasoningInvocation,
+    evidence: &Value,
+) -> Result<(), String> {
+    if evidence.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || evidence.get("kind").and_then(Value::as_str) != Some("legion-evidence-delivery")
+        || evidence.get("source").and_then(Value::as_str) != Some("host-transport")
+        || evidence
+            .get("receiptId")
+            .and_then(Value::as_str)
+            .is_none_or(|id| id.trim().is_empty())
+        || evidence.get("requestId").and_then(Value::as_str) != Some(request.request_id.as_str())
+        || evidence.get("complete").and_then(Value::as_bool) != Some(true)
+        || evidence.get("truncated").and_then(Value::as_bool) != Some(false)
+    {
+        return Err("missing or incomplete host delivery evidence".into());
+    }
+    let digest = canonical_digest(&request.packet).map_err(|error| error.to_string())?;
+    let bytes = canonical_json_bytes(&request.packet)
+        .map_err(|error| error.to_string())?
+        .len() as u64;
+    if evidence.get("packetDigest").and_then(Value::as_str) != Some(digest.as_str()) {
+        return Err("delivery evidence does not bind exact packet digest".into());
+    }
+    match evidence
+        .get("transportEncoding")
+        .and_then(Value::as_str)
+        .unwrap_or("literal-packet-v1")
+    {
+        "literal-packet-v1" => {
+            if evidence.get("deliveredPacketBytes").and_then(Value::as_u64) != Some(bytes) {
+                return Err("literal delivery evidence does not bind exact packet bytes".into());
+            }
+        }
+        "shared-context-v1" => {
+            let reconstruction = evidence
+                .get("reconstruction")
+                .ok_or_else(|| "shared delivery reconstruction missing".to_owned())?;
+            let shared = reconstruction
+                .get("sharedContext")
+                .and_then(Value::as_object)
+                .ok_or_else(|| "shared delivery context missing".to_owned())?;
+            let compact = reconstruction
+                .get("compactPacket")
+                .and_then(Value::as_object)
+                .ok_or_else(|| "shared delivery compact packet missing".to_owned())?;
+            if shared.len() != 1 || !shared.contains_key("excerpts") {
+                return Err("shared delivery supports only exact common excerpts".into());
+            }
+            let shared_digest = canonical_digest(shared).map_err(|error| error.to_string())?;
+            if evidence.get("sharedContextDigest").and_then(Value::as_str)
+                != Some(shared_digest.as_str())
+                || evidence
+                    .get("reconstructedPacketBytes")
+                    .and_then(Value::as_u64)
+                    != Some(bytes)
+                || evidence.get("deliveredPacketBytes").is_some()
+                || evidence
+                    .get("physicalRequestBytes")
+                    .and_then(Value::as_u64)
+                    .is_none_or(|count| count == 0)
+                || evidence
+                    .get("physicalRequestDigest")
+                    .and_then(Value::as_str)
+                    .is_none_or(|digest| {
+                        digest.strip_prefix("sha256:").is_none_or(|hex| {
+                            hex.len() != 64 || !hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+                        })
+                    })
+            {
+                return Err("shared delivery physical/logical byte binding invalid".into());
+            }
+            let mut restored = compact.clone();
+            for (field, value) in compact {
+                if let Some(reference) = value.get("$sharedContext") {
+                    if field != "excerpts"
+                        || value.as_object().is_none_or(|object| object.len() != 1)
+                        || reference.as_str() != Some(field.as_str())
+                    {
+                        return Err(
+                            "shared delivery reference must name its exact top-level field".into(),
+                        );
+                    }
+                    restored.insert(
+                        field.clone(),
+                        shared
+                            .get(field)
+                            .cloned()
+                            .ok_or_else(|| "shared delivery reference is unavailable".to_owned())?,
+                    );
+                }
+            }
+            if Value::Object(restored) != request.packet {
+                return Err("shared delivery cannot reconstruct exact original packet".into());
+            }
+        }
+        _ => return Err("unsupported delivery transport encoding".into()),
+    }
+    let chunks = evidence
+        .get("chunks")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "delivery evidence missing chunk manifest".to_owned())?;
+    let expected = delivery_chunk_manifest(request)?;
+    let identities = |items: &[Value]| -> Result<BTreeSet<String>, String> {
+        items
+            .iter()
+            .map(|item| canonical_digest(item).map_err(|error| error.to_string()))
+            .collect()
+    };
+    let delivered = identities(chunks)?;
+    let required = identities(&expected)?;
+    if delivered.len() != chunks.len() || required.len() != expected.len() || delivered != required
+    {
+        return Err("delivery evidence omits, duplicates or changes excerpt chunks".into());
+    }
+    Ok(())
+}
+
 /// Builds every packet part for one provider. The frozen denominator is
 /// partitioned deterministically (stable path order) so each denominator path
 /// is homed in exactly one part; a provider whose denominator fits one part
@@ -620,6 +996,25 @@ fn build_invocations(
     // plan without a coverage plan, partitions the whole denominator exactly as
     // before.
     let part_budget = seat_part_budget(provider);
+    // Trigger applicability & mandatory witnesses are frozen before risk
+    // selection. Legacy plans expose their missing frozen binding explicitly.
+    let actual_sides = crate::inventory::snapshot_source_sides(root)?;
+    let actual_sides: BTreeMap<_, _> = actual_sides
+        .into_iter()
+        .filter(|(path, _)| paths.contains(path))
+        .collect();
+    let frozen_sides = provider
+        .configuration
+        .get("sourceSides")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    if frozen_sides != json!(actual_sides) {
+        return Err(AuditError::SourceDrift(format!(
+            "provider {} source-side identity changed",
+            provider.id
+        )));
+    }
+    let trigger_evidence = trigger_evidence_for(root, provider, inventory, &paths)?;
     let sampled = base_mode.and_then(|mode| {
         sampled_review(
             root,
@@ -658,18 +1053,6 @@ fn build_invocations(
     let candidates_value = (provider.id == ADJUDICATOR_PROVIDER_ID)
         .then(|| scanner_candidates.map(|candidates| json!(candidates)))
         .flatten();
-    // Conditional-lens trigger evidence: the actual local check over this
-    // provider's denominator, not just the trigger description carried in
-    // `lensPlan`. `None` for always-applicable and unowned lenses.
-    let trigger_evidence = lens_id
-        .and_then(|lens| triggers::evaluate_trigger(root, lens, &paths))
-        .map(|evaluation| {
-            json!({
-                "fired": evaluation.fired,
-                "reason": evaluation.reason,
-                "evidencePaths": evaluation.evidence_paths,
-            })
-        });
     // Full report-schema body for the lens's finding shape (id, lens,
     // severity, confidence, file:line evidence, failure scenario, action,
     // verify status, plus lens-specific extras), matching the id carried
@@ -715,9 +1098,8 @@ fn build_invocations(
     let mut invocations = Vec::with_capacity(emitted_parts);
     for (index, part) in part_slots.into_iter().enumerate() {
         let number = index + 1;
-        // What this packet actually carries, reconciled against the
-        // denominator. Ingest derives examined coverage from this, never
-        // from an attestation.
+        // Packet materialization is separate from host delivery & review.
+        // Constructing an excerpt cannot prove a reviewer received it.
         let excerpt_coverage = excerpt_coverage_value(
             &provider.id,
             part,
@@ -770,6 +1152,7 @@ fn build_invocations(
             "excerptCoverage": excerpt_coverage,
             "scannerCandidates": candidates_value,
             "triggerEvidence": trigger_evidence,
+            "sourceSides": provider.configuration.get("sourceSides").cloned().unwrap_or_else(|| json!({})),
             "reportSchemaBody": report_schema_body,
             "semanticReviewContract": semantic_contract,
             "changeRiskContract": change_risk_contract,
@@ -781,6 +1164,9 @@ fn build_invocations(
         // Everything inside this `if` belongs to security_adjudication.rs and
         // wf064 finalize (batched adjudication); lane A does not edit it.
         if provider.id == ADJUDICATOR_PROVIDER_ID {
+            packet["candidateRouting"] = scanner_candidates
+                .map(candidate_domain_partitions)
+                .unwrap_or(Value::Null);
             let child_work = match scanner_candidates {
                 Some(candidates) => {
                     let parent_packet_digest =
@@ -1062,7 +1448,7 @@ fn sampled_review(
     let mut promoted_cost = flag_growth;
     for (path, _) in order {
         let cost = promote_cost(path);
-        if unpromoted.is_empty() && promoted_cost.saturating_add(cost) <= displaceable_cost {
+        if promoted_cost.saturating_add(cost) <= displaceable_cost {
             promoted_cost += cost;
             promoted.insert(path.clone());
         } else {
@@ -1113,7 +1499,15 @@ fn sampled_review(
             continue;
         }
         let key = match (&entry.digest, frozen.dedup) {
-            (Some(digest), true) => format!("digest:{digest}"),
+            (Some(digest), true) => {
+                let side = provider
+                    .configuration
+                    .get("sourceSides")
+                    .and_then(|sides| sides.get(&entry.path))
+                    .and_then(Value::as_str)
+                    .unwrap_or("selected");
+                format!("digest:{side}:{digest}")
+            }
             _ => format!("path:{}", entry.path),
         };
         groups.entry(key).or_default().push(entry.path.as_str());
@@ -1178,13 +1572,10 @@ fn sampled_review(
     })
 }
 
-/// Coverage the packet itself can prove. `examinedPaths` lists denominator
-/// paths whose every chunk is present in this packet; `chunkedPaths` lists
-/// the chunks of paths only partly present here (their remaining chunks are
-/// in other parts, and the path counts as examined only once every chunk is
-/// ingested); `omittedPaths` have no excerpt at all (named reason).
-/// `truncatedPaths` is retained for consumers and is always empty: nothing is
-/// truncated any more.
+/// Packet inclusion only: selected paths, fully materialized paths, partial
+/// chunks & explicit omissions. Delivery needs trusted transport evidence;
+/// semantic reading is never inferred from construction. `examinedPaths` is
+/// retained as an empty legacy field so no consumer can mistake it for proof.
 fn excerpt_coverage_value(
     provider_id: &str,
     part: Option<&excerpts::ExcerptPart>,
@@ -1204,7 +1595,7 @@ fn excerpt_coverage_value(
         let mut seen = BTreeSet::new();
         for excerpt in &part.excerpts {
             let (count, chunks) = present[excerpt.path.as_str()];
-            if count == chunks && seen.insert(excerpt.path.as_str()) {
+            if count == chunks && !excerpt.truncated && seen.insert(excerpt.path.as_str()) {
                 examined.push(excerpt.path.as_str());
             }
         }
@@ -1228,8 +1619,16 @@ fn excerpt_coverage_value(
         let mut value = json!({
             "basis": "bounded-excerpts",
             "denominatorCount": denominator_count,
-            "examinedPaths": examined,
-            "truncatedPaths": Vec::<&str>::new(),
+            "selectedPaths": part.paths,
+            "materializedPaths": examined,
+            "examinedPaths": Vec::<&str>::new(),
+            "evidenceState": {
+                "selection": "selected",
+                "materialization": if part.omitted.is_empty() && chunked.is_empty() { "materialized" } else { "partial" },
+                "delivery": "unverified",
+                "review": "unverified",
+            },
+            "truncatedPaths": part.excerpts.iter().filter(|excerpt| excerpt.truncated).map(|excerpt| excerpt.path.as_str()).collect::<Vec<_>>(),
             "chunkedPaths": chunked,
             "omittedPaths": part.omitted,
         });
@@ -1339,6 +1738,90 @@ pub(crate) fn verify_response(
         return Err("reasoning receipt denominator count mismatch".into());
     }
     verify_authenticated_receipt(receipt, key)?;
+    let packet_gaps = required_packet_gaps(request);
+    if response.result.complete && !packet_gaps.is_empty() {
+        return Err(format!(
+            "complete reasoning result has required packet gaps: {}",
+            packet_gaps.join(", ")
+        ));
+    }
+    if packet_gaps
+        .iter()
+        .any(|gap| !response.result.coverage_gaps.contains(gap))
+    {
+        return Err("reasoning result omits required packet gaps".into());
+    }
+    let staged_gaps = if request.provider_id == ADJUDICATOR_PROVIDER_ID
+        && response
+            .result
+            .details
+            .contains_key("adjudicationDeliveryEvidence")
+    {
+        let candidates: Vec<ScannerCandidate> = serde_json::from_value(
+            request
+                .packet
+                .get("scannerCandidates")
+                .cloned()
+                .unwrap_or(Value::Null),
+        )
+        .map_err(|error| format!("adjudication candidates malformed: {error}"))?;
+        let context = serde_json::from_value(
+            request
+                .packet
+                .pointer("/candidateWorkItems/triage/context")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+        )
+        .map_err(|error| format!("adjudication triage context malformed: {error}"))?;
+        let digest = security_adjudication::adjudication_parent_packet_digest(&request.packet)
+            .map_err(|error| error.to_string())?;
+        let plan = security_adjudication::build_adjudication_plan(&candidates, &context, &digest)
+            .map_err(|error| error.to_string())?;
+        let raw = response
+            .result
+            .details
+            .get("rawAdjudicationVerdicts")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "adjudication raw verdict binding missing".to_owned())?;
+        let observations = response
+            .result
+            .details
+            .get("adjudicationDeliveryEvidence")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "adjudication delivery ledger malformed".to_owned())?;
+        Some(
+            security_adjudication::validate_stage_observations(
+                &plan,
+                &candidates,
+                raw,
+                observations,
+            )
+            .map_err(|error| error.to_string())?,
+        )
+    } else {
+        None
+    };
+    if let Some(gaps) = &staged_gaps {
+        if response.result.complete && !gaps.is_empty() {
+            return Err("complete adjudication has unresolved delivery/verification gaps".into());
+        }
+        if gaps
+            .iter()
+            .any(|gap| !response.result.coverage_gaps.contains(gap))
+        {
+            return Err("adjudication result omits stage evidence gaps".into());
+        }
+    }
+    if response.result.complete && staged_gaps.is_none() {
+        let evidence = response
+            .result
+            .details
+            .get("deliveryEvidence")
+            .ok_or_else(|| {
+                "complete reasoning result lacks authenticated host delivery evidence".to_owned()
+            })?;
+        validate_delivery_evidence(request, evidence)?;
+    }
     // Reconciliation-path schema validation: when a host reports lens
     // findings under `details.lensFindings`, every finding must satisfy the
     // owning lens's full report schema (lens_schemas.rs) before it is
@@ -1412,6 +1895,57 @@ pub(crate) fn verify_response(
                 .join("; ");
             format!("reasoning result for lens {lens} failed change-risk validation: {joined}")
         })?;
+    }
+    if staged_gaps.is_none() {
+        let proof = response.result.details.get("verificationEvidence");
+        if let Some(proof) = proof {
+            ingest::validate_runtime_verification(request, proof)
+                .map_err(|error| error.to_string())?;
+        }
+        let findings = response
+            .result
+            .details
+            .get("lensFindings")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let withdrawn = response
+            .result
+            .details
+            .get("withdrawnFindings")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let gaps = ingest::verification_projection_gaps(
+            &request.provider_id,
+            proof,
+            &findings,
+            &withdrawn,
+        )
+        .map_err(|error| error.to_string())?;
+        if response.result.complete && !gaps.is_empty() {
+            return Err("complete reasoning result lacks resolved independent verification".into());
+        }
+        if gaps
+            .iter()
+            .any(|gap| !response.result.coverage_gaps.contains(gap))
+        {
+            return Err("reasoning result omits independent verification gaps".into());
+        }
+        // Top-level findings also need the detailed, host-verified projection;
+        // a trusted receipt must never turn omitted detail rows into clean proof.
+        for finding in &response.result.findings {
+            let value = serde_json::to_value(finding).map_err(|error| error.to_string())?;
+            let id = value.get("id").and_then(Value::as_str);
+            if !findings
+                .iter()
+                .any(|detail| detail.get("id").and_then(Value::as_str) == id)
+            {
+                return Err(
+                    "top-level finding lacks independently verified detailed finding".into(),
+                );
+            }
+        }
     }
     let mut result = response.result.clone();
     result.details.insert(
@@ -1630,11 +2164,33 @@ pub fn scanner_candidates_from_execution(
         .iter()
         .filter(|entry| generators.contains(entry.provider.as_str()))
         .flat_map(|entry| {
+            let source_sides = plan
+                .providers()
+                .iter()
+                .find(|provider| provider.id == entry.provider.as_str())
+                .and_then(|provider| provider.configuration.get("sourceSides"));
             security_adjudication::scanner_candidates(root, &entry.provider, &entry.result)
+                .into_iter()
+                .map(move |mut candidate| {
+                    if let Some(path) = &candidate.path {
+                        let side = source_sides
+                            .and_then(|sides| sides.get(path))
+                            .and_then(Value::as_str)
+                            .unwrap_or("selected");
+                        if !candidate.source_mapping.is_object() {
+                            candidate.source_mapping =
+                                json!({"originalMapping": candidate.source_mapping});
+                        }
+                        candidate.source_mapping["sourceSide"] = json!(side);
+                        candidate.source_mapping["sourceSideAuthority"] = json!("frozen-plan");
+                    }
+                    candidate
+                })
         })
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
-    candidates.dedup_by(|left, right| left.finding_id == right.finding_id);
+    // A duplicate ID is an accounting error for adjudication to reject,
+    // never permission to silently erase a generator's candidate.
     candidates
 }
 

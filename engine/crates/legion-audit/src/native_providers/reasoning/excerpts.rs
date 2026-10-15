@@ -97,6 +97,8 @@ pub struct RedactionCounts {
 #[serde(rename_all = "camelCase")]
 pub struct Excerpt {
     pub path: String,
+    /// Explicit prior/current source identity; deleted files use frozen base bytes.
+    pub source_side: &'static str,
     pub mode: ExcerptMode,
     pub language: &'static str,
     /// `file:line` anchors covering the source lines this chunk represents,
@@ -817,6 +819,7 @@ fn excerpt_for_chunk(
     };
     Excerpt {
         path: path.to_owned(),
+        source_side: "selected",
         mode,
         language,
         anchors,
@@ -833,6 +836,51 @@ fn excerpt_for_chunk(
             .map(|line| format!("{path}:{}-{}", line.start, line.end))
             .collect(),
         redaction: counts,
+    }
+}
+
+/// Resolve sealed source before excerpting. Baseline bytes never appear under
+/// a selected-tree alias, and every snapshot read rechecks its bound digest.
+pub(crate) fn source_bytes(
+    root: &Path,
+    path: &str,
+    max_bytes: usize,
+) -> Result<(Vec<u8>, crate::snapshot::SnapshotSide), &'static str> {
+    use crate::snapshot::SnapshotSide;
+    match crate::inventory::frozen_snapshot(root).map_err(|_| "snapshot-invalid")? {
+        Some((snapshot, root_side)) => {
+            let side = if root_side == SnapshotSide::Base
+                || !snapshot.manifest.files.contains_key(path)
+                    && snapshot.manifest.scope.changed_paths.contains(path)
+                    && snapshot.manifest.base_files.contains_key(path)
+            {
+                SnapshotSide::Base
+            } else {
+                SnapshotSide::Selected
+            };
+            Ok((
+                snapshot
+                    .read(path, side, max_bytes)
+                    .map_err(|_| "snapshot-unavailable")?,
+                side,
+            ))
+        }
+        None => {
+            let canonical_root = root.canonicalize().map_err(|_| "unreadable")?;
+            let target = root.join(path).canonicalize().map_err(|_| "unreadable")?;
+            if !target.starts_with(&canonical_root) {
+                return Err("path-outside-root");
+            }
+            let metadata = std::fs::metadata(&target).map_err(|_| "unreadable")?;
+            if !metadata.is_file() || metadata.len() > max_bytes as u64 {
+                return Err("file-over-limit");
+            }
+            let bytes = std::fs::read(target).map_err(|_| "unreadable")?;
+            if bytes.len() > max_bytes {
+                return Err("file-over-limit");
+            }
+            Ok((bytes, SnapshotSide::Selected))
+        }
     }
 }
 
@@ -857,7 +905,7 @@ fn prepare_file_scoped(
     hunks: Option<&[(usize, usize)]>,
     flagged: Option<&[(usize, usize)]>,
 ) -> Result<Vec<Excerpt>, &'static str> {
-    let bytes = std::fs::read(root.join(path)).map_err(|_| "unreadable")?;
+    let (bytes, side) = source_bytes(root, path, 32 * 1024 * 1024)?;
     if bytes.contains(&0) {
         return Err("binary");
     }
@@ -897,7 +945,7 @@ fn prepare_file_scoped(
         .into_iter()
         .enumerate()
         .map(|(index, range)| {
-            excerpt_for_chunk(
+            let mut excerpt = excerpt_for_chunk(
                 path,
                 mode,
                 language,
@@ -905,7 +953,13 @@ fn prepare_file_scoped(
                 index + 1,
                 chunks,
                 flagged.unwrap_or(&[]),
-            )
+            );
+            excerpt.source_side = if side == crate::snapshot::SnapshotSide::Base {
+                "base"
+            } else {
+                "selected"
+            };
+            excerpt
         })
         .collect())
 }

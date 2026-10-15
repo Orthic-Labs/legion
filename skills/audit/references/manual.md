@@ -60,7 +60,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
 | 1 · Scanners (`legion audit <root> --out <run-dir>`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per bundled seat, dispatched in resumable waves; tier by seat kind: judgment for J1/J2, specialist for S1/S2, mechanical for M1; see `lens-routing.md` Bundled seats). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no external worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
+| 2 · Reasoning lenses | After stage 1, run `legion audit run-reasoning --run <run-dir>` for native Claude execution over the frozen plan. Missing CLI capabilities or runtime prerequisites remain typed gaps; see [reasoning runtime](reasoning-runtime.md). |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -166,15 +166,13 @@ Local-review scope/diff flags (`--doctor`, `--dir`, `--type all|local|committed|
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
-2. **Run applicable lenses over `facts.json` + repo — as parallel native host subagents,
-   one fresh subagent per bundled seat listed in `lens-dispatch.json`, dispatched in resumable waves of at most
-   `CHILD_AGENTS_MAX`, judgment seats first (see `lens-routing.md` Bundled seats and Model routing); inline in main
-   session is fallback only when no native seat is available.** NO external model APIs (locked
-   2026-07-05). Model routing, structured task bodies,
-   secret-safe inputs, and the skel-vs-RAW excerpt-compression split are owned by
-   `references/lens-routing.md` — read it before this stage. Each lens is fed its facts (table
-   below), then reasons: verify, contextualize, prioritize. A finding MUST point to a real
-   `file:line` or an evidence locus in a log. **Security lenses may not emit clean-bill
+2. **Run reasoning:** `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`
+   executes applicable lens packets through a fresh native Claude process per bounded turn. The
+   host grants only snapshot read/search/list/diff/caller tools; it grants no shell, edit, MCP, or
+   subagent tools. Every author finding goes through a separate evidence verifier before ingest.
+   See [reasoning runtime](reasoning-runtime.md) for scope, usage, and prerequisite semantics.
+   Pattern cards sharpen existing lenses; they do not create new audit domains. Each lens must
+   still ground findings in frozen-source evidence. **Security lenses may not emit clean-bill
    language for any check whose `status != ran`** — render the NOT-SCANNED banner instead.
 
 3. **Synthesize.** Dedup across detectors (a finding flagged by a scanner *and* a lens =
@@ -420,11 +418,11 @@ when absent. It is never computed by hand and never presented as a trend. The de
   matrix covering every material Blueprint gap; absent matrix or unresolved `undetermined` gap means
   architecture optimality is UNPROVEN.
 
-## Lens fan-out (native parallel host subagents — NO external APIs)
+## Lens execution (native bounded runtime)
 
-Before Stage 2, read [`lens-routing.md`](lens-routing.md). It owns lens routing,
-secret-safe inputs, correctness verification, reconciliation, and fallback. Scanners remain the
-source of truth; the main session verifies every rendered `file:line` and owns the final report.
+Before Stage 2, read [`reasoning-runtime.md`](reasoning-runtime.md) and
+[`lens-routing.md`](lens-routing.md). Runtime executes frozen packets; lenses own semantic review;
+the separate verifier adjudicates each proposed finding. The audit report remains authoritative.
 
 ## Audit-fix loop (when told "audit and fix" / `/audit-fix`)
 
