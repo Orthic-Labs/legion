@@ -16,7 +16,11 @@ const QUALIFICATION_MECHANISM: &str = "agent-plugins-bare-command";
 const QUALIFICATION_TOOL: &str = "legion_m1_status";
 const QUALIFICATION_SERVER: &str = "legion";
 const QUALIFICATION_TIMEOUT: Duration = Duration::from_secs(180);
-const MARKETPLACE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Host plugin CLIs (notably `codex plugin list`) normally answer in about a
+/// second but stall for tens of seconds while the host app is busy; a stall
+/// rolled back whole installs. Allow 90 s and retry a timed-out call once.
+const MARKETPLACE_TIMEOUT: Duration = Duration::from_secs(90);
+const MARKETPLACE_ATTEMPTS: u32 = 2;
 const MARKETPLACE_REFRESH_SCHEMA_VERSION: u32 = 1;
 const QUALIFICATION_MCP_ARGS: [&str; 2] = ["serve", "--stdio"];
 const EXPECTED_RELEASE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -4423,40 +4427,49 @@ async fn run_marketplace_cli(
     operation: &str,
     cancellation: CancellationToken,
 ) -> Result<ProcessOutput, CommandError> {
-    let launch = ProcessLaunch {
-        executable: executable.to_string_lossy().into_owned(),
-        args,
-        cwd: std::env::current_dir()
-            .map_err(io_error)?
-            .to_string_lossy()
-            .into_owned(),
-        environment: std::env::vars().collect::<BTreeMap<_, _>>(),
-        stdout_limit: 1024 * 1024,
-        stderr_limit: 1024 * 1024,
-        timeout_ms: MARKETPLACE_TIMEOUT.as_millis() as u64,
-        termination_grace_ms: 2_000,
-        cancellation,
+    let cwd = std::env::current_dir()
+        .map_err(io_error)?
+        .to_string_lossy()
+        .into_owned();
+    let mut attempt = 0;
+    let output = loop {
+        attempt += 1;
+        let launch = ProcessLaunch {
+            executable: executable.to_string_lossy().into_owned(),
+            args: args.clone(),
+            cwd: cwd.clone(),
+            environment: std::env::vars().collect::<BTreeMap<_, _>>(),
+            stdout_limit: 1024 * 1024,
+            stderr_limit: 1024 * 1024,
+            timeout_ms: MARKETPLACE_TIMEOUT.as_millis() as u64,
+            termination_grace_ms: 2_000,
+            cancellation: cancellation.clone(),
+        };
+        #[cfg(unix)]
+        let output = legion_effects::platform::unix::UnixProcess
+            .run(launch)
+            .await;
+        #[cfg(windows)]
+        let output = legion_effects::platform::windows::WindowsProcess
+            .run(launch)
+            .await;
+        let output = output.map_err(|error| {
+            CommandError::incomplete(format!(
+                "{} {operation} failed to start: {error}",
+                client.executable()
+            ))
+        })?;
+        if output.timed_out && !output.cancelled && attempt < MARKETPLACE_ATTEMPTS {
+            continue;
+        }
+        break output;
     };
-    #[cfg(unix)]
-    let output = legion_effects::platform::unix::UnixProcess
-        .run(launch)
-        .await;
-    #[cfg(windows)]
-    let output = legion_effects::platform::windows::WindowsProcess
-        .run(launch)
-        .await;
-    let output = output.map_err(|error| {
-        CommandError::incomplete(format!(
-            "{} {operation} failed to start: {error}",
-            client.executable()
-        ))
-    })?;
     if output.cancelled {
         return Err(CommandError::cancelled());
     }
     if output.timed_out {
         return Err(CommandError::incomplete(format!(
-            "{} {operation} exceeded {} seconds",
+            "{} {operation} exceeded {} seconds on each of {MARKETPLACE_ATTEMPTS} attempts",
             client.executable(),
             MARKETPLACE_TIMEOUT.as_secs()
         )));
