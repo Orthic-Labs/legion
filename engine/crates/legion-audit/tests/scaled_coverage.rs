@@ -649,7 +649,7 @@ fn candidate(path: &str, severity: &str, number: usize) -> ScannerCandidate {
     }
 }
 
-fn ember_like_files() -> Vec<(String, Vec<u8>)> {
+fn promotion_fixture_files() -> Vec<(String, Vec<u8>)> {
     let mut files = plain_files(150, 25_000);
     // Security-sensitive paths are mandatory: promotion must never shrink them.
     files.push(("src/security/guard.rs".into(), filler_file(900, 25_000)));
@@ -709,7 +709,7 @@ fn within_frozen_dispatch(baseline: &Value, after: &Value) {
 
 #[test]
 fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
-    let files = ember_like_files();
+    let files = promotion_fixture_files();
     let env = build_env(
         "promotion-within-budget",
         &[PERFORMANCE],
@@ -788,7 +788,7 @@ fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
 
 #[test]
 fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
-    let files = ember_like_files();
+    let files = promotion_fixture_files();
     let env = build_env(
         "promotion-capped",
         &[PERFORMANCE],
