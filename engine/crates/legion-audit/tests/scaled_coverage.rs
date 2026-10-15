@@ -756,9 +756,17 @@ fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
     within_frozen_dispatch(&baseline, &after);
 
     let coverage = &work[0].request.packet["excerptCoverage"];
-    assert_eq!(string_list(&coverage["promotedPaths"]), promoted_paths);
+    // Packets carry counts, the digest and a reference, never the lists.
+    assert!(coverage.get("promotedPaths").is_none());
+    assert!(coverage.get("displacedPaths").is_none());
+    let promotion = work[0].promotion.as_ref().expect("promotion document");
+    assert_eq!(coverage["promotionRef"], json!("promotion.reasoning.performance.json"));
+    assert_eq!(coverage["promotionDigest"], promotion["digest"]);
+    assert_eq!(string_list(&promotion["promoted"]), promoted_paths);
+    assert_eq!(coverage["promotedCount"], json!(promoted_paths.len()));
     assert_eq!(coverage["unpromotedCount"], json!(0));
-    let displaced = string_list(&coverage["displacedPaths"]);
+    let displaced = string_list(&promotion["displaced"]);
+    assert_eq!(coverage["displacedCount"], json!(displaced.len()));
     // Displaced files are frozen sampled files, reported, never mandatory.
     // A promoted file carries its finding's window, so it costs more than the
     // skeleton sampled file it replaces: at least one file is displaced.
@@ -841,7 +849,9 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     within_frozen_dispatch(&baseline, &lens_dispatch_plan(&work, &limits));
 
     let coverage = &work[0].request.packet["excerptCoverage"];
-    let promoted = string_list(&coverage["promotedPaths"]);
+    assert!(coverage.get("promotedPaths").is_none());
+    let promotion = work[0].promotion.as_ref().expect("promotion document");
+    let promoted = string_list(&promotion["promoted"]);
     let unpromoted = coverage["unpromotedCount"].as_u64().unwrap() as usize;
     assert!(unpromoted > 0);
     assert_eq!(promoted.len() + unpromoted, outside.len());
@@ -849,7 +859,7 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     // Every critical candidate is promoted before any lower severity.
     assert_eq!(promoted, outside[..promoted.len()].to_vec());
     assert!(promoted.len() >= 5);
-    let displaced = string_list(&coverage["displacedPaths"]);
+    let displaced = string_list(&promotion["displaced"]);
     // Equal-cost files: one displaced file per promoted file, give or take a byte of estimate.
     assert!(
         displaced.len() + 1 >= promoted.len(),
@@ -860,6 +870,22 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     assert!(frozen.mandatory.is_subset(&carried_paths(&work)));
 
     write_lens_packets(&env.run.join(LENS_PACKET_DIR), &work).unwrap();
+    // Ingest fails closed on a missing or altered promotion file.
+    let promotion_path = env.run.join("promotion.reasoning.performance.json");
+    let original = std::fs::read(&promotion_path).unwrap();
+    std::fs::remove_file(&promotion_path).unwrap();
+    assert!(
+        ingest_lens_result(&env.run, PERFORMANCE.0, &lens_result(&work[0])).is_err(),
+        "missing promotion file must reject the packet"
+    );
+    let mut altered: serde_json::Value = serde_json::from_slice(&original).unwrap();
+    altered["promoted"] = json!([]);
+    std::fs::write(&promotion_path, serde_json::to_vec(&altered).unwrap()).unwrap();
+    assert!(
+        ingest_lens_result(&env.run, PERFORMANCE.0, &lens_result(&work[0])).is_err(),
+        "altered promotion file must reject the packet"
+    );
+    std::fs::write(&promotion_path, &original).unwrap();
     let mut last = None;
     for item in &work {
         last = Some(

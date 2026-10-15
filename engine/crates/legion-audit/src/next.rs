@@ -1557,6 +1557,7 @@ mod tests {
         assert!(wave2["seats"][0]["resultPaths"][1]
             .as_str()
             .unwrap()
+            .replace('\\', "/")
             .ends_with("lens-results/reasoning.naming.part-0002.json"));
 
         // One of the two parts is not enough.

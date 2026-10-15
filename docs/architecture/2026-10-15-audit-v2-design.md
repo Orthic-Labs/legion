@@ -383,6 +383,7 @@ These carry over unchanged from lanes A, B and C (`1b802f52..265794df`):
 The rev-1 "lane A should adjust" items are now phase-2 work:
 - a `FactsSource` seam;
 - `{inventoryDigest, snapshotRef}` in packets;
+- findings promotion lists stay out of packets: each part carries `promotedCount`, `displacedCount`, `unpromotedCount`, `promotionDigest` and a `promotionRef` to one per-lens `promotion.<provider>.json` in the run directory (written once beside `lens-packets/`); ingest loads the lists from it and fails closed on a missing file or digest mismatch;
 - compact JSON;
 - packets built once;
 - `seatId` and `wave` in `lens-dispatch.json`;

@@ -36,7 +36,8 @@ use super::{
         build_adjudication_plan, confirmed_findings, confirmed_paths, evaluate_adjudication,
         ConfirmedSecurityFinding, ScannerCandidate, TriageContext, ADJUDICATOR_PROVIDER_ID,
     },
-    verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
+    promotion_digest_of, promotion_file_name, verify_authenticated_receipt, verify_response,
+    LensPartRef, PendingLensWork,
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
     REASONING_RECEIPT_SCHEMA_VERSION,
 };
@@ -368,9 +369,15 @@ struct SampledPacket {
     bundle: String,
     review_set_digest: String,
     review_set_count: usize,
+    /// Loaded from the promotion file by `load_promotion`; packets carry only
+    /// counts, the digest and the file reference.
     promoted: Vec<String>,
     /// Frozen sampled paths displaced by the promotion.
     displaced: Vec<String>,
+    promoted_count: usize,
+    displaced_count: usize,
+    promotion_ref: Option<String>,
+    promotion_digest: Option<String>,
     /// Promotable paths the run budget could not take.
     unpromoted: usize,
     effective_review_set_digest: Option<String>,
@@ -418,8 +425,24 @@ impl SampledPacket {
                 .get("reviewSetCount")
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize,
-            promoted: string_list(coverage.get("promotedPaths")),
-            displaced: string_list(coverage.get("displacedPaths")),
+            promoted: Vec::new(),
+            displaced: Vec::new(),
+            promoted_count: coverage
+                .get("promotedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            displaced_count: coverage
+                .get("displacedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            promotion_ref: coverage
+                .get("promotionRef")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned),
+            promotion_digest: coverage
+                .get("promotionDigest")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned),
             unpromoted: coverage
                 .get("unpromotedCount")
                 .and_then(Value::as_u64)
@@ -438,6 +461,61 @@ impl SampledPacket {
                 .unwrap_or(0) as usize,
             aliases,
         })
+    }
+
+    /// Loads the promoted and displaced lists from the run-level promotion
+    /// file the packet references. Fails closed: a missing file, a file that
+    /// is not the provider's own, a digest that differs from the packet's, or
+    /// counts that differ from the packet's reject the packet.
+    fn load_promotion(&mut self, run_dir: &Path, provider_id: &str) -> Result<(), AuditError> {
+        let (reference, claimed) = match (&self.promotion_ref, &self.promotion_digest) {
+            (Some(reference), Some(digest)) => (reference.clone(), digest.clone()),
+            (None, None) => {
+                if self.promoted_count != 0 || self.displaced_count != 0 || self.unpromoted != 0 {
+                    return Err(invalid(format!(
+                        "lens packet for {provider_id} counts promoted, displaced or unpromoted paths but names no promotion file"
+                    )));
+                }
+                return Ok(());
+            }
+            _ => {
+                return Err(invalid(format!(
+                    "lens packet for {provider_id} carries only one of promotionRef and promotionDigest"
+                )))
+            }
+        };
+        if reference != promotion_file_name(provider_id) {
+            return Err(invalid(format!(
+                "lens packet for {provider_id} names an unexpected promotion file {reference}"
+            )));
+        }
+        let document = read_json(&run_dir.join(&reference)).map_err(|error| {
+            invalid(format!(
+                "promotion file {reference} for {provider_id} is missing or unreadable: {error}"
+            ))
+        })?;
+        let promoted = string_list(document.get("promoted"));
+        let displaced = string_list(document.get("displaced"));
+        let unpromoted = string_list(document.get("unpromoted"));
+        let findings = document.get("findings").cloned().unwrap_or(Value::Null);
+        let recomputed = promotion_digest_of(&promoted, &displaced, &unpromoted, &findings);
+        let stored = document.get("digest").and_then(Value::as_str);
+        if recomputed.as_deref() != Some(claimed.as_str()) || stored != Some(claimed.as_str()) {
+            return Err(invalid(format!(
+                "promotion file {reference} for {provider_id} does not match the packet's promotionDigest"
+            )));
+        }
+        if promoted.len() != self.promoted_count
+            || displaced.len() != self.displaced_count
+            || unpromoted.len() != self.unpromoted
+        {
+            return Err(invalid(format!(
+                "promotion file {reference} for {provider_id} disagrees with the packet's promotion counts"
+            )));
+        }
+        self.promoted = promoted;
+        self.displaced = displaced;
+        Ok(())
     }
 
     /// Paths the lens must examine: the frozen review set, minus the sampled
@@ -490,6 +568,7 @@ fn frozen_coverage_for(plan: &Value, provider_id: &str) -> Option<coverage_plan:
 /// A risk-sampled lens packet must carry exactly the review set the plan
 /// froze; promotions may only add paths inside the frozen denominator.
 fn verify_review_binding(
+    run_dir: &Path,
     plan: &Value,
     provider_id: &str,
     packet: &Value,
@@ -499,11 +578,12 @@ fn verify_review_binding(
         return Ok(());
     };
     let coverage = packet.get("excerptCoverage").filter(|v| v.is_object());
-    let carried = SampledPacket::from_coverage(coverage).ok_or_else(|| {
+    let mut carried = SampledPacket::from_coverage(coverage).ok_or_else(|| {
         invalid(format!(
             "lens packet for {provider_id} does not carry the frozen risk-sampled review set"
         ))
     })?;
+    carried.load_promotion(run_dir, provider_id)?;
     if carried.review_set_digest != frozen.review_set_digest
         || carried.review_set_count != frozen.review_set.len()
     {
@@ -569,6 +649,7 @@ fn string_list(value: Option<&Value>) -> Vec<String> {
 /// verdict. A packet that records no basis proves nothing.
 fn packet_coverage(
     provider_id: &str,
+    sampled: Option<SampledPacket>,
     packet: &Value,
     denominator_paths: &[String],
     candidates_supplied: bool,
@@ -578,7 +659,6 @@ fn packet_coverage(
     let coverage = packet
         .get("excerptCoverage")
         .filter(|value| value.is_object());
-    let sampled = SampledPacket::from_coverage(coverage);
     let basis = coverage
         .and_then(|value| value.get("basis"))
         .and_then(Value::as_str)
@@ -954,6 +1034,7 @@ pub fn ingest_lens_result(
         ));
     }
     verify_review_binding(
+        run_dir,
         &plan,
         provider_id,
         &request.packet,
@@ -1314,8 +1395,18 @@ pub fn ingest_lens_result(
             "{who}: only {ADJUDICATOR_PROVIDER_ID} accepts verdicts"
         )));
     }
+    let mut sampled_packet = SampledPacket::from_coverage(
+        request
+            .packet
+            .get("excerptCoverage")
+            .filter(|value| value.is_object()),
+    );
+    if let Some(sampled_packet) = sampled_packet.as_mut() {
+        sampled_packet.load_promotion(run_dir, provider_id)?;
+    }
     let mut coverage = packet_coverage(
         provider_id,
+        sampled_packet,
         &request.packet,
         &request.denominator_paths,
         candidates_supplied,
@@ -2978,6 +3069,14 @@ pub fn write_lens_packets(
         let _ = fs::remove_file(packet_dir.join(format!("{provider}.index.json")));
         for (_, stale) in part_packet_files(packet_dir, provider) {
             let _ = fs::remove_file(stale);
+        }
+        // The promotion lists are written once per lens, next to
+        // `lens-packets/`; packets reference them by `promotionRef`.
+        if let Some(promotion) = group.iter().find_map(|item| item.promotion.as_ref()) {
+            let run_dir = packet_dir.parent().unwrap_or(packet_dir);
+            let bytes =
+                serde_json::to_vec(promotion).map_err(|error| invalid(error.to_string()))?;
+            write_atomic(run_dir, &promotion_file_name(provider), &bytes)?;
         }
         for item in &group {
             let bytes = serde_json::to_vec(item).map_err(|error| invalid(error.to_string()))?;

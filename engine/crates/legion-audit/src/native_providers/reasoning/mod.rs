@@ -45,6 +45,30 @@ pub use security_adjudication::{ScannerCandidate, ADJUDICATOR_PROVIDER_ID};
 /// (`inventoryRef.snapshotRef`); the CLI writes it next to `lens-packets/`.
 pub const INVENTORY_SNAPSHOT_FILE: &str = "inventory.json";
 
+/// Run-relative file that holds one lens's findings-promotion lists
+/// (`promotionRef`). Packets carry only counts and the digest, never the lists:
+/// the lists would otherwise be paid once per packet part by the dispatch
+/// estimator. `write_lens_packets` writes it next to `lens-packets/`.
+pub fn promotion_file_name(provider_id: &str) -> String {
+    format!("promotion.{provider_id}.json")
+}
+
+/// Digest binding a promotion to the scanner candidates it came from.
+fn promotion_digest_of(
+    promoted: &[String],
+    displaced: &[String],
+    unpromoted: &[String],
+    findings: &Value,
+) -> Option<String> {
+    canonical_digest(&json!({
+        "promoted": promoted,
+        "displaced": displaced,
+        "unpromoted": unpromoted,
+        "findings": findings,
+    }))
+    .ok()
+}
+
 pub const REASONING_RECEIPT_SCHEMA_VERSION: u32 = 1;
 pub const REASONING_RECEIPT_KIND: &str = "legion-reasoning-receipt";
 pub const REASONING_INVOCATION_KIND: &str = "legion-reasoning-invocation";
@@ -301,7 +325,7 @@ impl ReasoningProviderExecutor {
         if self.host.is_none() {
             return pending_host_result(provider, &denominator);
         }
-        let mut requests = build_invocations(
+        let (mut requests, _) = build_invocations(
             plan,
             provider,
             inventory,
@@ -554,7 +578,7 @@ fn build_invocations(
     invocation_epoch: &str,
     root: &Path,
     scanner_candidates: Option<&[ScannerCandidate]>,
-) -> Result<Vec<ReasoningInvocation>, AuditError> {
+) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
     let contract = provider
         .configuration
         .get("runner")
@@ -820,7 +844,8 @@ fn build_invocations(
             packet,
         });
     }
-    Ok(invocations)
+    let promotion = review_binding.and_then(|binding| binding.promotion_doc.clone());
+    Ok((invocations, promotion))
 }
 
 /// What a risk-sampled lens packet records about its frozen review set.
@@ -847,6 +872,9 @@ pub(crate) struct ReviewBinding {
     effective_digest: String,
     /// Digest binding the promotion to the scanner candidates it came from.
     promotion_digest: Option<String>,
+    /// `{promoted, displaced, unpromoted, findings, digest}`, written once per
+    /// lens as `promotionRef`; `None` when nothing was promoted or displaced.
+    promotion_doc: Option<Value>,
     aliases: excerpts::AliasMap,
 }
 
@@ -942,9 +970,9 @@ fn sampled_review(
     promotion_basis.dedup();
 
     // Cost is what the dispatch estimator will charge: the measured excerpt
-    // JSON of the file in its packet mode (flagged regions included), plus the
-    // path in the promoted/displaced lists the packet reports. Promoted files
-    // carry their finding's raw window and can cost several times a skeleton
+    // JSON of the file in its packet mode (flagged regions included). The
+    // promoted/displaced lists live in the promotion file, not in packets, so
+    // they add nothing. Promoted files carry their finding's raw window and can cost several times a skeleton
     // sampled file, so file size is no stand-in.
     let measured = |path: &str| {
         excerpts::review_item_cost(
@@ -958,9 +986,8 @@ fn sampled_review(
             listing_copies,
         ) as u64
     };
-    let listed = |path: &str| path.len() as u64 + 4;
-    let promote_cost = |path: &str| measured(path).saturating_add(listed(path));
-    let freed_by = |path: &str| measured(path).saturating_sub(listed(path));
+    let promote_cost = |path: &str| measured(path);
+    let freed_by = |path: &str| measured(path);
 
     // Displaceable sampled paths, lowest-ranked first: unranked leftovers,
     // then the remainder stratum from its end, then the hotspot stratum from
@@ -1053,14 +1080,17 @@ fn sampled_review(
     let promotion_digest = if promoted.is_empty() && displaced.is_empty() && unpromoted.is_empty() {
         None
     } else {
-        canonical_digest(&json!({
+        promotion_digest_of(&promoted_list, &displaced, &unpromoted, &json!(promotion_basis))
+    };
+    let promotion_doc = promotion_digest.as_ref().map(|digest| {
+        json!({
             "promoted": promoted_list,
             "displaced": displaced,
             "unpromoted": unpromoted,
             "findings": promotion_basis,
-        }))
-        .ok()
-    };
+            "digest": digest,
+        })
+    });
     let effective_digest =
         coverage_plan::effective_review_set_digest(&frozen.review_set, &displaced, &promoted_list)
             .ok()?;
@@ -1134,6 +1164,7 @@ fn sampled_review(
             unpromoted,
             effective_digest,
             promotion_digest,
+            promotion_doc,
             aliases,
         },
     })
@@ -1217,9 +1248,18 @@ fn excerpt_coverage_value(
             object.insert("bundle".into(), json!(review.bundle));
             object.insert("reviewSetDigest".into(), json!(review.digest));
             object.insert("reviewSetCount".into(), json!(review.review_count));
-            object.insert("promotedPaths".into(), json!(review.promoted));
-            object.insert("displacedPaths".into(), json!(review.displaced));
+            // The lists live in the promotion file (`promotionRef`), written
+            // once per lens; a packet part carries only counts and the digest.
+            object.insert("promotedCount".into(), json!(review.promoted.len()));
+            object.insert("displacedCount".into(), json!(review.displaced.len()));
             object.insert("unpromotedCount".into(), json!(review.unpromoted.len()));
+            object.insert(
+                "promotionRef".into(),
+                match review.promotion_digest {
+                    Some(_) => json!(promotion_file_name(provider_id)),
+                    None => Value::Null,
+                },
+            );
             object.insert(
                 "effectiveReviewSetDigest".into(),
                 json!(review.effective_digest),
@@ -1506,6 +1546,10 @@ pub struct PendingLensWork {
     pub lens_ids: Vec<String>,
     pub status: String,
     pub request: ReasoningInvocation,
+    /// The provider's promotion document (`promotionRef` content). Never part
+    /// of the serialized packet file; `write_lens_packets` writes it once.
+    #[serde(skip)]
+    pub promotion: Option<Value>,
 }
 
 /// Position of a packet within a partitioned denominator.
@@ -1605,7 +1649,7 @@ pub fn pending_lens_work_with_candidates(
         let denominator = reasoning_denominator(plan, provider, inventory)?;
         // One work item per packet part (a single item, with the unnumbered
         // packet shape, when the denominator fits one part).
-        for request in build_invocations(
+        let (requests, promotion) = build_invocations(
             plan,
             provider,
             inventory,
@@ -1613,12 +1657,14 @@ pub fn pending_lens_work_with_candidates(
             "pending-host",
             root,
             scanner_candidates,
-        )? {
+        )?;
+        for request in requests {
             work.push(PendingLensWork {
                 provider_id: provider.id.clone(),
                 lens_ids: provider.lens_ids.clone(),
                 status: "pending-host".into(),
                 request,
+                promotion: promotion.clone(),
             });
         }
     }
