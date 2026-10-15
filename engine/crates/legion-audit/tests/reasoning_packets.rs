@@ -541,13 +541,14 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
         })
         .collect();
     assert!(
-        !continued.is_empty(),
-        "the big file continues into a later part"
+        !continued.is_empty() && !continued.contains(&home),
+        "the big file spans its home part and at least one other part"
     );
-    let last = *continued.iter().max().unwrap();
-    assert!(last > home);
+    // Hold back the part that homes the big file; every other part ingested
+    // still leaves it uncovered, whichever order the chunks fall in.
+    let last = home;
 
-    // Ingest every part except the big file's last chunk: it is not covered.
+    // Ingest every part except the big file's home part: it is not covered.
     let mut latest = None;
     for (index, item) in env.work.iter().enumerate() {
         if index == last {
@@ -570,7 +571,7 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
     assert_eq!((after.examined, after.expected), (20, 20));
     assert!(after.complete, "{:?}", after.coverage_gaps);
 
-    // The continuation alone never covers the split file.
+    // One of the big file's parts alone never covers it.
     let alone = build_env("straddle-alone", RAW_PROVIDER, RAW_LENS, &files);
     let only_last = ingest_lens_result(
         &alone.run,
@@ -578,7 +579,6 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
         &part_result(&alone.work[last], json!([])),
     )
     .unwrap();
-    assert!(!homed_paths(&alone.work[last]).contains(&big) || last == home);
     assert!(only_last.examined < only_last.expected);
     assert!(!only_last.complete);
 }
