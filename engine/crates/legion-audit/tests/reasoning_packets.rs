@@ -526,19 +526,64 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
     files.push(("src/z_big.rs".to_owned(), filler_file(99, 40_000)));
     let env = build_env("straddle", RAW_PROVIDER, RAW_LENS, &files);
     let big = "src/z_big.rs".to_owned();
-    // Parts holding any chunk of the big file, and a middle part that holds
-    // only big-file chunks: skipping it leaves every small file covered.
+    // `part.paths` homes a path only where its FIRST chunk lands, so it cannot
+    // locate a split file's later parts. The packet's excerpts carry every
+    // chunk: (chunk, chunks) of the big file per part, plus whether the part
+    // carries anything else.
+    let big_chunks = |item: &PendingLensWork| -> Vec<(u64, u64)> {
+        item.request.packet["excerpts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|excerpt| excerpt["path"] == json!(big))
+            .map(|excerpt| {
+                (
+                    excerpt["chunk"].as_u64().unwrap(),
+                    excerpt["chunks"].as_u64().unwrap(),
+                )
+            })
+            .collect()
+    };
+    let only_big = |item: &PendingLensWork| -> bool {
+        item.request.packet["excerpts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|excerpt| excerpt["path"] == json!(big))
+    };
     let big_parts: Vec<usize> = (0..env.work.len())
-        .filter(|index| homed_paths(&env.work[*index]).contains(&big))
+        .filter(|index| !big_chunks(&env.work[*index]).is_empty())
         .collect();
     assert!(
         big_parts.len() >= 3,
         "the big file spans at least three parts: {big_parts:?}"
     );
-    let last = *big_parts
+    // Homed exactly once, in the part holding its first chunk; never lost:
+    // every chunk 1..=chunks appears exactly once across the parts.
+    let homes = (0..env.work.len())
+        .filter(|index| homed_paths(&env.work[*index]).contains(&big))
+        .count();
+    assert_eq!(homes, 1, "a split file is homed in exactly one part");
+    let mut seen: Vec<u64> = big_parts
         .iter()
-        .find(|index| homed_paths(&env.work[**index]) == vec![big.clone()])
-        .expect("a part holds only big-file chunks");
+        .flat_map(|index| big_chunks(&env.work[*index]))
+        .map(|(chunk, _)| chunk)
+        .collect();
+    let chunks = big_chunks(&env.work[big_parts[0]])[0].1;
+    seen.sort_unstable();
+    assert_eq!(seen, (1..=chunks).collect::<Vec<_>>());
+    for index in &big_parts[1..] {
+        assert!(env.work[*index].request.packet["part"]["continuedPaths"]
+            .as_array()
+            .unwrap()
+            .contains(&json!(big)));
+    }
+    // A middle part holding only big-file chunks: skipping it leaves every
+    // small file covered but one chunk of the big file missing.
+    let last = *big_parts[1..big_parts.len() - 1]
+        .iter()
+        .find(|index| only_big(&env.work[**index]))
+        .expect("a middle part holds only big-file chunks");
 
     // Ingest every part except that one: the big file is not covered.
     let mut latest = None;
@@ -571,7 +616,7 @@ fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
         &part_result(&alone.work[last], json!([])),
     )
     .unwrap();
-    assert!(only_last.examined < only_last.expected);
+    assert_eq!((only_last.examined, only_last.expected), (0, 20));
     assert!(!only_last.complete);
 }
 
