@@ -5934,22 +5934,23 @@ mod tests {
         let root = TempRoot::new("codex-roles");
         let home = root.0.join("home");
         let state = root.0.join("state");
-        let request = |action: legion_host::SetupAction, detected: bool| legion_host::SetupRequest {
-            action,
-            selector: legion_host::ClientSelector::AllSupported,
-            release: bound_release(&test_release_manifest()),
-            platform_state_root: state.clone(),
-            client_evidence: vec![legion_host::ClientEvidence {
-                client_id: legion_host::setup_registry::CLIENT_CODEX.into(),
-                detected,
-                mechanisms: vec!["codex-agent-plugins".into()],
-                command_proof_ref: None,
-                qualification_evidence_ref: None,
-            }],
-            dry_run: false,
-            origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
-            development: None,
-        };
+        let request =
+            |action: legion_host::SetupAction, detected: bool| legion_host::SetupRequest {
+                action,
+                selector: legion_host::ClientSelector::AllSupported,
+                release: bound_release(&test_release_manifest()),
+                platform_state_root: state.clone(),
+                client_evidence: vec![legion_host::ClientEvidence {
+                    client_id: legion_host::setup_registry::CLIENT_CODEX.into(),
+                    detected,
+                    mechanisms: vec!["codex-agent-plugins".into()],
+                    command_proof_ref: None,
+                    qualification_evidence_ref: None,
+                }],
+                dry_run: false,
+                origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+                development: None,
+            };
         let inputs = |with_codex: bool| HostIntegrationInputs {
             claude: None,
             codex: with_codex.then(|| legion_host::CodexSkillsInput {
