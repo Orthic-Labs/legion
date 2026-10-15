@@ -39,7 +39,7 @@ fn main() {
     } else if args.iter().any(|arg| arg == "--print") {
         simulate_native(&args);
     } else {
-        completes_after_host_tool_round_and_recovers_stale_sentinel();
+        completes_after_host_tool_round_and_recovers_stale_lock_file();
         preserves_finding_after_fresh_verifier_success();
         refusal_and_missing_usage_remain_incomplete();
         rejects_unadvertised_native_tool();
@@ -361,7 +361,7 @@ impl Drop for Fixture {
     }
 }
 
-fn completes_after_host_tool_round_and_recovers_stale_sentinel() {
+fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     let fixture = Fixture::new("clean-tool");
     fs::write(fixture.run.join("review-runtime.lock"), b"99999999").unwrap();
     let (output, result, report) = fixture.run();
