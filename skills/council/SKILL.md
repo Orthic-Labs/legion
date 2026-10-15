@@ -172,7 +172,7 @@ fresh headless session started with no conversation history.
 
 NIM seats launch with
 `legion script council/nim-seat --model <id> --prompt-file seat.md --out reply.md --reasoning-effort high`.
-It streams, reads the key from env `NIM_API_KEY` or the OS credential store service `NIM_API_KEY`, and
+It streams, reads the key from env `NIM_API_KEY` or `NVIDIA_API_KEY`, else the OS credential store service `NIM_API_KEY`, and
 never prints it. Measured NIM behaviour (2026-10-14 pilot): free-tier queueing of 4-20 minutes before
 the first token; Kimi K3 and GLM 5.3 default `reasoning_effort` to max; GLM 5.3 returned HTTP 504 twice.
 Budget for the wait and run the six seats concurrently.

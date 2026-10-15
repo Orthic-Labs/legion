@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 pub const HELP: &str = "usage: legion script council/nim-seat --model <nim-model-id> --prompt-file <seat.md> --out <reply.md> [--reasoning-effort low|high|max] [--max-tokens N] [--timeout-secs N]\n\
 Stream one chat completion from NVIDIA NIM (https://integrate.api.nvidia.com/v1/chat/completions).\n\
 Reply text goes to --out, reasoning text to <out>.reasoning; one JSON status line goes to stdout.\n\
-API key: env NIM_API_KEY, else the OS credential store entry NIM_API_KEY (macOS Keychain / Windows Credential Manager).\n\
+API key: env NIM_API_KEY or NVIDIA_API_KEY, else the OS credential store entry NIM_API_KEY (macOS Keychain / Windows Credential Manager).\n\
 Defaults: --max-tokens 32768, --timeout-secs 1800. Exit 0 on non-empty content, 1 on HTTP/timeout/empty failure, 2 on usage or IO.";
 
 const ENDPOINT: &str = "https://integrate.api.nvidia.com/v1/chat/completions";
@@ -163,11 +163,18 @@ impl SseAccumulator {
     }
 }
 
+/// NVIDIA's own name for the same key; accepted after `NIM_API_KEY`.
+const ALT_ENV_NAME: &str = "NVIDIA_API_KEY";
+
 fn resolve_key() -> Option<String> {
-    std::env::var(KEY_NAME)
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
+    [KEY_NAME, ALT_ENV_NAME]
+        .iter()
+        .find_map(|name| {
+            std::env::var(name)
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        })
         .or_else(|| legion_effects::credential::read_generic_secret(KEY_NAME))
 }
 
@@ -284,7 +291,7 @@ pub fn run(args: &[String]) -> i32 {
         }
     };
     let Some(key) = resolve_key() else {
-        eprintln!("error: {KEY_NAME} not found in the environment or the OS credential store");
+        eprintln!("error: {KEY_NAME} or NVIDIA_API_KEY not found in the environment or the OS credential store");
         println!(
             "{}",
             json!({"requestedModel": opts.model, "error": format!("{KEY_NAME} unavailable")})
