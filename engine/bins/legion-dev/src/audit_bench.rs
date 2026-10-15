@@ -1697,7 +1697,7 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
             eprintln!("legion-dev audit-bench: --claude {} is not a file", claude.display());
             return false;
         }
-        match fs::canonicalize(claude) {
+        match fs::canonicalize(&claude) {
             Ok(path) => opts.claude = Some(path),
             Err(error) => {
                 eprintln!("legion-dev audit-bench: cannot resolve --claude {}: {error}", claude.display());
