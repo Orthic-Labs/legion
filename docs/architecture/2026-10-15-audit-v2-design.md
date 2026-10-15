@@ -1,336 +1,518 @@
-# Audit v2 design: index first, scoped runs, CodeRabbit- and Ponytail-style reviews
+# Audit v2 design, amended (rev 2): index first, scoped runs, CodeRabbit- and Ponytail-style reviews
 
-**Charter result:** significant. This is D2 (system-level, crosses boundaries, involves a migration) with the objective `optimize` on two axes, efficiency and review fidelity. Rigor is standard. Current state comes from the working tree as of 2026-10-15:
-- Lane B, lane C and part of lane A are uncommitted.
-- `coverage_plan.rs` is 1,225 lines.
-- `lens-dispatch` is referenced in `ingest.rs` and `audit.rs`.
+**Status (rev 2).** This is a significant D2 design, with the objective `optimize` on efficiency and review fidelity. It applies the binding Council adjudication `2026-10-15-audit-v2-council.md` (verdict REVISE, rulings C1–C8). Astra approved those rulings under Adrian's delegated-decision rule (`decisions.md:9-11`).
 
-`blueprint` is not on PATH on this Mac, so Ember gets no Blueprint graph.
+**Current state (rev 2).** It is read from the checkout at `265794df`. The rev-1 statements about uncommitted lanes no longer hold.
+- Scaled-design lanes A, B and C are committed in `1b802f52..265794df`.
+- `blueprint` is not on PATH on this Mac.
+- The report contract validates version 1 only (`legion-contracts/src/report.rs:34,48`).
+- `Finding` uses `deny_unknown_fields`.
 
-## 1. Frame
+## 0. How each ruling is applied (rev 2)
+
+| Ruling | Applied in |
+|---|---|
+| C1 approve with changes | ADR-1 result identity and provenance, invariant I1, phase 5 |
+| C2 approve with changes | ADR-1 graph identity, ADR-7 coverage-respecting replacement |
+| C3 approve | ADR-4 behavioural acceptance; doctrine update in phase 3 |
+| C4 approve with changes | ADR-4 status rules, ADR-8 report v2; phases 2 and 4 |
+| C5 rejected and replaced | ADR-2 attribution, merge-base and baselines |
+| C6 approve | ADR-2 scopes, including partially staged tests |
+| C7 approve with changes | ADR-9 trust boundary |
+| C8 approve with changes | ADR-7 Blueprint integration contract |
+
+## 1. Frame (rev 2)
 
 **Outcome.** One `/audit` engine that:
-1. builds or refreshes a persistent index first, then reads every input from it;
-2. runs on any scope (repo, PR, range, commit, branch, staged, uncommitted, local, since-last), with an optional path filter;
-3. renders honest audit, CodeRabbit-style and Ponytail-style reports from one finding schema;
-4. completes a whole-repo audit of Ember, and a PR-mode run, on an installed build.
+1. builds or refreshes a persistent index first;
+2. runs on any scope, with an optional path filter;
+3. renders audit, review and ponytail reports from one finding schema;
+4. completes a whole-repo Ember audit, and a PR-mode run, on an installed build with truthful coverage.
 
-**Quality drivers.**
+**Quality drivers (rev 2).**
 
 | ID | Scenario |
 |---|---|
-| Q1 Efficiency | On a warm rerun, Ember (1,071 files) does no repeat walk or hash of unchanged files and builds no packet twice. Every repo file is read at most once per run, plus cache misses. |
-| Q2 Honesty | A missing stage, unresolved edge, failed anchor or unrun tool shows up as a gap or `incomplete`, never as clean. |
-| Q3 Determinism | Running with or without `.legion-cache/` gives the same plan digest and the same findings. |
-| Q4 Scope fidelity | The bytes audited are the scoped revision's bytes, and external tools see the same scope. |
-| Q5 Cost | Judgment-tier tokens go only to bundles, adjudication and the walkthrough. Mechanical work runs on Haiku/Luna. |
-| Q6 Portability | Works identically on Mac and Windows. Snapshot creation uses only git plumbing. |
+| Q1 Efficiency | On a warm rerun, Legion's index and excerpt layer reads no unchanged file and builds no packet twice. Provider I/O (scanners and builds re-read files) is measured and reported separately. It is not gated to zero. |
+| Q2 Honesty | These are gaps, never clean: a missing stage, an unresolved edge, a failed required anchor, an unresolved material dispute, an unrun tool, unavailable isolation, an ambiguous merge-base. Some of them force `incomplete` (ADR-4). |
+| Q3 Determinism | With or without `.legion-cache/`, the deterministic artifacts are byte-equal when their inputs are frozen. Those artifacts are the plan digest, inventory digest, packet digests, executed deterministic provider findings and the gap set. Model outputs are not required to be identical. |
+| Q4 Scope fidelity | The bytes audited are the scoped revision's bytes. Tools see the same scope. |
+| Q5 Cost | Each run has a total reasoning budget covering lenses, adjudication, reflection and walkthrough. Mechanical work runs on Haiku or Luna. |
+| Q6 Portability | Mac and Windows are proven separately in phase 3. Git is the only snapshot mechanism. |
 
-**RightKit reuse decisions** (from `rightkit owns`):
+**T3 answer (rev 2).** Audit does not use RightKit fsearch, rightkit-fsindex or rightkit-search, now or in v2. The engine has no reference to any of them (grep of `engine/`). rightkit-fsindex incorporates fsearch code, but it is a whole-disk crawler: not git-aware, not content-addressed, not portable for repo trees. The Audit index uses git plumbing for enumeration and blob OIDs, plus rightkit-cache for content-addressed storage.
+
+**RightKit reuse (rev 2).**
 
 | Need | Owner | Decision |
 |---|---|---|
-| Blob, excerpt and provider-result cache | `disk-cache` → rightkit-cache 0.1.0 (hard size cap, LRU, atomic writes, group invalidation) | **Reuse.** Group invalidation maps onto tool/ruleset digests. Its API must be checked against the facts below at the start of P1. If it doesn't fit, **extend** it; don't build a second cache. |
-| Repo file index | `file-index` → rightkit-fsindex | **Reject, with a recorded reason.** It is a whole-disk getattrlistbulk/FSEvents crawler. It is not git-aware, keyed by content or cross-platform for repo trees. Git plumbing (`ls-files -s`, `status -z`) already gives blob OIDs for free. |
-| Symbol search | `search` → rightkit-search | Not needed in this design. Revisit if seats get an index query tool with free-text search. |
-| Code graph | No RightKit owner. Blueprint `blueprint-graph` is Legion's optional host capability. | Use Blueprint when it is present. Otherwise a lexical file-level floor (decision C2). |
-| SQLite (`rightkit-db`) | Not needed | A snapshot manifest plus content-addressed objects is enough. |
+| Object, excerpt and result storage | rightkit-cache **0.2.0** (size cap, LRU, pinning, atomic writes, `clear_group`, dead-PID temp sweep) | **Reuse.** It allows one writable cache per directory per process (`disk.rs:15`). Cross-process writes need a writer lease; see ADR-1 concurrency. **Extend the owner** with that lease rather than build a second lock. Phase 3 opens with an API-fit test: content keys, no hidden TTL, `pin`/`unpin` for live runs. |
+| File index | rightkit-fsindex | **Rejected** (see T3). |
+| Search | rightkit-search | Not used. |
+| Code graph | Blueprint, an external pinned core/CLI | Optional input under the ADR-7 contract. Otherwise the labelled lexical floor. |
+| Process sandbox (Windows) | Unknown | Run `rightkit owns process-sandbox` at the start of phase 3. Until an owner exists, Windows PR-code execution is `unavailable:isolation`. |
 
-**Where dependencies go.**
-- A new crate, `engine/crates/legion-index/`, holds all new dependencies in its own `Cargo.toml` (rightkit-cache, plus `sha2`/`serde` from the workspace). It is also added as a workspace member in `engine/Cargo.toml`.
-- `legion-audit` gains exactly one line, `legion-index = { path = … }`, in its owner-held `Cargo.toml`. That line lands after the owner commits their current `rightkit-browser` change, or the owner adds it.
-- `runtime_capture.rs` is not touched.
-- No tree-sitter.
+**Dependencies.**
+- New crate `engine/crates/legion-index/` holds rightkit-cache, `sha2` and `serde`.
+- `legion-audit` gains one path dependency.
+- No tree-sitter, no SQLite. `runtime_capture.rs` is untouched.
+
+**Storage location (rev 2).**
+- The cache root is configurable: `--cache-dir`, env `LEGION_AUDIT_CACHE_DIR`, or `audit.cacheDir` in user config. The default is `<root>/.legion-cache/`, which is on `/Volumes/D` for workspace repos.
+- If the resolved root is on the Mac internal volume, or on Windows `C:`, the engine emits a `cache.location.warning` lifecycle event and asks for an explicit root (`docs/rules/disk-hygiene.md`).
 
 ## 2. Decisions
 
-### ADR-1 — Index first, as a content-addressed cache owned by Legion
+### ADR-1 — Index first: a content-addressed cache with complete identities (rev 2)
 
-**Decision.** Step 1 of every audit, including plan-only runs, is `IndexRefresh`. It runs once in `legion-application` and produces an `IndexSnapshot`. That snapshot is passed through `NativeOperation::Audit` to the lens basis, the plan compile, the provider universe, execution, packets, verify and audit-fix. This removes the three walk/hash passes (`audit.rs:1010`, `legion-application/src/lib.rs:2175`, `:2182`) and the three `compile_with_root` calls. The plan is compiled once and the size-gate packets are reused.
+**Decision (unchanged).** `IndexRefresh` runs once in `legion-application`. It produces an `IndexSnapshot` that is threaded through `NativeOperation::Audit` to the plan, providers, packets, verify and audit-fix. This removes the three walk/hash passes (`audit.rs:1010`, `legion-application/src/lib.rs:2175,2182`) and the three `compile_with_root` calls.
 
-**Layout of `.legion-cache/index/`** (the directory is already excluded at `inventory.rs:547`):
-- **`snapshots/<key>.json`**, where the key is the HEAD tree OID, the dirty-set digest, the index schema version and the exclusion-config digest. It holds, per path:
-  - blob OID, sha256 (today's digest algorithm, so plan digests don't change), size;
-  - language, class (source / test / generated / vendor / lock / minified), git status;
-  - a pointer to the path's facts object.
-- **`objects/`**, held in rightkit-cache and keyed by `(sha256, extractor version)`:
-  - signature symbols (reusing the excerpt skeleton extractor);
-  - lexical imports;
-  - trigger matches per trigger-set digest (removes the whole-file read at `triggers.rs:47`);
-  - manifest dependencies and scripts.
-- **`graph/<snapshot>.json`**, the reverse import graph.
-  - Each edge has a confidence of `certain`, `likely` or `possible`, and a source of `lexical` or `blueprint`.
-  - `unknowns[]` lists dynamic imports, macros, glob re-exports and unresolved aliases, each with its cause.
-  - Fan-in is derived from this graph, replacing today's "usually 0" (`coverage_plan.rs:350`).
-- **`history/commits/<oid>.json`**, immutable per-commit numstat and author records.
-  - Churn and ownership are computed by summing over the window.
-  - Refresh fetches only commits it hasn't seen, replacing a full `git log -n 2000` on every compile.
-  - Author identities stay local and never enter packets.
-- **`excerpts/`**, keyed by `(sha256, mode, regions-digest, redaction-ruleset version)`. One excerpt set per run is shared by every lens.
-- **`results/`**, provider results keyed by `(providerId, providerVersion, toolVersion, rulesetDigest, inputDenominatorDigest, scopeDigest)`. Used only for `cachePolicy: content-addressed` providers (decision C1).
-- **`audited.json`**, the last audited `{scopeKey → headOid, planDigest, reportDigest}`. This powers `--scope since-last`.
+**Identities (rev 2).** Every key is the digest of a canonical record.
 
-**Invalidation.**
-- Clean tracked files use their blob OID from `git ls-files -s`. Git handles racy files.
-- Dirty and untracked files are always re-hashed. There are few of them.
-- A new extractor version re-extracts lazily.
-- No decision ever rests on mtime alone.
-- If Blueprint is fresh at the same revision, its edges replace the lexical edges for that snapshot.
-
-**Alternatives rejected.**
-- SQLite index: more machinery than 10k-entry snapshots need.
-- Tree-sitter parsers: new dependencies and build cost. The lexical floor plus Blueprint covers ranking and blast radius. Revisit only if benchmark recall shows a need.
-- Requiring Blueprint: it is optional and absent on this host.
-
-**What it removes.**
-- The triple walk and compile, and the double packet build.
-- The full inventory `projection` in every packet. It is replaced by `{inventoryDigest, snapshotRef}`, which saves about 2.67 MB per packet.
-- About 11 re-reads of each file to build excerpts.
-- `disposable_copy` re-hashing, because the digest is already known.
-- The re-walk in `legion verify`, which becomes a snapshot-key comparison plus a re-hash of dirty files only.
-
-### ADR-2 — One `ScopeSpec`, with bytes taken from the scoped revision
-
-**Grammar.** `--scope repo | pr:<n|url> | range:A..B | commit:<sha> | branch[:<base>] | staged | uncommitted | local | since-last`, plus a repeatable `--path <glob>`.
-
-**Old flags stay as aliases:**
-
-| Old flag | New scope |
+| Artifact | Key fields |
 |---|---|
-| `all` | `repo` |
-| `committed` | `commit:HEAD` |
-| `--base B` | `branch:B` |
-| `--base-commit X` | `range:X..WORKTREE` |
+| `snapshots/<key>.json` | `headKind` (worktree / index / commit); head tree OID; dirty-set digest (path plus sha256 of every dirty or untracked byte stream); index schema version; exclusion config digest; path-filter digest; git version; platform record (OS, arch, case sensitivity, eol/filter attributes digest) |
+| `objects/` (signatures, lexical imports, trigger matches, manifests) | `(sha256, extractorId, extractorVersion, extractorConfigDigest)`; trigger matches also carry the trigger-set digest |
+| `graph/<key>.json` | snapshot key; extractor-set digest; resolver config digest (tsconfig paths, Cargo workspace, package maps); Blueprint provenance `{version, contractVersion, scopedBytesDigest, coveredFilesDigest}` when used |
+| `history/` | Per-commit numstat only. The window is fixed and digested in the plan: first-parent from head, at most 2,000 commits or 365 days, whichever is smaller. Author records are deferred (an optional item). |
+| `excerpts/` | `(sha256, mode, regionsDigest, redactionRulesetVersion)`. Only redacted bytes are stored. |
+| `results/` (C1) | `providerId`, `providerVersion`, tool binary digest and version, **resolved rules digest** (rule files actually loaded after config resolution), resolved tool config digest, **advisory DB digest plus fetch time**, platform record, env allowlist digest (toolchain versions and relevant env vars), input denominator digest (exact files consumed), scope digest |
 
-`uncommitted` is fixed to mean staged + unstaged + untracked, with `--no-untracked` to drop untracked files. This matches the docs and CodeRabbit (decision C6).
+**Result reuse (C1).**
+- Eligible results come only from deterministic providers with `cachePolicy: content-addressed`.
+- Never reused: test, build or network-live providers, and any advisory result whose DB is older than 24 h.
+- Every stored result carries provenance: producing run ID, execution-receipt digest, Legion binary digest and the result content digest. That record is written to durable run state, outside the cache. On reuse the cached bytes must match the recorded digest, or the entry counts as a miss.
+- Reports list `executed` and `reused{fromRun,key}` separately in the header and the coverage ledger.
+- `--fresh` forces every provider to run. Release qualification always uses `--fresh`.
 
-**Resolution.** Each scope resolves to `{baseOid?, head: Worktree | Index | Commit(oid), changedSet, hunks}`.
-- **PR mode** uses `gh pr view --json baseRefOid,headRefOid,…`. When the head isn't local, it runs `git fetch --no-write-fetch-head origin pull/<n>/head`. That writes objects only and no refs, and is a declared effect Guard gates.
-- **`since-last`** uses `audited.json`. If the last audited OID is not an ancestor (rebase or force-push), it falls back to a full merge-base review of the branch and says so.
+**Durable run state (rev 2).**
+- `audited.json` leaves the cache. It becomes `<root>/.audit/state/audited.jsonl`, under the existing run directory root from `skills/audit/SKILL.md:51`.
+- It is append-only. Each entry is `{scopeKey, headOid, mergeBaseOid?, planDigest, reportDigest, reportPath, findingFingerprints[], prevEntryDigest}`.
+- Deleting `.legion-cache/` never changes `since-last` resolution.
 
-**Materialization.** Bytes come from the head:
-- `Worktree`: audit in place.
-- `Index` or `Commit`: build a snapshot directory at `.legion-cache/snapshots/<tree>/` with `GIT_INDEX_FILE=<tmp> git read-tree <oid>` and then `checkout-index -a --prefix=`.
+**Worktree cleanliness (rev 2).** `git ls-files -s` alone does not establish cleanliness, so these rules apply:
+- **Change set.** Computed with `git status --porcelain=v2 -z --untracked-files=all`, with optional locks off (ADR-2).
+- **Re-hashed every run** with `git hash-object --no-filters --stdin-paths` (no `-w`):
+  - paths with `assume-unchanged` or `skip-worktree` bits (`ls-files -v`);
+  - racy entries, where the file mtime is at or after the index mtime;
+  - paths with smudge, eol or filter attributes. Worktree sha256 is computed over the worktree bytes.
+- **fsmonitor** is disabled (`-c core.fsmonitor=false`).
+- **Special entries:**
+  - submodules are recorded as `submodule` and are not traversed (gap);
+  - LFS pointers are audited as pointer bytes (gap `lfs-pointer`);
+  - symlinks are recorded by target and never followed.
 
-That method is pure git, works on Windows, and never touches the real index, HEAD or refs. It also avoids the workspace's no-worktree rule, so the unused `worktree.rs` stays unwired.
+**Concurrency and crash recovery (rev 2).**
+- One writer per cache root. It holds `.legion-cache/LOCK`, an OS advisory lock (flock or LockFileEx) recording PID, host and start time.
+- Readers open with `DiskCache::open_read_only`.
+- A second audit waits at most 30 s. It then runs in **read-only cache mode**: misses are computed in memory and not persisted, and the report records this.
+- A lease held by a dead PID is broken.
+- Snapshot manifests and graphs are written to a temp path, fsynced, then renamed. Each manifest embeds its own digest. A manifest that fails verification is discarded and rebuilt, which is safe because the index is a cache.
+- Until rightkit-cache ships the lease, Legion holds the lock in `legion-index/src/lock.rs` behind a trait.
 
-Whole-project providers (build, test) run in the snapshot with persistent caches. Dependency directories are linked from the working tree only when the head's lockfiles are byte-identical to the working tree's. Otherwise the provider records `unavailable:scope-materialization` and the run is `incomplete`; `--install` opts into installing them.
+**Storage caps, eviction and retention (rev 2).**
 
-**Scope reaches the tools** through `ToolScope {paths, gitRange, manifestsChanged}`:
-- Path-capable tools (semgrep/opengrep, eslint, ruff) receive the changed files.
-- gitleaks runs `git --log-opts=<base>..<head>`, plus `dir` over dirty and untracked files only.
-- Advisory tools run only when a manifest or lockfile changed. In diff modes they are otherwise recorded as `not-in-scope`, not as a gap.
-- Whole-crate tools (clippy) run whole, and their diagnostics are bucketed into `changed-line`, `touched-file pre-existing` and `out-of-scope`. The diff verdict counts only the first bucket (decision C5).
+| Class | Default cap | Policy |
+|---|---|---|
+| objects, excerpts, results | 2 GiB | LRU |
+| snapshots | 10 GiB | LRU |
+| build caches (phase 5) | 20 GiB | LRU |
 
-**Path filter.** `--path` now narrows the inventory and the denominators in every mode. The report labels the scope and never says "whole repository".
+- Entries used by a live run are pinned.
+- Changing the redaction ruleset clears the old ruleset's excerpt group at once.
+- Excerpt groups unused for 14 days are cleared at open.
+- `legion audit cache status|prune` reports bytes, hits, misses and evictions per class. Each run records the same metrics in its execution record.
 
-### ADR-3 — `legion audit next`: a host-side driver for resumable waves
+**Invalidation (unchanged).** Changes come from blob OIDs plus the rules above. Mtime is never the sole test. New extractor versions re-extract lazily.
 
-Lane A's static `lens-dispatch.json` stays as the **frozen plan**. A new command, `legion audit next --run <dir>`, reads the plan plus everything ingested so far and returns the next ready wave: seats, tiers, packet paths and the expected result paths. It returns `done` or `incomplete:<reasons>` when nothing is left.
+### ADR-2 — One `ScopeSpec`: scoped bytes, merge-base and attribution (rev 2)
 
-The skill loop becomes: `next` → dispatch the wave (at most 16 seats in parallel) → one batch `ingest --result …` → repeat.
+**Grammar and aliases (unchanged).**
+- Scopes: `repo | pr:<n|url> | range:A..B | commit:<sha> | branch[:<base>] | staged | uncommitted | local | since-last`, plus `--path <glob>`.
+- Aliases: `all`→`repo`, `committed`→`commit:HEAD`, `--base B`→`branch:B`, `--base-commit X`→`range:X..WORKTREE`.
 
-Adjudication rounds use the same driver:
-1. batches;
-2. confirmations and seeded spot-checks;
-3. a per-candidate rerun of any voided batch, plus high-risk dismissals routed to individual review.
+**`uncommitted` (C6).**
+- It means staged, unstaged and untracked. This is a deliberate behaviour change: CodeRabbit excludes untracked files by default.
+- `--no-untracked` drops untracked files.
+- There is no unstaged-only scope; use `--path` or `staged`.
+- The behaviour change is documented in phase 3.
 
-That satisfies Astra's conditions on resumable waves and on budgeting confirmation, spot-check and fallback work. Each seat's result must carry the host-attested context receipt; echoed context IDs never clear a gap.
+**Staged resolution (rev 2).**
+- Bytes come from stage-0 entries of `git ls-files -s -z`, streamed with `git cat-file --batch`. There is no `write-tree` and no object writes.
+- Unmerged entries (stages 1–3) give `incomplete:unmerged-index`.
+- Intent-to-add entries count as untracked, not staged.
+- **Partially staged files:**
 
-Alternative rejected: SKILL prose orchestrating the rounds. That is the missing driver the inventory flagged.
+| Scope | Bytes | Hunks |
+|---|---|---|
+| `staged` | the index blob | `diff --cached` |
+| `uncommitted` | the worktree bytes | `diff HEAD` |
 
-### ADR-4 — One finding schema, three renderers, two new passes
+  Tests cover each combination of staged, unstaged and untracked states for one path.
 
-**New passes.** No new lenses. Correctness stays the CodeRabbit fold and minimize stays the Ponytail lens.
+**PR resolution and merge-base (rev 2).**
+- Run `gh pr view --json baseRefOid,headRefOid,baseRefName,isCrossRepository`.
+- The review base is `git merge-base baseRefOid headRefOid`, which is GitHub's three-dot diff, not the base branch tip.
+- The report records both `baseRefOid` and `mergeBaseOid`.
+- More than one merge base (`--all`) gives `incomplete:ambiguous-merge-base`, unless the user passes `--base-oid`.
+- The head is captured once. The report binds that OID, and a later head change is reported as stale, never silently followed.
 
-**P-pos (deterministic positioning, the Alibaba approach).**
-- Every anchor must resolve to a line range in the scoped file's bytes, with a hash of the line content.
-- In diff modes the anchor is tagged `in-diff`, or `beyond-diff` when it is read-beyond-diff context.
-- A failed anchor (line 0, out of range, hash mismatch) is downgraded to `possible` with a reason `position-failed`. It is never dropped silently.
+**PR acquisition failures (rev 2).** All of these give `blocked` (the existing `ReportStatus::Blocked`), with cause and exit code 3:
+- `gh` missing or unauthenticated;
+- network failure;
+- head unreachable (for example a deleted fork);
+- OIDs not obtainable.
 
-**P-reflect (verifier).**
-- Lens findings at medium severity or above, from the deep bundles, are re-checked against the code by a fresh context that is not the author. It runs batched, like adjudication.
-- Tier: specialist (Sonnet/Sol 6.1), because a wrong "upheld" still compiles. Security findings keep lane B's judgment-tier adjudication.
-- Outcomes:
-  - upheld with a concrete failing input or situation (the Ponytail evidence rule) → **proven**;
-  - upheld without one → **likely**;
-  - disputed → **possible**.
-- Deterministic tool findings with a verified anchor are **proven**.
+The engine never falls back to a local branch or another scope on its own.
 
-**Confidence tiers (decision C4).**
-- `auditStatus: findings` is driven by proven and likely findings.
-- Possible findings are listed in their own section and as an `unresolvedPossible` count. High and critical possible findings route to adjudication; they don't stay parked.
-- Graph-derived claims follow OpenQodex's floor semantics. In particular, "Zero callers never means unused."
+**Git controls (rev 2).** Every git call goes through `legion-index::git::GitRunner`, which sets:
+- `GIT_OPTIONAL_LOCKS=0` and `--no-optional-locks`;
+- `GIT_TERMINAL_PROMPT=0`;
+- `-c core.fsmonitor=false` and `-c gc.auto=0`.
 
-**Blast-radius brief** (from the index; no model call).
-- Per changed symbol or file: importers and 1–2 hop dependents, implementers where Blueprint has them, tests that import the file, and unknowns.
-- Capped at 40 per list, with the cap stated.
-- Included in every diff-mode bundle packet. This gives read-beyond-diff without each seat re-reading the repo.
+PR fetch is `git fetch --no-tags --no-write-fetch-head --refmap= --no-recurse-submodules --no-auto-maintenance origin pull/<n>/head`. It has no destination refspec, so no ref or tag is updated. Guard gates it as an object-only declared effect, and the fetched OID is used directly.
 
-**Renderers** (`--report audit|review|ponytail`), all from `report.json`:
+A test asserts that refs, packed-refs, `HEAD`, `FETCH_HEAD` and the index digest are byte-identical before and after every scope. Flag availability is checked against the installed git (`git fetch -h`) at phase-3 start; this item is unverified until then.
 
-| Report | Contents |
+**Materialization and snapshot lifecycle (rev 2).**
+
+| Head kind | Bytes |
 |---|---|
-| **review** (CodeRabbit-style) | Walkthrough header: change summary, a mermaid sequence diagram only when the brief shows flow across 2 or more modules, and a deterministic effort estimate from changed lines, files and fan-in. Line-anchored comments with category, severity (Critical…Info) and a suggested fix. Pre-merge check table. `--format github-review` writes a review JSON file; posting it is a separate, user-authorized effect. |
-| **ponytail** | Exact template: "What this change does:"; Must fix / Should fix / Nice to have, numbered; four parts per finding; verdict; "Lean: -N lines possible"; "Not checked:" (filled from the coverage ledger). Categories map to Bug / Risk / Scale / Missing test / Speed / Lean. The minimize tag set is aligned to delete / reuse / stdlib / native / yagni / merge / split / shrink. |
-| **audit** | Today's report, plus the confidence tiers and the coverage ledger. |
+| Worktree | audited in place |
+| Index or commit | streamed with `cat-file --batch` into `.legion-cache/snapshots/<treeOid>/` |
 
-**Repository config: `.legion/audit.yaml`** (created only on request).
-- Noise profile `quiet | chill | assertive`. Ponytail intensity lite/full/ultra maps onto these.
-- `path_filters`, and `path_instructions` (glob → text, injected into matching bundle packets).
-- `pre_merge`: PR title and description, linked issue, docstring threshold and custom command checks, each `off | warning | error`. `error` produces a blocking finding.
-- `learnings.scope`.
-- Debt markers, default `shortcut:` and `ponytail:` (the second is unverified, so both are matched). The `debt_markers` scanner feeds a debt ledger section.
+- No temp index, no `read-tree`, no worktree.
+- Snapshots are built in `.tmp-<pid>-<seq>/`, renamed atomically, and made read-only (0444, or the Windows read-only attribute).
+- Each snapshot is held by the run's lease. Unleased snapshots are LRU-evicted under the cap. Temp dirs with dead owners are swept at open.
+- **No hardlinks or writable links into the source tree, ever.** Dependency directories are offered only as copy-on-write clones (APFS `clonefile`, ReFS block clone), and only when lockfiles are byte-identical. Otherwise the provider records `unavailable:scope-materialization` and the run is `incomplete`.
+- `--install` is allowed only inside isolated execution (ADR-9). Install is never automatic.
 
-**Learnings.** `legion audit learn <findingId> --note … | --dismiss-reason …` appends to `.legion/audit-learnings.jsonl`, with scope recorded. Learnings are injected into path-matched packets. They may annotate or lower presentation severity, but never suppress security or safety findings or change `auditStatus` (invariant I5).
+**Tool scope (unchanged).** `ToolScope {paths, gitRange, manifestsChanged}` works as in rev 1:
+- gitleaks uses the history range plus `dir` over dirty files only;
+- advisory tools run when a manifest or lockfile changed, and are otherwise `not-in-scope`.
 
-**Honest naming.** A checklist test (`claims_coderabbit_style`, `claims_ponytail_style`) asserts the research thresholds:
-- CodeRabbit-style needs items 1, 2, 4, 5 and 7, plus pre-merge checks.
-- Ponytail-style needs items 2, 3 and 4 and the exact template.
+**Diff-mode attribution (rev 2; replaces C5).** The diff verdict counts every finding caused by the change, including findings at unchanged locations. Each finding gets an `attribution`:
 
-The renderer prints "inspired by" until that test passes on the installed build.
+| Attribution | When | Counted in verdict? |
+|---|---|---|
+| `introduced` | Anchored on a changed line | Yes |
+| `regressed-elsewhere` | At an unchanged location, but either absent from the base-side result of the same provider and rule at `mergeBaseOid` (deterministic providers run on both sides; whole-crate tools like clippy run on both snapshots), or tied by a seat to a changed symbol through the blast-radius brief (callers, implementers, tests) | Yes |
+| `pre-existing` | Fingerprint matched in base-side evidence | No; reported in its own section |
+| `unresolved` | Base evidence unavailable, or re-anchoring `ambiguous` or `lost` | Yes; never silently excluded |
 
-### ADR-5 — What to take from Alibaba open-code-review and OpenQodex
+A finding is excluded only when it is established as pre-existing.
 
-**Adopt:**
+**Re-anchoring states.** `matched`, `moved` (same line-hash window, new range), `ambiguous` (more than one candidate) and `lost`. Carry-forward for `since-last` (phase 5) uses these states and the durable baseline in `audited.jsonl`.
 
-| Idea | Why |
+**`since-last` (rev 2).**
+- It resolves to `range:<last headOid>..WORKTREE` from durable state.
+- If that OID is not an ancestor, it falls back to a merge-base review of the branch and says so.
+
+### ADR-3 — `legion audit next` driver with termination (rev 2)
+
+- `next --run <dir>` is a pure function of the frozen plan plus ingested results. Repeated calls return the same wave until results arrive.
+- Each wave issues seat leases. A seat with no result when its lease expires (default 20 min) is reissued, and that counts as an attempt.
+
+**Limits.**
+
+| Item | Limit |
 |---|---|
-| Deterministic front end (select, exclude generated/vendor, bundle, bind rules) | Lane A's bundles plus index classes already do this. Add review units that pair interface with implementation and i18n pairs, using index edges. |
-| Reflection and positioning | ADR-4. |
-| Blast-radius brief with confidence tags, named unknowns and caps | ADR-1 and ADR-4. |
-| Coverage ledger and hard incomplete | Every planned stage ran. In diff modes every changed hunk appears in at least one seat packet (checked deterministically). Every scanner candidate is dispositioned (lane B). `incomplete` exits with code 2 and writes the unchecked items. |
-| Separating proven, likely and possible | ADR-4. |
-| Scanner findings filtered to changed lines in diff modes | ADR-2 buckets. |
-| Toolset pruning | Read-beyond-diff seats get `legion index query importers|dependents|excerpt` with a call budget instead of free grep. Prune further from benchmark traces. |
-| Benchmark suite with an A/A noise twin | ADR-6. |
+| Seat attempts | 2 |
+| Adjudication rounds | 3 (batches; confirmations and seeded spot-checks; per-candidate rerun of voided batches plus high-risk dismissals) |
+| Voided-batch reruns | 1 per candidate |
+| Total `next` issuances | `2×seats + 3×adjudicationCandidates` |
 
-**Reject:**
+Hitting any limit ends the run as `incomplete:retry-exhausted`, listing the items. `next` returns `done`, `incomplete:<reasons>` or `budget-exhausted`. The host-attested context receipt is still required.
 
-| Idea | Why |
+**Reasoning budget (rev 2).**
+- The plan freezes `reasoningBudget {judgment, specialist, mechanical, maxSeats}` covering lens bundles, adjudication, reflection and walkthrough.
+- Reflection may use at most 25% of the specialist budget. Candidates are ordered security first, then severity.
+- Findings that are never reflected stay `likely` and add the gap `reflection:budget`.
+- Exhausting the adjudication budget with unresolved material disputes forces `incomplete`.
+
+### ADR-4 — One finding schema, three renderers, two passes, honest status (rev 2)
+
+**P-pos (positioning).**
+- Every anchor resolves to a line range in the scoped bytes, with a line-content hash.
+- Diff modes tag anchors `in-diff` or `beyond-diff`.
+- A failed anchor (line 0, out of range, or hash mismatch) is marked `position-failed`.
+
+**P-reflect (verification).**
+- A fresh, non-author specialist context (Sonnet / Sol 6.1) re-checks findings from deep bundles at medium severity or above.
+- Security findings keep lane B's judgment-tier adjudication.
+
+**Confidence (C4).**
+
+| Tier | Requires |
 |---|---|
-| Single configured model | Legion routes by tier. |
-| Trading recall for precision in the engine | Audit keeps recall. Noise profiles only control what is shown. |
-| Session-only resume | The `next` driver plus content caches go further. |
-| OpenTelemetry and an MCP server | Legion lifecycle events already cover this. An index MCP server can come later. |
-| Auto-posting sticky CI comments | Publication needs the user's authorization. |
-| Separate reviewer-process copy of the repo | The snapshot dir already serves this purpose. |
+| `proven` | A semantic justification: either reflection upheld the finding with a concrete failing input or situation (Ponytail's evidence rule), or the provider declares `exactness: exact` for that rule class (compiler error, exact advisory version match, verified secret) and the anchor is verified |
+| `likely` | An anchored tool hit without exactness, or reflection upheld without a concrete case |
+| `possible` | Disputed, or `position-failed` |
 
-### ADR-6 — Benchmark gate
+An anchored tool hit is never `proven` on location alone.
 
-`legion/evals/audit-bench/` holds:
-- small fixture repos as git bundles;
-- 40+ planted-bug PRs (security, correctness, perf, lean) and 20+ clean changes;
-- 3 repeats and an A/A twin.
+**Status rules (C4; rev 2).**
+- `incomplete` is forced when any of these holds:
+  - a **required anchor** failed (any finding at medium or above, or any security finding);
+  - a **material dispute** is unresolved (a high or critical finding disputed by reflection or adjudication and not closed within the round limits);
+  - any coverage-ledger gap is mandatory.
+- Otherwise, `findings` is driven by `proven` plus `likely`.
+- `possible` findings appear in their own section and in the `unresolvedPossible` count. High and critical possibles route to adjudication.
+- Reflection can lower confidence only by recording its evidence. It can never remove a finding's weight without resolving it.
+- Graph claims follow floor semantics: zero callers never means unused.
 
-It reports:
-- recall and location recall;
-- precision as a lower and upper bound;
-- clean rate;
-- tokens per tier;
-- wall-clock time.
+**Blast-radius brief (unchanged).** It covers importers, 1–2 hop dependents, implementers, tests and unknowns, capped at 40 per list with the cap stated. It is included in diff-mode bundle packets and feeds `regressed-elsewhere`.
 
-Un-ruled rows are never scored. A phase that touches reasoning must not drop recall below `baseline − A/A band`, and it must report its cost delta.
+**Renderers (`--report audit|review|ponytail`).** These are as in rev 1:
+- **review:** walkthrough with conditional mermaid diagram, deterministic effort estimate, line comments with fixes, pre-merge table, and `--format github-review` as a file (posting it is a separate, user-authorized effect);
+- **ponytail:** the exact template, with "Not checked:" filled from the ledger; both marker conventions are recognized;
+- **audit:** today's report plus confidence tiers and the coverage ledger.
 
-## 3. Inefficiency fixes, ranked by payoff
+**Behavioural acceptance (C3; rev 2).** Renderer goldens are necessary but not sufficient. A style name is printed only after both its benchmark gate and its checklist test (`claims_coderabbit_style`, `claims_ponytail_style`) pass on the installed build. Until then the renderer prints "inspired by".
+
+| Style | Benchmark gate |
+|---|---|
+| CodeRabbit-style | Detects planted regressions in unchanged callers (read-beyond-diff), produces walkthrough and pre-merge checks, and line comments carry fixes |
+| Ponytail-style | Reviews connected code, and every must-fix carries a concrete case |
+
+### ADR-5 — Adopt and reject from Alibaba open-code-review and OpenQodex (unchanged)
+
+The adopt and reject lists are as in rev 1. The coverage ledger now includes `reused` versus `executed`, attribution, and isolation gaps.
+
+### ADR-6 — Benchmark gate, baselines and A/A (rev 2)
+
+- **Location.** `legion/evals/audit-bench/` holds fixtures as git bundles. Each reasoning-touching gate uses 3 repeats plus an A/A twin.
+- **Corpus size.** Calibrated, not fixed. The seed holds planted regressions, including caller regressions in unchanged files, plus clean changes. It grows until the A/A recall band half-width is 10 percentage points or less.
+- **Baseline.** The baseline is the phase-1 engine at `265794df`, measured before any change.
+- **Pass rule.** Recall must stay at or above `baseline − A/A band`, and the cost delta per tier is reported.
+- **Exclusions.** Un-ruled rows are never scored.
+
+### ADR-7 — Blueprint integration contract (C8; new in rev 2)
+
+**Ownership.**
+- Blueprint is extracted as one versioned core and CLI. Membrane pins it.
+- Legion declares the optional host capability `blueprint-graph`, with a compatible version range in `src/registry/capabilities.json`. Its degradation is the labelled lexical floor.
+- A resident transport is not a prerequisite.
+- The extraction runs as its own track, owned by the Membrane/Blueprint owner, and does not gate any Audit phase.
+
+**Invocation.** `blueprint graph export --contract legion-graph/1 --root <dir> --scoped-bytes <manifest.json> --out <file>`. The manifest maps each path to its sha256, taken from Legion's snapshot.
+
+**Output contract (`legion-graph/1`).**
+- `contractVersion`, `blueprintVersion`, `scopedBytesDigest` (echoed);
+- `coverage {files[], languages[], unsupported[{path,cause}]}`;
+- `nodes[{id, kind: file|symbol|test, path, range}]`;
+- `edges[{from, to, kind: imports|calls|implements|tests, confidence: certain|likely|possible, evidence}]`;
+- `unknowns[{location, cause}]`.
+
+Exit codes: 0 ok, 2 partial (coverage lists the gaps), anything else unavailable.
+
+**Freshness and use.**
+- The output is accepted only when its `scopedBytesDigest` equals Legion's digest over the covered files.
+- Otherwise Legion records gap `blueprint-stale` and uses the lexical floor.
+- Blueprint edges replace lexical edges **only for files in `coverage.files`**.
+- Every edge keeps its `source: blueprint|lexical` label.
+- Graph-dependent claims ("unused", "no callers", "safe to delete") stay `possible` or unproven unless `certain` edges cover the whole relevant set.
+
+### ADR-8 — Report schema v2 and compatible readers (C4; new in rev 2)
+
+- **New types.** `legion-contracts/src/report.rs` gains `ReportV2` and `FindingV2`. Additions:
+  - per finding: `confidence`, `confidenceBasis`, `anchor {path, range, lineHash, state}`, `attribution`, `disposition: executed|reused`;
+  - per report: `scope {spec, baseRefOid?, mergeBaseOid?, head, snapshotKey, indexSchemaVersion}`, `unresolvedPossible`, `reasoningBudgetUsed`.
+- **Writers** emit v2 from phase 2.
+- **Readers.** `deserialize_schema_version_1_or_2` and `Report::read_any` read v1 as a v2 view: confidence `legacy-unknown`, attribution `legacy`, status preserved. Audit-fix, verify and SARIF export move to `read_any`.
+- **v1 compatibility.** `--report-schema 1` writes a v1 projection for consumers pinned to v1. Because `Finding` denies unknown fields, the v2-only fields go under `finding.evidence` keys, which is allowed because it is a `BTreeMap`. Status is identical in both.
+- **Tests.**
+  - a golden v1 fixture parses through `read_any`;
+  - a v2 report written as v1 passes the v1 `validate()`;
+  - a v2 report written as v1 and read back through `read_any` gives the same digest for its v2-only fields.
+
+### ADR-9 — Trust boundary for configuration and code execution (C7; new in rev 2)
+
+- **Request-driven files.** `.legion/audit.yaml` and `.legion/audit-learnings.jsonl` are created only on user request.
+- **Config source.** Executable config is read from **trusted policy**: user-level config plus the config at `mergeBaseOid`. PR-head config is data only. Path instructions and noise profile are validated (at most 32 entries, 4 KB each) and injected into packets as quoted, labelled data. Neither can change severity, status or authority.
+- **Custom commands.** PR-controlled config **never grants execution authority**. `pre_merge` custom commands come only from trusted policy, run under Guard, and run isolated whenever the scoped bytes are not the user's own worktree.
+- **PR code execution.** For `pr`, and for `range` or `commit` heads not reachable from a local branch, every provider that executes code is a PR-code execution. That includes build, test, clippy (`build.rs`, proc macros), installs and package scripts. These run only inside isolated execution:
+  - **Mac:** the existing audit sandbox profile (`.legion-cache/audit-sandbox/profile.sb`, created at `inventory.rs:1226`), extended with no network except the declared registry for `--install`, no writes outside the snapshot and build cache, and no credential env;
+  - **Windows:** no isolation exists yet, so these providers are `unavailable:isolation` and the run is `incomplete`.
+- **Not allowed:** dependency installs outside isolation, automatic installs, and writable hardlinks into the source tree.
+- **Learnings** may annotate or lower presentation only. They preserve the original severity and status and never touch security or safety findings (I5).
+- **Config size (phase 5).** v2 ships the minimal config: noise profile, path filters and instructions, `pre_merge` off/warning/error. The debt ledger is optional.
+
+## 3. Inefficiency fixes, by phase (rev 2)
 
 | # | Fix | Where | Phase |
 |---|---|---|---|
-| 1 | Drop `projection` from packets; one compact-JSON packet per bundle; excerpts built once from the shared cache | `mod.rs:620/715`, `ingest.rs write_lens_packets` | P0 (lane A) |
-| 2 | Build plan and inventory once and reuse the size-gate packets | `audit.rs:1010/1039/1117`, `plan.rs:130/494` | P0 |
-| 3 | Persistent build caches: per-repo `CARGO_TARGET_DIR` and ESLint/ruff caches under `.legion-cache/build/<toolchain-digest>/`; cargo runs through the host's RightKit cargo wrapper when declared; clippy runs once and is shared by `code.rust` and `legacy.quality.lint` | `legacy_checks/mod.rs:1448`, `code/tools.rs` | P2 |
-| 4 | Parallel provider waves: dependency-ordered waves, bounded by `maxParallelism` (default min(cores/2, 8)); `serial` runs alone; one lock per target dir for compile-heavy providers; sync and async paths merged | `execution.rs:346/534` | P2 |
-| 5 | Index-first walk, hashing via blob OIDs, cached triggers and churn | ADR-1 | P1 |
-| 6 | Scope reaches the tools, plus snapshot materialization | ADR-2 | P3 |
-| 7 | Scanner de-duplication, one owner per class: secrets = gitleaks (history range, plus `dir` on dirty files only); SAST = opengrep/semgrep, one provider; advisories = one per ecosystem (cargo-deny stays per decisions.md) with OSV merged by advisory-ID fingerprint at ingest | `registry.rs:317/344`, `producer.rs:536/885` | P2 |
-| 8 | Batch ingest (`--result` repeated or `--dir`), `recompute_run` once, findings referenced by ID across report, execution, facts and SARIF | `audit.rs:891`, ingest | P0 |
-| 9 | Host-side driver for adjudication confirmation and spot-check rounds | ADR-3 | P0 |
-| 10 | Provider-result cache, honoring `cachePolicy` | ADR-1, C1 | P2 |
-| 11 | Scoped audit-fix reruns: rerun = `range:<pre-fix snapshot>..WORKTREE`, limited to the providers and lenses whose findings were touched plus anything triggered by the edited files; unaffected results are reused by cache key; `skills/audit-fix` step 5 aligned with bundles | audit-fix SKILL | P3 |
-| 12 | Disposable copy uses known digests, reflink/hardlink copies, and the full snapshot (not just the diff inventory) | `disposable_copy.rs:376-470` | P1 |
-| 13 | `verify` against index digests | `verify.rs:258`, `lib.rs:2150` | P1 |
+| 1 | Drop `projection`; one compact-JSON packet per bundle; excerpts built once | `mod.rs:620/715`, `ingest.rs write_lens_packets` | 2 |
+| 2 | Build plan and inventory once; reuse size-gate packets | `audit.rs:1010/1039/1117`, `plan.rs:130/494` | 2 |
+| 8 | Batch ingest; `recompute_run` once | `audit.rs:891`, ingest | 2 |
+| 9 | `next` driver, including adjudication rounds | ADR-3 | 2 |
+| 5 | Index-first walk; blob-OID hashing; cached triggers and churn | ADR-1 | 3 |
+| 6 | Scope reaches the tools; materialization | ADR-2 | 3 |
+| 13 | `verify` against index digests | `verify.rs:258`, `lib.rs:2150` | 3 |
+| 3 | Persistent build caches through the RightKit cargo wrapper | `legacy_checks/mod.rs:1448`, `code/tools.rs` | 5 |
+| 4 | Parallel provider waves | `execution.rs:346/534` | 5 |
+| 7 | Scanner de-duplication | `registry.rs:317/344`, `producer.rs:536/885` | 5 |
+| 10 | Provider-result cache (C1) | ADR-1 | 5 |
+| 11 | Selective audit-fix reruns | audit-fix SKILL | 5 |
+| 12 | Disposable copy from known digests, copy-on-write only (no hardlinks) | `disposable_copy.rs:376-470` | 5 |
 
-## 4. Invariants
+## 4. Invariants (rev 2)
 
-- **I1.** The index is a cache. Deleting `.legion-cache/` changes nothing in the plan digest, the findings or `auditStatus`; only timing and cache-hit metadata differ. This is tested as a cold-versus-warm equivalence test.
-- **I2. No false clean.** Unknowns, failed anchors, skipped stages, unavailable materialization and unrun advisory tools are gaps. Zero importers never means unused.
-- **I3.** The report binds `scopeSpec`, base OID, head (OID, tree, or worktree digest), the snapshot key and the index schema version.
-- **I4.** Whole-repo deterministic scanning and all security-candidate dispositions stay exhaustive (Astra D2). Diff modes label their scope and never claim to cover the whole repository.
-- **I5.** Noise profiles and learnings affect presentation only. They never suppress safety or security findings or flip status to pass.
-- **I6.** Audit doesn't modify the repo. There are no HEAD, index or ref writes. A PR fetch writes objects only, under Guard.
-- **I7.** Packet bytes are a pure function of frozen inputs. A cache hit and a cold build produce the same packet digest.
+- **I1.** Deleting `.legion-cache/` leaves every Q3 deterministic artifact byte-equal and leaves durable state untouched. The cold-versus-warm test compares deterministic artifacts only, with frozen inputs and `--fresh` for providers.
+- **I2.** No false clean. The Q2 conditions are gaps. Failed required anchors and unresolved material disputes force `incomplete`. Zero importers never means unused.
+- **I3.** Reports bind the scope spec, `baseRefOid`, `mergeBaseOid`, head, snapshot key, index schema, and the executed-versus-reused split.
+- **I4.** Whole-repo deterministic scanning and security dispositions stay exhaustive. Diff modes label their scope.
+- **I5.** Noise profiles, config and learnings affect presentation only.
+- **I6.** No HEAD, index, ref, tag or `FETCH_HEAD` writes. The PR fetch writes objects only, under Guard. All git calls run with optional locks off. No writable links into the source.
+- **I7.** Packet bytes are a pure function of frozen inputs.
+- **I8.** PR-controlled code and config never execute outside isolation, and never grant authority.
+- **I9.** Incremental baselines live in durable run state and are digest-chained.
 
-## 5. Reconciliation with the scaled design and lanes A, B and C
+## 5. Reconciliation with the scaled design (rev 2)
 
-**Stays as is:**
-- risk-sampled coverage;
-- strata, seed, `qualityGate: sampled` / `coverageMode`;
+These carry over unchanged from lanes A, B and C (`1b802f52..265794df`):
+- risk-sampled coverage with its labelled sampling approval (`decisions.md:25`);
+- strata and seed;
 - bundles J1/J2/S1/S2/M1;
-- lane B batched adjudication with Astra's conditions;
-- lane C scanner capability classes;
-- decisions.md's excerpt-mode overrides (architecture, doc-drift and minimize stay raw).
+- lane B batched adjudication;
+- lane C capability classes;
+- the excerpt-mode overrides.
 
-**Changes:**
-- Coverage facts come from the index rather than recomputation.
-- In diff and since-last modes the mandatory stratum is the changed set plus the blast-radius importers (capped).
-- Lane B's clusters reuse index excerpt digests for their normalized sink digest.
+The rev-1 "lane A should adjust" items are now phase-2 work:
+- a `FactsSource` seam;
+- `{inventoryDigest, snapshotRef}` in packets;
+- compact JSON;
+- packets built once;
+- `seatId` and `wave` in `lens-dispatch.json`;
+- `excerpt_for(digest, mode, regions)`;
+- audit-fix step 5 aligned with bundles.
 
-**Lane A should adjust these before it finishes** (all small; none needs new dependencies):
-1. Turn `gather_facts` into a seam that takes precomputed `churn` / `fan_in` / `size` maps (a `FactsSource`). Its current internal `git log` and `stat` calls become the fallback implementation.
-2. Bundle packets carry `{inventoryDigest, snapshotRef}`, never `projection`.
-3. Write compact JSON.
-4. Build packets once and reuse the size-gate packets in `lens_work_items`.
-5. Give every seat entry in `lens-dispatch.json` a stable `seatId` and `wave`, and add `state`-free ingest expectations, so `next` (ADR-3) can drive it without a schema change.
-6. Put the content-digest excerpt dedup behind a function `excerpt_for(digest, mode, regions)` so the P1 cache can replace its body.
-7. Align `skills/audit-fix/SKILL.md` step 5 with the bundles.
+In diff modes, the mandatory stratum is the changed set plus capped blast-radius importers. The cap is stated, and capped-out importers become a gap.
 
-## 6. Delivery plan
+## 6. Delivery plan (rev 2)
 
-Each phase ships and is checked on the installed Mac build. The Windows lead proves Windows separately.
+Every gate is proven on the installed Mac build. Phase 3 also requires Windows proof from the Windows lead, by `win`. Haiku means `legion:alchemist`; Sonnet means `legion:alchemist-specialist`, with the reason stated.
 
-**P0 — Lane A finish plus quick wins** (fixes 1, 2, 8 and 9, and the `next` driver).
-- Tests: packet byte-equality before and after projection removal (except the projection field); batch ingest equals sequential ingest; the `next` state machine runs over synthetic adjudication with a voided-batch fallback.
-- **Gate: the full Ember audit completes.** Status is honest (`sampled` or `exhaustive`), and seats, tokens and wall-clock are recorded as the baseline.
+### Phase 1 — Freeze, baseline evidence, benchmark seed
 
-**P1 — The index** (ADR-1, fixes 5, 12 and 13), in parallel with the **benchmark corpus** (ADR-6).
-- Tests: I1 cold-versus-warm equivalence; dirty, untracked and racy cases; extractor-version invalidation; a lexical-edge fixture per language (Rust, TS/JS, Python, Swift, Go) with expected confidence and unknowns; Blueprint-replacement fixture.
-- Gate: warm Ember rerun with zero full-file re-reads of unchanged files (asserted by an I/O counter), an identical report digest, and benchmark A/A baseline recorded.
+**Work.**
+- Commit this rev-2 design; C1–C8 are already recorded at `decisions.md:9`.
+- **Baseline.** Run the Ember audit on the installed build at `265794df` and capture:
+  - wall-clock, seat count, and tokens per tier;
+  - packet bytes;
+  - Legion process I/O (rightkit-child-process `ProcessUsage`);
+  - walk/hash pass count, from a temporary trace;
+  - whether it completes, as the pre-change reproduction.
+- **Benchmark seed.** Create `evals/audit-bench/`: fixture bundles, a runner (`legion-dev audit-bench`), A/A twin scoring, and recall and precision bounds.
 
-**P2 — Execution** (fixes 3, 4, 7 and 10).
-- Tests: parallel-versus-serial report equivalence; a serial provider never overlaps another; cache keys change with tool version; dedupe keeps every location.
-- Gate: Ember wall-clock against the P0 baseline; benchmark recall within the A/A band.
+**Who.** Haiku: baseline capture, fixture packaging, runner plumbing. Sonnet: authoring planted bugs, including caller regressions; a wrong plant passes silently.
 
-**P3 — Scope modes** (ADR-2, fix 11).
-- Tests on fixture repos for every mode: changed set, bytes from the snapshot (a file differing between worktree and head), gitleaks range, `since-last` after a rebase, `--path` narrowing, `uncommitted` including staged and untracked; plus a Windows snapshot test.
-- **Gate: a PR-mode run on an installed build** against a real Ember PR, or a `range:` run if Ember has no open PR; plus an audit-fix scoped rerun.
+**Gate.** Baseline numbers recorded in the run evidence. A/A band computed on the seed corpus.
 
-**P4 — Review profiles** (ADR-4 and ADR-5).
-- Tests: positioning rejects line 0 and out-of-range anchors; reflection downgrades are never dropped; renderer golden files; learnings cannot suppress security findings; honest-claim checklist tests.
-- Gate: benchmark precision lower bound improves with no recall loss beyond A/A; Ember PR run rendered in review and ponytail formats.
+### Phase 2 — P0 closure plus installed Ember completion
 
-**Critical path:** P0 → P1 → P2 and P3 in parallel → P4. The benchmark runs alongside P1.
+**Work.**
+- Fixes 1, 2, 8 and 9.
+- New `legion-audit/src/next.rs`, with the CLI in `legion-application`.
+- `seatId` and `wave` in `lens-dispatch.json`.
+- Report v2 (ADR-8) in `legion-contracts/src/report.rs` and `lib.rs`, plus the v1 projection writer.
+- Deterministic anchor-range validation, with the required-anchor and material-dispute status rules (ADR-4).
+- `reasoningBudget` in the plan.
 
-## 7. Decisions for Council/Astra
+**Tests.**
+- Packet bytes are equal before and after projection removal, apart from that field.
+- Batch ingest equals sequential ingest.
+- `next` state machine: idempotence, lease expiry, the two-attempt limit, voided-batch fallback, `retry-exhausted`, `budget-exhausted`.
+- The ADR-8 compatibility tests.
+- A failed medium anchor never yields `clean` or `findings`.
 
-| ID | Decision | My recommendation |
+**Who.** Haiku: projection removal, compact JSON, batch ingest, single build. Sonnet: the `next` state machine (concurrency, termination) and the report v2 migration (spec-bound contract).
+
+**Gate.** The full Ember audit completes on the installed build with honest status and coverage ledger. Deltas against the phase-1 baseline are reported.
+
+### Phase 3 — Minimal persistent index plus core scopes, Mac and Windows
+
+**Work.**
+- `legion-index`: `git.rs` (GitRunner), `snapshot.rs`, `objects.rs`, `graph.rs` (lexical), `history.rs`, `lock.rs`, `store.rs`.
+- Scope handling in `legion-audit`: `scope.rs` (resolution, merge-base, PR acquisition), `materialize.rs`, `ToolScope`, base-side runs for attribution.
+- Durable state `.audit/state/audited.jsonl`; `since-last` without carry-forward.
+- Fixes 5, 6 and 13.
+- Doctrine updates for C3: `engine-interface.md:8` and `manual.md:165`. Document the C6 behaviour change.
+- The rightkit-cache API-fit test. File a writer-lease extension request to RightKit.
+
+**Tests.**
+- Cold-versus-warm equality of deterministic artifacts.
+- Racy, assume-unchanged, filtered and LFS paths.
+- Partially staged files in `staged` versus `uncommitted`.
+- Unmerged index gives `incomplete`.
+- Ambiguous merge-base gives `incomplete`.
+- PR acquisition failures give `blocked` with exit 3.
+- Refs, index and `FETCH_HEAD` byte-identical after every scope.
+- Concurrent writers: second process goes read-only; stale lease broken.
+- Crash mid-snapshot recovers.
+- Eviction under the cap.
+- Cache deletion keeps `since-last`.
+- `regressed-elsewhere` fixture; `unresolved` counted.
+- Per-language lexical edges with unknowns.
+- Isolation absent on Windows gives `unavailable:isolation`.
+
+**Who.** Haiku: snapshot and objects plumbing, history, fixture repos, Windows test runs. Sonnet: GitRunner and fetch controls, the lock and crash recovery, attribution and merge-base (each would compile while wrong).
+
+**Gate.** All mode fixtures pass on Mac and on Windows. A warm Ember rerun shows zero index/excerpt re-reads of unchanged files, measured by an I/O counter, with provider I/O reported separately.
+
+### Phase 4 — Semantic verification, renderers, installed PR acceptance
+
+**Work.**
+- P-pos line-hash positioning and P-reflect, with budgets.
+- Confidence tiers under the C4 rules.
+- Blast-radius brief.
+- The review and ponytail renderers, with style gating.
+
+**Tests.**
+- Positioning rejects line 0, out-of-range and hash-mismatch anchors.
+- Disputed high findings force `incomplete` when unresolved.
+- An anchored hit without exactness is `likely`.
+- Renderer goldens.
+- Honest-claim checklist tests.
+- Behavioural benchmark gates (ADR-4).
+
+**Who.** Sonnet: reflection prompts and verdict mapping, positioning. Haiku: renderers and goldens.
+
+**Gate.**
+- Benchmark recall stays within the A/A band of baseline, and the precision lower bound improves.
+- A real Ember PR (or `range:` if Ember has none) runs on the installed build and renders as audit, review and ponytail.
+- Style names are printed only if the behavioural gates passed.
+
+### Phase 5 — Measured execution optimisations and optional surface
+
+**Work.**
+- Fixes 3, 4, 7, 10, 11 and 12.
+- C1 result reuse with provenance.
+- Minimal `.legion/audit.yaml` and learnings (ADR-9).
+- `since-last` carry-forward with re-anchoring states.
+
+**Before starting.** Read `docs/rules/rightkit.md` for the cargo wrapper and `CARGO_TARGET_DIR`.
+
+**Tests.**
+- Parallel and serial runs give equal deterministic artifacts.
+- A serial provider never overlaps another.
+- Cache keys change with tool version, rules, DB age and platform.
+- A reused result is labelled; `--fresh` reruns it.
+- PR-head config cannot run commands.
+- Learnings cannot suppress or change status.
+
+**Who.** Haiku: waves, dedupe, config parsing. Sonnet: result-cache identity and provenance, isolation profile.
+
+**Gate.** Ember wall-clock and tokens improve against the phase-2 numbers, with recall within the A/A band. Each optimisation keeps its measured gain or is reverted.
+
+**Critical path.** 1 → 2 → 3 → 4 → 5. Phase-3 index and scope work may start as soon as the snapshot and `ToolScope` contracts are settled during phase 2. The Blueprint extraction track runs separately against ADR-7.
+
+## 7. Open items (rev 2)
+
+| Item | Unknown | Where it is settled |
 |---|---|---|
-| C1 | Cached provider results count as run evidence | Yes, for `content-addressed` providers only. The full key (ADR-1) is recorded as `reused:{fromRun,key}`, and `--fresh` forces reruns. Test/build providers are never reused. Release qualification uses `--fresh`. |
-| C2 | A Legion-built lexical import graph, given Blueprint's rule "never substitute ad-hoc grep for graph evidence" | Allowed as ranking and brief **signals** labelled `source: lexical` with confidence. Never presented as Blueprint graph evidence. Blueprint edges win when fresh. |
-| C3 | `/audit` takes over PR/diff review and the profile names | Reverse `engine-interface.md:8` and `manual.md:165`. One engine and one skill, no separate `/review`. The style names are gated by checklist tests. |
-| C4 | Confidence tiers in the report contract | Proven and likely drive `findings`. Possible is listed separately. High and critical possible findings route to adjudication. Report schema version bump. |
-| C5 | Diff-mode verdict and completeness | Measured against the changed scope. Pre-existing touched-file findings are reported but not counted. `since-last` carries prior findings forward, re-anchored by line hash. |
-| C6 | `uncommitted` semantics | Fix to staged + unstaged + untracked, with `--no-untracked`. |
-| C7 | Repo-committed `.legion/audit.yaml` and the learnings file | Created only on user request. Their scope is visible in the report. I5 holds. |
-
-I could not establish:
-- whether `legion-contracts` holds a versioned report schema (this affects how C4 bumps the version);
-- whether rightkit-cache's API supports content keys without hidden TTLs (checked at P1 start);
-- whether Ember has an open PR for the P3 gate;
-- how the RightKit cargo wrapper handles an audit-owned `CARGO_TARGET_DIR` (read `docs/rules/rightkit.md` before P2).
-
-Files read for this design:
-- `docs/architecture/2026-10-15-scaled-audit-design.md`
-- `docs/architecture/2026-10-15-audit-research/{alibaba-openqodex,coderabbit-ponytail,legion-audit-inefficiencies}.md`
-- `engine/crates/legion-audit/src/native_providers/reasoning/coverage_plan.rs`
-- `skills/architect/doctrine/architecture/{00-charter-significance-tailoring.md,methods/add.md,workflow/01-frame.md}`
-- `<workspace>/decisions.md`
+| Windows isolation owner | Unknown; `unavailable:isolation` until resolved | Phase 3, `rightkit owns process-sandbox` |
+| rightkit-cache cross-process writer lease | Must be extended in RightKit | Phase 3 |
+| Ember open PR | Unknown | Phase 4 gate |
+| RightKit cargo wrapper with an audit-owned target dir | Unknown | Phase 5 |
+| Fetch flags (`--no-auto-maintenance`, `--refmap=`) on installed git, Mac and Windows | Unverified | Phase-3 start |
