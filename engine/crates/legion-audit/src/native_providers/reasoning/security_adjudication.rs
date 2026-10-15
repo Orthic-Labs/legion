@@ -2195,6 +2195,27 @@ fn high_risk(candidate: &ScannerCandidate) -> bool {
         .any(|marker| rule.contains(marker))
 }
 
+/// Ledger `outstanding` entry formats. The `audit next` driver
+/// (`crate::next`) parses these strings, so they are produced only here and
+/// pinned by `outstanding_formats_are_stable`.
+pub(crate) fn outstanding_batch(batch_id: &str, missing: usize) -> String {
+    format!("batch:{batch_id}:{missing} cluster representative verdicts missing")
+}
+
+/// `spotCheck:<candidateId>` or `confirmation:<candidateId>`.
+pub(crate) fn outstanding_stage(stage: &str, candidate_id: &str) -> String {
+    format!("{stage}:{candidate_id}")
+}
+
+/// `individual:<candidateId>:<reason>`; the reason never contains `:`.
+pub(crate) fn outstanding_individual(candidate_id: &str, reason: &str) -> String {
+    format!("{STAGE_INDIVIDUAL}:{candidate_id}:{reason}")
+}
+
+pub(crate) fn outstanding_contested(candidate_id: &str) -> String {
+    format!("contested:{candidate_id}")
+}
+
 /// Why a batch dismissal may not stand on the batch verdict alone.
 fn individual_reason(
     candidate: &ScannerCandidate,
@@ -2258,6 +2279,19 @@ fn check_binding(
         });
     }
     Ok(())
+}
+
+/// The isolated work item for one candidate in a named single-candidate stage
+/// (`confirmation`, `spotCheck`, `individual`): the same item
+/// [`required_items`] derives, built without re-evaluating a submission. Used
+/// by the `audit next` driver, which learns which candidates a stage requires
+/// from the ingested adjudication ledger.
+pub fn stage_work_item(
+    candidate: &ScannerCandidate,
+    parent_packet_digest: &str,
+    stage: &str,
+) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
+    scoped_item(&AdjudicationScope::Stage(stage), candidate, parent_packet_digest)
 }
 
 fn stage_item(
@@ -2428,10 +2462,7 @@ fn evaluate_internal(
             .filter(|cluster| !present.contains(&cluster.representative_id))
             .count();
         if missing > 0 {
-            outstanding.push(format!(
-                "batch:{}:{missing} cluster representative verdicts missing",
-                batch.batch_id
-            ));
+            outstanding.push(outstanding_batch(&batch.batch_id, missing));
             continue;
         }
         let members = batch_clusters
@@ -2504,7 +2535,7 @@ fn evaluate_internal(
             satisfied: spot_rows.contains_key(id),
         });
         if !spot_rows.contains_key(id) {
-            outstanding.push(format!("{STAGE_SPOT_CHECK}:{id}"));
+            outstanding.push(outstanding_stage(STAGE_SPOT_CHECK, id));
         }
     }
 
@@ -2552,7 +2583,7 @@ fn evaluate_internal(
             satisfied,
         });
         if !satisfied {
-            outstanding.push(format!("{STAGE_INDIVIDUAL}:{id}:{reason}"));
+            outstanding.push(outstanding_individual(id, reason));
         }
     }
 
@@ -2603,10 +2634,10 @@ fn evaluate_internal(
             satisfied,
         });
         match confirmation_rows.get(id) {
-            None => outstanding.push(format!("{STAGE_CONFIRMATION}:{id}")),
+            None => outstanding.push(outstanding_stage(STAGE_CONFIRMATION, id)),
             Some(row) if !row.verdict.needs_confirmation() => {
                 contested.push(id.clone());
-                outstanding.push(format!("contested:{id}"));
+                outstanding.push(outstanding_contested(id));
             }
             Some(_) => {}
         }
@@ -2789,6 +2820,28 @@ pub fn individual_review_items(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn outstanding_formats_are_stable() {
+        // `crate::next` parses these exact shapes from the ledger.
+        assert_eq!(
+            outstanding_batch("batch-0001", 3),
+            "batch:batch-0001:3 cluster representative verdicts missing"
+        );
+        assert_eq!(outstanding_stage(STAGE_SPOT_CHECK, "c:1"), "spotCheck:c:1");
+        assert_eq!(
+            outstanding_stage(STAGE_CONFIRMATION, "c:1"),
+            "confirmation:c:1"
+        );
+        assert_eq!(
+            outstanding_individual("c:1", "voided-batch"),
+            "individual:c:1:voided-batch"
+        );
+        assert_eq!(outstanding_contested("c:1"), "contested:c:1");
+        assert_eq!(STAGE_SPOT_CHECK, "spotCheck");
+        assert_eq!(STAGE_INDIVIDUAL, "individual");
+        assert_eq!(STAGE_CONFIRMATION, "confirmation");
+    }
 
     fn evidence() -> Vec<Value> {
         vec![serde_json::json!({"path": "src/x.rs", "line": 10})]

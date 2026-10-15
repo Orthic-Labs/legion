@@ -57,10 +57,12 @@ Guard-gated.
    or visual findings lacking acceptance evidence.
 4. Do not install tools, fetch mutable rules, or alter provider selection.
 5. After each bounded batch, rerun `legion audit <root> --out <run-dir>` with identical scope & evidence,
-   then rerun the applicable reasoning lenses: read the new `<run-dir>/lens-packets/*.json`, fan out one
-   fresh-context subagent per packet (at most `CHILD_AGENTS_MAX`), routed and tiered exactly as `/audit`
-   does, with verbatim-anchored findings and the refutation rule applied. Ingest each result with
-   `legion audit ingest --run <run-dir> --provider <id> --result <file>` (sequentially), then run
+   then rerun the applicable reasoning lenses through the bundled-seat loop `/audit` uses:
+   `legion audit next --run <run-dir>` -> dispatch the returned wave (one fresh-context subagent per
+   bundled seat, at most 16 in parallel, each at the seat's `modelTier`, verbatim-anchored findings and
+   the refutation rule applied) -> one batch ingest
+   (`legion audit ingest --run <run-dir> --result <file> [--result <file> ...]`) -> `next` again until
+   `done`; `incomplete:<reasons>` or `budget-exhausted` keeps the fix unverified. Then run
    `legion verify <run-dir>`; only ingested receipts count as a lens having run, and the CLI rejects
    any finding whose anchor text does not match the file at the frozen revision. Read the audit
    skill's `references/lens-routing.md` and `references/execution-contract.md` before every iteration.

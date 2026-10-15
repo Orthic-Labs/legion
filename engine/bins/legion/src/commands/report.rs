@@ -33,13 +33,28 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
             super::io_error(error)
         }
     })?;
-    let report: legion_contracts::ReportV1 = serde_json::from_slice(&bytes)
+    // Any supported schema (ADR-8): v1 reads as a v2 view with legacy-unknown
+    // confidence. JSON keeps the schema the file was written in; the other
+    // renderers consume the v1 core of the view.
+    let value: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
+    let view = legion_contracts::Report::read_any(&value)
+        .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
+    let report = view.v1_core();
     report
         .validate()
         .map_err(|error| CommandError::policy(error.to_string()))?;
+    let source_schema = value
+        .get("schema_version")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(1);
     let rendered = match args.format.as_str() {
-        "json" => legion_report::render_json(&report),
+        "json" if source_schema == 2 => legion_report::render_json_schema(&view, 2),
+        "json" => {
+            let original: legion_contracts::ReportV1 = serde_json::from_value(value.clone())
+                .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
+            legion_report::render_json(&original)
+        }
         "sarif" => legion_report::render_sarif(&report),
         "markdown" | "md" => legion_report::render_markdown(&report),
         "html" => legion_report::render_html(&report),

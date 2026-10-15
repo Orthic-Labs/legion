@@ -338,9 +338,15 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
 /// evidence, and display fields together. Other providers remain governed by
 /// the existing verifier checks.
 fn stored_visual_findings(stored: &Value) -> Option<Vec<Value>> {
+    // A stored report of schema 1 or 2 compares as its v1 core (ADR-8), so the
+    // v2-only fields never affect the recomputed-verdict match. A document that
+    // is not a complete report keeps its raw findings.
+    let findings = match legion_contracts::Report::read_any(stored) {
+        Ok(view) => serde_json::to_value(view.v1_core().findings).ok()?,
+        Err(_) => stored.get("findings")?.clone(),
+    };
     Some(
-        stored
-            .get("findings")?
+        findings
             .as_array()?
             .iter()
             .filter(|finding| {

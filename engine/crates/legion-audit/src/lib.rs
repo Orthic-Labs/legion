@@ -6,6 +6,7 @@ mod execution;
 mod integrity;
 mod inventory;
 pub mod native_providers;
+pub mod next;
 mod normalize;
 pub mod p12_pipeline;
 mod plan;
@@ -28,7 +29,7 @@ pub use inventory::{
 pub use native_providers::NativeProviderRegistry;
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
-pub use report::canonical_report;
+pub use report::{canonical_report, lift_report_v2};
 pub use verify::{
     parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path, verify_binding,
     verify_execution, verify_source_diagnostic, DETAILS_ARTIFACT_REF_KEYS,

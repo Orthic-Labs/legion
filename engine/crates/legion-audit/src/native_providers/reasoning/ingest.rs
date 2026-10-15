@@ -369,6 +369,11 @@ struct SampledPacket {
     review_set_digest: String,
     review_set_count: usize,
     promoted: Vec<String>,
+    /// Frozen sampled paths displaced by the promotion.
+    displaced: Vec<String>,
+    /// Promotable paths the run budget could not take.
+    unpromoted: usize,
+    effective_review_set_digest: Option<String>,
     declared_unsampled: usize,
     excluded: usize,
     /// (alias path, canonical path)
@@ -414,6 +419,15 @@ impl SampledPacket {
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize,
             promoted: string_list(coverage.get("promotedPaths")),
+            displaced: string_list(coverage.get("displacedPaths")),
+            unpromoted: coverage
+                .get("unpromotedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            effective_review_set_digest: coverage
+                .get("effectiveReviewSetDigest")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned),
             declared_unsampled: coverage
                 .get("declaredUnsampledCount")
                 .and_then(Value::as_u64)
@@ -426,9 +440,15 @@ impl SampledPacket {
         })
     }
 
-    /// Paths the lens must examine: the frozen review set plus promotions.
+    /// Paths the lens must examine: the frozen review set, minus the sampled
+    /// paths promotion displaced, plus the promoted paths.
     fn review_expected(&self) -> usize {
-        self.review_set_count + self.promoted.len()
+        (self.review_set_count + self.promoted.len()).saturating_sub(self.displaced.len())
+    }
+
+    /// The provider-level gap for promotion the run budget capped.
+    fn promotion_gap(&self) -> Option<String> {
+        (self.unpromoted > 0).then(|| format!("lens-promotion-capped:{}", self.unpromoted))
     }
 
     fn annotate(&self, object: &mut Map<String, Value>) {
@@ -441,6 +461,8 @@ impl SampledPacket {
         object.insert("reviewSetCount".into(), json!(self.review_set_count));
         object.insert("reviewExpected".into(), json!(self.review_expected()));
         object.insert("promotedPaths".into(), json!(self.promoted));
+        object.insert("displacedPaths".into(), json!(self.displaced));
+        object.insert("unpromotedCount".into(), json!(self.unpromoted));
         object.insert("declaredUnsampled".into(), json!(self.declared_unsampled));
         object.insert("excluded".into(), json!(self.excluded));
         object.insert(
@@ -498,6 +520,31 @@ fn verify_review_binding(
         return Err(invalid(format!(
             "lens packet for {provider_id} promotes a path outside the frozen denominator or already in the review set"
         )));
+    }
+    // Displacement only ever removes frozen sampled paths: never a path outside
+    // the frozen review set and never a mandatory path.
+    if carried
+        .displaced
+        .iter()
+        .any(|path| !frozen.review_set.contains(path) || frozen.mandatory.contains(path))
+    {
+        return Err(invalid(format!(
+            "lens packet for {provider_id} displaces a path outside the frozen sampled set or a mandatory path"
+        )));
+    }
+    // The review set the packet claims to examine must re-derive from the
+    // frozen plan, the displaced paths and the promoted paths alone.
+    if let Some(carried_digest) = &carried.effective_review_set_digest {
+        let expected = coverage_plan::effective_review_set_digest(
+            &frozen.review_set,
+            &carried.displaced,
+            &carried.promoted,
+        )?;
+        if *carried_digest != expected {
+            return Err(invalid(format!(
+                "lens packet for {provider_id} effective review set does not match the frozen review set, displaced and promoted paths"
+            )));
+        }
     }
     Ok(())
 }
@@ -618,7 +665,7 @@ fn packet_coverage(
             let review_expected = sampled
                 .as_ref()
                 .map_or(expected, |sampled| sampled.review_expected() as u64);
-            let gaps = if examined < review_expected {
+            let mut gaps = if examined < review_expected {
                 vec![format!(
                     "reasoning-excerpt-coverage:{provider_id}:{examined}/{review_expected} {}paths examined ({} omitted, {} truncated)",
                     if sampled.is_some() { "review-set " } else { "" },
@@ -628,6 +675,7 @@ fn packet_coverage(
             } else {
                 Vec::new()
             };
+            gaps.extend(sampled.as_ref().and_then(SampledPacket::promotion_gap));
             let credited = match &sampled {
                 Some(sampled) => (examined + sampled.declared_unsampled as u64).min(expected),
                 None => examined,
@@ -859,8 +907,10 @@ pub fn ingest_lens_result(
     let execution: ExecutionReport =
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
-    let stored_report: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
-        .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
+    let stored_report: ReportV1 =
+        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+            .map(|report| report.v1_core())
+            .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     crate::verify::validate_effect_artifacts(run_dir, &plan, &stored_report, &execution)?;
     let slot = execution
         .results
@@ -1519,6 +1569,133 @@ fn ensure_ids_unique_across_parts(
 }
 
 /// Reads `result_file` and ingests it. See `ingest_lens_result`.
+/// Merges several result documents of the adjudicator into one result. The
+/// adjudication evaluator needs the cumulative verdict set, so staged results
+/// (batch stage, confirmation stage, ...) are ingested as one: verdict rows
+/// are the union keyed by (`workItemId`, `stage`); a repeated key is rejected,
+/// duplicate or conflicting alike. Findings and withdrawals are the union by
+/// `id` (identical repeats collapse, differing repeats are rejected) and
+/// `details` keys must agree. Header fields must be identical.
+pub fn merge_adjudication_results(results: &[Value]) -> Result<Value, AuditError> {
+    let Some(first) = results.first() else {
+        return Err(invalid("no adjudication results to merge"));
+    };
+    if results.len() == 1 {
+        return Ok(first.clone());
+    }
+    let who = format!("adjudication results for {ADJUDICATOR_PROVIDER_ID}");
+    for result in results {
+        for field in [
+            "kind",
+            "schemaVersion",
+            "provider",
+            "packetDigest",
+            "planDigest",
+        ] {
+            if result.get(field) != first.get(field) {
+                return Err(invalid(format!(
+                    "{who}: `{field}` differs between results; results of one batch must share it"
+                )));
+            }
+        }
+        if result.get("complete").and_then(Value::as_bool) != Some(true) {
+            return Err(invalid(format!(
+                "{who}: every merged result must attest complete examination of its stage"
+            )));
+        }
+    }
+    let mut verdicts: Vec<Value> = Vec::new();
+    let mut seen_rows: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut findings: BTreeMap<String, Value> = BTreeMap::new();
+    let mut withdrawn: BTreeMap<String, Value> = BTreeMap::new();
+    let mut details = Map::new();
+    for result in results {
+        for row in array_field(result, "verdicts", &who)? {
+            let stage = row
+                .get("stage")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            let item = row
+                .get("workItemId")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    let candidate = row.get("candidateId").and_then(Value::as_str)?;
+                    let batch = row.get("batchId").and_then(Value::as_str).unwrap_or("");
+                    Some(format!("{batch}|{candidate}"))
+                })
+                .ok_or_else(|| invalid(format!("{who}: verdict row has no workItemId")))?;
+            if !seen_rows.insert((item.clone(), stage.clone())) {
+                return Err(invalid(format!(
+                    "{who}: duplicate or conflicting verdict row for workItemId {item} stage {stage}"
+                )));
+            }
+            verdicts.push(row);
+        }
+        for (field, into) in [("findings", &mut findings), ("withdrawn", &mut withdrawn)] {
+            for entry in array_field(result, field, &who)? {
+                let id = string_field(&entry, "id", &format!("{who} {field}"))?.to_owned();
+                match into.get(&id) {
+                    Some(existing) if *existing != entry => {
+                        return Err(invalid(format!(
+                            "{who}: conflicting {field} entries for id {id}"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => {
+                        into.insert(id, entry);
+                    }
+                }
+            }
+        }
+        if let Some(Value::Object(map)) = result.get("details") {
+            for (key, value) in map {
+                match details.get(key) {
+                    Some(existing) if existing != value => {
+                        return Err(invalid(format!(
+                            "{who}: conflicting details.{key} between results"
+                        )));
+                    }
+                    _ => {
+                        details.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+        }
+    }
+    let mut merged = first.clone();
+    if let Some(object) = merged.as_object_mut() {
+        object.insert("verdicts".into(), Value::Array(verdicts));
+        object.insert(
+            "findings".into(),
+            Value::Array(findings.into_values().collect()),
+        );
+        object.insert(
+            "withdrawn".into(),
+            Value::Array(withdrawn.into_values().collect()),
+        );
+        if !details.is_empty() {
+            object.insert("details".into(), Value::Object(details));
+        }
+    }
+    Ok(merged)
+}
+
+/// Ingests several adjudicator result files as one merged result (see
+/// `merge_adjudication_results`).
+pub fn ingest_adjudication_result_files(
+    run_dir: &Path,
+    result_files: &[PathBuf],
+) -> Result<IngestedLens, AuditError> {
+    let results = result_files
+        .iter()
+        .map(|file| read_json(file))
+        .collect::<Result<Vec<_>, _>>()?;
+    let merged = merge_adjudication_results(&results)?;
+    ingest_lens_result(run_dir, ADJUDICATOR_PROVIDER_ID, &merged)
+}
+
 pub fn ingest_lens_result_file(
     run_dir: &Path,
     provider_id: &str,
@@ -1673,7 +1850,7 @@ fn merge_parts(
     let mut change_risks: Vec<(u32, Value)> = Vec::new();
     let mut ingested: Vec<u32> = Vec::new();
     // Risk-sampled lenses: review-set expectation and alias credit.
-    let mut sampled_meta: Option<(usize, usize, usize, String, String)> = None;
+    let mut sampled_meta: Option<(usize, usize, usize, String, String, usize)> = None;
     let mut alias_pairs: Vec<(String, String)> = Vec::new();
 
     for (number, file_total, result) in &parts {
@@ -1731,6 +1908,7 @@ fn merge_parts(
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_owned(),
+                field("unpromotedCount"),
             );
             if let Some(existing) = &sampled_meta {
                 if *existing != meta {
@@ -1880,7 +2058,7 @@ fn merge_parts(
     // credits the declared-unsampled paths so expected == denominator count
     // stays exact (the honest split is in packetCoverage and `lensCoverage`).
     let (review_expected, declared_unsampled) = match &sampled_meta {
-        Some((review, declared, _, _, _)) => (*review as u64, *declared as u64),
+        Some((review, declared, _, _, _, _)) => (*review as u64, *declared as u64),
         None => (expected, 0),
     };
     let review_examined = (covered.len() as u64).min(review_expected);
@@ -1910,6 +2088,11 @@ fn merge_parts(
             omitted.len(),
             partial.len()
         ));
+    }
+    if let Some((_, _, _, _, _, capped)) = &sampled_meta {
+        if *capped > 0 {
+            gaps.push(format!("lens-promotion-capped:{capped}"));
+        }
     }
     let complete = gaps.is_empty() && examined >= expected;
 
@@ -1942,7 +2125,7 @@ fn merge_parts(
     let sampled_detail =
         sampled_meta
             .as_ref()
-            .map(|(review, declared, excluded, digest, bundle)| {
+            .map(|(review, declared, excluded, digest, bundle, capped)| {
                 json!({
                     "coverageMode": coverage_plan::MODE_RISK_SAMPLED,
                     "reviewExpected": review,
@@ -1951,6 +2134,7 @@ fn merge_parts(
                     "excluded": excluded,
                     "reviewSetDigest": digest,
                     "bundle": bundle,
+                    "unpromoted": capped,
                 })
             });
     details.insert(
@@ -2421,13 +2605,9 @@ pub fn lens_size_report(work: &[PendingLensWork], limits: &LensSizeLimits) -> Va
     for provider in order {
         let mut part_sizes: Vec<(u32, u64)> = Vec::new();
         for item in work.iter().filter(|item| item.provider_id == provider) {
-            // Seat reading load: the packet without the inventory `projection`,
-            // which part 1 carries for every file whatever the excerpt size.
-            let mut packet = item.request.packet.clone();
-            if let Some(object) = packet.as_object_mut() {
-                object.remove("projection");
-            }
-            let bytes = serde_json::to_vec(&packet)
+            // Seat reading load: the packet itself (it carries only the
+            // inventory digest and snapshot reference, never the inventory).
+            let bytes = serde_json::to_vec(&item.request.packet)
                 .map(|bytes| bytes.len() as u64)
                 .unwrap_or(0);
             part_sizes.push((item.part().map_or(1, |part| part.number), bytes));
@@ -2549,11 +2729,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     let mut sampled = false;
     for (position, item) in work.iter().enumerate() {
         let packet = &item.request.packet;
-        let mut stripped = packet.clone();
-        if let Some(object) = stripped.as_object_mut() {
-            object.remove("projection");
-        }
-        let total = serde_json::to_vec(&stripped).map_or(0, |bytes| bytes.len() as u64);
+        let total = serde_json::to_vec(packet).map_or(0, |bytes| bytes.len() as u64);
         let excerpt_bytes = packet
             .get("excerpts")
             .filter(|value| !value.is_null())
@@ -2659,6 +2835,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         }
         seats.push(json!({
             "seat": number,
+            "seatId": format!("seat-{number:03}"),
             "bundle": draft.bundle,
             "tier": draft.tier,
             "wave": (number - 1) / wave_width + 1,
@@ -2803,13 +2980,11 @@ pub fn write_lens_packets(
             let _ = fs::remove_file(stale);
         }
         for item in &group {
-            let bytes =
-                serde_json::to_vec_pretty(item).map_err(|error| invalid(error.to_string()))?;
+            let bytes = serde_json::to_vec(item).map_err(|error| invalid(error.to_string()))?;
             write_atomic(packet_dir, &item.packet_file_name(), &bytes)?;
         }
         if let Some(index) = part_index(&group)? {
-            let bytes =
-                serde_json::to_vec_pretty(&index).map_err(|error| invalid(error.to_string()))?;
+            let bytes = serde_json::to_vec(&index).map_err(|error| invalid(error.to_string()))?;
             write_atomic(packet_dir, &format!("{provider}.index.json"), &bytes)?;
         }
     }
@@ -2823,8 +2998,10 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let mut execution: ExecutionReport =
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
-    let stored: ReportV1 = serde_json::from_value(read_json(&run_dir.join("report.json"))?)
-        .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
+    let stored: ReportV1 =
+        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+            .map(|report| report.v1_core())
+            .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     let plan = read_json(&run_dir.join("plan.json"))?;
     crate::verify::validate_effect_artifacts(run_dir, &plan, &stored, &execution)?;
     let native_plan = verify_persisted_native_plan(&plan, &execution, run_dir)?;

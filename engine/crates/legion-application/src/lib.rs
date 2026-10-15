@@ -11,7 +11,7 @@ use async_trait::async_trait;
 
 use legion_audit::{
     verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider, ExecutionReport,
-    InventoryEnvelope, InventorySource, ProviderExecutor,
+    FrozenPlan, InventoryEnvelope, InventorySource, ProviderExecutor,
 };
 use legion_catalog::{Catalog, CatalogError};
 use legion_contracts::task::RequestEnvelope;
@@ -89,6 +89,14 @@ pub enum NativeOperation {
     Audit {
         repository_id: String,
         providers: Vec<ProviderSpec>,
+        signing_key: Option<Vec<u8>>,
+    },
+    /// Execute and verify an audit over a plan the caller already compiled and
+    /// froze (once per run) from the inventory it was bound to. Execution
+    /// still walks a fresh inventory and refuses source drift against the plan.
+    AuditFrozen {
+        repository_id: String,
+        plan: FrozenPlan,
         signing_key: Option<Vec<u8>>,
     },
     /// Rebuild one plan and verify its binding against current inventory.
@@ -2179,7 +2187,20 @@ impl NativeApplication {
             Some(key) => pending.freeze(Some(key))?,
             None => pending.freeze_source_diagnostic()?,
         };
-        let execution_inventory = self.inventory_source.inventory(&repository_id)?;
+        self.execute_frozen_audit(&repository_id, plan, signing_key, cancellation)
+            .await
+    }
+
+    /// Bind a frozen plan to a fresh execution inventory, execute it, and
+    /// verify the report.
+    async fn execute_frozen_audit(
+        &self,
+        repository_id: &str,
+        plan: FrozenPlan,
+        signing_key: Option<Vec<u8>>,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<NativeOperationResult, NativeApplicationError> {
+        let execution_inventory = self.inventory_source.inventory(repository_id)?;
         verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
         let report = legion_audit::execute_with_cancellation(
             &plan,
@@ -2297,6 +2318,19 @@ impl NativeApplication {
                 }
                 Ok(NativeOperationResult::Audit(report))
             }
+            NativeOperation::AuditFrozen {
+                repository_id,
+                plan,
+                signing_key,
+            } => {
+                self.execute_frozen_audit(
+                    &repository_id,
+                    plan,
+                    signing_key,
+                    tokio_util::sync::CancellationToken::new(),
+                )
+                .await
+            }
             NativeOperation::Verify {
                 repository_id,
                 providers,
@@ -2376,6 +2410,14 @@ impl NativeApplication {
         } = operation
         {
             self.invoke_audit_with_cancellation(repository_id, providers, signing_key, cancellation)
+                .await
+        } else if let NativeOperation::AuditFrozen {
+            repository_id,
+            plan,
+            signing_key,
+        } = operation
+        {
+            self.execute_frozen_audit(&repository_id, plan, signing_key, cancellation)
                 .await
         } else if cancellation.is_cancelled() {
             Err(NativeApplicationError::Runtime(RuntimeError::Cancelled))

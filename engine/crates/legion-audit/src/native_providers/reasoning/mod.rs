@@ -41,6 +41,10 @@ pub mod triggers;
 
 pub use security_adjudication::{ScannerCandidate, ADJUDICATOR_PROVIDER_ID};
 
+/// Run-relative path of the inventory artifact that lens packets reference
+/// (`inventoryRef.snapshotRef`); the CLI writes it next to `lens-packets/`.
+pub const INVENTORY_SNAPSHOT_FILE: &str = "inventory.json";
+
 pub const REASONING_RECEIPT_SCHEMA_VERSION: u32 = 1;
 pub const REASONING_RECEIPT_KIND: &str = "legion-reasoning-receipt";
 pub const REASONING_INVOCATION_KIND: &str = "legion-reasoning-invocation";
@@ -591,8 +595,8 @@ fn build_invocations(
     // (plus files promoted by deterministic findings); an exhaustive lens, or a
     // plan without a coverage plan, partitions the whole denominator exactly as
     // before.
-    let sampled =
-        base_mode.and_then(|mode| sampled_review(provider, denominator, scanner_candidates, mode));
+    let sampled = base_mode
+        .and_then(|mode| sampled_review(root, provider, denominator, scanner_candidates, mode));
     let part_budget = seat_part_budget(provider);
     let partition = match (&sampled, base_mode) {
         (Some(sampled), _) => Some(excerpts::partition_review_set_budgeted(
@@ -640,8 +644,12 @@ fn build_invocations(
     let report_schema_body = lens_id.and_then(lens_schemas::lens_report_schema);
     let semantic_contract = lens_id.and_then(lens_plan::semantic_review_contract);
     let change_risk_contract = lens_id.and_then(lens_plan::change_risk_contract);
-    let projection = serde_json::to_value(inventory)
-        .map_err(|error| AuditError::Invalid(format!("inventory projection failed: {error}")))?;
+    // Seats read excerpts, not the inventory: packets carry the inventory
+    // digest and the run-relative path of the one shared inventory artifact.
+    let inventory_ref = json!({
+        "inventoryDigest": inventory.digest,
+        "snapshotRef": INVENTORY_SNAPSHOT_FILE,
+    });
     let review_context = provider
         .configuration
         .get("reasoning")
@@ -733,9 +741,7 @@ fn build_invocations(
             "semanticReviewContract": semantic_contract,
             "changeRiskContract": change_risk_contract,
             "reviewContext": review_context,
-            // Later parts reference part 1 for the inventory projection
-            // rather than repeating it in every part.
-            "projection": if number == 1 { projection.clone() } else { Value::Null },
+            "inventoryRef": inventory_ref.clone(),
             "artifactIds": [],
         });
         // === LANE B BOUNDARY: security adjudicator packet construction. ===
@@ -818,8 +824,18 @@ pub(crate) struct ReviewBinding {
     review_count: usize,
     declared_unsampled: usize,
     excluded: usize,
-    /// Paths promoted into the review set by deterministic findings (add-only).
+    /// Paths promoted into the review set by deterministic findings, within
+    /// the frozen run budget.
     promoted: Vec<String>,
+    /// Frozen sampled (hotspot/remainder) paths displaced by the promotion,
+    /// lowest-ranked first. Mandatory paths are never displaced.
+    displaced: Vec<String>,
+    /// Promotable paths the run budget could not take, in severity order;
+    /// reported as the `lens-promotion-capped:<n>` gap.
+    unpromoted: Vec<String>,
+    /// Digest of the review set actually examined (frozen set minus displaced
+    /// plus promoted); ingest re-derives it from the frozen plan.
+    effective_digest: String,
     /// Digest binding the promotion to the scanner candidates it came from.
     promotion_digest: Option<String>,
     aliases: excerpts::AliasMap,
@@ -844,11 +860,20 @@ fn mode_strength(mode: lens_plan::ExcerptMode) -> u8 {
 /// Builds the sampled review of `provider`, or `None` when the provider has no
 /// frozen risk-sampled coverage plan (exhaustive, or a plan without one).
 ///
-/// Review paths are the frozen review set plus any path a deterministic
-/// scanner candidate points at (promotion only ever adds). Files with
-/// identical content digests are excerpted once under their first path and
-/// credited to every path that shares the digest.
+/// Findings promotion stays inside the frozen run budget. The budget is the
+/// estimated excerpt cost of the frozen review set; mandatory paths never
+/// shrink and stay in. A deterministic scanner candidate outside the review
+/// set may be promoted only by displacing frozen sampled paths (remainder
+/// first, then hotspots, each from its lowest rank) whose estimated cost covers
+/// the promoted file. Candidates that point at frozen sampled paths protect
+/// those paths from displacement. When the displaceable cost cannot cover every
+/// candidate, promotion is capped in severity order and the rest is reported
+/// as `unpromoted`; nothing is dropped silently.
+///
+/// Files with identical content digests are excerpted once under their first
+/// path and credited to every path that shares the digest.
 fn sampled_review(
+    root: &Path,
     provider: &AuditProvider,
     denominator: &InventoryDenominator,
     scanner_candidates: Option<&[ScannerCandidate]>,
@@ -864,9 +889,26 @@ fn sampled_review(
         .iter()
         .map(|entry| entry.path.as_str())
         .collect();
-    let mut promoted: BTreeSet<String> = BTreeSet::new();
+    let default_mode = frozen.default_mode.unwrap_or(base_mode);
+    let mandatory_mode = frozen.mandatory_mode.unwrap_or(default_mode);
+    let mode_of = |path: &str| {
+        if frozen.mandatory.contains(path) {
+            mandatory_mode
+        } else {
+            default_mode
+        }
+    };
+    let cost_of = |path: &str| {
+        let size = std::fs::metadata(root.join(path)).map_or(0, |meta| meta.len());
+        coverage_plan::estimate_bytes(mode_of(path), size)
+    };
+
+    // Candidate paths: flags for every in-denominator candidate; promotion
+    // candidates (with their highest severity) only outside the review set.
     let mut flags = excerpts::FlaggedRegions::new();
     let mut promotion_basis: Vec<(String, u64)> = Vec::new();
+    let mut promotable: BTreeMap<String, u8> = BTreeMap::new();
+    let mut protected: BTreeSet<String> = BTreeSet::new();
     for candidate in scanner_candidates.unwrap_or(&[]) {
         let Some(path) = candidate.path.as_deref() else {
             continue;
@@ -874,8 +916,12 @@ fn sampled_review(
         if !in_denominator.contains(path) {
             continue;
         }
-        if !frozen.review_set.contains(path) {
-            promoted.insert(path.to_owned());
+        if frozen.review_set.contains(path) {
+            protected.insert(path.to_owned());
+        } else {
+            let rank = coverage_plan::promotion_severity_rank(&candidate.severity);
+            let slot = promotable.entry(path.to_owned()).or_insert(rank);
+            *slot = (*slot).max(rank);
         }
         let line = candidate.line.unwrap_or(0) as usize;
         if line > 0 {
@@ -888,21 +934,93 @@ fn sampled_review(
     }
     promotion_basis.sort();
     promotion_basis.dedup();
-    let promotion_digest = if promoted.is_empty() {
+
+    // Displaceable sampled paths, lowest-ranked first: unranked leftovers,
+    // then the remainder stratum from its end, then the hotspot stratum from
+    // its end. Mandatory and candidate-flagged paths never displace.
+    let remainder = frozen.stratum_paths("remainder");
+    let hotspot = frozen.stratum_paths("hotspot");
+    let ranked: BTreeSet<&str> = remainder
+        .iter()
+        .chain(hotspot.iter())
+        .map(String::as_str)
+        .collect();
+    let eligible = |path: &str| {
+        frozen.review_set.contains(path)
+            && !frozen.mandatory.contains(path)
+            && !protected.contains(path)
+    };
+    let mut displace_order: Vec<&str> = frozen
+        .review_set
+        .iter()
+        .map(String::as_str)
+        .filter(|path| eligible(path) && !ranked.contains(path))
+        .collect();
+    displace_order.reverse();
+    displace_order.extend(
+        remainder
+            .iter()
+            .rev()
+            .map(String::as_str)
+            .filter(|path| eligible(path)),
+    );
+    displace_order.extend(
+        hotspot
+            .iter()
+            .rev()
+            .map(String::as_str)
+            .filter(|path| eligible(path)),
+    );
+    let displaceable_cost: u64 = displace_order.iter().map(|path| cost_of(path)).sum();
+
+    // Promote by severity (then path) until the displaceable cost is spent.
+    let mut order: Vec<(&String, u8)> = promotable.iter().map(|(p, r)| (p, *r)).collect();
+    order.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
+    let mut promoted: BTreeSet<String> = BTreeSet::new();
+    let mut unpromoted: Vec<String> = Vec::new();
+    let mut promoted_cost = 0u64;
+    for (path, _) in order {
+        let cost = cost_of(path);
+        if unpromoted.is_empty() && promoted_cost.saturating_add(cost) <= displaceable_cost {
+            promoted_cost += cost;
+            promoted.insert(path.clone());
+        } else {
+            unpromoted.push(path.clone());
+        }
+    }
+    let mut displaced: Vec<String> = Vec::new();
+    let mut freed = 0u64;
+    for path in displace_order {
+        if freed >= promoted_cost {
+            break;
+        }
+        freed += cost_of(path);
+        displaced.push(path.to_owned());
+    }
+    let displaced_set: BTreeSet<&str> = displaced.iter().map(String::as_str).collect();
+    let promoted_list: Vec<String> = promoted.iter().cloned().collect();
+    let promotion_digest = if promoted.is_empty() && displaced.is_empty() && unpromoted.is_empty() {
         None
     } else {
         canonical_digest(&json!({
-            "promoted": promoted,
+            "promoted": promoted_list,
+            "displaced": displaced,
+            "unpromoted": unpromoted,
             "findings": promotion_basis,
         }))
         .ok()
     };
-    let default_mode = frozen.default_mode.unwrap_or(base_mode);
-    let mandatory_mode = frozen.mandatory_mode.unwrap_or(default_mode);
+    let effective_digest =
+        coverage_plan::effective_review_set_digest(&frozen.review_set, &displaced, &promoted_list)
+            .ok()?;
+
     // Group review paths by content digest; a path without a digest is alone.
     let mut groups: BTreeMap<String, Vec<&str>> = BTreeMap::new();
     for entry in &denominator.entries {
-        if !(frozen.review_set.contains(&entry.path) || promoted.contains(&entry.path)) {
+        let in_set = (frozen.review_set.contains(&entry.path)
+            && !displaced_set.contains(entry.path.as_str()))
+            || promoted.contains(&entry.path);
+        if !in_set {
             continue;
         }
         let key = match (&entry.digest, frozen.dedup) {
@@ -922,13 +1040,7 @@ fn sampled_review(
     for (canonical, members) in ordered {
         let mode = members
             .iter()
-            .map(|member| {
-                if frozen.mandatory.contains(*member) {
-                    mandatory_mode
-                } else {
-                    default_mode
-                }
-            })
+            .map(|member| mode_of(*member))
             .max_by_key(|mode| mode_strength(*mode))
             .unwrap_or(default_mode);
         for member in &members {
@@ -953,10 +1065,9 @@ fn sampled_review(
             mode,
         });
     }
-    let declared_unsampled = denominator
-        .entries
-        .len()
-        .saturating_sub(frozen.review_set.len() + promoted.len());
+    let effective_count =
+        (frozen.review_set.len() + promoted.len()).saturating_sub(displaced.len());
+    let declared_unsampled = denominator.entries.len().saturating_sub(effective_count);
     Some(SampledReview {
         items,
         aliases: aliases.clone(),
@@ -967,7 +1078,10 @@ fn sampled_review(
             review_count: frozen.review_set.len(),
             declared_unsampled,
             excluded: frozen.excluded,
-            promoted: promoted.into_iter().collect(),
+            promoted: promoted_list,
+            displaced,
+            unpromoted,
+            effective_digest,
             promotion_digest,
             aliases,
         },
@@ -1053,6 +1167,13 @@ fn excerpt_coverage_value(
             object.insert("reviewSetDigest".into(), json!(review.digest));
             object.insert("reviewSetCount".into(), json!(review.review_count));
             object.insert("promotedPaths".into(), json!(review.promoted));
+            object.insert("displacedPaths".into(), json!(review.displaced));
+            object.insert("unpromotedPaths".into(), json!(review.unpromoted));
+            object.insert("unpromotedCount".into(), json!(review.unpromoted.len()));
+            object.insert(
+                "effectiveReviewSetDigest".into(),
+                json!(review.effective_digest),
+            );
             object.insert("promotionDigest".into(), json!(review.promotion_digest));
             object.insert(
                 "declaredUnsampledCount".into(),

@@ -50,6 +50,12 @@ pub use policy::{
 };
 pub use provider::{Coverage, FindingRef, ProviderResult, ProviderSpec, ProviderStatus};
 pub use receipt::{ExecutorBindingOutcome, InvocationReceipt, InvocationStatus};
+pub use report::{
+    classify_confidence, derive_status, parse_location, position_anchor, Anchor, AnchorState,
+    Attribution, Confidence, DiffTag, Disposition, Exactness, FindingV2, LiftContext, LineRange,
+    ReasoningBudgetUsed, ReflectionOutcome, ReportScope, ReportV2, StatusDecision, StatusInputs,
+    REPORT_SCHEMA_V1, REPORT_SCHEMA_V2, V2_FINDING_EVIDENCE_KEY, V2_REPORT_EXTENSION_KEY,
+};
 pub use report::{Finding, Report, ReportStatus};
 pub use task::{Latitude, TaskSpec, TaskStatus};
 pub use trace::{
@@ -95,6 +101,21 @@ where
 {
     let version = u32::deserialize(deserializer)?;
     if version == 2 {
+        Ok(version)
+    } else {
+        Err(D::Error::custom(format!(
+            "unsupported schema major version {version}"
+        )))
+    }
+}
+
+/// Accepts schema major version 1 or 2 (report readers; ADR-8).
+pub fn deserialize_schema_version_1_or_2<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version == 1 || version == 2 {
         Ok(version)
     } else {
         Err(D::Error::custom(format!(

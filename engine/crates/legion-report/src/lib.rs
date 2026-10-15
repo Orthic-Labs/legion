@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use legion_contracts::{Finding, ReportStatus, ReportV1};
+use legion_contracts::{Finding, ReportStatus, ReportV1, ReportV2};
 
 pub mod error;
 pub mod escape;
@@ -13,6 +13,10 @@ pub use error::ReportError;
 
 pub fn render_json(report: &ReportV1) -> Result<String, ReportError> {
     json::render(report)
+}
+/// Renders a v2 report as schema 2 (native) or schema 1 (projection).
+pub fn render_json_schema(report: &ReportV2, schema: u32) -> Result<String, ReportError> {
+    json::render_schema(report, schema)
 }
 pub fn render_sarif(report: &ReportV1) -> Result<String, ReportError> {
     sarif::render(report)

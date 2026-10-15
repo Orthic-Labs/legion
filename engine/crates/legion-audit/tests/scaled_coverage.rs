@@ -11,12 +11,14 @@ use std::{
 };
 
 use legion_audit::native_providers::reasoning::{
-    coverage_plan::FrozenCoverage,
+    coverage_plan::{effective_review_set_digest, FrozenCoverage},
     ingest::{
-        create_epoch, ingest_lens_result, lens_dispatch_plan, load_epoch, recompute_run,
-        write_lens_packets, DispatchLimits, EPOCH_KEY_FILE, LENS_PACKET_DIR,
+        create_epoch, ingest_lens_result, lens_dispatch_plan, load_epoch,
+        merge_adjudication_results, recompute_run, write_lens_packets, DispatchLimits,
+        EPOCH_KEY_FILE, LENS_PACKET_DIR,
     },
-    pending_lens_work, PendingLensWork, ReasoningProviderExecutor,
+    pending_lens_work, pending_lens_work_with_candidates, PendingLensWork,
+    ReasoningProviderExecutor, ScannerCandidate, INVENTORY_SNAPSHOT_FILE,
 };
 use legion_audit::{
     canonical_report, execute, AuditError, AuditPlan, AuditProvider, FilesystemInventorySource,
@@ -118,8 +120,10 @@ impl ProviderExecutor for Fixture {
 }
 
 struct Env {
+    root: PathBuf,
     run: PathBuf,
     plan: FrozenPlan,
+    inventory: InventoryEnvelope,
     work: Vec<PendingLensWork>,
 }
 
@@ -204,7 +208,13 @@ fn build_env(
     write("report.json", serde_json::to_value(&report).unwrap());
     write("execution.json", serde_json::to_value(&execution).unwrap());
     write_lens_packets(&run.join(LENS_PACKET_DIR), &work).unwrap();
-    Env { run, plan, work }
+    Env {
+        root,
+        run,
+        plan,
+        inventory,
+        work,
+    }
 }
 
 fn filler_file(file: usize, bytes: usize) -> Vec<u8> {
@@ -619,4 +629,412 @@ fn ember_like_plan_still_refuses_when_the_run_budget_is_genuinely_exceeded() {
         "{:?}",
         plan["violations"]
     );
+}
+
+// ---------------------------------------------------------------------------
+// Findings promotion stays inside the frozen run budget; packets reference the
+// inventory instead of embedding it; batched ingest equals sequential ingest.
+// ---------------------------------------------------------------------------
+
+fn candidate(path: &str, severity: &str, number: usize) -> ScannerCandidate {
+    ScannerCandidate {
+        finding_id: format!("sc-{number:04}"),
+        provider: "legacy.security.scanner".into(),
+        rule: "fixture-rule".into(),
+        severity: severity.into(),
+        path: Some(path.into()),
+        line: Some(3),
+        message: "fixture".into(),
+        evidence_excerpt: None,
+    }
+}
+
+fn ember_like_files() -> Vec<(String, Vec<u8>)> {
+    let mut files = plain_files(150, 25_000);
+    // Security-sensitive paths are mandatory: promotion must never shrink them.
+    files.push(("src/security/guard.rs".into(), filler_file(900, 25_000)));
+    files.push(("src/security/verify.rs".into(), filler_file(901, 25_000)));
+    files
+}
+
+fn outside_review_set(files: &[(String, Vec<u8>)], frozen: &FrozenCoverage) -> Vec<String> {
+    let mut outside: Vec<String> = files
+        .iter()
+        .map(|(path, _)| path.clone())
+        .filter(|path| !frozen.review_set.contains(path))
+        .collect();
+    outside.sort();
+    outside
+}
+
+fn string_list(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn carried_paths(work: &[PendingLensWork]) -> BTreeSet<String> {
+    let mut paths = BTreeSet::new();
+    for item in work {
+        for excerpt in item.request.packet["excerpts"].as_array().unwrap() {
+            paths.insert(excerpt["path"].as_str().unwrap().to_owned());
+        }
+    }
+    paths
+}
+
+fn within_frozen_dispatch(baseline: &Value, after: &Value) {
+    let before_tokens = baseline["estimatedTokens"].as_u64().unwrap();
+    let after_tokens = after["estimatedTokens"].as_u64().unwrap();
+    // Promoted files replace sampled files of the same estimated cost, so the
+    // executed dispatch stays at the frozen plan's size (5% for estimate noise).
+    assert!(
+        after_tokens * 100 <= before_tokens * 105,
+        "promotion grew the dispatch from {before_tokens} to {after_tokens} tokens"
+    );
+    assert!(
+        after["requiredSeats"].as_u64().unwrap() <= baseline["requiredSeats"].as_u64().unwrap(),
+        "promotion added seats: {} -> {}",
+        baseline["requiredSeats"],
+        after["requiredSeats"]
+    );
+}
+
+#[test]
+fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
+    let files = ember_like_files();
+    let env = build_env(
+        "promotion-within-budget",
+        &[PERFORMANCE],
+        coverage_reasoning("risk-sampled", 400_000),
+        &files,
+    );
+    let frozen = frozen_coverage(&env, PERFORMANCE.0);
+    assert!(frozen.is_sampled());
+    assert!(
+        !frozen.mandatory.is_empty(),
+        "fixture needs mandatory paths"
+    );
+    let sampled = frozen.review_set.len() - frozen.mandatory.len();
+    let outside = outside_review_set(&files, &frozen);
+    let wanted = 10usize;
+    assert!(sampled >= wanted && outside.len() >= wanted);
+    let promoted_paths: Vec<String> = outside[..wanted].to_vec();
+    let candidates: Vec<ScannerCandidate> = promoted_paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| candidate(path, "high", index))
+        .collect();
+
+    let limits = DispatchLimits::default();
+    let baseline = lens_dispatch_plan(&env.work, &limits);
+    let work =
+        pending_lens_work_with_candidates(&env.root, &env.plan, &env.inventory, Some(&candidates))
+            .unwrap();
+    let after = lens_dispatch_plan(&work, &limits);
+    within_frozen_dispatch(&baseline, &after);
+
+    let coverage = &work[0].request.packet["excerptCoverage"];
+    assert_eq!(string_list(&coverage["promotedPaths"]), promoted_paths);
+    assert_eq!(coverage["unpromotedCount"], json!(0));
+    let displaced = string_list(&coverage["displacedPaths"]);
+    // Displaced files are frozen sampled files, reported, never mandatory.
+    assert!(displaced.len() >= wanted && displaced.len() <= wanted + 1);
+    for path in &displaced {
+        assert!(frozen.review_set.contains(path), "{path}");
+        assert!(!frozen.mandatory.contains(path), "{path}");
+    }
+    // The packets carry exactly (frozen review set - displaced) + promoted.
+    let mut expected = frozen.review_set.clone();
+    for path in &displaced {
+        expected.remove(path);
+    }
+    expected.extend(promoted_paths.iter().cloned());
+    let carried = carried_paths(&work);
+    assert_eq!(carried, expected);
+    assert!(frozen.mandatory.is_subset(&carried), "mandatory shrank");
+    // The promotion binds to the frozen plan and is verifiable from it.
+    assert_eq!(
+        coverage["effectiveReviewSetDigest"],
+        json!(
+            effective_review_set_digest(&frozen.review_set, &displaced, &promoted_paths).unwrap()
+        )
+    );
+    assert!(coverage["promotionDigest"].is_string());
+    assert_eq!(coverage["reviewSetDigest"], json!(frozen.review_set_digest));
+
+    // Ingest accepts the promoted packets and completes without a cap gap.
+    write_lens_packets(&env.run.join(LENS_PACKET_DIR), &work).unwrap();
+    let mut last = None;
+    for item in &work {
+        last = Some(
+            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
+        );
+    }
+    let last = last.unwrap();
+    assert!(last.complete, "{:?}", last.coverage_gaps);
+    assert!(!last
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("lens-promotion-capped")));
+}
+
+#[test]
+fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
+    let files = ember_like_files();
+    let env = build_env(
+        "promotion-capped",
+        &[PERFORMANCE],
+        coverage_reasoning("risk-sampled", 100_000),
+        &files,
+    );
+    let frozen = frozen_coverage(&env, PERFORMANCE.0);
+    let sampled = frozen.review_set.len() - frozen.mandatory.len();
+    let outside = outside_review_set(&files, &frozen);
+    assert!(
+        outside.len() > sampled,
+        "fixture must raise more candidates ({}) than the sampled budget ({sampled})",
+        outside.len()
+    );
+    // Severity falls with path order, so the cap must keep a path prefix.
+    let candidates: Vec<ScannerCandidate> = outside
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            let severity = match index {
+                0..=4 => "critical",
+                5..=19 => "high",
+                _ => "low",
+            };
+            candidate(path, severity, index)
+        })
+        .collect();
+
+    let limits = DispatchLimits::default();
+    let baseline = lens_dispatch_plan(&env.work, &limits);
+    let work =
+        pending_lens_work_with_candidates(&env.root, &env.plan, &env.inventory, Some(&candidates))
+            .unwrap();
+    within_frozen_dispatch(&baseline, &lens_dispatch_plan(&work, &limits));
+
+    let coverage = &work[0].request.packet["excerptCoverage"];
+    let promoted = string_list(&coverage["promotedPaths"]);
+    let unpromoted = string_list(&coverage["unpromotedPaths"]);
+    assert!(!unpromoted.is_empty());
+    assert_eq!(promoted.len() + unpromoted.len(), outside.len());
+    assert_eq!(coverage["unpromotedCount"], json!(unpromoted.len()));
+    assert!(promoted.len() <= sampled);
+    // Every critical candidate is promoted before any lower severity.
+    assert_eq!(promoted, outside[..promoted.len()].to_vec());
+    assert!(promoted.len() >= 5);
+    let displaced = string_list(&coverage["displacedPaths"]);
+    // Equal-cost files: one displaced file per promoted file, give or take a byte of estimate.
+    assert!(
+        displaced.len() + 1 >= promoted.len(),
+        "{} displaced for {} promoted",
+        displaced.len(),
+        promoted.len()
+    );
+    assert!(frozen.mandatory.is_subset(&carried_paths(&work)));
+
+    write_lens_packets(&env.run.join(LENS_PACKET_DIR), &work).unwrap();
+    let mut last = None;
+    for item in &work {
+        last = Some(
+            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
+        );
+    }
+    let last = last.unwrap();
+    let gap = format!("lens-promotion-capped:{}", unpromoted.len());
+    assert!(
+        last.coverage_gaps.contains(&gap),
+        "{:?}",
+        last.coverage_gaps
+    );
+    assert!(!last.complete);
+}
+
+#[test]
+fn lens_packets_reference_the_inventory_instead_of_embedding_it() {
+    let files = plain_files(40, 4_000);
+    let env = build_env(
+        "inventory-ref",
+        &[PERFORMANCE],
+        coverage_reasoning("exhaustive", 6_000_000),
+        &files,
+    );
+    let rebuilt = pending_lens_work(&env.root, &env.plan, &env.inventory).unwrap();
+    assert_eq!(env.work.len(), rebuilt.len());
+    let inventory_bytes = serde_json::to_vec(&env.inventory).unwrap().len();
+    let expected_keys: BTreeSet<&str> = [
+        "schemaVersion",
+        "kind",
+        "provider",
+        "contract",
+        "binding",
+        "lensPlan",
+        "excerpts",
+        "excerptCoverage",
+        "scannerCandidates",
+        "triggerEvidence",
+        "reportSchemaBody",
+        "semanticReviewContract",
+        "changeRiskContract",
+        "reviewContext",
+        "inventoryRef",
+        "artifactIds",
+        "part",
+    ]
+    .into_iter()
+    .collect();
+    for (item, again) in env.work.iter().zip(&rebuilt) {
+        let packet = &item.request.packet;
+        // Deterministic: a rebuild is byte-equal.
+        assert_eq!(
+            serde_json::to_vec(packet).unwrap(),
+            serde_json::to_vec(&again.request.packet).unwrap()
+        );
+        assert!(packet.get("projection").is_none());
+        assert_eq!(
+            packet["inventoryRef"],
+            json!({
+                "inventoryDigest": env.inventory.digest,
+                "snapshotRef": INVENTORY_SNAPSHOT_FILE,
+            })
+        );
+        // Only the inventory field changed shape.
+        for key in packet.as_object().unwrap().keys() {
+            assert!(expected_keys.contains(key.as_str()), "unexpected key {key}");
+        }
+        let without_ref = {
+            let mut copy = packet.clone();
+            copy.as_object_mut().unwrap().remove("inventoryRef");
+            serde_json::to_vec(&copy).unwrap().len()
+        };
+        assert!(serde_json::to_vec(packet).unwrap().len() - without_ref < inventory_bytes);
+    }
+}
+
+#[test]
+fn a_frozen_plan_executes_with_the_digest_it_was_frozen_with() {
+    let files = plain_files(12, 2_000);
+    let env = build_env(
+        "single-build",
+        &[PERFORMANCE],
+        coverage_reasoning("exhaustive", 6_000_000),
+        &files,
+    );
+    // The CLI builds the plan once and executes that frozen plan against a
+    // fresh inventory: a clone of it must execute under the same digest.
+    let reused = env.plan.clone();
+    assert_eq!(reused.digest(), env.plan.digest());
+    assert_eq!(reused.signature(), env.plan.signature());
+    let executor = Fixture {
+        reasoning: ReasoningProviderExecutor::unavailable(&env.root),
+    };
+    let fresh = FilesystemInventorySource::new(&env.root)
+        .unwrap()
+        .inventory(&env.root.to_string_lossy())
+        .unwrap();
+    assert_eq!(fresh.digest, env.inventory.digest);
+    let execution = execute(&reused, &env.inventory, &executor).unwrap();
+    assert_eq!(execution.plan_digest, env.plan.digest());
+}
+
+#[test]
+fn batched_ingest_matches_sequential_ingest() {
+    let providers = [PERFORMANCE, ("reasoning.correctness", "correctness")];
+    let files = plain_files(20, 3_000);
+    let build = |name: &str| {
+        build_env(
+            name,
+            &providers,
+            coverage_reasoning("exhaustive", 6_000_000),
+            &files,
+        )
+    };
+    let sequential = build("ingest-sequential");
+    for item in &sequential.work {
+        ingest_lens_result(
+            &sequential.run,
+            item.provider_id.as_str(),
+            &lens_result(item),
+        )
+        .unwrap();
+        recompute_run(&sequential.run).unwrap();
+    }
+    let batched = build("ingest-batched");
+    for item in &batched.work {
+        ingest_lens_result(&batched.run, item.provider_id.as_str(), &lens_result(item)).unwrap();
+    }
+    let one = recompute_run(&batched.run).unwrap();
+    let many = recompute_run(&sequential.run).unwrap();
+    assert_eq!(one.report.status, many.report.status);
+    assert_eq!(one.report.gaps, many.report.gaps);
+    assert_eq!(one.report.findings.len(), many.report.findings.len());
+    assert_eq!(one.ingested, many.ingested);
+    assert_eq!(one.pending, many.pending);
+}
+
+fn adjudication_result(verdicts: Value, findings: Value) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-lens-result",
+        "provider": "legacy.security.adjudication",
+        "packetDigest": "sha256:aaaa",
+        "planDigest": "sha256:bbbb",
+        "complete": true,
+        "findings": findings,
+        "withdrawn": [],
+        "verdicts": verdicts,
+    })
+}
+
+#[test]
+fn staged_adjudication_results_merge_into_one_cumulative_result() {
+    let batch_rows = json!([
+        {"stage": "batch", "batchId": "b1", "candidateId": "c1", "workItemId": "w-b1-c1", "verdict": "confirmed"},
+        {"stage": "batch", "batchId": "b1", "candidateId": "c2", "workItemId": "w-b1-c2", "verdict": "dismissed"},
+    ]);
+    let confirmation_rows = json!([
+        {"stage": "confirmation", "candidateId": "c1", "workItemId": "w-b1-c1", "verdict": "confirmed"},
+    ]);
+    let finding = json!({"id": "adjudicated:c1", "title": "t"});
+    let batch = adjudication_result(batch_rows.clone(), json!([]));
+    let confirmation = adjudication_result(confirmation_rows.clone(), json!([finding.clone()]));
+
+    // The same workItemId in two stages is two rows; the merge is their union.
+    let merged = merge_adjudication_results(&[batch.clone(), confirmation.clone()]).unwrap();
+    let single = adjudication_result(
+        json!([batch_rows[0], batch_rows[1], confirmation_rows[0]]),
+        json!([finding.clone()]),
+    );
+    assert_eq!(merged, single);
+
+    // Order of the files does not change the verdict set.
+    let reversed = merge_adjudication_results(&[confirmation.clone(), batch.clone()]).unwrap();
+    let mut rows: Vec<Value> = reversed["verdicts"].as_array().unwrap().clone();
+    rows.sort_by_key(|row| row.to_string());
+    let mut expected: Vec<Value> = single["verdicts"].as_array().unwrap().clone();
+    expected.sort_by_key(|row| row.to_string());
+    assert_eq!(rows, expected);
+
+    // A repeated (workItemId, stage) is refused, duplicate or conflicting.
+    assert!(merge_adjudication_results(&[batch.clone(), batch.clone()]).is_err());
+    let conflicting = adjudication_result(
+        json!([{"stage": "batch", "batchId": "b1", "candidateId": "c1", "workItemId": "w-b1-c1", "verdict": "dismissed"}]),
+        json!([]),
+    );
+    assert!(merge_adjudication_results(&[batch.clone(), conflicting]).is_err());
+    // Differently bound results never merge.
+    let mut other = confirmation;
+    other["packetDigest"] = json!("sha256:cccc");
+    assert!(merge_adjudication_results(&[batch, other]).is_err());
 }

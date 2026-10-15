@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{Finding, FindingId, ReportId, ReportStatus, ReportV1};
+use legion_contracts::{
+    Finding, FindingId, LiftContext, ReportId, ReportScope, ReportStatus, ReportV1, ReportV2,
+};
 use serde_json::{json, Value};
 
 use crate::{
@@ -209,7 +211,7 @@ pub fn canonical_report(
         .iter()
         .filter(|result| result.result.complete && !result.skipped)
         .count();
-    let report = ReportV1 {
+    let mut report = ReportV1 {
         schema_version: 1,
         report_id: ReportId::new(format!(
             "audit-{}",
@@ -265,8 +267,56 @@ pub fn canonical_report(
             ("advisoryFindings".into(), Value::Array(advisory_findings)),
         ]),
     };
+    // P-pos (ADR-4): position every line anchor deterministically. A required
+    // anchor that fails forces `incomplete` through a gap, so every consumer of
+    // the v1 core (ingest recompute, verify) reaches the same verdict.
+    if std::path::Path::new(repository_id).is_dir() {
+        let v2 = lift_report_v2(
+            &report,
+            ReportScope {
+                spec: "whole".into(),
+                base_ref_oid: None,
+                merge_base_oid: None,
+                head: execution.generation.clone(),
+                snapshot_key: None,
+                index_schema_version: None,
+            },
+        )?;
+        report.gaps = v2.gaps;
+        report.status = v2.status;
+    }
     report.validate()?;
     Ok(report)
+}
+
+/// Lifts a writer's v1 report into schema v2 (ADR-8): deterministic anchor
+/// positioning against the repository root named by `targets[0]` (no model),
+/// confidence classification and the ADR-4 status rules. When the root is not
+/// a directory positioning is unavailable and no anchor is reported failed.
+/// No provider declares `exactness: exact` yet, so an anchored tool hit is
+/// `likely`, never `proven`.
+pub fn lift_report_v2(report: &ReportV1, scope: ReportScope) -> Result<ReportV2, AuditError> {
+    let root = report
+        .targets
+        .first()
+        .map(std::path::PathBuf::from)
+        .filter(|root| root.is_dir());
+    let v2 = match &root {
+        Some(root) => {
+            let resolve = |relative: &str| -> Option<Vec<u8>> {
+                let path = root.join(relative);
+                let metadata = std::fs::symlink_metadata(&path).ok()?;
+                if !metadata.is_file() {
+                    return None;
+                }
+                std::fs::read(path).ok()
+            };
+            ReportV2::from_v1_with(report, &LiftContext::new(scope, &resolve))?
+        }
+        None => ReportV2::from_v1_with(report, &LiftContext::without_bytes(scope))?,
+    };
+    v2.validate()?;
+    Ok(v2)
 }
 
 fn detail_object(

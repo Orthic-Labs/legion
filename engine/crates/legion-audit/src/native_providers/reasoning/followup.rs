@@ -634,7 +634,21 @@ pub fn compile_followup(
     write_atomic(
         &dir,
         "report.json",
-        &to_bytes(&serde_json::to_value(&report).map_err(|error| invalid(error.to_string()))?)?,
+        &to_bytes(
+            &crate::report::lift_report_v2(
+                &report,
+                legion_contracts::ReportScope {
+                    spec: "whole".into(),
+                    base_ref_oid: None,
+                    merge_base_oid: None,
+                    head: execution.generation.clone(),
+                    snapshot_key: None,
+                    index_schema_version: None,
+                },
+            )?
+            .to_value_for_schema(legion_contracts::REPORT_SCHEMA_V2)
+            .map_err(|error| invalid(error.to_string()))?,
+        )?,
     )?;
     let plan_path = write_atomic(&dir, "plan.json", &to_bytes(&plan_json)?)?;
     Ok(Some(FollowupPlanned {

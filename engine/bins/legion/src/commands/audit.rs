@@ -81,6 +81,11 @@ pub struct AuditArgs {
     /// Most seats across all waves; the plan refuses to freeze past it.
     #[arg(long = "max-total-seats", default_value_t = legion_audit::native_providers::reasoning::ingest::DEFAULT_MAX_TOTAL_SEATS)]
     pub max_total_seats: u64,
+    /// Report schema written to `report.json`: `2` (default, confidence/anchor/
+    /// attribution fields) or `1` (a projection for consumers pinned to v1; v2-only
+    /// fields travel under `finding.evidence.legionV2`). Status is identical.
+    #[arg(long = "report-schema", default_value_t = 2, value_parser = clap::value_parser!(u32).range(1..=2))]
+    pub report_schema: u32,
     #[arg(long = "provider-plan")]
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
@@ -89,14 +94,16 @@ pub struct AuditArgs {
     /// source diagnostic. This is never a fallback for a missing full registry.
     #[arg(long = "native-rule-manifest", conflicts_with_all = ["provider_plan", "provider_results"])]
     pub native_rule_manifest: Option<PathBuf>,
-    /// `legion audit ingest --run <dir> --provider <id> --result <file>`: ingest a
-    /// reasoning-lens result into a frozen run (see `ingest_command`).
+    /// `legion audit ingest --run <dir> --result <file> [--result <file> ...]`: ingest
+    /// reasoning-lens results into a frozen run in one pass (see `ingest_command`).
+    /// `--provider <id>` names the provider of every result; without it each
+    /// result file names its own.
     #[arg(long = "run", hide = true)]
     pub ingest_run: Option<PathBuf>,
     #[arg(long = "provider", hide = true)]
     pub ingest_provider: Option<String>,
     #[arg(long = "result", hide = true)]
-    pub ingest_result: Option<PathBuf>,
+    pub ingest_result: Vec<PathBuf>,
     /// `legion audit ingest --run <dir> --followup`: (re)compile the security
     /// variant-analysis follow-up plan under `<dir>/followup/` for the run's
     /// confirmed findings. With `--provider`/`--result` the result is ingested
@@ -134,10 +141,13 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     if args.root.as_os_str() == "ingest"
         && (args.ingest_run.is_some()
             || args.ingest_provider.is_some()
-            || args.ingest_result.is_some()
+            || !args.ingest_result.is_empty()
             || args.followup)
     {
         return ingest_command(&args);
+    }
+    if args.root.as_os_str() == "next" && args.ingest_run.is_some() {
+        return next_command(&args);
     }
     if args.root.as_os_str() == "findings" && !args.findings_args.is_empty() {
         return findings_command(&args);
@@ -327,7 +337,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Size gate: report every lens's packet bytes, estimated tokens, parts and
     // required seats, and refuse to freeze an oversize plan without an
     // explicit override. Runs before any scanner executes.
-    let lens_size = lens_size_gate(&root, &lens_basis, &args)?;
+    let (lens_size, size_gate_work) = lens_size_gate(&root, &lens_basis, &args)?;
     let provider_selection = if !provider_scope_claims_allowed(trusted_scope_universe) {
         // Imported provider specs describe only the selected execution set.
         // They cannot establish the repository's full applicable universe, so
@@ -352,10 +362,38 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             }),
         }
     };
-    let result = application
-        .invoke_with_cancellation(operation, cancellation)
-        .await
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    // The plan and inventory are built once per run (`freeze_lens_basis`): a
+    // plan-only run answers from that plan, and an executed run binds the same
+    // frozen plan to a fresh execution inventory instead of walking and
+    // compiling a second time. Without a usable basis the application builds
+    // its own and surfaces the same error.
+    let result = match &lens_basis {
+        Ok((plan, _)) if args.plan_only => legion_application::NativeOperationResult::Plan {
+            repository_id: root.to_string_lossy().into_owned(),
+            plan_digest: plan.digest().into(),
+            plan_signature: plan.signature().map(ToOwned::to_owned),
+            providers: plan
+                .providers()
+                .iter()
+                .map(|provider| provider.id.clone())
+                .collect(),
+        },
+        Ok((plan, _)) => application
+            .invoke_with_cancellation(
+                legion_application::NativeOperation::AuditFrozen {
+                    repository_id: root.to_string_lossy().into_owned(),
+                    plan: plan.clone(),
+                    signing_key: signing_key.clone(),
+                },
+                cancellation,
+            )
+            .await
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        Err(_) => application
+            .invoke_with_cancellation(operation, cancellation)
+            .await
+            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+    };
     match result {
         legion_application::NativeOperationResult::Plan {
             repository_id,
@@ -363,7 +401,14 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             plan_signature,
             providers,
         } => {
-            let binding = native_inventory_binding(&root, inventory_filter.as_ref())?;
+            let binding = match &lens_basis {
+                // The basis inventory is the one the plan was frozen over.
+                Ok((_, inventory)) => json!({
+                    "repositoryRevision": inventory.generation,
+                    "inventoryDigest": inventory.digest,
+                }),
+                Err(_) => native_inventory_binding(&root, inventory_filter.as_ref())?,
+            };
             let (lens_work, lens_work_gaps, lens_dispatch) = lens_work_items(
                 &root,
                 &lens_basis,
@@ -371,6 +416,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 args.out.as_deref(),
                 None,
                 &args,
+                size_gate_work.as_deref(),
             );
             let (lens_coverage, sampled_run) = lens_coverage_summary(&lens_basis);
             let mut input_gaps = native_audit_input_gaps(&args, &declared_input_gaps);
@@ -494,6 +540,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     args.out.as_deref(),
                     Some(&execution),
                     &args,
+                    None,
                 )
             };
             report.gaps.extend(lens_work_gaps);
@@ -611,7 +658,21 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report
                 .claims
                 .insert("completionValidation".into(), json!("not-run"));
-            let report_json = legion_report::render_json(&report).map_err(super::io_error)?;
+            let report_json = render_report_json(
+                &report,
+                run_report_scope(
+                    &report,
+                    if args.base.is_some() || args.base_commit.is_some() {
+                        "diff"
+                    } else {
+                        "whole"
+                    },
+                    &root,
+                    &review_context,
+                    &execution.inventory_digest,
+                ),
+                args.report_schema,
+            )?;
             let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
                 let native_plan = native_plan_document(
@@ -851,6 +912,30 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
 ///   result into the follow-up and recomputes the parent report, whose
 ///   `security-variant-analysis-pending` gap clears only when the follow-up is
 ///   complete and its digest chain verifies.
+/// `legion audit next --run <dir>`: the resumable dispatch driver (see
+/// `legion_audit::next`). Lease length defaults to 20 minutes;
+/// `LEGION_AUDIT_LEASE_MINUTES` overrides it.
+fn next_command(args: &AuditArgs) -> CommandResult {
+    let run = args
+        .ingest_run
+        .clone()
+        .ok_or_else(|| CommandError::usage("legion audit next requires --run <dir>"))?;
+    let run = if run.is_absolute() {
+        run
+    } else {
+        std::env::current_dir().map_err(super::io_error)?.join(run)
+    };
+    let lease_ms = std::env::var("LEGION_AUDIT_LEASE_MINUTES")
+        .ok()
+        .and_then(|minutes| minutes.trim().parse::<u64>().ok())
+        .filter(|minutes| *minutes > 0)
+        .map_or(legion_audit::next::DEFAULT_LEASE_MS, |minutes| {
+            minutes.saturating_mul(60_000)
+        });
+    legion_audit::next::next(&run, &legion_audit::next::NextOptions::now(lease_ms))
+        .map_err(|error| CommandError::usage(error.to_string()))
+}
+
 fn ingest_command(args: &AuditArgs) -> CommandResult {
     use legion_audit::native_providers::reasoning::{followup, ingest};
     let run = args
@@ -866,27 +951,59 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
     };
     let run = absolute(run)?;
     let into_followup = args.followup && args.ingest_provider.is_some();
-    if args.followup && args.ingest_provider.is_none() && args.ingest_result.is_none() {
+    if args.followup && args.ingest_provider.is_none() && args.ingest_result.is_empty() {
         // Explicit follow-up (re)compilation.
-        let follow = plan_followup(&run);
-        let recomputed = ingest::recompute_run(&run)
-            .map_err(|error| CommandError::integrity(error.to_string()))?;
-        write_run_reports(&run, &recomputed.report)?;
-        return Ok(ingest_output(&run, None, &recomputed, follow));
+        let (recomputed, follow) = plan_followup_recompute(&run)?;
+        write_run_reports(&run, &recomputed.report, args.report_schema)?;
+        return Ok(ingest_output(&run, Vec::new(), &recomputed, follow));
     }
-    let provider = args
-        .ingest_provider
-        .clone()
-        .ok_or_else(|| CommandError::usage("legion audit ingest requires --provider <id>"))?;
-    let result = args
+    if args.ingest_result.is_empty() {
+        return Err(CommandError::usage(
+            "legion audit ingest requires --result <file>",
+        ));
+    }
+    let results = args
         .ingest_result
-        .clone()
-        .ok_or_else(|| CommandError::usage("legion audit ingest requires --result <file>"))?;
-    let result = absolute(result)?;
+        .iter()
+        .cloned()
+        .map(absolute)
+        .collect::<Result<Vec<_>, _>>()?;
+    // Every result is bound to a provider: the explicit `--provider`, else the
+    // `provider` the result file itself names.
+    let mut targets: Vec<(String, PathBuf)> = Vec::with_capacity(results.len());
+    for result in &results {
+        let provider = match &args.ingest_provider {
+            Some(provider) => provider.clone(),
+            None => {
+                let value: Value =
+                    serde_json::from_slice(&std::fs::read(result).map_err(super::io_error)?)
+                        .map_err(|error| {
+                            CommandError::usage(format!(
+                                "{} is not valid JSON: {error}",
+                                result.display()
+                            ))
+                        })?;
+                value
+                    .get("provider")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .ok_or_else(|| {
+                        CommandError::usage(format!(
+                            "{} names no provider; pass --provider <id>",
+                            result.display()
+                        ))
+                    })?
+            }
+        };
+        targets.push((provider, result.clone()));
+    }
     if into_followup {
-        if provider != followup::VARIANT_PROVIDER_ID {
+        if let Some((provider, _)) = targets
+            .iter()
+            .find(|(provider, _)| provider != followup::VARIANT_PROVIDER_ID)
+        {
             return Err(CommandError::usage(format!(
-                "--followup ingests {} results only",
+                "--followup ingests {} results only (got {provider})",
                 followup::VARIANT_PROVIDER_ID
             )));
         }
@@ -896,14 +1013,16 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
                 "this run has no follow-up plan; run `legion audit ingest --run <dir> --followup` first",
             ));
         }
-        let ingested = ingest::ingest_lens_result_file(&dir, &provider, &result)
-            .map_err(|error| CommandError::usage(error.to_string()))?;
+        let (ingested, failures) = ingest_results(&dir, &targets);
+        if ingested.is_empty() {
+            return Err(ingest_failure(&failures));
+        }
         let inner = ingest::recompute_run(&dir)
             .map_err(|error| CommandError::integrity(error.to_string()))?;
-        write_run_reports(&dir, &inner.report)?;
+        write_run_reports(&dir, &inner.report, args.report_schema)?;
         let recomputed = ingest::recompute_run(&run)
             .map_err(|error| CommandError::integrity(error.to_string()))?;
-        write_run_reports(&run, &recomputed.report)?;
+        write_run_reports(&run, &recomputed.report, args.report_schema)?;
         let follow = json!({
             "status": recomputed.report.claims.get("securityVariantFollowup")
                 .and_then(|claim| claim.get("status")).cloned().unwrap_or(Value::Null),
@@ -912,23 +1031,198 @@ fn ingest_command(args: &AuditArgs) -> CommandResult {
             "ingested": ingested,
             "gaps": inner.report.gaps,
         });
-        return Ok(ingest_output(&run, None, &recomputed, follow));
+        let mut output = ingest_output(&run, ingested, &recomputed, follow);
+        attach_ingest_failures(&mut output, &failures);
+        return finish_ingest(output, &failures);
     }
-    let ingested = ingest::ingest_lens_result_file(&run, &provider, &result)
-        .map_err(|error| CommandError::usage(error.to_string()))?;
-    // Confirmed findings from this ingest get their follow-up compiled now.
-    let follow = plan_followup(&run);
-    let recomputed =
-        ingest::recompute_run(&run).map_err(|error| CommandError::integrity(error.to_string()))?;
-    write_run_reports(&run, &recomputed.report)?;
-    Ok(ingest_output(&run, Some(ingested), &recomputed, follow))
+    let (ingested, failures) = ingest_results(&run, &targets);
+    if ingested.is_empty() {
+        return Err(ingest_failure(&failures));
+    }
+    // One recompute for the whole batch; a second only when confirmed findings
+    // just got their follow-up compiled (the report must show that claim).
+    let (recomputed, follow) = plan_followup_recompute(&run)?;
+    write_run_reports(&run, &recomputed.report, args.report_schema)?;
+    let mut output = ingest_output(&run, ingested, &recomputed, follow);
+    attach_ingest_failures(&mut output, &failures);
+    finish_ingest(output, &failures)
+}
+
+/// Ingests each `(provider, result)` into `run` in order. A failing result
+/// does not stop the rest: the ones that verified stay ingested, exactly as if
+/// each had been ingested by its own command.
+fn ingest_results(
+    run: &std::path::Path,
+    targets: &[(String, PathBuf)],
+) -> (
+    Vec<legion_audit::native_providers::reasoning::ingest::IngestedLens>,
+    Vec<(PathBuf, String)>,
+) {
+    use legion_audit::native_providers::reasoning::{ingest, ADJUDICATOR_PROVIDER_ID};
+    let mut ingested = Vec::new();
+    let mut failures = Vec::new();
+    // Staged adjudication results are cumulative: all of them are merged into
+    // one ingest of the adjudicator instead of overwriting each other.
+    let adjudication: Vec<PathBuf> = targets
+        .iter()
+        .filter(|(provider, _)| provider == ADJUDICATOR_PROVIDER_ID)
+        .map(|(_, result)| result.clone())
+        .collect();
+    let merge_adjudication = adjudication.len() > 1;
+    if merge_adjudication {
+        match ingest::ingest_adjudication_result_files(run, &adjudication) {
+            Ok(done) => ingested.push(done),
+            Err(error) => {
+                for result in &adjudication {
+                    failures.push((result.clone(), error.to_string()));
+                }
+            }
+        }
+    }
+    for (provider, result) in targets {
+        if merge_adjudication && provider == ADJUDICATOR_PROVIDER_ID {
+            continue;
+        }
+        match ingest::ingest_lens_result_file(run, provider, result) {
+            Ok(done) => ingested.push(done),
+            Err(error) => failures.push((result.clone(), error.to_string())),
+        }
+    }
+    (ingested, failures)
+}
+
+fn ingest_failure(failures: &[(PathBuf, String)]) -> CommandError {
+    CommandError::usage(
+        failures
+            .iter()
+            .map(|(result, error)| format!("{}: {error}", result.display()))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
+fn attach_ingest_failures(output: &mut Value, failures: &[(PathBuf, String)]) {
+    if failures.is_empty() {
+        return;
+    }
+    output["failedResults"] = json!(failures
+        .iter()
+        .map(|(result, error)| json!({"result": result, "error": error}))
+        .collect::<Vec<_>>());
+}
+
+/// The report is already rewritten for the results that verified; a batch with
+/// any rejected result still exits non-zero and names each failure.
+fn finish_ingest(output: Value, failures: &[(PathBuf, String)]) -> CommandResult {
+    if failures.is_empty() {
+        Ok(output)
+    } else {
+        Err(ingest_failure(failures))
+    }
+}
+
+/// Recomputes the run once and, when confirmed security findings exist,
+/// compiles the variant follow-up and recomputes again so the report carries
+/// the follow-up claim. Returns the final recompute and the follow-up status.
+fn plan_followup_recompute(
+    run: &std::path::Path,
+) -> Result<
+    (
+        legion_audit::native_providers::reasoning::ingest::Recomputed,
+        Value,
+    ),
+    CommandError,
+> {
+    let recomputed = legion_audit::native_providers::reasoning::ingest::recompute_run(run)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let follow = plan_followup(run, &recomputed);
+    if follow["status"] == "planned" || follow["status"] == "reused" {
+        let refreshed = legion_audit::native_providers::reasoning::ingest::recompute_run(run)
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+        return Ok((refreshed, follow));
+    }
+    Ok((recomputed, follow))
+}
+
+/// Scope recorded in a v2 report: the spec (`whole`/`diff`) and the inventory
+/// generation the run was bound to.
+/// Scope of a freshly executed run, filled from the run's own data: `head` is
+/// the git HEAD (else the inventory generation), `baseRefOid`/`mergeBaseOid`
+/// come from the frozen review-context baseline of a diff-scoped run, and
+/// `snapshotKey` is the digest of the inventory the plan was frozen over (the
+/// content of the run's `inventory.json`). Absent data stays absent.
+fn run_report_scope(
+    report: &legion_contracts::ReportV1,
+    spec: &str,
+    root: &std::path::Path,
+    review_context: &Value,
+    inventory_digest: &str,
+) -> legion_contracts::ReportScope {
+    let mut scope = report_scope(report, spec);
+    let oid = |pointer: &str| {
+        review_context
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    };
+    scope.base_ref_oid = oid("/baseline/commit");
+    scope.merge_base_oid = oid("/baseline/mergeBase");
+    if let Some(head) = oid("/head").or_else(|| {
+        git_stdout(root, &["rev-parse", "HEAD"])
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    }) {
+        scope.head = head;
+    }
+    if !inventory_digest.is_empty() {
+        scope.snapshot_key = Some(inventory_digest.to_owned());
+    }
+    scope
+}
+
+fn report_scope(report: &legion_contracts::ReportV1, spec: &str) -> legion_contracts::ReportScope {
+    legion_contracts::ReportScope {
+        spec: spec.into(),
+        base_ref_oid: None,
+        merge_base_oid: None,
+        head: report
+            .claims
+            .get("inventoryGeneration")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_owned(),
+        snapshot_key: None,
+        index_schema_version: None,
+    }
+}
+
+/// Renders `report.json` at the requested schema (`--report-schema`): the v1
+/// report is lifted to v2 (deterministic anchor positioning, confidence,
+/// status rules) and written natively as 2 or as the v1 projection.
+fn render_report_json(
+    report: &legion_contracts::ReportV1,
+    scope: legion_contracts::ReportScope,
+    schema: u32,
+) -> Result<String, CommandError> {
+    let v2 = legion_audit::lift_report_v2(report, scope)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    legion_report::render_json_schema(&v2, schema).map_err(super::io_error)
 }
 
 fn write_run_reports(
     dir: &std::path::Path,
     report: &legion_contracts::ReportV1,
+    schema: u32,
 ) -> Result<(), CommandError> {
-    let report_json = legion_report::render_json(report).map_err(super::io_error)?;
+    // A re-written run keeps the scope its first report recorded.
+    let scope = std::fs::read(dir.join("report.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|value| legion_contracts::Report::read_any(&value).ok())
+        .map(|stored| stored.scope)
+        .unwrap_or_else(|| report_scope(report, "whole"));
+    let report_json = render_report_json(report, scope, schema)?;
     let report_sarif = legion_report::render_sarif(report).map_err(super::io_error)?;
     write_artifact(dir, "report.json", report_json.as_bytes())?;
     write_artifact(dir, "report.sarif", report_sarif.as_bytes())
@@ -937,15 +1231,14 @@ fn write_run_reports(
 /// Compiles the variant-analysis follow-up when the run has confirmed security
 /// findings. Never fails the caller: the parent report keeps its
 /// `security-variant-analysis-pending` gap and `status: error` says why.
-fn plan_followup(run: &std::path::Path) -> Value {
+fn plan_followup(
+    run: &std::path::Path,
+    recomputed: &legion_audit::native_providers::reasoning::ingest::Recomputed,
+) -> Value {
     use legion_audit::native_providers::reasoning::followup;
     // No confirmed finding, no follow-up (and no registry lookup).
-    match legion_audit::native_providers::reasoning::ingest::recompute_run(run) {
-        Ok(recomputed) if recomputed.confirmed_security.is_empty() => {
-            return json!({"status": "none", "reason": "no confirmed security finding"});
-        }
-        Ok(_) => {}
-        Err(error) => return json!({"status": "error", "reason": error.to_string()}),
+    if recomputed.confirmed_security.is_empty() {
+        return json!({"status": "none", "reason": "no confirmed security finding"});
     }
     let planned = registry_provider_spec(followup::VARIANT_PROVIDER_ID)
         .map_err(|error| error.message)
@@ -976,7 +1269,7 @@ fn plan_followup(run: &std::path::Path) -> Value {
 
 fn ingest_output(
     run: &std::path::Path,
-    ingested: Option<legion_audit::native_providers::reasoning::ingest::IngestedLens>,
+    mut ingested: Vec<legion_audit::native_providers::reasoning::ingest::IngestedLens>,
     recomputed: &legion_audit::native_providers::reasoning::ingest::Recomputed,
     followup: Value,
 ) -> Value {
@@ -991,7 +1284,12 @@ fn ingest_output(
         "schemaVersion": 1,
         "kind": "audit-lens-ingest",
         "run": run,
-        "ingested": ingested,
+        // One result keeps the single-object shape; a batch lists each.
+        "ingested": match ingested.len() {
+            0 => Value::Null,
+            1 => json!(ingested.remove(0)),
+            _ => json!(ingested),
+        },
         "ingestedLenses": recomputed.ingested,
         "reasoningLensesPending": recomputed.pending,
         "confirmedSecurity": recomputed.confirmed_security,
@@ -1151,6 +1449,12 @@ fn annotate_lens_work(items: &mut [Value], dispatch: &Value) {
     }
 }
 
+/// Size-gate result: the dispatch report and the packets it was planned from.
+type LensSizeGate = (
+    Option<Value>,
+    Option<Vec<legion_audit::native_providers::reasoning::PendingLensWork>>,
+);
+
 /// Bundled dispatch gate. Builds the lens packets the frozen plan implies (no
 /// scanner results yet), plans bundled seats and waves from them, and refuses
 /// to freeze when a seat exceeds the per-seat budget, the run exceeds its
@@ -1162,17 +1466,17 @@ fn lens_size_gate(
     root: &std::path::Path,
     basis: &LensBasis,
     args: &AuditArgs,
-) -> Result<Option<Value>, CommandError> {
+) -> Result<LensSizeGate, CommandError> {
     use legion_audit::native_providers::reasoning as reasoning_lens;
     let Ok((plan, inventory)) = basis.as_ref() else {
-        return Ok(None);
+        return Ok((None, None));
     };
     let Ok(work) = reasoning_lens::pending_lens_work_with_candidates(root, plan, inventory, None)
     else {
-        return Ok(None);
+        return Ok((None, None));
     };
     if work.is_empty() {
-        return Ok(None);
+        return Ok((None, None));
     }
     let mut report = reasoning_lens::ingest::lens_dispatch_plan(&work, &dispatch_limits(args));
     let violations: Vec<String> = report["violations"]
@@ -1222,7 +1526,9 @@ fn lens_size_gate(
             violations.join("\n")
         )));
     }
-    Ok(Some(report))
+    // The packets built here (no scanner results) are what a plan-only run
+    // emits, so it reuses them instead of rebuilding.
+    Ok((Some(report), Some(work)))
 }
 
 /// `pending-host` reasoning-lens work items for the frozen plan, with the full
@@ -1235,12 +1541,25 @@ fn lens_work_items(
     out: Option<&std::path::Path>,
     execution: Option<&legion_audit::ExecutionReport>,
     args: &AuditArgs,
+    size_gate_work: Option<&[legion_audit::native_providers::reasoning::PendingLensWork]>,
 ) -> (Vec<Value>, Vec<String>, Option<Value>) {
     let mut dispatch_gap: Option<String> = None;
+    let mut promotion_gaps: Vec<String> = Vec::new();
     let built = (|| -> Result<(Vec<Value>, Value), String> {
         let (plan, inventory) = basis.as_ref().map_err(Clone::clone)?;
         if executed_plan_digest != plan.digest() {
             return Err("plan digest differs from the executed plan".into());
+        }
+        // Lens packets reference one shared inventory artifact in the run
+        // directory instead of embedding the inventory in every packet.
+        if let Some(out) = out {
+            let snapshot = serde_json::to_vec(inventory).map_err(|error| error.to_string())?;
+            write_artifact(
+                out,
+                legion_audit::native_providers::reasoning::INVENTORY_SNAPSHOT_FILE,
+                &snapshot,
+            )
+            .map_err(|error| error.message)?;
         }
         // The security adjudicator closes scanner candidates, so it needs the
         // executed scanner results; a plan-only run has none (`None`).
@@ -1249,22 +1568,30 @@ fn lens_work_items(
                 root, plan, execution,
             )
         });
-        let work = legion_audit::native_providers::reasoning::pending_lens_work_with_candidates(
-            root,
-            plan,
-            inventory,
-            candidates.as_deref(),
-        )
-        .map_err(|error| error.to_string())?;
+        // Without scanner results the packets equal the size gate's: reuse
+        // them. With results (promotion, adjudicator candidates) rebuild.
+        let rebuilt;
+        let work: &[legion_audit::native_providers::reasoning::PendingLensWork] =
+            match (size_gate_work, candidates.as_deref()) {
+                (Some(work), None) => work,
+                (_, candidates) => {
+                    rebuilt =
+                    legion_audit::native_providers::reasoning::pending_lens_work_with_candidates(
+                        root, plan, inventory, candidates,
+                    )
+                    .map_err(|error| error.to_string())?;
+                    &rebuilt
+                }
+            };
         // A provider whose denominator does not fit one packet is split into
         // parts; the writer names each part file and the provider index.
         let mut items = match out {
             Some(out) => legion_audit::native_providers::reasoning::ingest::write_lens_packets(
                 &out.join("lens-packets"),
-                &work,
+                work,
             ),
             None => {
-                legion_audit::native_providers::reasoning::ingest::lens_packet_items(&work, None)
+                legion_audit::native_providers::reasoning::ingest::lens_packet_items(work, None)
             }
         }
         .map_err(|error| error.to_string())?;
@@ -1273,14 +1600,29 @@ fn lens_work_items(
         let limits = dispatch_limits(args);
         let dispatch = match out {
             Some(out) => legion_audit::native_providers::reasoning::ingest::write_lens_dispatch(
-                out, &work, &limits,
+                out, work, &limits,
             )
             .map_err(|error| error.to_string())?,
-            None => legion_audit::native_providers::reasoning::ingest::lens_dispatch_plan(
-                &work, &limits,
-            ),
+            None => {
+                legion_audit::native_providers::reasoning::ingest::lens_dispatch_plan(work, &limits)
+            }
         };
         annotate_lens_work(&mut items, &dispatch);
+        // Findings promotion the run budget capped: one named gap per count,
+        // never a silent drop.
+        let capped: std::collections::BTreeSet<u64> = work
+            .iter()
+            .filter_map(|item| {
+                item.request
+                    .packet
+                    .pointer("/excerptCoverage/unpromotedCount")
+                    .and_then(Value::as_u64)
+            })
+            .filter(|count| *count > 0)
+            .collect();
+        for count in capped {
+            promotion_gaps.push(format!("lens-promotion-capped:{count}"));
+        }
         Ok((items, dispatch))
     })();
     match built {
@@ -1299,7 +1641,9 @@ fn lens_work_items(
                         .join("; ")
                 ));
             }
-            (items, dispatch_gap.into_iter().collect(), Some(dispatch))
+            let mut gaps: Vec<String> = dispatch_gap.into_iter().collect();
+            gaps.extend(promotion_gaps);
+            (items, gaps, Some(dispatch))
         }
         Err(message) => (
             Vec::new(),
@@ -3067,10 +3411,12 @@ fn rightkit_trust_early_subcommand(args: &AuditArgs) -> Option<&'static str> {
     if args.root.as_os_str() == "ingest"
         && (args.ingest_run.is_some()
             || args.ingest_provider.is_some()
-            || args.ingest_result.is_some()
+            || !args.ingest_result.is_empty()
             || args.followup)
     {
         Some("ingest")
+    } else if args.root.as_os_str() == "next" && args.ingest_run.is_some() {
+        Some("next")
     } else if args.root.as_os_str() == "findings" && !args.findings_args.is_empty() {
         Some("findings")
     } else {
@@ -3998,7 +4344,7 @@ mod closure_tests {
             native_rule_manifest: None,
             ingest_run: None,
             ingest_provider: None,
-            ingest_result: None,
+            ingest_result: Vec::new(),
             followup: false,
             findings_args: Vec::new(),
             findings_repo: None,
@@ -4011,6 +4357,7 @@ mod closure_tests {
             coverage: "auto".into(),
             run_token_budget: 6_000_000,
             max_total_seats: 48,
+            report_schema: 2,
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -4842,7 +5189,7 @@ mod closure_tests {
             native_rule_manifest: None,
             ingest_run: None,
             ingest_provider: None,
-            ingest_result: None,
+            ingest_result: Vec::new(),
             followup: false,
             findings_args: Vec::new(),
             findings_repo: None,
@@ -4855,6 +5202,7 @@ mod closure_tests {
             coverage: "auto".into(),
             run_token_budget: 6_000_000,
             max_total_seats: 48,
+            report_schema: 2,
         }
     }
 

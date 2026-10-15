@@ -77,9 +77,20 @@ overrides it.
    bundled seats (see [lens routing](references/lens-routing.md) Bundled seats). One native subagent
    per seat reads its excerpts once and answers every lens it bundles, tiered by seat kind (judgment
    for `security`, `architecture`, `correctness`, and schema; specialist for the S-seats; mechanical
-   for breadth triage, naming, and dead-file). Dispatch seats from `lens-dispatch.json` in resumable
-   waves of at most `CHILD_AGENTS_MAX`, judgment seats first. Inline execution is fallback only when no
-   native seat is available. Reason only inside frozen-plan providers.
+   for breadth triage, naming, and dead-file). Drive dispatch with `legion audit next --run <run-dir>`
+   (a pure function of `lens-dispatch.json`, the ingested receipts and adjudication ledger, and the seat
+   leases in `next-state.json`). Loop: `next` -> dispatch every seat of the returned wave (at most
+   `CHILD_AGENTS_MAX`/16 in parallel, each seat at its own `modelTier` from the plan, fresh context,
+   reading `packetPaths` and writing `resultPaths`) -> one batch ingest of the wave's results
+   (`legion audit ingest --run <run-dir> --result <file> ...`) -> `next` again. Repeated `next` calls
+   without new results return the same wave; a seat unanswered when its lease (default 20 minutes)
+   expires is reissued and counts an attempt (two per seat). Adjudication seats come from the same loop in
+   rounds (batches; confirmations, spot-checks and individual reviews; voided-batch reruns; then one confirmation-only closing round), each seat
+   with its own packet; merge every adjudication seat result into the single cumulative
+   `legacy.security.adjudication` result (all verdicts so far) before ingesting. Stop on `done`;
+   `incomplete:<reasons>` (for example `retry-exhausted`, `adjudication-contested`) and
+   `budget-exhausted` end the loop as typed gaps, never as a clean verdict. Inline execution is fallback
+   only when no native seat is available. Reason only inside frozen-plan providers.
    The engine has no in-process lens host: `legion audit --out <run-dir>` freezes a per-run epoch key
    and emits each reasoning lens as a `pending-host` packet at `<run-dir>/lens-packets/<provider>.json`,
    listed under `lensWork` / `reasoningLensesPending`; `reasoningLensesRan` counts a lens only after
@@ -87,7 +98,8 @@ overrides it.
    `legion-lens-result` JSON file per bundled lens whose every finding carries a verbatim code anchor
    (`anchor: {path, line, text}`; see the execution contract). Apply the refutation rule (a finding is
    withdrawn only by citing, as a `disproof` anchor, the line that disproves it). Then run
-   `legion audit ingest --run <run-dir> --provider <id> --result <file>` once per lens, sequentially:
+   `legion audit ingest --run <run-dir> --result <file> [--result <file> ...]` once per wave (results name
+   their provider; `--provider <id>` overrides):
    the CLI is the trusted host, rejects any anchor that does not match the file bytes at the frozen
    revision, MACs the receipt, and rewrites `report.json` with the recomputed verdict. Finish with
    `legion verify <run-dir>`; it recomputes the verdict from the ingested receipts. A lens that is not

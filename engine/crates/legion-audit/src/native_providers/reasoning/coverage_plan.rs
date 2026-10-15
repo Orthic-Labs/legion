@@ -80,6 +80,36 @@ pub fn seat_part_cap_bytes(seat_tokens: u64, lenses: usize, context_bytes: usize
         .min(super::excerpts::MAX_TOTAL_EXCERPT_BYTES)
 }
 
+/// Digest of the review set a lens actually examines after findings
+/// promotion: the frozen review set minus the displaced sampled paths plus the
+/// promoted paths. Shared by packet construction and ingest verification so a
+/// packet's promotion can be re-derived from the frozen plan alone.
+pub fn effective_review_set_digest(
+    review_set: &BTreeSet<String>,
+    displaced: &[String],
+    promoted: &[String],
+) -> Result<String, AuditError> {
+    let mut effective: BTreeSet<&str> = review_set.iter().map(String::as_str).collect();
+    for path in displaced {
+        effective.remove(path.as_str());
+    }
+    effective.extend(promoted.iter().map(String::as_str));
+    let effective: Vec<&str> = effective.into_iter().collect();
+    canonical_digest(&effective).map_err(|error| AuditError::Invalid(error.to_string()))
+}
+
+/// Rank of a scanner severity for promotion order (higher promotes first).
+pub fn promotion_severity_rank(severity: &str) -> u8 {
+    match severity.to_ascii_lowercase().as_str() {
+        "critical" => 5,
+        "high" | "error" => 4,
+        "medium" | "moderate" | "warning" => 3,
+        "low" => 2,
+        "info" | "note" => 1,
+        _ => 0,
+    }
+}
+
 /// Commits read for churn.
 const CHURN_COMMIT_LIMIT: &str = "2000";
 
@@ -811,6 +841,16 @@ pub fn plan_coverage(
         );
     }
 
+    let hotspot_rank: BTreeMap<&str, usize> = hotspots
+        .iter()
+        .enumerate()
+        .map(|(index, path)| (*path, index))
+        .collect();
+    let remainder_rank: BTreeMap<&str, usize> = remainder
+        .iter()
+        .enumerate()
+        .map(|(index, path)| (*path, index))
+        .collect();
     for lens in lenses {
         let Some(bundle) = lens_plan::bundle_for_provider(&lens.provider_id) else {
             continue;
@@ -832,6 +872,26 @@ pub fn plan_coverage(
             strata_paths.entry(name).or_default().push(path.clone());
         }
         review_set.sort();
+        // Hotspot and remainder paths are listed best-ranked first (hotspot
+        // score order, seeded order), so findings promotion can displace the
+        // lowest-ranked sampled files by walking each list from its end.
+        // Mandatory paths stay in path order.
+        if let Some(list) = strata_paths.get_mut("hotspot") {
+            list.sort_by_key(|path| {
+                hotspot_rank
+                    .get(path.as_str())
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            });
+        }
+        if let Some(list) = strata_paths.get_mut("remainder") {
+            list.sort_by_key(|path| {
+                remainder_rank
+                    .get(path.as_str())
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            });
+        }
         let excluded = lens
             .paths
             .iter()
@@ -1023,6 +1083,28 @@ pub struct FrozenCoverage {
 impl FrozenCoverage {
     pub fn is_sampled(&self) -> bool {
         self.mode == MODE_RISK_SAMPLED
+    }
+
+    /// Paths of the named stratum in frozen order (best-ranked first for the
+    /// hotspot and remainder strata of a current plan).
+    pub fn stratum_paths(&self, name: &str) -> Vec<String> {
+        self.strata
+            .as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("name").and_then(Value::as_str) == Some(name))
+            })
+            .and_then(|item| item.get("paths"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn from_value(value: &Value) -> Option<Self> {
