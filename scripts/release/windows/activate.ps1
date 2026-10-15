@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$InstallRoot,
   [Parameter(Mandatory=$true)][string]$Version,
-  [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 180
+  [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 600
 )
 $ErrorActionPreference = 'Stop'
 $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')

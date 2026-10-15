@@ -21,7 +21,7 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
   }
 
   private let fileManager = FileManager.default
-  private let commandTimeout: TimeInterval = 300
+  private let commandTimeout: TimeInterval = 600
   private var headless: Bool { CommandLine.arguments.contains("--headless") }
 
   static func main() {
