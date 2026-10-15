@@ -266,17 +266,13 @@ pub(crate) fn snapshot_source_sides(
 
 fn inventory_entry(path: String, bytes: &[u8]) -> InventoryEntry {
     let relative = Path::new(&path);
-    InventoryEntry {
-        path,
-        symbols: Vec::new(),
-        dependencies: relative
-            .file_name()
-            .and_then(|name| name.to_str())
-            .map(|name| manifest_dependencies(name, bytes))
-            .unwrap_or_default(),
-        package_scripts: if relative.file_name().and_then(|name| name.to_str())
-            == Some("package.json")
-        {
+    let dependencies = relative
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| manifest_dependencies(name, bytes))
+        .unwrap_or_default();
+    let package_scripts =
+        if relative.file_name().and_then(|name| name.to_str()) == Some("package.json") {
             let mut scripts: Vec<String> = serde_json::from_slice::<Value>(bytes)
                 .ok()
                 .and_then(|value| value.get("scripts").and_then(Value::as_object).cloned())
@@ -286,8 +282,14 @@ fn inventory_entry(path: String, bytes: &[u8]) -> InventoryEntry {
             scripts
         } else {
             Vec::new()
-        },
-        source_file: is_source_path(relative),
+        };
+    let source_file = is_source_path(relative);
+    InventoryEntry {
+        path,
+        symbols: Vec::new(),
+        dependencies,
+        package_scripts,
+        source_file,
         digest: Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes)))),
     }
 }

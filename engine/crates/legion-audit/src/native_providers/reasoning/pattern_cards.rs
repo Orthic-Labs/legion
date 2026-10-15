@@ -167,7 +167,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
 ];
 
 /// Returns only cards owned by the lens already selected for this seat.
-pub fn cards_for_lens(lens: &str) -> impl Iterator<Item = &'static PatternCard> {
+pub fn cards_for_lens(lens: &str) -> impl Iterator<Item = &'static PatternCard> + '_ {
     PATTERN_CARDS
         .iter()
         .filter(move |card| card.owner_lens == lens)

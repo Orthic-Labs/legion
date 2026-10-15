@@ -14,7 +14,7 @@ use std::{
     process::Stdio,
     sync::mpsc,
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 const MAX_STREAM: usize = 4 * 1024 * 1024;
@@ -37,6 +37,7 @@ pub struct Observation {
     pub context_id: String,
     pub process_id: u32,
     pub process_created: Option<u64>,
+    pub process_creation_time: Option<SystemTime>,
     pub reply: Option<Value>,
     pub usage: UsageReceipt,
     pub raw_usage: Option<Value>,
@@ -220,6 +221,7 @@ pub fn invoke(
         context_id: String::new(),
         process_id: 0,
         process_created: None,
+        process_creation_time: None,
         reply: None,
         usage: usage.clone(),
         raw_usage: None,
@@ -260,7 +262,11 @@ pub fn invoke(
             .env("CLAUDE_CODE_MAX_OUTPUT_TOKENS", output_limit.to_string());
         let mut child = cmd.spawn().map_err(|error| error.to_string())?;
         observation.process_id = child.id();
-        observation.process_created = child.creation_time_ticks();
+        observation.process_creation_time = child.creation_time();
+        #[cfg(windows)]
+        {
+            observation.process_created = child.creation_time_ticks();
+        }
         let stdout = reader(
             child.take_stdout().ok_or("native stdout missing")?,
             MAX_STREAM,
@@ -488,8 +494,22 @@ fn validate_schema(value: &Value, schema: &Value, depth: usize) -> Result<(), St
     Ok(())
 }
 
+fn creation_time_value(time: Option<SystemTime>) -> Value {
+    // RightKit captures OS process start on macOS/Windows. Its other Unix
+    // implementation captures host spawn time; label that weaker observation.
+    let source = if cfg!(windows) {
+        "windows-process-start"
+    } else if cfg!(target_os = "macos") {
+        "macos-process-start"
+    } else {
+        "host-spawn-observation"
+    };
+    time.and_then(|time|time.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|elapsed|json!({"source":source,"unixSeconds":elapsed.as_secs(),"nanoseconds":elapsed.subsec_nanos()}))
+        .unwrap_or(Value::Null)
+}
 pub fn observation_value(observation: &Observation) -> Value {
-    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
+    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
 }
 
 #[cfg(test)]
@@ -510,6 +530,7 @@ mod tests {
                 context_id: String::new(),
                 process_id: 1,
                 process_created: None,
+                process_creation_time: None,
                 reply: None,
                 usage: usage.clone(),
                 raw_usage: None,
@@ -521,6 +542,20 @@ mod tests {
             },
             usage,
         )
+    }
+    #[test]
+    fn creation_time_preserves_observed_precision_and_missing_identity() {
+        let elapsed = Duration::new(123, 456);
+        let observed = creation_time_value(SystemTime::UNIX_EPOCH.checked_add(elapsed));
+        assert_eq!(observed["unixSeconds"], 123);
+        assert_eq!(observed["nanoseconds"], 456);
+        assert!(observed["source"].is_string());
+        assert_eq!(creation_time_value(None), Value::Null);
+        let (observation, _) = empty();
+        assert_eq!(
+            observation_value(&observation)["processCreationTicks"],
+            Value::Null
+        );
     }
     #[test]
     fn native_stream_preserves_missing_usage_instead_of_zero() {
