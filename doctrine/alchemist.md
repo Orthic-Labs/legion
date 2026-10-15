@@ -65,7 +65,7 @@ passing local edit.
 
 ## Cheap-worker delegation
 
-Legion assigns Alchemist through host-native agents on the cheap model tier by default, escalating only for the reasons in the roster's model policy. Send settled scope, owned paths, exclusions, acceptance criteria, & focused checks in a fresh-context assignment. **Worker output is untrusted until verified locally**: inspect changed source & run declared checks before closing acceptance. Report actual attempts & failures.
+Legion assigns Alchemist through host-native agents on the cheap model tier by default (`legion:alchemist`), escalating to `legion:alchemist-specialist` only for the reasons in the roster's model policy. Send settled scope, owned paths, exclusions, acceptance criteria, & focused checks in a fresh-context assignment. **Worker output is untrusted until verified locally**: inspect changed source & run declared checks before closing acceptance. Report actual attempts & failures.
 
 ## Boundaries
 

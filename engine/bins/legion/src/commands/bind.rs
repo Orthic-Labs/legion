@@ -72,7 +72,7 @@ fn role_configuration_bounded(
                     .cloned()
             })
     };
-    let entries = ["sage", "alchemist", "oracle", "sentry"].iter().map(|id| {
+    let entries = CODEX_ROLE_IDS.iter().map(|id| {
         let mut row = json!({"role":id,"status":"unregistered","declaredModelTier":role(id).tier,
             "tierCompatibility":"unverified","runtime":{"status":"unknown",
             "reason":"file configuration does not prove role loading, model compatibility or accepted launch"}});
@@ -222,6 +222,17 @@ fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> Stri
 }
 
 const HARNESS_NAMES: [&str; 4] = ["claude-code", "codex", "gemini", "agents-md"];
+/// Roles that get a Codex agent file and `[agents.<id>]` entry. `alchemist-specialist` is the
+/// `balanced-executor` card of the Alchemist role: same doctrine, own description and tier.
+const CODEX_ROLE_IDS: [&str; 5] = [
+    "sage",
+    "alchemist",
+    "alchemist-specialist",
+    "oracle",
+    "sentry",
+];
+/// Tier variants of a role: (variant id, base role).
+const ROLE_VARIANTS: [(&str, &str); 1] = [("alchemist-specialist", "alchemist")];
 const MARKER_START: &str = "<!-- legion:bind:start v1 -->";
 const MARKER_END: &str = "<!-- legion:bind:end -->";
 const TOML_START: &str = "# >>> legion:managed-block v1 >>>";
@@ -233,6 +244,10 @@ const ROSTER_SAGE: &str = include_str!(concat!(
 const ROSTER_ALCHEMIST: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../src/roster/alchemist.md"
+));
+const ROSTER_ALCHEMIST_SPECIALIST: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../src/roster/alchemist-specialist.md"
 ));
 const ROSTER_ORACLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -471,6 +486,10 @@ mod role_binding_tests {
         assert!(sentry.get("sandbox_mode").is_none());
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("gpt-6-luna"));
+        let specialist: toml::Value = toml::from_str(&content("alchemist-specialist")).unwrap();
+        assert_eq!(specialist["model"].as_str(), Some("gpt-6.1-sol"));
+        assert_eq!(specialist["name"].as_str(), Some("alchemist-specialist"));
+        assert!(specialist.get("sandbox_mode").is_none());
         f.write(
             "project/deep/.codex/agents/alchemist.toml",
             "model = 'operator-model'\nsandbox_mode = 'read-only'\n",
@@ -478,6 +497,38 @@ mod role_binding_tests {
         let profile: toml::Value = toml::from_str(&content("alchemist")).unwrap();
         assert_eq!(profile["model"].as_str(), Some("operator-model"));
         assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
+    }
+
+    #[test]
+    fn alchemist_specialist_is_a_tier_variant_sharing_the_alchemist_doctrine() {
+        let (_, base_roster) = frontmatter(ROSTER_ALCHEMIST);
+        let (_, variant_roster) = frontmatter(ROSTER_ALCHEMIST_SPECIALIST);
+        let (_, method) = frontmatter(DOCTRINE_ALCHEMIST);
+        let projection = role_projection("alchemist-specialist");
+        assert!(projection.starts_with("---\nname: alchemist-specialist\n"));
+        assert!(projection.contains("Model tier: `balanced-executor`."));
+        assert!(projection.contains(base_roster.trim()));
+        assert!(projection.contains(variant_roster.trim()));
+        assert!(projection.ends_with(&format!("## Method\n\n{}\n", method.trim())));
+        assert_eq!(role("alchemist").tier, "mechanical-cheap");
+        assert_eq!(role("alchemist-specialist").tier, "balanced-executor");
+        assert_ne!(
+            role("alchemist").description,
+            role("alchemist-specialist").description
+        );
+        let inner = config_inner();
+        assert!(inner.contains("[agents.alchemist-specialist]"));
+        assert!(inner.contains("config_file = \"agents/alchemist-specialist.toml\""));
+        assert!(owned_headers().contains(&"[agents.alchemist-specialist]".to_string()));
+        assert!(CODEX_ROLE_IDS.contains(&"alchemist-specialist"));
+        // The AGENTS.md context block stays at four authority roles.
+        assert_eq!(
+            agents_target(Path::new("unused"))
+                .expected
+                .matches("## Triggers")
+                .count(),
+            4
+        );
     }
 
     #[test]
@@ -511,7 +562,7 @@ mod role_binding_tests {
         );
         assert_eq!(
             codex_tier_model("balanced-executor").as_deref(),
-            Some("gpt-6-luna")
+            Some("gpt-6.1-sol")
         );
         assert_eq!(
             codex_tier_model("mechanical-cheap").as_deref(),
@@ -975,6 +1026,7 @@ fn role(id: &str) -> Role {
     let source = match id {
         "sage" => ROSTER_SAGE,
         "alchemist" => ROSTER_ALCHEMIST,
+        "alchemist-specialist" => ROSTER_ALCHEMIST_SPECIALIST,
         "oracle" => ROSTER_ORACLE,
         "sentry" => ROSTER_SENTRY,
         _ => ROSTER_ORACLE,
@@ -1038,23 +1090,43 @@ fn role_projection(id: &str) -> String {
     let source = match id {
         "sage" => ROSTER_SAGE,
         "alchemist" => ROSTER_ALCHEMIST,
+        "alchemist-specialist" => ROSTER_ALCHEMIST_SPECIALIST,
         "oracle" => ROSTER_ORACLE,
         "sentry" => ROSTER_SENTRY,
         _ => ROSTER_ORACLE,
     };
     let (f, b) = frontmatter(source);
+    // A tier variant shares its base role's roster body and doctrine; its own body is the
+    // variant boundary appended after it.
+    let b = match ROLE_VARIANTS.iter().find(|(variant, _)| *variant == id) {
+        Some((_, base)) => format!(
+            "{}\n\n{}",
+            frontmatter(roster_source(base)).1.trim(),
+            b.trim()
+        ),
+        None => b,
+    };
     let name = f.get("name").cloned().unwrap_or_else(|| id.into());
     let desc = f.get("description").cloned().unwrap_or_default();
     let tier = f.get("modelTier").cloned().unwrap_or_default();
     let method = match id {
         "sage" => DOCTRINE_SAGE,
-        "alchemist" => DOCTRINE_ALCHEMIST,
+        "alchemist" | "alchemist-specialist" => DOCTRINE_ALCHEMIST,
         "oracle" => DOCTRINE_ORACLE,
         "sentry" => DOCTRINE_SENTRY,
         _ => DOCTRINE_ORACLE,
     };
     let (_, method) = frontmatter(method);
     format!("---\nname: {name}\ndescription: {desc}\n---\n\n# {} — Legion role\n\nModel tier: `{tier}`. Host resolves a compatible provider/model; roster source is vendor-neutral.\n\n## Roster\n\n{}\n\n## Method\n\n{}\n",title_case(&name),b.trim(),method.trim())
+}
+fn roster_source(id: &str) -> &'static str {
+    match id {
+        "sage" => ROSTER_SAGE,
+        "alchemist" => ROSTER_ALCHEMIST,
+        "alchemist-specialist" => ROSTER_ALCHEMIST_SPECIALIST,
+        "sentry" => ROSTER_SENTRY,
+        _ => ROSTER_ORACLE,
+    }
 }
 fn capability_catalog() -> String {
     let v: Value = serde_json::from_str(HOST_PROJECTION).unwrap_or_default();
@@ -1214,7 +1286,7 @@ fn agents_target(root: &Path) -> Target {
 
 fn codex_targets(root: &Path) -> Vec<Target> {
     let mut out = vec![agents_target(root)];
-    for id in ["sage", "alchemist", "oracle", "sentry"] {
+    for id in CODEX_ROLE_IDS {
         let content = codex_role_target_content(root, id);
         out.push(target_whole(
             root.join(format!(".codex/agents/{id}.toml")),
@@ -1273,7 +1345,7 @@ fn codex_targets(root: &Path) -> Vec<Target> {
 }
 fn config_inner() -> String {
     let mut t = Vec::new();
-    for id in ["sage", "alchemist", "oracle", "sentry"] {
+    for id in CODEX_ROLE_IDS {
         let r = role(id);
         t.push(format!(
             "[agents.{id}]\ndescription = {}\nconfig_file = {}\n",
@@ -1293,12 +1365,13 @@ fn config_inner() -> String {
     t.join("\n")
 }
 fn generated_header() -> String {
-    "# Generated by Legion bind.\n# Owned keys: [agents.sage], [agents.alchemist], [agents.oracle], [agents.sentry], [agents.council-seat].\n# Everything outside the legion:managed-block markers below is the user's file.".into()
+    "# Generated by Legion bind.\n# Owned keys: [agents.sage], [agents.alchemist], [agents.alchemist-specialist], [agents.oracle], [agents.sentry], [agents.council-seat].\n# Everything outside the legion:managed-block markers below is the user's file.".into()
 }
 fn owned_headers() -> Vec<String> {
     [
         "[agents.sage]",
         "[agents.alchemist]",
+        "[agents.alchemist-specialist]",
         "[agents.oracle]",
         "[agents.sentry]",
         "[agents.council-seat]",
@@ -1312,6 +1385,7 @@ fn legacy_headers() -> HashSet<String> {
     [
         "sage",
         "alchemist",
+        "alchemist-specialist",
         "oracle",
         "sentry",
         "arcane",

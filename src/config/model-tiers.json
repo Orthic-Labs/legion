@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "legion-model-tier-map",
-  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Sentry runs mechanical-cheap (Haiku on Claude Code, Luna on Codex). Council runs deliberation as six blind seats plus one adjudicator by role (improvement-path Wonder full via Muse CLI, scope-alternatives DeepSeek V4.1 Flash, user-outcome Kimi K3, red-team Fable 5.1 via Claude CLI, security-ops GLM 5.3, minimize GLM 5.3 Flash, adjudicator Astra 6 via Codex CLI; the NIM models run through the council nim-seat script); an explicit human reviewer override may select another available model, including Fable or Astra.",
+  "comment": "Host model policy: each intelligence tier resolves to a host-native model id per harness. Roster roles declare tiers only; explicit model choices live here, never in role or skill sources. Sage and Oracle run frontier-judgment (Opus on Claude Code, Sol on Codex); Alchemist runs mechanical-cheap by default (Haiku on Claude Code, Luna on Codex) and its alchemist-specialist card runs balanced-executor (Sonnet on Claude Code, Sol 6.1 on Codex); Sentry runs mechanical-cheap (Haiku on Claude Code, Luna on Codex). Council runs deliberation as six blind seats plus one adjudicator by role (improvement-path Wonder full via Muse CLI, scope-alternatives DeepSeek V4.1 Flash, user-outcome Kimi K3, red-team Fable 5.1 via Claude CLI, security-ops GLM 5.3, minimize GLM 5.3 Flash, adjudicator Astra 6 via Codex CLI; the NIM models run through the council nim-seat script); an explicit human reviewer override may select another available model, including Fable or Astra.",
   "tiers": {
     "frontier-judgment": {
       "hosts": {
@@ -12,7 +12,7 @@
     "balanced-executor": {
       "hosts": {
         "claude-code": "sonnet",
-        "codex": "gpt-6-luna"
+        "codex": "gpt-6.1-sol"
       }
     },
     "mechanical-cheap": {

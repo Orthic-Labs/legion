@@ -8,11 +8,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
+/// Tier variants of a role: (variant id, base role). A variant has its own roster file
+/// (`variantOf: <base>`) but embeds the base role's doctrine and roster body.
+pub const VARIANT_IDS: &[(&str, &str)] = &[("alchemist-specialist", "alchemist")];
 const MODEL_TIERS: &[&str] = &["frontier-judgment", "balanced-executor", "mechanical-cheap"];
 fn route_method(id: &str) -> &'static str {
     match id {
         "sage" => "doctrine/sage.md",
-        "alchemist" => "doctrine/alchemist.md",
+        "alchemist" | "alchemist-specialist" => "doctrine/alchemist.md",
         "oracle" => "doctrine/oracle.md",
         "sentry" => "doctrine/sentry.md",
         _ => "",
@@ -62,7 +65,7 @@ fn parse_frontmatter(
 }
 
 pub fn roster_path(root: &Path, id: &str) -> Result<PathBuf, String> {
-    if !ROLE_IDS.contains(&id) {
+    if !ROLE_IDS.contains(&id) && !VARIANT_IDS.iter().any(|(variant, _)| *variant == id) {
         return Err(format!("unknown roster role: {id}"));
     }
     Ok(root.join("src/roster").join(format!("{id}.md")))
@@ -137,6 +140,11 @@ pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
         "## Roster".to_string(),
         String::new(),
     ];
+    if let Some((_, base)) = VARIANT_IDS.iter().find(|(variant, _)| *variant == id) {
+        let base_role = load_roster_role(root, base)?;
+        lines.push(base_role.body);
+        lines.push(String::new());
+    }
     lines.push(role.body);
     lines.push(String::new());
     lines.push("## Method".to_string());
@@ -195,5 +203,37 @@ mod tests {
         assert!(projection.contains("Sage never performs product-state effects."));
         assert!(projection.contains("Sage adjudicates product-source effects."));
         assert!(!projection.contains("Route method: `doctrine/"));
+    }
+
+    #[test]
+    fn variant_projection_carries_base_roster_variant_boundary_and_base_doctrine() {
+        let root =
+            std::env::temp_dir().join(format!("legion-roster-variant-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/roster")).unwrap();
+        fs::create_dir_all(root.join("doctrine")).unwrap();
+        fs::write(
+            root.join("src/roster/alchemist.md"),
+            "---\nname: alchemist\ndescription: Dispatch for mechanical work\nmodelTier: mechanical-cheap\n---\n\n## Purpose\n\nBase purpose.\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/roster/alchemist-specialist.md"),
+            "---\nname: alchemist-specialist\nvariantOf: alchemist\ndescription: Dispatch only for risky work\nmodelTier: balanced-executor\n---\n\n## Variant boundary\n\nSelective use only.\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("doctrine/alchemist.md"),
+            "---\nname: alchemist-method\n---\n\n## Method\n\nShared doctrine.\n",
+        )
+        .unwrap();
+
+        let projection = role_projection(&root, "alchemist-specialist").unwrap();
+        let _ = fs::remove_dir_all(&root);
+        assert!(projection.contains("name: alchemist-specialist"));
+        assert!(projection.contains("Model tier: `balanced-executor`"));
+        assert!(projection.contains("Base purpose."));
+        assert!(projection.contains("Selective use only."));
+        assert!(projection.contains("Shared doctrine."));
     }
 }

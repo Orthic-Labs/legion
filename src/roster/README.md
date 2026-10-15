@@ -1,7 +1,11 @@
 # Legion roster
 
 `roster/{sage,alchemist,oracle,sentry}.md` is Legion's sole source for role identity, authority
-where applicable, trigger boundary, & abstract model tiers. Sentry is a mechanical coordinator,
+where applicable, trigger boundary, & abstract model tiers. A roster file with `variantOf: <role>`
+(`alchemist-specialist.md`) is a tier variant of that role, not a second role: it shares the base
+role's doctrine and authority, declares only its own description, tier, and dispatch boundary, and
+gets its own host card (`agents/alchemist-specialist.md`, Codex `alchemist-specialist.toml`) whose
+model must match its tier. Sentry is a mechanical coordinator,
 not a semantic or effect authority. `doctrine/council-seat.md` remains source for Council seats;
 Council is not a roster role.
 
