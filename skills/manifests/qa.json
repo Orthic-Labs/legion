@@ -49,7 +49,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://qa/SKILL.md",
-      "digest": "sha256:b2d979e180c1b12537d5d2916df9deb603b8a96e0022d1c7a24950fe4da6c4a4"
+      "digest": "sha256:8f4dce95f704f9b80730b0ddf974fb0139597c83b2001431f18eab93b3762339"
     },
     {
       "path": "agents/openai.yaml",
@@ -69,12 +69,12 @@
     {
       "path": "references/browser-automation.md",
       "uri": "legion-skill://qa/references/browser-automation.md",
-      "digest": "sha256:9d4826418470f245018c5a963c94ca5aa26d1d65b55d0defe8c3f711276bbbb5"
+      "digest": "sha256:e6c16fae224e2032a5f6ab428bd394d3ddf7c5cad170c5a6d2cc6bbf339fec0c"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://qa/references/manual.md",
-      "digest": "sha256:32400014a009ac9fae8e8cd2949277402e015c21b264e10ca9f80adc66f36803"
+      "digest": "sha256:78b760cb7b972de30152b121c98c89b4efb0c46354ca3855093833609f91f81d"
     },
     {
       "path": "references/skill-evaluation.md",
