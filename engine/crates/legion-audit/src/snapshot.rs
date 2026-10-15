@@ -67,6 +67,20 @@ pub struct FrozenSnapshot {
     pub manifest: SnapshotManifest,
     pub manifest_path: PathBuf,
 }
+/// Windows canonical paths use a verbatim prefix even when the owner state
+/// locator used drive syntax. Resolve that spelling through the filesystem only
+/// after a no-reparse pin; keep it alive so Windows cannot swap any ancestor.
+fn directory_location(path: &Path) -> Result<PathBuf, AuditError> {
+    #[cfg(windows)]
+    {
+        let pinned = StateDir::open(path).map_err(io)?;
+        std::fs::canonicalize(pinned.path()).map_err(io)
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(path.into())
+    }
+}
 fn read_safe(root: &Path, path: &str, cap: usize) -> Result<Vec<u8>, AuditError> {
     scope::safe_path(path)?;
     let joined = root.join(path);
@@ -328,8 +342,8 @@ impl FrozenSnapshot {
             key,
             files,
             base_files,
-            execution_root: selected_dir.path().into(),
-            baseline_root: base_dir.path().into(),
+            execution_root: directory_location(selected_dir.path())?,
+            baseline_root: directory_location(base_dir.path())?,
             gaps,
             dirty_digest,
             source_cache: source_cache.stats.clone(),
@@ -338,7 +352,7 @@ impl FrozenSnapshot {
         object
             .write_new("manifest.json", &serde_json::to_vec(&manifest).map_err(io)?)
             .map_err(io)?;
-        let manifest_path = object.path().join("manifest.json");
+        let manifest_path = directory_location(object.path())?.join("manifest.json");
         let snapshot = Self {
             manifest,
             manifest_path,
@@ -382,7 +396,10 @@ impl FrozenSnapshot {
             .ok_or_else(|| invalid("snapshot root parent missing"))?
             .join("manifest.json");
         let snapshot = Arc::new(Self::open(&manifest)?);
-        if snapshot.manifest.execution_root != root && snapshot.manifest.baseline_root != root {
+        let root_location = directory_location(root)?;
+        if directory_location(&snapshot.manifest.execution_root)? != root_location
+            && directory_location(&snapshot.manifest.baseline_root)? != root_location
+        {
             return Err(invalid("execution root is not bound to snapshot"));
         }
         if cache.len() >= 32 {
@@ -399,7 +416,8 @@ impl FrozenSnapshot {
         max_bytes: usize,
     ) -> Result<(Vec<u8>, SnapshotSide), AuditError> {
         let snapshot = Self::for_execution_root(root)?;
-        let side = if root == snapshot.manifest.baseline_root
+        let side = if directory_location(root)?
+            == directory_location(&snapshot.manifest.baseline_root)?
             || !snapshot.manifest.files.contains_key(path)
                 && snapshot.manifest.scope.changed_paths.contains(path)
                 && snapshot.manifest.base_files.contains_key(path)
@@ -437,17 +455,18 @@ impl FrozenSnapshot {
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| invalid("manifest filename invalid"))?;
-        let bytes = StateDir::open(parent)
-            .map_err(io)?
-            .read(name, MAX_MANIFEST_BYTES)
-            .map_err(io)?;
+        let directory = StateDir::open(parent).map_err(io)?;
+        let bytes = directory.read(name, MAX_MANIFEST_BYTES).map_err(io)?;
         let manifest: SnapshotManifest = serde_json::from_slice(&bytes).map_err(io)?;
         if manifest.schema_version != 1 || manifest.scope.schema_version != 1 {
             return Err(invalid("unsupported snapshot schema"));
         }
-        // Roots are derived, never accepted as arbitrary paths from JSON.
-        if manifest.execution_root != parent.join("selected")
-            || manifest.baseline_root != parent.join("base")
+        // Roots are derived, never accepted as arbitrary paths from JSON. The
+        // locator pin remains alive while Windows resolves equivalent spellings;
+        // each declared root receives its own no-reparse pin before resolution.
+        let parent_location = directory_location(directory.path())?;
+        if directory_location(&manifest.execution_root)? != parent_location.join("selected")
+            || directory_location(&manifest.baseline_root)? != parent_location.join("base")
         {
             return Err(invalid("snapshot roots do not match manifest location"));
         }
@@ -959,6 +978,71 @@ mod tests {
         );
         assert!(snapshot.manifest.scope.changed_paths.is_empty());
         assert!(!snapshot.manifest.files.contains_key("added.rs"));
+    }
+    #[cfg(windows)]
+    fn drive_spelling(path: &Path) -> PathBuf {
+        use std::path::{Component, Prefix};
+        let mut components = path.components();
+        let Some(Component::Prefix(prefix)) = components.next() else {
+            panic!("canonical fixture path requires drive prefix");
+        };
+        let Prefix::VerbatimDisk(drive) = prefix.kind() else {
+            panic!("canonical local fixture path requires verbatim drive prefix");
+        };
+        let mut ordinary = PathBuf::from(format!("{}:\\", drive as char));
+        for component in components {
+            match component {
+                Component::RootDir => {}
+                Component::Normal(name) => ordinary.push(name),
+                _ => panic!("unexpected canonical fixture component"),
+            }
+        }
+        ordinary
+    }
+    #[cfg(windows)]
+    #[test]
+    fn manifest_reopens_with_drive_and_verbatim_locators() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        assert_eq!(
+            snapshot.manifest.execution_root,
+            std::fs::canonicalize(&snapshot.manifest.execution_root).unwrap()
+        );
+        let ordinary_manifest = drive_spelling(&snapshot.manifest_path);
+        assert_ne!(ordinary_manifest, snapshot.manifest_path);
+        let reopened = FrozenSnapshot::open(&ordinary_manifest).unwrap();
+        assert_eq!(reopened.manifest.key, snapshot.manifest.key);
+        let ordinary_selected = drive_spelling(&snapshot.manifest.execution_root);
+        let ordinary_base = drive_spelling(&snapshot.manifest.baseline_root);
+        assert_eq!(
+            FrozenSnapshot::source_for_root(&ordinary_selected, "file.rs", 100).unwrap(),
+            (b"base\n".to_vec(), SnapshotSide::Selected)
+        );
+        assert_eq!(
+            FrozenSnapshot::source_for_root(&ordinary_base, "file.rs", 100).unwrap(),
+            (b"base\n".to_vec(), SnapshotSide::Base)
+        );
+    }
+    #[test]
+    fn manifest_rejects_another_snapshot_root() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Repo);
+        let other = fixture.capture(scope::ScopeSpec::Repo);
+        let mut substituted = snapshot.manifest.clone();
+        substituted.execution_root = other.manifest.execution_root;
+        let parent = StateDir::open(snapshot.manifest_path.parent().unwrap()).unwrap();
+        parent
+            .write_new(
+                "manifest-wrong-root.json",
+                &serde_json::to_vec(&substituted).unwrap(),
+            )
+            .unwrap();
+        assert!(
+            FrozenSnapshot::open(&parent.path().join("manifest-wrong-root.json"))
+                .unwrap_err()
+                .to_string()
+                .contains("snapshot roots do not match manifest location")
+        );
     }
     #[test]
     fn publication_reopens_nested_source_while_creation_pins_live() {
