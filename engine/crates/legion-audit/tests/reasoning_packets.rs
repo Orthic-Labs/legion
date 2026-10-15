@@ -523,32 +523,24 @@ fn ingesting_a_single_part_reports_the_provider_level_outstanding_work() {
 fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
     // 19 whole files plus one big file whose chunks span more than one part.
     let mut files = many_files(19);
-    files.push(("src/z_big.rs".to_owned(), filler_file(99, 3000)));
+    files.push(("src/z_big.rs".to_owned(), filler_file(99, 40_000)));
     let env = build_env("straddle", RAW_PROVIDER, RAW_LENS, &files);
     let big = "src/z_big.rs".to_owned();
-    // Locate where the big file starts rather than assuming part 1: the part
-    // cap depends on the frozen seat budget and per-chunk accounting.
-    let home = env
-        .work
-        .iter()
-        .position(|item| homed_paths(item).contains(&big))
-        .expect("the big file is homed in some part");
-    let continued: Vec<usize> = (0..env.work.len())
-        .filter(|index| {
-            env.work[*index].request.packet["part"]["continuedPaths"]
-                .as_array()
-                .is_some_and(|paths| paths.contains(&json!(big)))
-        })
+    // Parts holding any chunk of the big file, and a middle part that holds
+    // only big-file chunks: skipping it leaves every small file covered.
+    let big_parts: Vec<usize> = (0..env.work.len())
+        .filter(|index| homed_paths(&env.work[*index]).contains(&big))
         .collect();
     assert!(
-        !continued.is_empty() && !continued.contains(&home),
-        "the big file spans its home part and at least one other part"
+        big_parts.len() >= 3,
+        "the big file spans at least three parts: {big_parts:?}"
     );
-    // Hold back the part that homes the big file; every other part ingested
-    // still leaves it uncovered, whichever order the chunks fall in.
-    let last = home;
+    let last = *big_parts
+        .iter()
+        .find(|index| homed_paths(&env.work[**index]) == vec![big.clone()])
+        .expect("a part holds only big-file chunks");
 
-    // Ingest every part except the big file's home part: it is not covered.
+    // Ingest every part except that one: the big file is not covered.
     let mut latest = None;
     for (index, item) in env.work.iter().enumerate() {
         if index == last {
