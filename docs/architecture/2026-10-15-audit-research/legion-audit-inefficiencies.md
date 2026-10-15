@@ -126,7 +126,7 @@ Nothing is reused across runs:
 - `skills/audit/references/lens-cues.md:1-25` — an "absorption" table mapping CodeRabbit's review categories to lenses, says there is "no separate CodeRabbit round", and calls CodeRabbit "retired" as an external reviewer.
 - `engine-interface.md:6` and `manual.md:162` — "CodeRabbit-inspired" CLI flags, meaning the scope flags above.
 - `manual.md:261` — `correctness` is labelled the "coderabbit fold".
-- Competitor matrices in `/Volumes/D/claude/docs/plans/nemesis/...` (e.g. `03-COMPETITIVE-FEATURE-MATRIX.md:91`, `:138`) and other docs.
+- Competitor matrices in `a workspace competitor-matrix plan doc` (e.g. `03-COMPETITIVE-FEATURE-MATRIX.md:91`, `:138`) and other docs.
 
 **Ponytail** exists as the `minimize` lens:
 - Its full prompt is `references/ponytail-lens.md` and `skills/audit/references/ponytail-lens.md`, with tags `delete`/`stdlib`/`native`/`yagni`/`shrink`.
