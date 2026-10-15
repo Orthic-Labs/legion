@@ -179,13 +179,25 @@ fn audit_then_verify_an_ordinary_run() {
         "audit exit {code:?}: stderr={}",
         String::from_utf8_lossy(&audit.stderr)
     );
-    let _report = json_of("audit", &audit);
+    let initial = json_of("audit", &audit);
 
     // b) reasoning lens packets were emitted
     let packets = fs::read_dir(fixture.out.join("lens-packets"))
         .map(|entries| entries.flatten().count())
         .unwrap_or(0);
     assert!(packets >= 1, "no lens packets under {}/lens-packets", run);
+    assert!(
+        string_list(&initial["gaps"])
+            .iter()
+            .any(|gap| gap == "reasoning-budget-state-missing"),
+        "initial report must retain unknown usage before host admission"
+    );
+    let stored_report: Value =
+        serde_json::from_slice(&fs::read(fixture.out.join("report.json")).unwrap()).unwrap();
+    assert_eq!(
+        stored_report["claims"]["reasoningBudget"]["actual"]["status"],
+        "unknown"
+    );
 
     // c) no self-invalidation gaps
     let execution: Value =
@@ -375,10 +387,26 @@ fn audit_then_verify_an_ordinary_run() {
     // f) an ordinary, incomplete-but-intact run verifies with no extra environment
     let verify = fixture.legion(&["verify", run, "--json"]);
     let verified = json_of("verify", &verify);
+    let stored_gaps = string_list(&stored_report["gaps"]);
+    let recomputed_gaps = string_list(&verified["verdict"]["gaps"]);
+    let bounded_difference = |left: &[String], right: &[String]| {
+        left.iter()
+            .filter(|gap| !right.contains(gap))
+            .take(32)
+            .map(|gap| gap.chars().take(256).collect::<String>())
+            .collect::<Vec<_>>()
+    };
+    let stored_verdict = serde_json::json!({
+        "status": stored_report["status"],
+        "gapCount": stored_gaps.len(),
+        "lensesRan": stored_report["claims"]["lensesRan"],
+        "missingGaps": bounded_difference(&recomputed_gaps, &stored_gaps),
+        "unexpectedGaps": bounded_difference(&stored_gaps, &recomputed_gaps),
+    });
     assert_eq!(
         verified["valid"],
         Value::Bool(true),
-        "verify rejected the run: {verified:#}"
+        "verify rejected the run: {verified:#}; stored verdict: {stored_verdict:#}"
     );
     assert_eq!(
         verified["contentErrors"].as_array().map(Vec::len),

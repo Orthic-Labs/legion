@@ -730,6 +730,26 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     .claims
                     .insert("reasoningEpochDigest".into(), json!(digest));
             }
+            // Initial reports & later receipt reconciliation use one budget view.
+            // Dispatch without an admission ledger has unknown usage until the
+            // host records calls; publishing must retain that same explicit gap.
+            if let Some(out) = &args.out {
+                if let Some(budget) = legion_audit::next::persisted_budget_report(out)
+                    .map_err(|error| CommandError::integrity(error.to_string()))?
+                {
+                    report
+                        .claims
+                        .insert("reasoningBudget".into(), budget["budget"].clone());
+                    report.gaps.extend(
+                        budget["gaps"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(Value::as_str)
+                            .map(ToOwned::to_owned),
+                    );
+                }
+            }
             if scope.facts_unavailable {
                 // Node: collect-facts crashes on a gitRef-rejected ref, facts are
                 // written without scope, and the run is incomplete (exit 2).
