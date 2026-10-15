@@ -110,8 +110,8 @@ current package also exposes explicit `/alchemist` as an entrypoint targeting
 Legion attaches Alchemist before delegation; execution uses host-native agents & host-supported
 model tiers.
 
-The canonical model policy is `balanced-executor`. Exact, narrow mechanical units may use
-`mechanical-cheap` where policy says safe; this cost choice does not change Alchemist's authority
+The canonical model policy is `mechanical-cheap`; `balanced-executor` only where a mistake would
+still compile but be wrong or unsafe, or after one failed cheap attempt; this cost choice does not change Alchemist's authority
 boundary. The preferred execution path is deterministic first, followed by bounded escalation
 only where the contract and policy permit it.
 

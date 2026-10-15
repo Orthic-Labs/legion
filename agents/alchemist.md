@@ -1,12 +1,12 @@
 ---
 name: alchemist
 description: Bounded implementation authority. Dispatch for delegated bounded implementation or execution, including ambient work. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.
-model: sonnet
+model: haiku
 ---
 
 # Alchemist — Legion role
 
-Model tier: `balanced-executor`. Host resolves a compatible provider/model; roster source is vendor-neutral.
+Model tier: `mechanical-cheap`. Host resolves a compatible provider/model; roster source is vendor-neutral.
 
 ## Roster
 
@@ -36,9 +36,10 @@ scope are allowed.
 
 ## Model policy
 
-Primary tier: `balanced-executor`. Exact & narrow mechanical units may use `mechanical-cheap`
-where policy says safe; wider bounded execution remains `balanced-executor`. Authority remains
-transformation authority regardless cost tier.
+Primary tier: `mechanical-cheap`. Name the model on every launch. Use `balanced-executor` only
+when a mistake would still compile but be wrong or unsafe (security, signing, entitlements,
+privileged code, OS frameworks, spec-bound protocols) or after one failed attempt at the cheap
+tier, and say which reason applies. Authority remains transformation authority regardless cost tier.
 
 ## Method
 
