@@ -5,12 +5,12 @@ Capture/interaction layer for `audit-visual` step 3 (see `SKILL.md`). Use this f
 Preferred capture order:
 
 1. **Local `/qa` skill and project QA harness.**
-   - Load the `/qa` skill instructions first and use the browser capability the host provides for driving the page (navigate, snapshot, screenshot, click, fill). If the host provides none, this route is unavailable; go to the next route or report the captures as `UNPROVEN`.
+   - Load the `/qa` skill instructions first and use the browser capability the host provides for driving the page (navigate, snapshot, screenshot, click, fill). Send a flow's steps as one batch when the capability accepts one; use one call per step only when a step's result decides the next step. If the host provides none, this route is unavailable; go to the next route or report the captures as `UNPROVEN`.
    - Start the app's documented browser QA mode, such as `npm run qa`, `pnpm qa:browser`, or the project-specific script in `AGENTS.md`, `CLAUDE.md`, `README`, or the project's QA doc (for example `docs/QA.md`, a project-overlay file that may not exist).
    - Use the QA URL it emits, usually `http://127.0.0.1:<port>/?qa=1` or a documented route.
    - QA mode should use deterministic mocks for visual states.
    - Capture only the web/app surface, not the OS chrome.
-   - Use `legion script qa/qa-shot` for viewport screenshots and `legion script qa/qa-functional` for hover/click/type/key/assert flows.
+   - Use `legion script qa/qa-shot` for viewport screenshots. Run each hover/click/type/key/assert flow as one `legion script qa/qa-functional` call with its complete actions file, not one call per step.
 
 2. **Shared headless Chrome/Edge runner.**
    - Launch installed Chrome/Edge through the `/qa` scripts against the QA URL or local dev URL.
@@ -33,6 +33,18 @@ Preferred capture order:
    - For SampleApp-style Tauri apps, use the documented script (Windows example: `.\scripts\dev.ps1`; elsewhere, the project's documented native dev script).
    - Treat native QA as WebView2 parity/smoke testing, not the routine visual review loop.
    - If native screenshot tooling captures blank or stale WebView2 content, it is not acceptable evidence.
+
+**Batch by default.** For a RightKit app that exposes the control surface (`rightkit-qa-driver` 0.4.0 or later), send each flow as one `right-ctl run` JSON batch. The `<app>.batch` tool runs up to 256 steps and stops at the first failure:
+
+```sh
+echo '[{"tool":"<app>.batch","args":{"steps":[
+  {"method":"click","params":{"x":120,"y":40}},
+  {"method":"type","params":{"text":"hello"}},
+  {"method":"wait","params":{"js":"return !!document.querySelector(\"[data-state=done]\");","timeoutMs":5000}},
+  {"method":"screenshot","params":{"inline":true}}]}}]' | right-ctl run
+```
+
+Use `wait` for each state the flow must reach. It waits in the page in one call and returns when the state appears, so do not add sleeps or repeated `eval` polls. Use one call per step only when a step's result decides the next step. Add `paceMs` to `click`, `drag`, `key` or `type` only when the page needs real time between events.
 
 Required capture scope:
 
