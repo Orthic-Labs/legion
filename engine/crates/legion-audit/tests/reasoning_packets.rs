@@ -521,47 +521,66 @@ fn ingesting_a_single_part_reports_the_provider_level_outstanding_work() {
 
 #[test]
 fn a_file_split_across_parts_is_covered_only_when_every_chunk_is_ingested() {
-    // 19 files fill most of part 1; the big file's first chunk fits there and
-    // its remaining chunks continue into part 2.
+    // 19 whole files plus one big file whose chunks span more than one part.
     let mut files = many_files(19);
     files.push(("src/z_big.rs".to_owned(), filler_file(99, 3000)));
     let env = build_env("straddle", RAW_PROVIDER, RAW_LENS, &files);
-    assert_eq!(env.work.len(), 2);
-    assert!(homed_paths(&env.work[0]).contains(&"src/z_big.rs".to_owned()));
-    assert!(env.work[1].request.packet["part"]["continuedPaths"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("src/z_big.rs")));
+    let big = "src/z_big.rs".to_owned();
+    // Locate where the big file starts rather than assuming part 1: the part
+    // cap depends on the frozen seat budget and per-chunk accounting.
+    let home = env
+        .work
+        .iter()
+        .position(|item| homed_paths(item).contains(&big))
+        .expect("the big file is homed in some part");
+    let continued: Vec<usize> = (0..env.work.len())
+        .filter(|index| {
+            env.work[*index].request.packet["part"]["continuedPaths"]
+                .as_array()
+                .is_some_and(|paths| paths.contains(&json!(big)))
+        })
+        .collect();
+    assert!(
+        !continued.is_empty(),
+        "the big file continues into a later part"
+    );
+    let last = *continued.iter().max().unwrap();
+    assert!(last > home);
 
-    let first = ingest_lens_result(
+    // Ingest every part except the big file's last chunk: it is not covered.
+    let mut latest = None;
+    for (index, item) in env.work.iter().enumerate() {
+        if index == last {
+            continue;
+        }
+        latest = Some(
+            ingest_lens_result(&env.run, env.provider, &part_result(item, json!([]))).unwrap(),
+        );
+    }
+    let before = latest.unwrap();
+    assert_eq!((before.examined, before.expected), (19, 20));
+    assert!(!before.complete);
+
+    let after = ingest_lens_result(
         &env.run,
         env.provider,
-        &part_result(&env.work[0], json!([])),
+        &part_result(&env.work[last], json!([])),
     )
     .unwrap();
-    // 19 whole files; the split file is not yet covered.
-    assert_eq!((first.examined, first.expected), (19, 20));
-    assert!(!first.complete);
+    assert_eq!((after.examined, after.expected), (20, 20));
+    assert!(after.complete, "{:?}", after.coverage_gaps);
 
-    let second = ingest_lens_result(
-        &env.run,
-        env.provider,
-        &part_result(&env.work[1], json!([])),
-    )
-    .unwrap();
-    assert_eq!((second.examined, second.expected), (20, 20));
-    assert!(second.complete, "{:?}", second.coverage_gaps);
-
-    // Part 2 alone never covers the split file.
+    // The continuation alone never covers the split file.
     let alone = build_env("straddle-alone", RAW_PROVIDER, RAW_LENS, &files);
-    let only_second = ingest_lens_result(
+    let only_last = ingest_lens_result(
         &alone.run,
         alone.provider,
-        &part_result(&alone.work[1], json!([])),
+        &part_result(&alone.work[last], json!([])),
     )
     .unwrap();
-    assert_eq!((only_second.examined, only_second.expected), (0, 20));
-    assert!(!only_second.complete);
+    assert!(!homed_paths(&alone.work[last]).contains(&big) || last == home);
+    assert!(only_last.examined < only_last.expected);
+    assert!(!only_last.complete);
 }
 
 #[test]
