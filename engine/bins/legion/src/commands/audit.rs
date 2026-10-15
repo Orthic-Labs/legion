@@ -245,32 +245,33 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Digest of the run's epoch key when that key (not a host-injected one)
     // also signs the plan; `legion verify` reloads it from `<out>/epoch.key`.
     let mut run_epoch_digest: Option<String> = None;
-    let signing_key = if args.plan_only {
-        Some(super::audit_signing_key()?)
-    } else {
-        match std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|value| !value.is_empty()) {
-            Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
-            // A run written to `--out` is signed with the run's epoch key
-            // (persisted 0600 as `epoch.key`), so lens packets can be ingested
-            // and the run verified later without any extra environment.
-            None => match args.out.as_ref() {
-                Some(out) => {
-                    let ingest =
-                        legion_audit::native_providers::reasoning::ingest::create_epoch(out)
-                            .and_then(|_| {
-                                legion_audit::native_providers::reasoning::ingest::load_epoch(out)
-                            })
-                            .map_err(|error| {
-                                CommandError::incomplete(format!(
-                                    "could not create the run epoch key: {error}"
-                                ))
-                            })?;
-                    run_epoch_digest = Some(ingest.1);
-                    Some(ingest.0)
-                }
-                None => None,
-            },
-        }
+    let signing_key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
+        .filter(|value| !value.is_empty())
+    {
+        // A host-injected key always wins, plan-only or not.
+        Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
+        // A run written to `--out` (including `--plan-only --out`) is signed
+        // with the run's epoch key (persisted 0600 as `epoch.key`), so lens
+        // packets can be ingested and the run verified later without any
+        // extra environment.
+        None => match args.out.as_ref() {
+            Some(out) => {
+                let ingest = legion_audit::native_providers::reasoning::ingest::create_epoch(out)
+                    .and_then(|_| {
+                        legion_audit::native_providers::reasoning::ingest::load_epoch(out)
+                    })
+                    .map_err(|error| {
+                        CommandError::incomplete(format!(
+                            "could not create the run epoch key: {error}"
+                        ))
+                    })?;
+                run_epoch_digest = Some(ingest.1);
+                Some(ingest.0)
+            }
+            // A plan with nowhere to keep a run key still needs the host key.
+            None if args.plan_only => Some(super::audit_signing_key()?),
+            None => None,
+        },
     };
     let review_context = review_context(&root, &scope);
     // The coverage request freezes with the provider spec (like the review

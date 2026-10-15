@@ -1029,6 +1029,36 @@ pub fn partition_excerpts_scoped(
     max_parts: usize,
     hunks: &ChangedHunks,
 ) -> Partition {
+    partition_excerpts_budgeted(root, paths, mode, max_parts, hunks, None)
+}
+
+/// Seat-derived sizing of one packet part. Without it a part holds at most
+/// `MAX_TOTAL_EXCERPT_BYTES` of raw excerpt content. With it, each chunk is
+/// charged its serialized JSON size plus `listing_copies` copies of the
+/// per-path listings (`paths`, `examinedPaths`) every lens packet of the seat
+/// carries, and a part closes at `cap_bytes` of that charge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PartBudget {
+    pub cap_bytes: usize,
+    pub listing_copies: usize,
+}
+
+impl PartBudget {
+    fn chunk_cost(&self, excerpt: &Excerpt) -> usize {
+        let json = serde_json::to_vec(excerpt).map_or(excerpt.content.len(), |bytes| bytes.len());
+        json + 1 + self.listing_copies * (2 * excerpt.path.len() + 32)
+    }
+}
+
+/// `partition_excerpts_scoped` with an optional seat-derived `PartBudget`.
+pub fn partition_excerpts_budgeted(
+    root: &Path,
+    paths: &[String],
+    mode: ExcerptMode,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+    budget: Option<PartBudget>,
+) -> Partition {
     let items: Vec<ReviewItem> = paths
         .iter()
         .map(|path| ReviewItem {
@@ -1036,13 +1066,14 @@ pub fn partition_excerpts_scoped(
             mode,
         })
         .collect();
-    partition_review_set(
+    partition_review_set_budgeted(
         root,
         &items,
         &AliasMap::new(),
         max_parts,
         hunks,
         &FlaggedRegions::new(),
+        budget,
     )
 }
 
@@ -1074,6 +1105,23 @@ pub fn partition_review_set(
     hunks: &ChangedHunks,
     flags: &FlaggedRegions,
 ) -> Partition {
+    partition_review_set_budgeted(root, items, aliases, max_parts, hunks, flags, None)
+}
+
+/// `partition_review_set` with an optional seat-derived `PartBudget`; `None`
+/// keeps the fixed `MAX_TOTAL_EXCERPT_BYTES` content cap.
+pub fn partition_review_set_budgeted(
+    root: &Path,
+    items: &[ReviewItem],
+    aliases: &AliasMap,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+    flags: &FlaggedRegions,
+    budget: Option<PartBudget>,
+) -> Partition {
+    let part_cap = budget.map_or(MAX_TOTAL_EXCERPT_BYTES, |budget| {
+        budget.cap_bytes.min(MAX_TOTAL_EXCERPT_BYTES)
+    });
     let max_parts = max_parts.max(1);
     let new_part = |number: usize| ExcerptPart {
         number,
@@ -1114,8 +1162,9 @@ pub fn partition_review_set(
             }
             Ok(chunks) => {
                 for (index, excerpt) in chunks.into_iter().enumerate() {
-                    let size = excerpt.content.len();
-                    if bytes > 0 && bytes + size > MAX_TOTAL_EXCERPT_BYTES {
+                    let size =
+                        budget.map_or(excerpt.content.len(), |budget| budget.chunk_cost(&excerpt));
+                    if bytes > 0 && bytes + size > part_cap {
                         let number = parts.len() + 1;
                         parts.push(new_part(number));
                         bytes = 0;

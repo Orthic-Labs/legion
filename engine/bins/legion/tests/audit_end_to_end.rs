@@ -352,3 +352,52 @@ fn audit_then_verify_an_ordinary_run() {
         "verify content errors: {verified:#}"
     );
 }
+
+#[test]
+fn plan_only_with_out_signs_with_the_run_epoch_key() {
+    let fixture = Fixture::new();
+    let repo = fixture.repo.to_str().unwrap();
+    let run = fixture.out.to_str().unwrap();
+
+    // No host key in the environment (`legion()` removes it): `--out` supplies
+    // the run's epoch key, as a normal run does.
+    let plan = fixture.legion(&["audit", repo, "--plan-only", "--out", run, "--json"]);
+    let stderr = String::from_utf8_lossy(&plan.stderr).into_owned();
+    assert!(
+        !stderr.contains("AUDIT_PLAN_SIGNING_KEY"),
+        "plan-only with --out must not require the host key: {stderr}"
+    );
+    assert!(
+        matches!(plan.status.code(), Some(0) | Some(2)),
+        "plan-only exit {:?}: {stderr}",
+        plan.status.code()
+    );
+    let summary = json_of("plan-only", &plan);
+    let signature = summary["planSignature"].as_str().unwrap_or_default();
+    assert!(!signature.is_empty(), "plan is not signed: {summary:#}");
+    assert_eq!(summary["seal"]["signature"], summary["planSignature"]);
+    assert!(fixture.out.join("epoch.key").is_file(), "epoch key missing");
+
+    // The persisted plan is the signed one and the key that signed it loads
+    // the way `legion verify` loads it.
+    let stored: Value =
+        serde_json::from_slice(&fs::read(fixture.out.join("plan.json")).unwrap()).unwrap();
+    assert_eq!(stored["planSignature"], summary["planSignature"]);
+    assert_eq!(stored["planDigest"], summary["planDigest"]);
+    let (key, _digest) =
+        legion_audit::native_providers::reasoning::ingest::load_epoch(&fixture.out).unwrap();
+    assert!(key.len() >= 16);
+}
+
+#[test]
+fn plan_only_without_out_still_requires_the_host_key() {
+    let fixture = Fixture::new();
+    let repo = fixture.repo.to_str().unwrap();
+    let plan = fixture.legion(&["audit", repo, "--plan-only", "--json"]);
+    assert_eq!(plan.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&plan.stderr).contains("AUDIT_PLAN_SIGNING_KEY"),
+        "stderr: {}",
+        String::from_utf8_lossy(&plan.stderr)
+    );
+}

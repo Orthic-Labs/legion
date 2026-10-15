@@ -497,3 +497,126 @@ fn eleven_hundred_files_fit_the_run_budget_sampled_and_exhaustive_refuses() {
         refused["violations"]
     );
 }
+
+/// About 1,070 files of mixed sizes with a large mandatory (security-sensitive)
+/// stratum, shaped like the Ember baseline that refused to freeze.
+fn ember_like_files() -> Vec<(String, Vec<u8>)> {
+    const SIZES: [usize; 6] = [1_000, 2_000, 4_000, 8_000, 12_000, 24_000];
+    let mut files = Vec::new();
+    for index in 0..200usize {
+        files.push((
+            format!("src/auth/guard_{index:04}.rs"),
+            filler_file(index, 10_000),
+        ));
+    }
+    for index in 200..1070usize {
+        files.push((
+            format!("src/lib/file_{index:04}.rs"),
+            filler_file(index, SIZES[index % SIZES.len()]),
+        ));
+    }
+    files
+}
+
+const EMBER_PROVIDERS: [(&str, &str); 11] = [
+    ("reasoning.security", "security"),
+    ("reasoning.correctness", "correctness"),
+    ("reasoning.schema", "schema"),
+    ("reasoning.architecture", "architecture"),
+    ("reasoning.doc-drift", "doc-drift"),
+    ("reasoning.performance", "performance"),
+    ("reasoning.resilience", "resilience"),
+    ("reasoning.minimize", "minimize"),
+    ("reasoning.ai-slop", "ai-slop"),
+    ("reasoning.naming", "naming"),
+    ("reasoning.dead-file", "dead-file"),
+];
+
+#[test]
+fn ember_like_auto_plan_freezes_with_every_seat_within_budget() {
+    let env = build_env(
+        "ember-auto",
+        &EMBER_PROVIDERS,
+        coverage_reasoning("auto", 6_000_000),
+        &ember_like_files(),
+    );
+    let limits = DispatchLimits::default();
+    let plan = lens_dispatch_plan(&env.work, &limits);
+    assert_eq!(plan["coverageMode"], "risk-sampled");
+    assert_eq!(plan["withinLimits"], true, "{:?}", plan["violations"]);
+    assert!(plan["requiredSeats"].as_u64().unwrap() <= 48, "{plan:#}");
+    assert!(plan["estimatedTokens"].as_u64().unwrap() <= 6_000_000);
+    for seat in plan["seats"].as_array().unwrap() {
+        assert!(
+            seat["estimatedTokens"].as_u64().unwrap() <= limits.seat_token_budget,
+            "seat over the per-seat budget: {seat:#}"
+        );
+    }
+
+    // Mandatory coverage never shrinks, even for the Raw minimize bundle whose
+    // mandatory stratum exceeds its share: it borrows instead of refusing.
+    let frozen = frozen_coverage(&env, "reasoning.minimize");
+    assert!(frozen.is_sampled());
+    let mandatory = frozen
+        .strata
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|stratum| stratum["name"] == "mandatory")
+        .unwrap();
+    assert_eq!(mandatory["N"], mandatory["n"], "mandatory stratum shrank");
+    assert!(mandatory["N"].as_u64().unwrap() >= 200, "{mandatory:#}");
+    let s3 = plan["bundles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|bundle| bundle["bundle"] == "S3")
+        .unwrap();
+    assert!(
+        s3["overBy"].as_u64().unwrap() > 0,
+        "the fixture must overrun the S3 share: {s3:#}"
+    );
+
+    // Byte accounting: per-lens packets carry their own copy of the shared
+    // excerpts, seats read them once; the report states both.
+    let seat_read = plan["seatReadBytes"].as_u64().unwrap();
+    let per_lens = plan["perLensPacketBytes"].as_u64().unwrap();
+    let unique = plan["uniqueExcerptBytes"].as_u64().unwrap();
+    let saved = plan["sharedExcerptBytesSaved"].as_u64().unwrap();
+    assert_eq!(plan["packetBytes"].as_u64().unwrap(), seat_read);
+    assert_eq!(per_lens, seat_read + saved);
+    assert!(saved > 0, "bundled lenses share excerpts");
+    assert!(unique <= seat_read && seat_read <= per_lens);
+    let lens_sum: u64 = plan["lenses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|lens| lens["packetBytes"].as_u64().unwrap())
+        .sum();
+    assert_eq!(lens_sum, per_lens);
+}
+
+#[test]
+fn ember_like_plan_still_refuses_when_the_run_budget_is_genuinely_exceeded() {
+    let env = build_env(
+        "ember-tight",
+        &EMBER_PROVIDERS,
+        coverage_reasoning("auto", 1_000_000),
+        &ember_like_files(),
+    );
+    let limits = DispatchLimits {
+        run_token_budget: 1_000_000,
+        ..DispatchLimits::default()
+    };
+    let plan = lens_dispatch_plan(&env.work, &limits);
+    assert_eq!(plan["withinLimits"], false);
+    assert!(
+        plan["violations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|violation| violation.as_str().unwrap().contains("over the run budget")),
+        "{:?}",
+        plan["violations"]
+    );
+}

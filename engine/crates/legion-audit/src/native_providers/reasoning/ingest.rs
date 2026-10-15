@@ -2640,12 +2640,14 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     let mut bundles: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     let mut total_tokens = 0u64;
     let mut total_bytes = 0u64;
+    let mut unique_excerpt_bytes = 0u64;
     for (index, draft) in drafts.iter().enumerate() {
         let number = index as u64 + 1;
         let bytes = draft.excerpt_bytes + draft.overhead_bytes;
         let tokens = estimate_tokens(bytes);
         total_tokens += tokens;
         total_bytes += bytes;
+        unique_excerpt_bytes += draft.excerpt_bytes;
         let entry = bundles.entry(draft.bundle.clone()).or_insert((0, 0));
         entry.0 += 1;
         entry.1 += tokens;
@@ -2682,8 +2684,10 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             let budget = limits.run_token_budget * u64::from(bundle_share_bp(id)) / 10_000;
             let over = tokens.saturating_sub(budget);
             if over > 0 && budget > 0 {
+                // A share is an allocation target, not a limit: only the run
+                // budget refuses. The overrun is reported, never fatal alone.
                 overruns.push(format!(
-                    "bundle {id}: ~{tokens} estimated tokens is {over} over its {budget} share of the run budget"
+                    "bundle {id}: ~{tokens} estimated tokens is {over} over its {budget} allocation target (borrowed from other bundles; the run budget is the limit)"
                 ));
             }
             json!({
@@ -2722,11 +2726,19 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             violations.push(text.to_owned());
         }
     }
+    let per_lens_bytes = legacy["packetBytes"].as_u64().unwrap_or(0);
     json!({
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
         "estimateBasis": "estimate: seat excerpt bytes read once + per-lens packet overhead, bytes / 4",
+        "byteBasis": {
+            "packetBytes": "seat-read bytes: each seat's excerpts counted once plus every bundled lens's own packet overhead (equals seatReadBytes)",
+            "seatReadBytes": "bytes the seats read: shared excerpts once per seat plus per-lens overhead",
+            "perLensPacketBytes": "sum of every lens packet written to disk, each carrying its own copy of the shared excerpts (equals seatReadBytes + sharedExcerptBytesSaved)",
+            "uniqueExcerptBytes": "excerpt bytes summed once per seat, overhead excluded",
+            "sharedExcerptBytesSaved": "excerpt bytes the bundled seats do not re-read because lenses share a part",
+        },
         "coverageMode": if sampled { coverage_plan::MODE_RISK_SAMPLED } else { coverage_plan::MODE_EXHAUSTIVE },
         "limits": {
             "seatTokenBudget": limits.seat_token_budget,
@@ -2740,6 +2752,10 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "waves": waves,
         "requiredSeats": required_seats,
         "packetBytes": total_bytes,
+        "seatReadBytes": total_bytes,
+        "perLensPacketBytes": per_lens_bytes,
+        "uniqueExcerptBytes": unique_excerpt_bytes,
+        "sharedExcerptBytesSaved": per_lens_bytes.saturating_sub(total_bytes),
         "estimatedTokens": total_tokens,
         "withinLimits": violations.is_empty(),
         "violations": violations,

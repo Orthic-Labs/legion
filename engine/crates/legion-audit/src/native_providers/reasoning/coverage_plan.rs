@@ -60,6 +60,26 @@ pub const HOTSPOT_SHARE_PERCENT: u64 = 70;
 /// Percent of a bundle's budget the plan commits; the rest is headroom for
 /// findings promotion and packet overhead.
 pub const COMMIT_PERCENT: u64 = 90;
+/// Fixed per-lens packet reserve (lens plan, report schema, contracts, binding,
+/// per-part metadata) a seat-derived part cap leaves room for.
+pub const SEAT_PACKET_RESERVE_BYTES: usize = 32 * 1024;
+
+/// Largest serialized excerpt payload one packet part may carry so that a seat
+/// (the part read once plus `lenses` lens packets of overhead, each reserving
+/// `SEAT_PACKET_RESERVE_BYTES + context_bytes`) stays within `seat_tokens`.
+/// A pure function of the frozen request, bundle size and review context, so
+/// every lens of a bundle derives the same cap and the same parts. Never below
+/// `2 * MAX_BYTES_PER_FILE`: a part always holds at least one chunk.
+pub fn seat_part_cap_bytes(seat_tokens: u64, lenses: usize, context_bytes: usize) -> usize {
+    let lenses = lenses.clamp(1, 16);
+    let seat_bytes = usize::try_from(seat_tokens.saturating_mul(4)).unwrap_or(usize::MAX);
+    let reserve = lenses.saturating_mul(SEAT_PACKET_RESERVE_BYTES + context_bytes) + 4096;
+    seat_bytes
+        .saturating_sub(reserve)
+        .max(2 * super::excerpts::MAX_BYTES_PER_FILE)
+        .min(super::excerpts::MAX_TOTAL_EXCERPT_BYTES)
+}
+
 /// Commits read for churn.
 const CHURN_COMMIT_LIMIT: &str = "2000";
 
@@ -564,9 +584,10 @@ pub fn plan_coverage(
             .unwrap_or(0);
         let tokens = bytes / 4;
         exhaustive_tokens.insert(bundle.id, tokens);
-        estimated_seats += bytes
-            .div_ceil(super::excerpts::MAX_TOTAL_EXCERPT_BYTES as u64)
-            .max(1);
+        // Parts close at the seat-derived cap (excerpt bytes plus a per-lens
+        // reserve), not at the legacy fixed cap; estimate seats the same way.
+        let cap = seat_part_cap_bytes(request.seat_token_budget, members.len(), 0) as u64;
+        estimated_seats += bytes.div_ceil(cap.max(1)).max(1);
         if tokens * 100 > base_tokens(bundle) * COMMIT_PERCENT {
             fits = false;
         }
@@ -603,6 +624,8 @@ pub fn plan_coverage(
                     "tier": bundle.tier,
                     "budgetShareBp": bundle.budget_share_bp,
                     "tokenBudget": base_tokens(&bundle),
+                    "seatTokenBudget": request.seat_token_budget,
+                    "bundleLensCount": bundle_lenses.get(bundle.id).map_or(1, Vec::len),
                     "estimatedTokens": exhaustive_tokens.get(bundle.id).copied().unwrap_or(0),
                     "denominator": paths.len(),
                     "reviewSet": paths,
@@ -714,6 +737,58 @@ pub fn plan_coverage(
         }
     }
 
+    // Bundle shares are allocation targets, not limits. The mandatory stratum
+    // never shrinks (Astra D2), so a bundle whose mandatory cost exceeds its
+    // share borrows from the other bundles' unspent share (proportionally to
+    // each donor's headroom above its own mandatory cost). Only a run whose
+    // mandatory strata together exceed the run budget stays over: the gate then
+    // refuses it.
+    let mandatory_required: BTreeMap<&'static str, u64> = present
+        .iter()
+        .map(|bundle| {
+            let bytes: u64 = eligible
+                .iter()
+                .filter(|path| {
+                    mandatory_set.contains(**path) && denominators[bundle.id].contains(**path)
+                })
+                .map(|path| {
+                    estimate_bytes(
+                        sample_mode(bundle, true),
+                        facts.get(*path).map_or(0, |f| f.size),
+                    )
+                })
+                .sum();
+            // Budget at which the committed share (COMMIT_PERCENT) covers it.
+            (bundle.id, (bytes / 4 * 100).div_ceil(COMMIT_PERCENT))
+        })
+        .collect();
+    let need_total: u64 = present
+        .iter()
+        .map(|bundle| mandatory_required[bundle.id].saturating_sub(budget_tokens[bundle.id]))
+        .sum();
+    if need_total > 0 {
+        let headroom_total: u64 = present
+            .iter()
+            .map(|bundle| budget_tokens[bundle.id].saturating_sub(mandatory_required[bundle.id]))
+            .sum();
+        let take = need_total.min(headroom_total);
+        let mut next = budget_tokens.clone();
+        for bundle in &present {
+            let budget = budget_tokens[bundle.id];
+            let required = mandatory_required[bundle.id];
+            if required > budget {
+                let gain = (u128::from(required - budget) * u128::from(take)
+                    / u128::from(need_total)) as u64;
+                next.insert(bundle.id, budget + gain);
+            } else if headroom_total > 0 {
+                let loss = (u128::from(budget - required) * u128::from(take)
+                    / u128::from(headroom_total)) as u64;
+                next.insert(bundle.id, budget - loss);
+            }
+        }
+        budget_tokens = next;
+    }
+
     let mut selections: BTreeMap<&'static str, BundleSelection> = BTreeMap::new();
     for bundle in &present {
         let den = &denominators[bundle.id];
@@ -791,6 +866,8 @@ pub fn plan_coverage(
                 "tier": bundle.tier,
                 "budgetShareBp": bundle.budget_share_bp,
                 "tokenBudget": budget_tokens[bundle.id],
+                "seatTokenBudget": request.seat_token_budget,
+                "bundleLensCount": bundle_lenses.get(bundle.id).map_or(1, Vec::len),
                 "estimatedTokens": selection.estimated_bytes / 4,
                 "denominator": lens.paths.len(),
                 "reviewSet": review_set,

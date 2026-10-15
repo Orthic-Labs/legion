@@ -509,6 +509,32 @@ fn part_ceiling(provider: &AuditProvider) -> usize {
         .unwrap_or(excerpts::DEFAULT_MAX_PARTS)
 }
 
+/// Per-part byte budget derived from the frozen seat budget: every lens of the
+/// provider's bundle reads the same part in one seat, so the seat carries the
+/// part's excerpts once plus each lens's own packet overhead. The cap is a
+/// function of the frozen coverage config and review context only, so every
+/// lens of a bundle derives the same cap and the same parts (and keeps sharing
+/// seats). `None` without a frozen coverage config (legacy plans).
+fn seat_part_budget(provider: &AuditProvider) -> Option<excerpts::PartBudget> {
+    let coverage = provider.configuration.get("coverage")?;
+    let seat_tokens = coverage.get("seatTokenBudget").and_then(Value::as_u64)?;
+    let lenses = coverage
+        .get("bundleLensCount")
+        .and_then(Value::as_u64)
+        .unwrap_or(1)
+        .clamp(1, 16) as usize;
+    let context_bytes = provider
+        .configuration
+        .get("reasoning")
+        .and_then(|reasoning| reasoning.get("reviewContext"))
+        .and_then(|context| serde_json::to_vec(context).ok())
+        .map_or(0, |bytes| bytes.len());
+    Some(excerpts::PartBudget {
+        cap_bytes: coverage_plan::seat_part_cap_bytes(seat_tokens, lenses, context_bytes),
+        listing_copies: 3 * lenses,
+    })
+}
+
 /// Builds every packet part for one provider. The frozen denominator is
 /// partitioned deterministically (stable path order) so each denominator path
 /// is homed in exactly one part; a provider whose denominator fits one part
@@ -567,21 +593,24 @@ fn build_invocations(
     // before.
     let sampled =
         base_mode.and_then(|mode| sampled_review(provider, denominator, scanner_candidates, mode));
+    let part_budget = seat_part_budget(provider);
     let partition = match (&sampled, base_mode) {
-        (Some(sampled), _) => Some(excerpts::partition_review_set(
+        (Some(sampled), _) => Some(excerpts::partition_review_set_budgeted(
             root,
             &sampled.items,
             &sampled.aliases,
             ceiling,
             &changed_hunks,
             &sampled.flags,
+            part_budget,
         )),
-        (None, Some(mode)) => Some(excerpts::partition_excerpts_scoped(
+        (None, Some(mode)) => Some(excerpts::partition_excerpts_budgeted(
             root,
             &paths,
             mode,
             ceiling,
             &changed_hunks,
+            part_budget,
         )),
         (None, None) => None,
     };
