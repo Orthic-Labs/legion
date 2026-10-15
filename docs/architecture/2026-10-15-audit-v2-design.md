@@ -287,9 +287,11 @@ The adopt and reject lists are as in rev 1. The coverage ledger now includes `re
 - **Pass rule.** Recall must stay at or above `baseline − A/A band`, and the cost delta per tier is reported.
 - **Exclusions.** Un-ruled rows are never scored.
 
-### ADR-7 — Blueprint integration contract (C8; new in rev 2)
+### ADR-7 — Blueprint integration contract (C8; new in rev 2; ownership revised by Adrian 2026-10-15)
 
-**Ownership.**
+**Ownership (revised).** Adrian: "Blueprint can stay inside membrane, I don't see why we should separate it if we're pulling membrane out of cr" — this supersedes C8's separate Blueprint core/CLI. Blueprint stays an internal crate of Membrane, which is held by Pulse (`<workspace>/docs/architecture/2026-10-15-membrane-extraction/council.md`). Legion consumes Blueprint through Membrane's API (`membrane_blueprint` / the contract below served by Membrane) instead of pinning a separate CLI. The rest of this ADR (contract, freshness, lexical floor) stands with "Blueprint" meaning Membrane's Blueprint service.
+
+**Ownership (original rev-2 text, superseded where it conflicts).**
 - Blueprint is extracted as one versioned core and CLI. Membrane pins it.
 - Legion declares the optional host capability `blueprint-graph`, with a compatible version range in `src/registry/capabilities.json`. Its degradation is the labelled lexical floor.
 - A resident transport is not a prerequisite.
