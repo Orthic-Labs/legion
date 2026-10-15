@@ -1360,8 +1360,14 @@
   ],
   "roles": [
     {
+      "id": "alchemist-specialist",
+      "description": "Bounded implementation authority, specialist tier (selective). Dispatch only when a mistake would still compile or pass but be wrong or unsafe (security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on legion:alchemist; the launch prompt states which reason applies. Same authority and contract rules as Alchemist: escalate changed requirements, public boundaries, or material tradeoffs. Not for routine mechanical work.",
+      "modelTier": "balanced-executor",
+      "source": "src/roster/alchemist-specialist.md"
+    },
+    {
       "id": "alchemist",
-      "description": "Bounded implementation authority. Dispatch for delegated bounded implementation or execution, including ambient work. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning or independent assurance.",
+      "description": "Bounded implementation authority, mechanical tier (default). Dispatch for delegated settled-scope work where a check catches mistakes: edits, test or matrix runs, installs, re-pins, regeneration, captures, mapping or inventory, docs. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning, independent assurance, or risk a passing check would miss (use legion:alchemist-specialist).",
       "modelTier": "mechanical-cheap",
       "source": "src/roster/alchemist.md"
     },
@@ -1394,7 +1400,7 @@
     "balanced-executor": {
       "hosts": {
         "claude-code": "sonnet",
-        "codex": "gpt-6-luna"
+        "codex": "gpt-6.1-sol"
       }
     },
     "mechanical-cheap": {

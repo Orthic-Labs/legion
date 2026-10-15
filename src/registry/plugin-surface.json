@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:52cb0b356e587bbcf7d7df96995b8a14eaaff116738e238494327b6a81865c1c",
+  "digest": "sha256:1f618de3dbf037c957dfe2b5b8a0d8c1995047a75815b2bf1d198307a4be522a",
   "counts": {
     "skills": 30,
-    "agents": 5,
+    "agents": 6,
     "mcpServers": 1,
     "hookEvents": 9
   },
@@ -43,6 +43,10 @@
       "writing"
     ],
     "agents": [
+      {
+        "file": "agents/alchemist-specialist.md",
+        "name": "alchemist-specialist"
+      },
       {
         "file": "agents/alchemist.md",
         "name": "alchemist"
