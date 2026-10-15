@@ -1077,6 +1077,44 @@ pub fn partition_excerpts_budgeted(
     )
 }
 
+/// Serialized bytes `partition_review_set_budgeted` charges for `item`: every
+/// chunk's JSON plus the per-copy path listings. It reads the file exactly as
+/// the partition does (same mode, flagged regions and changed hunks), so
+/// findings promotion can price promoted and displaced files in the cost the
+/// dispatch estimator will see. An unreadable file costs only its listings.
+pub fn review_item_cost(
+    root: &Path,
+    item: &ReviewItem,
+    hunks: &ChangedHunks,
+    flags: &FlaggedRegions,
+    listing_copies: usize,
+) -> usize {
+    let path = &item.path;
+    let mut regions: Vec<(usize, usize)> = Vec::new();
+    if item.mode == ExcerptMode::Regions {
+        if let Some(found) = flags.get(path) {
+            regions.extend(found.iter().copied());
+        }
+        if let Some(found) = hunks.get(path) {
+            regions.extend(found.iter().copied());
+        }
+    }
+    let windowed = hunks.get(path).map(Vec::as_slice);
+    let flagged = (!regions.is_empty()).then_some(regions.as_slice());
+    let listing = |name: &str| listing_copies * (2 * name.len() + 32);
+    match prepare_file_scoped(root, path, item.mode, windowed, flagged) {
+        Err(_) => listing(path),
+        Ok(chunks) => chunks
+            .iter()
+            .map(|excerpt| {
+                serde_json::to_vec(excerpt).map_or(excerpt.content.len(), |bytes| bytes.len())
+                    + 1
+                    + listing(&excerpt.path)
+            })
+            .sum(),
+    }
+}
+
 /// One review-set path and the excerpt mode it is read in.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReviewItem {

@@ -595,9 +595,18 @@ fn build_invocations(
     // (plus files promoted by deterministic findings); an exhaustive lens, or a
     // plan without a coverage plan, partitions the whole denominator exactly as
     // before.
-    let sampled = base_mode
-        .and_then(|mode| sampled_review(root, provider, denominator, scanner_candidates, mode));
     let part_budget = seat_part_budget(provider);
+    let sampled = base_mode.and_then(|mode| {
+        sampled_review(
+            root,
+            provider,
+            denominator,
+            scanner_candidates,
+            mode,
+            &changed_hunks,
+            part_budget.map_or(0, |budget| budget.listing_copies),
+        )
+    });
     let partition = match (&sampled, base_mode) {
         (Some(sampled), _) => Some(excerpts::partition_review_set_budgeted(
             root,
@@ -878,6 +887,8 @@ fn sampled_review(
     denominator: &InventoryDenominator,
     scanner_candidates: Option<&[ScannerCandidate]>,
     base_mode: lens_plan::ExcerptMode,
+    hunks: &excerpts::ChangedHunks,
+    listing_copies: usize,
 ) -> Option<SampledReview> {
     let frozen = provider
         .configuration
@@ -898,11 +909,6 @@ fn sampled_review(
             default_mode
         }
     };
-    let cost_of = |path: &str| {
-        let size = std::fs::metadata(root.join(path)).map_or(0, |meta| meta.len());
-        coverage_plan::estimate_bytes(mode_of(path), size)
-    };
-
     // Candidate paths: flags for every in-denominator candidate; promotion
     // candidates (with their highest severity) only outside the review set.
     let mut flags = excerpts::FlaggedRegions::new();
@@ -934,6 +940,27 @@ fn sampled_review(
     }
     promotion_basis.sort();
     promotion_basis.dedup();
+
+    // Cost is what the dispatch estimator will charge: the measured excerpt
+    // JSON of the file in its packet mode (flagged regions included), plus the
+    // path in the promoted/displaced lists the packet reports. Promoted files
+    // carry their finding's raw window and can cost several times a skeleton
+    // sampled file, so file size is no stand-in.
+    let measured = |path: &str| {
+        excerpts::review_item_cost(
+            root,
+            &excerpts::ReviewItem {
+                path: path.to_owned(),
+                mode: mode_of(path),
+            },
+            hunks,
+            &flags,
+            listing_copies,
+        ) as u64
+    };
+    let listed = |path: &str| path.len() as u64 + 4;
+    let promote_cost = |path: &str| measured(path).saturating_add(listed(path));
+    let freed_by = |path: &str| measured(path).saturating_sub(listed(path));
 
     // Displaceable sampled paths, lowest-ranked first: unranked leftovers,
     // then the remainder stratum from its end, then the hotspot stratum from
@@ -971,16 +998,40 @@ fn sampled_review(
             .map(String::as_str)
             .filter(|path| eligible(path)),
     );
-    let displaceable_cost: u64 = displace_order.iter().map(|path| cost_of(path)).sum();
+    // Nothing to promote: nothing is measured and nothing is displaced.
+    if promotable.is_empty() {
+        displace_order.clear();
+    }
+    // Candidates inside the frozen review set add their flagged windows to
+    // files the plan already priced without them; that growth is charged
+    // against the same displaceable budget.
+    let flag_growth: u64 = if promotable.is_empty() {
+        0
+    } else {
+        let unflagged = excerpts::FlaggedRegions::new();
+        protected
+            .iter()
+            .map(|path| {
+                let item = excerpts::ReviewItem {
+                    path: path.clone(),
+                    mode: mode_of(path),
+                };
+                let plain =
+                    excerpts::review_item_cost(root, &item, hunks, &unflagged, listing_copies);
+                measured(path).saturating_sub(plain as u64)
+            })
+            .sum()
+    };
+    let displaceable_cost: u64 = displace_order.iter().map(|path| freed_by(path)).sum();
 
     // Promote by severity (then path) until the displaceable cost is spent.
     let mut order: Vec<(&String, u8)> = promotable.iter().map(|(p, r)| (p, *r)).collect();
     order.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
     let mut promoted: BTreeSet<String> = BTreeSet::new();
     let mut unpromoted: Vec<String> = Vec::new();
-    let mut promoted_cost = 0u64;
+    let mut promoted_cost = flag_growth;
     for (path, _) in order {
-        let cost = cost_of(path);
+        let cost = promote_cost(path);
         if unpromoted.is_empty() && promoted_cost.saturating_add(cost) <= displaceable_cost {
             promoted_cost += cost;
             promoted.insert(path.clone());
@@ -994,7 +1045,7 @@ fn sampled_review(
         if freed >= promoted_cost {
             break;
         }
-        freed += cost_of(path);
+        freed += freed_by(path);
         displaced.push(path.to_owned());
     }
     let displaced_set: BTreeSet<&str> = displaced.iter().map(String::as_str).collect();
@@ -1168,7 +1219,6 @@ fn excerpt_coverage_value(
             object.insert("reviewSetCount".into(), json!(review.review_count));
             object.insert("promotedPaths".into(), json!(review.promoted));
             object.insert("displacedPaths".into(), json!(review.displaced));
-            object.insert("unpromotedPaths".into(), json!(review.unpromoted));
             object.insert("unpromotedCount".into(), json!(review.unpromoted.len()));
             object.insert(
                 "effectiveReviewSetDigest".into(),
