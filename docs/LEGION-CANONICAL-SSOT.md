@@ -94,7 +94,7 @@ Primary rules:
 | Historical capability inventory (frozen 2026-09-02, not authoritative) | `docs/provenance/canon/**`, `docs/provenance/pending/**` | none; current ownership is this table |
 | Legion routing/orchestration reference | `doctrine/legion.md` | generated summaries |
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
-| Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
+| Alchemist identity / authority / tier | `src/roster/alchemist.md` (+ variant `src/roster/alchemist-specialist.md`) | `agents/alchemist.md` (mechanical-cheap), `agents/alchemist-specialist.md` (balanced-executor), doctrine method |
 | Oracle identity / authority / tier | `src/roster/oracle.md` | `agents/oracle.md`, doctrine method |
 | Sentry coordination identity / tier | `src/roster/sentry.md` | `agents/sentry.md`, doctrine method |
 | Sage / Alchemist / Oracle role architecture | `docs/architecture/{sage,alchemist,oracle}.md` | role-specific architecture summaries |
