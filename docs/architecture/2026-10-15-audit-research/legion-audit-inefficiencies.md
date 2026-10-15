@@ -1,6 +1,6 @@
 I found no persistent index or cache anywhere in the audit pipeline. Every run walks and SHA-256-hashes the repo three times, compiles the plan three times, and builds every lens packet twice. Each of the 15 lens packets also carries a full copy of the repo inventory. Several working-tree files were being edited while I read (`execution.rs`, `inventory.rs`, `legacy_checks/{mod,registry,runtime_capture}.rs`, `reasoning/{excerpts,ingest,lens_plan,mod}.rs`), so line numbers are as of the read.
 
-All engine paths are under `/Volumes/D/claude/legion/engine/`.
+All engine paths are under `engine/`.
 
 ## Ranked by cost (biggest first)
 
@@ -132,7 +132,7 @@ Nothing is reused across runs:
 - Its full prompt is `references/ponytail-lens.md` and `skills/audit/references/ponytail-lens.md`, with tags `delete`/`stdlib`/`native`/`yagni`/`shrink`.
 - `audit-design-decisions.md` D5/D6 record it as folded into the audit.
 - The `debt_markers` scanner greps for `ponytail:` (`registry.rs:96`).
-- `/Volumes/D/claude/docs/plans/2026-07-28-first-party-minimize-enforcement.md` cites github.com/DietrichGebert/ponytail and rejects recreating its modes.
+- `<workspace>/docs/plans/2026-07-28-first-party-minimize-enforcement.md` cites github.com/DietrichGebert/ponytail and rejects recreating its modes.
 
 ## Cheapest wins, in order
 1. Remove `projection` from the packets.

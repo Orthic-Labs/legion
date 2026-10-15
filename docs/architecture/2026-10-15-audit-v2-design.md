@@ -329,8 +329,8 @@ I could not establish:
 - how the RightKit cargo wrapper handles an audit-owned `CARGO_TARGET_DIR` (read `docs/rules/rightkit.md` before P2).
 
 Files read for this design:
-- `/Volumes/D/claude/legion/docs/architecture/2026-10-15-scaled-audit-design.md`
-- `/Volumes/D/claude/legion/docs/architecture/2026-10-15-audit-research/{alibaba-openqodex,coderabbit-ponytail,legion-audit-inefficiencies}.md`
-- `/Volumes/D/claude/legion/engine/crates/legion-audit/src/native_providers/reasoning/coverage_plan.rs`
-- `/Volumes/D/claude/legion/skills/architect/doctrine/architecture/{00-charter-significance-tailoring.md,methods/add.md,workflow/01-frame.md}`
-- `/Volumes/D/claude/decisions.md`
+- `docs/architecture/2026-10-15-scaled-audit-design.md`
+- `docs/architecture/2026-10-15-audit-research/{alibaba-openqodex,coderabbit-ponytail,legion-audit-inefficiencies}.md`
+- `engine/crates/legion-audit/src/native_providers/reasoning/coverage_plan.rs`
+- `skills/architect/doctrine/architecture/{00-charter-significance-tailoring.md,methods/add.md,workflow/01-frame.md}`
+- `<workspace>/decisions.md`
