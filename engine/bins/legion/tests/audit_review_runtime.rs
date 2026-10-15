@@ -59,6 +59,13 @@ fn simulate_native(args: &[String]) {
     assert_eq!(value_after(args, "--tools"), "");
     assert_eq!(value_after(args, "--mcp-config"), r#"{"mcpServers":{}}"#);
     assert_eq!(value_after(args, "--max-turns"), "1");
+    let schema: Value = serde_json::from_str(value_after(args, "--json-schema")).unwrap();
+    for unsupported in ["oneOf", "allOf", "anyOf"] {
+        assert!(
+            schema.get(unsupported).is_none(),
+            "simulation rejects native-unsupported top-level {unsupported}"
+        );
+    }
     for flag in [
         "--strict-mcp-config",
         "--safe-mode",

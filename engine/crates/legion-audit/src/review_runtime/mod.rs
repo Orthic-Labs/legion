@@ -110,7 +110,9 @@ fn action(value: Value) -> Result<Action, AuditError> {
     Ok(value)
 }
 fn action_schema() -> Value {
-    json!({"type":"object","properties":{"toolRequest":{"type":"object","additionalProperties":false,"required":["tool","arguments"],"properties":{"tool":{"type":"string","enum":["audit.read_file","audit.search_code","audit.list_files","audit.read_diff","audit.find_callers"]},"arguments":{"type":"object"}}},"finalResult":{"type":"object"}},"additionalProperties":false,"oneOf":[{"required":["toolRequest"]},{"required":["finalResult"]}]})
+    // Native StructuredOutput rejects top-level oneOf/allOf/anyOf. Keep
+    // field/type restrictions here & enforce exclusive action in action().
+    json!({"type":"object","properties":{"toolRequest":{"type":"object","additionalProperties":false,"required":["tool","arguments"],"properties":{"tool":{"type":"string","enum":["audit.read_file","audit.search_code","audit.list_files","audit.read_diff","audit.find_callers"]},"arguments":{"type":"object"}}},"finalResult":{"type":"object"}},"additionalProperties":false})
 }
 
 pub(super) struct Controller<'a> {
@@ -704,6 +706,17 @@ mod tests {
             json!({"toolRequest":{"tool":"audit.read_file","arguments":{}},"finalResult":{}})
         )
         .is_err());
+    }
+    #[test]
+    fn compatible_native_schema_keeps_host_exactly_one_action_rule() {
+        let schema = action_schema();
+        for unsupported in ["oneOf", "allOf", "anyOf"] {
+            assert!(schema.get(unsupported).is_none());
+        }
+        assert!(action(json!({})).is_err());
+        assert!(action(json!({"toolRequest":null,"finalResult":null})).is_err());
+        assert!(action(json!({"finalResult":{"ok":true}})).is_ok());
+        assert!(action(json!({"toolRequest":{"tool":"audit.list_files","arguments":{}}})).is_ok());
     }
     #[test]
     fn unknown_protocol_authority_rejected() {
