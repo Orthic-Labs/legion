@@ -358,6 +358,12 @@ pub fn findings_from_report(report: &Value) -> Vec<Observed> {
         .unwrap_or_default()
 }
 
+// ReportV1 & ReportV2 both flatten their Rust `extensions` map on the wire.
+// Do not treat an absent canonical field as evidence of an empty provider set.
+fn report_provider_results(report: &Value) -> Option<&Value> {
+    report.get("providerResults")
+}
+
 fn report_metrics(report: &Value) -> Value {
     fn source_metric(details: Option<&Value>, key: &str, parent: &str, child: &str) -> Value {
         let value = details.and_then(|value| value.get(key)).or_else(|| {
@@ -378,9 +384,7 @@ fn report_metrics(report: &Value) -> Value {
         }
         _ => json!({"status": "unknown", "complete": null}),
     };
-    let provider_results = report
-        .get("extensions")
-        .and_then(|value| value.get("providerResults"));
+    let provider_results = report_provider_results(report);
     let provider_rows = provider_results.and_then(Value::as_array);
     let candidate_arrays: Vec<&Vec<Value>> = provider_rows
         .into_iter()
@@ -439,7 +443,7 @@ fn report_metrics(report: &Value) -> Value {
             "count": candidate_arrays.iter().map(|rows| rows.len()).sum::<usize>(),
             "candidateArrayCount": candidate_arrays.len(),
             "candidateProviders": candidate_providers,
-            "source": "extensions.providerResults[].result.details"
+            "source": "providerResults[].result.details"
         })
     } else {
         json!({
@@ -483,10 +487,7 @@ fn report_metrics(report: &Value) -> Value {
 }
 
 fn raw_candidate_observations(report: &Value) -> Option<(Vec<Observed>, u32)> {
-    let rows = report
-        .get("extensions")
-        .and_then(|value| value.get("providerResults"))?
-        .as_array()?;
+    let rows = report_provider_results(report)?.as_array()?;
     let arrays: Vec<&Vec<Value>> = rows
         .iter()
         .filter_map(|row| row.get("result")?.get("details"))
@@ -552,9 +553,7 @@ fn deterministic_stage_metrics(
     selected_providers: &[&str],
     plan: Option<&Value>,
 ) -> Value {
-    let rows = report
-        .pointer("/extensions/providerResults")
-        .and_then(Value::as_array);
+    let rows = report_provider_results(report).and_then(Value::as_array);
     let providers = selected_providers.iter().copied().map(|selected| {
         let matches = rows.map(|rows| rows.iter().filter(|row| row.get("provider").and_then(Value::as_str) == Some(selected)).collect::<Vec<_>>()).unwrap_or_default();
         let denominator = plan.and_then(|plan| plan.pointer("/nativePlan/plan/providers")).and_then(Value::as_array).and_then(|providers| {
@@ -2166,10 +2165,78 @@ mod tests {
     }
 
     #[test]
+    fn actual_report_serializers_preserve_flat_provider_evidence_for_benchmark_readers() {
+        let mut candidate = selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], true);
+        candidate["result"]["details"]["candidates"] = json!([{"path":"src/session.ts","line":4}]);
+        let report = legion_contracts::ReportV1 {
+            schema_version: 1,
+            report_id: legion_contracts::ReportId::new("benchmark-wire-fixture").unwrap(),
+            status: legion_contracts::ReportStatus::Clean,
+            findings: Vec::new(),
+            gaps: Vec::new(),
+            claims: BTreeMap::new(),
+            targets: vec!["repo".into()],
+            extensions: BTreeMap::from([(
+                "providerResults".into(),
+                json!([
+                    candidate,
+                    selected_result(AUDIT_BEHAVIOR_PROVIDERS[1], true)
+                ]),
+            )]),
+        };
+        let serialized = serde_json::to_value(&report).unwrap();
+        assert!(serialized.get("extensions").is_none());
+        let view = legion_contracts::Report::read_any(&serialized).unwrap();
+        for schema in [1, 2] {
+            let wire = view.to_value_for_schema(schema).unwrap();
+            assert!(wire.get("extensions").is_none());
+            let stage = deterministic_stage_metrics(&wire, &AUDIT_BEHAVIOR_PROVIDERS, None);
+            assert_eq!(stage["complete"], true, "schema {schema}: {stage}");
+            let metrics = report_metrics(&wire);
+            assert_eq!(metrics["rawScannerCandidates"]["count"], 1);
+            assert_eq!(
+                metrics["rawScannerCandidates"]["candidateProviders"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                2
+            );
+            assert_eq!(
+                metrics["rawScannerCandidates"]["source"],
+                "providerResults[].result.details"
+            );
+            let (candidates, count) = raw_candidate_observations(&wire).unwrap();
+            assert_eq!(count, 1);
+            assert_eq!(candidates[0].locations[0].path, "src/session.ts");
+            let mut missing = wire.clone();
+            missing.as_object_mut().unwrap().remove("providerResults");
+            assert_eq!(
+                deterministic_stage_metrics(&missing, &AUDIT_BEHAVIOR_PROVIDERS, None)["status"],
+                "unknown"
+            );
+            assert_eq!(
+                report_metrics(&missing)["rawScannerCandidates"]["status"],
+                "unavailable"
+            );
+            let mut malformed = wire;
+            malformed["providerResults"] = json!("not-an-array");
+            assert_eq!(
+                deterministic_stage_metrics(&malformed, &AUDIT_BEHAVIOR_PROVIDERS, None)["status"],
+                "unknown"
+            );
+            assert_eq!(
+                report_metrics(&malformed)["rawScannerCandidates"]["status"],
+                "malformed"
+            );
+        }
+    }
+
+    #[test]
     fn selected_stage_completeness_does_not_claim_full_audit_completeness() {
         let mut first = selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], true);
         first["result"]["details"]["candidates"] = json!([{"path":"src/session.ts","line":4}]);
-        let report = json!({"extensions":{"providerResults":[first,selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]}});
+        let report =
+            json!({"providerResults":[first,selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]});
         let stage = deterministic_stage_metrics(&report, &AUDIT_BEHAVIOR_PROVIDERS, None);
         assert_eq!(stage["complete"], true);
         assert_eq!(stage["selectedProviders"].as_array().unwrap().len(), 2);
@@ -2179,7 +2246,7 @@ mod tests {
             "not-claimed-by-selected-stage"
         );
         let missing = deterministic_stage_metrics(
-            &json!({"extensions":{"providerResults":[]}}),
+            &json!({"providerResults":[]}),
             &AUDIT_BEHAVIOR_PROVIDERS,
             None,
         );
@@ -2189,7 +2256,7 @@ mod tests {
 
     #[test]
     fn zero_eligible_selection_is_not_inspected_and_has_known_zero_candidates() {
-        let report = json!({"extensions":{"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()}});
+        let report = json!({"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()});
         let stage = deterministic_stage_metrics(
             &report,
             &AUDIT_BEHAVIOR_PROVIDERS,
@@ -2213,7 +2280,7 @@ mod tests {
             "not-applicable"
         );
 
-        let mixed = json!({"extensions":{"providerResults":[selected_result(AUDIT_BEHAVIOR_PROVIDERS[0],false),selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]}});
+        let mixed = json!({"providerResults":[selected_result(AUDIT_BEHAVIOR_PROVIDERS[0],false),selected_result(AUDIT_BEHAVIOR_PROVIDERS[1],true)]});
         let stage = deterministic_stage_metrics(
             &mixed,
             &AUDIT_BEHAVIOR_PROVIDERS,
@@ -2236,23 +2303,20 @@ mod tests {
 
     #[test]
     fn not_applicable_requires_typed_zero_denominator_evidence() {
-        let valid = json!({"extensions":{"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()}});
+        let valid = json!({"providerResults":AUDIT_BEHAVIOR_PROVIDERS.iter().map(|provider| selected_result(provider,false)).collect::<Vec<_>>()});
         let plan = zero_denominator_plan();
         let mut invalid = Vec::new();
         let mut malformed = valid.clone();
-        malformed["extensions"]["providerResults"][0]["result"]
+        malformed["providerResults"][0]["result"]
             .as_object_mut()
             .unwrap()
             .remove("schema_version");
         invalid.push((malformed, Some(plan.clone())));
         let mut missing = valid.clone();
-        missing["extensions"]["providerResults"]
-            .as_array_mut()
-            .unwrap()
-            .remove(0);
+        missing["providerResults"].as_array_mut().unwrap().remove(0);
         invalid.push((missing, Some(plan.clone())));
         let mut duplicate = valid.clone();
-        duplicate["extensions"]["providerResults"]
+        duplicate["providerResults"]
             .as_array_mut()
             .unwrap()
             .push(selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], false));
@@ -2275,7 +2339,7 @@ mod tests {
             ("coverage_gaps", json!(["missing"])),
         ] {
             let mut report = valid.clone();
-            report["extensions"]["providerResults"][0]["result"][field] = value;
+            report["providerResults"][0]["result"][field] = value;
             invalid.push((report, Some(plan.clone())));
         }
         for (field, value) in [
@@ -2284,7 +2348,7 @@ mod tests {
             ("candidates", json!([{"path":"unexpected"}])),
         ] {
             let mut report = valid.clone();
-            report["extensions"]["providerResults"][0]["result"]["details"][field] = value;
+            report["providerResults"][0]["result"]["details"][field] = value;
             invalid.push((report, Some(plan.clone())));
         }
         for (report, plan) in invalid {
@@ -2516,10 +2580,10 @@ mod tests {
         let metrics = report_metrics(&json!({
             "status": "findings",
             "findings": [{"locations": ["src/a.rs:4"]}],
-            "extensions": {"providerResults": [{
+            "providerResults": [{
                 "provider": "security.scan",
                 "result": {"details": {"scannerCandidates": [{"id": "c1"}]}}
-            }]}
+            }]
         }));
         assert_eq!(metrics["rawScannerCandidates"]["status"], "available");
         assert_eq!(metrics["rawScannerCandidates"]["count"], 1);
@@ -2536,10 +2600,10 @@ mod tests {
 
     #[test]
     fn canonical_candidate_generator_details_keep_provider_provenance() {
-        let report = json!({"status":"incomplete","findings":[],"extensions":{"providerResults":[
+        let report = json!({"status":"incomplete","findings":[],"providerResults":[
             {"provider":"legacy.data.internal-suite","result":{"details":{"candidates":[{"path":"src/session.ts","line":4}]}}},
             {"provider":"legacy.security.binary-pins","result":{"details":{"candidates":[]}}}
-        ]}});
+        ]});
         let metrics = report_metrics(&report);
         assert_eq!(metrics["rawScannerCandidates"]["status"], "available");
         assert_eq!(metrics["rawScannerCandidates"]["count"], 1);
@@ -2564,9 +2628,9 @@ mod tests {
 
         let malformed = report_metrics(&json!({
             "findings": [],
-            "extensions": {"providerResults": [{
+            "providerResults": [{
                 "result": {"details": {"scannerCandidates": "not-an-array"}}
-            }]}
+            }]
         }));
         assert_eq!(malformed["rawScannerCandidates"]["status"], "malformed");
         assert_eq!(malformed["rawScannerCandidates"]["count"], Value::Null);
@@ -2633,13 +2697,13 @@ mod tests {
 
     #[test]
     fn raw_candidate_observations_preserve_known_and_unknown_anchors() {
-        let report = json!({"extensions": {"providerResults": [{
+        let report = json!({"providerResults": [{
             "result": {"details": {"scannerCandidates": [
                 {"path": "src\\a.rs", "line": 5, "endLine": 7, "locationStatus": "known"},
                 {"path": "src/b.rs", "locationStatus": "unknown"},
                 {"provider": "scan", "line": 2}
             ]}}
-        }]}});
+        }]});
         let (candidates, count) = raw_candidate_observations(&report).unwrap();
         assert_eq!(count, 3);
         assert_eq!(candidates[0].locations[0].path, "src/a.rs");
@@ -2652,9 +2716,7 @@ mod tests {
         );
         assert!(candidates[1].locations.is_empty());
         assert!(candidates[2].locations.is_empty());
-        assert!(
-            raw_candidate_observations(&json!({"extensions":{"providerResults":[]}})).is_none()
-        );
+        assert!(raw_candidate_observations(&json!({"providerResults":[]})).is_none());
     }
 
     #[test]
