@@ -161,14 +161,17 @@ fn codex_agent_content(id: &str) -> String {
         json_string(id), json_string(&role(id).description), json_string(&role_projection(id)))
 }
 
-fn codex_role_target_content(root: &Path, id: &str) -> String {
-    codex_role_target_content_from(root, id, &role_configuration(&home_dir(), root))
+#[cfg(test)]
+fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> String {
+    codex_role_content_in(&root.join(".codex"), id, report)
 }
 
-fn codex_role_target_content_from(root: &Path, id: &str, report: &Value) -> String {
+/// Role profile content for the Codex directory `codex_dir` (`<root>/.codex` for project scope,
+/// the Codex home for user scope). An existing profile's host settings such as `model` survive.
+fn codex_role_content_in(codex_dir: &Path, id: &str, report: &Value) -> String {
     let defaults = &report["hostModelDefaults"];
     let mut profile: toml::Value =
-        std::fs::read_to_string(root.join(format!(".codex/agents/{id}.toml")))
+        std::fs::read_to_string(codex_dir.join(format!("agents/{id}.toml")))
             .ok()
             .and_then(|text| toml::from_str(&text).ok())
             .unwrap_or_else(|| toml::from_str(&codex_agent_content(id)).unwrap());
@@ -307,12 +310,17 @@ fn codex_tier_model_from(model_tiers: &str, tier: &str) -> Option<String> {
 
 /// Codex model for the Council seat: the `deliberation` tier's codex entry. An existing `model`
 /// key in the seat's role file is a host setting and wins; with neither, `model` stays unset.
+#[cfg(test)]
 fn council_seat_codex_model(root: &Path) -> Option<String> {
+    council_seat_codex_model_in(&root.join(".codex"))
+}
+
+fn council_seat_codex_model_in(codex_dir: &Path) -> Option<String> {
     // The retired covenant-seat file is read second so an operator's `model` survives the rename.
-    [".codex/agents/council-seat.toml", RETIRED_SEAT_CODEX_FILE]
+    ["agents/council-seat.toml", "agents/covenant-seat.toml"]
         .iter()
         .find_map(|file| {
-            std::fs::read_to_string(root.join(file))
+            std::fs::read_to_string(codex_dir.join(file))
                 .ok()
                 .and_then(|text| toml::from_str::<toml::Value>(&text).ok())
                 .and_then(|profile| {
@@ -460,6 +468,59 @@ mod role_binding_tests {
         assert!(lead.contains("## Role selection reference"));
         assert_eq!(lead.matches("## Triggers").count(), 4);
         assert!(lead.contains("never silently downgrade"));
+    }
+
+    #[test]
+    fn user_scope_refresh_skips_absent_codex_without_creating_anything() {
+        let f = Fixture::new();
+        let home = f.0.join("home");
+        let codex = home.join(".codex");
+        let out = refresh_codex_user_projections(&home, &codex, false).unwrap();
+        assert_eq!(out["state"], "skipped");
+        assert_eq!(out["reason"], "codex-absent");
+        assert!(!codex.exists());
+    }
+
+    #[test]
+    fn user_scope_refresh_writes_every_role_preserves_host_settings_and_is_idempotent() {
+        let f = Fixture::new();
+        let home = f.0.join("home");
+        let codex = home.join(".codex");
+        f.write("home/.codex/config.toml", "model = 'host-frontier'\n");
+        f.write(
+            "home/.codex/agents/alchemist.toml",
+            "model = 'operator-model'\n",
+        );
+        let first = refresh_codex_user_projections(&home, &codex, true).unwrap();
+        assert_eq!(first["state"], "refreshed");
+        for id in CODEX_ROLE_IDS {
+            let text = std::fs::read_to_string(codex.join(format!("agents/{id}.toml"))).unwrap();
+            let profile: toml::Value = toml::from_str(&text).unwrap();
+            assert_eq!(profile["name"].as_str(), Some(id));
+        }
+        assert!(codex.join("agents/alchemist-specialist.toml").is_file());
+        assert!(codex.join("agents/council-seat.toml").is_file());
+        let alchemist: toml::Value =
+            toml::from_str(&std::fs::read_to_string(codex.join("agents/alchemist.toml")).unwrap())
+                .unwrap();
+        assert_eq!(alchemist["model"].as_str(), Some("operator-model"));
+        let config = std::fs::read_to_string(codex.join("config.toml")).unwrap();
+        assert!(config.starts_with("model = 'host-frontier'"));
+        let parsed: toml::Value = toml::from_str(&config).unwrap();
+        assert_eq!(
+            parsed["agents"]["alchemist-specialist"]["config_file"].as_str(),
+            Some("agents/alchemist-specialist.toml")
+        );
+        // Project-scope files and the AGENTS.md marker are not part of a user-scope refresh.
+        assert!(!home.join("AGENTS.md").exists());
+        assert!(!home.join(".legion").exists());
+        let second = refresh_codex_user_projections(&home, &codex, true).unwrap();
+        assert_eq!(second["state"], "current");
+        assert!(second["wrote"].as_array().unwrap().is_empty());
+        assert_eq!(
+            std::fs::read_to_string(codex.join("config.toml")).unwrap(),
+            config
+        );
     }
 
     #[test]
@@ -818,6 +879,51 @@ pub fn run(args: BindArgs) -> CommandResult {
         output["valid"] = json!(false);
     }
     Ok(output)
+}
+
+/// Refresh the user-scope Codex role projections: the agent files under `<codex_home>/agents/`
+/// and the Legion managed block in `<codex_home>/config.toml`, exactly what a home-directory
+/// `legion bind --harness codex --write` writes there, with host settings preserved. It does
+/// not write `AGENTS.md`, the binding receipt, or remove retired seat files. Nothing is written
+/// when the managed block conflicts with operator-owned configuration. `present` is whether
+/// Codex is installed; without it and without `codex_home` the step is skipped.
+pub(crate) fn refresh_codex_user_projections(
+    home: &Path,
+    codex_home: &Path,
+    present: bool,
+) -> Result<Value, CommandError> {
+    if !present && !codex_home.is_dir() {
+        return Ok(json!({"state":"skipped","reason":"codex-absent","codexHome":codex_home}));
+    }
+    let report = role_configuration_in(home, home, codex_home);
+    let targets = codex_projection_targets(codex_home, &report);
+    let conflicts = targets
+        .iter()
+        .filter(|target| !target.conflicts.is_empty())
+        .map(|target| json!({"path":target.path,"conflicts":target.conflicts}))
+        .collect::<Vec<_>>();
+    if !conflicts.is_empty() {
+        return Ok(json!({"state":"conflict","codexHome":codex_home,"conflicts":conflicts}));
+    }
+    let mut wrote = Vec::new();
+    for target in &targets {
+        if target.skip_write {
+            continue;
+        }
+        let before = std::fs::read_to_string(&target.path).ok();
+        write_if_different(&target.path, &target.write_content)?;
+        if before.as_deref() != Some(target.write_content.as_str()) {
+            wrote.push(target.path.to_string_lossy().to_string());
+        }
+    }
+    let mut roles = CODEX_ROLE_IDS.to_vec();
+    roles.push("council-seat");
+    Ok(json!({
+        "state": if wrote.is_empty() { "current" } else { "refreshed" },
+        "codexHome": codex_home,
+        "roles": roles,
+        "wrote": wrote,
+    }))
 }
 
 fn write_if_different(path: &Path, content: &str) -> Result<(), CommandError> {
@@ -1285,25 +1391,35 @@ fn agents_target(root: &Path) -> Target {
 }
 
 fn codex_targets(root: &Path) -> Vec<Target> {
+    let report = role_configuration(&home_dir(), root);
     let mut out = vec![agents_target(root)];
+    out.extend(codex_projection_targets(&root.join(".codex"), &report));
+    out
+}
+
+/// The Codex role projections inside `codex_dir`: one agent file per role, the council seat, and
+/// the managed block in `config.toml`. Shared by project binds (`<root>/.codex`) and the
+/// user-scope refresh (the Codex home).
+fn codex_projection_targets(codex_dir: &Path, report: &Value) -> Vec<Target> {
+    let mut out = Vec::new();
     for id in CODEX_ROLE_IDS {
-        let content = codex_role_target_content(root, id);
+        let content = codex_role_content_in(codex_dir, id, report);
         out.push(target_whole(
-            root.join(format!(".codex/agents/{id}.toml")),
+            codex_dir.join(format!("agents/{id}.toml")),
             format!("install {id} agent projection under .codex/agents/"),
             content,
         ));
     }
-    let seat_model = council_seat_codex_model(root)
+    let seat_model = council_seat_codex_model_in(codex_dir)
         .map(|m| format!("model = {}\n", json_string(&m)))
         .unwrap_or_default();
     let content=format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndescription = {}\n{}developer_instructions = {}\n\n",json_string("council-seat"),json_string(&frontmatter(COUNCIL_DOCTRINE).0.get("description").cloned().unwrap_or_default()),seat_model,json_string(COUNCIL_DOCTRINE));
     out.push(target_whole(
-        root.join(".codex/agents/council-seat.toml"),
+        codex_dir.join("agents/council-seat.toml"),
         "install council-seat agent projection under .codex/agents/".into(),
         content,
     ));
-    let path = root.join(".codex/config.toml");
+    let path = codex_dir.join("config.toml");
     let raw = std::fs::read_to_string(&path).unwrap_or_default();
     let (existing, conf) = migrate_legacy_config(&raw);
     let target = if let Some(c) = conf {

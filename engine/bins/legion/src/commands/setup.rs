@@ -4711,6 +4711,9 @@ async fn apply_host_integrations(
             integrations.insert("codexSkills".into(), value);
         }
     }
+    if let Some(value) = refresh_codex_role_projections(request, &inputs) {
+        integrations.insert("codexRoleProjections".into(), value);
+    }
     for input in &inputs.client_projections {
         if !should_process_client(request, &input.client_id) {
             continue;
@@ -4764,6 +4767,42 @@ async fn apply_host_integrations(
         integrations.insert(key.into(), value);
     }
     Ok(Value::Object(integrations))
+}
+
+/// Refresh the user-scope Codex role projections (`<codex home>/agents/*.toml` and the Legion
+/// managed block in `config.toml`) on apply and repair, so a new build's roles reach Codex
+/// without a manual `legion bind`. Codex absent is a skipped step, and a failure is reported in
+/// the result without failing setup: the plugin and registry state are authoritative, and the
+/// role files are a host projection that the next repair retries.
+fn refresh_codex_role_projections(
+    request: &legion_host::SetupRequest,
+    inputs: &HostIntegrationInputs,
+) -> Option<Value> {
+    if !matches!(
+        request.action,
+        legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+    ) {
+        return None;
+    }
+    let skipped = |reason: &str| json!({"state":"skipped","reason":reason});
+    let Some(codex) = inputs.codex.as_ref() else {
+        return Some(skipped("codex-not-selected"));
+    };
+    if !should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        return Some(skipped("codex-absent"));
+    }
+    // Development contexts substitute their own home; only an installed run follows CODEX_HOME.
+    let home = codex.home.clone();
+    let codex_dir = if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        home.join(".codex")
+    } else {
+        codex_home(&home)
+    };
+    Some(
+        super::bind::refresh_codex_user_projections(&home, &codex_dir, true).unwrap_or_else(
+            |error| json!({"state":"failed","codexHome":codex_dir,"error":error.message}),
+        ),
+    )
 }
 
 fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
@@ -5888,6 +5927,88 @@ mod tests {
                 legion_host::setup_registry::CLIENT_CODEX
             ));
         }
+    }
+
+    #[test]
+    fn codex_role_projection_refresh_follows_detection_and_is_idempotent() {
+        let root = TempRoot::new("codex-roles");
+        let home = root.0.join("home");
+        let state = root.0.join("state");
+        let request = |action: legion_host::SetupAction, detected: bool| legion_host::SetupRequest {
+            action,
+            selector: legion_host::ClientSelector::AllSupported,
+            release: bound_release(&test_release_manifest()),
+            platform_state_root: state.clone(),
+            client_evidence: vec![legion_host::ClientEvidence {
+                client_id: legion_host::setup_registry::CLIENT_CODEX.into(),
+                detected,
+                mechanisms: vec!["codex-agent-plugins".into()],
+                command_proof_ref: None,
+                qualification_evidence_ref: None,
+            }],
+            dry_run: false,
+            origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+            development: None,
+        };
+        let inputs = |with_codex: bool| HostIntegrationInputs {
+            claude: None,
+            codex: with_codex.then(|| legion_host::CodexSkillsInput {
+                home: home.clone(),
+                assets_skills_root: root.0.join("skills"),
+                platform_state_root: state.clone(),
+                current_skill_ids: Vec::new(),
+                retired_skill_ids: Vec::new(),
+                explicit_only: true,
+                generation: "test".into(),
+            }),
+            marketplaces: Vec::new(),
+            client_projections: Vec::new(),
+        };
+        let codex_dir = home.join(".codex");
+
+        // Not an apply or repair: nothing is reported or written.
+        assert!(refresh_codex_role_projections(
+            &request(legion_host::SetupAction::Status, true),
+            &inputs(true)
+        )
+        .is_none());
+        // Codex absent or unselected: a typed skip, and nothing is created.
+        let absent = refresh_codex_role_projections(
+            &request(legion_host::SetupAction::Repair, false),
+            &inputs(true),
+        )
+        .unwrap();
+        assert_eq!(absent["state"], "skipped");
+        assert_eq!(absent["reason"], "codex-absent");
+        let unselected = refresh_codex_role_projections(
+            &request(legion_host::SetupAction::Repair, true),
+            &inputs(false),
+        )
+        .unwrap();
+        assert_eq!(unselected["reason"], "codex-not-selected");
+        assert!(!codex_dir.exists());
+
+        // Codex present: every role including the Alchemist specialist is written.
+        let first = refresh_codex_role_projections(
+            &request(legion_host::SetupAction::Repair, true),
+            &inputs(true),
+        )
+        .unwrap();
+        assert_eq!(first["state"], "refreshed");
+        assert!(codex_dir.join("agents/alchemist-specialist.toml").is_file());
+        let config = fs::read_to_string(codex_dir.join("config.toml")).unwrap();
+        assert!(config.contains("[agents.alchemist-specialist]"));
+        // A rerun changes nothing.
+        let second = refresh_codex_role_projections(
+            &request(legion_host::SetupAction::Apply, true),
+            &inputs(true),
+        )
+        .unwrap();
+        assert_eq!(second["state"], "current");
+        assert_eq!(
+            fs::read_to_string(codex_dir.join("config.toml")).unwrap(),
+            config
+        );
     }
 
     #[test]

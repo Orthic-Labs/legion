@@ -813,7 +813,7 @@ fn codex_role_state(
         .and_then(toml::Value::as_table);
     let mut missing = Vec::new();
     let mut present = Vec::new();
-    for role in ["oracle", "sage", "alchemist"] {
+    for role in ["oracle", "sage", "alchemist", "alchemist-specialist"] {
         let declared = agents
             .and_then(|table| table.get(role))
             .is_some_and(toml::Value::is_table);
@@ -843,7 +843,7 @@ fn codex_role_state(
         "present": present,
         "missing": missing,
         "remediation": if state == "roles-unbound" {
-            json!("Codex plugin is enabled but role entries or role files are missing; run `legion bind --write` to create [agents.<role>] entries and ~/.codex/agents/<role>.toml")
+            json!("Codex plugin is enabled but role entries or role files are missing; run `legion setup repair --confirm` (or `legion bind --harness codex --write $HOME`) to create [agents.<role>] entries and ~/.codex/agents/<role>.toml")
         } else {
             Value::Null
         },
@@ -1634,18 +1634,18 @@ mod tests {
         // Plugin enabled, nothing bound.
         let v = codex_role_state(&home, None, true);
         assert_eq!(v["state"], "roles-unbound");
-        assert_eq!(v["missing"].as_array().unwrap().len(), 3);
+        assert_eq!(v["missing"].as_array().unwrap().len(), 4);
 
         // Entries without files remain unbound.
         let config: toml::Value = toml::from_str(
-            "[agents.oracle]\nconfig_file = \"agents/oracle.toml\"\n[agents.sage]\nconfig_file = \"agents/sage.toml\"\n[agents.alchemist]\nconfig_file = \"agents/alchemist.toml\"\n",
+            "[agents.oracle]\nconfig_file = \"agents/oracle.toml\"\n[agents.sage]\nconfig_file = \"agents/sage.toml\"\n[agents.alchemist]\nconfig_file = \"agents/alchemist.toml\"\n[agents.alchemist-specialist]\nconfig_file = \"agents/alchemist-specialist.toml\"\n",
         )
         .unwrap();
         let v = codex_role_state(&home, Some(&config), true);
         assert_eq!(v["state"], "roles-unbound");
 
         // Entries and files present: bound.
-        for role in ["oracle", "sage", "alchemist"] {
+        for role in ["oracle", "sage", "alchemist", "alchemist-specialist"] {
             std::fs::write(
                 home.join("agents").join(format!("{role}.toml")),
                 "name = \"x\"\n",
