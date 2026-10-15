@@ -2291,7 +2291,11 @@ pub fn stage_work_item(
     parent_packet_digest: &str,
     stage: &str,
 ) -> Result<CandidateAdjudicationItem, SecurityAdjudicationError> {
-    scoped_item(&AdjudicationScope::Stage(stage), candidate, parent_packet_digest)
+    scoped_item(
+        &AdjudicationScope::Stage(stage),
+        candidate,
+        parent_packet_digest,
+    )
 }
 
 fn stage_item(

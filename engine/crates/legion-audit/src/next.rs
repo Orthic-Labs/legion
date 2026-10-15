@@ -666,9 +666,7 @@ fn parse_outstanding(entry: &str, batches: &[Value]) -> Result<AdjItem, String> 
 /// Derives the adjudication state from the adjudicator packet and, when one
 /// was ingested, the ledger inside its receipt. `Ok(None)` when the run has no
 /// batched adjudication (the adjudicator, if any, is then an ordinary seat).
-fn load_adjudication(
-    run_dir: &Path,
-) -> Result<Option<(AdjSnapshot, AdjContext, u64)>, AuditError> {
+fn load_adjudication(run_dir: &Path) -> Result<Option<(AdjSnapshot, AdjContext, u64)>, AuditError> {
     let packet_path = run_dir
         .join(LENS_PACKET_DIR)
         .join(format!("{ADJUDICATOR_PROVIDER_ID}.json"));
@@ -952,7 +950,12 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
     let loaded = load(run_dir)?;
     let before = load_state(run_dir, &loaded.dispatch_digest)?;
     let mut state = before.clone();
-    let decision = decide(&loaded.snapshot, &mut state, options.now_ms, options.lease_ms);
+    let decision = decide(
+        &loaded.snapshot,
+        &mut state,
+        options.now_ms,
+        options.lease_ms,
+    );
 
     let mut seats_out: Vec<Value> = Vec::new();
     for (work, lease) in &decision.issued {
@@ -996,8 +999,7 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                 else {
                     continue;
                 };
-                let Some(item) = snapshot.required.iter().find(|item| item.key == work.key)
-                else {
+                let Some(item) = snapshot.required.iter().find(|item| item.key == work.key) else {
                     continue;
                 };
                 let seat_id = adjudication_seat_id(&item.key);
@@ -1159,7 +1161,11 @@ mod tests {
 
     #[test]
     fn repeated_calls_return_the_same_wave_and_issue_nothing_new() {
-        let mut snap = snapshot(vec![seat(1, 1, "judgment"), seat(2, 1, "specialist"), seat(3, 2, "mechanical")]);
+        let mut snap = snapshot(vec![
+            seat(1, 1, "judgment"),
+            seat(2, 1, "specialist"),
+            seat(3, 2, "mechanical"),
+        ]);
         let mut state = State::fresh("d");
         let first = decide(&snap, &mut state, 10, LEASE);
         assert_eq!(first.status, "wave");
@@ -1169,8 +1175,14 @@ mod tests {
         let frozen = state.clone();
         let second = decide(&snap, &mut state, 500, LEASE);
         assert_eq!(keys(&second), keys(&first));
-        assert_eq!(state, frozen, "no results, no new issuance, no state change");
-        assert_eq!(second.issued[0].1, first.issued[0].1, "same lease, not a new one");
+        assert_eq!(
+            state, frozen,
+            "no results, no new issuance, no state change"
+        );
+        assert_eq!(
+            second.issued[0].1, first.issued[0].1,
+            "same lease, not a new one"
+        );
 
         // Wave 2 opens only once wave 1 has results.
         snap.done.insert("reasoning.p1.json".to_owned());
@@ -1205,12 +1217,18 @@ mod tests {
         snap.done.insert("reasoning.p2.json".to_owned());
         let last = decide(&snap, &mut state, 2 * LEASE, LEASE);
         assert_eq!(last.status, "incomplete:retry-exhausted");
-        assert_eq!(last.exhausted, [("seat-001".to_owned(), "attempts".to_owned())]);
+        assert_eq!(
+            last.exhausted,
+            [("seat-001".to_owned(), "attempts".to_owned())]
+        );
         assert!(last.issued.is_empty());
         assert_eq!(state.issuances, 4);
         // Stable: asking again changes nothing.
         let frozen = state.clone();
-        assert_eq!(decide(&snap, &mut state, 9 * LEASE, LEASE).status, last.status);
+        assert_eq!(
+            decide(&snap, &mut state, 9 * LEASE, LEASE).status,
+            last.status
+        );
         assert_eq!(state, frozen);
     }
 
@@ -1241,7 +1259,10 @@ mod tests {
             snap.done.insert(format!("reasoning.p{n}.json"));
         }
         let rest = decide(&snap, &mut state, 2, LEASE);
-        assert_eq!(keys(&rest), ["seat-017", "seat-018", "seat-019", "seat-020"]);
+        assert_eq!(
+            keys(&rest),
+            ["seat-017", "seat-018", "seat-019", "seat-020"]
+        );
     }
 
     #[test]
@@ -1252,13 +1273,19 @@ mod tests {
         // Round 1: the two cluster batches.
         set_adjudication(
             &mut snap,
-            vec![adj_item(BATCH_STAGE, "batch-0001", None), adj_item(BATCH_STAGE, "batch-0002", None)],
+            vec![
+                adj_item(BATCH_STAGE, "batch-0001", None),
+                adj_item(BATCH_STAGE, "batch-0002", None),
+            ],
             4,
         );
         let round1 = decide(&snap, &mut state, 0, LEASE);
         assert_eq!(keys(&round1), ["batch:batch-0001", "batch:batch-0002"]);
         assert_eq!(state.adjudication_round, 1);
-        assert!(round1.issued.iter().all(|(w, _)| w.kind == Kind::Adjudication));
+        assert!(round1
+            .issued
+            .iter()
+            .all(|(w, _)| w.kind == Kind::Adjudication));
         // Same call again: same round, nothing new.
         let frozen = state.clone();
         assert_eq!(keys(&decide(&snap, &mut state, 5, LEASE)), keys(&round1));
@@ -1294,7 +1321,11 @@ mod tests {
         assert_eq!(keys(&waiting), ["spotCheck:c1"]);
 
         // Round 2 finished: the voided-batch rerun opens round 3.
-        set_adjudication(&mut snap, vec![adj_item(STAGE_INDIVIDUAL, "c9", Some("voided-batch"))], 4);
+        set_adjudication(
+            &mut snap,
+            vec![adj_item(STAGE_INDIVIDUAL, "c9", Some("voided-batch"))],
+            4,
+        );
         let round3 = decide(&snap, &mut state, 30, LEASE);
         assert_eq!(state.adjudication_round, 3);
         assert_eq!(keys(&round3), ["individual:c9"]);
@@ -1381,7 +1412,9 @@ mod tests {
         snap.plan_seats = 0;
         set_adjudication(
             &mut snap,
-            (1..=4).map(|n| adj_item(BATCH_STAGE, &format!("b{n}"), None)).collect(),
+            (1..=4)
+                .map(|n| adj_item(BATCH_STAGE, &format!("b{n}"), None))
+                .collect(),
             1,
         );
         let mut state = State::fresh("d");
@@ -1389,7 +1422,10 @@ mod tests {
         assert_eq!(first.status, "wave");
         assert_eq!(first.issued.len(), 3);
         assert_eq!(state.issuances, 3);
-        assert_eq!(first.exhausted, [("batch:b4".to_owned(), "issuance-cap".to_owned())]);
+        assert_eq!(
+            first.exhausted,
+            [("batch:b4".to_owned(), "issuance-cap".to_owned())]
+        );
         // Everything leased expires: reissues are refused too.
         let after = decide(&snap, &mut state, LEASE, LEASE);
         assert_eq!(after.status, "incomplete:retry-exhausted");
@@ -1422,7 +1458,10 @@ mod tests {
         assert_eq!(keys(&decision), ["seat-001"]);
         assert_eq!(decision.budget_blocked, ["seat-002"]);
         two.done.insert("reasoning.p1.json".to_owned());
-        assert_eq!(decide(&two, &mut state, 1, LEASE).status, "budget-exhausted");
+        assert_eq!(
+            decide(&two, &mut state, 1, LEASE).status,
+            "budget-exhausted"
+        );
     }
 
     #[test]
@@ -1434,8 +1473,12 @@ mod tests {
         let batch = parse_outstanding(&outstanding_batch("batch-0001", 2), &batches).unwrap();
         assert_eq!(batch.key, "batch:batch-0001");
         assert_eq!(batch.tokens, 77);
-        let spot = parse_outstanding(&outstanding_stage(STAGE_SPOT_CHECK, "a:b"), &batches).unwrap();
-        assert_eq!((spot.key.as_str(), spot.candidate_id.as_deref()), ("spotCheck:a:b", Some("a:b")));
+        let spot =
+            parse_outstanding(&outstanding_stage(STAGE_SPOT_CHECK, "a:b"), &batches).unwrap();
+        assert_eq!(
+            (spot.key.as_str(), spot.candidate_id.as_deref()),
+            ("spotCheck:a:b", Some("a:b"))
+        );
         let confirm =
             parse_outstanding(&outstanding_stage(STAGE_CONFIRMATION, "a:b"), &batches).unwrap();
         assert_eq!(confirm.key, "confirmation:a:b");
@@ -1507,7 +1550,10 @@ mod tests {
         assert_eq!(wave2["wave"], 2);
         assert_eq!(wave2["seats"][0]["seatId"], "seat-002");
         assert_eq!(wave2["seats"][0]["modelTier"], "mechanical-cheap");
-        assert_eq!(wave2["seats"][0]["packetPaths"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            wave2["seats"][0]["packetPaths"].as_array().unwrap().len(),
+            2
+        );
         assert!(wave2["seats"][0]["resultPaths"][1]
             .as_str()
             .unwrap()
@@ -1515,12 +1561,14 @@ mod tests {
 
         // One of the two parts is not enough.
         write_value(
-            &run.join(LENS_RECEIPT_DIR).join("reasoning.naming.part-0001.json"),
+            &run.join(LENS_RECEIPT_DIR)
+                .join("reasoning.naming.part-0001.json"),
             &json!({"provider": "reasoning.naming"}),
         );
         assert_eq!(next(&run, &options(400)).unwrap()["status"], "wave");
         write_value(
-            &run.join(LENS_RECEIPT_DIR).join("reasoning.naming.part-0002.json"),
+            &run.join(LENS_RECEIPT_DIR)
+                .join("reasoning.naming.part-0002.json"),
             &json!({"provider": "reasoning.naming"}),
         );
         let done = next(&run, &options(500)).unwrap();
@@ -1532,9 +1580,7 @@ mod tests {
     #[test]
     fn a_refrozen_plan_starts_a_fresh_state() {
         let run = temp_run("refrozen");
-        let plan = |packet: &str| {
-            json!({"seats": [{"seat": 1, "wave": 1, "tier": "judgment", "providers": ["reasoning.a"], "packets": [packet]}]})
-        };
+        let plan = |packet: &str| json!({"seats": [{"seat": 1, "wave": 1, "tier": "judgment", "providers": ["reasoning.a"], "packets": [packet]}]});
         write_value(&run.join(DISPATCH_FILE), &plan("reasoning.a.json"));
         next(&run, &options(0)).unwrap();
         next(&run, &options(LEASE)).unwrap();
