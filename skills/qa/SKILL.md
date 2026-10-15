@@ -49,9 +49,14 @@ evaluation coverage.
      capabilities:
        - repository-truth-read
        - source-read
-3. Use smallest decisive project-native check. For web/browser behavior, test with
-   `legion script qa/qa-functional`; use `legion script qa/qa-shot` only for supporting viewport artifacts
-   against frozen observable criteria. Focused native checks need no browser ceremony.
+3. Use smallest decisive project-native check. Choose the scenario kind first:
+   `kind = "functional"` (default) for clicks, typing, and assertions; agents never take screenshots
+   in a functional run. `kind = "visual"` only for appearance checks that feed audit-visual. Set `kind`
+   on every scenario (needs rightkit-qa 0.5.0 or later); a functional run refuses screenshot steps.
+   For web/browser behavior, test with `legion script qa/qa-functional`; use `legion script qa/qa-shot`
+   only in a visual scenario, for viewport artifacts against frozen observable criteria. Focused native
+   checks need no browser ceremony. Evidence lives only in git-ignored `.cache/rightkit-qa`; never
+   commit it or copy it elsewhere.
    EXECUTOR:
      semantic: conditional
      capabilities:

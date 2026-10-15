@@ -97,8 +97,8 @@ This is the regression harness surface.
 
 This shared skill provides two native runners, listed by `legion script --list`:
 
-- `legion script qa/qa-functional --url <url> --actions <actions.json>`: functional hover/click/type/key/assert/screenshot actions.
-- `legion script qa/qa-shot --url <url> --out <file.png>`: viewport screenshot (also `--sweep`).
+- `legion script qa/qa-functional --url <url> --actions <actions.json>`: functional hover/click/type/key/assert actions; `screenshot` only in `kind = "visual"` scenarios.
+- `legion script qa/qa-shot --url <url> --out <file.png>`: viewport screenshot, visual scenarios only (also `--sweep`).
 
 They use installed Chrome/Edge directly through headless flags and raw CDP, and do not use Playwright
 or Puppeteer. They are the Rust port `legion-runtime::wf_port::r54`; the former `qa.mjs`,
@@ -211,7 +211,7 @@ Supported actions:
 - `click`, `hover`, `type`, `press`
 - `eval`
 - `assertVisible`, `assertText`, `assertAriaLabel`, `assertCursor`, `assertStyle`
-- `screenshot`
+- `screenshot` (visual scenarios only)
 - `sleep`
 
 ## Rendered browser checks
@@ -221,13 +221,13 @@ Purpose: prove declared functional, behavioral, browser, & runtime acceptance in
 Use SampleApp-style capture:
 
 - `--shot` captures only the app viewport: no desktop, wallpaper, other windows, or browser chrome.
-- Capture default, hover, active, selected, focused, disabled, error, empty, loading, long-text, and scrolled states.
+- Functional checks assert default, hover, active, selected, focused, disabled, error, empty, loading, long-text, and scrolled states through DOM, ARIA, and computed-style assertions. Capture them as screenshots only in `kind = "visual"` scenarios.
 - Assert only frozen observable criteria such as visibility, overlap, focus, state transition, exact computed style, viewport containment, or required text.
 - Use computed styles to verify exact cursor/color/spacing acceptance; screenshots are supporting evidence, not a qualitative design oracle.
 - Refer rendered-state enumeration, regression comparison, & evidence coverage to Audit Visual (named as the owner; QA does not invoke it).
 - Refer subjective hierarchy, typography, spacing craft, density, theme fit, brand expression, & polish judgment or remediation to Designer (named as the owner; QA does not invoke it).
 
-Run:
+Run (visual scenarios only):
 
 Windows:
 
@@ -271,19 +271,16 @@ Lead with findings:
 
 ```markdown
 ## Findings
-- P1: Settings left-nav hover has no visible state. Evidence: `.cache/qa-shots/settings-hover.png`.
+- P1: Settings left-nav hover has no visible state. Evidence: failed `assertStyle` in `.cache/qa-actions.log`.
 - P2: Icon-only close button has no accessible label. Selector: `button.close`.
 
 ## Evidence
 - `.cache/qa-browser/url.txt`
-- `.cache/qa-shots/default.png`
-- `.cache/qa-shots/settings-hover.png`
 - `.cache/qa-actions.log`
 
 ## Verification
 - `pnpm qa:browser`
 - `legion script qa/qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions .cache/qa-actions.json`
-- `legion script qa/qa-shot --url "http://127.0.0.1:3000/?qa=1" --out .cache/qa-shots/default.png`
 
 ## Skipped coverage
 - List each frozen case not run, with the reason. Write `none` only when nothing was skipped.

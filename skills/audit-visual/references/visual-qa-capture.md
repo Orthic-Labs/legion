@@ -1,6 +1,6 @@
 # Headless Visual QA Capture Protocol
 
-Capture/interaction layer for `audit-visual` step 3 (see `SKILL.md`). Use this for routine background visual QA. It must not foreground a native app window, steal focus, or depend on the user's visible desktop.
+Capture/interaction layer for `audit-visual` step 3 (see `SKILL.md`). Use this for routine background visual QA. It must not foreground a native app window, steal focus, or depend on the user's visible desktop. Every capture runs as a `kind = "visual"` scenario (rightkit-qa 0.5.0 or later). Functional checks without screenshots belong to the `qa` skill, which defaults to `kind = "functional"`.
 
 Preferred capture order:
 
@@ -34,7 +34,7 @@ Preferred capture order:
    - Treat native QA as WebView2 parity/smoke testing, not the routine visual review loop.
    - If native screenshot tooling captures blank or stale WebView2 content, it is not acceptable evidence.
 
-**Batch by default.** For a RightKit app that exposes the control surface (`rightkit-qa-driver` 0.4.0 or later), send each flow as one `right-ctl run` JSON batch. The `<app>.batch` tool runs up to 256 steps and stops at the first failure:
+**Batch by default.** For a RightKit app that exposes the control surface (`rightkit-qa-driver` 0.4.0 or later), send each visual flow as one `right-ctl run` JSON batch. A flow without a `screenshot` step is functional and belongs to the `qa` skill. The `<app>.batch` tool runs up to 256 steps and stops at the first failure:
 
 ```sh
 echo '[{"tool":"<app>.batch","args":{"steps":[

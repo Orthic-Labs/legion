@@ -48,6 +48,8 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
 2. Use an explicit visual specification when comparing against baselines or asserting richer matrix
    dimensions; never invent evidence.
 3. Capture specified states through host browser tools, following `references/visual-qa-capture.md`.
+   Run every capture as a `kind = "visual"` scenario (rightkit-qa 0.5.0 or later); functional checks
+   without screenshots belong to the `qa` skill.
    When runtime & visual providers are both selected with `--url` and no explicit spec, the frozen plan
    orders runtime before visual & binds resulting PNGs as supplemental captures. They have no inferred
    baselines and remain review-required. Otherwise record unavailable captures as `UNPROVEN`.

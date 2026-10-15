@@ -41,6 +41,8 @@ For each case:
 4. Record artifact path, digest, timestamp, runtime identity, & capture parameters.
 5. Preserve failure artifacts for blank, loading-only, crashed, or unreachable states.
 
+Capture runs only as `kind = "visual"` scenarios (rightkit-qa 0.5.0 or later); functional clicks and assertions belong to the `qa` skill.
+
 For live UI, QA may supply navigation & interaction evidence. Audit Visual consumes those results
 without claiming ownership of functional success. Native surfaces require native capture tooling;
 browser captures do not prove native pixels.
