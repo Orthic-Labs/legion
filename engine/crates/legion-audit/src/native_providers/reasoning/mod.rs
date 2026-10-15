@@ -970,11 +970,14 @@ fn sampled_review(
     promotion_basis.dedup();
 
     // Cost is what the dispatch estimator will charge: the measured excerpt
-    // JSON of the file in its packet mode (flagged regions included). The
-    // promoted/displaced lists live in the promotion file, not in packets, so
-    // they add nothing. Promoted files carry their finding's raw window and can cost several times a skeleton
-    // sampled file, so file size is no stand-in.
-    let measured = |path: &str| {
+    // JSON of the file in its packet mode (flagged regions included).
+    // Promoted files carry their finding's raw window and can cost several
+    // times a skeleton sampled file, so file size is no stand-in. Per-path
+    // listings only appear in multi-part packets, so a promoted file is
+    // charged its listings while a displaced file frees only its excerpt
+    // bytes: displacing many small files must never buy listings that a
+    // single-part packet never emitted.
+    let measured = |path: &str, copies: usize| {
         excerpts::review_item_cost(
             root,
             &excerpts::ReviewItem {
@@ -983,11 +986,11 @@ fn sampled_review(
             },
             hunks,
             &flags,
-            listing_copies,
+            copies,
         ) as u64
     };
-    let promote_cost = |path: &str| measured(path);
-    let freed_by = |path: &str| measured(path);
+    let promote_cost = |path: &str| measured(path, listing_copies);
+    let freed_by = |path: &str| measured(path, 0);
 
     // Displaceable sampled paths, lowest-ranked first: unranked leftovers,
     // then the remainder stratum from its end, then the hotspot stratum from
@@ -1045,7 +1048,7 @@ fn sampled_review(
                 };
                 let plain =
                     excerpts::review_item_cost(root, &item, hunks, &unflagged, listing_copies);
-                measured(path).saturating_sub(plain as u64)
+                measured(path, listing_copies).saturating_sub(plain as u64)
             })
             .sum()
     };
