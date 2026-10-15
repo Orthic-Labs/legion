@@ -34,6 +34,13 @@ pub(crate) fn cache_child(parent: &StateDir, name: &str) -> rightkit_fs::Result<
 /// an existing symlink or an override containing parent traversal.
 pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
     let repository = repository.canonicalize()?;
+    let override_root = std::env::var_os(legion_contracts::state_root::STATE_ROOT_ENV)
+        .filter(|value| !value.is_empty());
+    if let Some(root) = &override_root {
+        // The receipts owner appends a child. On Windows a verbatim prefix makes that
+        // operation normalize away `..`, so reject lexical traversal before delegation.
+        validate_state_root(Path::new(root))?;
+    }
     let receipts =
         legion_contracts::state_root::receipts_root_for_cwd(&repository).ok_or_else(|| {
             io::Error::new(
@@ -41,8 +48,7 @@ pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
                 "Legion user state root unavailable",
             )
         })?;
-    let overridden = std::env::var_os(legion_contracts::state_root::STATE_ROOT_ENV)
-        .is_some_and(|value| !value.is_empty());
+    let overridden = override_root.is_some();
     audit_cache_root_in(
         &repository,
         state_root_from_receipts(&receipts, overridden)?,
@@ -66,7 +72,7 @@ fn state_root_from_receipts(receipts: &Path, overridden: bool) -> io::Result<&Pa
     })
 }
 
-fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathBuf> {
+fn validate_state_root(state_root: &Path) -> io::Result<()> {
     if !state_root.is_absolute()
         || state_root
             .components()
@@ -77,6 +83,11 @@ fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathB
             "Legion state root must be absolute without parent traversal",
         ));
     }
+    Ok(())
+}
+
+fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathBuf> {
+    validate_state_root(state_root)?;
     let root = state_root
         .join("audit-cache")
         .join(bytes_digest(repository.to_string_lossy().as_bytes()));
@@ -740,8 +751,43 @@ mod tests {
         let repo = temp.0.canonicalize().unwrap();
         assert!(audit_cache_root_in(&repo, &repo.join("state/receipts")).is_err());
         assert!(audit_cache_root_in(&repo, Path::new("relative/receipts")).is_err());
-        assert!(audit_cache_root_in(&repo, &repo.join("../external/receipts")).is_err());
+        // Append raw components: Path::join removes `..` from Windows verbatim paths,
+        // which would otherwise turn this rejection case into an ordinary external root.
+        let mut traversal = repo.as_os_str().to_os_string();
+        for component in ["..", "external", "receipts"] {
+            traversal.push(std::path::MAIN_SEPARATOR_STR);
+            traversal.push(component);
+        }
+        let traversal = PathBuf::from(traversal);
+        assert!(traversal
+            .components()
+            .any(|part| matches!(part, Component::ParentDir)));
+        assert_eq!(
+            validate_state_root(&traversal).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert!(audit_cache_root_in(&repo, &traversal).is_err());
         assert_eq!(std::fs::read_dir(&repo).unwrap().count(), 0);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn normalized_verbatim_state_uses_resolved_external_boundary_without_writes() {
+        let temp = Temp::new();
+        let repo = temp.0.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let repo = repo.canonicalize().unwrap();
+        let external = repo.join(r"..\external\receipts");
+        assert!(!external
+            .components()
+            .any(|part| matches!(part, Component::ParentDir)));
+        let root = audit_cache_root_in(&repo, &external).unwrap();
+        assert!(!root.starts_with(&repo));
+        assert!(!root.exists());
+        let inside = repo.join(r"branch\..\state");
+        assert!(audit_cache_root_in(&repo, &inside).is_err());
+        assert_eq!(std::fs::read_dir(&repo).unwrap().count(), 0);
+        assert!(!temp.0.join("external").exists());
     }
 
     #[cfg(unix)]
