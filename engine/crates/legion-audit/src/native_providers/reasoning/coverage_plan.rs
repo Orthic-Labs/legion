@@ -1113,7 +1113,11 @@ mod tests {
         let order = |seed: &str| {
             let mut sample: Vec<&str> = paths.iter().map(String::as_str).collect();
             sample.sort_by_key(|path| seeded_key(seed, path));
-            sample.into_iter().take(30).map(str::to_owned).collect::<Vec<_>>()
+            sample
+                .into_iter()
+                .take(30)
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
         };
         assert_ne!(
             order(&seed_a),
