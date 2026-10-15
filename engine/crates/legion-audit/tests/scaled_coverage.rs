@@ -704,6 +704,55 @@ fn carried_paths(work: &[PendingLensWork]) -> BTreeSet<String> {
     paths
 }
 
+/// Diagnostic split of packet bytes: per part, total bytes, excerpt bytes,
+/// excerpt count, distinct paths, and the bytes of each non-excerpt field.
+fn packet_breakdown(work: &[PendingLensWork]) -> String {
+    let mut lines = Vec::new();
+    for item in work {
+        let packet = &item.request.packet;
+        let total = serde_json::to_vec(packet).unwrap().len();
+        let excerpts = packet["excerpts"].as_array().cloned().unwrap_or_default();
+        let excerpt_bytes = serde_json::to_vec(&excerpts).unwrap().len();
+        let paths: BTreeSet<&str> = excerpts
+            .iter()
+            .filter_map(|excerpt| excerpt["path"].as_str())
+            .collect();
+        let mut fields: Vec<String> = packet
+            .as_object()
+            .map(|object| {
+                object
+                    .iter()
+                    .filter(|(key, _)| key.as_str() != "excerpts")
+                    .map(|(key, value)| {
+                        format!("{key}={}", serde_json::to_vec(value).unwrap().len())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        fields.sort();
+        let mut per_excerpt: Vec<String> = excerpts
+            .iter()
+            .map(|excerpt| {
+                format!(
+                    "{}:{}",
+                    excerpt["path"].as_str().unwrap_or("?"),
+                    serde_json::to_vec(excerpt).unwrap().len()
+                )
+            })
+            .collect();
+        per_excerpt.sort();
+        lines.push(format!(
+            "[{} total={total} excerpts={excerpt_bytes} n={} paths={} fields: {} | each: {}]",
+            item.provider_id,
+            excerpts.len(),
+            paths.len(),
+            fields.join(","),
+            per_excerpt.join(",")
+        ));
+    }
+    lines.join("\n")
+}
+
 fn within_frozen_dispatch(baseline: &Value, after: &Value) {
     let before_tokens = baseline["estimatedTokens"].as_u64().unwrap();
     let after_tokens = after["estimatedTokens"].as_u64().unwrap();
@@ -849,7 +898,17 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     let work =
         pending_lens_work_with_candidates(&env.root, &env.plan, &env.inventory, Some(&candidates))
             .unwrap();
-    within_frozen_dispatch(&baseline, &lens_dispatch_plan(&work, &limits));
+    let after = lens_dispatch_plan(&work, &limits);
+    let before_tokens = baseline["estimatedTokens"].as_u64().unwrap();
+    let after_tokens = after["estimatedTokens"].as_u64().unwrap();
+    if after_tokens * 100 > before_tokens * 105 {
+        panic!(
+            "promotion grew the dispatch from {before_tokens} to {after_tokens} tokens\nbefore: {}\nafter: {}",
+            packet_breakdown(&env.work),
+            packet_breakdown(&work)
+        );
+    }
+    within_frozen_dispatch(&baseline, &after);
 
     let coverage = &work[0].request.packet["excerptCoverage"];
     assert!(coverage.get("promotedPaths").is_none());
