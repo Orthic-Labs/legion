@@ -139,11 +139,7 @@ impl CoverageRequest {
             ("maxTotalSeats", &mut request.max_total_seats),
             ("seatTokenBudget", &mut request.seat_token_budget),
         ] {
-            if let Some(number) = value
-                .get(field)
-                .and_then(Value::as_u64)
-                .filter(|n| *n > 0)
-            {
+            if let Some(number) = value.get(field).and_then(Value::as_u64).filter(|n| *n > 0) {
                 *slot = number;
             }
         }
@@ -234,7 +230,13 @@ const SECURITY_TOKENS: &[&str] = &[
     "guard",
 ];
 
-const SECURITY_SYMBOL_HINTS: &[&str] = &["exec", "spawn", "deserialize", "decrypt", "verify_signature"];
+const SECURITY_SYMBOL_HINTS: &[&str] = &[
+    "exec",
+    "spawn",
+    "deserialize",
+    "decrypt",
+    "verify_signature",
+];
 
 /// Mandatory-stratum path/symbol rule.
 pub fn classify_signal(path: &str, symbols: &[String]) -> Option<&'static str> {
@@ -248,7 +250,9 @@ pub fn classify_signal(path: &str, symbols: &[String]) -> Option<&'static str> {
     if hit
         || symbols.iter().any(|symbol| {
             let symbol = symbol.to_ascii_lowercase();
-            SECURITY_SYMBOL_HINTS.iter().any(|hint| symbol.contains(hint))
+            SECURITY_SYMBOL_HINTS
+                .iter()
+                .any(|hint| symbol.contains(hint))
         })
     {
         return Some("security-sensitive");
@@ -549,8 +553,8 @@ pub fn plan_coverage(
         let bytes = members
             .iter()
             .map(|lens| {
-                let mode =
-                    lens_plan::lens_plan_excerpt_mode(&lens.provider_id).unwrap_or(ExcerptMode::Raw);
+                let mode = lens_plan::lens_plan_excerpt_mode(&lens.provider_id)
+                    .unwrap_or(ExcerptMode::Raw);
                 lens.paths
                     .iter()
                     .map(|path| estimate_bytes(mode, facts.get(path).map_or(0, |f| f.size)))
@@ -560,7 +564,9 @@ pub fn plan_coverage(
             .unwrap_or(0);
         let tokens = bytes / 4;
         exhaustive_tokens.insert(bundle.id, tokens);
-        estimated_seats += bytes.div_ceil(super::excerpts::MAX_TOTAL_EXCERPT_BYTES as u64).max(1);
+        estimated_seats += bytes
+            .div_ceil(super::excerpts::MAX_TOTAL_EXCERPT_BYTES as u64)
+            .max(1);
         if tokens * 100 > base_tokens(bundle) * COMMIT_PERCENT {
             fits = false;
         }
@@ -583,8 +589,8 @@ pub fn plan_coverage(
             let mut paths = lens.paths.clone();
             paths.sort();
             paths.dedup();
-            let digest = canonical_digest(&paths)
-                .map_err(|error| AuditError::Invalid(error.to_string()))?;
+            let digest =
+                canonical_digest(&paths).map_err(|error| AuditError::Invalid(error.to_string()))?;
             configs.insert(
                 lens.provider_id.clone(),
                 json!({
@@ -685,7 +691,9 @@ pub fn plan_coverage(
     }
     let surplus: u64 = present
         .iter()
-        .map(|bundle| budget_tokens[bundle.id].saturating_sub(full_cost[bundle.id] * 100 / COMMIT_PERCENT))
+        .map(|bundle| {
+            budget_tokens[bundle.id].saturating_sub(full_cost[bundle.id] * 100 / COMMIT_PERCENT)
+        })
         .sum();
     let deficit_share: u64 = present
         .iter()
@@ -1074,8 +1082,20 @@ mod tests {
         let paths = fixture_paths(1100);
         let facts = facts_for(&paths, 12 * 1024);
         let basis = json!({"inventoryDigest": "sha256:aa"});
-        let a = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
-        let b = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
+        let a = plan_coverage(
+            &basis,
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Auto),
+        )
+        .unwrap();
+        let b = plan_coverage(
+            &basis,
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Auto),
+        )
+        .unwrap();
         assert_eq!(a, b);
         let c = plan_coverage(
             &json!({"inventoryDigest": "sha256:bb"}),
@@ -1085,8 +1105,7 @@ mod tests {
         )
         .unwrap();
         assert_ne!(
-            a["reasoning.security"]["reviewSetDigest"],
-            c["reasoning.security"]["reviewSetDigest"],
+            a["reasoning.security"]["reviewSetDigest"], c["reasoning.security"]["reviewSetDigest"],
             "a different seed samples a different remainder"
         );
     }
@@ -1096,7 +1115,13 @@ mod tests {
         let paths = fixture_paths(1100);
         let facts = facts_for(&paths, 12 * 1024);
         let basis = json!({"inventoryDigest": "sha256:aa"});
-        let plan = plan_coverage(&basis, &facts, &lenses(&paths), &request(CoverageMode::Auto)).unwrap();
+        let plan = plan_coverage(
+            &basis,
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::Auto),
+        )
+        .unwrap();
         let security = &plan["reasoning.security"];
         assert_eq!(security["mode"], MODE_RISK_SAMPLED);
         assert_eq!(security["fitsExhaustive"], false);
@@ -1115,11 +1140,21 @@ mod tests {
             .collect();
         assert!(mandatory.iter().all(|p| set.contains(p.as_str())));
         // Estimated tokens of all bundles stay inside the run budget.
-        let total: u64 = ["reasoning.security", "reasoning.architecture", "reasoning.performance", "reasoning.minimize", "reasoning.ai-slop", "reasoning.naming"]
-            .iter()
-            .map(|id| plan[*id]["estimatedTokens"].as_u64().unwrap())
-            .sum();
-        assert!(total <= DEFAULT_RUN_TOKEN_BUDGET, "estimated {total} tokens");
+        let total: u64 = [
+            "reasoning.security",
+            "reasoning.architecture",
+            "reasoning.performance",
+            "reasoning.minimize",
+            "reasoning.ai-slop",
+            "reasoning.naming",
+        ]
+        .iter()
+        .map(|id| plan[*id]["estimatedTokens"].as_u64().unwrap())
+        .sum();
+        assert!(
+            total <= DEFAULT_RUN_TOKEN_BUDGET,
+            "estimated {total} tokens"
+        );
         // Lenses in one bundle share one review set.
         assert_eq!(
             plan["reasoning.security"]["reviewSetDigest"],
@@ -1171,7 +1206,13 @@ mod tests {
     fn changing_the_review_set_changes_the_digest_input() {
         let paths = fixture_paths(1100);
         let facts = facts_for(&paths, 12 * 1024);
-        let a = plan_coverage(&json!({}), &facts, &lenses(&paths), &request(CoverageMode::RiskSampled)).unwrap();
+        let a = plan_coverage(
+            &json!({}),
+            &facts,
+            &lenses(&paths),
+            &request(CoverageMode::RiskSampled),
+        )
+        .unwrap();
         let mut bigger = request(CoverageMode::RiskSampled);
         bigger.run_token_budget *= 2;
         let b = plan_coverage(&json!({}), &facts, &lenses(&paths), &bigger).unwrap();
@@ -1204,8 +1245,14 @@ mod tests {
         assert!((zero["upperBound"].as_f64().unwrap() - 0.1).abs() < 1e-9);
         let some = stratum_confidence("remainder", 800, 30, 2);
         assert_eq!(some["method"], "clopper-pearson");
-        let (lo, hi) = (some["lowerBound"].as_f64().unwrap(), some["upperBound"].as_f64().unwrap());
-        assert!(lo > 0.0 && lo < 2.0 / 30.0 && hi > 2.0 / 30.0 && hi < 0.3, "{lo} {hi}");
+        let (lo, hi) = (
+            some["lowerBound"].as_f64().unwrap(),
+            some["upperBound"].as_f64().unwrap(),
+        );
+        assert!(
+            lo > 0.0 && lo < 2.0 / 30.0 && hi > 2.0 / 30.0 && hi < 0.3,
+            "{lo} {hi}"
+        );
         assert_eq!(stratum_confidence("mandatory", 10, 10, 0)["claim"], "none");
         // Known value: 0 of 30 gives a CP upper of about 0.116 (two-sided).
         let (_, upper) = clopper_pearson(30, 0);
@@ -1218,8 +1265,14 @@ mod tests {
         assert!(is_lens_excluded("web/app.min.js"));
         assert!(is_lens_excluded("Cargo.lock"));
         assert!(!is_lens_excluded("src/vendor_client.rs"));
-        assert_eq!(classify_signal("bins/legion/src/main.rs", &[]), Some("entrypoint"));
-        assert_eq!(classify_signal("src/auth/session.rs", &[]), Some("security-sensitive"));
+        assert_eq!(
+            classify_signal("bins/legion/src/main.rs", &[]),
+            Some("entrypoint")
+        );
+        assert_eq!(
+            classify_signal("src/auth/session.rs", &[]),
+            Some("security-sensitive")
+        );
         assert_eq!(classify_signal("src/design/layout.rs", &[]), None);
     }
 }

@@ -499,7 +499,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             let (lens_coverage, sampled_run) = lens_coverage_summary(&lens_basis);
             report.claims.insert("lensWork".into(), json!(lens_work));
             if let Some(dispatch) = &lens_dispatch {
-                report.claims.insert("lensDispatch".into(), dispatch.clone());
+                report
+                    .claims
+                    .insert("lensDispatch".into(), dispatch.clone());
             }
             report.claims.insert(
                 "coverageMode".into(),
@@ -512,7 +514,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 );
             }
             if lens_coverage.as_object().is_some_and(|map| !map.is_empty()) {
-                report.claims.insert("lensCoverage".into(), lens_coverage.clone());
+                report
+                    .claims
+                    .insert("lensCoverage".into(), lens_coverage.clone());
             }
             if let Some(size) = &lens_size {
                 report.claims.insert("lensSize".into(), size.clone());
@@ -1081,7 +1085,9 @@ fn coverage_request(args: &AuditArgs) -> Value {
     .to_value()
 }
 
-fn dispatch_limits(args: &AuditArgs) -> legion_audit::native_providers::reasoning::ingest::DispatchLimits {
+fn dispatch_limits(
+    args: &AuditArgs,
+) -> legion_audit::native_providers::reasoning::ingest::DispatchLimits {
     legion_audit::native_providers::reasoning::ingest::DispatchLimits {
         seat_token_budget: args.seat_token_budget,
         wave_width: args.max_lens_seats,
@@ -1106,7 +1112,10 @@ fn lens_coverage_summary(basis: &LensBasis) -> (Value, bool) {
 /// `lensWork` items so the output lists work by bundle and wave.
 fn annotate_lens_work(items: &mut [Value], dispatch: &Value) {
     for item in items {
-        let Some(provider) = item.get("provider").and_then(Value::as_str).map(ToOwned::to_owned)
+        let Some(provider) = item
+            .get("provider")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
         else {
             continue;
         };
@@ -1115,9 +1124,11 @@ fn annotate_lens_work(items: &mut [Value], dispatch: &Value) {
             .into_iter()
             .flatten()
             .filter(|seat| {
-                seat["providers"]
-                    .as_array()
-                    .is_some_and(|providers| providers.iter().any(|p| p.as_str() == Some(provider.as_str())))
+                seat["providers"].as_array().is_some_and(|providers| {
+                    providers
+                        .iter()
+                        .any(|p| p.as_str() == Some(provider.as_str()))
+                })
             })
             .map(|seat| {
                 json!({

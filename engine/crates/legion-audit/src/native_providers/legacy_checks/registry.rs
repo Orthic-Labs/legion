@@ -551,9 +551,9 @@ pub enum AbsenceOutcome {
 /// Outcome of a missing tool, or `None` when the tool has no declared class.
 pub fn absence_outcome(tool: &str) -> Option<AbsenceOutcome> {
     match host_capability(tool)?.class {
-        CapabilityClass::Advisory => Some(AbsenceOutcome::Blocking(format!(
-            "host-capability:{tool}"
-        ))),
+        CapabilityClass::Advisory => {
+            Some(AbsenceOutcome::Blocking(format!("host-capability:{tool}")))
+        }
         CapabilityClass::Substitutable { .. } | CapabilityClass::Informational => Some(
             AbsenceOutcome::NonBlocking(format!("capability-absent:{tool}")),
         ),
@@ -577,7 +577,9 @@ mod capability_tests {
         ] {
             assert_eq!(
                 absence_outcome(tool),
-                Some(AbsenceOutcome::NonBlocking(format!("capability-absent:{tool}"))),
+                Some(AbsenceOutcome::NonBlocking(format!(
+                    "capability-absent:{tool}"
+                ))),
                 "{tool} must note, not block"
             );
         }

@@ -565,14 +565,8 @@ fn build_invocations(
     // (plus files promoted by deterministic findings); an exhaustive lens, or a
     // plan without a coverage plan, partitions the whole denominator exactly as
     // before.
-    let sampled = base_mode.and_then(|mode| {
-        sampled_review(
-            provider,
-            denominator,
-            scanner_candidates,
-            mode,
-        )
-    });
+    let sampled =
+        base_mode.and_then(|mode| sampled_review(provider, denominator, scanner_candidates, mode));
     let partition = match (&sampled, base_mode) {
         (Some(sampled), _) => Some(excerpts::partition_review_set(
             root,
@@ -919,7 +913,10 @@ fn sampled_review(
         if members.len() > 1 {
             aliases.insert(
                 canonical.to_owned(),
-                members[1..].iter().map(|member| (*member).to_owned()).collect(),
+                members[1..]
+                    .iter()
+                    .map(|member| (*member).to_owned())
+                    .collect(),
             );
         }
         items.push(excerpts::ReviewItem {
@@ -1019,13 +1016,19 @@ fn excerpt_coverage_value(
                 })
                 .flatten()
                 .collect();
-            object.insert("coverageMode".into(), json!(coverage_plan::MODE_RISK_SAMPLED));
+            object.insert(
+                "coverageMode".into(),
+                json!(coverage_plan::MODE_RISK_SAMPLED),
+            );
             object.insert("bundle".into(), json!(review.bundle));
             object.insert("reviewSetDigest".into(), json!(review.digest));
             object.insert("reviewSetCount".into(), json!(review.review_count));
             object.insert("promotedPaths".into(), json!(review.promoted));
             object.insert("promotionDigest".into(), json!(review.promotion_digest));
-            object.insert("declaredUnsampledCount".into(), json!(review.declared_unsampled));
+            object.insert(
+                "declaredUnsampledCount".into(),
+                json!(review.declared_unsampled),
+            );
             object.insert("excludedCount".into(), json!(review.excluded));
             object.insert("aliasedPaths".into(), Value::Array(aliased));
         }

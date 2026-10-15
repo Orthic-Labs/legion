@@ -432,7 +432,10 @@ impl SampledPacket {
     }
 
     fn annotate(&self, object: &mut Map<String, Value>) {
-        object.insert("coverageMode".into(), json!(coverage_plan::MODE_RISK_SAMPLED));
+        object.insert(
+            "coverageMode".into(),
+            json!(coverage_plan::MODE_RISK_SAMPLED),
+        );
         object.insert("bundle".into(), json!(self.bundle));
         object.insert("reviewSetDigest".into(), json!(self.review_set_digest));
         object.insert("reviewSetCount".into(), json!(self.review_set_count));
@@ -900,7 +903,12 @@ pub fn ingest_lens_result(
             "lens packet binding was altered after the run froze",
         ));
     }
-    verify_review_binding(&plan, provider_id, &request.packet, &request.denominator_paths)?;
+    verify_review_binding(
+        &plan,
+        provider_id,
+        &request.packet,
+        &request.denominator_paths,
+    )?;
     let packet_digest =
         canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?;
 
@@ -1087,8 +1095,9 @@ pub fn ingest_lens_result(
                         .unwrap_or_else(|| json!({})),
                 )
                 .map_err(|error| invalid(format!("{who}: triage context: {error}")))?;
-                let plan = build_adjudication_plan(&candidates, &triage_context, &parent_packet_digest)
-                    .map_err(|error| invalid(format!("{who}: {error}")))?;
+                let plan =
+                    build_adjudication_plan(&candidates, &triage_context, &parent_packet_digest)
+                        .map_err(|error| invalid(format!("{who}: {error}")))?;
                 if request.packet.get("candidateWorkItems") != Some(&plan.to_value()) {
                     return Err(invalid(format!(
                         "{who}: adjudication plan does not match the batch candidates and parent packet digest"
@@ -1930,19 +1939,20 @@ fn merge_parts(
         }),
     );
     details.insert("partReceipts".into(), Value::Array(part_receipts));
-    let sampled_detail = sampled_meta.as_ref().map(
-        |(review, declared, excluded, digest, bundle)| {
-            json!({
-                "coverageMode": coverage_plan::MODE_RISK_SAMPLED,
-                "reviewExpected": review,
-                "reviewExamined": review_examined,
-                "declaredUnsampled": declared,
-                "excluded": excluded,
-                "reviewSetDigest": digest,
-                "bundle": bundle,
-            })
-        },
-    );
+    let sampled_detail =
+        sampled_meta
+            .as_ref()
+            .map(|(review, declared, excluded, digest, bundle)| {
+                json!({
+                    "coverageMode": coverage_plan::MODE_RISK_SAMPLED,
+                    "reviewExpected": review,
+                    "reviewExamined": review_examined,
+                    "declaredUnsampled": declared,
+                    "excluded": excluded,
+                    "reviewSetDigest": digest,
+                    "bundle": bundle,
+                })
+            });
     details.insert(
         "packetCoverage".into(),
         json!({
@@ -3078,7 +3088,9 @@ pub fn lens_coverage_claims(
             .find(|(id, _)| *id == provider.id)
             .map(|(_, result)| result);
         let packet = receipt.and_then(|result| result.details.get("packetCoverage"));
-        let merged = packet.and_then(|detail| detail.get("sampled")).filter(|v| !v.is_null());
+        let merged = packet
+            .and_then(|detail| detail.get("sampled"))
+            .filter(|v| !v.is_null());
         let review_examined = if frozen.is_sampled() {
             merged
                 .and_then(|value| value.get("reviewExamined"))

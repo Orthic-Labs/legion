@@ -640,26 +640,26 @@ impl LegacyCheckDispatcher {
             (execution.state == LegacyCheckProcessState::MissingExecutable
                 && !managed_test_unavailable_claim
                 && declared_absence.is_none())
-                .then(|| {
-                    let gap_text = output
-                        .coverage_gaps
-                        .iter()
-                        .chain(output.degradation.iter())
-                        .find(|gap| {
-                            gap.starts_with("missing executable: ")
-                                || gap.contains("is not configured")
-                                || gap.starts_with("no configured project")
-                                || gap.contains("metadata is unavailable")
-                        })
-                        .cloned();
-                    match gap_text {
-                        Some(gap) if gap.starts_with("missing executable: ") => {
-                            format!("tool-missing:{}", &gap["missing executable: ".len()..])
-                        }
-                        Some(_) => format!("not-configured:{}", contract.check),
-                        None => format!("tool-missing:{}", contract.tool),
+            .then(|| {
+                let gap_text = output
+                    .coverage_gaps
+                    .iter()
+                    .chain(output.degradation.iter())
+                    .find(|gap| {
+                        gap.starts_with("missing executable: ")
+                            || gap.contains("is not configured")
+                            || gap.starts_with("no configured project")
+                            || gap.contains("metadata is unavailable")
+                    })
+                    .cloned();
+                match gap_text {
+                    Some(gap) if gap.starts_with("missing executable: ") => {
+                        format!("tool-missing:{}", &gap["missing executable: ".len()..])
                     }
-                })
+                    Some(_) => format!("not-configured:{}", contract.check),
+                    None => format!("tool-missing:{}", contract.tool),
+                }
+            })
         }
         .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
         let unavailable_reason = match declared_absence.clone() {

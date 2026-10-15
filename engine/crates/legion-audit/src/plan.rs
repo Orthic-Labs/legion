@@ -142,7 +142,8 @@ fn plan_lens_coverage(
         if !lens_plan::is_coverage_planned_provider(spec.id.as_str()) {
             continue;
         }
-        let denominator = inventory.denominator_entries_with_candidates(&spec.selector, candidates)?;
+        let denominator =
+            inventory.denominator_entries_with_candidates(&spec.selector, candidates)?;
         if denominator.entries.is_empty() {
             continue;
         }
@@ -654,12 +655,13 @@ impl AuditPlan {
                 }
             }
             if let Some(coverage) = provider.configuration.get("coverage") {
-                let frozen = coverage_plan::FrozenCoverage::from_value(coverage).ok_or_else(|| {
-                    AuditError::Invalid(format!(
-                        "provider {} has a malformed frozen coverage plan",
-                        provider.id
-                    ))
-                })?;
+                let frozen =
+                    coverage_plan::FrozenCoverage::from_value(coverage).ok_or_else(|| {
+                        AuditError::Invalid(format!(
+                            "provider {} has a malformed frozen coverage plan",
+                            provider.id
+                        ))
+                    })?;
                 let listed: Vec<&String> = frozen.review_set.iter().collect();
                 let digest = legion_contracts::canonical_digest(&listed)
                     .map_err(|error| AuditError::Invalid(error.to_string()))?;

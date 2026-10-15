@@ -214,7 +214,9 @@ fn filler_file(file: usize, bytes: usize) -> Vec<u8> {
         if line % 40 == 0 {
             out.push_str(&format!("pub fn f_{file}_{line}() {{\n"));
         } else {
-            out.push_str(&format!("    let value_{file}_{line} = compute({line}); // padding padding\n"));
+            out.push_str(&format!(
+                "    let value_{file}_{line} = compute({line}); // padding padding\n"
+            ));
         }
         line += 1;
     }
@@ -287,9 +289,7 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
         let paths = item.request.packet["part"]["paths"]
             .as_array()
             .cloned()
-            .unwrap_or_else(|| {
-                coverage["examinedPaths"].as_array().unwrap().clone()
-            });
+            .unwrap_or_else(|| coverage["examinedPaths"].as_array().unwrap().clone());
         homed.extend(paths.iter().map(|p| p.as_str().unwrap().to_owned()));
     }
     assert_eq!(homed, frozen.review_set);
@@ -297,7 +297,9 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
     let total = env.work.len();
     let mut last = None;
     for item in &env.work {
-        last = Some(ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap());
+        last = Some(
+            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
+        );
     }
     let last = last.unwrap();
     assert!(last.complete, "{:?}", last.coverage_gaps);
@@ -306,7 +308,12 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
     assert!(total >= 1);
 
     let done = recompute_run(&env.run).unwrap();
-    assert_eq!(done.report.status, ReportStatus::Clean, "{:?}", done.report.gaps);
+    assert_eq!(
+        done.report.status,
+        ReportStatus::Clean,
+        "{:?}",
+        done.report.gaps
+    );
     assert_eq!(done.report.claims["auditStatus"], "pass");
     // A clean sampled run is `sampled`, never `proven`.
     assert_eq!(done.report.claims["qualityGate"], "sampled");
@@ -346,7 +353,9 @@ fn a_review_set_path_that_could_not_be_examined_is_still_a_gap() {
     assert!(frozen.review_set.contains("src/auth/blob.rs"));
     let mut last = None;
     for item in &env.work {
-        last = Some(ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap());
+        last = Some(
+            ingest_lens_result(&env.run, item.provider_id.as_str(), &lens_result(item)).unwrap(),
+        );
     }
     let last = last.unwrap();
     assert!(!last.complete);
@@ -420,7 +429,10 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
     let expected_seats = parts_of("reasoning.performance") + parts_of("reasoning.security");
     assert_eq!(plan["requiredSeats"], json!(expected_seats));
     let seats = plan["seats"].as_array().unwrap();
-    assert_eq!(seats[0]["tier"], "judgment", "judgment seats are scheduled first");
+    assert_eq!(
+        seats[0]["tier"], "judgment",
+        "judgment seats are scheduled first"
+    );
     assert!(seats
         .iter()
         .any(|seat| seat["providers"].as_array().unwrap().len() == 2));

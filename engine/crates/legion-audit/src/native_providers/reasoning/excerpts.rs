@@ -1487,7 +1487,10 @@ mod tests {
         let excerpt = &partition.parts[0].excerpts[0];
         assert_eq!(excerpt.mode, ExcerptMode::Regions);
         assert!(excerpt.content.contains("use std::fmt;"));
-        assert!(excerpt.content.contains("let filler_49 = 49;"), "window around 50");
+        assert!(
+            excerpt.content.contains("let filler_49 = 49;"),
+            "window around 50"
+        );
         assert!(excerpt.content.contains("[REDACTED]"));
         assert!(!excerpt.content.contains(fake_key.as_str()));
         assert!(!excerpt.content.contains("let filler_120 = 120;"));

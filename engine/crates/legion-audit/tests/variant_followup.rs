@@ -340,7 +340,10 @@ fn staged_verdicts(run: &Run, confirm_sql: bool) -> Vec<Value> {
                 .iter()
                 .find(|cluster| &cluster.cluster_id == cluster_id)
                 .unwrap();
-            let mut verdict = verdict(&cluster.representative_id, survives(&cluster.representative_id));
+            let mut verdict = verdict(
+                &cluster.representative_id,
+                survives(&cluster.representative_id),
+            );
             verdict["stage"] = json!("batch");
             verdict["batchId"] = json!(batch.batch_id);
             verdict["clusterId"] = json!(cluster.cluster_id);
