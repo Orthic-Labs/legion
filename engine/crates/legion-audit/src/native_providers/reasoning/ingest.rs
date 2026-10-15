@@ -30,14 +30,14 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use super::{
-    authenticate_receipt, coverage_plan, followup, lens_plan, lens_schemas,
+    authenticate_receipt, coverage_plan, followup, lens_plan, lens_schemas, promotion_digest_of,
+    promotion_file_name,
     security_adjudication::{
         adjudicate_scanner_candidates, adjudication_parent_packet_digest, adjudication_work_items,
         build_adjudication_plan, confirmed_findings, confirmed_paths, evaluate_adjudication,
         ConfirmedSecurityFinding, ScannerCandidate, TriageContext, ADJUDICATOR_PROVIDER_ID,
     },
-    promotion_digest_of, promotion_file_name, verify_authenticated_receipt, verify_response,
-    LensPartRef, PendingLensWork,
+    verify_authenticated_receipt, verify_response, LensPartRef, PendingLensWork,
     ReasoningHostResponse, ReasoningReceipt, REASONING_PROVIDER_IDS, REASONING_RECEIPT_KIND,
     REASONING_RECEIPT_SCHEMA_VERSION,
 };

@@ -760,7 +760,10 @@ fn promotion_displaces_lowest_ranked_sampled_files_within_the_frozen_budget() {
     assert!(coverage.get("promotedPaths").is_none());
     assert!(coverage.get("displacedPaths").is_none());
     let promotion = work[0].promotion.as_ref().expect("promotion document");
-    assert_eq!(coverage["promotionRef"], json!("promotion.reasoning.performance.json"));
+    assert_eq!(
+        coverage["promotionRef"],
+        json!("promotion.reasoning.performance.json")
+    );
     assert_eq!(coverage["promotionDigest"], promotion["digest"]);
     assert_eq!(string_list(&promotion["promoted"]), promoted_paths);
     assert_eq!(coverage["promotedCount"], json!(promoted_paths.len()));

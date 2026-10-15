@@ -1080,7 +1080,12 @@ fn sampled_review(
     let promotion_digest = if promoted.is_empty() && displaced.is_empty() && unpromoted.is_empty() {
         None
     } else {
-        promotion_digest_of(&promoted_list, &displaced, &unpromoted, &json!(promotion_basis))
+        promotion_digest_of(
+            &promoted_list,
+            &displaced,
+            &unpromoted,
+            &json!(promotion_basis),
+        )
     };
     let promotion_doc = promotion_digest.as_ref().map(|digest| {
         json!({
