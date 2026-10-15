@@ -1,0 +1,70 @@
+{
+  "schema": "legion-audit-bench-cases/1",
+  "fixture": "heldout-controls",
+  "split": "heldout",
+  "language": "typescript & shell",
+  "base": "base",
+  "cases": [
+    {
+      "id": "heldout-redis-challenge-no-expiry",
+      "kind": "planted",
+      "scope": "range:base..heldout-redis-challenge-no-expiry",
+      "category": "security",
+      "ruled": true,
+      "ruling": "pre-registered synthetic heldout; do not tune production against this result",
+      "summary": "Short-lived authentication challenge is persisted without expiry",
+      "expected": [
+        {
+          "path": "src/auth/challenge.ts",
+          "lineRange": [6, 6],
+          "lens": "security",
+          "severity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "heldout-redis-reset-expiring",
+      "kind": "clean",
+      "scope": "range:base..heldout-redis-reset-expiring",
+      "ruled": true,
+      "ruling": "pre-registered synthetic heldout; do not tune production against this result",
+      "summary": "Reset code uses an explicit expiry in Redis",
+      "expected": []
+    },
+    {
+      "id": "heldout-docs-bootstrap-link",
+      "kind": "clean",
+      "scope": "range:base..heldout-docs-bootstrap-link",
+      "ruled": true,
+      "ruling": "pre-registered synthetic heldout; do not tune production against this result",
+      "summary": "A documentation URL is added without executing remote content",
+      "expected": []
+    },
+    {
+      "id": "heldout-unverified-bootstrap-stream",
+      "kind": "planted",
+      "scope": "range:base..heldout-unverified-bootstrap-stream",
+      "category": "security",
+      "ruled": true,
+      "ruling": "pre-registered synthetic heldout; do not tune production against this result",
+      "summary": "A mutable remote bootstrap stream is executed without integrity verification",
+      "expected": [
+        {
+          "path": "scripts/bootstrap.sh",
+          "lineRange": [3, 3],
+          "lens": "security",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "heldout-checksummed-release",
+      "kind": "clean",
+      "scope": "range:base..heldout-checksummed-release",
+      "ruled": true,
+      "ruling": "pre-registered synthetic heldout; do not tune production against this result",
+      "summary": "Downloaded release archive is checksum-verified before extraction",
+      "expected": []
+    }
+  ]
+}
