@@ -279,17 +279,366 @@ pub mod data_suite {
             .unwrap_or(0)
     }
 
-    fn redis_receivers(text: &str) -> Vec<String> {
+    struct RedisReceiver {
+        name: String,
+        start: usize,
+        end: usize,
+        shadows: Vec<(usize, usize)>,
+    }
+
+    struct FunctionScope {
+        parameters: Vec<String>,
+        start: usize,
+        end: usize,
+    }
+
+    fn lexical_pairs(text: &str, open: char, close: char) -> Vec<(usize, usize)> {
+        let mut stack = Vec::new();
+        let mut pairs = Vec::new();
+        for (index, character) in text.char_indices() {
+            if !matches!(character, c if c == open || c == close) || !code_line(text, index) {
+                continue;
+            }
+            if character == open {
+                stack.push(index);
+            } else if let Some(start) = stack.pop() {
+                pairs.push((start, index));
+            }
+        }
+        pairs
+    }
+
+    /// Locate a body after an optional TS return annotation. Type-literal and generic
+    /// braces belong to the annotation; they cannot become an executable body.
+    fn function_body_start(text: &str, parameters_end: usize) -> Option<usize> {
+        let mut annotation = false;
+        let mut needs_type = true;
+        let mut stack = Vec::new();
+        let mut arrow_end = None;
+        for (relative, character) in text[parameters_end..].char_indices() {
+            let index = parameters_end + relative;
+            if character.is_whitespace() || !code_line(text, index) {
+                continue;
+            }
+            if character == '/'
+                && text
+                    .as_bytes()
+                    .get(index + 1)
+                    .is_some_and(|byte| matches!(*byte, b'/' | b'*'))
+            {
+                continue;
+            }
+            if !annotation {
+                if character == '{' {
+                    return Some(index);
+                }
+                if character != ':' {
+                    return None;
+                }
+                annotation = true;
+                continue;
+            }
+            if !stack.is_empty() {
+                match character {
+                    '(' | '[' | '{' | '<' => stack.push(character),
+                    ')' | ']' | '}' | '>' => {
+                        let expected = match character {
+                            ')' => '(',
+                            ']' => '[',
+                            '}' => '{',
+                            _ => '<',
+                        };
+                        // A function type's => is not a generic closing bracket.
+                        if character == '>'
+                            && text.as_bytes().get(index.wrapping_sub(1)) == Some(&b'=')
+                        {
+                            continue;
+                        }
+                        if stack.pop()? != expected {
+                            return None;
+                        }
+                    }
+                    _ => {}
+                }
+                continue;
+            }
+            match character {
+                '{' if !needs_type => return Some(index),
+                '(' | '[' | '{' | '<' => {
+                    stack.push(character);
+                    needs_type = false;
+                }
+                '=' if text.as_bytes().get(index + 1) == Some(&b'>') => {
+                    needs_type = true;
+                    arrow_end = Some(index + 1);
+                }
+                '>' if arrow_end == Some(index) => {}
+                '|' | '&' => needs_type = true,
+                '.' => {}
+                character if character.is_alphanumeric() || matches!(character, '_' | '$') => {
+                    needs_type = false;
+                }
+                // Unsupported or incomplete annotation syntax stays unresolved.
+                _ => return None,
+            }
+        }
+        None
+    }
+
+    fn arrow_expression_end(text: &str, start: usize) -> Option<usize> {
+        let mut stack = Vec::new();
+        for (relative, character) in text[start..].char_indices() {
+            let index = start + relative;
+            if !code_line(text, index) {
+                continue;
+            }
+            match character {
+                '(' | '[' | '{' => stack.push(character),
+                ')' | ']' | '}' => {
+                    if stack.is_empty() {
+                        return Some(index);
+                    }
+                    let expected = match character {
+                        ')' => '(',
+                        ']' => '[',
+                        _ => '{',
+                    };
+                    if stack.pop()? != expected {
+                        return None;
+                    }
+                }
+                ',' | ';' if stack.is_empty() => return Some(index),
+                _ => {}
+            }
+        }
+        stack.is_empty().then_some(text.len())
+    }
+
+    fn function_scopes(text: &str, blocks: &[(usize, usize)]) -> Vec<FunctionScope> {
+        let declarations =
+            Regex::new(r"\bfunction\s*(?:\*\s*)?(?:[A-Za-z_$][\w$]*\s*)?\(").unwrap();
+        let mut signatures = Vec::new();
+        let mut scopes = declarations
+            .find_iter(text)
+            .filter(|matched| code_line(text, matched.start()))
+            .filter_map(|matched| {
+                let (parameters, end) = call_arguments(text, matched.end() - 1)?;
+                let body = function_body_start(text, end)?;
+                let (_, end) = blocks.iter().find(|(start, _)| *start == body)?;
+                signatures.push((matched.start(), body));
+                Some(FunctionScope {
+                    parameters,
+                    start: body,
+                    end: *end,
+                })
+            })
+            .collect::<Vec<_>>();
+        let parentheses = lexical_pairs(text, '(', ')');
+        let bare_parameter = Regex::new(r"([A-Za-z_$][\w$]*)$").unwrap();
+        for (arrow, _) in text.match_indices("=>") {
+            if !code_line(text, arrow)
+                || signatures
+                    .iter()
+                    .any(|(start, body)| *start < arrow && arrow < *body)
+            {
+                continue;
+            }
+            let prefix = text[..arrow].trim_end();
+            let parameters = if prefix.ends_with(')') {
+                let close = prefix.len() - 1;
+                let Some((open, _)) = parentheses.iter().find(|(_, end)| *end == close) else {
+                    continue;
+                };
+                let Some((parameters, _)) = call_arguments(text, *open) else {
+                    continue;
+                };
+                parameters
+            } else if let Some(parameter) = bare_parameter.captures(prefix) {
+                vec![parameter[1].to_owned()]
+            } else {
+                continue;
+            };
+            let after_arrow = arrow + 2;
+            let tail = &text[after_arrow..];
+            let start = after_arrow + tail.len() - tail.trim_start().len();
+            let end = if text.as_bytes().get(start) == Some(&b'{') {
+                blocks
+                    .iter()
+                    .find(|(open, _)| *open == start)
+                    .map(|(_, end)| *end)
+            } else {
+                arrow_expression_end(text, start)
+            };
+            if let Some(end) = end {
+                scopes.push(FunctionScope {
+                    parameters,
+                    start,
+                    end,
+                });
+            }
+        }
+        scopes
+    }
+
+    fn loop_header_scope(
+        text: &str,
+        declaration: usize,
+        parentheses: &[(usize, usize)],
+        blocks: &[(usize, usize)],
+    ) -> Option<(usize, usize)> {
+        let for_header = Regex::new(r"\bfor(?:\s+await)?\s*$").unwrap();
+        let (open, close) = parentheses.iter().find(|(open, close)| {
+            *open < declaration
+                && declaration < *close
+                && text[open + 1..declaration].trim().is_empty()
+                && for_header.is_match(&text[..*open])
+        })?;
+        let after_header = close + 1;
+        let remaining = &text[after_header..];
+        let body = after_header + remaining.len() - remaining.trim_start().len();
+        let end = if text.as_bytes().get(body) == Some(&b'{') {
+            blocks
+                .iter()
+                .find(|(start, _)| *start == body)
+                .map(|(_, end)| *end)?
+        } else {
+            arrow_expression_end(text, body)?
+        };
+        Some((*open, end))
+    }
+
+    fn receiver_shadow_ranges(
+        text: &str,
+        name: &str,
+        function: &FunctionScope,
+        functions: &[FunctionScope],
+        blocks: &[(usize, usize)],
+    ) -> Vec<(usize, usize)> {
+        let parameter_name = Regex::new(r"^\s*([A-Za-z_$][\w$]*)\s*(?:\?|:|$)").unwrap();
+        let mut shadows = functions
+            .iter()
+            .filter(|nested| {
+                nested.start > function.start
+                    && nested.end < function.end
+                    && nested.parameters.iter().any(|parameter| {
+                        parameter_name
+                            .captures(parameter)
+                            .is_some_and(|capture| capture[1] == *name)
+                    })
+            })
+            .map(|nested| (nested.start, nested.end))
+            .collect::<Vec<_>>();
+        let declarations =
+            Regex::new(&format!(r"\b(const|let|var)\s+{}\b", regex::escape(name))).unwrap();
+        let parentheses = lexical_pairs(text, '(', ')');
+        for declaration in declarations.captures_iter(text) {
+            let offset = declaration.get(0).unwrap().start();
+            if offset <= function.start || offset >= function.end || !code_line(text, offset) {
+                continue;
+            }
+            if &declaration[1] == "var" {
+                if let Some(scope) = functions
+                    .iter()
+                    .filter(|scope| scope.start < offset && offset < scope.end)
+                    .min_by_key(|scope| scope.end - scope.start)
+                {
+                    // A same-function var redeclares its parameter; its initializer can replace
+                    // that value. A nested function's var instead shadows for its full lifetime.
+                    let start = if scope.start == function.start {
+                        offset
+                    } else {
+                        scope.start
+                    };
+                    shadows.push((start, scope.end));
+                }
+            } else if let Some(scope) = loop_header_scope(text, offset, &parentheses, blocks) {
+                // A lexical declaration in a for header owns the header & loop body, not
+                // the surrounding function block. `var` retains its function lifetime above.
+                shadows.push(scope);
+            } else if let Some((start, end)) = blocks
+                .iter()
+                .filter(|(start, end)| *start < offset && offset < *end)
+                .min_by_key(|(start, end)| end - start)
+            {
+                shadows.push((*start, *end));
+            }
+        }
+        shadows
+    }
+
+    fn redis_receivers(text: &str) -> Vec<RedisReceiver> {
         let imported = Regex::new(r#"(?i)(?:from\s*['"](?:redis|ioredis)['"]|require\s*\(\s*['"](?:redis|ioredis)['"]|import\s+redis\b|from\s+redis\b)"#).unwrap().is_match(text);
         if !imported {
             return Vec::new();
         }
         let bindings = Regex::new(r"(?m)\b([A-Za-z_$][\w$]*)\s*=\s*(?:new\s+)?(?:Redis|redis\.Redis|redis\.StrictRedis|createClient|redis\.createClient)\s*\(").unwrap();
-        bindings
+        let mut receivers = bindings
             .captures_iter(text)
             .filter(|capture| code_line(text, capture.get(0).unwrap().start()))
-            .map(|capture| capture[1].to_owned())
-            .collect()
+            .map(|capture| RedisReceiver {
+                name: capture[1].to_owned(),
+                start: capture.get(0).unwrap().end(),
+                end: text.len(),
+                shadows: Vec::new(),
+            })
+            .collect::<Vec<_>>();
+
+        // Injected clients have no constructor in this file. Bind known exported Redis types
+        // to their actual import alias, then confine each parameter to its function body.
+        let imports =
+            Regex::new(r#"\bimport\s+(?:type\s+)?\{([^}]+)\}\s+from\s*['"]redis['"]"#).unwrap();
+        let exported_type = Regex::new(
+            r"^(?:type\s+)?(RedisClientType|RedisClusterType)(?:\s+as\s+([A-Za-z_$][\w$]*))?$",
+        )
+        .unwrap();
+        let types = imports
+            .captures_iter(text)
+            .filter(|capture| code_line(text, capture.get(0).unwrap().start()))
+            .flat_map(|capture| {
+                capture[1]
+                    .split(',')
+                    .filter_map(|item| {
+                        let binding = exported_type.captures(item.trim())?;
+                        Some(
+                            binding
+                                .get(2)
+                                .unwrap_or_else(|| binding.get(1).unwrap())
+                                .as_str()
+                                .to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        if types.is_empty() {
+            return receivers;
+        }
+        let blocks = lexical_pairs(text, '{', '}');
+        let functions = function_scopes(text, &blocks);
+        for function in &functions {
+            for parameter in &function.parameters {
+                for type_name in &types {
+                    let annotation = Regex::new(&format!(
+                        r"^\s*([A-Za-z_$][\w$]*)\s*\??\s*:\s*{}\s*(?:<[^>]*>\s*)?$",
+                        regex::escape(type_name)
+                    ))
+                    .unwrap();
+                    let Some(binding) = annotation.captures(parameter) else {
+                        continue;
+                    };
+                    let name = binding[1].to_owned();
+                    let shadows =
+                        receiver_shadow_ranges(text, &name, function, &functions, &blocks);
+                    receivers.push(RedisReceiver {
+                        name,
+                        start: function.start,
+                        end: function.end,
+                        shadows,
+                    });
+                }
+            }
+        }
+        receivers
     }
 
     fn positive_ttl(arguments: &[String]) -> bool {
@@ -312,12 +661,24 @@ pub mod data_suite {
     fn collect_redis_unbounded_value(text: &str, file: &str, candidates: &mut Vec<Value>) {
         let ephemeral =
             Regex::new(r"(?i)session|cache|token|temp|ephemeral|lock|nonce|otp").unwrap();
+        let mut observed_calls = std::collections::BTreeSet::new();
         for receiver in redis_receivers(text) {
-            let calls =
-                Regex::new(&format!(r"\b{}\.(set|hset)\s*\(", regex::escape(&receiver))).unwrap();
+            let calls = Regex::new(&format!(
+                r"\b{}\.(set|hset)\s*\(",
+                regex::escape(&receiver.name)
+            ))
+            .unwrap();
             for capture in calls.captures_iter(text) {
                 let matched = capture.get(0).unwrap();
-                if !code_line(text, matched.start()) {
+                if matched.start() < receiver.start
+                    || matched.start() >= receiver.end
+                    || receiver
+                        .shadows
+                        .iter()
+                        .any(|(start, end)| matched.start() >= *start && matched.start() < *end)
+                    || !code_line(text, matched.start())
+                    || !observed_calls.insert(matched.start())
+                {
                     continue;
                 }
                 let Some((args, end)) = call_arguments(text, matched.end() - 1) else {
@@ -330,7 +691,7 @@ pub mod data_suite {
                 let tail = &text[end..char_floor(text, end + 300)];
                 let expire = Regex::new(&format!(
                     r"^\s*;?\s*(?:await\s+)?{}\.(?:expire|pexpire)\s*\(",
-                    regex::escape(&receiver)
+                    regex::escape(&receiver.name)
                 ))
                 .unwrap();
                 let expires_same_key = expire
@@ -359,7 +720,7 @@ pub mod data_suite {
                     file,
                     line_at(text, matched.start()),
                 );
-                value["applicability"] = json!({"library":"redis","receiver":receiver,"retentionPolicy":if required {"ephemeral-ttl-required"} else {"unknown-durable-intent"},"status":if required {"applicable"} else {"unknown"}});
+                value["applicability"] = json!({"library":"redis","receiver":receiver.name,"retentionPolicy":if required {"ephemeral-ttl-required"} else {"unknown-durable-intent"},"status":if required {"applicable"} else {"unknown"}});
                 candidates.push(value);
             }
         }

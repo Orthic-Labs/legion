@@ -277,6 +277,109 @@ fn redis_retention_uses_bound_library_receiver_key_and_positive_ttl() {
 }
 
 #[test]
+fn injected_redis_parameters_bind_import_alias_and_function_scope() {
+    let source = r#"import type { RedisClientType as SessionClient } from 'redis';
+function save(redis: SessionClient, id: string, value: string) {
+  redis.set(`session:${id}`, value);
+  function local(redis: Map<string, string>) { redis.set('session:local', value); }
+}
+function ordinary(redis: Map<string, string>, value: string) { redis.set('session:map', value); }
+function safe(redis: SessionClient, value: string) { redis.set('session:safe', value, { EX: 60 }); }
+"#;
+    let candidates = data_rules(source);
+    let writes = candidates
+        .iter()
+        .filter(|row| row["ruleId"] == "data.redis-unbounded-value")
+        .collect::<Vec<_>>();
+    assert_eq!(writes.len(), 1, "{candidates:?}");
+    assert_eq!(writes[0]["line"], 3);
+    assert_eq!(writes[0]["applicability"]["receiver"], "redis");
+    for source in [
+        "import type { RedisClientType } from 'unrelated'; function save(redis: RedisClientType) { redis.set('session:x', value); }",
+        "// import type { RedisClientType } from 'redis';\nfunction save(redis: RedisClientType) { redis.set('session:x', value); }",
+        "import type { RedisClientType } from 'redis'; function save(redis: RedisClientTypeFake) { redis.set('session:x', value); }",
+    ] {
+        assert!(!data_rules(source).iter().any(|row| row["ruleId"] == "data.redis-unbounded-value"), "{source}");
+    }
+}
+
+#[test]
+fn injected_redis_proof_does_not_cross_block_or_arrow_parameter_shadows() {
+    let source = r#"import type { RedisClientType } from 'redis';
+function save(redis: RedisClientType, items: Array<Map<string, string>>) {
+  redis.set('session:before', 'real');
+  { const redis = new Map<string, string>(); redis.set('session:const', 'local'); }
+  { let redis = new Map<string, string>(); redis.set('session:let', 'local'); }
+  items.forEach(redis => redis.set('session:arrow', 'local'));
+  items.forEach((redis) => { redis.set('session:arrow-block', 'local'); });
+  items.forEach((redis: Map<string, string>) => redis.set('session:typed-arrow', 'local'));
+  function local() { redis.set('session:hoisted', 'local'); var redis = new Map<string, string>(); }
+  redis.set('session:after', 'real');
+  { var redis = new Map<string, string>(); redis.set('session:var', 'local'); }
+  redis.set('session:reassigned', 'local');
+}
+"#;
+    let rows = data_rules(source);
+    let writes = rows
+        .iter()
+        .filter(|row| row["ruleId"] == "data.redis-unbounded-value")
+        .collect::<Vec<_>>();
+    assert_eq!(writes.len(), 2, "{rows:?}");
+    assert_eq!(writes[0]["line"], 3);
+    assert_eq!(writes[1]["line"], 10);
+}
+
+#[test]
+fn loop_header_lexical_bindings_preserve_real_redis_writes_before_and_after_loop() {
+    let source = |header: &str| {
+        format!(
+        "import type {{ RedisClientType }} from 'redis';\nfunction save(redis: RedisClientType, maps: Array<Map<string, string>>) {{\n  redis.set('session:before', 'real');\n  for ({header}) {{\n    redis.set('session:loop', 'local');\n  }}\n  redis.set('session:after', 'real');\n}}\n"
+    )
+    };
+    for header in [
+        "const redis of maps",
+        "let redis of maps",
+        "const redis in maps",
+        "let redis in maps",
+        "let redis = new Map<string, string>(); redis.set('session:condition', 'local'); redis.set('session:update', 'local')",
+    ] {
+        let rows = data_rules(&source(header));
+        let lines = rows.iter().filter(|row| row["ruleId"] == "data.redis-unbounded-value").map(|row| row["line"].as_u64().unwrap()).collect::<Vec<_>>();
+        assert_eq!(lines, [3, 7], "{header}: {rows:?}");
+    }
+    let rows = data_rules(&source("var redis of maps"));
+    let lines = rows
+        .iter()
+        .filter(|row| row["ruleId"] == "data.redis-unbounded-value")
+        .map(|row| row["line"].as_u64().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(lines, [3], "var retains function lifetime: {rows:?}");
+}
+
+#[test]
+fn imported_redis_parameter_accepts_balanced_types_before_executable_body() {
+    for return_type in [
+        "Promise<void>",
+        "Promise<{ value: string }>",
+        "{ value: string }",
+        "() => { value: string }",
+    ] {
+        let source = format!("import type {{ RedisClientType }} from 'redis';\nfunction save(redis: RedisClientType): {return_type} {{\n  redis.set('session:actual', 'real');\n}}\n");
+        let rows = data_rules(&source);
+        let writes = rows
+            .iter()
+            .filter(|row| row["ruleId"] == "data.redis-unbounded-value")
+            .collect::<Vec<_>>();
+        assert_eq!(writes.len(), 1, "{return_type}: {rows:?}");
+        assert_eq!(writes[0]["line"], 3);
+    }
+    let source = "import type { RedisClientType } from 'redis';\nfunction factory(): (redis: RedisClientType) => void { const redis = new Map(); redis.set('session:map', 'local'); return () => {}; }";
+    assert!(!data_rules(source)
+        .iter()
+        .any(|row| row["ruleId"] == "data.redis-unbounded-value"));
+}
+
+#[test]
 fn database_atomicity_requires_database_receiver_and_retains_unknown() {
     let prelude =
         "import { PrismaClient } from '@prisma/client';\nconst prisma = new PrismaClient();\n";
