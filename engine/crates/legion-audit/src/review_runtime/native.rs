@@ -517,9 +517,86 @@ pub fn observation_value(observation: &Observation) -> Value {
     json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
 }
 
+// Keep only the decision needed to diagnose another paid turn. Finding bodies
+// already have their own retained result path; never copy arbitrary model
+// output or unbounded source into call diagnostics.
+pub(super) fn action_diagnostic(observation: &Observation) -> Value {
+    fn redact(value: &Value) -> Value {
+        match value {
+            Value::String(text) => json!(
+                crate::native_providers::reasoning::excerpts::redact_lines(text)
+                    .into_iter()
+                    .map(|line| line.text)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+            Value::Array(items) => Value::Array(items.iter().map(redact).collect()),
+            Value::Object(items) => Value::Object(
+                items
+                    .iter()
+                    .map(|(key, item)| {
+                        let safe_key =
+                            crate::native_providers::reasoning::excerpts::redact_lines(key)
+                                .into_iter()
+                                .map(|line| line.text)
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                        let safe_value = if let Some(text) = item.as_str() {
+                            let assignment = format!("{key}={text}");
+                            if crate::native_providers::reasoning::excerpts::redact_secrets(
+                                &assignment,
+                            )
+                            .1
+                            {
+                                json!("[REDACTED]")
+                            } else {
+                                redact(item)
+                            }
+                        } else {
+                            redact(item)
+                        };
+                        (safe_key, safe_value)
+                    })
+                    .collect(),
+            ),
+            other => other.clone(),
+        }
+    }
+    let Some(reply) = &observation.reply else {
+        return json!({"kind":"unavailable"});
+    };
+    if let Some(tool) = reply.get("toolRequest") {
+        let diagnostic = json!({"kind":"toolRequest","toolRequest":redact(tool),"truncated":false});
+        if diagnostic.to_string().len() <= 8192 {
+            return diagnostic;
+        }
+        return json!({"kind":"toolRequest","tool":tool.get("tool").and_then(Value::as_str).filter(|name|name.len()<=128),"truncated":true});
+    }
+    if let Some(result) = reply.get("finalResult") {
+        return json!({"kind":"finalResult","complete":result.get("complete").and_then(Value::as_bool),"findingCount":result.get("findings").and_then(Value::as_array).map(Vec::len)});
+    }
+    json!({"kind":"other-structured-result"})
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn paid_action_diagnostic_is_redacted_and_bounded() {
+        let (mut observation, _) = empty();
+        observation.reply = Some(
+            json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"source.rs","startLine":1,"query":"password = abcdefghijklmnop","password":"abcdefghijklmnop"}}}),
+        );
+        let diagnostic = action_diagnostic(&observation);
+        assert_eq!(diagnostic["toolRequest"]["arguments"]["path"], "source.rs");
+        assert!(!diagnostic.to_string().contains("abcdefghijklmnop"));
+        observation.reply = Some(
+            json!({"toolRequest":{"tool":"audit.search_code","arguments":{"query":"x".repeat(16384)}}}),
+        );
+        let diagnostic = action_diagnostic(&observation);
+        assert_eq!(diagnostic["truncated"], true);
+        assert!(diagnostic.to_string().len() <= 8192);
+    }
     #[test]
     fn owned_native_launcher_supports_current_platform_without_model_call() {
         // Exercise production launch policy using this Rust test executable,

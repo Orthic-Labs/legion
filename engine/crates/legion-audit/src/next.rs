@@ -301,7 +301,7 @@ struct Decision {
     blockers: Vec<String>,
 }
 
-/// Admission uses conservative reservations, not claimed physical usage. Actual
+/// Admission uses persisted reservations, not claimed physical usage. Actual
 /// usage above reservation increases spend; unknown/below-reservation usage
 /// retains its reservation, so a late receipt cannot replay freed capacity.
 fn budget_allows(snapshot: &Snapshot, state: &State, tier: &str, tokens: u64) -> bool {
@@ -346,8 +346,10 @@ fn budget_allows_tokens(
         && (!new_call || tokens <= budget.per_call)
 }
 
-/// Byte-derived estimate; the host must preflight the complete rendered
-/// request (messages, schemas, tools & tool replies) immediately before send.
+/// Byte-derived planning heuristic, not a provider token count. The host must
+/// preflight the complete rendered request before send; physical authorization
+/// reserves the full frozen per-call allowance because native overhead and
+/// tokenization are not known in advance.
 pub fn estimated_request_tokens(rendered_bytes: u64, output_tokens: u64) -> u64 {
     rendered_bytes.div_ceil(4).saturating_add(output_tokens)
 }
@@ -1313,7 +1315,7 @@ fn budget_summary(state: &State) -> Value {
     }
     let known = unknown == 0 && state.issuances == state.reservations.len() as u64;
     json!({
-        "admissionBasis": "conservative byte estimate plus output reservation; actual physical usage may exceed reservation",
+        "admissionBasis": "bytes/4 plus output is a planning heuristic; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
         "plannedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.planned_tokens)),
         "reservedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.reserved_tokens)),
         "chargedByTier": state.spent,
@@ -1392,8 +1394,10 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
 
 /// Preflight every exact rendered request before transport. Returned
 /// authorization is one-shot; replaying call_id or reservation_id is rejected.
-/// Initial `next` reservations are upgraded in-place so host/schema overhead is
-/// charged without double-counting packet bytes. Extra calls get new entries.
+/// Initial `next` reservations are upgraded in-place to the full frozen
+/// per-call allowance. Extra calls get new entries. Rendered-byte estimates
+/// remain planning data, since native input token counts are unavailable before
+/// transport. Authorization is not a hard bound on provider-reported usage.
 pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditError> {
     let _lock = StateLock::acquire(run_dir)?;
     let loaded = load(run_dir)?;
@@ -1458,9 +1462,10 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             (id, 0, true)
         }
     };
-    let reserved = previous.max(tokens);
+    let reserved = previous.max(budget.per_call);
     let additional = reserved.saturating_sub(previous);
     if (new_call && !state.budget_blocked.is_empty())
+        || tokens > budget.per_call
         || reserved > budget.per_call
         || !budget_allows_tokens(budget, &state, &call.tier, additional, new_call)
     {
@@ -2588,11 +2593,15 @@ mod tests {
     }
 
     fn budget_run(name: &str, total: u64) -> PathBuf {
+        budget_run_with_limits(name, total, 20, 10)
+    }
+
+    fn budget_run_with_limits(name: &str, total: u64, per_call: u64, output: u64) -> PathBuf {
         let run = temp_run(name);
         write_value(
             &run.join(DISPATCH_FILE),
             &json!({
-                "reasoningBudget":{"schemaVersion":2,"totalTokens":total,"perCallTokens":total,"outputTokens":10,"maxSeats":4},
+                "reasoningBudget":{"schemaVersion":2,"totalTokens":total,"perCallTokens":per_call,"outputTokens":output,"maxSeats":4},
                 "seats":[{"seat":1,"tier":"judgment","packets":["reasoning.a.json"]},{"seat":2,"tier":"judgment","packets":["reasoning.b.json"]}]
             }),
         );
@@ -2678,7 +2687,7 @@ mod tests {
 
     #[test]
     fn next_reserves_full_packet_bytes_and_host_overhead_before_send() {
-        let run = budget_run("rendered", 10000);
+        let run = budget_run_with_limits("rendered", 10000, 1000, 10);
         fs::write(
             run.join(LENS_PACKET_DIR).join("reasoning.a.json"),
             vec![b'x'; 1000],
@@ -2690,15 +2699,146 @@ mod tests {
         request.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
         request.rendered_request_bytes = 2000;
         let authorized = reserve_call(&run, &request).unwrap();
-        assert_eq!(authorized["reservedTokens"], 510);
+        assert_eq!(authorized["reservedTokens"], 1000);
+        let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+        let reservation = &state.reservations[request.reservation_id.as_ref().unwrap()];
+        assert_eq!(reservation.planned_tokens, 260);
+        assert_eq!(reservation.reserved_tokens, 1000);
         assert!(reserve_call(&run, &request).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn physical_allowance_covers_unpredicted_input_and_still_stops_actual_overrun() {
+        let run = budget_run_with_limits("native-allowance", 20000, 10000, 2500);
+        let mut request = call("native-first");
+        request.rendered_request_bytes = 17409;
+        request.output_token_limit = 2500;
+        let admitted = reserve_call(&run, &request).unwrap();
+        assert_eq!(admitted["reservedTokens"], 10000);
+        assert_eq!(admitted["budget"]["plannedTokens"], 6853);
+        let receipt = UsageReceipt {
+            reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+            receipt_id: "native-first-usage".into(),
+            input_tokens: Some(7202),
+            output_tokens: Some(122),
+            cached_input_tokens: Some(7200),
+            retry_tokens: Some(0),
+            failed: false,
+        };
+        let reconciled = reconcile_usage(&run, &receipt).unwrap();
+        assert_eq!(reconciled["budget"]["actual"]["inputTokens"], 7202);
+        assert_eq!(reconciled["budget"]["actual"]["outputTokens"], 122);
+        assert_eq!(reconciled["budget"]["actualOverrunTokens"], 0);
+        assert_eq!(reconciled["budget"]["chargedByTier"]["judgment"], 10000);
+        assert!(reconciled["budget"]["terminalStatus"].is_null());
+
+        request.call_id = "native-second".into();
+        let second = reserve_call(&run, &request).unwrap();
+        assert_eq!(second["authorized"], true);
+        assert_eq!(second["budget"]["chargedByTier"]["judgment"], 20000);
+        let overrun = UsageReceipt {
+            reservation_id: second["reservationId"].as_str().unwrap().into(),
+            receipt_id: "native-second-usage".into(),
+            input_tokens: Some(10001),
+            output_tokens: Some(1),
+            cached_input_tokens: Some(0),
+            ..receipt
+        };
+        let reconciled = reconcile_usage(&run, &overrun).unwrap();
+        assert_eq!(reconciled["budget"]["actualOverrunTokens"], 2);
+        assert_eq!(reconciled["budget"]["chargedByTier"]["judgment"], 20002);
+        assert_eq!(
+            reconciled["budget"]["terminalStatus"],
+            "incomplete:budget-overrun"
+        );
+        request.call_id = "native-third".into();
+        assert_eq!(reserve_call(&run, &request).unwrap()["authorized"], false);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn physical_allowance_cannot_borrow_unused_actuals_or_exceed_tier_or_estimate_cap() {
+        for tier_limit in [false, true] {
+            let run = budget_run_with_limits("remaining-allowance", 15000, 10000, 10);
+            if tier_limit {
+                let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+                dispatch["reasoningBudget"]["totalTokens"] = json!(30000);
+                dispatch["reasoningBudget"]["judgment"] = json!(15000);
+                write_value(&run.join(DISPATCH_FILE), &dispatch);
+            }
+            let first = reserve_call(&run, &call("first")).unwrap();
+            reconcile_usage(
+                &run,
+                &UsageReceipt {
+                    reservation_id: first["reservationId"].as_str().unwrap().into(),
+                    receipt_id: "cheap-actual".into(),
+                    input_tokens: Some(1),
+                    output_tokens: Some(1),
+                    cached_input_tokens: Some(0),
+                    retry_tokens: Some(0),
+                    failed: false,
+                },
+            )
+            .unwrap();
+            let denied = reserve_call(&run, &call("second")).unwrap();
+            assert_eq!(denied["authorized"], false);
+            assert_eq!(denied["budget"]["chargedByTier"]["judgment"], 10000);
+            let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+            assert_eq!(state.reservations.len(), 1);
+            let _ = fs::remove_dir_all(run);
+        }
+        let run = budget_run_with_limits("estimate-over-cap", 20000, 10000, 2500);
+        let mut request = call("oversized");
+        request.rendered_request_bytes = 30001;
+        request.output_token_limit = 2500;
+        assert_eq!(estimated_request_tokens(30001, 2500), 10001);
+        assert_eq!(reserve_call(&run, &request).unwrap()["authorized"], false);
+        let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+        assert!(state.reservations.is_empty());
+        assert!(state.spent.is_empty());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn earlier_estimated_reservation_overrun_remains_terminal_and_unchanged() {
+        let run = budget_run_with_limits("earlier-overrun", 20000, 10000, 2500);
+        let admitted = reserve_call(&run, &call("earlier-call")).unwrap();
+        let mut state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+        let id = admitted["reservationId"].as_str().unwrap();
+        let reservation = state.reservations.get_mut(id).unwrap();
+        reservation.planned_tokens = 6853;
+        reservation.reserved_tokens = 6853;
+        reservation.output_token_limit = 2500;
+        reservation.usage = Some(UsageReceipt {
+            reservation_id: id.into(),
+            receipt_id: "earlier-actual".into(),
+            input_tokens: Some(7202),
+            output_tokens: Some(122),
+            cached_input_tokens: Some(0),
+            retry_tokens: Some(0),
+            failed: false,
+        });
+        state.spent.insert("judgment".into(), 7324);
+        state.terminal_status = Some("incomplete:budget-overrun".into());
+        save_state(&run, &state).unwrap();
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        assert_eq!(
+            reserve_call(&run, &call("later-call")).unwrap()["authorized"],
+            false
+        );
+        let report = persisted_budget_report(&run).unwrap().unwrap();
+        assert_eq!(report["budget"]["actualOverrunTokens"], 471);
+        assert_eq!(report["budget"]["reservedTokens"], 6853);
+        assert_eq!(report["budget"]["chargedByTier"]["judgment"], 7324);
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
         let _ = fs::remove_dir_all(run);
     }
 
     #[test]
     fn concurrent_calls_cannot_reserve_more_than_remaining() {
         use std::sync::{Arc, Barrier};
-        let run = budget_run("concurrent", 30);
+        let run = budget_run_with_limits("concurrent", 15000, 10000, 10);
         let barrier = Arc::new(Barrier::new(3));
         let workers: Vec<_> = ["one", "two"]
             .into_iter()
@@ -2719,7 +2859,7 @@ mod tests {
             .count();
         assert_eq!(admitted, 1);
         let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
-        assert_eq!(state.spent["judgment"], 20);
+        assert_eq!(state.spent["judgment"], 10000);
         let _ = fs::remove_dir_all(run);
     }
     #[test]

@@ -65,6 +65,231 @@ const NOT_COMPLETE_GAP: &str = "selected reasoning lenses did not complete";
 
 const RUNTIME_DELIVERY_DIR: &str = "runtime-delivery";
 const RUNTIME_DELIVERY_DOMAIN: &str = "legion-audit-runtime-delivery:v1";
+const RUNTIME_CALL_DOMAIN: &str = "legion-audit-runtime-call:v1";
+
+fn redact_call_diagnostic(value: &Value) -> Value {
+    match value {
+        Value::String(text) => json!(super::excerpts::redact_lines(text)
+            .into_iter()
+            .map(|line| line.text)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        Value::Array(items) => Value::Array(items.iter().map(redact_call_diagnostic).collect()),
+        Value::Object(items) => Value::Object(
+            items
+                .iter()
+                .map(|(key, value)| {
+                    let normalized = key.to_ascii_lowercase().replace('-', "").replace('_', "");
+                    let sensitive = [
+                        "password",
+                        "secret",
+                        "apikey",
+                        "accesstoken",
+                        "refreshtoken",
+                        "authorization",
+                        "credential",
+                        "privatekey",
+                    ]
+                    .iter()
+                    .any(|part| normalized.contains(part));
+                    let value = if sensitive && value.is_string() {
+                        json!("[REDACTED]")
+                    } else {
+                        redact_call_diagnostic(value)
+                    };
+                    (key.clone(), value)
+                })
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
+fn bounded_call_action(action: Option<&Value>) -> Value {
+    let Some(action) = action else {
+        return json!({"kind":"unavailable"});
+    };
+    let kind = action
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable");
+    let diagnostic = match kind {
+        "toolRequest" => {
+            let tool = action.get("toolRequest");
+            json!({"kind":"toolRequest","toolRequest":{
+                "tool":tool.and_then(|value|value.get("tool")).and_then(Value::as_str).filter(|name|["audit.read_file","audit.search_code","audit.list_files","audit.read_diff","audit.find_callers"].contains(name)),
+                "arguments":redact_call_diagnostic(&tool.and_then(|value|value.get("arguments")).cloned().unwrap_or(Value::Null))
+            },"truncated":action.get("truncated").and_then(Value::as_bool).unwrap_or(false)})
+        }
+        "finalResult" => {
+            json!({"kind":"finalResult","complete":action.get("complete").and_then(Value::as_bool),"findingCount":action.get("findingCount").and_then(Value::as_u64)})
+        }
+        "other-structured-result" => json!({"kind":"other-structured-result"}),
+        _ => json!({"kind":"unavailable"}),
+    };
+    if diagnostic.to_string().len() <= 8192 {
+        diagnostic
+    } else {
+        json!({"kind":"toolRequest","toolRequest":{"tool":null,"arguments":null},"truncated":true})
+    }
+}
+
+fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<Value, AuditError> {
+    let sha256 = |value: Option<&Value>| {
+        value.and_then(Value::as_str).is_some_and(|text| {
+            text.strip_prefix("sha256:").is_some_and(|hex| {
+                hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+        })
+    };
+    let call_id = receipt
+        .get("callId")
+        .and_then(Value::as_str)
+        .filter(|id| !id.trim().is_empty() && id.len() <= 512)
+        .ok_or_else(|| invalid("runtime call ID missing/invalid"))?;
+    let allowed = [
+        "schemaVersion",
+        "kind",
+        "callId",
+        "seatId",
+        "requestDigest",
+        "snapshotKey",
+        "requestBytes",
+        "requestAccounting",
+        "initialContext",
+        "authorization",
+        "observation",
+        "modelAction",
+        "budget",
+    ];
+    if receipt.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || receipt.get("kind").and_then(Value::as_str) != Some("legion-runtime-call")
+        || !receipt
+            .as_object()
+            .is_some_and(|object| object.keys().all(|key| allowed.contains(&key.as_str())))
+        || !sha256(receipt.get("requestDigest"))
+        || !sha256(receipt.get("snapshotKey"))
+        || receipt
+            .get("requestBytes")
+            .and_then(Value::as_u64)
+            .is_none_or(|bytes| bytes == 0)
+        || receipt.pointer("/observation/physicalRequestDigest") != receipt.get("requestDigest")
+        || receipt.pointer("/observation/physicalRequestBytes") != receipt.get("requestBytes")
+        || receipt.pointer("/authorization/authorized") != Some(&json!(true))
+        || receipt
+            .pointer("/authorization/callId")
+            .and_then(Value::as_str)
+            != Some(call_id)
+    {
+        return Err(invalid("runtime call identity/accounting binding invalid"));
+    }
+    let observation = receipt
+        .get("observation")
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("runtime call observation missing"))?;
+    let observation_fields = [
+        "contextId",
+        "processId",
+        "processCreated",
+        "processCreationTicks",
+        "processCreationTime",
+        "responseDigest",
+        "sent",
+        "error",
+        "usage",
+        "rawUsage",
+        "physicalRequestDigest",
+        "physicalRequestBytes",
+    ];
+    if observation
+        .keys()
+        .any(|key| !observation_fields.contains(&key.as_str()))
+    {
+        return Err(invalid(
+            "runtime call contains unbounded observation fields",
+        ));
+    }
+    if receipt
+        .get("initialContext")
+        .is_some_and(|context| context.to_string().len() > 32 * 1024)
+    {
+        return Err(invalid("runtime call initial context exceeds byte cap"));
+    }
+    let plan = read_json(&run_dir.join("plan.json"))?;
+    if plan.pointer("/epoch/digest").and_then(Value::as_str) != Some(epoch)
+        || plan.pointer("/reviewContext/snapshotKey") != receipt.get("snapshotKey")
+    {
+        return Err(invalid(
+            "runtime call does not bind this run epoch/snapshot",
+        ));
+    }
+    let mut evidence = redact_call_diagnostic(receipt);
+    evidence["modelAction"] = bounded_call_action(receipt.get("modelAction"));
+    if canonical_json_bytes(&evidence)
+        .map_err(|error| invalid(error.to_string()))?
+        .len()
+        > 256 * 1024
+    {
+        return Err(invalid("runtime call diagnostic exceeds byte cap"));
+    }
+    Ok(
+        json!({"schemaVersion":1,"kind":"legion-audit-runtime-call","macDomain":RUNTIME_CALL_DOMAIN,
+        "epochDigest":epoch,"callId":call_id,"requestDigest":receipt.get("requestDigest"),
+        "snapshotKey":receipt.get("snapshotKey"),"evidence":evidence}),
+    )
+}
+
+/// Host-only diagnostic receipt. The MAC authenticates host observations;
+/// modelAction remains redacted diagnostic data, never delivery/review proof.
+/// Caller persists this returned envelope beside the existing call trace.
+pub fn mint_runtime_call(run_dir: &Path, receipt: &Value) -> Result<Value, AuditError> {
+    let (key, epoch) = load_epoch(run_dir)?;
+    let message = runtime_call_message(run_dir, receipt, &epoch)?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(&key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&message).map_err(|error| invalid(error.to_string()))?);
+    let mut envelope = message["evidence"].clone();
+    envelope["authentication"] = json!({"alg":"HMAC-SHA256","mac":hex::encode(mac.finalize().into_bytes()),"epochDigest":epoch,"macDomain":RUNTIME_CALL_DOMAIN});
+    Ok(envelope)
+}
+
+/// Authenticate a persisted host call diagnostic against its run and snapshot.
+pub fn verify_runtime_call(run_dir: &Path, envelope: &Value) -> Result<Value, AuditError> {
+    let (key, epoch) = load_epoch(run_dir)?;
+    let mut evidence = envelope.clone();
+    evidence
+        .as_object_mut()
+        .ok_or_else(|| invalid("runtime call evidence missing"))?
+        .remove("authentication");
+    let expected = runtime_call_message(run_dir, &evidence, &epoch)?;
+    if expected.get("evidence") != Some(&evidence)
+        || envelope
+            .pointer("/authentication/alg")
+            .and_then(Value::as_str)
+            != Some("HMAC-SHA256")
+        || envelope
+            .pointer("/authentication/epochDigest")
+            .and_then(Value::as_str)
+            != Some(epoch.as_str())
+        || envelope
+            .pointer("/authentication/macDomain")
+            .and_then(Value::as_str)
+            != Some(RUNTIME_CALL_DOMAIN)
+    {
+        return Err(invalid("runtime call binding mismatch"));
+    }
+    let presented = envelope
+        .pointer("/authentication/mac")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("runtime call MAC missing"))?;
+    let presented = hex::decode(presented).map_err(|_| invalid("runtime call MAC malformed"))?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(&key).map_err(|error| invalid(error.to_string()))?;
+    mac.update(&canonical_json_bytes(&expected).map_err(|error| invalid(error.to_string()))?);
+    mac.verify_slice(&presented)
+        .map_err(|_| invalid("runtime call MAC invalid"))?;
+    Ok(evidence)
+}
 
 fn runtime_delivery_name(request: &ReasoningInvocation) -> String {
     format!(
@@ -3594,9 +3819,17 @@ pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, Au
         let mut compact = item.request.packet.clone();
         compact["excerpts"] = json!({"$sharedContext":"excerpts"});
         let lens = lens_plan::lens_id_for_provider(&item.provider_id);
-        requests.push(json!({"requestId":item.request.request_id,"providerId":item.provider_id,
+        let mut request = json!({"requestId":item.request.request_id,"providerId":item.provider_id,
             "planDigest":item.request.plan_digest,"packetDigest":canonical_digest(&item.request.packet).map_err(|error|invalid(error.to_string()))?,
-            "packet":compact,"findingSchema":lens.and_then(lens_schemas::lens_report_schema)}));
+            "packet":compact});
+        // Preserve the signed per-lens schema in its packet & transport it
+        // once. Legacy packets without it still need the generated schema.
+        if item.request.packet["reportSchemaBody"].is_object() {
+            request["findingSchemaRef"] = json!("packet.reportSchemaBody");
+        } else {
+            request["findingSchema"] = json!(lens.and_then(lens_schemas::lens_report_schema));
+        }
+        requests.push(request);
     }
     Ok(Some(
         json!({"sharedContext":shared,"sharedContextDigest":canonical_digest(&shared).map_err(|error|invalid(error.to_string()))?,"lenses":requests}),
@@ -5295,6 +5528,74 @@ mod runtime_evidence_tests {
             packet: json!({"excerpts":[]}),
         };
         (run, request)
+    }
+
+    fn call_fixture(run: &Path) -> Value {
+        let (_, epoch) = load_epoch(run).unwrap();
+        let snapshot = format!("sha256:{}", "1".repeat(64));
+        let request = format!("sha256:{}", "2".repeat(64));
+        fs::write(
+            run.join("plan.json"),
+            serde_json::to_vec(&json!({
+                "epoch":{"digest":epoch},"reviewContext":{"snapshotKey":snapshot}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":"seat:nonce:1","seatId":"seat-001",
+            "requestDigest":request,"snapshotKey":snapshot,"requestBytes":17409,
+            "requestAccounting":{"basis":"serialized-host-envelope","nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null},
+            "authorization":{"authorized":true,"callId":"seat:nonce:1","reservedTokens":10000},
+            "observation":{"physicalRequestDigest":request,"physicalRequestBytes":17409,
+                "usage":{"inputTokens":7202,"outputTokens":122}},
+            "modelAction":{"kind":"toolRequest","toolRequest":{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","api_key":"private-value"}}},
+            "budget":{"status":"reconciled"}})
+    }
+
+    #[test]
+    fn runtime_call_receipt_authenticates_redacted_bounded_diagnostic() {
+        let (run, _) = setup();
+        let receipt = call_fixture(&run);
+        let minted = mint_runtime_call(&run, &receipt).unwrap();
+        assert!(!minted.to_string().contains("private-value"));
+        assert_eq!(
+            minted["modelAction"]["toolRequest"]["arguments"]["api_key"],
+            "[REDACTED]"
+        );
+        let verified = verify_runtime_call(&run, &minted).unwrap();
+        assert_eq!(verified["observation"]["usage"]["inputTokens"], 7202);
+        assert_eq!(verified["requestBytes"], 17409);
+        assert!(verified.get("authentication").is_none());
+        for pointer in ["callId", "requestDigest", "snapshotKey"] {
+            let mut tampered = minted.clone();
+            tampered[pointer] = json!("changed");
+            assert!(verify_runtime_call(&run, &tampered).is_err());
+        }
+        let mut tampered = minted.clone();
+        tampered["modelAction"]["toolRequest"]["arguments"]["path"] = json!("src/other.rs");
+        assert!(verify_runtime_call(&run, &tampered).is_err());
+        let (other_run, _) = setup();
+        call_fixture(&other_run);
+        assert!(verify_runtime_call(&other_run, &minted).is_err());
+
+        let mut oversized = receipt.clone();
+        oversized["modelAction"]["toolRequest"]["arguments"]["path"] = json!("x".repeat(9000));
+        let bounded = mint_runtime_call(&run, &oversized).unwrap();
+        assert_eq!(bounded["modelAction"]["truncated"], true);
+        assert!(bounded["modelAction"].to_string().len() < 8192);
+        verify_runtime_call(&run, &bounded).unwrap();
+        oversized["initialContext"] = json!("x".repeat(32769));
+        assert!(mint_runtime_call(&run, &oversized).is_err());
+        let mut result = receipt.clone();
+        result["modelAction"] = json!({"kind":"finalResult","complete":false,"findingCount":1,"findings":[{"secret":"private-result-body"}]});
+        let result = mint_runtime_call(&run, &result).unwrap();
+        assert!(!result.to_string().contains("private-result-body"));
+        verify_runtime_call(&run, &result).unwrap();
+        let mut raw = receipt;
+        raw["observation"]["reply"] = json!({"unbounded":"source"});
+        assert!(mint_runtime_call(&run, &raw).is_err());
+        let _ = fs::remove_dir_all(run);
+        let _ = fs::remove_dir_all(other_run);
     }
 
     fn delivery(request: &ReasoningInvocation) -> Value {

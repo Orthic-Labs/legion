@@ -122,12 +122,52 @@ fn review_prompt(
 ) -> Value {
     let lens = lens_plan::lens_id_for_provider(&request.provider_id);
     let report_schema = lens.and_then(lens_schemas::lens_report_schema);
-    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields.","request":request,"snapshotKey":snapshot_key,"stagePacket":stage,"findingSchema":report_schema,"contextTools":tools::specs(),"conversation":[]});
+    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields.","request":request,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
+    // Ordinary packets already transport this exact schema. Reference it
+    // rather than paying for a second copy on every fresh native call.
+    if stage.is_none() && request.packet["reportSchemaBody"].is_object() {
+        prompt["findingSchemaRef"] = json!("request.packet.reportSchemaBody");
+    } else {
+        prompt["findingSchema"] = json!(report_schema);
+    }
     if stage.is_some() {
         // Stage material is the sole candidate review context.
         prompt["request"]["packet"] = json!({"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
     }
     prompt
+}
+
+fn attach_initial_context(
+    prompt: &mut Value,
+    request: &ReasoningInvocation,
+) -> Result<(), AuditError> {
+    let Some(manifest) = request
+        .packet
+        .pointer("/reviewContext/snapshotManifest")
+        .and_then(Value::as_str)
+    else {
+        return Ok(());
+    };
+    let snapshot = FrozenSnapshot::open(Path::new(manifest))?;
+    if request
+        .packet
+        .pointer("/reviewContext/snapshotKey")
+        .and_then(Value::as_str)
+        != Some(snapshot.manifest.key.as_str())
+    {
+        return Err(invalid(
+            "initial context snapshot differs from frozen packet",
+        ));
+    }
+    let tools = tools::ContextTools::new(snapshot.clone()).map_err(invalid)?;
+    let context = tools.eager_skeleton_context(request, &snapshot);
+    if context["deliveries"]
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty())
+    {
+        prompt["initialContext"] = context;
+    }
+    Ok(())
 }
 
 fn rendered_request(
@@ -167,7 +207,8 @@ pub(crate) fn initial_seat_request_bytes(works: &[PendingLensWork]) -> Result<u6
             .pointer("/reviewContext/snapshotKey")
             .and_then(Value::as_str)
             .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
-        let prompt = review_prompt(&work.request, snapshot_key, None);
+        let mut prompt = review_prompt(&work.request, snapshot_key, None);
+        attach_initial_context(&mut prompt, &work.request)?;
         let bytes = request_bytes(&rendered_request(&prompt, SYSTEM, &schema, None)?.1)?;
         total = total
             .checked_add(bytes)
@@ -189,6 +230,7 @@ pub(super) struct Controller<'a> {
     tools: tools::ContextTools,
     nonce: String,
     serial: u64,
+    physical_calls: u64,
 }
 // Lease attempts survive child follow-up dispatch even when its physical
 // reservation is newly issued against the parent budget ledger.
@@ -207,6 +249,7 @@ impl Controller<'_> {
         let (frame, rendered) =
             rendered_request(&prompt, system, schema, self.options.model.as_deref())?;
         let bytes = request_bytes(&rendered)?;
+        let request_accounting = json!({"basis":"serialized-host-envelope","nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":legion_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
         if bytes > MAX_REQUEST_BYTES as u64 {
             return Err(AuditError::BoundExceeded(
                 "complete reviewer request exceeds byte cap".into(),
@@ -252,16 +295,21 @@ impl Controller<'_> {
             schema,
             frame,
         );
+        if observation.process_id > 0 {
+            self.physical_calls += 1;
+        }
         observation.request_bytes = bytes;
         observation.request_digest = digest(&rendered)?;
         let settled = next::reconcile_usage(budget_run, &observation.usage)?;
+        let receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":native::observation_value(&observation),"modelAction":native::action_diagnostic(&observation),"budget":settled});
+        let authenticated = ingest::mint_runtime_call(self.run, &receipt)?;
         persist(
             &self.run.join("runtime-calls"),
             &format!(
                 "{}.json",
                 digest_bytes(call_id.as_bytes()).trim_start_matches("sha256:")
             ),
-            &json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"authorization":authorization,"observation":native::observation_value(&observation),"budget":settled}),
+            &authenticated,
         )?;
         Ok(observation)
     }
@@ -274,6 +322,9 @@ impl Controller<'_> {
     ) -> Result<(Value, Observation), AuditError> {
         let schema = action_schema();
         let mut prompt = review_prompt(request, &self.snapshot.manifest.key, stage);
+        if stage.is_none() {
+            attach_initial_context(&mut prompt, request)?;
+        }
         let mut initial = initial;
         for _ in 0..self.options.max_calls_per_packet {
             let observation = self.call(seat, prompt.clone(), SYSTEM, &schema, initial.take())?;
@@ -456,7 +507,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         Ok(binary) => binary,
         Err(error) => {
             return Ok(
-                json!({"kind":"legion-audit-runtime","status":"incomplete:host-capability","complete":false,"error":error.to_string(),"calls":0}),
+                json!({"kind":"legion-audit-runtime","status":"incomplete:host-capability","complete":false,"error":error.to_string(),"calls":0,"callAttempts":0}),
             )
         }
     };
@@ -479,6 +530,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         tools,
         nonce: hex::encode(nonce),
         serial: 0,
+        physical_calls: 0,
     };
     let mut artifacts = Vec::new();
     let mut failures = Vec::new();
@@ -749,7 +801,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         )
         && recomputed.report.gaps.is_empty()
         && controller.snapshot.manifest.gaps.is_empty();
-    let output = json!({"schemaVersion":1,"kind":"legion-audit-runtime","run":run,"dispatchStatus":final_status,"status":if final_status=="done"&&!complete{"incomplete:required-evidence"}else{&final_status},"complete":complete,"calls":controller.serial,"artifacts":artifacts,"failures":failures,"snapshotKey":controller.snapshot.manifest.key,"snapshotGaps":controller.snapshot.manifest.gaps,"pending":recomputed.pending});
+    let output = json!({"schemaVersion":1,"kind":"legion-audit-runtime","run":run,"dispatchStatus":final_status,"status":if final_status=="done"&&!complete{"incomplete:required-evidence"}else{&final_status},"complete":complete,"calls":controller.physical_calls,"callAttempts":controller.serial,"artifacts":artifacts,"failures":failures,"snapshotKey":controller.snapshot.manifest.key,"snapshotGaps":controller.snapshot.manifest.gaps,"pending":recomputed.pending});
     persist(&run, "review-runtime.json", &output)?;
     Ok(output)
 }
@@ -794,6 +846,24 @@ mod tests {
         assert_eq!(initial_seat_request_bytes(&[work]).unwrap(), exact);
     }
     #[test]
+    fn signed_packet_finding_schema_is_sent_once_without_packet_mutation() {
+        let mut work = estimate_work("reasoning.naming", "naming", "source");
+        let schema = lens_schemas::lens_report_schema("naming").unwrap();
+        work.request.packet["reportSchemaBody"] = schema.clone();
+        let original = work.request.packet.clone();
+        let prompt = review_prompt(&work.request, "sha256:fixture", None);
+        assert!(prompt.get("findingSchema").is_none());
+        assert_eq!(
+            prompt["findingSchemaRef"],
+            "request.packet.reportSchemaBody"
+        );
+        assert_eq!(prompt["request"]["packet"], original);
+        assert_eq!(prompt["request"]["packet"]["reportSchemaBody"], schema);
+        // Stage packets omit reportSchemaBody, so still need their schema.
+        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({})));
+        assert!(stage["findingSchema"].is_object());
+    }
+    #[test]
     fn shared_estimate_and_runtime_builder_transport_common_source_once() {
         let marker = "UNIQUE_COMMON_SOURCE_LINE".repeat(1024);
         let works = vec![
@@ -821,6 +891,57 @@ mod tests {
             )
             .unwrap()
         );
+    }
+    #[test]
+    fn shared_schema_once_preserves_packets_and_exact_transport_estimate() {
+        let mut works = vec![
+            estimate_work("reasoning.naming", "naming", "shared source"),
+            estimate_work("reasoning.correctness", "correctness", "shared source"),
+        ];
+        for work in &mut works {
+            let lens = lens_plan::lens_id_for_provider(&work.provider_id).unwrap();
+            work.request.packet["reportSchemaBody"] =
+                lens_schemas::lens_report_schema(lens).unwrap();
+        }
+        let originals: Vec<_> = works
+            .iter()
+            .map(|work| work.request.packet.clone())
+            .collect();
+        let prompt = batch::initial_prompt(&works).unwrap().unwrap();
+        let shared = ingest::shared_seat_payload(&works).unwrap().unwrap();
+        assert_eq!(prompt["lenses"], shared["lenses"]);
+        for (index, row) in prompt["lenses"].as_array().unwrap().iter().enumerate() {
+            assert!(row.get("findingSchema").is_none());
+            assert_eq!(row["findingSchemaRef"], "packet.reportSchemaBody");
+            let mut reconstructed = row["packet"].clone();
+            reconstructed["excerpts"] = prompt["sharedContext"]["excerpts"].clone();
+            assert_eq!(reconstructed, originals[index]);
+            assert_eq!(row["packetDigest"], digest(&originals[index]).unwrap());
+            assert_eq!(works[index].request.packet, originals[index]);
+            let schema = originals[index]["reportSchemaBody"].to_string();
+            assert_eq!(prompt.to_string().matches(schema.as_str()).count(), 1);
+        }
+        assert_eq!(
+            initial_seat_request_bytes(&works).unwrap(),
+            request_bytes(
+                &rendered_request(&prompt, SYSTEM, &action_schema(), None)
+                    .unwrap()
+                    .1
+            )
+            .unwrap()
+        );
+        for work in &mut works {
+            work.request
+                .packet
+                .as_object_mut()
+                .unwrap()
+                .remove("reportSchemaBody");
+        }
+        let legacy = ingest::shared_seat_payload(&works).unwrap().unwrap();
+        for row in legacy["lenses"].as_array().unwrap() {
+            assert!(row["findingSchema"].is_object());
+            assert!(row.get("findingSchemaRef").is_none());
+        }
     }
     #[test]
     fn incompatible_or_oversized_shared_seats_charge_all_single_envelopes() {

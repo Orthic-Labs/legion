@@ -23,6 +23,13 @@ pub(super) fn initial_prompt(works: &[PendingLensWork]) -> Result<Option<Value>,
     prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:excerpts} resolves only to sharedContext.excerpts. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
     prompt["contextTools"] = super::tools::specs();
     prompt["conversation"] = json!([]);
+    let mut common = works[0].request.clone();
+    common.denominator_paths.retain(|path| {
+        works
+            .iter()
+            .all(|work| work.request.denominator_paths.contains(path))
+    });
+    super::attach_initial_context(&mut prompt, &common)?;
     // Both planning & transport must choose the same physical split before
     // authorization. No shared-byte credit applies to fallback singles.
     if native::rendered_input(&prompt)?.len() > super::MAX_REQUEST_BYTES / 2 {

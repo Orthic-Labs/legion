@@ -41,6 +41,7 @@ fn main() {
         simulate_native(&args);
     } else {
         completes_after_host_tool_round_and_recovers_stale_lock_file();
+        completes_with_eager_selected_skeleton_source_in_one_call();
         preserves_finding_after_fresh_verifier_success();
         refusal_and_missing_usage_remain_incomplete();
         rejects_unadvertised_native_tool();
@@ -113,6 +114,22 @@ fn simulate_native(args: &[String]) {
         "fixture source marker absent"
     );
     let reviewer = prompt.get("finding").is_some();
+    if !reviewer && prompt_text.contains("runtime-simulation:clean-eager") {
+        assert!(prompt["initialContext"]["deliveries"].is_array());
+        assert!(prompt["initialContext"].to_string().contains(SOURCE_LINE));
+        assert!(prompt["initialContext"]
+            .to_string()
+            .contains("audit.read_file"));
+        assert!(prompt["initialContext"].to_string().contains("replyDigest"));
+        assert!(!prompt["request"]["packet"]["excerpts"]
+            .to_string()
+            .contains(SOURCE_LINE));
+        assert!(prompt.get("findingSchema").is_none());
+        assert_eq!(
+            prompt["findingSchemaRef"],
+            "request.packet.reportSchemaBody"
+        );
+    }
     let tool_round = !reviewer
         && prompt_text.contains("runtime-simulation:clean-tool")
         && prompt["conversation"].as_array().is_some_and(Vec::is_empty);
@@ -136,6 +153,7 @@ fn simulate_native(args: &[String]) {
             assert!(prompt_text.contains(SOURCE_LINE));
         }
         let findings = if prompt_text.contains("runtime-simulation:clean-tool")
+            || prompt_text.contains("runtime-simulation:clean-eager")
             || prompt_text.contains("runtime-simulation:wait-for-release")
         {
             json!([])
@@ -421,6 +439,8 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert!(output.status.success(), "simulation runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(result["status"], "done");
+    assert_eq!(result["calls"], 2);
+    assert_eq!(result["callAttempts"], 2);
     assert_eq!(report["status"], "clean");
     assert!(report["gaps"].as_array().unwrap().is_empty());
     assert!(fixture
@@ -441,6 +461,40 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     );
     assert!(fixture.run.join("report.sarif").is_file());
     assert!(!fixture.repo.join("must-never-execute").exists());
+}
+fn completes_with_eager_selected_skeleton_source_in_one_call() {
+    let fixture = Fixture::new("clean-eager");
+    let (output, result, report) = fixture.run();
+    assert!(output.status.success(), "simulation eager runtime:{result}");
+    assert_eq!(result["complete"], true);
+    assert_eq!(report["status"], "clean");
+    assert_eq!(result["calls"], 1);
+    assert_eq!(result["callAttempts"], 1);
+    assert_eq!(fixture.calls().len(), 1);
+    let receipts: Vec<_> = fs::read_dir(fixture.run.join("runtime-calls"))
+        .unwrap()
+        .map(|entry| read_json(&entry.unwrap().path()))
+        .collect();
+    assert_eq!(receipts.len(), 1);
+    let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+        &fixture.run,
+        &receipts[0],
+    )
+    .unwrap();
+    assert_eq!(receipt["modelAction"]["kind"], "finalResult");
+    assert_eq!(receipt["requestAccounting"]["nativeFramingIncluded"], false);
+    assert!(receipt["requestAccounting"]["providerInputTokenCountBeforeSend"].is_null());
+    assert!(receipt["initialContext"].to_string().contains(SOURCE_LINE));
+    assert!(receipt["initialContext"].to_string().len() <= 32 * 1024);
+    let mut changed = receipts[0].clone();
+    changed["modelAction"]["kind"] = json!("toolRequest");
+    assert!(
+        legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+            &fixture.run,
+            &changed
+        )
+        .is_err()
+    );
 }
 fn preserves_finding_after_fresh_verifier_success() {
     let fixture = Fixture::new("upheld");

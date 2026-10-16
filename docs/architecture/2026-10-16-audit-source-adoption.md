@@ -74,21 +74,47 @@ Sequence work: (1) canonical finding/location/applicability & per-candidate loss
 
 ## Implementation state (2026-10-16)
 
-Source now contains the native `legion audit run-reasoning` controller, native Claude capability
-preflight, bounded read-only tools over immutable selected/baseline snapshots, usage reservation and
-reconciliation with absent provider usage preserved as unknown, per-finding independent verification,
-authenticated ingest, and final report recomputation. Scope handling now covers local, staged,
-committed, branch/range, since-last, directory, and attested PR inputs; PR acquisition uses isolated
-object-only fetch. The host toolbox exposes read, search, list, diff, and lexical caller lookup only.
+Last pushed source is `67d341c4a0ec539e9b631f1b4a76d8f5daa44e09`. Core `9b2fab73` repairs external
+state-cache nonmutation, Windows snapshot handles, explicit budget unlock, and a runtime fake fixture;
+scoped Oracle review passed those changes. The native [`audit run-reasoning`
+controller](../../engine/bins/legion/src/commands/audit_runtime.rs) uses bounded read-only tools,
+authenticated ingest, per-finding verification, and recomputed reports. Frozen scopes cover local,
+staged, committed, branch/range, since-last, directory, and attested PR inputs. Semantic cards add
+applicability, source traces, falsifiers, and paired cases; offline integrations include Squawk, Zizmor,
+ShellCheck, TFLint, Kubeconform, Kube-Linter, Brakeman, and GolangCI-Lint. Planner/runtime share payload
+construction and usage reconciliation; benchmark defaults are 100,000 aggregate and 10,000 per case.
+Optional source cache reports unavailable on initialization failure; ordinary cache misses remain valid.
+Source-judgment ratings remain 5/8/7.
 
-The selected semantic patterns are implemented as versioned cards attached to existing lenses, with
-applicability and source-trace requirements, explicit falsifiers, unknown-on-missing-evidence rules,
-and paired cases. They do not create broad new domains. Named offline scanner integrations are present
-for Squawk, Zizmor, ShellCheck, TFLint, Kubeconform, Kube-Linter, Brakeman, and GolangCI-Lint;
-Kubeconform requires a host-pinned local schema tree. The benchmark source now invokes the complete
-reasoning runtime and retains partial findings for failed attempts.
+Mac CI [38826103913](https://github.com/Orthic-Labs/legion/actions/runs/38826103913) at `2a6fd61`
+passed 5,102 test executions with zero failures and seven ignored; six scanner-recall checks passed on
+rerun. Native fake-runtime and assembled-CLI smoke passed. Deterministic A/A×2 completed all 24 cases:
+raw candidates included one unpinned download, one Redis no-TTL write, and two Redis locations; docs,
+Map, and valid-TTL controls each had zero. Location matched 4/4. These are raw-candidate results, not
+verified semantic findings. Evidence: [CI log](/Volumes/D/scratch/legion-audit-20261016/ci-2a6fd-macos.log), [benchmark output](/Volumes/D/scratch/legion-audit-20261016/benchmark-2a6fd.json).
 
-This is a source-only status. No local builds, tests, benchmarks, or model runs were executed for this
-implementation; CI and behavioral qualification remain pending. The source changes do not establish
-detector accuracy, semantic recall, model-usage savings, or operational readiness. No measurement is
-claimed.
+An unpushed candidate reserves a frozen per-call amount at physical admission, separately from planned
+estimates, and atomically denies unaffordable calls. Unknown usage and actual overruns remain terminal;
+this is not a hard physical-cap guarantee. Runtime separates call attempts from launched calls and emits
+signed, redacted, bounded diagnostics. It passes one finding-schema copy and bounded selected-skeleton
+source upfront ([issue 32](https://github.com/Orthic-Labs/legion/issues/32)). Candidate commit is unknown.
+
+CI [38828135587](https://github.com/Orthic-Labs/legion/actions/runs/38828135587) passed Mac in 14m27s;
+Windows remains ongoing. No final CI result is claimed. The typed-Redis semantic Oracle loop had a second
+BLOCK and closed before its loop-header repair; no final independent approval is claimed, though actual
+Mac regressions pass.
+
+The existing compiled live-Claude smoke at
+`/Volumes/D/scratch/legion-audit-20261016/compiled-runtime-smoke` remains unchanged: one physical call,
+6,853 reserved tokens (4,353 estimated input + 2,500 output), and 7,324 actual tokens (7,202 input: 2
+uncached + 7,200 cache-creation + zero cache-read; 122 output), overrunning by 471. Runtime marked the
+run incomplete before a second call; output still incorrectly reports two calls by counting the denied
+attempt. Retry proof for the candidate is pending within the 12,676-token remainder of the 20,000
+aggregate experiment cap. No completion or savings claim is established.
+
+[`heldout-controls`](../../evals/audit-bench/fixtures/heldout-controls.cases.json) adds five pre-registered
+synthetic cases in a separate heldout split (`21e0b236`); they remain unexecuted and are not an independent
+blind evaluation. The bounded direct-Claude protocol probe first failed with API 400 on top-level `oneOf`;
+after the schema fix, a second probe succeeded in 5.482 seconds with 1,486 input tokens (2 uncached,
+1,484 cache-creation, zero cache-read) + 60 output. It did not run compiled Legion. Cache and model-usage
+savings have not been measured.
