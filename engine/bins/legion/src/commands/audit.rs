@@ -628,11 +628,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 }
             }
             if let Some(out) = &args.out {
-                write_artifact(
-                    out,
-                    "plan.json",
-                    &serde_json::to_vec_pretty(&output).map_err(super::io_error)?,
-                )?;
+                write_control_artifact(out, "plan.json", &output)?;
             }
             Ok(output)
         }
@@ -896,18 +892,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     }
                 }
                 let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
-                write_artifact(
-                    out,
-                    "plan.json",
-                    &serde_json::to_vec_pretty(&plan).map_err(super::io_error)?,
-                )?;
+                write_control_artifact(out, "plan.json", &plan)?;
                 write_artifact(out, "report.json", report_json.as_bytes())?;
                 write_artifact(out, "report.sarif", report_sarif.as_bytes())?;
-                write_artifact(
-                    out,
-                    "facts.json",
-                    &serde_json::to_vec_pretty(&facts).map_err(super::io_error)?,
-                )?;
+                write_control_artifact(out, "facts.json", &facts)?;
                 write_artifact(
                     out,
                     "execution.json",
@@ -4564,6 +4552,20 @@ fn named_plan_digest(value: &serde_json::Value) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+fn write_control_artifact(
+    root: &std::path::Path,
+    name: &str,
+    value: &Value,
+) -> Result<(), CommandError> {
+    // Frozen controls are machine inputs. Pretty-printing their nested plan
+    // copies can exceed the runtime's bounded JSON reader without adding data.
+    write_artifact(
+        root,
+        name,
+        &serde_json::to_vec(value).map_err(super::io_error)?,
+    )
+}
+
 fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<(), CommandError> {
     std::fs::create_dir_all(root).map_err(super::io_error)?;
     let destination = root.join(name);
@@ -5714,6 +5716,70 @@ mod sealed_plan_tests {
 
         assert!(native_plan_document(&basis, "sha256:wrong", Some(&signature)).is_err());
         assert!(native_plan_document(&basis, &digest, Some("wrong-signature")).is_err());
+    }
+
+    #[test]
+    fn compact_control_artifacts_preserve_large_frozen_plan_integrity() {
+        const RUNTIME_JSON_LIMIT: usize = 16 * 1024 * 1024;
+        let root = fixture_root("compact-controls");
+        let source = crate::commands::audit_inventory_source(&root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        let mut metadata = Value::Array(vec![json!(0); 125_000]);
+        for _ in 0..32 {
+            metadata = json!({"scope": metadata});
+        }
+        let mut provider = spec();
+        provider.reasoning["serializationFixture"] = metadata;
+        let frozen = legion_audit::AuditPlan::compile_with_root(
+            Some(&root),
+            &inventory,
+            &[provider.clone()],
+        )
+        .unwrap()
+        .freeze(Some(KEY))
+        .unwrap();
+        let native = native_plan_document(
+            &Ok((frozen.clone(), inventory.clone())),
+            frozen.digest(),
+            frozen.signature(),
+        )
+        .unwrap();
+        let plan = json!({
+            "schemaVersion": 1,
+            "kind": "audit-provider-plan",
+            "planDigest": frozen.digest(),
+            "planSignature": frozen.signature(),
+            "seal": {"digest": frozen.digest(), "signature": frozen.signature(), "authenticity": "hmac-sha256"},
+            "binding": {"repositoryRevision": inventory.generation, "inventoryDigest": inventory.digest},
+            "providerSpecs": [provider],
+            "nativePlan": native
+        });
+        let facts = json!({"schemaVersion": 1, "kind": "audit-facts", "plan": plan});
+        let out = root.join("out");
+        for (name, document, plan_pointer) in
+            [("plan.json", &plan, ""), ("facts.json", &facts, "/plan")]
+        {
+            assert!(serde_json::to_vec_pretty(document).unwrap().len() > RUNTIME_JSON_LIMIT);
+            let expected_digest = legion_contracts::canonical_digest(document).unwrap();
+            write_control_artifact(&out, name, document).unwrap();
+            let bytes = std::fs::read(out.join(name)).unwrap();
+            assert!(bytes.len() < RUNTIME_JSON_LIMIT);
+            let restored: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(&restored, document);
+            assert_eq!(
+                legion_contracts::canonical_digest(&restored).unwrap(),
+                expected_digest
+            );
+            let restored_plan = restored.pointer(plan_pointer).unwrap();
+            assert_eq!(restored_plan["seal"], plan["seal"]);
+            assert_eq!(restored_plan["binding"], plan["binding"]);
+            let native: legion_audit::AuditPlan =
+                serde_json::from_value(restored_plan["nativePlan"]["plan"].clone()).unwrap();
+            assert_eq!(native, *frozen.plan());
+            assert_eq!(native.providers[0].configuration["denominatorCount"], 1);
+            legion_audit::verify(&native, frozen.digest(), frozen.signature(), Some(KEY)).unwrap();
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

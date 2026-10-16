@@ -127,8 +127,10 @@ cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- as
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
 
 # Real-repository affordability gate against a pinned public Ember checkout.
-# The helper uses plan-only mode: it freezes actual source packets and dispatch
-# limits without executing Ember tooling or invoking a model.
+# The helper retains cold/warm plan-only cache checks, then runs one full
+# deterministic audit with the same source, seat, run-token, call, and width caps.
+# It validates bounded plan/facts artifacts and accepts exit 2 only with a
+# persisted findings/incomplete report matching repository-audit-report output.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   python3 "${GITHUB_WORKSPACE}/scripts/ci/audit-ember-bounded.py" \
     --legion "${RUNNER_TEMP}/legion-install/bin/legion" \

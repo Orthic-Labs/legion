@@ -16,7 +16,9 @@ import sys
 EMBER_URL = "https://github.com/Orthic-Labs/ember.git"
 EMBER_REVISION = "9961562ed4c652b0bc6a9b3bc3a63142d885f583"
 MAX_SECONDS = 120
+FULL_AUDIT_MAX_SECONDS = 600
 MAX_DIAGNOSTIC_CHARS = 6000
+MAX_JSON_ARTIFACT_BYTES = 16 * 1024 * 1024
 CODE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".h", ".hpp", ".java", ".js",
     ".jsx", ".kt", ".m", ".mm", ".php", ".py", ".rb", ".rs", ".scala",
@@ -55,8 +57,13 @@ def run(command: list[str], *, cwd: Path | None = None,
     return result
 
 
-def json_file(path: Path) -> dict:
+def json_file(path: Path, *, bounded: bool = False) -> dict:
     try:
+        metadata = path.lstat()
+        if not path.is_file() or path.is_symlink():
+            fail(f"expected regular non-symlink JSON artifact: {path}")
+        if bounded and metadata.st_size > MAX_JSON_ARTIFACT_BYTES:
+            fail(f"JSON artifact exceeds {MAX_JSON_ARTIFACT_BYTES} bytes: {path} ({metadata.st_size})")
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         fail(f"cannot read JSON artifact {path}: {error}")
@@ -92,21 +99,20 @@ def checkout(destination: Path) -> None:
         fail(f"Ember checkout mismatch: expected {EMBER_REVISION}, got {actual}")
 
 
-def inspect_run(out: Path) -> dict:
+def inspect_run(out: Path, *, plan_only: bool = True,
+                persisted_gaps: set[str] | None = None,
+                output_gaps: set[str] | None = None) -> dict:
     plan_path = out / "plan.json"
     dispatch_path = out / "lens-dispatch.json"
-    if not plan_path.is_file():
-        fail(f"frozen plan missing: {plan_path}")
-    if not dispatch_path.is_file():
-        fail(f"lens dispatch plan missing: {dispatch_path}")
-    plan = json_file(plan_path)
+    plan = json_file(plan_path, bounded=not plan_only)
     dispatch = json_file(dispatch_path)
     if plan.get("kind") != "audit-provider-plan":
         fail(f"unexpected frozen plan kind: {plan.get('kind')!r}")
-    if plan.get("auditStatus") != "incomplete":
-        fail(f"plan-only audit has unexpected status: {plan.get('auditStatus')!r}")
-    if plan.get("processExecution") != "not-run" or plan.get("processState") != "not-run":
-        fail("plan-only gate unexpectedly reports provider execution")
+    if plan_only:
+        if plan.get("auditStatus") != "incomplete":
+            fail(f"plan-only audit has unexpected status: {plan.get('auditStatus')!r}")
+        if plan.get("processExecution") != "not-run" or plan.get("processState") != "not-run":
+            fail("plan-only gate unexpectedly reports provider execution")
     if dispatch.get("kind") != "legion-lens-dispatch":
         fail(f"unexpected dispatch artifact kind: {dispatch.get('kind')!r}")
     if dispatch.get("coverageMode") != "risk-sampled" or dispatch.get("boundedAudit") is not True:
@@ -176,9 +182,14 @@ def inspect_run(out: Path) -> dict:
     deferred_packets = dispatch.get("deferredPackets", [])
     if not isinstance(deferred, list) or not isinstance(deferred_packets, list):
         fail("dispatch deferred-work fields are malformed")
-    input_gaps = plan.get("inputGaps", [])
-    if not isinstance(input_gaps, list):
-        fail("frozen plan inputGaps field is malformed")
+    if plan_only:
+        input_gaps = plan.get("inputGaps", [])
+        if not isinstance(input_gaps, list):
+            fail("frozen plan inputGaps field is malformed")
+    else:
+        if persisted_gaps is None or output_gaps is None:
+            fail("full audit deferred-work validation requires persisted/output report gaps")
+        input_gaps = persisted_gaps & output_gaps
     for work in deferred:
         if not isinstance(work, dict) or not all(work.get(key) for key in ("providerId", "packet", "reason")):
             fail(f"deferred work lacks explicit identity or reason: {work!r}")
@@ -189,7 +200,7 @@ def inspect_run(out: Path) -> dict:
             fail(f"deferred work lacks explicit frozen coverage gap {expected_gap!r}")
 
     performance = plan.get("sourcePerformance")
-    if not isinstance(performance, dict):
+    if plan_only and not isinstance(performance, dict):
         fail("frozen plan lacks sourcePerformance cache statistics")
     excerpt_identity = []
     for name in selected:
@@ -214,8 +225,72 @@ def inspect_run(out: Path) -> dict:
         "substantive_source_count": len(substantive_sources),
         "excerpt_count": excerpt_count,
         "deferred_count": len(deferred),
-        "source_performance": performance,
+        "source_performance": performance if isinstance(performance, dict) else {},
         "excerpt_digest": excerpt_digest,
+    }
+
+
+def validate_full_artifacts(out: Path, output: dict, returncode: int) -> dict:
+    plan = json_file(out / "plan.json", bounded=True)
+    facts = json_file(out / "facts.json", bounded=True)
+    persisted = json_file(out / "report.json")
+    if plan.get("kind") != "audit-provider-plan":
+        fail(f"full audit persisted unexpected plan kind: {plan.get('kind')!r}")
+    if output.get("kind") != "repository-audit-report":
+        fail("full audit stdout is not a repository-audit-report")
+    if facts.get("kind") != "audit-facts":
+        fail(f"full audit persisted unexpected facts kind: {facts.get('kind')!r}")
+    embedded_plan = facts.get("plan")
+    if not isinstance(embedded_plan, dict):
+        fail("full audit facts lack the embedded frozen plan")
+    seal = plan.get("seal")
+    embedded_seal = embedded_plan.get("seal")
+    native_plan = plan.get("nativePlan")
+    if not isinstance(seal, dict) or not isinstance(embedded_seal, dict) or not isinstance(native_plan, dict):
+        fail("full audit plan or facts lack seal/native plan data")
+    digest = seal.get("digest")
+    if not isinstance(digest, str) or not digest.startswith("sha256:") or len(digest) != 71 or any(c not in "0123456789abcdef" for c in digest[7:]):
+        fail(f"full audit plan has invalid or empty digest: {digest!r}")
+    if embedded_seal.get("digest") != digest or native_plan.get("digest") != digest:
+        fail("full audit facts embedded plan/native plan digest differs from persisted plan seal")
+    if embedded_seal.get("signature") != seal.get("signature") or native_plan.get("signature") != seal.get("signature"):
+        fail("full audit facts embedded plan/native plan signature differs from persisted plan seal")
+    if not isinstance(persisted.get("findings"), list) or not isinstance(persisted.get("gaps"), list):
+        fail("full audit persisted report lacks findings or gaps arrays")
+    status = output.get("auditStatus")
+    report_status = persisted.get("status")
+    claims = persisted.get("claims")
+    persisted_status = claims.get("auditStatus") if isinstance(claims, dict) else None
+    if status not in {"pass", "findings", "incomplete"}:
+        fail(f"full audit stdout has unexpected status: {status!r}")
+    if report_status not in {"clean", "findings", "incomplete"}:
+        fail(f"full audit persisted report has unexpected status: {report_status!r}")
+    expected_status = "pass" if report_status == "clean" else report_status
+    if status != expected_status or persisted_status != status:
+        fail(f"full audit stdout/persisted status mismatch: stdout={status!r}, report={report_status!r}, claim={persisted_status!r}")
+    if returncode == 2 and status not in {"findings", "incomplete"}:
+        fail(f"full audit exited 2 without persisted findings or incomplete status: {status!r}")
+    if returncode == 0 and status not in {"pass", "findings"}:
+        fail(f"full audit exited 0 with unexpected status: {status!r}")
+    if output.get("planDigest") != plan.get("seal", {}).get("digest"):
+        fail("full audit stdout and persisted plan differ for planDigest")
+    report_claims = persisted.get("claims")
+    if not isinstance(report_claims, dict) or report_claims.get("planDigest") != digest:
+        fail("full audit persisted report differs from persisted plan digest")
+    if not isinstance(output.get("gaps"), list):
+        fail("full audit stdout lacks report gaps")
+    if any(not isinstance(gap, str) for gap in persisted["gaps"] + output["gaps"]):
+        fail("full audit persisted or stdout report gaps are malformed")
+    return {
+        "status": status,
+        "finding_count": len(persisted["findings"]),
+        "gap_count": len(persisted["gaps"]),
+        "facts_bytes": (out / "facts.json").stat().st_size,
+        "plan_bytes": (out / "plan.json").stat().st_size,
+        "report_bytes": (out / "report.json").stat().st_size,
+        "persisted_gaps": set(persisted["gaps"]),
+        "output_gaps": set(output["gaps"]),
+        "dispatch": json_file(out / "lens-dispatch.json"),
     }
 
 
@@ -314,6 +389,66 @@ def main() -> int:
             "withinLimits": dispatch["withinLimits"],
             "sourcePerformance": observation["source_performance"],
         }, sort_keys=True))
+
+    out = repo / ".audit" / "ember-bounded-full"
+    command = [
+        str(args.legion.resolve()), "audit", str(repo),
+        "--coverage", "risk-sampled", "--seat-token-budget", "10000",
+        "--run-token-budget", "50000", "--max-total-seats", "5",
+        "--max-lens-seats", "1", "--out", str(out), "--json",
+    ]
+    result = run(command, cwd=repo, env=env, timeout=FULL_AUDIT_MAX_SECONDS,
+                 allowed_returncodes={0, 2})
+    try:
+        output = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        fail(
+            f"full audit did not return JSON ({error})\n"
+            f"stdout:\n{diagnostic(result.stdout)}\nstderr:\n{diagnostic(result.stderr)}"
+        )
+    if not isinstance(output, dict):
+        fail(f"full audit stdout is not a JSON object: {diagnostic(result.stdout)}")
+    try:
+        full = validate_full_artifacts(out, output, result.returncode)
+        observation = inspect_run(
+            out, plan_only=False, persisted_gaps=full["persisted_gaps"],
+            output_gaps=full["output_gaps"],
+        )
+    except RuntimeError as error:
+        fail(f"{error}\nfull audit stderr:\n{diagnostic(result.stderr)}")
+    dispatch = full["dispatch"]
+    if dispatch.get("coverageMode") != "risk-sampled" or dispatch.get("boundedAudit") is not True:
+        fail("full audit dispatch did not preserve bounded risk-sampled coverage")
+    if dispatch.get("withinLimits") is not True:
+        fail(f"full audit dispatch is over limits: {dispatch.get('violations')}")
+    if observation["selected_count"] == 0 or observation["substantive_source_count"] == 0:
+        fail("full audit did not retain substantive selected source packets")
+    print(json.dumps({
+        "kind": "ember-bounded-audit-gate",
+        "revision": EMBER_REVISION,
+        "cachePass": "full",
+        "execution": "full-deterministic-audit",
+        "coverageMode": dispatch["coverageMode"],
+        "auditStatus": full["status"],
+        "selectedAuthorPackets": observation["selected_count"],
+        "selectedSourcePaths": observation["source_count"],
+        "substantiveCodeSourcePaths": observation["substantive_source_count"],
+        "selectedSourceExcerpts": observation["excerpt_count"],
+        "selectedSourceDigest": observation["excerpt_digest"],
+        "deferredPackets": observation["deferred_count"],
+        "plannedInitialPhysicalCalls": dispatch["requiredInitialCalls"],
+        "plannedFreshVerificationReserveCalls": dispatch["followupReserveCalls"],
+        "plannedMaximumPhysicalCalls": 5,
+        "actualModelCalls": 0,
+        "gatherPolicy": "deterministic",
+        "withinLimits": dispatch["withinLimits"],
+        "planBytes": full["plan_bytes"],
+        "factsBytes": full["facts_bytes"],
+        "reportBytes": full["report_bytes"],
+        "findings": full["finding_count"],
+        "gaps": full["gap_count"],
+        "sourcePerformance": observation["source_performance"],
+    }, sort_keys=True))
     return 0
 
 

@@ -50,6 +50,8 @@ fn main() {
         simulate_native(&args);
     } else {
         completes_after_host_tool_round_and_recovers_stale_lock_file();
+        completes_with_large_compact_control_plan();
+        rejects_invalid_control_inputs_before_generation();
         completes_with_eager_selected_skeleton_source_in_one_author_call();
         preserves_finding_after_fresh_verifier_success();
         prohibits_frontier_and_low_tier_semantic_overrides();
@@ -602,6 +604,83 @@ impl Drop for Fixture {
             let _ = fs::remove_dir_all(&self.base);
         }
     }
+}
+
+fn completes_with_large_compact_control_plan() {
+    const RUNTIME_JSON_LIMIT: usize = 16 * 1024 * 1024;
+    let fixture = Fixture::new("clean-eager");
+    let path = fixture.run.join("plan.json");
+    let mut plan = read_json(&path);
+    let native_plan = plan["nativePlan"].clone();
+    let seal = plan["seal"].clone();
+    let binding = plan["binding"].clone();
+    let mut metadata = Value::Array(vec![json!(0); 300_000]);
+    for _ in 0..32 {
+        metadata = json!({"scope": metadata});
+    }
+    plan["serializationFixture"] = metadata;
+    assert!(serde_json::to_vec_pretty(&plan).unwrap().len() > RUNTIME_JSON_LIMIT);
+    let expected_digest = legion_contracts::canonical_digest(&plan).unwrap();
+    let compact = serde_json::to_vec(&plan).unwrap();
+    assert!(compact.len() < RUNTIME_JSON_LIMIT);
+    fs::write(&path, compact).unwrap();
+
+    let (output, result, report) = fixture.run();
+    assert!(
+        output.status.success(),
+        "large compact control runtime:{result}"
+    );
+    assert_eq!(result["complete"], true);
+    assert_eq!(report["status"], "clean");
+    assert_eq!(result["calls"], 1);
+    assert_eq!(fixture.calls().len(), 1);
+    let restored = read_json(&path);
+    assert_eq!(
+        legion_contracts::canonical_digest(&restored).unwrap(),
+        expected_digest
+    );
+    assert_eq!(restored["nativePlan"], native_plan);
+    assert_eq!(restored["seal"], seal);
+    assert_eq!(restored["binding"], binding);
+}
+
+fn rejects_invalid_control_inputs_before_generation() {
+    const RUNTIME_JSON_LIMIT: usize = 16 * 1024 * 1024;
+    let fixture = Fixture::new("clean-eager");
+    let path = fixture.run.join("plan.json");
+    let original = fs::read(&path).unwrap();
+    let options = RuntimeOptions {
+        // Even a reader regression must never resolve a real model client.
+        claude: Some(fixture.base.join("missing-native-host")),
+        ..Default::default()
+    };
+    let assert_rejected = |expected: &str| {
+        let error = review_runtime::run(&fixture.run, &options).unwrap_err();
+        assert!(error.to_string().contains(expected), "{error}");
+        assert!(fixture.calls().is_empty());
+        assert!(!fixture.run.join("runtime-host").exists());
+        assert!(!fixture.run.join("runtime-calls").exists());
+    };
+
+    fs::write(&path, b"[").unwrap();
+    assert_rejected("EOF");
+    let mut oversized = vec![b' '; RUNTIME_JSON_LIMIT + 1];
+    oversized[0] = b'0';
+    fs::write(&path, oversized).unwrap();
+    assert_rejected("runtime input must be bounded regular JSON file");
+    fs::remove_file(&path).unwrap();
+    fs::create_dir(&path).unwrap();
+    assert_rejected("runtime input must be bounded regular JSON file");
+    fs::remove_dir(&path).unwrap();
+    #[cfg(unix)]
+    {
+        let target = fixture.base.join("valid-plan.json");
+        fs::write(&target, &original).unwrap();
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        assert_rejected("runtime input must be bounded regular JSON file");
+        fs::remove_file(&path).unwrap();
+    }
+    fs::write(&path, original).unwrap();
 }
 
 fn completes_after_host_tool_round_and_recovers_stale_lock_file() {

@@ -1,8 +1,24 @@
 # Audit execution & historical coverage
 
+**Current status (2026-10-16; source `90ab59723112a9b81ae6f2d3d96fd2a67767e45b`):** CI [38910978755](https://github.com/Orthic-Labs/legion/actions/runs/38910978755)
+passed both platforms: Mac job [117006493241](https://github.com/Orthic-Labs/legion/actions/runs/38910978755/job/117006493241), 5,182 passed/0 failed/7 ignored in 18m35s;
+Windows job [117006493292](https://github.com/Orthic-Labs/legion/actions/runs/38910978755/job/117006493292), 5,145/0/7 in 50m18s. Native simulation passed on both platforms; installed MCP root true/false passed on Mac;
+six recall benches passed separately, and entrypoint inventory was ignored. Oracle Standards & Spec passed for CI and exact Mac installation only.
+Artifact 12051381545 was canonically installed on Mac; installed CLI SHA-256 matches payload `b0a991ec2d4164555594c60122bb32c7875e60987a86595a62ae26f9d12ac477`.
+Receipt: `/Volumes/D/scratch/legion-verified-90ab5972/installation-receipt.json`.
+At `64e515f1`, cold/warm CI real-Ember plan-only gate on `9961562ed4c652b0bc6a9b3bc3a63142d885f583` passed (14 excerpts, 3 paths, 4 authors + 1 reserve).
+The separate local full scan on `a297ccc145df28943978db97e5e2e547a7858f92` was terminated/incomplete at 468.953s on `64e515f1`; the fresh scan on installed `90ab5972`
+completed in 150.837s and wrote a plan, but reasoning failed after 1.917s before native dispatch: pretty `plan.json` is 23,761,350 bytes, above 16 MiB reader guard;
+compact plan is 13,184,335 bytes. `facts.json` is 25,500,973 bytes pretty and 13,745,829 compact. Scan reported three duplicate-ID groups from the a11y scanner treating negative `tabindex` in selector strings as positive; these false positives are being fixed in the same batch. No runtime host, call, or ledger was created; no model invocation was reached,
+but exact-zero spend is not authenticated and overall exact spend remains unknown. Specialist is fixing compact serialization while preserving guard and semantics; separate work strengthens full-scan CI gate.
+Independent Oracle Standards & Spec source-only reviews returned PASS for serialization repair, full-scan CI gate, and narrow a11y signed-value/ID-dedup fix. Both review slices passed; next CI, install, and rerun remain pending. A11y fix preserves heuristic candidate boundary and provides no DOM-parser guarantee.
+Caps remain 50,000 total tokens, 10,000 per call, 2,500 output tokens, five physical calls, concurrency one. Deterministic scan time is measured; end-to-end reasoning performance and semantic completion remain unproven.
+No speedup ratio is claimed because `64e515f1` attempt was incomplete; no 10/10 claim exists.
+Earlier failures are historical: `01e20409` had graph fragmentation and Mac promotion growth; `c996cce9` fixed measured-fit and canonical-promotion issues; `f395` corrected the obsolete exact-two-lens test.
+
 Requested by Adrian, 16 October 2026. Comparison baseline: `bogusyogi/claude` commit
 `7bd906af4226e236be0b49813003ea761171fe28`, immediately before removal commit
-`1377d7262facd2ede80cc35e9e8ec7bcac0e0bc9`. Current inventory was read from Legion
+`1377d7262facd2ede80cc35e9e8ec7bcac0e0bc9`. Historical inventory was read from Legion
 `17c29c612128895487c3d05063d1ba05a571d512`; source repairs below reflect `23930e5f` plus registry
 projection sync `8eec8f79`. They are source-state descriptions, not build, CI, live-run, or installation
 completion evidence.
@@ -199,3 +215,34 @@ is a lower bound, not proof that 12 calls would fit token budget. Ember quality/
 Local run evidence: `/Volumes/D/scratch/ember-audit-rerun-6ede1515/attempt-summary.json`;
 installation evidence: `/Volumes/D/scratch/legion-verified-6ede1515/installation-receipt.json`.
 Earlier rejected 802-job/25.47M-token attempt remains failure evidence, not an audit verdict.
+
+## Historical source state at `92e8b294` (2026-10-16)
+
+Source through `92e8b294` keeps the full frozen denominator and records exact deferred paths while
+selecting affordable sampled work (`23930e5f`). Bundled lenses share exact RAW bytes; deterministic
+gather uses zero model calls, and planned tiers are enforced. Authenticated usage reconciliation is
+in `ea5fa434`; candidate-routing metadata compaction is in `2c97f9a8`, denominator compaction in
+`7733d44d`, and graph/binding compaction in `92e8b294`. These compact metadata paths preserve the
+coverage identities above. The 50,000-token cap on the Ember run is scoped to that run; configured
+defaults remain unchanged, and tokens are not a universal quality ceiling.
+
+Source-only Oracle review passed for this state. CI, installation, and live-run evidence remain
+pending; no delivery or Ember semantic-coverage claim follows from source review. Donor pins and
+historical inventory remain anchored to their recorded revisions, and held-out semantic cases remain
+unexecuted.
+
+## Historical source state at `9ebd42ce` (2026-10-16)
+
+`packet-envelope-v1` projects deterministic physical requests while retaining original signed logical
+invocations. RAW source, candidates, questions, and normative contracts stay inline; only full-run
+accounting and illustrative examples use digest references. Physical delivery receipts remain distinct
+from logical reconstruction. Sampling drafts affordable, source-bearing work breadth-first per provider
+before continuations. Model estimates count canonical prompt, system, and schema once; transport escaping
+remains in separate wire metrics.
+
+Headroom, full 10,000-token authorization reservation, caps, defaults, and verifier are unchanged. The
+regression requires complete 12-line RAW files for correctness and ai-slop within 50,000 run tokens,
+10,000 per call, 2,500 output tokens, five calls, and concurrency one; tests are not yet verified at this
+commit. Oracle Standards & Spec passed on source only. CI [38893510643](https://github.com/Orthic-Labs/legion/actions/runs/38893510643)
+was launched at this source revision; prior two-platform CI failed only on real graph coverage, while simulation passed. Installation
+and live execution remain pending.

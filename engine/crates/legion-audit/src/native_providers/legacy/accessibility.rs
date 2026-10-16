@@ -54,6 +54,71 @@ fn has_attr(tag: &str, names: &[&str]) -> bool {
         .any(|name| lower.contains(&format!("{name}=")) || lower.contains(&format!("{name} =")))
 }
 
+/// Recognize direct integer assignments without interpreting surrounding source syntax.
+fn positive_tabindex_offsets(text: &str) -> Vec<usize> {
+    let bytes = text.as_bytes();
+    let mut offsets = Vec::new();
+    for offset in occurrences_ascii_case_insensitive(text, "tabindex") {
+        if offset > 0
+            && (bytes[offset - 1].is_ascii_alphanumeric()
+                || matches!(bytes[offset - 1], b'_' | b'-' | b':'))
+        {
+            continue;
+        }
+        let mut cursor = offset + "tabindex".len();
+        while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+            cursor += 1;
+        }
+        if bytes.get(cursor) != Some(&b'=') {
+            continue;
+        }
+        cursor += 1;
+        while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+            cursor += 1;
+        }
+        let closing = match bytes.get(cursor) {
+            Some(b'\'') => Some(b'\''),
+            Some(b'"') => Some(b'"'),
+            Some(b'{') => Some(b'}'),
+            _ => None,
+        };
+        if closing.is_some() {
+            cursor += 1;
+            while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+                cursor += 1;
+            }
+        }
+        if bytes.get(cursor) == Some(&b'-') {
+            continue;
+        }
+        if bytes.get(cursor) == Some(&b'+') {
+            cursor += 1;
+        }
+        let mut positive = false;
+        while let Some(byte) = bytes.get(cursor).filter(|byte| byte.is_ascii_digit()) {
+            positive |= *byte != b'0';
+            cursor += 1;
+        }
+        if !positive {
+            continue;
+        }
+        let whole_value = if let Some(closing) = closing {
+            while bytes.get(cursor).is_some_and(u8::is_ascii_whitespace) {
+                cursor += 1;
+            }
+            bytes.get(cursor) == Some(&closing)
+        } else {
+            bytes
+                .get(cursor)
+                .map_or(true, |byte| byte.is_ascii_whitespace() || *byte == b'>')
+        };
+        if whole_value {
+            offsets.push(offset);
+        }
+    }
+    offsets
+}
+
 fn push(
     finding_list: &mut Vec<FindingRef>,
     locations: &mut BTreeMap<String, (String, usize)>,
@@ -63,8 +128,11 @@ fn push(
     line: usize,
 ) {
     let item = finding(rule, severity, file, line);
-    locations.insert(item.id.to_string(), (file.to_owned(), line));
-    finding_list.push(item);
+    if let std::collections::btree_map::Entry::Vacant(entry) = locations.entry(item.id.to_string())
+    {
+        entry.insert((file.to_owned(), line));
+        finding_list.push(item);
+    }
 }
 
 fn scan_file(
@@ -85,21 +153,15 @@ fn scan_file(
             );
         }
     }
-    for offset in occurrences_ascii_case_insensitive(text, "tabindex") {
-        let suffix = &text[offset..text.len().min(offset + 40)];
-        let digits = suffix
-            .split(|ch: char| !ch.is_ascii_digit())
-            .find(|value| !value.is_empty());
-        if digits.is_some_and(|value| value.parse::<u64>().unwrap_or(0) > 0) {
-            push(
-                findings,
-                locations,
-                "a11y.positive-tabindex",
-                "error",
-                file,
-                line_at(text, offset),
-            );
-        }
+    for offset in positive_tabindex_offsets(text) {
+        push(
+            findings,
+            locations,
+            "a11y.positive-tabindex",
+            "error",
+            file,
+            line_at(text, offset),
+        );
     }
     for (start, end) in tag_ranges(text, "button") {
         let open = &text[start..end];
@@ -298,4 +360,127 @@ pub fn execute(
         gaps,
         details,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn findings_for(text: &str) -> (Vec<FindingRef>, BTreeMap<String, (String, usize)>) {
+        let mut findings = Vec::new();
+        let mut locations = BTreeMap::new();
+        scan_file("fixture.tsx", text, &mut findings, &mut locations);
+        (findings, locations)
+    }
+
+    #[test]
+    fn negative_tabindex_selectors_are_not_positive_assignments() {
+        let text = r#"
+const focusable = host.querySelectorAll('[tabindex]:not([tabindex="-1"])');
+const first = dialog.querySelector('[tabindex]:not([tabindex="-1"])');
+const last = node.querySelectorAll('button, [tabindex]:not([tabindex="-1"])');
+"#;
+        assert!(positive_tabindex_offsets(text).is_empty());
+    }
+
+    #[test]
+    fn tabindex_requires_a_whole_positive_integer_attribute_value() {
+        for value in ["1", "+2", "001", "9999999999999999999999999999999999999"] {
+            for attribute in [
+                format!("tabindex=\"{value}\""),
+                format!("tabindex='{value}'"),
+                format!("tabindex={value}"),
+                format!("tabIndex={{ {value} }}"),
+            ] {
+                let text = format!("<div {attribute}>");
+                assert_eq!(positive_tabindex_offsets(&text), vec![5]);
+            }
+        }
+        for value in [
+            "-1", "-20", "0", "+0", "000", "1px", "1.5", "1e2", "1 + 2", "value2",
+        ] {
+            for attribute in [
+                format!("tabindex=\"{value}\""),
+                format!("tabIndex={{ {value} }}"),
+            ] {
+                assert!(positive_tabindex_offsets(&format!("<div {attribute}>")).is_empty());
+            }
+        }
+        for text in [
+            "<div tabindex=-1>",
+            "<div tabindex=0>",
+            "<div tabindex=1px>",
+            "<div tabindex=value2>",
+            "<div tabIndex={index + 1}>",
+            "<div tabIndex={'1'}>",
+            "<div data-tabindex=1>",
+            "<div tabindex aria-label='item1'>",
+            "<div tabindex=\"1",
+            "<div tabindex={12",
+        ] {
+            assert!(positive_tabindex_offsets(text).is_empty());
+        }
+    }
+
+    #[test]
+    fn repeated_same_line_findings_have_one_canonical_id() {
+        let (findings, locations) =
+            findings_for("<input tabIndex={1} autoFocus /><input tabindex='2' autofocus />");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(locations.len(), 2);
+        assert!(findings.iter().all(|item| locations
+            .get(&item.id.to_string())
+            .is_some_and(|(_, line)| *line == 1)));
+    }
+
+    #[test]
+    fn multiline_assignments_keep_attribute_lines() {
+        let text = "<div\n title=\"tabIndex=-9 > ignored\"\n onClick={() => 2 > 1}\n tabIndex={\n +3\n }\n>\n<input\n tabindex = '-1'\n>\n<input\n tabindex = '4'\n>";
+        let offsets = positive_tabindex_offsets(text);
+        assert_eq!(
+            offsets
+                .iter()
+                .map(|offset| line_at(text, *offset))
+                .collect::<Vec<_>>(),
+            vec![4, 12]
+        );
+        let (findings, locations) = findings_for(text);
+        assert_eq!(findings.len(), 2);
+        assert_eq!(
+            locations
+                .values()
+                .map(|(_, line)| *line)
+                .collect::<std::collections::BTreeSet<_>>(),
+            [4, 12].into_iter().collect()
+        );
+    }
+
+    #[test]
+    fn nested_jsx_attribute_markup_keeps_its_location() {
+        let text = "<Panel content={\n <input tabIndex={2} />\n} />";
+        let offsets = positive_tabindex_offsets(text);
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(line_at(text, offsets[0]), 2);
+    }
+
+    #[test]
+    fn jsx_text_apostrophes_do_not_hide_positive_assignments() {
+        let text = "<div>Don't <input tabIndex={1} /></div>";
+        let offsets = positive_tabindex_offsets(text);
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(&text[offsets[0]..offsets[0] + 8], "tabIndex");
+    }
+
+    #[test]
+    fn deep_jsx_attribute_nesting_uses_no_recursive_rescans() {
+        let depth = 4096;
+        let text = format!(
+            "{}<input tabIndex={{1}} />{}",
+            "<Panel content={\n".repeat(depth),
+            "\n} />".repeat(depth),
+        );
+        let offsets = positive_tabindex_offsets(&text);
+        assert_eq!(offsets.len(), 1);
+        assert_eq!(line_at(&text, offsets[0]), depth + 1);
+    }
 }

@@ -1,12 +1,28 @@
 # Audit source adoption: exact gaps & acceptance
 
+**Current status (2026-10-16; source `90ab59723112a9b81ae6f2d3d96fd2a67767e45b`):** CI [38910978755](https://github.com/Orthic-Labs/legion/actions/runs/38910978755)
+passed both platforms: Mac job [117006493241](https://github.com/Orthic-Labs/legion/actions/runs/38910978755/job/117006493241), 5,182 passed/0 failed/7 ignored in 18m35s;
+Windows job [117006493292](https://github.com/Orthic-Labs/legion/actions/runs/38910978755/job/117006493292), 5,145/0/7 in 50m18s. Native simulation passed on both platforms; installed MCP root true/false passed on Mac;
+six recall benches passed separately, and entrypoint inventory was ignored. Oracle Standards & Spec passed for CI and exact Mac installation only.
+Artifact 12051381545 was canonically installed on Mac; installed CLI SHA-256 matches payload `b0a991ec2d4164555594c60122bb32c7875e60987a86595a62ae26f9d12ac477`.
+Receipt: `/Volumes/D/scratch/legion-verified-90ab5972/installation-receipt.json`.
+At `64e515f1`, cold/warm CI real-Ember plan-only gate on `9961562ed4c652b0bc6a9b3bc3a63142d885f583` passed (14 excerpts, 3 paths, 4 authors + 1 reserve).
+The separate local full scan on `a297ccc145df28943978db97e5e2e547a7858f92` was terminated/incomplete at 468.953s on `64e515f1`; the fresh scan on installed `90ab5972`
+completed in 150.837s and wrote a plan, but reasoning failed after 1.917s before native dispatch: pretty `plan.json` is 23,761,350 bytes, above 16 MiB reader guard;
+compact plan is 13,184,335 bytes. `facts.json` is 25,500,973 bytes pretty and 13,745,829 compact. Scan reported three duplicate-ID groups from the a11y scanner treating negative `tabindex` in selector strings as positive; these false positives are being fixed in the same batch. No runtime host, call, or ledger was created; no model invocation was reached,
+but exact-zero spend is not authenticated and overall exact spend remains unknown. Specialist is fixing compact serialization while preserving guard and semantics; separate work strengthens full-scan CI gate.
+Independent Oracle Standards & Spec source-only reviews returned PASS for serialization repair, full-scan CI gate, and narrow a11y signed-value/ID-dedup fix. Both review slices passed; next CI, install, and rerun remain pending. A11y fix preserves heuristic candidate boundary and provides no DOM-parser guarantee.
+Caps remain 50,000 total tokens, 10,000 per call, 2,500 output tokens, five physical calls, concurrency one. Deterministic scan time is measured; end-to-end reasoning performance and semantic completion remain unproven.
+No speedup ratio is claimed because `64e515f1` attempt was incomplete; no 10/10 claim exists.
+Earlier failures are historical: `01e20409` had graph fragmentation and Mac promotion growth; `c996cce9` fixed measured-fit and canonical-promotion issues; `f395` corrected the obsolete exact-two-lens test.
+
 **Historical preimplementation decision at Legion HEAD `d2c754bbfaa7da79b9700b1f03a0ebd2ccf5553e`: adoption is partial.** Legion mechanisms overlap substantially with both designs: deterministic triage, risk-ranked sampling, excerpt bundles, promotion, schema/ID/duplicate checks, dismissal sampling, resumable `next`, diff narrowing, security multi-stage adjudication, JSON/SARIF/Markdown/HTML outputs, & a seeded benchmark. That overlap does not establish imported provenance. Preserve existing behavior while absorbing correctness guarantees below. A clean-looking report must never hide missing candidates, unread evidence, failed required providers, or an unverified dismissal.
 
 This compares Legion HEAD `d2c754bbfaa7da79b9700b1f03a0ebd2ccf5553e` with pinned OpenQodex `736fd1484a05ead753375f52232bcf9e70f84246` & Alibaba Open Code Review `11ac6d4c57082f310067a4a1654ad5b63cb57410`. Upstream links below resolve to those commits. I read implementation, prompts, & relevant tests; did not run upstream code or tests. Existing context: [prior source brief](2026-10-15-audit-research/alibaba-openqodex.md) and [Audit v2 design](2026-10-15-audit-v2-design.md). The design describes intended scope/cache/graph behavior; it is not evidence that every design item ships.
 
-## Current adoption snapshot (main `0a3208da`)
+## Historical adoption snapshot (main `0a3208da`)
 
-Implemented mechanisms are present in source; this table does not certify semantic accuracy or full qualification. Agent-description parity copies are fixed and independently reviewed. Current CI passed on Mac & Windows at `0a3208da`.
+This snapshot records source state at `0a3208da`; it does not describe current HEAD. Implemented mechanisms were present in source, but this table did not certify semantic accuracy or full qualification. Agent-description parity copies were fixed and independently reviewed. CI passed on Mac & Windows at `0a3208da`.
 
 | Capability | Implemented source | Evidence limit / remaining |
 | --- | --- | --- |
@@ -16,7 +32,7 @@ Implemented mechanisms are present in source; this table does not certify semant
 | Immutable scopes, tools & verification | [scope](../../engine/crates/legion-audit/src/scope.rs), [snapshot](../../engine/crates/legion-audit/src/snapshot.rs), [tools](../../engine/crates/legion-audit/src/review_runtime/tools.rs), [verification](../../engine/crates/legion-audit/src/review_runtime/verification.rs) | Frozen source, bounded tools, and evidence receipts exist; native integration simulations passed on Mac & Windows without real model calls. Live-model qualification is unproven. |
 | Semantic cards & adapters | [pattern cards](../../engine/crates/legion-audit/src/native_providers/reasoning/pattern_cards.rs), [provider registry](../../src/registry/providers.json) | Cards and repository-fit adapters are implemented; host-dependent adapters remain conditional, and heldout semantic recall is unmeasured. |
 | Graph & cache | [graph context](../../engine/crates/legion-audit/src/graph_context.rs), [source cache](../../engine/crates/legion-audit/src/source_cache.rs) | Optional, freshness-bound inputs preserve unknowns; cache initialization can report unavailable. Warm-run savings are unmeasured. |
-| Benchmark | [runner](../../engine/bins/legion-dev/src/audit_bench.rs), [heldout cases](../../evals/audit-bench/fixtures/heldout-controls.cases.json) | Current Mac A/A×2 ran 24 cases (4 arms × 6) with no case errors; counts remain raw candidates, not verified findings. Five reserved synthetic heldout cases are unexecuted. |
+| Benchmark | [runner](../../engine/bins/legion-dev/src/audit_bench.rs), [heldout cases](../../evals/audit-bench/fixtures/heldout-controls.cases.json) | At `0a3208da`, Mac A/A×2 ran 24 cases (4 arms × 6) with no case errors; counts remain raw candidates, not verified findings. Five reserved synthetic heldout cases are unexecuted. |
 
 ## P0: preserve candidate identity, location, & applicability
 
@@ -86,9 +102,9 @@ Do not copy OpenQodex's whole-repo completion exemptions for unread work, defaul
 
 Sequence work: (1) canonical finding/location/applicability & per-candidate loss ledger; (2) frozen denominator, trigger-to-delivery receipts, truthful incomplete state; (3) enforced end-to-end budget plus full-pipeline benchmark; (4) immutable scope and tool/reflection boundary; (5) evidence-backed lens gap fill; (6) optional graph/cache. Review/ponytail projections & behavioral qualification remain deferred design work. Each phase exits only when its acceptance checks pass on fixtures and benchmark outputs. This report records source assessment, acceptance criteria, and the dated implementation state below.
 
-## Implementation state (2026-10-16)
+## Historical implementation state at `0a3208da` (2026-10-16)
 
-Current source includes budget/runtime fixes `6d10564eb4c46cbbc5cdad9ff0eb779f01fe1d71`, parallelism
+At `0a3208da`, source included budget/runtime fixes `6d10564eb4c46cbbc5cdad9ff0eb779f01fe1d71`, parallelism
 fixes `fbfb2306`, and canonical CI manifest regeneration `7cdd0fc3925b12d56c42ce6043a578d221eca1d3`.
 Scoped Oracle review passed budget/runtime after shared-schema repair and separately passed parallelism;
 the typed-Redis review loop remains unapproved. The native [`audit run-reasoning`
@@ -109,29 +125,58 @@ location hits. These are raw candidates, not verified semantic findings. Evidenc
 
 CI [38830347560](https://github.com/Orthic-Labs/legion/actions/runs/38830347560) reported dispatch/tasklist
 manifest drift; regenerated manifests are in `7cdd`. Commit `0a3208da` fixes authority-description parity
-copies and has independent review. In current CI [38834101425](https://github.com/Orthic-Labs/legion/actions/runs/38834101425),
-Mac job `116759220248` passed in 14m05s: 5,110 passed, 0 failed, 7 ignored across 207 summary groups,
+copies and has independent review. In CI [38834101425](https://github.com/Orthic-Labs/legion/actions/runs/38834101425)
+at `0a3208da`, Mac job `116759220248` passed in 14m05s: 5,110 passed, 0 failed, 7 ignored across 207 summary groups,
 including explicit scanner-recall reruns. Reservation, receipt, schema, and eager-context regressions
 also passed. Windows job `116759220188` passed in 37m54s: 5,077 passed, 0 failed, 7 ignored across
 206 summary groups. Both platforms reported “SIMULATION PASS” for native host integration with no
 real model calls. Cross-platform CI passed at `0a3208da79821109b1cdfbfad869aa8619845deb`.
 Evidence: [Mac log](/Volumes/D/scratch/legion-audit-20261016/ci-0a3208-macos.log), [Windows log](/Volumes/D/scratch/legion-audit-20261016/ci-0a3208-windows.log).
 
-Current Mac A/A×2 benchmark had 2 repeats, four arms (`A1/A2/B1/B2`), six cases per arm, and no
+At `0a3208da`, Mac A/A×2 benchmark had 2 repeats, four arms (`A1/A2/B1/B2`), six cases per arm, and no
 `caseErrors`. Each arm yielded raw counts: docs 0, unpinned download 1, Map 0, Redis no-TTL 1, valid
 TTL 0, two Redis locations 2; location hits were 4/4. These are raw candidates, not verified semantic
 findings. Evidence: [benchmark output](/Volumes/D/scratch/legion-audit-20261016/benchmark-0a3208.json).
 
 The original live-Claude smoke is diagnostic history, not current proof: one native host invocation, 6,853 reserved,
 7,324 actual tokens, and a 471-token overrun; it ended incomplete before a second call, though output
-counted the denied attempt as a second call. The 12,676-token remainder is unspent; the fresh retry proof
-has not been launched. Current admission holds a full per-call reservation when actual usage is lower;
-this is conservative admission accounting, not billing. Usage above allowance terminally blocks later
-calls; unknown usage retains its reservation and creates an incomplete-report gap, while later calls may
-proceed if budget remains. No hard physical cap or savings claim is made.
+counted the denied attempt as a second call. The 12,676-token remainder was unspent; the fresh retry proof
+had not been launched. At this historical state, admission held a full per-call reservation when actual
+usage was lower; this is conservative admission accounting, not billing. Usage above allowance terminally
+blocked later calls; unknown usage retained its reservation and created an incomplete-report gap, while
+later calls could proceed if budget remained. No hard physical cap or savings claim is made.
 
 [`heldout-controls`](../../evals/audit-bench/fixtures/heldout-controls.cases.json) contains five reserved
 synthetic cases, still unexecuted and not a blind independent evaluation. The original protocol probe
 first failed API 400 on top-level `oneOf`; after schema repair, the second succeeded with 1,486 input
 (2 uncached + 1,484 cache-creation, zero cache-read) and 60 output tokens. This too is diagnostic only,
 not current compiled-runtime proof.
+
+## Historical source state at `92e8b294` (2026-10-16)
+
+Later source keeps the full denominator and records exact deferred paths while selecting affordable
+sampled work (`23930e5f`). Bundled lenses share exact RAW bytes; deterministic gathering uses zero model
+calls, and tier limits are enforced. Authenticated usage reconciliation is in `ea5fa434`; candidate
+routing metadata compaction is in `2c97f9a8`, denominator compaction in `7733d44d`, and graph/binding
+compaction in `92e8b294`. The 50,000-token Ember cap is run-scoped; configured defaults remain unchanged,
+and tokens are not a universal quality ceiling.
+
+Source-only Oracle review passed. CI, installation, and live-run evidence for `92e8b294` remain pending,
+so delivery and Ember semantic coverage are unproven. Historical donor pins and inventory above remain
+at their named revisions; the five held-out semantic cases remain unexecuted.
+
+## Historical source state at `9ebd42ce` (2026-10-16)
+
+`packet-envelope-v1` keeps original signed logical invocations while projecting deterministic physical
+requests. RAW source, candidates, questions, and normative contracts stay inline; full-run accounting and
+illustrative examples alone use digest references. Physical delivery receipts remain separate from
+logical reconstruction. Affordable source-bearing drafts are sampled breadth-first per provider before
+continuations. Prompt/system/schema count once in model estimates; transport escaping stays in wire metrics.
+
+Headroom, full 10,000-token authorization reservation, caps, defaults, and verifier are unchanged. The
+12-line RAW correctness and ai-slop regression remains unverified at this commit under 50,000 run tokens,
+10,000 per call, 2,500 output tokens, five calls, and concurrency one. Oracle Standards & Spec passed on
+source only. Prior two-platform CI failed only on real graph coverage and passed simulation; CI
+[38893510643](https://github.com/Orthic-Labs/legion/actions/runs/38893510643) was launched at this source revision. Installation and
+live execution remain pending. Historical donor pins, inventory, and five unexecuted held-out cases remain
+unchanged.
