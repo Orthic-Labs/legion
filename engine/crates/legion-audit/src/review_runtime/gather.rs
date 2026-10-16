@@ -119,7 +119,7 @@ impl Controller<'_> {
             .ok_or_else(|| invalid("incomplete:gathering-budget:output cap missing"))?;
         let input_bytes = ingest::physical_planning_limit(allowance)
             .saturating_sub(output)
-            .saturating_mul(4)
+            .saturating_mul(crate::next::MODEL_INPUT_BYTES_PER_TOKEN)
             .min(super::MAX_REQUEST_BYTES as u64);
         let baseline = super::model_visible_input_bytes(
             author_prompt,

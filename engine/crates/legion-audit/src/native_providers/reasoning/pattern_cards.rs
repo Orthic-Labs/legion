@@ -7,12 +7,20 @@
 
 use serde_json::{json, Value};
 
+/// Only source-language restrictions established by a card's existing prose.
+/// Framework and trigger fit still require review; they cannot exclude a card.
+#[derive(Clone, Copy, Debug)]
+pub enum LanguageApplicability {
+    JavaScriptOrTypeScript,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct PatternCard {
     pub version: &'static str,
     pub id: &'static str,
     pub owner_lens: &'static str,
     pub applicability: &'static str,
+    pub language_applicability: Option<LanguageApplicability>,
     pub trigger_evidence: &'static str,
     pub required_source_trace: &'static str,
     pub falsifier: &'static str,
@@ -23,7 +31,7 @@ pub struct PatternCard {
 
 impl PatternCard {
     fn to_packet_value(self) -> Value {
-        json!({
+        let mut value = json!({
             "version": self.version,
             "id": self.id,
             "ownerLens": self.owner_lens,
@@ -36,7 +44,11 @@ impl PatternCard {
                 "positive": self.positive_case,
                 "negative": self.negative_case,
             },
-        })
+        });
+        if let Some(LanguageApplicability::JavaScriptOrTypeScript) = self.language_applicability {
+            value["languageApplicability"] = json!({"languages": ["javascript", "typescript"]});
+        }
+        value
     }
 }
 
@@ -48,11 +60,12 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         version: "1",
         id: "return-key-consumer-migration",
         owner_lens: "correctness",
-        applicability: "Serialized object, RPC, endpoint, SQL view/function, or table shape with a changed return key/column; language-agnostic at the producer/consumer boundary.",
-        trigger_evidence: "A diff removes or renames a previously emitted field or return column.",
-        required_source_trace: "Compare old/new output shape, then trace old-key readers through repository callers, RPC names, or endpoint routes; record every confirmed reader and any untraced boundary.",
-        falsifier: "All consumers are removed or migrated in the same change, the payload is new, or the field was never serialized.",
-        no_evidence: "If consumer migration cannot be confirmed, report contract impact as unknown; never claim a caller is broken without tracing it.",
+        applicability: "Changed serialized return key/column: object/RPC/endpoint/SQL view/function/table; language-agnostic producer/consumer boundary.",
+        language_applicability: None,
+        trigger_evidence: "Diff removes/renames a previously emitted field/return column.",
+        required_source_trace: "Compare old/new output shape; trace old-key readers via repo callers/RPC names/endpoint routes; log all confirmed readers & untraced boundaries.",
+        falsifier: "All consumers migrated/removed in same change; new payload; or field never serialized.",
+        no_evidence: "Unconfirmed consumer migration -> contract impact unknown; trace each caller before claiming it broken.",
         positive_case: "An endpoint renames `accountId` to `ownerId` while an in-repository client still reads `accountId`.",
         negative_case: "The same change updates every traced reader, or removes all consumers along with the field.",
     },
@@ -60,11 +73,12 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         version: "1",
         id: "interactive-state-derived-output",
         owner_lens: "correctness",
-        applicability: "Interactive UI using React, Vue, Svelte, or an equivalent state/store model.",
-        trigger_evidence: "A user action adds or changes state and a nearby rendered/computed output appears to describe that state.",
-        required_source_trace: "Trace the event handler's state write to every semantically dependent rendered value, filter, summary, alert, or submit payload.",
-        falsifier: "The output intentionally does not depend on the control, or a documented seed/default is correctly merged with live state.",
-        no_evidence: "If the output's relationship to the state is unclear, leave the relationship unknown instead of inferring intent from similar names.",
+        applicability: "Interactive React/Vue/Svelte/equivalent state/store UI.",
+        language_applicability: None,
+        trigger_evidence: "User action adds/changes state; nearby rendered/computed output appears to describe it.",
+        required_source_trace: "Trace event-handler state write -> every semantically dependent rendered value/filter/summary/alert/submit payload.",
+        falsifier: "Output intentionally control-independent, or documented seed/default correctly merged with live state.",
+        no_evidence: "Unclear state/output link -> unknown; similar names don't establish intent.",
         positive_case: "A selected-category control updates state but the alert list continues reading a separate static default list.",
         negative_case: "A star toggle changes only its own presentation and no other output is meant to track it.",
     },
@@ -73,6 +87,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "upsert-replay-workflow-state",
         owner_lens: "data-safety",
         applicability: "Database upsert/on-conflict/merge writes in application code or SQL, across supported repository languages.",
+        language_applicability: None,
         trigger_evidence: "A replayable insert/upsert supplies a literal to a workflow-bearing field such as status, stage, state, phase, tier, or role.",
         required_source_trace: "Trace the conflict/update column list and guards, then inspect relevant helper, trigger, or generated-column behavior before concluding the state is overwritten.",
         falsifier: "Conflict handling ignores duplicates, omits the state column, or constrains updates to an explicitly safe current state.",
@@ -85,6 +100,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "migration-later-object-order",
         owner_lens: "data-safety",
         applicability: "Timestamp-ordered SQL migrations, including migrations that include or execute external SQL files.",
+        language_applicability: None,
         trigger_evidence: "A migration references a table, column, type, function, policy, or view whose declaration is not visible in the same migration.",
         required_source_trace: "Resolve each referenced object to its creation/alteration source and compare migration timestamps, including transitive includes and documented baseline objects.",
         falsifier: "The object exists in an earlier or same-order migration, a guaranteed baseline, or a known built-in/extension.",
@@ -97,6 +113,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "postgres-definer-searchpath-and-public-execute",
         owner_lens: "security",
         applicability: "PostgreSQL functions, including Supabase migrations and RPCs.",
+        language_applicability: None,
         trigger_evidence: "A created or altered function uses SECURITY DEFINER, especially when search_path or EXECUTE grants change or are inherited from defaults.",
         required_source_trace: "Read the complete function body and fixed SET search_path; trace effective EXECUTE grants/revokes, untrusted caller reachability, and documented/API-policy intended roles.",
         falsifier: "Name resolution is pinned away from caller-controlled schemas and effective access matches an evidenced intended audience; PUBLIC execution alone is not a defect without a conflicting access policy.",
@@ -108,11 +125,12 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         version: "1",
         id: "supabase-single-missing-row-response",
         owner_lens: "correctness",
-        applicability: "Supabase/PostgREST JavaScript or TypeScript queries using `.single()` for a request-derived identifier.",
-        trigger_evidence: "A `.single()` query may match zero rows and its key comes from request input or another unproven lookup.",
-        required_source_trace: "Trace identifier origin, query cardinality/guards, returned `{data,error}` handling, and the outward response mapping; distinguish returned PostgREST errors from thrown exceptions.",
-        falsifier: "The row is proven to exist before this query, `.maybeSingle()` maps absence intentionally, or PGRST116 is explicitly mapped to the expected not-found result.",
-        no_evidence: "If cardinality, prior existence proof, or error-to-response mapping cannot be traced, report unknown; do not describe a returned result error as a thrown exception.",
+        applicability: "Supabase/PostgREST JS/TS `.single()` queries keyed by request-derived IDs.",
+        language_applicability: Some(LanguageApplicability::JavaScriptOrTypeScript),
+        trigger_evidence: "Possible zero rows; key from request input/unproven lookup.",
+        required_source_trace: "Trace ID origin, cardinality/guards, returned `{data,error}` handling & outward response mapping; distinguish returned PostgREST errors from throws.",
+        falsifier: "Row proven to exist before query; intentional `.maybeSingle()` absence mapping; or explicit PGRST116 -> expected not-found.",
+        no_evidence: "Untraced cardinality/prior existence proof/error-response mapping -> unknown; returned error isn't thrown.",
         positive_case: "An edge handler calls `.single()` by request ID and returns 500 for a returned PGRST116 result.",
         negative_case: "The handler uses `.maybeSingle()` and maps `data === null` to 404, or handles PGRST116 in its returned error path.",
     },
@@ -121,6 +139,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "qualified-function-create-unqualified-comment",
         owner_lens: "data-safety",
         applicability: "PostgreSQL/Supabase SQL migrations containing CREATE FUNCTION and COMMENT ON FUNCTION.",
+        language_applicability: None,
         trigger_evidence: "A function is created schema-qualified and later commented by name in the same migration or included SQL.",
         required_source_trace: "Compare the exact schema and argument signature in CREATE and COMMENT statements, then inspect migration-level SET search_path applying to COMMENT.",
         falsifier: "COMMENT is schema-qualified consistently, CREATE is intentionally unqualified under the same convention, or statement scope pins the matching schema.",
@@ -132,11 +151,12 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         version: "1",
         id: "environment-read-before-config-loader",
         owner_lens: "correctness",
-        applicability: "Node.js JavaScript/TypeScript modules using process.env and dotenv/process.loadEnvFile/manual setup.",
-        trigger_evidence: "An exported/config/client value reads process.env during module evaluation.",
-        required_source_trace: "Trace import/evaluation order from the entry point through the loader and consumer; establish when the exported value is read and used.",
-        falsifier: "The value is read lazily after loading, the entry dynamically imports after configuration, or the value is a documented build-time constant.",
-        no_evidence: "A top-level environment read alone is not a bug; without an ordering trace, report initialization ordering as unknown.",
+        applicability: "Node.js JS/TS modules: process.env & dotenv/process.loadEnvFile/manual setup.",
+        language_applicability: Some(LanguageApplicability::JavaScriptOrTypeScript),
+        trigger_evidence: "Export/config/client value reads process.env at module evaluation.",
+        required_source_trace: "Trace entry's loader/consumer import/evaluation order & exported value's read/use timing.",
+        falsifier: "Lazy read after load; entry dynamically imports after configuration; or documented build-time constant.",
+        no_evidence: "Top-level environment read alone isn't a bug; missing order trace -> initialization order unknown.",
         positive_case: "An entry imports a client module before calling loadEnvFile, while that module captures process.env.API_URL at top level.",
         negative_case: "The entry loads environment first and dynamically imports the client, or the client reads process.env inside a later-called function.",
     },
@@ -145,10 +165,11 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "react-render-state-and-eager-initializer-effects",
         owner_lens: "correctness",
         applicability: "React function components in JSX/TSX.",
-        trigger_evidence: "A state setter occurs in render scope or useState receives a nontrivial eager expression.",
-        required_source_trace: "Trace setter call scope and its guard; for useState(expr), establish per-render evaluation and whether expression is expensive or effectful. Check lazy initializer purity and behavior.",
-        falsifier: "The setter is in an event/effect/callback or a provably guarded derive-state path; initializer is cheap/pure, or expensive work uses a lazy initializer.",
-        no_evidence: "If call scope, guard, cost, or side effect is unclear, report unknown; do not flag merely because a setter or useState appears in the component.",
+        language_applicability: Some(LanguageApplicability::JavaScriptOrTypeScript),
+        trigger_evidence: "Render-scope state setter or nontrivial eager useState argument.",
+        required_source_trace: "Trace setter scope/guard; useState(expr) per-render evaluation, cost & effects; lazy initializer purity/behavior.",
+        falsifier: "Setter in event/effect/callback or proven guarded derive-state; cheap/pure initializer or lazy expensive work.",
+        no_evidence: "Unclear scope/guard/cost/effect -> unknown; setter/useState presence alone isn't a defect.",
         positive_case: "Render unconditionally calls setOpen, or `useState(parseLargePayload())` repeats parsing on every render.",
         negative_case: "A conditional setter compares incoming props with prior state, or `useState(() => parseLargePayload())` lazily computes a pure value.",
     },
@@ -157,6 +178,7 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         id: "promise-all-independent-partial-effects",
         owner_lens: "performance",
         applicability: "JavaScript/TypeScript Promise.all over independent writes, sends, publishes, or other side effects.",
+        language_applicability: None,
         trigger_evidence: "Promise.all groups independent side effects whose partial completion affects retry or recovery.",
         required_source_trace: "Identify each operation's side effect and caller's failure handling, then trace whether per-item completion/results are persisted or inspected.",
         falsifier: "All entries are reads, use Promise.allSettled, or individually convert rejection into a per-item result before aggregation.",
@@ -181,10 +203,231 @@ pub fn packet_cards_for_lens(lens: &str) -> Vec<Value> {
         .collect()
 }
 
+/// Bind cards after source selection/partitioning, never from repository-wide
+/// language guesses. Unknown language, framework, or trigger fit retains work.
+pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[String]) {
+    let Some(lens) = lens_plan.get("lens").and_then(Value::as_str) else {
+        return;
+    };
+    let mut source_paths = selected_paths
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    source_paths.sort_unstable();
+    source_paths.dedup();
+    let language_fit = javascript_typescript_fit(&source_paths);
+    let mut retained = Vec::new();
+    let mut accounting = Vec::new();
+    for card in cards_for_lens(lens) {
+        let (state, reason) = match card.language_applicability {
+            None => ("retained", "no-language-restriction"),
+            Some(LanguageApplicability::JavaScriptOrTypeScript) => language_fit,
+        };
+        if state != "excluded" {
+            retained.push(card.to_packet_value());
+        }
+        accounting.push(json!({"id": card.id, "state": state, "reason": reason}));
+    }
+    lens_plan["patternCards"] = json!(retained);
+    // One shared exact path identity binds every candidate's decision without
+    // repeating paths or card bodies in each accounting row.
+    lens_plan["patternCardApplicability"] = json!({
+        "sourcePaths": source_paths,
+        "cards": accounting,
+    });
+}
+
+fn javascript_typescript_fit(paths: &[&str]) -> (&'static str, &'static str) {
+    if paths.is_empty() {
+        return ("unknown", "selected-source-paths-empty");
+    }
+    let mut unknown = false;
+    for path in paths {
+        let lower = path.to_ascii_lowercase();
+        if [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]
+            .iter()
+            .any(|extension| lower.ends_with(*extension))
+        {
+            return ("retained", "selected-source-includes-javascript-typescript");
+        }
+        if ![".rs", ".swift", ".py"]
+            .iter()
+            .any(|extension| lower.ends_with(*extension))
+        {
+            unknown = true;
+        }
+    }
+    if unknown {
+        ("unknown", "selected-source-language-unknown")
+    } else {
+        (
+            "excluded",
+            "selected-source-languages-exclude-javascript-typescript",
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    fn bound_cards(paths: &[&str]) -> Value {
+        let mut packet = json!({"lens": "correctness"});
+        bind_packet_cards_to_paths(
+            &mut packet,
+            &paths
+                .iter()
+                .map(|path| (*path).to_owned())
+                .collect::<Vec<_>>(),
+        );
+        packet
+    }
+
+    fn card_ids(packet: &Value) -> BTreeSet<&str> {
+        packet["patternCards"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|card| card["id"].as_str().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn recognized_non_javascript_source_excludes_exactly_three_correctness_cards() {
+        let expected = BTreeSet::from([
+            "return-key-consumer-migration",
+            "interactive-state-derived-output",
+        ]);
+        for paths in [
+            vec!["src/lib.rs"],
+            vec!["src/react_supabase_process.env.rs"],
+            vec!["src/view.swift"],
+            vec!["src/app.py"],
+            vec!["src/lib.rs", "src/view.swift", "src/app.py"],
+        ] {
+            let bound = bound_cards(&paths);
+            assert_eq!(card_ids(&bound), expected);
+            let accounting = bound["patternCardApplicability"]["cards"]
+                .as_array()
+                .unwrap();
+            assert_eq!(accounting.len(), 5);
+            assert_eq!(
+                accounting
+                    .iter()
+                    .filter(|row| row["state"] == "excluded")
+                    .count(),
+                3
+            );
+            for row in accounting.iter().filter(|row| row["state"] == "excluded") {
+                assert_eq!(
+                    row["reason"],
+                    "selected-source-languages-exclude-javascript-typescript"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn javascript_typescript_or_unknown_fit_never_removes_cards() {
+        let expected = cards_for_lens("correctness")
+            .map(|card| card.id)
+            .collect::<BTreeSet<_>>();
+        for extension in ["js", "jsx", "mjs", "cjs", "ts", "tsx", "TSX"] {
+            let path = format!("src/plain.{extension}");
+            let bound = bound_cards(&[&path]);
+            assert_eq!(card_ids(&bound), expected);
+            // Plain JS/TS establishes language, never React or trigger fit.
+            assert!(bound["patternCardApplicability"]["cards"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row["state"] == "retained"));
+        }
+        for paths in [
+            vec![],
+            vec!["src/unknown.sql"],
+            vec!["src/extensionless"],
+            vec!["src/lib.rs", "src/unknown.sql"],
+            vec!["src/lib.rs", "src/view.tsx"],
+            vec!["src/lib.rs", "src/view.tsx", "src/unknown.sql"],
+        ] {
+            let bound = bound_cards(&paths);
+            assert_eq!(card_ids(&bound), expected);
+            assert!(!bound["patternCardApplicability"]["cards"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row["state"] == "excluded"));
+        }
+        for paths in [vec![], vec!["src/lib.rs", "src/unknown.sql"]] {
+            let bound = bound_cards(&paths);
+            assert_eq!(
+                bound["patternCardApplicability"]["cards"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|row| row["state"] == "unknown")
+                    .count(),
+                3
+            );
+        }
+    }
+
+    #[test]
+    fn accounting_has_one_state_per_candidate_and_stable_source_identity() {
+        let bound = bound_cards(&["src/z.rs", "src/a.py", "src/z.rs"]);
+        let reordered = bound_cards(&["src/a.py", "src/z.rs"]);
+        assert_eq!(bound, reordered);
+        assert_eq!(
+            bound["patternCardApplicability"]["sourcePaths"],
+            json!(["src/a.py", "src/z.rs"])
+        );
+        let rows = bound["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap();
+        let accounted = rows
+            .iter()
+            .map(|row| {
+                assert!(matches!(
+                    row["state"].as_str(),
+                    Some("retained" | "excluded" | "unknown")
+                ));
+                assert!(row["reason"].is_string());
+                assert_eq!(row.as_object().unwrap().len(), 3);
+                row["id"].as_str().unwrap()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(accounted.len(), rows.len());
+        assert_eq!(
+            accounted,
+            cards_for_lens("correctness")
+                .map(|card| card.id)
+                .collect::<BTreeSet<_>>()
+        );
+    }
+
+    #[test]
+    fn metadata_only_restricts_three_explicit_correctness_cards() {
+        let restricted = PATTERN_CARDS
+            .iter()
+            .filter(|card| card.language_applicability.is_some())
+            .map(|card| card.id)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            restricted,
+            BTreeSet::from([
+                "supabase-single-missing-row-response",
+                "environment-read-before-config-loader",
+                "react-render-state-and-eager-initializer-effects",
+            ])
+        );
+        for lens in ["data-safety", "security", "performance"] {
+            let mut bound = json!({"lens": lens});
+            bind_packet_cards_to_paths(&mut bound, &["src/lib.rs".into()]);
+            assert_eq!(bound["patternCards"], json!(packet_cards_for_lens(lens)));
+        }
+    }
 
     #[test]
     fn every_card_has_required_versioned_trace_and_paired_cases() {

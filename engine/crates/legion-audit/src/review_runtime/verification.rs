@@ -161,6 +161,24 @@ fn partition_verdicts(reply: &Value, expected: &BTreeSet<String>) -> BTreeMap<St
     found
 }
 
+fn verifier_output_ceiling(seat: &Value) -> u64 {
+    seat["outputTokenCeiling"]
+        .as_u64()
+        .or_else(|| seat["outputTokenLimit"].as_u64())
+        .unwrap_or(0)
+}
+
+fn verifier_output_tokens(
+    allowance: u64,
+    ceiling: u64,
+    input_bytes: u64,
+    candidates: usize,
+) -> Option<u64> {
+    let minimum = ingest::minimum_output_tokens(ceiling, 1)
+        .max((candidates as u64).saturating_mul(300).min(ceiling));
+    ingest::fitting_output_tokens(allowance, ceiling, input_bytes, minimum)
+}
+
 pub(super) fn verify_pending(
     controller: &mut Controller<'_>,
     pending: &mut [PendingVerification],
@@ -173,20 +191,13 @@ pub(super) fn verify_pending(
     let mut expected = BTreeSet::new();
     let mut originals = Vec::new();
     let mut included = BTreeSet::new();
-    let seat = pending.first().map(|item| item.seat.clone());
-    let output = seat
-        .as_ref()
-        .and_then(|seat| seat["outputTokenLimit"].as_u64())
-        .unwrap_or(0);
+    let mut seat = pending.first().map(|item| item.seat.clone());
+    let output_ceiling = seat.as_ref().map_or(0, verifier_output_ceiling);
     let allowance = seat
         .as_ref()
         .and_then(|seat| seat["perCallTokenAllowance"].as_u64())
         .unwrap_or(0);
-    let input_cap = ingest::physical_planning_limit(allowance)
-        .saturating_sub(output)
-        .saturating_mul(4)
-        .min(super::MAX_REQUEST_BYTES as u64);
-    let candidate_cap = (output / 300).clamp(1, 8) as usize;
+    let candidate_cap = (output_ceiling / 300).clamp(1, 8) as usize;
     for (packet_index, item) in pending.iter().enumerate() {
         if item.result["withdrawn"]
             .as_array()
@@ -217,7 +228,10 @@ pub(super) fn verify_pending(
             candidates.push(candidate);
             let prompt = batch_prompt(&candidates, &controller.snapshot.manifest.key);
             let bytes = super::model_visible_input_bytes(&prompt, SYSTEM, &schema)?;
-            if bytes > input_cap {
+            if bytes > super::MAX_REQUEST_BYTES as u64
+                || verifier_output_tokens(allowance, output_ceiling, bytes, candidates.len())
+                    .is_none()
+            {
                 candidates.pop();
                 continue;
             }
@@ -230,6 +244,10 @@ pub(super) fn verify_pending(
     let mut failure = None;
     if !candidates.is_empty() {
         let prompt = batch_prompt(&candidates, &controller.snapshot.manifest.key);
+        let bytes = super::model_visible_input_bytes(&prompt, SYSTEM, &schema)?;
+        let output = verifier_output_tokens(allowance, output_ceiling, bytes, candidates.len())
+            .ok_or_else(|| invalid("fresh verifier output cannot fit physical allowance"))?;
+        seat.as_mut().unwrap()["outputTokenLimit"] = json!(output);
         match controller.call(
             seat.as_ref().unwrap(),
             prompt,
@@ -329,6 +347,22 @@ pub(super) fn verify_pending(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fresh_verifier_chooses_output_from_frozen_ceiling_independently_of_author() {
+        let seat = json!({"outputTokenLimit":1000,"outputTokenCeiling":2500});
+        let ceiling = verifier_output_ceiling(&seat);
+        assert_eq!(ceiling, 2500);
+        assert_eq!(
+            verifier_output_tokens(10_000, ceiling, 10_000, 2),
+            Some(2500)
+        );
+        assert_eq!(
+            verifier_output_tokens(10_000, ceiling, 14_000, 2),
+            Some(1500)
+        );
+        assert_eq!(verifier_output_tokens(10_000, ceiling, 15_001, 2), None);
+        assert_eq!(verifier_output_tokens(10_000, ceiling, 14_000, 6), None);
+    }
     #[test]
     fn verifier_affordability_counts_source_quotes_once() {
         let prompt = batch_prompt(

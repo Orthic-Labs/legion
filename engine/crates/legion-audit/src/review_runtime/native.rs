@@ -326,15 +326,23 @@ pub fn invoke(
             .map_err(|_| "native stream did not close")?;
         let _ = stderr.recv_timeout(Duration::from_secs(2));
         observation.response_digest = super::digest_bytes(&bytes);
-        decode_stream(&bytes, &mut observation, &mut usage)?;
+        let decoded = decode_stream(&bytes, &mut observation, &mut usage);
+        let process_failure = exited
+            .as_ref()
+            .filter(|status| !status.success())
+            .map(|status| native_process_failure(status.code()));
+        decoded.map_err(|error| match &process_failure {
+            Some(process_failure) => format!("{error}; {process_failure}"),
+            None => error,
+        })?;
         if truncated {
             return Err("native response exceeded byte cap".into());
         }
         if exited.is_none() {
             return Err("native model call timed out".into());
         }
-        if exited.is_some_and(|status| !status.success()) {
-            return Err("native process failed".into());
+        if let Some(error) = process_failure {
+            return Err(error);
         }
         if !observation.sent || observation.context_id.is_empty() || observation.reply.is_none() {
             return Err("native transport missing complete send/session/structured result".into());
@@ -431,6 +439,46 @@ fn capture_accounting(
     }
 }
 
+fn native_process_failure(code: Option<i32>) -> String {
+    match code {
+        Some(code) => format!("native process failed; exit_status={code}"),
+        None => "native process failed".into(),
+    }
+}
+
+fn native_terminal_failure(raw: &Value) -> String {
+    // Keep protocol categories only: native errors/result bodies can contain
+    // arbitrary model output, source, or credentials.
+    let subtype = match raw.get("subtype").and_then(Value::as_str) {
+        Some(
+            subtype @ ("error_during_execution"
+            | "error_max_turns"
+            | "error_max_budget_usd"
+            | "error_max_structured_output_retries"),
+        ) => subtype,
+        _ => "unknown",
+    };
+    let turns = raw
+        .get("num_turns")
+        .and_then(Value::as_u64)
+        .and_then(|turns| u32::try_from(turns).ok())
+        .map(|turns| turns.to_string())
+        .unwrap_or_else(|| "unknown".into());
+    let stop_reason = match raw.get("stop_reason").and_then(Value::as_str) {
+        Some(
+            reason @ ("end_turn"
+            | "max_tokens"
+            | "stop_sequence"
+            | "tool_use"
+            | "pause_turn"
+            | "refusal"
+            | "model_context_window_exceeded"),
+        ) => reason,
+        _ => "unknown",
+    };
+    format!("native result failed/refused; subtype={subtype}; num_turns={turns}; stop_reason={stop_reason}; raw usage retained")
+}
+
 fn decode_stream(
     bytes: &[u8],
     observation: &mut Observation,
@@ -488,8 +536,12 @@ fn decode_stream(
         }
     }
     if let Some(raw) = terminal {
-        if raw.get("is_error").and_then(Value::as_bool) == Some(true) {
-            return Err("native result failed/refused; raw usage retained".into());
+        // A valid JSON body cannot prove semantic completion when native
+        // terminal metadata explicitly reports exhausting its output cap.
+        if raw.get("is_error").and_then(Value::as_bool) == Some(true)
+            || raw.get("stop_reason").and_then(Value::as_str) == Some("max_tokens")
+        {
+            return Err(native_terminal_failure(&raw));
         }
         observation.reply = raw
             .get("structured_output")
@@ -789,14 +841,120 @@ mod tests {
     fn native_refusal_retains_observed_provider_usage() {
         let (mut observation, mut usage) = empty();
         let fixture = r#"{"type":"result","subtype":"error_during_execution","is_error":true,"total_cost_usd":0.1234567890123456789,"usage":{"input_tokens":7,"cache_read_input_tokens":2,"cache_creation_input_tokens":1,"output_tokens":3}}"#;
-        assert!(decode_stream(fixture.as_bytes(), &mut observation, &mut usage).is_err());
+        let error = decode_stream(fixture.as_bytes(), &mut observation, &mut usage).unwrap_err();
+        assert_eq!(error, "native result failed/refused; subtype=error_during_execution; num_turns=unknown; stop_reason=unknown; raw usage retained");
         assert_eq!(usage.input_tokens, Some(10));
         assert_eq!(usage.output_tokens, Some(3));
+        assert_eq!(usage.cached_input_tokens, Some(2));
+        assert_eq!(usage.retry_tokens, Some(0));
+        assert_eq!(observation.raw_usage.as_ref().unwrap()["input_tokens"], 7);
         assert_eq!(
             observation.reported_api_cost_usd.as_deref(),
             Some("0.1234567890123456789")
         );
         assert!(usage.failed);
+    }
+    #[test]
+    fn explicit_terminal_output_cap_rejects_complete_json_and_retains_accounting() {
+        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        for stop_reason in ["max_tokens", "end_turn"] {
+            let (mut observation, mut usage) = empty();
+            let complete = json!({"finalResult":{"complete":true}});
+            let fixture = format!(
+                "{}\n{}",
+                json!({"type":"system","subtype":"init","session_id":"fresh","model":execution.model,"tools":[]}),
+                json!({
+                    "type":"result", "subtype":"success", "is_error":false,
+                    "stop_reason":stop_reason, "num_turns":1,
+                    "structured_output":complete,
+                    "total_cost_usd":0.125,
+                    "usage":{"input_tokens":7,"cache_read_input_tokens":2,"cache_creation_input_tokens":1,"output_tokens":3}
+                })
+            );
+            observation.error =
+                decode_stream(fixture.as_bytes(), &mut observation, &mut usage).err();
+            finalize_model_policy(&mut observation, &mut usage, &execution);
+            assert_eq!(observation.context_id, "fresh");
+            assert_eq!(observation.observed_models, vec![execution.model.clone()]);
+            assert_eq!(observation.model_policy_violation, None);
+            assert_eq!(usage.input_tokens, Some(10));
+            assert_eq!(usage.output_tokens, Some(3));
+            assert_eq!(usage.cached_input_tokens, Some(2));
+            assert_eq!(usage.retry_tokens, Some(0));
+            assert_eq!(observation.raw_usage.as_ref().unwrap()["input_tokens"], 7);
+            assert_eq!(observation.reported_api_cost_usd.as_deref(), Some("0.125"));
+            if stop_reason == "max_tokens" {
+                assert!(observation.reply.is_none());
+                assert_eq!(observation.error.as_deref(), Some("native result failed/refused; subtype=unknown; num_turns=1; stop_reason=max_tokens; raw usage retained"));
+                assert!(usage.failed);
+            } else {
+                assert!(observation.error.is_none());
+                assert_eq!(observation.reply, Some(complete));
+            }
+        }
+    }
+    #[test]
+    fn native_terminal_failure_retains_only_allowlisted_diagnostics() {
+        for subtype in [
+            "error_during_execution",
+            "error_max_turns",
+            "error_max_budget_usd",
+            "error_max_structured_output_retries",
+        ] {
+            let (mut observation, mut usage) = empty();
+            let fixture = json!({
+                "type":"result", "subtype":subtype, "is_error":true,
+                "num_turns":1, "stop_reason":"tool_use",
+                "errors":["private-native-error-body"],
+                "result":"private-native-result-body",
+                "structured_output":{"secret":"private-structured-body"}
+            });
+            observation.error =
+                decode_stream(fixture.to_string().as_bytes(), &mut observation, &mut usage).err();
+            let expected = format!("native result failed/refused; subtype={subtype}; num_turns=1; stop_reason=tool_use; raw usage retained");
+            assert_eq!(observation.error.as_deref(), Some(expected.as_str()));
+            assert!(observation.reply.is_none());
+            let diagnostic = observation_value(&observation).to_string();
+            for private in [
+                "private-native-error-body",
+                "private-native-result-body",
+                "private-structured-body",
+            ] {
+                assert!(!diagnostic.contains(private));
+            }
+            assert!(usage.failed);
+        }
+    }
+    #[test]
+    fn native_terminal_failure_bounds_unknown_fields_and_turn_count() {
+        for turns in [
+            json!(null),
+            json!(-1),
+            json!(1.5),
+            json!(u64::MAX),
+            json!("private-turns"),
+        ] {
+            let (mut observation, mut usage) = empty();
+            let fixture = json!({
+                "type":"result", "is_error":true,
+                "subtype":"private-subtype".repeat(1024),
+                "num_turns":turns, "stop_reason":"private-stop-reason".repeat(1024),
+                "errors":["private-native-error-body"]
+            });
+            let error = decode_stream(fixture.to_string().as_bytes(), &mut observation, &mut usage)
+                .unwrap_err();
+            assert_eq!(error, "native result failed/refused; subtype=unknown; num_turns=unknown; stop_reason=unknown; raw usage retained");
+        }
+        let raw = json!({"num_turns":u32::MAX,"stop_reason":"end_turn"});
+        assert_eq!(native_terminal_failure(&raw), "native result failed/refused; subtype=unknown; num_turns=4294967295; stop_reason=end_turn; raw usage retained");
+    }
+    #[test]
+    fn native_process_failure_preserves_numeric_exit_status_only() {
+        assert_eq!(
+            native_process_failure(Some(42)),
+            "native process failed; exit_status=42"
+        );
+        assert_eq!(native_process_failure(None), "native process failed");
     }
     #[test]
     fn model_policy_finalization_survives_refusal_and_malformed_output() {

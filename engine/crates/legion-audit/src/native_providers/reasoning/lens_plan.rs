@@ -300,14 +300,12 @@ const DOC_DRIFT_CUES: &[&str] = &[
 ];
 
 const CORRECTNESS_CUES: &[&str] = &[
-    "business-constant consistency: propagated values diverge across code/tests/docs/config",
-    "spec axis: public behavior, independent expected values, excessive internal mocks, refactor-fragile assertions",
-    "desktop/Tauri: Mutex::lock().unwrap() in async, locks held across .await/transactions, sync #[tauri::command] doing I/O, missing spawn_blocking, sequential await invoke() chains, event->full-refetch storms",
-    "test quality: prefer behavior-level assertions, independent expected values, and real DI/framework seams; flag internal-mock excess, source-substring tests, snapshots alone, and refactor-fragile assertions",
-    "SPEC fidelity: compare explicit requirements to public behavior; preserve missing, partial, wrong, and unrequested as separate dispositions",
-    "tests asserting source-code substrings or snapshot-only are FALSE coverage",
-    "meta.test_skew: heavy code-vs-test skew on a critical subtree",
-    "meta.unsafe_sites clusters with no error-path test",
+    "Business constants: propagation drift across code/tests/docs/config.",
+    "Spec: public behavior vs explicit requirements; keep missing/partial/wrong/unrequested distinct.",
+    "Desktop/Tauri: async Mutex::lock().unwrap(), locks across .await/transactions, sync #[tauri::command] I/O, missing spawn_blocking, sequential await invoke() chains, event->full-refetch storms.",
+    "Tests: prefer behavioral assertions, independent expected values & real DI/framework seams; flag excessive internal mocks/refactor-fragile assertions; source-substring/snapshot-only tests are FALSE coverage.",
+    "meta.test_skew: heavy code/test skew in critical subtree.",
+    "meta.unsafe_sites clusters without error-path tests.",
 ];
 
 const PERFORMANCE_CUES: &[&str] = &[
@@ -363,7 +361,7 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         },
         "correctness" => LensPlan {
             lens: "correctness",
-            question: "Does the changed/oversized/entrypoint code contain real logic bugs: unhandled errors/rejections, swallowed failures, edge cases, off-by-one, races/missing await, resource leaks, incorrect conditionals?",
+            question: "Logic bugs in changed/oversized/entrypoint code: unhandled errors/rejections, swallowed failures, edge cases, off-by-one, races/missing await, resource leaks, wrong conditionals?",
             applicability: Applicability::Always,
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.correctness.v1",

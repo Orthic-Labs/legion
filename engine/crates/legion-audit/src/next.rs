@@ -185,6 +185,8 @@ struct LensSeat {
     providers: Vec<String>,
     packets: Vec<String>,
     estimated_tokens: u64,
+    output_token_limit: Option<u64>,
+    minimum_output_tokens: Option<u64>,
 }
 
 impl LensSeat {
@@ -264,6 +266,7 @@ struct Work {
     order: u64,
     tier: String,
     tokens: u64,
+    output_token_limit: u64,
 }
 
 impl Work {
@@ -355,13 +358,18 @@ fn budget_allows_tokens(
         && (!new_call || tokens <= budget.per_call)
 }
 
-/// Model-input-byte planning heuristic, not a provider token count. Canonical
+pub(crate) const MODEL_INPUT_BYTES_PER_TOKEN: u64 = 2;
+
+/// Empirical model-input-byte planning estimate, not a provider token bound. Canonical
 /// prompt, system & schema count once; host-envelope escaping is separate.
 /// Host preflight still checks exact serialized bytes; physical authorization
 /// reserves the full frozen per-call allowance because native overhead and
-/// tokenization are not known in advance.
+/// tokenization are not separable or known in advance. A native observation
+/// used 10,938 input tokens for 23,460 visible bytes (0.466 tokens/byte).
 pub fn estimated_request_tokens(model_input_bytes: u64, output_tokens: u64) -> u64 {
-    model_input_bytes.div_ceil(4).saturating_add(output_tokens)
+    model_input_bytes
+        .div_ceil(MODEL_INPUT_BYTES_PER_TOKEN)
+        .saturating_add(output_tokens)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -487,6 +495,9 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             order: seat.number,
             tier: seat.tier.clone(),
             tokens: seat.estimated_tokens,
+            output_token_limit: seat
+                .output_token_limit
+                .unwrap_or_else(|| snapshot.budget.as_ref().map_or(0, |budget| budget.output)),
         });
     }
 
@@ -551,6 +562,7 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
                 order: order as u64,
                 tier: "judgment".to_owned(),
                 tokens: item.tokens,
+                output_token_limit: snapshot.budget.as_ref().map_or(0, |budget| budget.output),
             });
         }
     }
@@ -619,7 +631,7 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             attempts,
             &item.tier,
             item.tokens,
-            snapshot.budget.as_ref().map_or(0, |budget| budget.output),
+            item.output_token_limit,
         );
         newly.insert(item.key.clone());
         capacity -= 1;
@@ -777,6 +789,8 @@ fn parse_seat(seat: &Value, width: u64) -> Option<LensSeat> {
             .get("estimatedTokens")
             .and_then(Value::as_u64)
             .unwrap_or(0),
+        output_token_limit: seat.get("outputTokenLimit").and_then(Value::as_u64),
+        minimum_output_tokens: None,
     })
 }
 
@@ -1186,7 +1200,20 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         if runtime_encoding {
             bytes = sizer.model_visible_input_bytes(&work)?;
         }
-        seat.estimated_tokens = estimated_request_tokens(bytes, budget.output);
+        let output = seat.output_token_limit.unwrap_or(budget.output);
+        if output == 0 || output > budget.output {
+            return Err(invalid("seat output cap exceeds frozen output ceiling"));
+        }
+        if runtime_encoding {
+            seat.minimum_output_tokens = Some(
+                crate::native_providers::reasoning::ingest::minimum_output_tokens(
+                    budget.output,
+                    work.len(),
+                ),
+            );
+        }
+        seat.output_token_limit = Some(output);
+        seat.estimated_tokens = estimated_request_tokens(bytes, output);
     }
     if let (Some(snapshot), Some(context)) = (&mut adjudication, &context) {
         for item in &mut snapshot.required {
@@ -1389,7 +1416,7 @@ fn budget_summary(state: &State) -> Value {
         .saturating_sub(state.reservations.len() as u64);
     let cost_known = unknown_cost == 0 && legacy_unknown == 0 && reported_cost.is_some();
     json!({
-        "admissionBasis": "bytes/4 plus output is a planning heuristic; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
+        "admissionBasis": "ceil(visible input bytes/2) plus output is an empirical planning estimate, not a provider token bound; admission retains 15% headroom capped at 1500 tokens; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
         "plannedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.planned_tokens)),
         "reservedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.reserved_tokens)),
         "chargedByTier": state.spent,
@@ -1508,6 +1535,8 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
         || call.model_input_bytes == 0
         || call.model_input_bytes > call.rendered_request_bytes
         || call.output_token_limit == 0
+        || call.output_token_limit
+            < crate::native_providers::reasoning::ingest::minimum_output_tokens(budget.output, 1)
         || call.output_token_limit > budget.output
     {
         return Err(invalid(
@@ -1536,6 +1565,23 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             if previous.tier != call.tier {
                 return Err(invalid("reservation tier changed"));
             }
+            if previous.output_token_limit != call.output_token_limit {
+                return Err(invalid("reservation output cap changed"));
+            }
+            if loaded
+                .snapshot
+                .seats
+                .iter()
+                .find(|seat| {
+                    state.leases.get(&seat.id).is_some_and(|lease| {
+                        reservation_id(&state.dispatch_digest, &seat.id, lease.attempts) == *id
+                    })
+                })
+                .and_then(|seat| seat.minimum_output_tokens)
+                .is_some_and(|minimum| call.output_token_limit < minimum)
+            {
+                return Err(invalid("shared seat output cap cannot cover every lens"));
+            }
             if !state.leases.iter().any(|(key, lease)| {
                 reservation_id(&state.dispatch_digest, key, lease.attempts) == *id
             }) {
@@ -1558,7 +1604,8 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
     let reserved = previous.max(budget.per_call);
     let additional = reserved.saturating_sub(previous);
     if (new_call && !state.budget_blocked.is_empty())
-        || tokens > budget.per_call
+        || tokens
+            > crate::native_providers::reasoning::ingest::physical_planning_limit(budget.per_call)
         || reserved > budget.per_call
         || !budget_allows_tokens(budget, &state, &call.tier, additional, new_call)
     {
@@ -1950,7 +1997,8 @@ fn next_inner(
                     "estimatedTokens": seat.estimated_tokens,
                     "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
                     "requiresCallAuthorization": true,
-                    "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "outputTokenLimit": work.output_token_limit,
+                    "outputTokenCeiling": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
                     "perCallTokenAllowance": loaded.snapshot.budget.as_ref().map(|budget| budget.per_call),
                     "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
@@ -1990,6 +2038,7 @@ fn next_inner(
                     "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
                     "requiresCallAuthorization": true,
                     "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "outputTokenCeiling": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
                     "perCallTokenAllowance": loaded.snapshot.budget.as_ref().map(|budget| budget.per_call),
                     "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
@@ -2082,6 +2131,8 @@ mod tests {
             providers: vec![format!("reasoning.p{number}")],
             packets: vec![format!("reasoning.p{number}.json")],
             estimated_tokens: 100,
+            output_token_limit: None,
+            minimum_output_tokens: None,
         }
     }
 
@@ -2785,7 +2836,7 @@ mod tests {
 
     #[test]
     fn output_reserve_retry_total_tier_and_count_are_enforced() {
-        assert_eq!(estimated_request_tokens(401, 77), 178);
+        assert_eq!(estimated_request_tokens(401, 77), 278);
         let mut snap = snapshot(vec![seat(1, 1, "judgment"), seat(2, 1, "specialist")]);
         snap.budget = Some(Budget {
             total: 150,
@@ -2852,7 +2903,7 @@ mod tests {
             call_id: id.into(),
             tier: "judgment".into(),
             rendered_request_bytes: 40,
-            model_input_bytes: 40,
+            model_input_bytes: 12,
             output_token_limit: 10,
             retry: false,
         }
@@ -3129,16 +3180,16 @@ mod tests {
         )
         .unwrap();
         let wave = next(&run, &options(0)).unwrap();
-        assert_eq!(wave["seats"][0]["budgetReservationTokens"], 260);
+        assert_eq!(wave["seats"][0]["budgetReservationTokens"], 510);
         let mut request = call("transport");
         request.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
-        request.rendered_request_bytes = 2000;
-        request.model_input_bytes = 2000;
+        request.rendered_request_bytes = 1600;
+        request.model_input_bytes = 1600;
         let authorized = reserve_call(&run, &request).unwrap();
         assert_eq!(authorized["reservedTokens"], 1000);
         let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
         let reservation = &state.reservations[request.reservation_id.as_ref().unwrap()];
-        assert_eq!(reservation.planned_tokens, 260);
+        assert_eq!(reservation.planned_tokens, 510);
         assert_eq!(reservation.reserved_tokens, 1000);
         assert!(reserve_call(&run, &request).is_err());
         let _ = fs::remove_dir_all(run);
@@ -3149,14 +3200,14 @@ mod tests {
         let run = budget_run_with_limits("wire-expansion", 20000, 10000, 2500);
         let mut request = call("escaped-wire");
         request.rendered_request_bytes = 90000;
-        request.model_input_bytes = 24000;
+        request.model_input_bytes = 12000;
         request.output_token_limit = 2500;
         let admitted = reserve_call(&run, &request).unwrap();
         assert_eq!(admitted["authorized"], true);
         assert_eq!(admitted["reservedTokens"], 10000);
         assert_eq!(admitted["budget"]["plannedTokens"], 8500);
         assert_eq!(admitted["requestBytes"], 90000);
-        assert_eq!(admitted["modelVisibleInputBytes"], 24000);
+        assert_eq!(admitted["modelVisibleInputBytes"], 12000);
         assert_eq!(admitted["requestByteBasis"], "serialized-host-envelope");
         let mut missing = call("missing-model-estimate");
         missing.model_input_bytes = 0;
@@ -3167,15 +3218,40 @@ mod tests {
     }
 
     #[test]
+    fn empirical_input_estimate_rejects_observed_native_input_before_transport() {
+        // The observed 23,460-byte request used 10,938 authenticated input
+        // tokens before its 289 output tokens. The old /4 estimate admitted
+        // it; the empirical /2 estimate must stop it before authorization.
+        // Also retain planning headroom when the estimate is below 10k.
+        for (bytes, expected_tokens) in [(23_460, 14_230), (12_001, 8_501)] {
+            let run = budget_run_with_limits("empirical-input", 50_000, 10_000, 2_500);
+            let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+            dispatch["reasoningBudget"]["maxSeats"] = json!(5);
+            write_value(&run.join(DISPATCH_FILE), &dispatch);
+            let mut request = call("not-sent");
+            request.rendered_request_bytes = bytes + 100;
+            request.model_input_bytes = bytes;
+            request.output_token_limit = 2_500;
+            assert_eq!(estimated_request_tokens(bytes, 2_500), expected_tokens);
+            assert_eq!(reserve_call(&run, &request).unwrap()["authorized"], false);
+            let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
+            assert!(state.reservations.is_empty());
+            assert!(state.spent.is_empty());
+            assert_eq!(state.issuances, 0);
+            let _ = fs::remove_dir_all(run);
+        }
+    }
+
+    #[test]
     fn physical_allowance_covers_unpredicted_input_and_still_stops_actual_overrun() {
         let run = budget_run_with_limits("native-allowance", 20000, 10000, 2500);
         let mut request = call("native-first");
-        request.rendered_request_bytes = 17409;
-        request.model_input_bytes = 17409;
+        request.rendered_request_bytes = 9000;
+        request.model_input_bytes = 9000;
         request.output_token_limit = 2500;
         let admitted = reserve_call(&run, &request).unwrap();
         assert_eq!(admitted["reservedTokens"], 10000);
-        assert_eq!(admitted["budget"]["plannedTokens"], 6853);
+        assert_eq!(admitted["budget"]["plannedTokens"], 7000);
         let receipt = UsageReceipt {
             reservation_id: admitted["reservationId"].as_str().unwrap().into(),
             receipt_id: "native-first-usage".into(),
@@ -3249,10 +3325,10 @@ mod tests {
         }
         let run = budget_run_with_limits("estimate-over-cap", 20000, 10000, 2500);
         let mut request = call("oversized");
-        request.rendered_request_bytes = 30001;
-        request.model_input_bytes = 30001;
+        request.rendered_request_bytes = 15001;
+        request.model_input_bytes = 15001;
         request.output_token_limit = 2500;
-        assert_eq!(estimated_request_tokens(30001, 2500), 10001);
+        assert_eq!(estimated_request_tokens(15001, 2500), 10001);
         assert_eq!(reserve_call(&run, &request).unwrap()["authorized"], false);
         let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
         assert!(state.reservations.is_empty());
@@ -3261,9 +3337,72 @@ mod tests {
     }
 
     #[test]
+    fn adaptive_seat_cap_survives_resume_authorization_and_usage_reconciliation() {
+        let run = budget_run_with_limits("adaptive-output", 50_000, 10_000, 2_500);
+        let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+        dispatch["seats"] = json!([{"seat":1,"tier":"judgment",
+            "packets":["reasoning.a.json"],"outputTokenLimit":1500}]);
+        dispatch["reasoningBudget"]["maxSeats"] = json!(5);
+        write_value(&run.join(DISPATCH_FILE), &dispatch);
+        fs::write(
+            run.join(LENS_PACKET_DIR).join("reasoning.a.json"),
+            vec![b'x'; 14_000],
+        )
+        .unwrap();
+        let issued = next(&run, &options(0)).unwrap();
+        let seat = &issued["seats"][0];
+        assert_eq!(seat["estimatedTokens"], 8_500);
+        assert_eq!(seat["outputTokenLimit"], 1_500);
+        assert_eq!(seat["outputTokenCeiling"], 2_500);
+        assert_eq!(
+            load(&run).unwrap().snapshot.seats[0].output_token_limit,
+            Some(1500)
+        );
+        let mut request = call("adaptive-author");
+        request.reservation_id = Some(seat["reservationId"].as_str().unwrap().into());
+        request.rendered_request_bytes = 14_100;
+        request.model_input_bytes = 14_000;
+        request.output_token_limit = 2_500;
+        assert!(
+            reserve_call(&run, &request).is_err(),
+            "native cap cannot exceed reserved seat cap"
+        );
+        request.output_token_limit = 1_500;
+        let admitted = reserve_call(&run, &request).unwrap();
+        assert_eq!(admitted["authorized"], true);
+        assert_eq!(admitted["reservedTokens"], 10_000);
+        assert_eq!(admitted["outputTokenLimit"], 1_500);
+        let receipt = UsageReceipt {
+            reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+            receipt_id: "adaptive-usage".into(),
+            input_tokens: Some(100),
+            output_tokens: Some(1501),
+            cached_input_tokens: Some(0),
+            retry_tokens: Some(0),
+            failed: false,
+        };
+        let result = reconcile_usage(&run, &receipt).unwrap();
+        assert_eq!(
+            result["budget"]["terminalStatus"],
+            "incomplete:budget-overrun"
+        );
+        assert_eq!(result["budget"]["outputCapOverrunTokens"], 1);
+        assert_eq!(result["budget"]["actualOverrunTokens"], 0);
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        assert_eq!(
+            reserve_call(&run, &call("after-output-overrun")).unwrap()["authorized"],
+            false
+        );
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
     fn earlier_estimated_reservation_overrun_remains_terminal_and_unchanged() {
         let run = budget_run_with_limits("earlier-overrun", 20000, 10000, 2500);
-        let admitted = reserve_call(&run, &call("earlier-call")).unwrap();
+        let mut historical = call("earlier-call");
+        historical.output_token_limit = 1000;
+        let admitted = reserve_call(&run, &historical).unwrap();
         let mut state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
         let id = admitted["reservationId"].as_str().unwrap();
         let reservation = state.reservations.get_mut(id).unwrap();

@@ -463,7 +463,7 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
         .unwrap();
     let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
     assert!(work.len() > 1);
-    let target = (25_000 - ingest::dispatch_output_tokens(25_000)) * 4;
+    let target = ingest::physical_planning_input_bytes(25_000);
     let mut homes = Vec::new();
     for item in &work {
         assert!(
@@ -734,11 +734,150 @@ fn bounded_request() -> Value {
 fn rendered_input_allowance_matches_dispatch_token_boundary() {
     for per_call in [1, 10_000, 25_000, 150_000] {
         let bytes = ingest::physical_planning_input_bytes(per_call);
-        let output = ingest::dispatch_output_tokens(per_call);
+        let output = ingest::minimum_output_tokens(ingest::dispatch_output_tokens(per_call), 1);
         let limit = ingest::physical_planning_limit(per_call);
         assert!(crate::next::estimated_request_tokens(bytes, output) <= limit);
         assert!(crate::next::estimated_request_tokens(bytes + 1, output) > limit);
     }
+}
+
+#[test]
+fn adaptive_output_chooses_largest_fitting_cap_without_starving_shared_lenses() {
+    let ceiling = ingest::dispatch_output_tokens(10_000);
+    assert_eq!(ceiling, 2_500);
+    let single = ingest::minimum_output_tokens(ceiling, 1);
+    assert_eq!(single, 1_000);
+    for (bytes, expected) in [
+        (12_000, Some(2_500)),
+        (14_000, Some(1_500)),
+        (15_000, Some(1_000)),
+        (15_001, None),
+    ] {
+        assert_eq!(
+            ingest::fitting_output_tokens(10_000, ceiling, bytes, single),
+            expected
+        );
+    }
+    let shared = ingest::minimum_output_tokens(ceiling, 2);
+    assert_eq!(
+        ingest::fitting_output_tokens(10_000, ceiling, 13_000, shared),
+        Some(2_000)
+    );
+    assert_eq!(
+        ingest::fitting_output_tokens(10_000, ceiling, 13_001, shared),
+        None
+    );
+    assert_eq!(
+        ingest::fitting_output_tokens(
+            10_000,
+            ceiling,
+            0,
+            ingest::minimum_output_tokens(ceiling, 3)
+        ),
+        None
+    );
+    assert_eq!(ingest::minimum_output_tokens(50, 1), 50);
+    assert_eq!(
+        ingest::fitting_output_tokens(100, 50, 70, ingest::minimum_output_tokens(50, 1)),
+        Some(50)
+    );
+}
+
+#[test]
+fn empirical_allowance_keeps_complete_twelve_line_raw_review_within_frozen_budget() {
+    let source = concat!(
+        "pub fn display_name(raw: &str) -> String {\n",
+        "    let name = raw.trim();\n",
+        "    if name.is_empty() {\n",
+        "        return String::from(\"Unnamed\");\n",
+        "    }\n",
+        "    let mut value = String::new();\n",
+        "    for word in name.split_whitespace() {\n",
+        "        if !value.is_empty() { value.push(' '); }\n",
+        "        value.push_str(word);\n",
+        "    }\n",
+        "    value\n",
+        "}\n",
+    );
+    assert_eq!(source.lines().count(), 12);
+    let fixture = Fixture::new(&[("src/display_name.rs", source.into())]);
+    let inventory = fixture.inventory();
+    let mut provider = spec("reasoning.doc-drift", json!({"op":"always"}));
+    provider.reasoning["coverageRequest"] = bounded_request();
+    let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &[provider])
+        .unwrap()
+        .freeze(Some(b"empirical-input-fixture-key"))
+        .unwrap();
+    let frozen = serde_json::to_value(plan.plan()).unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    let dispatch = ingest::lens_dispatch_plan(
+        &work,
+        &ingest::DispatchLimits {
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+            wave_width: 1,
+        },
+    );
+    assert_eq!(dispatch["withinLimits"], true, "{dispatch}");
+    assert_eq!(dispatch["requiredInitialCalls"], 1, "{dispatch}");
+    assert_eq!(dispatch["followupReserveCalls"], 1);
+    assert_eq!(dispatch["reasoningBudget"]["outputTokens"], 2_500);
+    assert_eq!(dispatch["reasoningBudget"]["totalTokens"], 50_000);
+    assert_eq!(dispatch["reasoningBudget"]["perCallTokens"], 10_000);
+    assert_eq!(dispatch["reasoningBudget"]["maxSeats"], 5);
+    let selected = dispatch["selectedPackets"].as_array().unwrap();
+    let item = work
+        .iter()
+        .find(|item| selected.contains(&json!(item.packet_file_name())))
+        .expect("complete source review must remain schedulable");
+    let mut expected_lens_plan = lens_plan::lens_plan_packet_value("reasoning.doc-drift").unwrap();
+    pattern_cards::bind_packet_cards_to_paths(
+        &mut expected_lens_plan,
+        &["src/display_name.rs".into()],
+    );
+    assert_eq!(item.request.packet["lensPlan"], expected_lens_plan);
+    assert_eq!(
+        item.request.packet["reportSchemaBody"],
+        lens_schemas::lens_report_schema("doc-drift").unwrap()
+    );
+    assert_eq!(
+        item.request.packet["semanticReviewContract"],
+        json!(lens_plan::semantic_review_contract("doc-drift"))
+    );
+    assert!(
+        item.request.packet["excerpts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|excerpt| {
+                excerpt["path"] == "src/display_name.rs"
+                    && excerpt["mode"] == "raw"
+                    && excerpt["content"] == source
+                    && excerpt["startLine"] == 1
+                    && excerpt["endLine"] == 12
+            }),
+        "{dispatch}"
+    );
+    let bytes = crate::review_runtime::InitialRequestSizer::default()
+        .model_visible_input_bytes(std::slice::from_ref(item))
+        .unwrap();
+    assert_eq!(
+        dispatch["seats"][0]["estimatedInputTokens"],
+        crate::next::estimated_request_tokens(bytes, 0)
+    );
+    let output = dispatch["seats"][0]["outputTokenLimit"].as_u64().unwrap();
+    assert!((1_000..=2_500).contains(&output), "{dispatch}");
+    assert_eq!(dispatch["seats"][0]["outputTokenCeiling"], 2_500);
+    assert_eq!(
+        dispatch["seats"][0]["estimatedTokens"],
+        crate::next::estimated_request_tokens(bytes, output)
+    );
+    assert!(
+        bytes <= ingest::physical_planning_input_bytes(10_000),
+        "{bytes}: {dispatch}"
+    );
+    assert_eq!(serde_json::to_value(plan.plan()).unwrap(), frozen);
 }
 
 #[test]
@@ -891,11 +1030,14 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
         assert_eq!(seat["plannedModelInputBytes"], model_bytes, "{diagnostics}");
         assert_eq!(seat["modelVisibleInputBytes"], model_bytes, "{diagnostics}");
         assert!(model_bytes <= input_limit, "{diagnostics}");
+        let output = seat["outputTokenLimit"].as_u64().unwrap();
+        assert!(output >= ingest::minimum_output_tokens(2_500, members.len()));
+        assert!(output <= 2_500);
         assert_eq!(
             seat["estimatedTokens"],
             crate::next::estimated_request_tokens(
                 model_bytes,
-                ingest::dispatch_output_tokens(10_000)
+                seat["outputTokenLimit"].as_u64().unwrap()
             ),
             "{diagnostics}"
         );

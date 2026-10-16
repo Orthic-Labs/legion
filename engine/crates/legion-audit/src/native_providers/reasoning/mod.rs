@@ -1093,7 +1093,7 @@ fn build_invocations(
         refine_packet_materialization(budget, target, |budget| build(Some(budget)))?;
     if largest > target && !allow_deferred {
         return Err(AuditError::BoundExceeded(format!(
-            "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
+            "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes while retaining minimum meaningful output & planning headroom. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
             provider.id
         )));
     }
@@ -1140,6 +1140,29 @@ fn refine_packet_materialization<T>(
         }
     }
     Ok(best)
+}
+
+fn selected_part_source_paths(part: Option<&excerpts::ExcerptPart>) -> Vec<String> {
+    // A continuation still carries selected source even though another part
+    // owns its denominator path. Include omissions homed in this part, too.
+    part.into_iter()
+        .flat_map(|part| {
+            part.paths
+                .iter()
+                .chain(part.excerpts.iter().map(|excerpt| &excerpt.path))
+        })
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn lens_plan_for_part(lens_plan: Option<&Value>, source_paths: &[String]) -> Option<Value> {
+    lens_plan.map(|lens_plan| {
+        let mut bound = lens_plan.clone();
+        pattern_cards::bind_packet_cards_to_paths(&mut bound, source_paths);
+        bound
+    })
 }
 
 fn build_invocations_with_budget(
@@ -1299,17 +1322,8 @@ fn build_invocations_with_budget(
         let number = index + 1;
         // Continued chunks still need their selected file's graph hints even
         // though denominator ownership remains with the file's first part.
-        let context_paths = part
-            .into_iter()
-            .flat_map(|part| {
-                part.paths
-                    .iter()
-                    .chain(part.excerpts.iter().map(|excerpt| &excerpt.path))
-            })
-            .cloned()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+        let context_paths = selected_part_source_paths(part);
+        let part_lens_plan = lens_plan_for_part(lens_plan.as_ref(), &context_paths);
         let review_context = packet_context::review_context(plan, provider, &context_paths)?;
         // Packet materialization is separate from host delivery & review.
         // Constructing an excerpt cannot prove a reviewer received it.
@@ -1360,7 +1374,7 @@ fn build_invocations_with_budget(
                 "denominatorDigest": denominator.digest,
                 "denominatorCount": denominator.entries.len(),
             },
-            "lensPlan": lens_plan,
+            "lensPlan": part_lens_plan,
             "excerpts": excerpts_value,
             "excerptCoverage": excerpt_coverage,
             "scannerCandidates": candidates_value,
@@ -2519,6 +2533,94 @@ fn failure_result(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn card_part(
+        number: usize,
+        homed_paths: &[&str],
+        continued: Option<&str>,
+    ) -> excerpts::ExcerptPart {
+        excerpts::ExcerptPart {
+            number,
+            paths: homed_paths.iter().map(|path| (*path).into()).collect(),
+            omitted: Vec::new(),
+            excerpts: continued
+                .into_iter()
+                .map(|path| excerpts::Excerpt {
+                    path: path.into(),
+                    source_side: "selected",
+                    mode: lens_plan::ExcerptMode::Raw,
+                    language: "typescript",
+                    anchors: vec![format!("{path}:21-40")],
+                    content: "RAW source bytes preserved\n".into(),
+                    truncated: false,
+                    redacted: false,
+                    start_line: 21,
+                    end_line: 40,
+                    chunk: 2,
+                    chunks: 2,
+                    redacted_ranges: Vec::new(),
+                    redaction: excerpts::RedactionCounts::default(),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn pattern_cards_bind_to_each_selected_part_including_continued_source() {
+        let base = lens_plan::lens_plan_packet_value("reasoning.correctness").unwrap();
+        // A global JS/TS path cannot keep JS/TS cards in an unrelated Rust part.
+        let rust = card_part(1, &["src/lib.rs"], None);
+        let typescript = card_part(2, &["src/view.tsx"], None);
+        // A continued JS/TS chunk must keep cards even with Rust denominator
+        // ownership and no homed JS/TS path in this part.
+        let continued = card_part(3, &["src/worker.rs"], Some("src/view.tsx"));
+        let raw_before = serde_json::to_value(&continued.excerpts).unwrap();
+        for (part, expected_count, expected_paths) in [
+            (&rust, 2, json!(["src/lib.rs"])),
+            (&typescript, 5, json!(["src/view.tsx"])),
+            (&continued, 5, json!(["src/view.tsx", "src/worker.rs"])),
+        ] {
+            let bound =
+                lens_plan_for_part(Some(&base), &selected_part_source_paths(Some(part))).unwrap();
+            assert_eq!(
+                bound["patternCards"].as_array().unwrap().len(),
+                expected_count
+            );
+            assert_eq!(
+                bound["patternCardApplicability"]["sourcePaths"],
+                expected_paths
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(&continued.excerpts).unwrap(),
+            raw_before
+        );
+        assert_eq!(base["patternCards"].as_array().unwrap().len(), 5);
+        let empty = lens_plan_for_part(Some(&base), &selected_part_source_paths(None)).unwrap();
+        assert_eq!(empty["patternCards"].as_array().unwrap().len(), 5);
+        assert!(lens_plan_for_part(None, &["src/lib.rs".into()]).is_none());
+    }
+
+    #[test]
+    fn language_card_binding_preserves_whole_lens_scope_and_packet_identity() {
+        let base = lens_plan::lens_plan_packet_value("reasoning.correctness").unwrap();
+        let mut bound = lens_plan_for_part(Some(&base), &["src/lib.rs".into()]).unwrap();
+        let rust_digest = canonical_digest(&bound).unwrap();
+        let other_rust = lens_plan_for_part(Some(&base), &["src/other.rs".into()]).unwrap();
+        // Source identity, not only the retained-card set, enters packet seals.
+        assert_ne!(rust_digest, canonical_digest(&other_rust).unwrap());
+        let mut expected_scope = base;
+        expected_scope
+            .as_object_mut()
+            .unwrap()
+            .remove("patternCards");
+        bound.as_object_mut().unwrap().remove("patternCards");
+        bound
+            .as_object_mut()
+            .unwrap()
+            .remove("patternCardApplicability");
+        assert_eq!(bound, expected_scope);
+    }
 
     #[test]
     fn provider_inventory_is_exactly_seventeen_entries() {

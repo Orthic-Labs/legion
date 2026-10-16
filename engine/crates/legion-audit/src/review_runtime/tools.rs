@@ -57,7 +57,16 @@ fn specifications() -> Vec<ToolSpec> {
     specs
 }
 pub(super) fn specs() -> Value {
-    json!(specifications())
+    let registered = specifications();
+    let mut common = json!(&registered[0]);
+    common.as_object_mut().unwrap().remove("name");
+    let names = registered
+        .iter()
+        .map(|spec| spec.name.as_str())
+        .collect::<Vec<_>>();
+    // Each listed name inherits this exact descriptor. Registration still
+    // receives full ToolSpecs; only model-visible duplicate text is shared.
+    json!({"common":common,"names":names})
 }
 fn skeleton_targets<'a>(packet: &'a Value, denominator: &[String]) -> BTreeSet<(&'a str, &'a str)> {
     let selected: BTreeSet<_> = denominator.iter().map(String::as_str).collect();
@@ -361,6 +370,27 @@ impl Tool for SnapshotTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_model_specs_reconstruct_every_registered_tool_exactly() {
+        let encoded = specs();
+        let names = encoded["names"].as_array().unwrap();
+        let common = encoded["common"].as_object().unwrap();
+        assert!(!common.contains_key("name"));
+        let reconstructed = names
+            .iter()
+            .map(|name| {
+                let mut descriptor = common.clone();
+                descriptor.insert("name".into(), name.clone());
+                Value::Object(descriptor)
+            })
+            .collect::<Vec<_>>();
+        // Full serialized equality verifies every name's description, effect
+        // & input schema, including registration order & all schema fields.
+        let registered = json!(specifications());
+        assert_eq!(Value::Array(reconstructed), registered);
+        assert_eq!(names.len(), 5);
+        assert!(encoded.to_string().len() < registered.to_string().len());
+    }
     #[test]
     fn eager_source_never_expands_selected_paths_or_source_side_authority() {
         let packet = json!({"excerpts":[

@@ -88,6 +88,77 @@ def substantive_code_excerpt(excerpt: dict) -> bool:
     return len(body_lines) >= 3 and sum(map(len, body_lines)) >= 80
 
 
+def validate_dispatch_budget(dispatch: dict) -> tuple[list[str], list[dict]]:
+    expected_reasoning_budget = {
+        "totalTokens": 50000,
+        "perCallTokens": 10000,
+        "outputTokens": 2500,
+        "maxSeats": 5,
+    }
+    expected_limits = {
+        "seatTokenBudget": 10000,
+        "waveWidth": 1,
+        "runTokenBudget": 50000,
+        "maxTotalSeats": 5,
+    }
+    budget = dispatch.get("reasoningBudget")
+    limits = dispatch.get("limits")
+    if not isinstance(budget, dict) or any(budget.get(key) != value for key, value in expected_reasoning_budget.items()):
+        fail(f"frozen reasoningBudget differs from requested caps: {budget!r}")
+    if not isinstance(limits, dict) or any(limits.get(key) != value for key, value in expected_limits.items()):
+        fail(f"frozen dispatch limits differ from requested caps: {limits!r}")
+
+    seats = dispatch.get("seats")
+    if not isinstance(seats, list) or not seats:
+        fail("bounded dispatch has no selected author seats")
+    provider_ids: set[str] = set()
+    seat_receipts = []
+    for seat in seats:
+        if not isinstance(seat, dict):
+            fail(f"selected physical seat is malformed: {seat!r}")
+        providers = seat.get("providers")
+        if not isinstance(providers, list) or not providers or any(not isinstance(item, str) for item in providers):
+            fail(f"selected physical seat lacks provider IDs: {seat.get('seatId')!r}")
+        provider_ids.update(providers)
+        output_cap = seat.get("outputTokenLimit")
+        output_ceiling = seat.get("outputTokenCeiling")
+        allowance = seat.get("perCallTokenAllowance")
+        input_bytes = seat.get("modelVisibleInputBytes")
+        planned_input_bytes = seat.get("plannedModelInputBytes")
+        estimate = seat.get("estimatedTokens")
+        estimated_input = seat.get("estimatedInputTokens")
+        if type(output_cap) is not int or not 1000 <= output_cap <= 2500:
+            fail(f"selected physical seat has invalid adaptive output cap: {seat.get('seatId')!r}: {output_cap!r}")
+        if type(output_ceiling) is not int or output_ceiling != 2500:
+            fail(f"selected physical seat has unexpected output ceiling: {seat.get('seatId')!r}: {output_ceiling!r}")
+        if allowance != 10000:
+            fail(f"selected physical seat has unexpected per-call allowance: {seat.get('seatId')!r}: {allowance!r}")
+        if type(input_bytes) is not int or input_bytes <= 0 or planned_input_bytes != input_bytes:
+            fail(f"selected physical seat lacks positive matching model-input bytes: {seat.get('seatId')!r}")
+        expected_input = (input_bytes + 1) // 2
+        expected_estimate = expected_input + output_cap
+        if estimated_input != expected_input or estimate != expected_estimate:
+            fail(
+                f"selected physical seat estimate differs from ceil(inputBytes/2)+outputCap: "
+                f"{seat.get('seatId')!r}: inputBytes={input_bytes}, outputCap={output_cap}, "
+                f"estimatedInput={estimated_input}, estimatedTotal={estimate}, expected={expected_estimate}"
+            )
+        if expected_estimate > 8500 or expected_estimate > allowance:
+            fail(f"selected physical seat exceeds 8500-token planning headroom: {seat.get('seatId')!r}: {expected_estimate}")
+        if seat.get("gatherPolicy") != "deterministic" or seat.get("initialPhysicalCalls") != 1:
+            fail(f"selected physical seat is not one deterministic author call: {seat.get('seatId')!r}")
+        seat_receipts.append({
+            "seatId": seat.get("seatId"),
+            "providerIDs": providers,
+            "outputTokenCap": output_cap,
+            "modelInputBytes": input_bytes,
+            "estimatedInputTokens": estimated_input,
+            "estimatedTotalTokens": estimate,
+            "perCallTokenAllowance": allowance,
+        })
+    return sorted(provider_ids), seat_receipts
+
+
 def checkout(destination: Path) -> None:
     destination.mkdir(parents=True)
     run(["git", "init", "--quiet", str(destination)])
@@ -120,9 +191,8 @@ def inspect_run(out: Path, *, plan_only: bool = True,
     if dispatch.get("withinLimits") is not True:
         fail(f"dispatch is over limits: {dispatch.get('violations')}")
 
+    selected_provider_ids, selected_seats = validate_dispatch_budget(dispatch)
     seats = dispatch.get("seats")
-    if not isinstance(seats, list) or not seats:
-        fail("bounded dispatch has no selected author seats")
     selected = dispatch.get("selectedPackets")
     if not isinstance(selected, list) or not selected:
         fail("bounded dispatch has no selected author packets")
@@ -147,6 +217,8 @@ def inspect_run(out: Path, *, plan_only: bool = True,
     packet_dir = out / "lens-packets"
     source_paths = set()
     substantive_sources = set()
+    correctness_has_raw_code = False
+    packet_provider_ids = set()
     excerpt_count = 0
     for name in selected:
         if not isinstance(name, str) or Path(name).name != name:
@@ -161,6 +233,10 @@ def inspect_run(out: Path, *, plan_only: bool = True,
         packet = request.get("packet")
         if not isinstance(packet, dict):
             fail(f"selected author packet lacks request packet: {path}")
+        provider_id = request.get("providerId")
+        if not isinstance(provider_id, str) or packet.get("provider") != provider_id:
+            fail(f"selected author packet has inconsistent provider identity: {path}")
+        packet_provider_ids.add(provider_id)
         excerpts = packet.get("excerpts")
         if not isinstance(excerpts, list) or not excerpts:
             fail(f"selected author packet has no frozen source excerpts: {path}")
@@ -173,10 +249,21 @@ def inspect_run(out: Path, *, plan_only: bool = True,
             excerpt["path"] for excerpt in excerpts
             if isinstance(excerpt, dict) and substantive_code_excerpt(excerpt)
         )
+        if provider_id == "reasoning.correctness" and any(
+            excerpt.get("mode") == "raw" and substantive_code_excerpt(excerpt)
+            for excerpt in excerpts if isinstance(excerpt, dict)
+        ):
+            correctness_has_raw_code = True
     if not source_paths:
         fail("selected author packets contain no source paths")
     if not substantive_sources:
         fail(f"selected author packets contain no substantive raw code excerpts; source paths={sorted(source_paths)}")
+    if "reasoning.correctness" not in selected_provider_ids or "reasoning.correctness" not in packet_provider_ids:
+        fail("bounded dispatch did not select the reasoning.correctness provider")
+    if not correctness_has_raw_code:
+        fail("selected reasoning.correctness packet lacks substantive raw code excerpts")
+    if packet_provider_ids != set(selected_provider_ids):
+        fail(f"selected packet providers differ from selected physical seats: packets={sorted(packet_provider_ids)}, seats={selected_provider_ids}")
 
     deferred = dispatch.get("deferredWork", [])
     deferred_packets = dispatch.get("deferredPackets", [])
@@ -220,6 +307,8 @@ def inspect_run(out: Path, *, plan_only: bool = True,
     ).hexdigest()
     return {
         "dispatch": dispatch,
+        "selected_provider_ids": selected_provider_ids,
+        "selected_seats": selected_seats,
         "selected_count": len(selected),
         "source_count": len(source_paths),
         "substantive_source_count": len(substantive_sources),
@@ -377,6 +466,8 @@ def main() -> int:
             "cachePass": label,
             "coverageMode": dispatch["coverageMode"],
             "selectedAuthorPackets": observation["selected_count"],
+            "selectedProviderIDs": observation["selected_provider_ids"],
+            "selectedSeats": observation["selected_seats"],
             "selectedSourcePaths": observation["source_count"],
             "substantiveCodeSourcePaths": observation["substantive_source_count"],
             "selectedSourceExcerpts": observation["excerpt_count"],
@@ -431,6 +522,8 @@ def main() -> int:
         "coverageMode": dispatch["coverageMode"],
         "auditStatus": full["status"],
         "selectedAuthorPackets": observation["selected_count"],
+        "selectedProviderIDs": observation["selected_provider_ids"],
+        "selectedSeats": observation["selected_seats"],
         "selectedSourcePaths": observation["source_count"],
         "substantiveCodeSourcePaths": observation["substantive_source_count"],
         "selectedSourceExcerpts": observation["excerpt_count"],

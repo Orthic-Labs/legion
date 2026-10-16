@@ -4085,9 +4085,31 @@ fn breadth_drafts(
 /// `estimatedTokens` counts canonical prompt, system & schema once, plus output
 /// reserve; serialized host-envelope bytes remain separate diagnostics. Exact shared
 /// excerpts are charged once only when the host consumes that encoding.
-/// Bytes / 4 remains an estimate; each later physical call preflights again.
+/// Bytes / 2 is an empirical estimate, not a provider bound; each physical call preflights again.
 pub(crate) fn dispatch_output_tokens(seat_token_budget: u64) -> u64 {
     crate::next::DEFAULT_OUTPUT_TOKENS.min((seat_token_budget / 4).max(1))
+}
+
+/// A short single-lens review needs a 1000-token output opportunity when its
+/// frozen ceiling permits it. Shared calls retain this opportunity per lens.
+pub(crate) fn minimum_output_tokens(output_ceiling: u64, lenses: usize) -> u64 {
+    output_ceiling
+        .min(1000)
+        .saturating_mul(lenses.max(1) as u64)
+}
+
+/// Largest actual output cap fitting this physical request. This empirical
+/// input estimate is not a provider bound; physical reservation stays whole.
+pub(crate) fn fitting_output_tokens(
+    per_call: u64,
+    output_ceiling: u64,
+    model_input_bytes: u64,
+    minimum_output: u64,
+) -> Option<u64> {
+    let output = physical_planning_limit(per_call)
+        .saturating_sub(crate::next::estimated_request_tokens(model_input_bytes, 0))
+        .min(output_ceiling);
+    (output > 0 && output >= minimum_output).then_some(output)
 }
 
 pub(crate) fn physical_planning_limit(per_call: u64) -> u64 {
@@ -4097,16 +4119,16 @@ pub(crate) fn physical_planning_limit(per_call: u64) -> u64 {
 }
 
 /// Largest model-visible input estimate that fits dispatch after its
-/// output reserve & host/tokenization headroom. Packet refinement must use
-/// this same allowance before dispatch decides work is unaffordable.
+/// meaningful single-lens output floor & host/tokenization headroom. Dispatch
+/// chooses the largest fitting actual output cap up to its frozen ceiling.
 pub(crate) fn physical_planning_input_bytes(per_call: u64) -> u64 {
     physical_planning_limit(per_call)
-        .saturating_sub(dispatch_output_tokens(per_call))
-        .saturating_mul(4)
+        .saturating_sub(minimum_output_tokens(dispatch_output_tokens(per_call), 1))
+        .saturating_mul(crate::next::MODEL_INPUT_BYTES_PER_TOKEN)
 }
 
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
-    let output_tokens = dispatch_output_tokens(limits.seat_token_budget);
+    let output_ceiling = dispatch_output_tokens(limits.seat_token_budget);
     let input_byte_limit = physical_planning_input_bytes(limits.seat_token_budget);
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     let mut drafts: Vec<SeatDraft> = Vec::new();
@@ -4185,7 +4207,13 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
                 .collect::<Vec<_>>();
             // Strict physical compatibility, not merely equal path counts.
             let sizes = sizer.shared_request_sizes(&items).ok()??;
-            (sizes.model_visible_input_bytes <= input_byte_limit).then_some((index, sizes))
+            fitting_output_tokens(
+                limits.seat_token_budget,
+                output_ceiling,
+                sizes.model_visible_input_bytes,
+                minimum_output_tokens(output_ceiling, members.len()),
+            )
+            .map(|_| (index, sizes))
         });
         if let Some((index, sizes)) = merge {
             let draft = &mut drafts[index];
@@ -4245,9 +4273,18 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         let bytes = draft.request_bytes;
         let model_bytes = draft.model_input_bytes;
         let gather_bytes = 0u64;
+        let minimum_output = minimum_output_tokens(output_ceiling, draft.members.len());
+        let fitting_output = fitting_output_tokens(
+            limits.seat_token_budget,
+            output_ceiling,
+            model_bytes,
+            minimum_output,
+        );
+        let output_tokens = fitting_output.unwrap_or(minimum_output.min(output_ceiling));
         let tokens = crate::next::estimated_request_tokens(model_bytes, output_tokens);
         let gather_tokens = 0u64;
         let context_reserve = 0u64;
+        let context_tokens = crate::next::estimated_request_tokens(context_reserve, 0);
         let readiness_gap = draft_readiness_gap(draft, work);
         let stage_not_ready = draft
             .members
@@ -4255,7 +4292,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             .any(|position| stage_readiness_gap(&work[*position]).is_some());
         let reason = if readiness_gap.is_some() {
             readiness_gap
-        } else if model_bytes > input_byte_limit {
+        } else if fitting_output.is_none() {
             Some("physical-envelope-headroom")
         } else if seats.len() as u64 >= initial_call_capacity {
             Some("fresh-verification-reserve")
@@ -4268,7 +4305,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
                     let item = &work[*position];
                     deferred_work.push(json!({"providerId":item.provider_id,
                         "packet":item.packet_file_name(),"part":item.part().map_or(1, |part| part.number),
-                        "reason":reason,"plannedRequestBytes":bytes,"plannedModelInputBytes":model_bytes,"modelVisibleInputBytes":model_bytes,"estimatedTokens":tokens}));
+                        "reason":reason,"plannedRequestBytes":bytes,"plannedModelInputBytes":model_bytes,"modelVisibleInputBytes":model_bytes,"estimatedTokens":tokens,"minimumOutputTokens":minimum_output,"outputTokenCeiling":output_ceiling}));
                 }
                 continue;
             }
@@ -4283,7 +4320,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         total_tokens = total_tokens
             .saturating_add(tokens)
             .saturating_add(gather_tokens)
-            .saturating_add(context_reserve.div_ceil(4));
+            .saturating_add(context_tokens);
         total_bytes = total_bytes
             .saturating_add(bytes)
             .saturating_add(gather_bytes);
@@ -4297,8 +4334,8 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             .1
             .saturating_add(tokens)
             .saturating_add(gather_tokens)
-            .saturating_add(context_reserve.div_ceil(4));
-        if model_bytes > input_byte_limit {
+            .saturating_add(context_tokens);
+        if fitting_output.is_none() {
             violations.push(format!(
                 "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds planning allowance {} (physical cap {})",
                 draft.bundle, draft.part, physical_planning_limit(limits.seat_token_budget), limits.seat_token_budget
@@ -4314,10 +4351,12 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "estimatedTokens": tokens,
             "gatherPolicy": "deterministic",
             "initialPhysicalCalls": if gathers { 2 } else { 1 },
-            "estimatedInitialTokens": tokens.saturating_add(gather_tokens).saturating_add(context_reserve.div_ceil(4)),
+            "estimatedInitialTokens": tokens.saturating_add(gather_tokens).saturating_add(context_tokens),
             "evidenceGatherer": if gathers { json!({"role":"alchemist", "modelTier":"mechanical-cheap", "reservedTokens":limits.seat_token_budget}) } else { Value::Null },
-            "estimatedInputTokens": estimate_tokens(model_bytes),
+            "estimatedInputTokens": crate::next::estimated_request_tokens(model_bytes, 0),
             "outputTokenLimit": output_tokens,
+            "outputTokenCeiling": output_ceiling,
+            "minimumOutputTokens": minimum_output,
             "perCallTokenAllowance": limits.seat_token_budget,
             "plannedRequestBytes": bytes,
             "plannedModelInputBytes": model_bytes,
@@ -4412,7 +4451,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
-        "estimateBasis": "estimate: canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once, divided by 4 plus output reserve; unchanged 15% headroom; each physical call reserves full allowance & reconciles actual usage",
+        "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
         "requestEncoding": "runtime-initial-v1",
         "byteBasis": {
             "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
@@ -4429,7 +4468,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "schemaVersion": 2,
             "totalTokens": limits.run_token_budget,
             "perCallTokens": limits.seat_token_budget,
-            "outputTokens": output_tokens,
+            "outputTokens": output_ceiling,
             "maxSeats": limits.max_total_seats,
         },
         "coverageMode": if sampled { coverage_plan::MODE_RISK_SAMPLED } else { coverage_plan::MODE_EXHAUSTIVE },
@@ -6156,6 +6195,53 @@ mod runtime_evidence_tests {
     }
 
     #[test]
+    fn shared_output_floor_splits_three_reports_without_dropping_members() {
+        let (run, request) = setup();
+        let mut work = [
+            "reasoning.correctness",
+            "reasoning.architecture",
+            "reasoning.ai-slop",
+        ]
+        .into_iter()
+        .map(|provider| planning_work(&request, provider, "pub fn f() {}\n"))
+        .collect::<Vec<_>>();
+        for item in &mut work {
+            item.request
+                .packet
+                .as_object_mut()
+                .unwrap()
+                .remove("contractText");
+        }
+        let limits = DispatchLimits {
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+            wave_width: 1,
+        };
+        let plan = lens_dispatch_plan(&work, &limits);
+        assert_eq!(plan["withinLimits"], true, "{plan}");
+        assert_eq!(plan["requiredSeats"], 2, "{plan}");
+        let mut packets = Vec::new();
+        for seat in plan["seats"].as_array().unwrap() {
+            let members = seat["packets"].as_array().unwrap();
+            assert!(
+                seat["outputTokenLimit"].as_u64().unwrap()
+                    >= minimum_output_tokens(2500, members.len())
+            );
+            assert!(seat["outputTokenLimit"].as_u64().unwrap() <= 2500);
+            packets.extend(members.iter().cloned());
+        }
+        packets.sort_by_key(Value::to_string);
+        let mut expected = work
+            .iter()
+            .map(|item| json!(item.packet_file_name()))
+            .collect::<Vec<_>>();
+        expected.sort_by_key(Value::to_string);
+        assert_eq!(packets, expected);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
     fn dispatch_uses_actual_shared_encoding_and_splits_over_budget_members() {
         let (run, request) = setup();
         let text = "source \"line\" \n".repeat(1000);
@@ -6192,7 +6278,9 @@ mod runtime_evidence_tests {
         assert!(shared_model > single_model);
         let roomy = DispatchLimits {
             // Shared author, output & minimum 2048-byte gathered context.
-            seat_token_budget: shared_model.div_ceil(4) + 4096 + 1500 + 100,
+            seat_token_budget: crate::next::estimated_request_tokens(shared_model, 4096)
+                + 1500
+                + 100,
             run_token_budget: 1_000_000,
             ..DispatchLimits::default()
         };
@@ -6208,7 +6296,7 @@ mod runtime_evidence_tests {
             plan["seats"][0]["estimatedTokens"],
             crate::next::estimated_request_tokens(
                 shared_model,
-                plan["reasoningBudget"]["outputTokens"].as_u64().unwrap()
+                plan["seats"][0]["outputTokenLimit"].as_u64().unwrap()
             )
         );
         assert_eq!(plan["seats"][0]["transportEncoding"], "shared-context-v1");
@@ -6227,11 +6315,20 @@ mod runtime_evidence_tests {
             },
         )
         .unwrap();
+        assert_eq!(
+            issued["seats"][0]["outputTokenLimit"],
+            plan["seats"][0]["outputTokenLimit"]
+        );
+        assert_eq!(
+            issued["seats"][0]["outputTokenCeiling"],
+            plan["reasoningBudget"]["outputTokens"]
+        );
         assert_eq!(issued["seats"][0]["budgetReservationTokens"],plan["seats"][0]["estimatedTokens"],
             "resume/admission must reconstruct the same physical shared request, not sum logical packet copies");
         let bounded = DispatchLimits {
-            seat_token_budget: (single_model.div_ceil(4) + shared_model.div_ceil(4)) / 2
-                + 4096
+            seat_token_budget: (crate::next::estimated_request_tokens(single_model, 1000)
+                + crate::next::estimated_request_tokens(shared_model, 2000))
+                / 2
                 + 1500,
             ..roomy
         };
