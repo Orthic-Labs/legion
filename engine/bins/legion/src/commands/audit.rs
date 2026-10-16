@@ -327,14 +327,17 @@ mod continuation_staging_tests {
         }
         let child = fixture.0.join("child");
         std::fs::create_dir(&child).unwrap();
-        std::fs::write(child.join("sentinel"), b"unchanged").unwrap();
+        std::fs::write(child.join("existing-file"), b"unchanged").unwrap();
         assert!(continue_command(ContinueAuditArgs {
             run: parent,
             out: child.clone(),
             operator_instruction: "resume within same budget".into()
         })
         .is_err());
-        assert_eq!(std::fs::read(child.join("sentinel")).unwrap(), b"unchanged");
+        assert_eq!(
+            std::fs::read(child.join("existing-file")).unwrap(),
+            b"unchanged"
+        );
         assert!(!child.join(legion_audit::next::STATE_FILE).exists());
     }
 
