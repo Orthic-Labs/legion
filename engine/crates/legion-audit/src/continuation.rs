@@ -603,7 +603,37 @@ mod tests {
         base: PathBuf,
         parent: PathBuf,
         child: PathBuf,
-        _source: crate::snapshot::tests::Fixture,
+    }
+    fn source_snapshot(base: &Path) -> crate::snapshot::FrozenSnapshot {
+        let source = base.join("source");
+        fs::create_dir_all(&source).unwrap();
+        let source = fs::canonicalize(source).unwrap();
+        let git = |args: &[&str]| {
+            let mut command = rightkit_child_process::OwnedCommand::new("git");
+            command
+                .command_mut()
+                .current_dir(&source)
+                .args(args)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            let mut child = command.spawn().unwrap();
+            assert!(child
+                .wait_timeout(std::time::Duration::from_secs(10))
+                .unwrap()
+                .unwrap()
+                .success());
+        };
+        git(&["init", "-q"]);
+        git(&["config", "user.name", "Audit Test"]);
+        git(&["config", "user.email", "audit@example.invalid"]);
+        fs::write(source.join("file.rs"), b"base\n").unwrap();
+        git(&["add", "."]);
+        git(&["-c", "commit.gpgsign=false", "commit", "-qm", "base"]);
+        let scope =
+            crate::scope::ResolvedScope::resolve(&source, crate::scope::ScopeSpec::Local, None)
+                .unwrap();
+        crate::snapshot::FrozenSnapshot::capture(scope).unwrap()
     }
     fn put(path: &Path, value: &Value) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -647,12 +677,11 @@ mod tests {
             Self::with_usage(10938, 289)
         }
         fn with_usage(input: u64, output: u64) -> Self {
-            let source = crate::snapshot::tests::Fixture::new();
-            let snapshot = source.capture(crate::scope::ScopeSpec::Local);
             let mut nonce = [0u8; 8];
             getrandom::fill(&mut nonce).unwrap();
             let base =
                 std::env::temp_dir().join(format!("legion-continuation-{}", hex::encode(nonce)));
+            let snapshot = source_snapshot(&base);
             let parent = base.join("parent");
             let child = base.join("child");
             fs::create_dir_all(parent.join("lens-packets")).unwrap();
@@ -716,7 +745,6 @@ mod tests {
                 base,
                 parent,
                 child,
-                _source: source,
             }
         }
         fn prepare(&self) -> Value {
@@ -725,6 +753,24 @@ mod tests {
     }
     impl Drop for Fixture {
         fn drop(&mut self) {
+            // Git objects may be read-only on Windows. Clear that attribute
+            // only inside this fixture; immutable snapshots live in Audit cache.
+            #[cfg(windows)]
+            for entry in walkdir::WalkDir::new(&self.base)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(Result::ok)
+            {
+                if entry.file_type().is_file() {
+                    if let Ok(metadata) = entry.metadata() {
+                        let mut permissions = metadata.permissions();
+                        if permissions.readonly() {
+                            permissions.set_readonly(false);
+                            let _ = fs::set_permissions(entry.path(), permissions);
+                        }
+                    }
+                }
+            }
             let _ = fs::remove_dir_all(&self.base);
         }
     }
