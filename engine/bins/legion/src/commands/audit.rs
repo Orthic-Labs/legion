@@ -1810,20 +1810,16 @@ fn lens_work_items(
             if let Some(out) = out {
                 write_artifact(
                     out,
-                    "candidate-routing.json",
+                    legion_audit::native_providers::reasoning::candidate_routing::ROUTING_SNAPSHOT_FILE,
                     &serde_json::to_vec_pretty(&accounting).map_err(|error| error.to_string())?,
                 )
                 .map_err(|error| error.message)?;
             }
-            for row in accounting["routes"].as_array().into_iter().flatten() {
-                if row["route"].as_str() == Some("unavailable") {
-                    promotion_gaps.push(format!(
-                        "candidate-route-unavailable:{}:{}",
-                        row["provider"].as_str().unwrap_or("unknown"),
-                        row["candidateId"].as_str().unwrap_or("unknown")
-                    ));
-                }
-            }
+            promotion_gaps.extend(
+                legion_audit::native_providers::reasoning::candidate_routing::unavailable_gaps(
+                    &accounting,
+                ),
+            );
         }
         // Without scanner results the packets equal the size gate's: reuse
         // them. With results (promotion, adjudicator candidates) rebuild.

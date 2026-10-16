@@ -1295,7 +1295,9 @@ fn build_invocations_with_budget(
         });
         if candidate_routing::accounting_owner(plan) == Some(provider.id.as_str()) {
             packet["candidateRouting"] = all_scanner_candidates
-                .map(|candidates| candidate_routing::accounting(plan, candidates))
+                .map(|candidates| candidate_routing::packet_accounting(plan, candidates))
+                .transpose()
+                .map_err(AuditError::Invalid)?
                 .unwrap_or(Value::Null);
         }
         // === LANE B BOUNDARY: security adjudicator packet construction. ===

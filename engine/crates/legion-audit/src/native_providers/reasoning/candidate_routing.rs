@@ -2,12 +2,16 @@
 
 use std::collections::BTreeSet;
 
-use legion_contracts::ProviderResult;
+use legion_contracts::{canonical_digest, ProviderResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::{ReasoningInvocation, ScannerCandidate, ADJUDICATOR_PROVIDER_ID};
 use crate::plan::{AuditProvider, FrozenPlan, ProviderKind};
+
+/// Complete run-level routing ledger. Reviewer packets carry its digest &
+/// reference, while actionable candidate evidence stays in its owning lens.
+pub const ROUTING_SNAPSHOT_FILE: &str = "candidate-routing.json";
 
 /// Adapter categories outrank broad provider families. Frozen generator facts
 /// remain alongside original mapping; an unfamiliar category stays unresolved.
@@ -130,12 +134,16 @@ pub fn candidates_for_part(
 /// Frozen plan decides whether a lane exists & applies. Unsupported categories
 /// remain visible, including full candidate evidence in the accounting packet.
 pub fn accounting(plan: &FrozenPlan, candidates: &[ScannerCandidate]) -> Value {
+    accounting_for_providers(plan.providers(), candidates)
+}
+
+fn accounting_for_providers(providers: &[AuditProvider], candidates: &[ScannerCandidate]) -> Value {
     let routes = candidates
         .iter()
         .map(|candidate| {
             let target = target_provider(candidate);
             let active = target.as_ref().is_some_and(|target| {
-                plan.providers().iter().any(|provider| {
+                providers.iter().any(|provider| {
                     provider.id == *target
                         && provider.kind == ProviderKind::HostService
                         && !provider.not_applicable()
@@ -166,6 +174,48 @@ pub fn accounting(plan: &FrozenPlan, candidates: &[ScannerCandidate]) -> Value {
         })
         .collect::<Vec<_>>();
     json!({"schemaVersion": 1, "candidateCount": candidates.len(), "routes": routes})
+}
+
+/// A routing ledger is run accounting, not reviewer input. Repeating its full
+/// unavailable evidence in unrelated packets spends their physical budget &
+/// incorrectly makes those lenses own missing review lanes. The run retains
+/// every unavailable gap; this reference cannot dispose of any candidate.
+pub fn packet_accounting(
+    plan: &FrozenPlan,
+    candidates: &[ScannerCandidate],
+) -> Result<Value, String> {
+    packet_reference(&accounting(plan, candidates))
+}
+
+fn packet_reference(accounting: &Value) -> Result<Value, String> {
+    Ok(json!({
+        "schemaVersion": 1,
+        "kind": "candidate-routing-reference",
+        "snapshotRef": ROUTING_SNAPSHOT_FILE,
+        "accountingDigest": canonical_digest(accounting).map_err(|error| error.to_string())?,
+        "candidateCount": accounting["candidateCount"],
+        "unavailableCount": unavailable_gaps(accounting).len(),
+        "scope": "run-accounting-only",
+        "disposition": "none-implied",
+    }))
+}
+
+/// Run-level unresolved routes remain independent of any lens's findings or
+/// source-promotion status, including when no reasoning lane is selected.
+pub fn unavailable_gaps(accounting: &Value) -> Vec<String> {
+    accounting["routes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|route| route["route"].as_str() == Some("unavailable"))
+        .map(|route| {
+            format!(
+                "candidate-route-unavailable:{}:{}",
+                route["provider"].as_str().unwrap_or("unknown"),
+                route["candidateId"].as_str().unwrap_or("unknown")
+            )
+        })
+        .collect()
 }
 
 pub fn accounting_owner(plan: &FrozenPlan) -> Option<&str> {
@@ -372,6 +422,64 @@ mod tests {
                 domain
             );
         }
+    }
+
+    #[test]
+    fn unavailable_run_accounting_is_complete_without_repeating_evidence_in_packets() {
+        let candidates = (0..256)
+            .map(|index| {
+                let mut candidate = candidate("security", &format!("nomination-{index}"));
+                candidate.evidence_excerpt =
+                    Some(format!("source evidence {index}: {}", "x".repeat(4096)));
+                candidate
+            })
+            .collect::<Vec<_>>();
+        let accounting = accounting_for_providers(&[], &candidates);
+        let archived = serde_json::to_vec(&accounting).unwrap();
+        assert!(archived.len() > 1_000_000);
+        assert_eq!(accounting["candidateCount"], 256);
+        let gaps = unavailable_gaps(&accounting);
+        assert_eq!(gaps.len(), candidates.len());
+        assert_eq!(gaps.iter().collect::<BTreeSet<_>>().len(), candidates.len());
+        for (row, candidate) in accounting["routes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(&candidates)
+        {
+            assert_eq!(row["candidateId"], candidate.finding_id);
+            assert_eq!(row["candidate"], json!(candidate));
+            assert!(gaps.contains(&format!(
+                "candidate-route-unavailable:{}:{}",
+                candidate.provider, candidate.finding_id
+            )));
+        }
+        let reference = packet_reference(&accounting).unwrap();
+        assert!(serde_json::to_vec(&reference).unwrap().len() < 512);
+        assert!(reference.get("routes").is_none());
+        assert_eq!(reference["snapshotRef"], ROUTING_SNAPSHOT_FILE);
+        assert_eq!(
+            reference["accountingDigest"],
+            canonical_digest(&accounting).unwrap()
+        );
+        assert_eq!(reference["unavailableCount"], candidates.len());
+        assert_eq!(reference["disposition"], "none-implied");
+
+        // Changing any archived evidence changes this packet binding.
+        let mut changed = accounting.clone();
+        changed["routes"][0]["candidate"]["evidenceExcerpt"] = json!("different source evidence");
+        assert_ne!(
+            packet_reference(&changed).unwrap()["accountingDigest"],
+            reference["accountingDigest"]
+        );
+
+        // Source promotion into an unrelated lens does not transfer semantic
+        // ownership of unavailable security review; the run retains its gaps.
+        let mut request = request(&[]);
+        request.provider_id = "reasoning.performance".into();
+        request.packet["candidateRouting"] = reference;
+        assert!(super::super::required_packet_gaps(&request).is_empty());
+        assert_eq!(unavailable_gaps(&accounting), gaps);
     }
 
     #[test]

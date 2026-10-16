@@ -57,7 +57,7 @@ fn main() {
         first_verifier_model_mismatch_stops_remaining_findings_and_resume();
         insufficient_total_budget_starts_no_generation();
         unsupported_effort_stops_before_generation();
-        no_extra_context_keeps_mandatory_source_review();
+        deterministic_context_keeps_mandatory_source_review_without_gatherer();
         refusal_and_missing_usage_remain_incomplete();
         rejects_unadvertised_native_tool();
         live_runtime_lock_excludes_another_controller();
@@ -96,6 +96,82 @@ fn canonical_model(tier: &str) -> String {
         .unwrap()
         .into()
 }
+// Assert actual anchored source transport, rather than finding a marker in
+// unrelated metadata. The eager reply is the same host snapshot evidence an
+// author can inspect without spending a separate gathering call.
+fn assert_author_source(prompt: &Value) {
+    let context = &prompt["initialContext"];
+    assert_eq!(context["source"], "host-eager-snapshot-context");
+    let delivery = context["deliveries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|delivery| {
+            delivery["toolRequest"]["tool"] == "audit.read_file"
+                && delivery["toolRequest"]["arguments"]["path"] == "src/lib.rs"
+                && delivery["toolRequest"]["arguments"]["side"] == "selected"
+        })
+        .expect("selected source read must be delivered eagerly");
+    let reply = &delivery["hostToolReply"];
+    assert_eq!(reply["snapshotKey"], prompt["snapshotKey"]);
+    assert_eq!(reply["tool"], "audit.read_file");
+    assert_eq!(reply["truncated"], false);
+    assert!(reply["gaps"].as_array().unwrap().is_empty());
+    assert!(
+        reply["rows"].as_array().unwrap().iter().any(|row| {
+            row["path"] == "src/lib.rs"
+                && row["side"] == "selected"
+                && row["source"]["startLine"] == 2
+                && row["source"]["endLine"] == 2
+                && row["source"]["text"] == SOURCE_LINE
+        }),
+        "exact subtraction source must be usable at src/lib.rs:2"
+    );
+    let mut content = reply.clone();
+    content.as_object_mut().unwrap().remove("replyDigest");
+    assert_eq!(
+        reply["replyDigest"].as_str(),
+        Some(
+            legion_contracts::canonical_digest(&content)
+                .unwrap()
+                .as_str()
+        )
+    );
+}
+
+fn assert_verifier_source(prompt: &Value) {
+    assert!(prompt.get("conversation").is_none());
+    assert!(prompt.get("initialContext").is_none());
+    assert!(prompt.get("supplementaryEvidence").is_none());
+    let candidates = prompt["candidates"].as_array().unwrap();
+    assert!(!candidates.is_empty());
+    let mut labels = std::collections::BTreeSet::new();
+    for candidate in candidates {
+        assert!(labels.insert(candidate["candidateId"].as_str().unwrap()));
+        assert_eq!(candidate["finding"]["anchor"]["path"], "src/lib.rs");
+        assert_eq!(candidate["finding"]["anchor"]["line"], 2);
+        assert_eq!(candidate["finding"]["anchor"]["text"], SOURCE_LINE);
+        assert!(
+            candidate["sourcePacket"]["excerpts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|excerpt| {
+                    excerpt["path"] == "src/lib.rs"
+                        && excerpt["sourceSide"] == "selected"
+                        && excerpt["lines"].as_array().unwrap().iter().any(|line| {
+                            line["startLine"] == 2
+                                && line["endLine"] == 2
+                                && line["text"] == SOURCE_LINE
+                        })
+                }),
+            "fresh verifier must receive independently selected exact source"
+        );
+        assert!(candidate["sourceIdentity"]["requestId"].is_string());
+        assert!(candidate["sourcePacket"].get("conversation").is_none());
+    }
+}
+
 fn simulate_native(args: &[String]) {
     assert_eq!(value_after(args, "--tools"), "");
     assert_eq!(value_after(args, "--mcp-config"), r#"{"mcpServers":{}}"#);
@@ -155,7 +231,7 @@ fn simulate_native(args: &[String]) {
         assert!(prompt["inventoryPaths"].is_array());
         assert!(value_after(args, "--system-prompt").contains("Alchemist"));
     }
-    let reviewer = prompt.get("finding").is_some();
+    let reviewer = prompt["candidates"].is_array();
     if !reviewer && !gatherer && prompt_text.contains("runtime-simulation:clean-eager") {
         assert!(prompt["initialContext"]["deliveries"].is_array());
         assert!(prompt["initialContext"].to_string().contains(SOURCE_LINE));
@@ -184,12 +260,12 @@ fn simulate_native(args: &[String]) {
         fs::write(directory.join("simulation-ready"), b"ready").unwrap();
         wait_for(&directory.join("simulation-release"));
     }
-    let reply = if gatherer && directory.join("simulation-no-extra-context").is_file() {
-        json!({"contextRequests":[],"noAdditionalContextReason":"Mandatory excerpts suffice for this small source lane."})
-    } else if gatherer {
+    let reply = if gatherer {
         json!({"contextRequests":[{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}]})
     } else if reviewer {
-        json!({"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})
+        assert_verifier_source(&prompt);
+        assert_eq!(schema["properties"]["verdicts"]["type"], "array");
+        json!({"verdicts":prompt["candidates"].as_array().unwrap().iter().map(|candidate| json!({"candidateId":candidate["candidateId"],"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})).collect::<Vec<_>>()})
     } else if tool_round {
         json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}})
     } else {
@@ -216,21 +292,10 @@ fn simulate_native(args: &[String]) {
         json!({"finalResult":{"complete":true,"findings":findings,"withdrawn":[],"details":{}}})
     };
     if !gatherer && !reviewer {
-        if directory.join("simulation-no-extra-context").is_file() {
-            assert!(prompt["supplementaryEvidence"]["deliveries"]
-                .as_array()
-                .unwrap()
-                .is_empty());
-            assert!(prompt["supplementaryEvidence"]["noAdditionalContextReason"].is_string());
-            assert!(prompt["initialContext"].to_string().contains(SOURCE_LINE));
-        } else {
-            assert!(prompt["supplementaryEvidence"]["deliveries"]
-                .to_string()
-                .contains(SOURCE_LINE));
-        }
-        assert_eq!(
-            prompt["supplementaryEvidence"]["mandatoryCoverageUnchanged"],
-            true
+        assert_author_source(&prompt);
+        assert!(
+            prompt.get("supplementaryEvidence").is_none(),
+            "deterministic source delivery must not require paid gathering"
         );
         assert!(value_after(args, "--system-prompt").contains("Alchemist-specialist"));
     }
@@ -546,11 +611,11 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert!(output.status.success(), "simulation runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(result["status"], "done");
-    assert_eq!(result["calls"], 3);
-    assert_eq!(result["callAttempts"], 3);
+    assert_eq!(result["calls"], 2);
+    assert_eq!(result["callAttempts"], 2);
     assert_eq!(
         result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-        "0.0375"
+        "0.025"
     );
     assert_eq!(result["budget"]["cost"]["invoiceChargeStatus"], "unknown");
     assert!(result["budget"]["cost"]["invoiceChargeUsd"].is_null());
@@ -564,16 +629,16 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
         .run
         .join(format!("lens-receipts/{PROVIDER}.json"))
         .is_file());
-    assert_eq!(fixture.calls().len(), 3);
+    assert_eq!(fixture.calls().len(), 2);
     assert!(fixture.calls().iter().any(|call| call["toolRound"] == true));
     let budget = read_json(&fixture.run.join("next-state.json"));
-    assert_eq!(budget["issuances"], 3);
+    assert_eq!(budget["issuances"], 2);
     assert!(budget["terminalStatus"].is_null());
     let per_call = read_json(&fixture.run.join("lens-dispatch.json"))["reasoningBudget"]
         ["perCallTokens"]
         .as_u64()
         .unwrap();
-    assert_eq!(result["budget"]["reservedTokens"], 3 * per_call);
+    assert_eq!(result["budget"]["reservedTokens"], 2 * per_call);
     assert_eq!(
         budget["reservations"]
             .as_object()
@@ -581,7 +646,7 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
             .values()
             .filter(|reservation| reservation["transportAuthorized"] == true)
             .count(),
-        3
+        2
     );
     let mut stages = Vec::new();
     let mut reservation_ids = std::collections::BTreeSet::new();
@@ -600,16 +665,13 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
         ));
     }
     stages.sort();
-    assert_eq!(
-        stages,
-        ["evidence-gathering", "source-review", "source-review"]
-    );
+    assert_eq!(stages, ["source-review", "source-review"]);
     assert!(fixture.run.join("report.sarif").is_file());
     assert!(!fixture.repo.join("must-never-execute").exists());
     let (resumed_output, resumed, _) = fixture.run();
     assert!(resumed_output.status.success(), "{resumed}");
     assert_eq!(resumed["calls"], 0);
-    assert_eq!(fixture.calls().len(), 3);
+    assert_eq!(fixture.calls().len(), 2);
 }
 fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     let fixture = Fixture::new("clean-eager");
@@ -617,14 +679,14 @@ fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     assert!(output.status.success(), "simulation eager runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "clean");
-    assert_eq!(result["calls"], 2);
-    assert_eq!(result["callAttempts"], 2);
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(result["calls"], 1);
+    assert_eq!(result["callAttempts"], 1);
+    assert_eq!(fixture.calls().len(), 1);
     let receipts: Vec<_> = fs::read_dir(fixture.run.join("runtime-calls"))
         .unwrap()
         .map(|entry| read_json(&entry.unwrap().path()))
         .collect();
-    assert_eq!(receipts.len(), 2);
+    assert_eq!(receipts.len(), 1);
     let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
         &fixture.run,
         receipts
@@ -671,7 +733,13 @@ fn preserves_finding_after_fresh_verifier_success() {
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "findings");
     assert_eq!(report["findings"].as_array().unwrap().len(), 1);
-    assert_eq!(fixture.calls().len(), 3);
+    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(result["calls"], 2);
+    assert_eq!(result["callAttempts"], 2);
+    assert_eq!(
+        result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+        "0.025"
+    );
     let mut stages = Vec::new();
     for entry in fs::read_dir(fixture.run.join("runtime-calls")).unwrap() {
         let envelope = read_json(&entry.unwrap().path());
@@ -713,14 +781,7 @@ fn preserves_finding_after_fresh_verifier_success() {
         stages.push(stage.to_owned());
     }
     stages.sort();
-    assert_eq!(
-        stages,
-        [
-            "evidence-gathering",
-            "finding-verification",
-            "source-review"
-        ]
-    );
+    assert_eq!(stages, ["finding-verification", "source-review"]);
     assert_eq!(
         fixture
             .calls()
@@ -754,7 +815,7 @@ fn refusal_and_missing_usage_remain_incomplete() {
             1,
             "paid finding lost:{report}"
         );
-        assert_eq!(fixture.calls().len(), 3);
+        assert_eq!(fixture.calls().len(), 2);
         let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
             .unwrap()
             .map(|entry| read_json(&entry.unwrap().path()))
@@ -787,13 +848,13 @@ fn refusal_and_missing_usage_remain_incomplete() {
                 assert!(result["budget"]["cost"]["reportedApiEquivalentCostUsd"].is_null());
                 assert_eq!(
                     result["budget"]["cost"]["knownReportedApiEquivalentSubtotalUsd"],
-                    "0.025"
+                    "0.0125"
                 );
             }
             let (resumed_output, resumed, _) = fixture.run();
             assert_eq!(resumed_output.status.code(), Some(2));
             assert_eq!(resumed["calls"], 0);
-            assert_eq!(fixture.calls().len(), 3, "resume spent after {mode}");
+            assert_eq!(fixture.calls().len(), 2, "resume spent after {mode}");
         }
     }
 }
@@ -810,7 +871,7 @@ fn rejects_unadvertised_native_tool() {
         .run
         .join(format!("lens-receipts/{PROVIDER}.json"))
         .exists());
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 1);
 }
 fn live_runtime_lock_excludes_another_controller() {
     let fixture = Fixture::new("wait-for-release");
@@ -845,7 +906,7 @@ fn live_runtime_lock_excludes_another_controller() {
     );
     assert_eq!(
         fixture.calls().len(),
-        2,
+        1,
         "contender launched a model process"
     );
 }
@@ -875,10 +936,10 @@ fn rejects_observed_frontier_model_without_losing_usage() {
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(result["complete"], false);
     assert_eq!(report["status"], "incomplete");
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 1);
     assert_eq!(
         result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-        "0.025"
+        "0.0125"
     );
     let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
         .unwrap()
@@ -895,7 +956,7 @@ fn rejects_observed_frontier_model_without_losing_usage() {
         .as_str()
         .unwrap()
         .contains("prior authenticated native model mismatch"));
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 1);
 }
 fn insufficient_total_budget_starts_no_generation() {
     let fixture = Fixture::new("upheld");
@@ -909,7 +970,7 @@ fn insufficient_total_budget_starts_no_generation() {
     assert_eq!(result["complete"], false);
     assert!(
         fixture.calls().is_empty(),
-        "gathering spent before full staged budget could fit"
+        "author spent before fresh verification reserve could fit"
     );
 }
 
@@ -928,8 +989,8 @@ fn first_verifier_model_mismatch_stops_remaining_findings_and_resume() {
         let calls = fixture.calls();
         assert_eq!(
             calls.len(),
-            3,
-            "second verifier generated after model violation"
+            2,
+            "one author & one bounded verifier batch expected"
         );
         assert_eq!(
             calls.iter().filter(|call| call["reviewer"] == true).count(),
@@ -953,7 +1014,7 @@ fn first_verifier_model_mismatch_stops_remaining_findings_and_resume() {
             .all(|disposition| disposition["verdict"] == "unresolved"));
         assert_eq!(
             result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-            "0.0375"
+            "0.025"
         );
         let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
             .unwrap()
@@ -998,7 +1059,7 @@ fn first_verifier_model_mismatch_stops_remaining_findings_and_resume() {
             .contains("prior authenticated native model mismatch"));
         assert_eq!(
             fixture.calls().len(),
-            3,
+            2,
             "resume generated after model violation"
         );
     }
@@ -1020,16 +1081,25 @@ fn unsupported_effort_stops_before_generation() {
         .contains("host-reasoning-effort-unsupported"));
     assert!(fixture.calls().is_empty());
 }
-fn no_extra_context_keeps_mandatory_source_review() {
+fn deterministic_context_keeps_mandatory_source_review_without_gatherer() {
     let fixture = Fixture::new("clean-eager");
-    fs::create_dir_all(fixture.run.join("runtime-host")).unwrap();
-    fs::write(
-        fixture.run.join("runtime-host/simulation-no-extra-context"),
-        b"no extra",
-    )
-    .unwrap();
+    let dispatch = read_json(&fixture.run.join("lens-dispatch.json"));
+    assert_eq!(dispatch["seats"].as_array().unwrap().len(), 1);
+    assert!(dispatch["seats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|seat| seat["gatherPolicy"] == "deterministic"));
     let (output, result, report) = fixture.run();
     assert!(output.status.success(), "{result}");
     assert_eq!(report["status"], "clean");
-    assert_eq!(fixture.calls().len(), 2);
+    let calls = fixture.calls();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0]["gatherer"], false);
+    assert_eq!(calls[0]["reviewer"], false);
+    assert_author_source(&calls[0]["prompt"]);
+    assert_eq!(
+        result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+        "0.0125"
+    );
 }

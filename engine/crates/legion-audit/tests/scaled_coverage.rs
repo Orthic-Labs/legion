@@ -304,12 +304,12 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
     let env = build_env(
         "sampled-complete",
         &[PERFORMANCE],
-        coverage_reasoning("risk-sampled", 400_000),
+        coverage_reasoning("risk-sampled", 250_000),
         &files,
     );
     let frozen = frozen_coverage(&env, PERFORMANCE.0);
     assert!(frozen.is_sampled());
-    // Stage reserves leave a valid sample below the statistical floor; every
+    // This budget leaves a valid sample below the statistical floor; every
     // selected path must still complete & unsampled paths remain explicit.
     assert!(
         !frozen.review_set.is_empty() && frozen.review_set.len() < 30,
@@ -590,18 +590,27 @@ fn eleven_hundred_files_fit_the_run_budget_sampled_and_exhaustive_refuses() {
         coverage_reasoning("exhaustive", 6_000_000),
         &files,
     );
-    let refused = lens_dispatch_plan(&exhaustive.work, &limits);
+    // Cheap gather removal can make this source fit 6M tokens. Explicit
+    // exhaustive mode still retains every path when actual dispatch caps tighten.
+    for (provider, _) in providers {
+        let frozen = frozen_coverage(&exhaustive, provider);
+        assert!(!frozen.is_sampled());
+        assert_eq!(frozen.review_set.len(), 1100);
+    }
+    let strict_limits = DispatchLimits {
+        run_token_budget: 300_000,
+        max_total_seats: 2,
+        ..limits
+    };
+    let refused = lens_dispatch_plan(&exhaustive.work, &strict_limits);
     assert_eq!(refused["coverageMode"], "exhaustive");
     assert_eq!(refused["withinLimits"], false);
-    assert!(
-        refused["violations"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|violation| violation.as_str().unwrap().contains("over the run budget")),
-        "{:?}",
-        refused["violations"]
+    assert!(refused["deferredWork"].as_array().unwrap().is_empty());
+    assert_eq!(
+        refused["selectedPackets"].as_array().unwrap().len(),
+        exhaustive.work.len()
     );
+    assert!(!refused["violations"].as_array().unwrap().is_empty());
 }
 
 /// About 1,070 files of mixed sizes with a large mandatory (security-sensitive)
@@ -713,26 +722,94 @@ fn ember_like_auto_plan_freezes_with_every_seat_within_budget() {
 }
 
 #[test]
-fn ember_like_plan_still_refuses_when_the_run_budget_is_genuinely_exceeded() {
-    let error = try_build_env(
+fn ember_like_tight_budget_freezes_deferred_mandatory_coverage_as_incomplete() {
+    let env = build_env(
         "ember-tight",
         &EMBER_PROVIDERS,
         coverage_reasoning("auto", 1_000_000),
         &ember_like_files(),
-    )
-    .err()
-    .expect("mandatory coverage cannot fit the frozen budget");
-    assert!(matches!(&error, AuditError::BoundExceeded(_)));
-    let message = error.to_string();
-    assert!(message.contains("mandatory coverage alone"), "{message}");
-    assert!(
-        message.contains("mandatory coverage was not reduced"),
-        "{message}"
     );
-    assert!(
-        message.len() < 1024,
-        "refusal should remain actionable & concise"
+    let frozen = frozen_coverage(&env, "reasoning.security");
+    assert!(frozen.is_sampled() && frozen.bounded);
+    assert!(!frozen.review_set.is_empty());
+    assert!(!frozen.mandatory_deferred.is_empty());
+    assert!(frozen.mandatory.is_disjoint(&frozen.mandatory_deferred));
+    assert_eq!(
+        frozen
+            .mandatory
+            .union(&frozen.mandatory_deferred)
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        frozen.mandatory_universe
     );
+    let item = env
+        .work
+        .iter()
+        .find(|item| item.provider_id == "reasoning.security")
+        .unwrap();
+    let result = ingest_fixture(&env.run, item);
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap.starts_with("lens-mandatory-deferred:reasoning.security:")));
+    let report = recompute_run(&env.run).unwrap().report;
+    assert_eq!(report.status, ReportStatus::Incomplete);
+    assert_eq!(report.claims["qualityGate"], "unproven");
+    let claim = &report.claims["lensCoverage"]["reasoning.security"];
+    assert_eq!(claim["mandatoryDeferred"], json!(frozen.mandatory_deferred));
+    for stratum in claim["strata"].as_array().unwrap() {
+        assert_eq!(stratum["confidence"]["claim"], "none");
+    }
+}
+
+#[test]
+fn ember_like_five_call_budget_admits_raw_code_and_conserves_physical_work() {
+    let env = build_env(
+        "ember-five-calls",
+        &EMBER_PROVIDERS,
+        json!({"coverageRequest":{"mode":"risk-sampled", "runTokenBudget":50_000,
+            "seatTokenBudget":10_000, "maxTotalSeats":5}}),
+        &ember_like_files(),
+    );
+    let limits = DispatchLimits {
+        run_token_budget: 50_000,
+        seat_token_budget: 10_000,
+        max_total_seats: 5,
+        wave_width: 1,
+    };
+    let dispatch = lens_dispatch_plan(&env.work, &limits);
+    assert_eq!(dispatch["withinLimits"], true, "{}", dispatch["violations"]);
+    assert!(dispatch["requiredInitialCalls"].as_u64().unwrap() <= 4);
+    assert_eq!(dispatch["gatherCalls"], 0);
+    assert_eq!(dispatch["followupReserveCalls"], 1);
+    assert_eq!(dispatch["reasoningBudget"]["outputTokens"], 2500);
+    let selected = dispatch["selectedPackets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    let deferred = dispatch["deferredPackets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert!(selected.is_disjoint(&deferred));
+    assert_eq!(selected.len() + deferred.len(), env.work.len());
+    assert!(env
+        .work
+        .iter()
+        .filter(|item| selected.contains(item.packet_file_name().as_str()))
+        .flat_map(|item| item.request.packet["excerpts"].as_array().unwrap())
+        .any(|excerpt| excerpt["mode"] == "raw"
+            && excerpt["content"]
+                .as_str()
+                .is_some_and(|source| source.contains("pub fn") && source.contains('{'))));
+    assert!(!frozen_coverage(&env, "reasoning.security")
+        .mandatory_deferred
+        .is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -1076,6 +1153,9 @@ fn lens_packets_reference_the_inventory_instead_of_embedding_it() {
         "excerpts",
         "excerptCoverage",
         "scannerCandidates",
+        "candidateContext",
+        "candidateRouting",
+        "candidateDispositionContract",
         "triggerEvidence",
         "reportSchemaBody",
         "semanticReviewContract",
@@ -1103,7 +1183,15 @@ fn lens_packets_reference_the_inventory_instead_of_embedding_it() {
                 "snapshotRef": INVENTORY_SNAPSHOT_FILE,
             })
         );
-        // Only the inventory field changed shape.
+        assert!(packet["candidateContext"].is_null());
+        assert!(packet["candidateRouting"].is_null());
+        assert!(
+            serde_json::to_vec(&packet["candidateDispositionContract"])
+                .unwrap()
+                .len()
+                < 1024
+        );
+        // Inventory stays referenced; added candidate contracts remain bounded.
         for key in packet.as_object().unwrap().keys() {
             assert!(expected_keys.contains(key.as_str()), "unexpected key {key}");
         }

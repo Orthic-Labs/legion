@@ -332,27 +332,40 @@ fn conditional_witnesses_do_not_turn_other_bundles_exhaustive() {
         &witnesses,
     )
     .unwrap();
+    let conditional = coverage_plan::FrozenCoverage::from_value(&plan["reasoning.a11y"]).unwrap();
+    let security = coverage_plan::FrozenCoverage::from_value(&plan["reasoning.security"]).unwrap();
+    assert!(conditional.bounded);
+    assert!(!conditional.review_set.is_empty());
+    assert!(conditional.review_set.len() < paths.len());
     assert_eq!(
-        plan["reasoning.a11y"]["reviewSet"]
-            .as_array()
-            .unwrap()
-            .len(),
-        paths.len()
+        conditional.mandatory_universe,
+        paths.iter().cloned().collect::<BTreeSet<_>>()
     );
-    assert!(
-        plan["reasoning.security"]["reviewSet"]
-            .as_array()
-            .unwrap()
-            .len()
-            < paths.len()
+    assert!(conditional
+        .mandatory
+        .is_disjoint(&conditional.mandatory_deferred));
+    assert_eq!(
+        conditional
+            .mandatory
+            .union(&conditional.mandatory_deferred)
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        conditional.mandatory_universe
     );
-    assert!(
-        plan["reasoning.security"]["declaredUnsampled"]
-            .as_u64()
-            .unwrap()
-            > 0
+    assert_eq!(plan["reasoning.a11y"]["strata"][0]["N"], paths.len());
+    assert_eq!(
+        plan["reasoning.a11y"]["strata"][0]["n"],
+        conditional.mandatory.len()
     );
-    assert_eq!(plan["reasoning.security"]["strata"][0]["n"], 0);
+    assert_eq!(plan["reasoning.a11y"]["confidence"]["claim"], "none");
+    // Sharing source selection does not inherit another lens's witness duty.
+    assert!(security.mandatory_universe.is_empty());
+    assert!(security.mandatory.is_empty());
+    assert!(security.review_set.len() < paths.len());
+    assert_eq!(
+        plan["reasoning.security"]["declaredUnsampled"],
+        paths.len() - security.review_set.len()
+    );
 }
 
 #[test]
@@ -475,22 +488,28 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
 }
 
 #[test]
-fn tiny_run_refuses_large_mandatory_source_before_packet_materialization() {
-    let paths = vec!["src/auth.rs".to_owned()];
-    let facts = BTreeMap::from([(
-        paths[0].clone(),
-        coverage_plan::FileFacts {
-            size: 10_000_000,
-            signal: Some("security-sensitive"),
-            ..Default::default()
-        },
-    )]);
-    let error = coverage_plan::plan_coverage(
+fn tiny_run_defers_large_mandatory_source_and_keeps_affordable_raw_review() {
+    let paths = vec!["src/auth.rs".to_owned(), "src/auth/small.rs".to_owned()];
+    let facts = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            (
+                path.clone(),
+                coverage_plan::FileFacts {
+                    size: if index == 0 { 10_000_000 } else { 1024 },
+                    signal: Some("security-sensitive"),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+    let plan = coverage_plan::plan_coverage(
         &json!({}),
         &facts,
         &[coverage_plan::LensInput {
             provider_id: "reasoning.security".into(),
-            paths,
+            paths: paths.clone(),
         }],
         &coverage_plan::CoverageRequest {
             mode: coverage_plan::CoverageMode::RiskSampled,
@@ -499,15 +518,21 @@ fn tiny_run_refuses_large_mandatory_source_before_packet_materialization() {
             max_total_seats: 5,
         },
     )
-    .unwrap_err()
-    .to_string();
-    assert!(error.contains("mandatory coverage alone"), "{error}");
-    assert!(error.contains("mandatory coverage was not reduced"));
-    assert!(error.len() < 800);
+    .unwrap();
+    let coverage = &plan["reasoning.security"];
+    assert_eq!(coverage["reviewSet"], json!(["src/auth/small.rs"]));
+    assert_eq!(coverage["mandatoryUniverse"], json!(paths));
+    assert_eq!(coverage["mandatoryDeferred"], json!(["src/auth.rs"]));
+    assert_eq!(coverage["strata"][0]["N"], 2);
+    assert_eq!(coverage["strata"][0]["n"], 1);
+    assert_eq!(coverage["declaredUnsampled"], 1);
+    assert_eq!(coverage["confidence"]["claim"], "none");
+    assert_eq!(coverage["excerpt"]["mode"], "raw");
+    assert_eq!(coverage["followupReserveTokens"], 10_000);
 }
 
 #[test]
-fn sampled_remainder_target_never_overrides_tiny_run_budget() {
+fn unaffordable_remainder_never_invents_review_or_statistical_confidence() {
     let paths = (0..1000)
         .map(|index| format!("src/file_{index}.rs"))
         .collect::<Vec<_>>();
@@ -540,7 +565,13 @@ fn sampled_remainder_target_never_overrides_tiny_run_budget() {
     .unwrap();
     let coverage = &plan["reasoning.performance"];
     let count = coverage["reviewSet"].as_array().unwrap().len();
-    assert!(count > 0 && count < coverage_plan::SAMPLE_FLOOR);
+    assert_eq!(count, 0, "whole raw files exceed bounded source allowance");
+    assert_eq!(coverage["strata"][1]["N"], paths.len());
+    assert_eq!(coverage["strata"][1]["n"], 0);
+    assert_eq!(
+        coverage["confidence"],
+        json!({"claim":"none", "basis":"bounded-risk-selection"})
+    );
     assert_eq!(coverage["sampleFloorMet"], false);
     assert_eq!(coverage["declaredUnsampled"], paths.len() - count);
     assert!(coverage["estimatedTokens"].as_u64().unwrap() <= 30_000);
@@ -638,12 +669,12 @@ fn shared_seat_transports_exact_common_metadata_once() {
 }
 
 #[test]
-fn tiny_call_cap_refuses_before_large_bundle_fanout() {
+fn bundle_count_does_not_refuse_compatible_bounded_source_selection() {
     let paths = vec!["src/ordinary.rs".to_owned()];
     let facts = BTreeMap::from([(
         paths[0].clone(),
         coverage_plan::FileFacts {
-            size: 10_000_000,
+            size: 1024,
             ..Default::default()
         },
     )]);
@@ -659,7 +690,7 @@ fn tiny_call_cap_refuses_before_large_bundle_fanout() {
         provider_id: provider.into(),
         paths: paths.clone(),
     });
-    let error = coverage_plan::plan_coverage(
+    let plan = coverage_plan::plan_coverage(
         &json!({}),
         &facts,
         &lenses,
@@ -670,9 +701,24 @@ fn tiny_call_cap_refuses_before_large_bundle_fanout() {
             max_total_seats: 5,
         },
     )
-    .unwrap_err()
-    .to_string();
-    assert!(error.contains("cheap gathering calls"));
-    assert!(error.contains("maxTotalSeats is 5"));
-    assert!(error.len() < 800);
+    .unwrap();
+    assert_eq!(plan.len(), lenses.len());
+    for config in plan.values() {
+        assert_eq!(config["reviewSet"], json!(["src/ordinary.rs"]));
+        assert_eq!(config["denominator"], 1);
+        assert_eq!(config["confidence"]["claim"], "none");
+        assert_eq!(config["followupReserveTokens"], 10_000);
+    }
+    let impossible = coverage_plan::plan_coverage(
+        &json!({}),
+        &facts,
+        &lenses,
+        &coverage_plan::CoverageRequest {
+            mode: coverage_plan::CoverageMode::RiskSampled,
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 1,
+        },
+    );
+    assert!(matches!(impossible, Err(AuditError::BoundExceeded(_))));
 }
