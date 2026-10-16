@@ -742,6 +742,42 @@ fn rendered_input_allowance_matches_dispatch_token_boundary() {
 }
 
 #[test]
+fn bounded_refinement_retains_intermediate_fit_when_final_probe_is_oversized() {
+    let mut probes = Vec::new();
+    let budget = excerpts::PartBudget {
+        cap_bytes: 20_000,
+        listing_copies: 3,
+    };
+    let (selected_cap, measured) = refine_packet_materialization(budget, 23_800, |candidate| {
+        assert_eq!(candidate.listing_copies, budget.listing_copies);
+        probes.push(candidate.cap_bytes);
+        Ok((candidate.cap_bytes, 18_000 + candidate.cap_bytes as u64))
+    })
+    .unwrap();
+    assert!(probes.len() <= 8);
+    assert_eq!(&probes[..2], &[20_000, 1]);
+    assert!(18_000 + *probes.last().unwrap() as u64 > 23_800);
+    assert_eq!(selected_cap, 5_625);
+    assert_eq!(measured, 23_625);
+    assert!(
+        selected_cap / 2 >= 948,
+        "complete fixture RAW file fits selected chunk cap"
+    );
+    let mut probes = 0;
+    let (minimum, measured) = refine_packet_materialization(budget, 24_000, |candidate| {
+        probes += 1;
+        Ok((candidate.cap_bytes, 25_000 + candidate.cap_bytes as u64))
+    })
+    .unwrap();
+    assert_eq!(probes, 2);
+    assert_eq!(minimum, 1);
+    assert!(
+        measured > 24_000,
+        "irreducible input remains explicitly unfit"
+    );
+}
+
+#[test]
 fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() {
     let files = (0..23).map(|index| (
         format!("apps/lightcraft-desktop/web/src/components/Control{index:04}.tsx"),

@@ -1045,21 +1045,27 @@ fn build_invocations(
             .get("coverage")
             .and_then(coverage_plan::FrozenCoverage::from_value)
             .is_some_and(|coverage| coverage.is_sampled());
-    let mut budget = seat_part_budget(provider);
-    let seat_tokens = provider
+    let budget = seat_part_budget(provider);
+    let target = provider
         .configuration
         .get("coverage")
         .and_then(|coverage| coverage.get("seatTokenBudget"))
-        .and_then(Value::as_u64);
-    // Dispatch already reserves output & tokenization/host headroom. Refine
-    // to its exact input allowance so smaller-fit source is not deferred by
-    // a second, inconsistent limit. Fresh verification stays reserved there.
-    let target = seat_tokens.map(ingest::physical_planning_input_bytes);
+        .and_then(Value::as_u64)
+        .map(ingest::physical_planning_input_bytes);
+    let (Some(target), Some(budget)) = (target, budget) else {
+        return build_invocations_with_budget(
+            plan,
+            provider,
+            inventory,
+            denominator,
+            invocation_epoch,
+            root,
+            scanner_candidates,
+            budget,
+        );
+    };
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
-    // Refine only materialization, never the frozen review set, promotion order,
-    // part ceiling or scope. Every candidate is rebuilt from the same inputs.
-    // A single irreducible chunk still reaches normal explicit size refusal.
-    for attempt in 0..8 {
+    let mut build = |budget| {
         let built = build_invocations_with_budget(
             plan,
             provider,
@@ -1070,9 +1076,6 @@ fn build_invocations(
             scanner_candidates,
             budget,
         )?;
-        let (Some(target), Some(current)) = (target, budget) else {
-            return Ok(built);
-        };
         let mut largest = 0u64;
         for request in &built.0 {
             let work = PendingLensWork {
@@ -1082,45 +1085,61 @@ fn build_invocations(
                 request: request.clone(),
                 promotion: None,
             };
-            let size = sizer.model_visible_input_bytes(std::slice::from_ref(&work))?;
-            largest = largest.max(size);
+            largest = largest.max(sizer.model_visible_input_bytes(std::slice::from_ref(&work))?);
         }
-        if largest <= target {
-            return Ok(built);
-        }
-        if current.cap_bytes <= 1 {
-            if allow_deferred {
-                return Ok(built);
-            }
-            return Err(AuditError::BoundExceeded(format!(
-                "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
-                provider.id
-            )));
-        }
-        let ratio_cap =
-            (current.cap_bytes as u128).saturating_mul(target as u128) / largest.max(1) as u128;
-        // Always size the minimum whole-line materialization before calling
-        // work irreducible. Never defer merely because refinement ran out.
-        let next_cap = if attempt == 6 {
-            1
-        } else {
-            usize::try_from(ratio_cap)
-                .unwrap_or(current.cap_bytes)
-                .saturating_sub(1024)
-                .max(1)
-        };
-        if next_cap >= current.cap_bytes {
-            return Err(AuditError::BoundExceeded(format!(
-                "audit packet for {} cannot fit the seat budget without dropping selected coverage",
-                provider.id
-            )));
-        }
-        budget = Some(excerpts::PartBudget {
-            cap_bytes: next_cap,
-            ..current
-        });
+        Ok((built, largest))
+    };
+    let (built, largest) =
+        refine_packet_materialization(budget, target, |budget| build(Some(budget)))?;
+    if largest > target && !allow_deferred {
+        return Err(AuditError::BoundExceeded(format!(
+            "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
+            provider.id
+        )));
     }
-    unreachable!("bounded packet refinement returns on its final attempt")
+    Ok(built)
+}
+
+/// At most eight measured materializations: original, minimum, then six
+/// bracket probes. Keep the fullest measured fit; a minimum-sized probe is
+/// never the final choice merely because an iteration limit was reached.
+/// No monotonicity assumption can admit an unmeasured or oversized packet.
+fn refine_packet_materialization<T>(
+    budget: excerpts::PartBudget,
+    target: u64,
+    mut measure: impl FnMut(excerpts::PartBudget) -> Result<(T, u64), AuditError>,
+) -> Result<(T, u64), AuditError> {
+    let original = measure(budget)?;
+    if original.1 <= target || budget.cap_bytes <= 1 {
+        return Ok(original);
+    }
+    let minimum = measure(excerpts::PartBudget {
+        cap_bytes: 1,
+        ..budget
+    })?;
+    if minimum.1 > target {
+        return Ok(minimum);
+    }
+    let mut best = minimum;
+    let mut fit_cap = 1;
+    let mut over_cap = budget.cap_bytes;
+    for _ in 0..6 {
+        if over_cap - fit_cap <= 1 {
+            break;
+        }
+        let cap_bytes = fit_cap + (over_cap - fit_cap) / 2;
+        let candidate = measure(excerpts::PartBudget {
+            cap_bytes,
+            ..budget
+        })?;
+        if candidate.1 <= target {
+            fit_cap = cap_bytes;
+            best = candidate;
+        } else {
+            over_cap = cap_bytes;
+        }
+    }
+    Ok(best)
 }
 
 fn build_invocations_with_budget(

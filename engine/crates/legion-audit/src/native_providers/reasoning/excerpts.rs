@@ -1108,22 +1108,12 @@ pub struct PartBudget {
     pub listing_copies: usize,
 }
 
-// Packets are rendered as pretty JSON nested under request.packet.excerpts.
-// Charge indentation as well as escaping; final envelope sizing in mod.rs
-// accounts for schema, metadata, coverage listings & continuation records.
+// Model input contains canonical JSON excerpt values once. Pretty artifact
+// indentation & transport-envelope escaping are not additional source cost.
+// Final envelope sizing still measures contracts, listings & graph context.
 fn rendered_excerpt_cost(excerpt: &Excerpt) -> usize {
-    serde_json::to_vec_pretty(excerpt).map_or(excerpt.content.len(), |bytes| {
-        bytes
-            .len()
-            .saturating_add(
-                bytes
-                    .iter()
-                    .filter(|byte| **byte == b'\n')
-                    .count()
-                    .saturating_mul(8),
-            )
-            .saturating_add(2)
-    })
+    legion_contracts::canonical_json_bytes(excerpt)
+        .map_or(usize::MAX, |bytes| bytes.len().saturating_add(1))
 }
 
 impl PartBudget {
@@ -1359,6 +1349,62 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(full, content).unwrap();
+    }
+
+    #[test]
+    fn promotion_prices_same_canonical_excerpt_bytes_as_partition() {
+        let dir = ScratchDir::new();
+        let path = "source.rs";
+        fs::write(
+            dir.path().join(path),
+            "pub fn quoted() { println!(\"quoted\"); }\n".repeat(8),
+        )
+        .unwrap();
+        let item = ReviewItem {
+            path: path.into(),
+            mode: ExcerptMode::Raw,
+        };
+        let hunks = ChangedHunks::new();
+        let flags = FlaggedRegions::new();
+        let chunks = prepare_file_scoped(dir.path(), path, item.mode, None, None).unwrap();
+        let canonical = chunks
+            .iter()
+            .map(|excerpt| {
+                legion_contracts::canonical_json_bytes(excerpt)
+                    .unwrap()
+                    .len()
+                    + 1
+            })
+            .sum::<usize>();
+        assert_eq!(
+            review_item_cost(dir.path(), &item, &hunks, &flags, 0),
+            canonical
+        );
+        let listing_copies = 3;
+        let listings = chunks.len() * listing_copies * (2 * path.len() + 32);
+        assert_eq!(
+            review_item_cost(dir.path(), &item, &hunks, &flags, listing_copies),
+            canonical + listings
+        );
+        let budget = PartBudget {
+            cap_bytes: 100_000,
+            listing_copies,
+        };
+        assert_eq!(
+            chunks
+                .iter()
+                .map(|excerpt| budget.chunk_cost(excerpt))
+                .sum::<usize>(),
+            canonical + listings
+        );
+        let pretty = chunks
+            .iter()
+            .map(|excerpt| serde_json::to_vec_pretty(excerpt).unwrap().len())
+            .sum::<usize>();
+        assert!(
+            pretty > canonical,
+            "artifact formatting must not buy extra promoted source"
+        );
     }
 
     #[test]
