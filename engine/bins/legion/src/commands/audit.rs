@@ -1805,8 +1805,7 @@ fn lens_work_items(
         if let Some(candidates) = candidates.as_deref() {
             let accounting =
                 legion_audit::native_providers::reasoning::candidate_routing::accounting(
-                    plan.plan(),
-                    candidates,
+                    plan, candidates,
                 );
             if let Some(out) = out {
                 write_artifact(

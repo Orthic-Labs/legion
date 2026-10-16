@@ -3,7 +3,9 @@
 Requested by Adrian, 16 October 2026. Comparison baseline: `bogusyogi/claude` commit
 `7bd906af4226e236be0b49813003ea761171fe28`, immediately before removal commit
 `1377d7262facd2ede80cc35e9e8ec7bcac0e0bc9`. Current inventory was read from Legion
-`17c29c612128895487c3d05063d1ba05a571d512`; execution repairs are described separately below.
+`17c29c612128895487c3d05063d1ba05a571d512`; source repairs below reflect `23930e5f` plus registry
+projection sync `8eec8f79`. They are source-state descriptions, not build, CI, live-run, or installation
+completion evidence.
 
 ## Findings
 
@@ -103,31 +105,42 @@ Historical source locations below are paths at the baseline commit, not live fil
 
 Historical `tools/skills/audit/providers/native-family-runner.mjs` ran:
 
+The current native adapter restores the syntax-only subset for PHP, Ruby, bash, zsh, & PowerShell by
+staging frozen source into isolated syntax invocations. These checks are conditional on host tools and
+remain bounded; they do not execute project configuration. Historical project build, test, dependency,
+and package-validation commands are represented as typed deferred commands with `executed: false` and
+policy reasons. That records the missing work explicitly; it is not restored build/test parity.
+
 | Family | Historical commands | Current parity gap |
 |---|---|---|
 | JS/TS | Package-manager `typecheck/types/check`, lint, test/test:unit, build | `code.javascript` directly plans tsc/eslint; legacy project adapters provide some build/test coverage, but native-family behavior is not fully equivalent. |
 | Python | compileall & optional pytest | `code.python` provides bounded py_compile/Ruff; pytest is policy-gapped. |
 | Rust | metadata, check all targets, Clippy, tests | `code.rust` plans metadata/check/Clippy; its tests are policy-gapped. Legacy project-test is a separate route. |
-| Go | go test & go vet | Current plan has module/vet/gofmt; equivalent go test route is absent. |
-| Swift/Obj-C | SwiftPM build/test, otherwise swiftc typecheck | Static/mobile coverage & SwiftLint do not replace these build/test/typecheck routes. |
-| JVM | Gradle/Maven build/test/verify | No equivalent native command plan. |
-| .NET | restore/build/test | No equivalent native command plan. |
-| C/C++ | CMake build or make dry run | No equivalent native command plan. |
-| PHP | php syntax checks & composer validate | No equivalent native command plan. |
-| Ruby | ruby syntax checks & bundle/rake tests | No equivalent native command plan. |
-| Dart/Flutter | analyze & test | No equivalent native command plan. |
-| Shell/PowerShell | Syntax checks | ShellCheck covers part of shell analysis; broad old syntax execution is not equivalent. |
-| Elixir/Erlang | mix compile/test or rebar3 eunit | No equivalent native command plan. |
+| Go | go test & go vet | Typed `go test ./...` plan restored; execution is deferred. Existing module/vet/gofmt plans are separate. |
+| Swift/Obj-C | SwiftPM build/test, otherwise swiftc typecheck | Typed SwiftPM build/test plans or `swiftc -typecheck` plan restored; execution is deferred. |
+| JVM | Gradle/Maven build/test/verify | Typed offline Gradle build/test and Maven verify/test plans restored; execution is deferred. |
+| .NET | restore/build/test | Typed `dotnet build/test --no-restore` plans restored; restore remains not planned under `policy-no-dependency-install`, and execution is deferred. |
+| C/C++ | CMake build or make dry run | Typed CMake configure/build and `make -n` plans restored; execution remains deferred because project code may run. |
+| PHP | php syntax checks & composer validate | Isolated PHP syntax check is restored when available; Composer validation stays deferred. |
+| Ruby | ruby syntax checks & bundle/rake tests | Isolated Ruby/Ripper syntax check is restored when available; bundle/rake tests stay deferred. |
+| Dart/Flutter | analyze & test | Typed Dart analyze/test plans restored; execution is deferred. |
+| Shell/PowerShell | Syntax checks | Isolated bash, zsh, and PowerShell syntax checks are restored when available; ShellCheck remains separate. |
+| Elixir/Erlang | mix compile/test or rebar3 eunit | Typed Mix compile/test and Rebar3 EUnit plans restored; execution is deferred. |
 
-These are migration gaps, not permission to run uncontained project commands. Restoring them needs
-native tool adapters, applicability, containment, budget & real platform acceptance evidence.
+Remaining build, test, dependency, and package execution items are migration gaps, not permission to run
+uncontained project commands. Their current frozen-plan rows explicitly say deferred and `executed: false`;
+they do not establish historical execution parity. Syntax-only restorations are bounded source checks,
+not project build/test acceptance evidence.
 
-Historical `generic-source-suite.mjs` accepted 51 extensions as covered. Current language providers
-claim fewer; long-tail accounting reports missing providers for these formerly whitelisted extensions:
+Historical `generic-source-suite.mjs` accepted 51 extensions as covered. Current source analysis now reads
+and analyzes the 29 formerly whitelisted extensions below from actual frozen source bytes. This restores
+bounded generic source analysis, not language/compiler coverage; `code.long-tail` retains typed gaps when
+no language provider or compiler evidence exists:
 `astro`, `bash`, `bat`, `cjs`, `cts`, `css`, `cxx`, `dart`, `erl`, `ex`, `exs`, `gql`, `graphql`, `hrl`,
 `html`, `kts`, `mjs`, `mts`, `nsh`, `nsi`, `ps1`, `psm1`, `rb`, `sh`, `sql`, `svelte`, `vbs`, `vue`, `zsh`.
-Restoring a whitelist alone would manufacture coverage; each extension needs actual evidence or an
-explicit gap. Some dedicated scanners can examine these files without closing general language coverage.
+Source-analysis findings require the same actual-path evidence as other providers. A historical extension
+being read does not imply that a dedicated parser, syntax check, build, or test ran. Some dedicated
+scanners can examine these files without closing general language coverage.
 
 Gitleaks history mode survives in `legacy.security.secrets`. Current-tree native credential detection
 does not replace history scanning when Gitleaks is absent. Before this repair, `secrets.current-history`
@@ -135,28 +148,50 @@ could accept native fallback or `gitleaks dir` output as complete, because its d
 history refs. This repair retains useful current-tree findings but emits `secret-history-not-examined`
 until explicit history evidence is supplied. Counted refs alone cannot close the gap.
 
-## Execution repairs & validation
+## Source restorations & execution boundary
 
-Source changes implement explicit Alchemist execution tiers, cheap evidence gathering before balanced
-semantic review, independent verification, enforced model/effort selection, shared exact source context,
-budget-bounded optional sampling & early refusal when mandatory work cannot fit. These are not claims
-of a completed live repository audit.
+Source changes through `23930e5f` implement bounded source analysis for all 29 historical generic-source
+extensions; isolated syntax checks for PHP, Ruby, bash, zsh, & PowerShell; and typed deferred records for
+historical project commands that were not executed. The command restores syntax/static policy visibility,
+not complete historical build, test, type, or dependency execution parity.
+
+Reasoning now routes non-security scanner candidates to their matching existing semantic lens; only
+security candidates use threat adjudication. Unsupported candidate domains remain explicit pending or
+unavailable gaps. Deterministic host-side evidence gathering costs no model calls; optional cheap gathering
+is admitted only when needed. Bundled lenses share exact RAW source bytes while retaining independent
+lens contracts and result IDs. Planning reserves one fresh verification call; findings outside its bounded
+envelope remain unverified. Mandatory paths beyond selected coverage are recorded as actual deferred paths
+with digests and explicit gaps, making the run incomplete; the planner selects affordable work rather than
+refusing solely because mandatory work exceeds the budget. Explicit exhaustive mode remains strict.
+
+The host may supply an optional graph JSON artifact through `LEGION_AUDIT_GRAPH_ARTIFACT`. It is bound to
+frozen source and resolver context; without it, graph context uses lexical fallback and preserves its limits.
+The registry capability projections were synchronized at `8eec8f79`.
+
+These source facts do not establish a completed live repository audit. No CI, current installed-build, or
+current installation completion claim is made here; append those results only after evidence for the exact
+source revision is available.
 
 The supported transport remains native Claude. Haiku/Sonnet are its executable choices; Luna/Sol
 are corresponding Codex tiers in canonical policy, not a claim that an OpenAI audit transport exists.
 
-Revision `6ede1515fab643a3ca2ccd69dcedd8cdfa802a67` received independent Oracle Standards PASS & Spec PASS.
+Historical validation for revision `6ede1515fab643a3ca2ccd69dcedd8cdfa802a67` received independent Oracle
+Standards PASS & Spec PASS; its CI and installation receipts below apply only to that revision and do not
+validate the later source restorations `23930e5f` and `8eec8f79`.
 [CI 38859651460](https://github.com/Orthic-Labs/legion/actions/runs/38859651460) passed macOS (5,135 tests)
 & Windows (5,101 tests), zero failures, seven ignored per platform; native simulation passed both.
 Its exact macOS artifact was installed through canonical headless installer; setup repair, status & doctor
 passed. Installed binary SHA-256 matches CI payload:
 `ece435b0c238e5f98d1a4519b5275810a96ff6ed84b1e29c5e9a149ae6cf5da8`.
 
-Fresh Ember `9961562ed4c652b0bc6a9b3bc3a63142d885f583` rerun kept 50,000 total tokens,
+Historical Ember attempt at `9961562ed4c652b0bc6a9b3bc3a63142d885f583` used a 50,000 total-token cap,
 10,000 per call, 2,500 output tokens, five physical calls & concurrency one. Preflight refused after
-34.978 seconds: six active bundles need at least six author calls, five cheap gathering calls & one
-verification/context reserve (12 total). Mandatory coverage was preserved. No plan froze or reasoning
-transport ran: exact Audit model calls/input/cache/output/cost were `0 / 0 / 0 / 0 / $0`.
+34.978 seconds under that revision's then-current call-floor plan: six active bundles required six author
+calls, five cheap gathering calls & one verification/context reserve (12 total). Mandatory coverage was
+preserved. No plan froze or reasoning transport ran: exact Audit model calls/input/cache/output/cost were
+`0 / 0 / 0 / 0 / $0`. This refusal is historical evidence for the older planner, not current behavior;
+`23930e5f` removes the per-lens gathering floor and records deferred mandatory coverage while selecting
+affordable work.
 This meter excludes chat, implementation/review agents, CI & subscription billing. Minimum call count
 is a lower bound, not proof that 12 calls would fit token budget. Ember quality/security remains unproven;
 [issue #33](https://github.com/Orthic-Labs/legion/issues/33) tracks remaining audit outcome.
