@@ -414,6 +414,16 @@ owner.
 
 ## 12. Ambient vs governed execution
 
+Legion dispatches independent ready work per repository or bounded change within real host
+capacity, budgets, ownership, & safety limits. At each lead turn, compare ready open issues with
+active assignments & fill missing assignments; broad serial lanes must not hide ready changes.
+Dependencies come from consumed outputs, shared write ownership, or required effect order.
+Assistant-authored step order never adds an authorization gate. Preconditions, failed checks,
+broker queues, & policy gates block only affected operations & their actual dependents; unrelated
+authorized work continues. Coding proceeds while admitted builds queue or run. Integration,
+HEAD/index changes, receipts, & delivery retain one owner per repository; required verification
+still precedes claims for its exact artifact.
+
 Ordinary explicit, reversible, in-scope effects may execute directly under Legion/capability
 control when Guard policy permits them (ambient execution). Alchemist is used only where policy,
 locking, explicit contracting, or risk requires it. `execute` does not imply Alchemist.

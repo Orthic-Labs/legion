@@ -10,6 +10,10 @@ calls for a durable execution record. Ordinary `/tasklist` work stays inline.
    names its exact path allowlist, action, real dependency, lane when useful,
    observable done check, evidence path, & bounded recovery when needed. Every
    planned changed file belongs to exactly one task.
+   Derive dependencies from consumed outputs, shared writes, or required effect order. Gate only
+   affected operations & actual dependents; continue independent authorized work within capacity,
+   budgets, ownership, & safety limits while builds or checks queue or run. Preserve build
+   admission & exact-artifact verification; assistant-authored sequence adds no permission gate.
 3. Follow the governing contract's validator, receipt, & review requirements.
    Revalidate after any packet or scope change. Do not add Oracle ceremony to an
    ambient inline plan merely because work is delegated.

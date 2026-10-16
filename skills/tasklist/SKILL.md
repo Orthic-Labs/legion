@@ -28,7 +28,10 @@ Select one mode from what the user requests. Modes compose when the work both ne
 
 For every plan mode, resolve required inputs, setup, & decisions before dependent implementation;
 show conditional dependencies on each step they can change; trace outputs into downstream inputs;
-place final checks after all steps that contribute to them.
+place final checks after all steps that contribute to them. Derive dependencies from consumed
+outputs, shared write ownership, or required effect order; assistant-authored sequence adds no
+permission gate. Independent ready work proceeds within real capacity, budget, ownership, &
+safety limits, including coding while admitted builds queue or run.
 
 ## Inline tasklist mode
 
@@ -48,7 +51,11 @@ Before execution or handoff, inspect the exact intended environment and command 
 4. **Recovery & bounds:** set a timeout or wall-clock bound and visible progress/heartbeat for long work. For interrupted work, explain checkpoint/resume behavior; make retries idempotent or state how duplicate effects are prevented. Write outputs atomically when partial files could be mistaken for completed results. Distinguish retryable failures from fatal input/auth/schema/code failures.
 5. **Efficiency:** check for avoidable duplicated work, safe overlap, and bounded concurrency when scale makes those relevant. Explain deliberate limits; do not add optimization ceremony to a trivial command.
 
-If a required check cannot be performed, name the missing evidence and withhold the execution claim. A plan may still identify the exact next check. State only the gates relevant to the run's risk and scale; this mode does not require GoalRoute artifacts or receipts by default.
+If a required check cannot be performed, name missing evidence & withhold claims for affected
+execution. Gate only affected operations & their actual dependents; continue unrelated authorized
+work. Build admission still governs build launch, & final checks must verify their exact artifact.
+A plan may identify next check. State only gates relevant to run risk & scale; this mode does not
+require GoalRoute artifacts or receipts by default.
 
 ## Automation mode
 

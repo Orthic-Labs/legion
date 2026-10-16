@@ -23,11 +23,24 @@ It may describe:
 
 Legion routes work by capability descriptions and explicit authority invocation. A frozen Sage
 handoff goes to Alchemist. Oracle reviews any work Legion did not produce itself; Council is only an explicit, advisory escalation (at most two loops). Execution derives a
-file/artifact task DAG from actual consumption only for genuinely parallel or governed work,
-launches maximal ready antichains where useful, and never copies a stage DAG into execution.
-Routine work may remain inline. Only shared contract writes, integration, commits, pins, and
-pushes serialize. Constitution, authority, scope, acceptance, and completion semantics remain
-owned by the canonical sources above.
+file/artifact task DAG from actual consumption for parallel or governed work. Assign one agent per
+ready repository or bounded change within real host capacity, budget, ownership, & safety limits;
+never hide independent changes inside broad serial lanes. Routine work may remain inline when
+delegation adds no useful concurrency. Only conflicting shared writes, integration, commits,
+receipts, & pushes serialize within their owning repository. Constitution, authority, scope,
+acceptance, & completion semantics remain owned by canonical sources above.
+
+At each lead turn, compare ready open issues with active assignments & dispatch missing work
+within those limits. Name concrete dependencies or capacity limits for any ready work left idle;
+refill available assignments when workers return. Derive dependencies from consumed artifacts,
+shared write ownership, or required effect order, never from assistant-authored step numbers.
+Plans describe execution; they do not add permission gates.
+
+Apply each precondition, check, broker admission rule, or Guard decision only to its affected
+operation & actual dependents. Continue unrelated authorized work while it waits or fails.
+Coding proceeds while admitted builds queue or run; build limits still govern build launch.
+Required checks & independent review retain their scope, exact-artifact evidence, & completion
+semantics before delivery claims.
 
 ## Role selection reference
 

@@ -23,8 +23,9 @@ decision the user reserved.
 1. Read the current user request, applicable workspace/repository rules, exact
    source inputs, relevant errors, & scoped Git status. Pass only the excerpts
    the worker needs; never write “use existing context” or “as discussed.”
-2. Define one end-to-end outcome per lane. Give lanes bounded non-overlapping
-   file or module ownership. Use exact file allowlists, one-touch ledgers, &
+2. Assign one agent per ready repository or bounded change with bounded non-overlapping
+   file or module ownership, within real host capacity, budget, & safety limits. Never group
+   independent ready changes into broad serial lanes. Use exact file allowlists, one-touch ledgers, &
    strict repair reassignment only when the governing contract requires them.
    Put independent lanes together & add dependencies only for concrete data,
    file, resource, or effect order.
@@ -37,6 +38,13 @@ decision the user reserved.
    output, run required checkpoints, own final evidence, & repair or reassign
    within accepted scope. Governed contract work keeps strict allowlists & repair
    reassignment.
+
+At each lead turn, compare ready open issues with active assignments & dispatch missing work
+within those limits. Name concrete dependencies or limits for ready work left idle & refill
+assignments when workers return. Coding continues while admitted builds queue or run; build
+admission still governs build launch. A precondition, failed check, or Guard gate stops only its
+affected operation & actual dependents. Continue unrelated authorized work, preserve required
+verification for its exact artifact, & never treat assistant-authored sequence as permission.
 
 ## Acceptance & authority
 
