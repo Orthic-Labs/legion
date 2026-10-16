@@ -107,8 +107,8 @@
     "@rightkit/hooks": "0.1.2"
   },
   "devDependencies": {
-    "@rightkit/ax": "0.2.4",
-    "@rightkit/git": "0.2.40",
-    "@rightkit/release": "0.2.151"
+    "@rightkit/ax": "0.3.2",
+    "@rightkit/git": "0.2.42",
+    "@rightkit/release": "0.2.165"
   }
 }

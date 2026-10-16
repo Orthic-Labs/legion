@@ -22,6 +22,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 zip.workspace = true
+flate2.workspace = true
 headless_chrome.workspace = true
 lopdf.workspace = true
 image.workspace = true

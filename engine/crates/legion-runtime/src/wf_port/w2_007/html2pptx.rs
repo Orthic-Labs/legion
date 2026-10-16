@@ -1481,6 +1481,7 @@ pub fn write_pptx_from_slides(
     let file = std::fs::File::create(out_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default()
+        .system(zip::System::Unix)
         .compression_method(zip::CompressionMethod::Deflated);
 
     let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
@@ -2090,7 +2091,7 @@ mod tests {
         let file = std::fs::File::open(&out).unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();
         let names: Vec<String> = (0..zip.len())
-            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .map(|i| zip.by_index(i).unwrap().name().unwrap().into_owned())
             .collect();
 
         for expected in [

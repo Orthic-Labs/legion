@@ -13,47 +13,47 @@ importers:
         version: 0.1.2
     devDependencies:
       '@rightkit/ax':
-        specifier: 0.2.4
-        version: 0.2.4
+        specifier: 0.3.2
+        version: 0.3.2
       '@rightkit/git':
-        specifier: 0.2.40
-        version: 0.2.40
+        specifier: 0.2.42
+        version: 0.2.42
       '@rightkit/release':
-        specifier: 0.2.151
-        version: 0.2.151
+        specifier: 0.2.165
+        version: 0.2.165
 
 packages:
 
-  '@rightkit/ax@0.2.4':
-    resolution: {integrity: sha512-bI1eU4+lYKl7q+RCHWyYXi3QOSFX32t3pArnoOnQDNBtYuU3VV/HS/3wDQEHi8QzIgxrhql+eggfDmWzVbAbCQ==}
+  '@rightkit/ax@0.3.2':
+    resolution: {integrity: sha512-1EHizjm7qz9oiv/M68Ro77iaX5BHUNJP3PcZasQ9b25nUbxS2GvhMMlSCUCk3vJIk4oGSNF80xEYsjr8zme1uA==}
     hasBin: true
 
-  '@rightkit/git@0.2.40':
-    resolution: {integrity: sha512-LyZd3IMnB1/z/w3o4ls02/28KslcCdSw5YHRRRrEecGSTDinVeSayO2xSj7moiA2YjxWW2eGi96vM3oKQrovLg==}
+  '@rightkit/git@0.2.42':
+    resolution: {integrity: sha512-CVaBTvQZHntnF1EoEhGi4XsPh+W5c6V26atADIdCoTE+lp0R52Pix6BDxkcDDQbrtXte85vs3k2ZbAObhWnCGA==}
     hasBin: true
 
   '@rightkit/hooks@0.1.2':
     resolution: {integrity: sha512-0Fl5URRectgZEoJ6XYKme1x+rb/+LmW96rN4M7vT+E3mdNfWhfNt3MZsxbDC/A2g7Toz28nJakYteogVo+GuYg==}
     hasBin: true
 
-  '@rightkit/release@0.2.151':
-    resolution: {integrity: sha512-8kZPkVENeGfk3H2usEaIg9FM+N7hVf90PyPNcaRFHAHih+7apgH5wYZWRB75gRtVQgbGffc72DH4YAbOvoZ7cw==}
+  '@rightkit/release@0.2.165':
+    resolution: {integrity: sha512-yunA64fcQV0JXulG8XXM2124iMZp7J8SiG4MTErQPeh2MqjxdZFUB4UVhI0NRrEekoF5TGAr9BKLcwOX8a1fcA==}
     hasBin: true
 
-  smol-toml@1.7.0:
-    resolution: {integrity: sha512-aqVvWoyO21L23mb+drl4RmMXbf6N7FdHjAhTRA9ZBL7apWBgfWC16KjrASI+1p9GAroljyMHj6fK67i0UiTNvQ==}
+  smol-toml@1.9.0:
+    resolution: {integrity: sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ==}
     engines: {node: '>= 18'}
 
 snapshots:
 
-  '@rightkit/ax@0.2.4': {}
+  '@rightkit/ax@0.3.2': {}
 
-  '@rightkit/git@0.2.40': {}
+  '@rightkit/git@0.2.42': {}
 
   '@rightkit/hooks@0.1.2': {}
 
-  '@rightkit/release@0.2.151':
+  '@rightkit/release@0.2.165':
     dependencies:
-      smol-toml: 1.7.0
+      smol-toml: 1.9.0
 
-  smol-toml@1.7.0: {}
+  smol-toml@1.9.0: {}

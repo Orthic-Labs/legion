@@ -566,6 +566,7 @@ fn write_xlsx(sheets: &[Sheet], out_path: &Path) -> Result<(), String> {
     let file = std::fs::File::create(out_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default()
+        .system(zip::System::Unix)
         .compression_method(zip::CompressionMethod::Deflated);
 
     let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
@@ -646,7 +647,7 @@ mod tests {
         let file = std::fs::File::open(&path).unwrap();
         let mut archive = zip::ZipArchive::new(file).unwrap();
         let names: Vec<String> = (0..archive.len())
-            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .map(|i| archive.by_index(i).unwrap().name().unwrap().into_owned())
             .collect();
         assert!(names.contains(&"xl/worksheets/sheet1.xml".to_string()));
         assert!(names.iter().any(|n| n == "xl/worksheets/sheet2.xml"));
