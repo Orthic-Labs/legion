@@ -32,7 +32,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     io::Read,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -2742,10 +2742,13 @@ fn native_react_hooks(files: &[(InventoryEntry, String)], output: &mut LegacyChe
 
 /// Shell/PowerShell download syntax is evidence; a URL by itself is not.
 fn download_asset(command: &str) -> Option<String> {
-    let output = regex::Regex::new(
-        r#"(?:^|\s)(?:-o|-O|--output|--output-document|-OutFile)(?:=|\s+)['"]?([^\s'";|]+)"#,
-    )
-    .ok()?;
+    static OUTPUT_PATTERN: OnceLock<regex::Regex> = OnceLock::new();
+    let output = OUTPUT_PATTERN.get_or_init(|| {
+        regex::Regex::new(
+            r#"(?:^|\s)(?:-o|-O|--output|--output-document|-OutFile)(?:=|\s+)['"]?([^\s'";|]+)"#,
+        )
+        .expect("download output pattern is valid")
+    });
     output
         .captures(command)
         .map(|capture| capture[1].to_owned())
@@ -2773,22 +2776,30 @@ fn download_asset(command: &str) -> Option<String> {
 }
 
 fn executable_download(command: &str, following: &str) -> Option<Option<String>> {
+    static DOWNLOADER_PATTERN: OnceLock<regex::Regex> = OnceLock::new();
+    static PIPED_PATTERN: OnceLock<regex::Regex> = OnceLock::new();
+
     let trimmed = command.trim_start();
     if trimmed.starts_with('#') || trimmed.starts_with("//") {
         return None;
     }
-    let downloader = regex::Regex::new(
-        r"(?i)(?:^|[;&|]|\brun:)\s*(?:sudo\s+)?(?:curl|wget|Invoke-WebRequest|iwr)\b",
-    )
-    .ok()?;
+    let downloader = DOWNLOADER_PATTERN.get_or_init(|| {
+        regex::Regex::new(
+            r"(?i)(?:^|[;&|]|\brun:)\s*(?:sudo\s+)?(?:curl|wget|Invoke-WebRequest|iwr)\b",
+        )
+        .expect("downloader pattern is valid")
+    });
     if !downloader.is_match(command) || !contains_any(command, &["https://", "http://"]) {
         return None;
     }
-    let piped = regex::Regex::new(
-        r"(?i)\|\s*(?:sudo\s+)?(?:sh|bash|zsh|pwsh|powershell|iex|Invoke-Expression)\b",
-    )
-    .ok()?
-    .is_match(command);
+    let piped = PIPED_PATTERN
+        .get_or_init(|| {
+            regex::Regex::new(
+                r"(?i)\|\s*(?:sudo\s+)?(?:sh|bash|zsh|pwsh|powershell|iex|Invoke-Expression)\b",
+            )
+            .expect("piped execution pattern is valid")
+        })
+        .is_match(command);
     let asset = download_asset(command);
     if piped {
         return Some(asset);
