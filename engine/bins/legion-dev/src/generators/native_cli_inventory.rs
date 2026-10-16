@@ -68,7 +68,7 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
     // has no lookahead, so this walks brace depth explicitly instead, which
     // is exact rather than heuristic for well-formed Rust source.
     let open_re = Regex::new(r"Command::([A-Za-z]+)\([^)]*\) => \{").unwrap();
-    let handler_re = Regex::new(r"(commands::[a-z_]+::run)").unwrap();
+    let handler_re = Regex::new(r"(commands::[a-z_]+::[a-z_]+)").unwrap();
     let bytes = body.as_bytes();
     for cap in open_re.captures_iter(&body) {
         let variant = kebab(&cap[1]);
@@ -103,7 +103,7 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
     // both concrete handlers in inventory rather than classifying the outer
     // `match args.command` expression as unknown.
     let nested_match_re = Regex::new(r"Command::([A-Za-z]+)\([^)]*\) => match [^{]+\{").unwrap();
-    let handler_start_re = Regex::new(r"^\s*(commands::[a-z_]+::run)\s*\(").unwrap();
+    let handler_start_re = Regex::new(r"^\s*(commands::[a-z_]+::[a-z_]+)\s*\(").unwrap();
     for cap in nested_match_re.captures_iter(&body) {
         let variant = kebab(&cap[1]);
         let open_at = cap.get(0).unwrap().end() - 1; // opening `{`
@@ -895,6 +895,7 @@ mod tests {
 async fn dispatch(cli: Cli) {
     let result: CommandResult = match command {
         Command::Audit(args) => match args.command {
+            Some(AuditSubcommand::Continue(args)) => commands::audit::continue_command(args),
             Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
             None => commands::audit::run(args.legacy, cancellation.clone()).await,
         },
@@ -908,8 +909,11 @@ async fn dispatch(cli: Cli) {
         let dispatch = rust_dispatch_map(source).unwrap();
         assert_eq!(
             dispatch.get("audit").map(String::as_str),
-            Some("commands::audit_runtime::run | commands::audit::run")
+            Some(
+                "commands::audit::continue_command | commands::audit_runtime::run | commands::audit::run"
+            )
         );
+        assert_eq!(classify_rust(dispatch.get("audit").unwrap()).tier, "native");
         let unknown = dispatch.get("unknown").unwrap();
         assert_eq!(classify_rust(unknown).tier, "unknown");
     }

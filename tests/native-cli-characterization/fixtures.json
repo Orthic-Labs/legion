@@ -503,6 +503,26 @@
       }
     },
     {
+      "id": "audit-continue-help",
+      "command": "audit",
+      "subcommand": "continue",
+      "argv": [
+        "audit",
+        "continue",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "continue",
+          "--run",
+          "--out",
+          "--operator-instruction"
+        ]
+      }
+    },
+    {
       "id": "run-help",
       "command": "run",
       "argv": [

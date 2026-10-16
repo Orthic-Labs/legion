@@ -446,8 +446,16 @@ fn runtime_followup_binding(parent: &Path, child: &Path) -> Result<(), String> {
 
 fn runtime_accounting_root(run: &Path) -> Result<PathBuf, String> {
     use legion_audit::native_providers::reasoning::followup;
-    let mut root = run.to_path_buf();
+    let mut root = runtime_run_path(run)?;
+    let mut visited = BTreeSet::new();
     for _ in 0..MAX_RUNTIME_RUN_DEPTH {
+        if !visited.insert(root.clone()) {
+            return Err("runtime accounting ancestry cycle".into());
+        }
+        if let Some(parent) = runtime_continuation_parent(&root)? {
+            root = parent;
+            continue;
+        }
         let plan = optional_runtime_json(&root.join("plan.json"), MAX_RUNTIME_STATE_BYTES)?;
         let frozen = optional_runtime_json(
             &root.join(followup::FROZEN_PLAN_FILE),
@@ -474,11 +482,57 @@ fn runtime_accounting_root(run: &Path) -> Result<PathBuf, String> {
         runtime_followup_binding(parent, &root)?;
         root = parent.to_path_buf();
     }
-    Err("runtime follow-up ancestry exceeds 64-run bound".into())
+    Err("runtime accounting ancestry exceeds 64-run bound".into())
+}
+
+fn runtime_run_path(run: &Path) -> Result<PathBuf, String> {
+    let metadata = std::fs::symlink_metadata(run).map_err(|error| error.to_string())?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err("runtime run must be a regular nonsymlink directory".into());
+    }
+    std::fs::canonicalize(run).map_err(|error| error.to_string())
+}
+
+fn runtime_continuation_parent(run: &Path) -> Result<Option<PathBuf>, String> {
+    // Bound local control files before delegating semantic/hash checks to owner.
+    optional_runtime_json(
+        &run.join(legion_audit::continuation::CONTINUATION_FILE),
+        MAX_RUNTIME_STATE_BYTES,
+    )?;
+    let lineage = legion_audit::continuation::validate_lineage(run)
+        .map_err(|error| format!("runtime continuation invalid: {error}"))?;
+    lineage
+        .map(|lineage| {
+            let parent = lineage["parent"]
+                .as_str()
+                .ok_or("runtime continuation parent missing")?;
+            runtime_run_path(Path::new(parent))
+        })
+        .transpose()
+}
+
+fn runtime_continuation_child(run: &Path) -> Result<Option<PathBuf>, String> {
+    let Some(owner) = optional_runtime_json(
+        &run.join("continuation-active.json"),
+        MAX_RUNTIME_STATE_BYTES,
+    )?
+    else {
+        return Ok(None);
+    };
+    let child = runtime_run_path(Path::new(
+        owner["child"]
+            .as_str()
+            .ok_or("runtime continuation owner child missing")?,
+    ))?;
+    if runtime_continuation_parent(&child)?.as_deref() != Some(run) {
+        return Err("runtime continuation ownership has no validated child lineage".into());
+    }
+    Ok(Some(child))
 }
 
 struct RuntimeRunEvidence {
     run: PathBuf,
+    continuation_parent: Option<PathBuf>,
     calls: Vec<Value>,
     receipt_count: usize,
     summary: Option<Value>,
@@ -489,15 +543,22 @@ fn collect_runtime_runs(
     depth: usize,
     ids: &mut RuntimeCallIds,
     entries: &mut usize,
+    visited: &mut BTreeSet<PathBuf>,
     runs: &mut Vec<RuntimeRunEvidence>,
     errors: &mut Vec<String>,
 ) -> Result<(), String> {
     use legion_audit::native_providers::reasoning::{followup, ingest};
     if depth >= MAX_RUNTIME_RUN_DEPTH {
-        return Err("runtime follow-up traversal exceeds 64-run bound".into());
+        return Err("runtime accounting traversal exceeds 64-run bound".into());
     }
+    let canonical = runtime_run_path(run)?;
+    if !visited.insert(canonical.clone()) || visited.len() > MAX_RUNTIME_CALLS {
+        return Err("runtime accounting cycle/duplicate or 4096-run bound exceeded".into());
+    }
+    let run = canonical.as_path();
     let mut evidence = RuntimeRunEvidence {
         run: run.to_path_buf(),
+        continuation_parent: runtime_continuation_parent(run)?,
         calls: Vec::new(),
         receipt_count: 0,
         summary: optional_runtime_json(&run.join("review-runtime.json"), MAX_RUNTIME_STATE_BYTES)?,
@@ -548,13 +609,17 @@ fn collect_runtime_runs(
     runs.push(evidence);
     let child = run.join(followup::FOLLOWUP_DIR);
     match std::fs::symlink_metadata(&child) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error.to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.to_string()),
         Ok(_) => {
             runtime_followup_binding(run, &child)?;
-            collect_runtime_runs(&child, depth + 1, ids, entries, runs, errors)
+            collect_runtime_runs(&child, depth + 1, ids, entries, visited, runs, errors)?;
         }
     }
+    if let Some(child) = runtime_continuation_child(run)? {
+        collect_runtime_runs(&child, depth + 1, ids, entries, visited, runs, errors)?;
+    }
+    Ok(())
 }
 
 fn runtime_summary_count(summary: &Value) -> Result<u64, String> {
@@ -575,7 +640,7 @@ fn reconcile_runtime_accounting(
 ) -> Result<usize, String> {
     let mut expected = BTreeMap::new();
     let mut ids = RuntimeCallIds::default();
-    let mut reservation_count = 0;
+    let mut ledger_entries = BTreeMap::<String, (usize, Value)>::new();
     for (index, evidence) in runs.iter().enumerate() {
         let observed_processes = evidence
             .calls
@@ -598,7 +663,8 @@ fn reconcile_runtime_accounting(
             }
             if let Some(followup) = summary.get("followup") {
                 let child_processes = runs
-                    .get(index + 1)
+                    .iter()
+                    .find(|child| child.run == evidence.run.join("followup"))
                     .map(|child| {
                         child
                             .calls
@@ -651,13 +717,22 @@ fn reconcile_runtime_accounting(
             }
             _ => return Err("runtime accounting reservations missing/malformed".into()),
         };
-        reservation_count += reservations.len();
-        if reservation_count > MAX_RUNTIME_CALLS {
-            return Err(
-                "runtime accounting reservations exceed 4096-entry bound across runs".into(),
-            );
-        }
         for (id, entry) in reservations {
+            if let Some((owner_index, previous)) = ledger_entries.get(id) {
+                if previous != entry
+                    || evidence.continuation_parent.as_deref()
+                        != Some(runs[*owner_index].run.as_path())
+                {
+                    return Err("runtime accounting duplicate reservation differs or lacks validated inheritance".into());
+                }
+                continue;
+            }
+            ledger_entries.insert(id.clone(), (index, entry.clone()));
+            if ledger_entries.len() > MAX_RUNTIME_CALLS {
+                return Err(
+                    "runtime accounting reservations exceed 4096-entry bound across runs".into(),
+                );
+            }
             if entry["transportAuthorized"] != true || entry["nativeCostRequired"] != true {
                 continue;
             }
@@ -730,6 +805,7 @@ fn runtime_calls(run: &Path, errors: &mut Vec<String>) -> Value {
             0,
             &mut RuntimeCallIds::default(),
             &mut entries,
+            &mut BTreeSet::new(),
             &mut runs,
             errors,
         )?;
@@ -958,6 +1034,188 @@ mod tests {
         }
     }
 
+    /// Freeze an owner-bound lineage with real MAC receipts, without copying
+    /// parent receipts into child or invoking continuation's model runner.
+    struct ContinuationFixture {
+        parent: RuntimeFixture,
+        child: RuntimeFixture,
+    }
+    impl ContinuationFixture {
+        fn new() -> Self {
+            fn hash(path: &Path) -> String {
+                use sha2::Digest;
+                hex::encode(sha2::Sha256::digest(std::fs::read(path).unwrap()))
+            }
+            fn parent_files(root: &Path, dir: &Path, files: &mut BTreeMap<String, String>) {
+                for entry in std::fs::read_dir(dir).unwrap() {
+                    let path = entry.unwrap().path();
+                    let name = path
+                        .strip_prefix(root)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .replace('\\', "/");
+                    if name == "epoch.key" {
+                        continue;
+                    }
+                    if path.is_dir() {
+                        parent_files(root, &path, files);
+                    } else {
+                        files.insert(name, hash(&path));
+                    }
+                }
+            }
+            fn put(path: &Path, value: &Value) {
+                std::fs::write(path, serde_json::to_vec(value).unwrap()).unwrap();
+            }
+            let parent = RuntimeFixture::new();
+            let child = RuntimeFixture::new();
+            parent.write("parent.json", &parent.receipt());
+            let state_file = legion_audit::next::STATE_FILE;
+            let mut inherited =
+                read_bounded_runtime_json(&parent.0.join(state_file), MAX_RUNTIME_STATE_BYTES)
+                    .unwrap();
+            inherited["issuances"] = json!(1);
+            inherited["adjudicationRound"] = json!(0);
+            inherited["spent"] = json!({"judgment":11227});
+            inherited["leases"] = json!({});
+            inherited["terminalStatus"] = json!("incomplete:budget-overrun");
+            put(&parent.0.join(state_file), &inherited);
+            for name in ["plan.json", "epoch.key"] {
+                std::fs::copy(parent.0.join(name), child.0.join(name)).unwrap();
+            }
+            put(
+                &child.0.join(legion_audit::next::DISPATCH_FILE),
+                &json!({
+                    "continuationRecipe":{"schemaVersion":1,"kind":"frozen-source-rematerialization","modelsStarted":0},
+                    "reasoningBudget":{"schemaVersion":2,"totalTokens":50000,"perCallTokens":10000,"maxSeats":5,"outputTokens":2500},
+                    "limits":{"waveWidth":1},"seats":[]
+                }),
+            );
+            let mut frozen_parent = BTreeMap::new();
+            parent_files(&parent.0, &parent.0, &mut frozen_parent);
+            let child_recipe = ["plan.json", legion_audit::next::DISPATCH_FILE]
+                .into_iter()
+                .map(|name| (name, hash(&child.0.join(name))))
+                .collect::<BTreeMap<_, _>>();
+            let manifest_path = child.0.join(legion_audit::continuation::CONTINUATION_FILE);
+            put(
+                &manifest_path,
+                &json!({"schemaVersion":1,"kind":"legion-audit-continuation",
+                "parent":std::fs::canonicalize(&parent.0).unwrap(),"child":std::fs::canonicalize(&child.0).unwrap(),
+                "operatorInstruction":"resume within original cumulative budget","parentFiles":frozen_parent,
+                "childRecipe":child_recipe,"inheritedState":inherited}),
+            );
+            let manifest_digest = hash(&manifest_path);
+            put(
+                &parent.0.join("continuation-active.json"),
+                &json!({"schemaVersion":1,
+                "kind":"legion-audit-continuation-owner","child":std::fs::canonicalize(&child.0).unwrap(),
+                "manifestDigest":manifest_digest}),
+            );
+            let mut state = inherited;
+            state["terminalStatus"] = Value::Null;
+            state["historicalTerminalStatus"] = json!("incomplete:budget-overrun");
+            state["continuationDigest"] = json!(manifest_digest);
+            state["dispatchDigest"] = json!(hash(&child.0.join(legion_audit::next::DISPATCH_FILE)));
+            put(&child.0.join(state_file), &state);
+            let mut receipt = child.receipt();
+            receipt["callId"] = json!("child-call");
+            receipt["authorization"]["callId"] = json!("child-call");
+            receipt["authorization"]["reservationId"] = json!("child-reservation");
+            receipt["observation"]["usage"]["reservationId"] = json!("child-reservation");
+            receipt["observation"]["usage"]["receiptId"] = json!("child-receipt");
+            child.write("child.json", &receipt);
+            assert!(legion_audit::continuation::validate_lineage(&child.0)
+                .unwrap()
+                .is_some());
+            Self { parent, child }
+        }
+    }
+
+    #[test]
+    fn continuation_verifies_immutable_parent_and_new_child_calls_once_from_either_run() {
+        let fixture = ContinuationFixture::new();
+        let parent_state =
+            std::fs::read(fixture.parent.0.join(legion_audit::next::STATE_FILE)).unwrap();
+        for run in [&fixture.parent.0, &fixture.child.0] {
+            let mut errors = Vec::new();
+            let projected = runtime_calls(run, &mut errors);
+            assert!(errors.is_empty(), "{errors:?}");
+            assert_eq!(projected["status"], "verified");
+            assert_eq!(projected["count"], 2);
+            assert_eq!(projected["receiptCount"], 2);
+            assert_eq!(projected["nativeReservationCount"], 2);
+            assert_eq!(
+                projected["accountingRoot"],
+                json!(std::fs::canonicalize(&fixture.parent.0).unwrap())
+            );
+        }
+        assert_eq!(
+            std::fs::read(fixture.parent.0.join(legion_audit::next::STATE_FILE)).unwrap(),
+            parent_state
+        );
+        assert!(!fixture.child.0.join("runtime-calls/parent.json").exists());
+        std::fs::copy(
+            fixture.parent.0.join("runtime-calls/parent.json"),
+            fixture.child.0.join("runtime-calls/duplicate.json"),
+        )
+        .unwrap();
+        let mut errors = Vec::new();
+        assert_eq!(
+            runtime_calls(&fixture.child.0, &mut errors)["status"],
+            "invalid"
+        );
+        assert!(errors
+            .iter()
+            .any(|error| error.contains("duplicate runtime")));
+    }
+
+    #[test]
+    fn continuation_accounting_rejects_missing_ancestry_state_forks_and_inherited_charge_tampering()
+    {
+        for mutation in ["manifest", "state", "fork", "reservation", "spend"] {
+            let fixture = ContinuationFixture::new();
+            let state_path = fixture.child.0.join(legion_audit::next::STATE_FILE);
+            match mutation {
+                "manifest" => std::fs::remove_file(
+                    fixture
+                        .child
+                        .0
+                        .join(legion_audit::continuation::CONTINUATION_FILE),
+                )
+                .unwrap(),
+                "state" => std::fs::remove_file(&state_path).unwrap(),
+                "fork" => {
+                    let owner_path = fixture.parent.0.join("continuation-active.json");
+                    let mut owner =
+                        read_bounded_runtime_json(&owner_path, MAX_RUNTIME_STATE_BYTES).unwrap();
+                    owner["child"] = json!(fixture.parent.0);
+                    std::fs::write(owner_path, serde_json::to_vec(&owner).unwrap()).unwrap();
+                }
+                _ => {
+                    let mut state =
+                        read_bounded_runtime_json(&state_path, MAX_RUNTIME_STATE_BYTES).unwrap();
+                    if mutation == "reservation" {
+                        state["reservations"]["reservation-one"]["reportedApiCostUsd"] = json!("0");
+                    } else {
+                        state["spent"]["judgment"] = json!(0);
+                    }
+                    std::fs::write(state_path, serde_json::to_vec(&state).unwrap()).unwrap();
+                }
+            }
+            for run in [&fixture.parent.0, &fixture.child.0] {
+                let mut errors = Vec::new();
+                assert_eq!(
+                    runtime_calls(run, &mut errors)["status"],
+                    "invalid",
+                    "{mutation}: {errors:?}"
+                );
+                assert!(!errors.is_empty());
+            }
+        }
+    }
+
     #[test]
     fn runtime_calls_authenticate_exact_cost_and_project_no_raw_content() {
         let fixture = RuntimeFixture::new();
@@ -1151,6 +1409,14 @@ mod tests {
             serde_json::to_vec(&parent_state).unwrap(),
         )
         .unwrap();
+        let mut duplicate_errors = Vec::new();
+        assert_eq!(
+            runtime_calls(&parent.0, &mut duplicate_errors)["status"],
+            "invalid"
+        );
+        assert!(duplicate_errors
+            .iter()
+            .any(|error| error.contains("lacks validated inheritance")));
         std::fs::remove_file(child_state_path).unwrap();
         for run in [&parent.0, &child.0] {
             let mut errors = Vec::new();
