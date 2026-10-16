@@ -236,6 +236,10 @@ fn setup(name: &str) -> Run {
 /// As `setup`, with `src/db.rs` holding `db_source` (its candidate anchor stays
 /// on line 2).
 fn setup_with_source(name: &str, db_source: &str) -> Run {
+    setup_with_source_and_limits(name, db_source, &DispatchLimits::default())
+}
+
+fn setup_with_source_and_limits(name: &str, db_source: &str, limits: &DispatchLimits) -> Run {
     let root = temp_dir(name);
     fs::create_dir_all(root.join("src")).unwrap();
     fs::write(root.join("src/db.rs"), db_source).unwrap();
@@ -314,12 +318,7 @@ fn setup_with_source(name: &str, db_source: &str) -> Run {
             .unwrap();
 
     fs::create_dir_all(run.join("lens-packets")).unwrap();
-    write_lens_dispatch(
-        &run,
-        std::slice::from_ref(&adjudication),
-        &DispatchLimits::default(),
-    )
-    .unwrap();
+    write_lens_dispatch(&run, std::slice::from_ref(&adjudication), limits).unwrap();
     write_json(
         &run.join("plan.json"),
         &json!({
@@ -1098,7 +1097,42 @@ fn no_confirmed_findings_means_no_followup_and_no_gap() {
 
 #[test]
 fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
-    let run = confirmed_run_with_source("multipart", &padded_db_source());
+    let source = padded_db_source();
+    // This exhaustive denominator intentionally exceeds a bounded audit's
+    // default physical allowance. Size a disposable, unexecuted follow-up,
+    // then create a fresh fixture with sufficient limits frozen upfront.
+    let probe = confirmed_run_with_source("multipart-probe", &source);
+    let probe_plan = compile_followup(&probe.run, &variant_spec())
+        .unwrap()
+        .unwrap();
+    let probe_dispatch = read_json(&probe.run.join(FOLLOWUP_DIR).join("lens-dispatch.json"));
+    let largest_input = probe_dispatch["seats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(probe_dispatch["deferredWork"].as_array().unwrap())
+        .map(|seat| seat["plannedModelInputBytes"].as_u64().unwrap())
+        .max()
+        .unwrap();
+    // Keep the normal 2500-token output & 1500-token admission headroom.
+    // Allow another 1500 tokens for temporary path/nonce framing differences;
+    // final physical-fit assertions below validate the newly frozen recipe.
+    let per_call = largest_input.div_ceil(2) + 2500 + 1500 + 1500;
+    let max_calls =
+        (probe_plan.packets.len() as u64 + 1).max(DispatchLimits::default().max_total_seats);
+    let limits = DispatchLimits {
+        seat_token_budget: per_call,
+        wave_width: 1,
+        run_token_budget: per_call.checked_mul(max_calls).unwrap(),
+        max_total_seats: max_calls,
+    };
+    let run = setup_with_source_and_limits("multipart-final", &source, &limits);
+    ingest_lens_result(
+        &run.run,
+        ADJUDICATOR_PROVIDER_ID,
+        &authenticated_adjudication_result(&run, true),
+    )
+    .unwrap();
     let planned = compile_followup(&run.run, &variant_spec())
         .unwrap()
         .expect("a confirmed finding needs a follow-up");
@@ -1114,6 +1148,22 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
     let parts = variant_parts(&run);
     let total = parts.len();
     assert_eq!(parts.len(), planned.packets.len());
+    assert_eq!(total, probe_plan.packets.len());
+    let dispatch = read_json(&run.run.join(FOLLOWUP_DIR).join("lens-dispatch.json"));
+    assert_eq!(dispatch["withinLimits"], true, "{dispatch}");
+    assert_eq!(dispatch["requiredSeats"], total);
+    assert_eq!(dispatch["followupReserveCalls"], 1);
+    assert_eq!(dispatch["selectedPackets"].as_array().unwrap().len(), total);
+    assert_eq!(dispatch["reasoningBudget"]["perCallTokens"], per_call);
+    assert_eq!(
+        dispatch["reasoningBudget"]["totalTokens"],
+        limits.run_token_budget
+    );
+    assert_eq!(dispatch["reasoningBudget"]["maxSeats"], max_calls);
+    assert_eq!(
+        dispatch["reasoningBudget"],
+        read_json(&run.run.join("lens-dispatch.json"))["reasoningBudget"]
+    );
     let parent_digest = read_json(&run.run.join("plan.json"))["seal"]["digest"].clone();
     for (index, part) in parts.iter().enumerate() {
         let meta = part.part().expect("numbered part");

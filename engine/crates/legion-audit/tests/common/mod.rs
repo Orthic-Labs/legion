@@ -136,6 +136,12 @@ pub fn record_budget_usage(run: &Path, request: &ReasoningInvocation, label: &st
             })
         })
     });
+    if label == "fixture-lens" {
+        assert!(
+            selected_seat.is_some(),
+            "fixture author packet {packet_file} needs a frozen physical seat; logical packet bytes are not model-input bytes"
+        );
+    }
     let (rendered_request_bytes, model_input_bytes, output_token_limit) = selected_seat
         .map_or_else(
             || (bytes.max(1), bytes.max(1), output_ceiling),

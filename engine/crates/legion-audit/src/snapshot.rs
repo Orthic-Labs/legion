@@ -1367,6 +1367,9 @@ pub(crate) mod tests {
                         .unwrap();
                 }
                 "root" => {
+                    // Replacing a directory entry needs write access to its
+                    // parent even though the pinned snapshot tree is sealed.
+                    writable(root.parent().unwrap());
                     let renamed = root.with_file_name("selected-old");
                     std::fs::rename(root, &renamed).unwrap();
                     std::fs::create_dir(root).unwrap();
