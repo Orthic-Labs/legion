@@ -157,9 +157,9 @@
           "scopeKind": "method",
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport supplied by the host's Membrane/Blueprint service. Audit can optionally consume host-supplied legion-graph/1 JSON through LEGION_AUDIT_GRAPH_ARTIFACT, retaining a labelled lexical floor when absent or rejected.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -228,9 +228,9 @@
           "scopeKind": "method",
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport supplied by the host's Membrane/Blueprint service. Audit can optionally consume host-supplied legion-graph/1 JSON through LEGION_AUDIT_GRAPH_ARTIFACT, retaining a labelled lexical floor when absent or rejected.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -278,9 +278,9 @@
           "scopeKind": "method",
           "id": "blueprint-graph",
           "kind": "graph-engine",
-          "summary": "Blueprint graph and packet transport called directly by Legion for source-grounded repository discovery.",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "summary": "Blueprint graph and packet transport supplied by the host's Membrane/Blueprint service. Audit can optionally consume host-supplied legion-graph/1 JSON through LEGION_AUDIT_GRAPH_ARTIFACT, retaining a labelled lexical floor when absent or rejected.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -313,8 +313,8 @@
       "hostRequirementDetails": [
         {
           "id": "blueprint-graph",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -408,8 +408,8 @@
       "hostRequirementDetails": [
         {
           "id": "blueprint-graph",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
@@ -970,8 +970,8 @@
         },
         {
           "id": "blueprint-graph",
-          "degradation": "Use the bounded Blueprint one-shot. Return a NO_CAPABILITY result naming blueprint-graph only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "degradation": "For Blueprint requests, use the bounded host one-shot or return NO_CAPABILITY naming blueprint-graph; never present ungraphed results as graph results. Audit optional artifact consumption retains explicitly labelled lexical import leads when absent or rejected, with no call-graph or dead-code proof.",
+          "remedy": "Provide Blueprint transport through Membrane or put the host's `blueprint` executable on PATH. For Audit artifact consumption, set LEGION_AUDIT_GRAPH_ARTIFACT to an absolute JSON file in a host-owned directory outside audited source and snapshot roots; the consumer checks source/resolver bindings but does not authenticate the producer. This package does not ship a graph engine.",
           "probe": {
             "kind": "command",
             "command": "blueprint"
