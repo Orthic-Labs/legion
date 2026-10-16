@@ -379,10 +379,15 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
         .find(|stratum| stratum["name"] == "remainder")
         .unwrap();
     assert!(remainder["n"].as_u64().unwrap() < 30);
-    assert!(
-        remainder["confidence"].is_null(),
-        "under-floor samples cannot support confidence claims"
-    );
+    let confidence = &remainder["confidence"];
+    assert_eq!(confidence["claim"], "none");
+    assert_eq!(confidence["basis"], "sample-floor-not-met");
+    for field in ["method", "level", "lowerBound", "upperBound"] {
+        assert!(
+            confidence.get(field).is_none(),
+            "under-floor samples cannot carry statistical {field}: {confidence}"
+        );
+    }
     let coverage = &env
         .plan
         .plan()
