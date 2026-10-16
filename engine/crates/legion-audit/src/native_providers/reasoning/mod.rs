@@ -39,6 +39,7 @@ pub mod followup;
 pub mod ingest;
 pub mod lens_plan;
 pub mod lens_schemas;
+mod packet_context;
 pub mod pattern_cards;
 pub mod security_adjudication;
 pub mod triggers;
@@ -354,6 +355,7 @@ impl ReasoningProviderExecutor {
             &self.invocation_epoch,
             &self.root,
             None,
+            false,
         )?;
         // One in-process host invocation yields one receipt, which cannot
         // prove a partitioned denominator. Multi-part work is only ever
@@ -994,7 +996,17 @@ fn build_invocations(
     invocation_epoch: &str,
     root: &Path,
     scanner_candidates: Option<&[ScannerCandidate]>,
+    allow_deferred: bool,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    // Pending sampled work may exceed one physical call: retain its exact
+    // logical packets so dispatch can defer them explicitly & admit other
+    // lenses. In-process invocation & exhaustive requests still refuse.
+    let allow_deferred = allow_deferred
+        && provider
+            .configuration
+            .get("coverage")
+            .and_then(coverage_plan::FrozenCoverage::from_value)
+            .is_some_and(|coverage| coverage.is_sampled());
     let mut budget = seat_part_budget(provider);
     let seat_tokens = provider
         .configuration
@@ -1046,7 +1058,10 @@ fn build_invocations(
         if largest <= target {
             return Ok(built);
         }
-        if attempt == 7 || current.cap_bytes <= 1 {
+        if current.cap_bytes <= 1 {
+            if allow_deferred {
+                return Ok(built);
+            }
             return Err(AuditError::BoundExceeded(format!(
                 "audit packet for {} cannot fit: initial physical request needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
                 provider.id
@@ -1054,10 +1069,16 @@ fn build_invocations(
         }
         let ratio_cap =
             (current.cap_bytes as u128).saturating_mul(target as u128) / largest.max(1) as u128;
-        let next_cap = usize::try_from(ratio_cap)
-            .unwrap_or(current.cap_bytes)
-            .saturating_sub(1024)
-            .max(1);
+        // Always size the minimum whole-line materialization before calling
+        // work irreducible. Never defer merely because refinement ran out.
+        let next_cap = if attempt == 6 {
+            1
+        } else {
+            usize::try_from(ratio_cap)
+                .unwrap_or(current.cap_bytes)
+                .saturating_sub(1024)
+                .max(1)
+        };
         if next_cap >= current.cap_bytes {
             return Err(AuditError::BoundExceeded(format!(
                 "audit packet for {} cannot fit the seat budget without dropping selected coverage",
@@ -1198,13 +1219,6 @@ fn build_invocations_with_budget(
         "inventoryDigest": inventory.digest,
         "snapshotRef": INVENTORY_SNAPSHOT_FILE,
     });
-    let review_context = provider
-        .configuration
-        .get("reasoning")
-        .and_then(Value::as_object)
-        .and_then(|reasoning| reasoning.get("reviewContext"))
-        .cloned()
-        .unwrap_or(Value::Null);
     let part_slots: Vec<Option<&excerpts::ExcerptPart>> = match &partition {
         Some(partition) => partition.parts.iter().map(Some).collect(),
         None => vec![None],
@@ -1234,6 +1248,20 @@ fn build_invocations_with_budget(
         .collect::<Vec<_>>();
     for (index, part) in part_slots.into_iter().enumerate() {
         let number = index + 1;
+        // Continued chunks still need their selected file's graph hints even
+        // though denominator ownership remains with the file's first part.
+        let context_paths = part
+            .into_iter()
+            .flat_map(|part| {
+                part.paths
+                    .iter()
+                    .chain(part.excerpts.iter().map(|excerpt| &excerpt.path))
+            })
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let review_context = packet_context::review_context(plan, provider, &context_paths)?;
         // Packet materialization is separate from host delivery & review.
         // Constructing an excerpt cannot prove a reviewer received it.
         let excerpt_coverage = excerpt_coverage_value(
@@ -2384,6 +2412,7 @@ pub fn pending_lens_work_with_candidates(
             "pending-host",
             root,
             scanner_candidates,
+            true,
         )?;
         for request in requests {
             work.push(PendingLensWork {

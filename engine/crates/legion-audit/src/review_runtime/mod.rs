@@ -147,6 +147,32 @@ fn physical_invocation(request: &ReasoningInvocation) -> Result<Value, AuditErro
         "invocationDigest": legion_contracts::canonical_digest(request)
             .map_err(|error| invalid(error.to_string()))?,
     });
+    // The packet already carries these exact frozen bindings. Repeating long
+    // repository paths, signatures & digests in the outer envelope adds no
+    // review context; retain explicit references backed by invocationDigest.
+    let mut binding_fields = Vec::new();
+    for field in [
+        "repositoryId",
+        "inventoryGeneration",
+        "inventoryDigest",
+        "planDigest",
+        "planSignature",
+        "denominatorDigest",
+        "denominatorCount",
+    ] {
+        if request
+            .packet
+            .get("binding")
+            .and_then(|binding| binding.get(field))
+            == envelope.get(field)
+        {
+            envelope.as_object_mut().unwrap().remove(field);
+            binding_fields.push(field);
+        }
+    }
+    if !binding_fields.is_empty() {
+        envelope["bindingRef"] = json!({"pointer":"/packet/binding", "fields":binding_fields});
+    }
     Ok(envelope)
 }
 
@@ -157,7 +183,7 @@ fn review_prompt(
 ) -> Result<Value, AuditError> {
     let lens = lens_plan::lens_id_for_provider(&request.provider_id);
     let report_schema = lens.and_then(lens_schemas::lens_report_schema);
-    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields. denominatorPathsRef binds accounting in the frozen run artifact; it is not reviewed source or evidence of exhaustive coverage.","request":physical_invocation(request)?,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
+    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields. denominatorPathsRef binds accounting in the frozen run artifact; it is not reviewed source or evidence of exhaustive coverage. bindingRef resolves its listed outer fields from packet.binding.","request":physical_invocation(request)?,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
     // Ordinary packets already transport this exact schema. Reference it
     // rather than paying for a second copy on every fresh native call.
     if stage.is_none() && request.packet["reportSchemaBody"].is_object() {
@@ -167,7 +193,7 @@ fn review_prompt(
     }
     if stage.is_some() {
         // Stage material is the sole candidate review context.
-        prompt["request"]["packet"] = json!({"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
+        prompt["request"]["packet"] = json!({"binding":request.packet.get("binding"),"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
     }
     Ok(prompt)
 }
@@ -1108,6 +1134,16 @@ mod tests {
                 .unwrap()
                 .remove("denominatorPathsRef");
             restored["denominatorPaths"] = paths.clone();
+            if let Some(binding_ref) = restored.as_object_mut().unwrap().remove("bindingRef") {
+                for field in binding_ref["fields"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter_map(Value::as_str)
+                {
+                    restored[field] = original.packet["binding"][field].clone();
+                }
+            }
             assert_eq!(restored, serde_json::to_value(&original).unwrap());
             assert_eq!(envelope["packet"], original.packet);
             assert_eq!(work.request, original);
@@ -1145,6 +1181,51 @@ mod tests {
             large["request"]["denominatorPathsRef"]
         );
         assert!(stage["request"].get("denominatorPaths").is_none());
+    }
+    #[test]
+    fn duplicated_outer_bindings_reuse_exact_packet_values_without_changing_invocation() {
+        let mut work = estimate_work("reasoning.correctness", "correctness", "useful raw source");
+        work.request.repository_id = "long-host-repository-path/".repeat(40);
+        work.request.packet["binding"] = json!({
+            "repositoryId":work.request.repository_id,
+            "inventoryGeneration":work.request.inventory_generation,
+            "inventoryDigest":work.request.inventory_digest,
+            "planDigest":work.request.plan_digest,
+            "planSignature":work.request.plan_signature,
+            "denominatorDigest":work.request.denominator_digest,
+            "denominatorCount":work.request.denominator_count,
+        });
+        let original = work.request.clone();
+        let projected = physical_invocation(&work.request).unwrap();
+        assert!(projected.get("repositoryId").is_none());
+        assert_eq!(projected["packet"], original.packet);
+        assert_eq!(
+            projected["bindingRef"]["fields"].as_array().unwrap().len(),
+            7
+        );
+        assert_eq!(
+            projected["denominatorPathsRef"]["invocationDigest"],
+            legion_contracts::canonical_digest(&original).unwrap()
+        );
+        assert_eq!(work.request, original);
+        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({}))).unwrap();
+        let stage_request = &stage["request"];
+        let stage_binding = stage_request
+            .pointer(stage_request["bindingRef"]["pointer"].as_str().unwrap())
+            .unwrap();
+        for field in stage_request["bindingRef"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+        {
+            assert_eq!(stage_binding[field], original.packet["binding"][field]);
+        }
+        work.request.packet["binding"]["repositoryId"] = json!("different");
+        assert_eq!(
+            physical_invocation(&work.request).unwrap()["repositoryId"],
+            original.repository_id
+        );
     }
     #[test]
     fn shared_estimate_and_runtime_builder_transport_common_source_once() {

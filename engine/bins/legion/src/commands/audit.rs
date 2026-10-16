@@ -586,6 +586,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             {
                 plan_gaps.push("provider-scope-universe-unavailable".into());
             }
+            let native_plan =
+                native_plan_document(&lens_basis, plan_digest.as_str(), plan_signature.as_deref())
+                    .map_err(CommandError::integrity)?;
             let mut output = json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
@@ -602,6 +605,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "binding": binding,
                 "providers": providers,
                 "providerSpecs": selected_specs,
+                "nativePlan": native_plan,
                 "providerSelection": provider_selection,
                 "contextNotices": context_notices,
                 "auditStatus": "incomplete",
@@ -1511,9 +1515,9 @@ pub(super) fn registry_provider_spec(
 /// Frozen plan and the inventory it was compiled over, captured before execution.
 type LensBasis = Result<(legion_audit::FrozenPlan, legion_audit::InventoryEnvelope), String>;
 
-/// Adds the exact plan compiled before execution to the persisted normal-run
-/// plan document. This is a projection of the plan already bound by execution,
-/// never a reconstruction from the current provider registry.
+/// Projects the exact frozen plan into both plan-only & executed artifacts.
+/// Its digest & signature must match the artifact seal; packet context
+/// references resolve this body, never mutable top-level review context.
 fn native_plan_document(
     basis: &LensBasis,
     executed_plan_digest: &str,
@@ -5647,6 +5651,12 @@ mod sealed_plan_tests {
             .unwrap()
             .freeze(Some(KEY))
             .unwrap();
+        let native = native_plan_document(
+            &Ok((frozen.clone(), inventory.clone())),
+            frozen.digest(),
+            frozen.signature(),
+        )
+        .unwrap();
         json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
@@ -5663,6 +5673,7 @@ mod sealed_plan_tests {
             },
             "providers": ["fixture-provider"],
             "providerSpecs": specs,
+            "nativePlan": native,
         })
     }
 
@@ -5703,6 +5714,54 @@ mod sealed_plan_tests {
 
         assert!(native_plan_document(&basis, "sha256:wrong", Some(&signature)).is_err());
         assert!(native_plan_document(&basis, &digest, Some("wrong-signature")).is_err());
+    }
+
+    #[test]
+    fn plan_only_and_executed_artifacts_resolve_frozen_graph_context() {
+        let root = fixture_root("graph-context-artifacts");
+        let source = crate::commands::audit_inventory_source(&root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        let graph = json!({"coverageFloor":"lexical-js-ts-relative-imports-only",
+            "unknowns":[{"path":"src/lib.rs","cause":"unresolved-import"}],
+            "blastRadius":{"certain":[],"inferred":[],"provesDeadCode":false}});
+        let mut provider = spec();
+        provider.reasoning["reviewContext"] = json!({"graphContext":graph});
+        let frozen =
+            legion_audit::AuditPlan::compile_with_root(Some(&root), &inventory, &[provider])
+                .unwrap()
+                .freeze(Some(KEY))
+                .unwrap();
+        let basis = Ok((frozen.clone(), inventory));
+        // Both production branches persist this same seal-checked document:
+        // plan-only also exposes top-level planDigest/planSignature, while
+        // execution binds nativePlan via seal without those duplicate fields.
+        let native = native_plan_document(&basis, frozen.digest(), frozen.signature()).unwrap();
+        let mut plan_only = sealed_plan(&root);
+        plan_only["planDigest"] = json!(frozen.digest());
+        plan_only["planSignature"] = json!(frozen.signature());
+        plan_only["seal"] = json!({"digest":frozen.digest(),"signature":frozen.signature()});
+        plan_only["nativePlan"] = native.clone();
+        let executed = json!({"schemaVersion":1,"kind":"audit-provider-plan",
+            "seal":{"digest":frozen.digest(),"signature":frozen.signature()},
+            "nativePlan":native});
+        let pointer =
+            "/nativePlan/plan/providers/0/configuration/reasoning/reviewContext/graphContext";
+        let expected_digest = legion_contracts::canonical_digest(&graph).unwrap();
+        for mut artifact in [plan_only, executed] {
+            artifact["reviewContext"] = json!({"graphContext":{"tampered":true}});
+            let resolved = artifact.pointer(pointer).unwrap();
+            assert_eq!(resolved, &graph);
+            assert_eq!(
+                legion_contracts::canonical_digest(resolved).unwrap(),
+                expected_digest
+            );
+            assert_eq!(artifact["nativePlan"]["digest"], artifact["seal"]["digest"]);
+            assert_eq!(
+                artifact["nativePlan"]["signature"],
+                artifact["seal"]["signature"]
+            );
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     fn verify(

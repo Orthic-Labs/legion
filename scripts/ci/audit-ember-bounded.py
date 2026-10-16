@@ -16,6 +16,7 @@ import sys
 EMBER_URL = "https://github.com/Orthic-Labs/ember.git"
 EMBER_REVISION = "9961562ed4c652b0bc6a9b3bc3a63142d885f583"
 MAX_SECONDS = 120
+MAX_DIAGNOSTIC_CHARS = 6000
 CODE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".h", ".hpp", ".java", ".js",
     ".jsx", ".kt", ".m", ".mm", ".php", ".py", ".rb", ".rs", ".scala",
@@ -27,8 +28,17 @@ def fail(message: str) -> None:
     raise RuntimeError(message)
 
 
+def diagnostic(text: str) -> str:
+    if len(text) <= MAX_DIAGNOSTIC_CHARS:
+        return text
+    retained = MAX_DIAGNOSTIC_CHARS // 2
+    omitted = len(text) - retained * 2
+    return f"{text[:retained]}\n...[{omitted} characters omitted]...\n{text[-retained:]}"
+
+
 def run(command: list[str], *, cwd: Path | None = None,
-        env: dict[str, str] | None = None, timeout: int = MAX_SECONDS) -> subprocess.CompletedProcess[str]:
+        env: dict[str, str] | None = None, timeout: int = MAX_SECONDS,
+        allowed_returncodes: set[int] | frozenset[int] = frozenset({0})) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(
             command, cwd=cwd, env=env, text=True, stdout=subprocess.PIPE,
@@ -36,11 +46,11 @@ def run(command: list[str], *, cwd: Path | None = None,
         )
     except subprocess.TimeoutExpired as error:
         stderr = error.stderr.decode(errors="replace") if isinstance(error.stderr, bytes) else (error.stderr or "")
-        fail(f"timed out after {timeout}s: {' '.join(command)}\n{stderr}")
-    if result.returncode:
+        fail(f"timed out after {timeout}s: {' '.join(command)}\n{diagnostic(stderr)}")
+    if result.returncode not in allowed_returncodes:
         fail(
             f"command failed ({result.returncode}): {' '.join(command)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            f"stdout:\n{diagnostic(result.stdout)}\nstderr:\n{diagnostic(result.stderr)}"
         )
     return result
 
@@ -93,6 +103,8 @@ def inspect_run(out: Path) -> dict:
     dispatch = json_file(dispatch_path)
     if plan.get("kind") != "audit-provider-plan":
         fail(f"unexpected frozen plan kind: {plan.get('kind')!r}")
+    if plan.get("auditStatus") != "incomplete":
+        fail(f"plan-only audit has unexpected status: {plan.get('auditStatus')!r}")
     if plan.get("processExecution") != "not-run" or plan.get("processState") != "not-run":
         fail("plan-only gate unexpectedly reports provider execution")
     if dispatch.get("kind") != "legion-lens-dispatch":
@@ -250,15 +262,30 @@ def main() -> int:
             "--run-token-budget", "50000", "--max-total-seats", "5",
             "--max-lens-seats", "1", "--out", str(out), "--json",
         ]
-        result = run(command, cwd=repo, env=env)
+        result = run(command, cwd=repo, env=env, allowed_returncodes={0, 2})
         try:
-            json.loads(result.stdout)
+            output = json.loads(result.stdout)
         except json.JSONDecodeError as error:
-            fail(f"audit did not return JSON ({error})\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            fail(
+                f"audit did not return JSON ({error})\n"
+                f"stdout:\n{diagnostic(result.stdout)}\nstderr:\n{diagnostic(result.stderr)}"
+            )
+        if not isinstance(output, dict) or output.get("kind") != "audit-provider-plan":
+            fail(f"audit stdout is not an audit-provider-plan: {diagnostic(result.stdout)}")
+        if output.get("auditStatus") != "incomplete":
+            fail(f"audit stdout has unexpected status: {output.get('auditStatus')!r}")
+        if output.get("processExecution") != "not-run" or output.get("processState") != "not-run":
+            fail("audit stdout unexpectedly reports provider execution")
         try:
             observation = inspect_run(out)
         except RuntimeError as error:
-            fail(f"{error}\naudit stderr:\n{result.stderr}")
+            fail(f"{error}\naudit stderr:\n{diagnostic(result.stderr)}")
+        persisted_plan = json_file(out / "plan.json")
+        for key in ("planDigest", "planSignature", "repository"):
+            if not output.get(key) or output.get(key) != persisted_plan.get(key):
+                fail(f"audit stdout and persisted plan differ for {key}")
+        if result.returncode == 2 and output.get("auditStatus") != "incomplete":
+            fail("audit exited 2 without the expected incomplete plan-only status")
         observations.append((label, observation))
 
     if observations[0][1]["excerpt_digest"] != observations[1][1]["excerpt_digest"]:

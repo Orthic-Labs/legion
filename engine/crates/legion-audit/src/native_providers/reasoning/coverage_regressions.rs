@@ -722,3 +722,193 @@ fn bundle_count_does_not_refuse_compatible_bounded_source_selection() {
     );
     assert!(matches!(impossible, Err(AuditError::BoundExceeded(_))));
 }
+
+fn bounded_request() -> Value {
+    json!({"mode":"risk-sampled", "runTokenBudget":50_000,
+        "seatTokenBudget":10_000, "maxTotalSeats":5})
+}
+
+#[test]
+fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() {
+    let files = (0..23).map(|index| (
+        format!("apps/lightcraft-desktop/web/src/components/Control{index:04}.tsx"),
+        format!("export function Control{index}() {{ return <button aria-label=\"Open\">Open</button>; }}\n").repeat(12),
+    )).collect::<Vec<_>>();
+    let fixture = Fixture::new(
+        &files
+            .iter()
+            .map(|(path, body)| (path.as_str(), body.clone()))
+            .collect::<Vec<_>>(),
+    );
+    let inventory = fixture.inventory();
+    // Same shape as real CLI whole-repo context: run-wide unresolved imports
+    // plus a large blast-radius graph, repeated in every provider's config.
+    let edges = (0..160).map(|index| json!({
+        "from":files[index % files.len()].0, "to":files[(index + 1) % files.len()].0,
+        "kind":"imports", "confidence":"possible", "source":"lexical",
+        "evidence":{"path":files[index % files.len()].0, "startLine":index + 1,
+            "endLine":index + 1,"sourceDigest":"e181fcf90fd7e7caea463a0acc4022a0d872c15207d3973f096489c3f8346b97"}
+    })).collect::<Vec<_>>();
+    let unknowns = (0..102)
+        .map(|index| {
+            json!({
+                "path":files[index % files.len()].0,"cause":"lexical-import-unresolved-or-external"
+            })
+        })
+        .collect::<Vec<_>>();
+    let graph = json!({"contractVersion":"legion-graph/1", "blueprintVersion":null,
+        "scopedBytesDigest":"7f335cbf499c424016cfdd995697ff00737a0ac4a9d3cdf60838674ffaa1ab25",
+        "resolverConfigDigest":"sha256:4008bdd4fd0af2333ef8544a6a7251c7f7f7be78509df12ca3d0fb52b19c9124",
+        "coverageFloor":"lexical-js-ts-relative-imports-only", "input":"lexical-fallback",
+        "freshness":"artifact-absent", "unknowns":unknowns, "truncated":false,
+        "blastRadius":{"certain":[],"inferred":edges,"unknowns":unknowns,
+            "truncated":false,"provesDeadCode":false}});
+    assert!(graph.to_string().len() > 60_000);
+    let mut specs = [
+        "reasoning.a11y",
+        "reasoning.correctness",
+        "reasoning.ai-slop",
+        "reasoning.architecture",
+    ]
+    .map(|id| spec(id, json!({"op":"always"})));
+    for provider in &mut specs {
+        provider.reasoning["coverageRequest"] = bounded_request();
+        provider.reasoning["reviewContext"] = json!({"mode":"whole-repo", "type":"all",
+            "changedPaths":[], "snapshotKey":"sha256:frozen-fixture", "graphContext":graph});
+    }
+    let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &specs)
+        .unwrap()
+        .freeze(Some(b"real-context-fixture-key"))
+        .unwrap();
+    let frozen = serde_json::to_value(plan.plan()).unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    let dispatch = ingest::lens_dispatch_plan(
+        &work,
+        &ingest::DispatchLimits {
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+            wave_width: 1,
+        },
+    );
+    assert_eq!(dispatch["withinLimits"], true, "{}", dispatch["violations"]);
+    assert_eq!(dispatch["followupReserveCalls"], 1);
+    assert_eq!(dispatch["gatherCalls"], 0);
+    assert!(dispatch["requiredInitialCalls"].as_u64().unwrap() <= 4);
+    let selected = dispatch["selectedPackets"].as_array().unwrap();
+    let deferred = dispatch["deferredPackets"].as_array().unwrap();
+    assert_eq!(selected.len() + deferred.len(), work.len());
+    assert!(selected.iter().all(|packet| !deferred.contains(packet)));
+    let ledger = json!({"nativePlan":{"plan":plan.plan()}});
+    for item in &work {
+        let packet = &item.request.packet;
+        let local_graph = &packet["reviewContext"]["graphContext"];
+        let reference = &local_graph["projection"]["fullContextRef"];
+        let full_graph = ledger
+            .pointer(reference["pointer"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(full_graph, &graph);
+        assert_eq!(reference["digest"], canonical_digest(full_graph).unwrap());
+        assert_eq!(reference["planDigest"], plan.digest());
+        assert!(local_graph.to_string().len() < 5000);
+        assert_eq!(local_graph["projection"]["incomplete"], true);
+        assert_eq!(local_graph["projection"]["provesDeadCode"], false);
+        assert_eq!(local_graph["coverageFloor"], graph["coverageFloor"]);
+        assert!(!local_graph["blastRadius"]["inferred"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        let selected_paths = packet["excerpts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|excerpt| &excerpt["path"])
+            .collect::<Vec<_>>();
+        for edge in local_graph["blastRadius"]["inferred"].as_array().unwrap() {
+            assert!(
+                selected_paths.contains(&&edge["from"]) || selected_paths.contains(&&edge["to"])
+            );
+        }
+        assert_eq!(packet["excerpts"][0]["mode"], "raw");
+        assert!(packet["excerpts"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("<button"));
+        assert_eq!(packet["excerptCoverage"]["examinedPaths"], json!([]));
+    }
+    // Compacting hints cannot mutate exact full frozen coverage/graph ledgers.
+    assert_eq!(serde_json::to_value(plan.plan()).unwrap(), frozen);
+    let a11y = plan
+        .providers()
+        .iter()
+        .find(|provider| provider.id == "reasoning.a11y")
+        .unwrap();
+    assert!(
+        !coverage_plan::FrozenCoverage::from_value(&a11y.configuration["coverage"])
+            .unwrap()
+            .mandatory_deferred
+            .is_empty()
+    );
+    assert!(work.iter().any(|item| item.provider_id == "reasoning.a11y"
+        && selected.contains(&json!(item.packet_file_name()))));
+}
+
+#[test]
+fn irreducible_sampled_lens_remains_deferred_while_affordable_lens_runs() {
+    let fixture = Fixture::new(&[(
+        "src/main.tsx",
+        "export function App() { return <button>Open</button>; }\n".into(),
+    )]);
+    let inventory = fixture.inventory();
+    let mut expensive = spec("reasoning.a11y", json!({"op":"always"}));
+    expensive.runner["contract"] = json!("irreducible-contract-".repeat(3000));
+    let affordable = spec("reasoning.ai-slop", json!({"op":"always"}));
+    for mode in ["risk-sampled", "exhaustive"] {
+        let mut specs = [expensive.clone(), affordable.clone()];
+        for provider in &mut specs {
+            provider.reasoning["coverageRequest"] = bounded_request();
+            provider.reasoning["coverageRequest"]["mode"] = json!(mode);
+        }
+        let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &specs)
+            .unwrap()
+            .freeze(Some(b"irreducible-lens-fixture-key"))
+            .unwrap();
+        let result = pending_lens_work(&fixture.0, &plan, &inventory);
+        if mode == "exhaustive" {
+            assert!(matches!(result, Err(AuditError::BoundExceeded(_))));
+            continue;
+        }
+        let work = result.unwrap();
+        assert_eq!(work.len(), 2);
+        let dispatch = ingest::lens_dispatch_plan(
+            &work,
+            &ingest::DispatchLimits {
+                run_token_budget: 50_000,
+                seat_token_budget: 10_000,
+                max_total_seats: 5,
+                wave_width: 1,
+            },
+        );
+        assert_eq!(dispatch["withinLimits"], true, "{}", dispatch["violations"]);
+        assert_eq!(
+            dispatch["selectedPackets"],
+            json!(["reasoning.ai-slop.json"])
+        );
+        assert_eq!(dispatch["deferredPackets"], json!(["reasoning.a11y.json"]));
+        assert_eq!(
+            dispatch["deferredWork"][0]["reason"],
+            "physical-envelope-headroom"
+        );
+        assert_eq!(dispatch["followupReserveCalls"], 1);
+        let deferred = work
+            .iter()
+            .find(|item| item.provider_id == "reasoning.a11y")
+            .unwrap();
+        assert_eq!(
+            deferred.request.packet["excerptCoverage"]["examinedPaths"],
+            json!([])
+        );
+        assert_eq!(deferred.request.denominator_paths, vec!["src/main.tsx"]);
+        assert_eq!(deferred.request.packet["excerpts"][0]["mode"], "raw");
+    }
+}
