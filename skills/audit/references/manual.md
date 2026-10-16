@@ -3,7 +3,7 @@
 ```text
 PRIMARY_DELIVERABLE: Re-runnable audit report plus bounded findings.
 SPECIALIST_REFS_MAX: 5
-CHILD_AGENTS_MAX: 16
+EXECUTION: Native staged reasoning runtime; no subagent fan-out.
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT, AUDIT-VISUAL
@@ -51,16 +51,16 @@ without code symbols, relationships, and cross-code/document retrieval is a mate
 and `CODE-FELL-SHORT` even when the existing mapper/tests are clean. A healthy implementation of a
 narrowed subset is not a healthy whole product.
 
-## How it runs (parallel vs sequential)
+## How it runs
 
-A pipeline. Scanners fan out; the build step is the lone serial exception; stages are ordered.
+A pipeline of frozen provider execution followed by staged reasoning and report reconciliation.
 
 | Stage | Execution |
 |---|---|
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
-| 1 · Scanners (`legion audit <root> --out <run-dir>`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
-| 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1, run `legion audit run-reasoning --run <run-dir>` for native Claude execution over the frozen plan. Missing CLI capabilities or runtime prerequisites remain typed gaps; see [reasoning runtime](reasoning-runtime.md). |
+| 1 · Providers (`legion audit <root> --out <run-dir>`) | Consume fresh Blueprint hygiene facts first; execute the exact frozen provider plan. Size metrics nominate review candidates; they do not emit architecture findings. |
+| 1b · `build` / install check | Runs only when selected by the frozen provider plan and required host controls are available. |
+| 2 · Reasoning lenses | After stage 1, run `legion audit run-reasoning --run <run-dir>` for staged native execution over the frozen plan. Seats are review jobs; calls currently run sequentially. See [lens routing](lens-routing.md) for role, model, and budget policy. |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -89,7 +89,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    producer; Audit is the diagnosis layer.
 
    Run `blueprint hygiene status --json`. When it is `fresh`, ingest
-   `.agent/hygiene/facts.json` and exclude those completed checks from Audit scanner fan-out. When it
+   `.agent/hygiene/facts.json` and exclude those completed checks from Audit provider execution. When it
    is `missing|stale`, run `blueprint hygiene refresh --json` (or `--offline` when network probes are
    disallowed) before Audit. Blueprint owns cached facts/candidates; Audit still owns severity,
    policy, false-positive adjudication, full ponytail/minimize reasoning, and finding lifecycle.
@@ -166,7 +166,7 @@ Local-review scope/diff flags (`--doctor`, `--dir`, `--type all|local|committed|
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
-2. **Run reasoning:** `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`
+2. **Run reasoning:** `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`
    executes applicable lens packets through a fresh native Claude process per bounded turn. The
    host grants only snapshot read/search/list/diff/caller tools; it grants no shell, edit, MCP, or
    subagent tools. Every author finding goes through a separate evidence verifier before ingest.
@@ -324,7 +324,7 @@ CodeRabbit's entire review surface across existing lenses — running the CLI af
 the class→lens ownership map and the per-lens **cue lists** (high-signal heuristics per lens) live
 in that reference. If a CodeRabbit class isn't mapped there, the lens is under-running, not the
 audit under-scoped (PR-inline delivery = the host's PR review flow, if any, not a coverage gap). At
-lens fan-out, feed each lens its cue section from that reference alongside its `facts.json` slice.
+reasoning review, feed each lens its cue section from that reference alongside its `facts.json` slice.
 
 ## Scanner registry
 
@@ -373,10 +373,10 @@ not suppress a verified correctness/security finding.
 
 ### Coverage-on-the-change (§2A) and trajectory — not implemented
 
-Not implemented in the native engine. `legion report` only renders what the frozen `report.json` already
-contains, so a per-change coverage gate (§2A) or an `audit_diff` trajectory is reported as `UNPROVEN`
-when absent. It is never computed by hand and never presented as a trend. The design notes in
-`references/coverage-and-trajectory.md` describe no current behaviour.
+This refers only to the per-change coverage gate and `audit_diff` trajectory. Risk-sampled lens coverage
+and its reported strata are implemented and described in `references/coverage-and-trajectory.md`.
+`legion report` renders the frozen `report.json`; absent per-change or trajectory data stays unproven
+and is never computed by hand or presented as a trend.
 
 ## Hard rules
 

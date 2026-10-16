@@ -161,6 +161,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "observation",
         "modelAction",
         "budget",
+        "execution",
     ];
     if receipt.get("schemaVersion").and_then(Value::as_u64) != Some(1)
         || receipt.get("kind").and_then(Value::as_str) != Some("legion-runtime-call")
@@ -187,6 +188,9 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         .get("observation")
         .and_then(Value::as_object)
         .ok_or_else(|| invalid("runtime call observation missing"))?;
+    if let Some(execution) = receipt.get("execution") {
+        crate::review_runtime::validate_execution_metadata(execution)?;
+    }
     let observation_fields = [
         "contextId",
         "processId",
@@ -202,6 +206,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "invoiceChargeUsd",
         "physicalRequestDigest",
         "physicalRequestBytes",
+        "observedModels",
     ];
     if observation
         .keys()
@@ -210,6 +215,18 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         return Err(invalid(
             "runtime call contains unbounded observation fields",
         ));
+    }
+    if observation.get("observedModels").is_some_and(|models| {
+        !models.as_array().is_some_and(|models| {
+            models.len() <= 16
+                && models.iter().all(|model| {
+                    model
+                        .as_str()
+                        .is_some_and(|model| !model.is_empty() && model.len() <= 256)
+                })
+        })
+    }) {
+        return Err(invalid("runtime observed models exceed bounded metadata"));
     }
     if observation
         .get("reportedApiEquivalentCostUsd")
@@ -3807,8 +3824,37 @@ fn tier_rank(tier: &str) -> u8 {
     }
 }
 
+/// Exact top-level packet fields eligible for physical sharing. The complete
+/// logical packet & digest remain unchanged for delivery/ingest verification.
+pub const SHARED_PACKET_FIELDS: &[&str] = &[
+    "excerpts",
+    "binding",
+    "reviewContext",
+    "sourceSides",
+    "inventoryRef",
+    "triggerEvidence",
+    "part",
+    "excerptCoverage",
+];
+
+pub fn compact_shared_packet(packet: &Value, shared: &Value) -> Result<Value, AuditError> {
+    let fields = shared
+        .as_object()
+        .ok_or_else(|| invalid("shared packet context must be an object"))?;
+    let mut compact = packet.clone();
+    for (field, value) in fields {
+        if !SHARED_PACKET_FIELDS.contains(&field.as_str()) || packet.get(field) != Some(value) {
+            return Err(invalid(
+                "shared context must preserve exact original packet fields",
+            ));
+        }
+        compact[field] = json!({"$sharedContext":field});
+    }
+    Ok(compact)
+}
+
 /// Physical shared-context-v1 payload consumed by the trusted host. Sharing
-/// is legal only for exact excerpt arrays; logical packets remain unchanged.
+/// requires exact excerpt arrays; other identical metadata is transported once.
 pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, AuditError> {
     if !(2..=8).contains(&work.len()) {
         return Ok(None);
@@ -3827,15 +3873,35 @@ pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, Au
     }) {
         return Ok(None);
     }
-    let shared = json!({"excerpts":excerpts});
+    let mut shared = json!({"excerpts":excerpts});
+    for field in SHARED_PACKET_FIELDS
+        .iter()
+        .copied()
+        .filter(|field| *field != "excerpts")
+    {
+        let Some(value) = work[0]
+            .request
+            .packet
+            .get(field)
+            .filter(|value| !value.is_null())
+        else {
+            continue;
+        };
+        if work
+            .iter()
+            .all(|item| item.request.packet.get(field) == Some(value))
+            && value.to_string().len() > json!({"$sharedContext":field}).to_string().len()
+        {
+            shared[field] = value.clone();
+        }
+    }
     let mut requests = Vec::new();
     let mut identities = BTreeSet::new();
     for item in work {
         if !identities.insert(item.request.request_id.as_str()) {
             return Err(invalid("duplicate request IDs in shared seat"));
         }
-        let mut compact = item.request.packet.clone();
-        compact["excerpts"] = json!({"$sharedContext":"excerpts"});
+        let compact = compact_shared_packet(&item.request.packet, &shared)?;
         let lens = lens_plan::lens_id_for_provider(&item.provider_id);
         let mut request = json!({"requestId":item.request.request_id,"providerId":item.provider_id,
             "planDigest":item.request.plan_digest,"packetDigest":canonical_digest(&item.request.packet).map_err(|error|invalid(error.to_string()))?,
@@ -3877,9 +3943,13 @@ struct SeatDraft {
 /// including schemas, tools, framing, escaping & output reserve. Exact shared
 /// excerpts are charged once only when the host consumes that encoding.
 /// Bytes / 4 remains an estimate; each later physical call preflights again.
+pub(crate) fn dispatch_output_tokens(seat_token_budget: u64) -> u64 {
+    crate::next::DEFAULT_OUTPUT_TOKENS.min((seat_token_budget / 4).max(1))
+}
+
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
-    let output_tokens =
-        crate::next::DEFAULT_OUTPUT_TOKENS.min((limits.seat_token_budget / 4).max(1));
+    let output_tokens = dispatch_output_tokens(limits.seat_token_budget);
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     let mut drafts: Vec<SeatDraft> = Vec::new();
     let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
     let mut sampled = false;
@@ -3892,18 +3962,26 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             .filter(|value| !value.is_null())
             .and_then(|value| serde_json::to_vec(value).ok())
             .map_or(0, |bytes| bytes.len() as u64);
-        let request_bytes =
-            match crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    planning_errors.push(format!(
-                        "{} initial request cannot render: {error}",
-                        item.provider_id
-                    ));
-                    u64::MAX
-                }
-            };
+        let request_bytes = match sizer.request_bytes(std::slice::from_ref(item)) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                planning_errors.push(format!(
+                    "{} initial request cannot render: {error}",
+                    item.provider_id
+                ));
+                u64::MAX
+            }
+        };
         unshared_request_bytes = unshared_request_bytes.saturating_add(request_bytes);
+        if lens_plan::lens_id_for_provider(&item.provider_id) != Some("dead-file") {
+            match crate::review_runtime::initial_gather_request_bytes(std::slice::from_ref(item)) {
+                Ok(bytes) => unshared_request_bytes = unshared_request_bytes.saturating_add(bytes),
+                Err(error) => planning_errors.push(format!(
+                    "{} gathering request cannot render: {error}",
+                    item.provider_id
+                )),
+            }
+        }
         let adjudicator = item.provider_id == ADJUDICATOR_PROVIDER_ID;
         let bundle = packet
             .pointer("/lensPlan/bundle/id")
@@ -3959,12 +4037,14 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
                 .map(|position| work[*position].clone())
                 .collect::<Vec<_>>();
             // Strict physical compatibility, not merely equal path counts.
-            if !crate::review_runtime::shared_seat_supported(&items).ok()? {
-                return None;
-            }
-            let bytes = crate::review_runtime::initial_seat_request_bytes(&items).ok()?;
+            let bytes = sizer.shared_request_bytes(&items).ok()??;
             let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
-            (tokens <= limits.seat_token_budget).then_some((index, bytes))
+            let needs_gather = items.iter().any(|item| {
+                lens_plan::lens_id_for_provider(&item.provider_id) != Some("dead-file")
+            });
+            let reserve_tokens = if needs_gather { 512 } else { 0 };
+            (tokens.saturating_add(reserve_tokens) <= limits.seat_token_budget)
+                .then_some((index, bytes))
         });
         if let Some((index, bytes)) = merge {
             let draft = &mut drafts[index];
@@ -3998,21 +4078,73 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     let mut violations = planning_errors;
     let mut bundles: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     let mut total_tokens = 0u64;
+    let mut gather_calls = 0u64;
     let mut total_bytes = 0u64;
     let mut unique_excerpt_bytes = 0u64;
     let mut shared_excerpt_bytes_saved = 0u64;
     for (index, draft) in drafts.iter().enumerate() {
         let number = index as u64 + 1;
+        let gathers = draft.members.iter().any(|position| {
+            lens_plan::lens_id_for_provider(&work[*position].provider_id) != Some("dead-file")
+        });
+        gather_calls += u64::from(gathers);
         let bytes = draft.request_bytes;
+        let items = draft
+            .members
+            .iter()
+            .map(|position| work[*position].clone())
+            .collect::<Vec<_>>();
+        let gather_bytes = if gathers {
+            match crate::review_runtime::initial_gather_request_bytes(&items) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    violations.push(format!(
+                        "seat {number} gathering request cannot render: {error}"
+                    ));
+                    u64::MAX
+                }
+            }
+        } else {
+            0
+        };
         let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
-        total_tokens = total_tokens.saturating_add(tokens);
-        total_bytes = total_bytes.saturating_add(bytes);
+        let gather_tokens = if gathers {
+            crate::next::estimated_request_tokens(gather_bytes, output_tokens)
+        } else {
+            0
+        };
+        let input_allowance = limits
+            .seat_token_budget
+            .saturating_sub(output_tokens)
+            .saturating_mul(4);
+        let context_reserve = if gathers {
+            input_allowance.saturating_sub(bytes).min(16 * 1024)
+        } else {
+            0
+        };
+        if gathers && context_reserve < 2048 {
+            violations.push(format!("seat {number} needs at least 2048 input bytes for gathered raw context after its author envelope; increase seatTokenBudget or narrow scope"));
+        }
+        if gather_tokens > limits.seat_token_budget {
+            violations.push(format!("seat {number} cheap gathering request needs ~{gather_tokens} tokens; per-call budget is {}", limits.seat_token_budget));
+        }
+        total_tokens = total_tokens
+            .saturating_add(tokens)
+            .saturating_add(gather_tokens)
+            .saturating_add(context_reserve.div_ceil(4));
+        total_bytes = total_bytes
+            .saturating_add(bytes)
+            .saturating_add(gather_bytes);
         unique_excerpt_bytes = unique_excerpt_bytes.saturating_add(draft.excerpt_bytes);
         shared_excerpt_bytes_saved =
             shared_excerpt_bytes_saved.saturating_add(draft.shared_excerpt_bytes_saved);
         let entry = bundles.entry(draft.bundle.clone()).or_insert((0, 0));
         entry.0 = entry.0.saturating_add(1);
-        entry.1 = entry.1.saturating_add(tokens);
+        entry.1 = entry
+            .1
+            .saturating_add(tokens)
+            .saturating_add(gather_tokens)
+            .saturating_add(context_reserve.div_ceil(4));
         if tokens > limits.seat_token_budget {
             violations.push(format!(
                 "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds the per-seat budget of {}",
@@ -4027,9 +4159,16 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "wave": (number - 1) / wave_width + 1,
             "part": draft.part,
             "estimatedTokens": tokens,
+            "initialPhysicalCalls": if gathers { 2 } else { 1 },
+            "estimatedInitialTokens": tokens.saturating_add(gather_tokens).saturating_add(context_reserve.div_ceil(4)),
+            "evidenceGatherer": if gathers { json!({"role":"alchemist", "modelTier":"mechanical-cheap", "reservedTokens":limits.seat_token_budget}) } else { Value::Null },
             "estimatedInputTokens": estimate_tokens(bytes),
             "outputTokenLimit": output_tokens,
+            "perCallTokenAllowance": limits.seat_token_budget,
             "plannedRequestBytes": bytes,
+            "plannedGatherRequestBytes": gather_bytes,
+            "plannedInitialRequestBytes": bytes.saturating_add(gather_bytes),
+            "gatheredContextReserveBytes": context_reserve,
             "transportEncoding": if draft.members.len() > 1 { "shared-context-v1" } else { "literal" },
             "providers": draft.members.iter().map(|i| work[*i].provider_id.clone()).collect::<Vec<_>>(),
             "lensIds": draft.members.iter().flat_map(|i| work[*i].lens_ids.clone()).collect::<Vec<_>>(),
@@ -4038,11 +4177,20 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     }
     let required_seats = drafts.len() as u64;
     let waves = required_seats.div_ceil(wave_width);
-    if required_seats > limits.max_total_seats {
+    let initial_calls = required_seats.saturating_add(gather_calls);
+    let followup_calls = u64::from(!drafts.is_empty());
+    let reserved_calls = initial_calls.saturating_add(followup_calls);
+    let initial_reservation_tokens = initial_calls.saturating_mul(limits.seat_token_budget);
+    let followup_reserve_tokens = followup_calls.saturating_mul(limits.seat_token_budget);
+    if reserved_calls > limits.max_total_seats {
         violations.push(format!(
-            "{required_seats} seats required exceeds the run cap of {} seats",
+            "{required_seats} author seats + {gather_calls} cheap gathering calls + {followup_calls} verification/context reserve require {reserved_calls} calls; run cap is {}. Increase call budget or narrow lenses/scope; mandatory coverage was not reduced",
             limits.max_total_seats
         ));
+    }
+    if initial_reservation_tokens.saturating_add(followup_reserve_tokens) > limits.run_token_budget
+    {
+        violations.push(format!("initial calls reserve {initial_reservation_tokens} tokens plus {followup_reserve_tokens} verification/context tokens; run budget is {}", limits.run_token_budget));
     }
     let mut overruns = Vec::new();
     let bundle_rows: Vec<Value> = bundles
@@ -4079,8 +4227,9 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             }
         ));
     }
-    // Per-packet check kept from the part-level gate: a packet no seat can
-    // read refuses the freeze whatever the bundle arithmetic says.
+    // Logical packet sizes remain diagnostics. Only complete physically
+    // rendered requests gate dispatch; pretty logical copies can exceed an
+    // exact shared envelope without exceeding physical context limits.
     let legacy = lens_size_report(
         work,
         &LensSizeLimits {
@@ -4088,20 +4237,23 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             max_seats: wave_width,
         },
     );
-    for violation in legacy["violations"].as_array().into_iter().flatten() {
-        if let Some(text) = violation.as_str() {
-            violations.push(text.to_owned());
-        }
-    }
     let per_lens_bytes = legacy["packetBytes"].as_u64().unwrap_or(0);
+    let violation_count = violations.len();
+    violations.truncate(8);
+    if violation_count > violations.len() {
+        violations.push(format!(
+            "{} further budget violations omitted; increase budgets or narrow scope/lenses",
+            violation_count - violations.len()
+        ));
+    }
     json!({
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
-        "estimateBasis": "estimate: full initial runtime-rendered request bytes / 4 plus output reserve per seat; every physical call preflights actual rendered request",
+        "estimateBasis": "estimate: author plus cheap gathering rendered bytes / 4, output reserve for each physical call & bounded supplementary raw-context reserve; every physical call preflights actual rendered request",
         "requestEncoding": "runtime-initial-v1",
         "byteBasis": {
-            "packetBytes": "planned full initial physical requests, including system, schemas, context tools, framing & escaping; model selection preflighted at transport",
+            "packetBytes": "author baseline plus cheap gathering initial physical requests, including model, effort, system, schemas, tools, framing & escaping; unknown supplementary raw context is reserved separately",
             "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
             "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
             "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
@@ -4128,6 +4280,11 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "seats": seats,
         "waves": waves,
         "requiredSeats": required_seats,
+        "requiredInitialCalls": initial_calls,
+        "gatherCalls": gather_calls,
+        "followupReserveCalls": followup_calls,
+        "initialCallReservationTokens": initial_reservation_tokens,
+        "followupReserveTokens": followup_reserve_tokens,
         "packetBytes": total_bytes,
         "seatReadBytes": total_bytes,
         "perLensPacketBytes": per_lens_bytes,
@@ -4138,6 +4295,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "estimatedTokens": total_tokens,
         "withinLimits": violations.is_empty(),
         "violations": violations,
+        "violationCount": violation_count,
         "warnings": overruns,
     })
 }
@@ -4552,7 +4710,20 @@ pub fn lens_coverage_claims(
                     (total + 1, high + u64::from(*is_high))
                 });
             placed.extend(paths.iter().cloned());
-            let confidence = if frozen.is_sampled() && complete {
+            let floor_met = frozen
+                .strata
+                .as_array()
+                .and_then(|rows| rows.iter().find(|row| row["name"] == "remainder"))
+                .is_none_or(|row| {
+                    row["n"].as_u64().unwrap_or(0)
+                        >= row["N"]
+                            .as_u64()
+                            .unwrap_or(0)
+                            .min(coverage_plan::SAMPLE_FLOOR as u64)
+                });
+            let confidence = if frozen.is_sampled() && !floor_met {
+                json!({"claim":"none", "basis":"sample-floor-not-met"})
+            } else if frozen.is_sampled() && complete {
                 coverage_plan::stratum_confidence(name, population, selected, high)
             } else if frozen.is_sampled() {
                 json!({"claim": "none", "basis": "lens-incomplete"})
@@ -5773,6 +5944,9 @@ mod runtime_evidence_tests {
         let plan = lens_dispatch_plan(&work, &roomy);
         assert_eq!(plan["withinLimits"], true, "{}", plan["violations"]);
         assert_eq!(plan["requiredSeats"], 1);
+        assert_eq!(plan["gatherCalls"], 1);
+        assert_eq!(plan["requiredInitialCalls"], 2);
+        assert_eq!(plan["followupReserveCalls"], 1);
         assert_eq!(plan["seats"][0]["plannedRequestBytes"], shared);
         assert_eq!(plan["seats"][0]["transportEncoding"], "shared-context-v1");
         assert!(plan["physicalRequestBytesSaved"].as_u64().unwrap() > 0);

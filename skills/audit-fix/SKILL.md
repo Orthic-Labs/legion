@@ -29,7 +29,7 @@ metadata:
 ```text
 PRIMARY_DELIVERABLE: Bounded fixes plus reconciled rerun evidence.
 SPECIALIST_REFS_MAX: 0
-CHILD_AGENTS_MAX: 16
+EXECUTION: Native staged reasoning runtime; no subagent fan-out.
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
@@ -57,17 +57,14 @@ Guard-gated.
    or visual findings lacking acceptance evidence.
 4. Do not install tools, fetch mutable rules, or alter provider selection.
 5. After each bounded batch, rerun `legion audit <root> --out <run-dir>` with identical scope & evidence,
-   then rerun the applicable reasoning lenses through the bundled-seat loop `/audit` uses:
-   `legion audit next --run <run-dir>` -> dispatch the returned wave (one fresh-context subagent per
-   bundled seat, at most 16 in parallel, each at the seat's `modelTier`, verbatim-anchored findings and
-   the refutation rule applied) -> one batch ingest
-   (`legion audit ingest --run <run-dir> --result <file> [--result <file> ...]`) -> `next` again until
-   `done`; `incomplete:<reasons>` or `budget-exhausted` keeps the fix unverified. Then run
+   then rerun applicable reasoning through `legion audit run-reasoning --run <run-dir>`. The native
+   staged runtime executes planned seats sequentially under Audit's Alchemist model routing; it is not
+   subagent fan-out. `incomplete:<reasons>` or `budget-exhausted` keeps the fix unverified. Then run
    `legion verify <run-dir>`; only ingested receipts count as a lens having run, and the CLI rejects
    any finding whose anchor text does not match the file at the frozen revision. Read the audit
    skill's `references/lens-routing.md` and `references/execution-contract.md` before every iteration.
    A fix is verified only when both the same frozen provider plan and the ingested lenses that raised
-   the finding come back clean for it; subagents read and report, only this skill edits.
+   the finding come back clean for it; reasoning calls read and report, only this skill edits.
 6. Cap loop at four batches; stop earlier on no progress, regression, drift, or new high/critical finding.
 7. Return changed files, closed/open findings, regressions, rerun commands, & report path.
    Include `report.sarif` from the rerun; `legion report <run-dir>/report.json --format md` renders the

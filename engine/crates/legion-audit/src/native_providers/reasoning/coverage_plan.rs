@@ -11,7 +11,7 @@
 //! 2. **hotspot** stratum, ranked by churn + fan-in + size, reviewed
 //!    exhaustively up to the bundle budget;
 //! 3. **remainder** stratum, sampled in `sha256(seed || path)` order with a
-//!    floor of `min(30, |stratum|)`.
+//!    budget-bounded target of `min(30, |stratum|)`.
 //!
 //! The result is frozen into each lens provider's `configuration.coverage`, so
 //! the plan digest covers it. Everything here is pure and deterministic: the
@@ -50,7 +50,7 @@ pub const DEFAULT_MAX_TOTAL_SEATS: u64 = 48;
 pub const DEFAULT_SEAT_TOKEN_BUDGET: u64 = 150_000;
 /// Wave width (`CHILD_AGENTS_MAX` in the Audit manual).
 pub const WAVE_WIDTH: u64 = 16;
-/// Floor of the sampled remainder stratum: `min(SAMPLE_FLOOR, |stratum|)`.
+/// Desired remainder sample size; budgets may yield a smaller declared sample.
 pub const SAMPLE_FLOOR: usize = 30;
 /// Top-N files by churn that join the mandatory stratum.
 pub const CHURN_TOP_N: usize = 25;
@@ -68,15 +68,15 @@ pub const SEAT_PACKET_RESERVE_BYTES: usize = 32 * 1024;
 /// (the part read once plus `lenses` lens packets of overhead, each reserving
 /// `SEAT_PACKET_RESERVE_BYTES + context_bytes`) stays within `seat_tokens`.
 /// A pure function of the frozen request, bundle size and review context, so
-/// every lens of a bundle derives the same cap and the same parts. Never below
-/// `2 * MAX_BYTES_PER_FILE`: a part always holds at least one chunk.
+/// every lens of a bundle derives the same starting cap. Exact physical
+/// envelope refinement tightens it; no minimum may override the seat budget.
 pub fn seat_part_cap_bytes(seat_tokens: u64, lenses: usize, context_bytes: usize) -> usize {
     let lenses = lenses.clamp(1, 16);
     let seat_bytes = usize::try_from(seat_tokens.saturating_mul(4)).unwrap_or(usize::MAX);
     let reserve = lenses.saturating_mul(SEAT_PACKET_RESERVE_BYTES + context_bytes) + 4096;
     seat_bytes
-        .saturating_sub(reserve)
-        .max(2 * super::excerpts::MAX_BYTES_PER_FILE)
+        .saturating_sub(reserve.min(seat_bytes / 2))
+        .max(1)
         .min(super::excerpts::MAX_TOTAL_EXCERPT_BYTES)
 }
 
@@ -540,14 +540,30 @@ fn select_for_bundle(
     }
     used += hot_used;
     let sample_budget = budget_bytes.saturating_sub(used);
-    let floor = SAMPLE_FLOOR.min(remainder.len());
+    // Fix sample size before consulting seeded order. A cost-stopped random
+    // prefix biases inclusion toward cheaper files. The largest-k cost bound
+    // guarantees any seeded k-file sample fits, preserving uniform selection.
+    let mut costs: Vec<u64> = remainder
+        .iter()
+        .map(|path| estimate_bytes(sample_mode(bundle, false), size_of(path)))
+        .collect();
+    costs.sort_unstable_by(|left, right| right.cmp(left));
+    let mut worst_cost = 0u64;
+    let sample_count = costs
+        .iter()
+        .take_while(|cost| {
+            let next = worst_cost.saturating_add(**cost);
+            if next > sample_budget {
+                false
+            } else {
+                worst_cost = next;
+                true
+            }
+        })
+        .count();
     let mut sample_used = 0u64;
-    for (index, path) in remainder.iter().enumerate() {
-        let cost = estimate_bytes(sample_mode(bundle, false), size_of(path));
-        if index >= floor && sample_used + cost > sample_budget {
-            break;
-        }
-        sample_used += cost;
+    for path in remainder.iter().take(sample_count) {
+        sample_used += estimate_bytes(sample_mode(bundle, false), size_of(path));
         chosen.insert((*path).to_owned(), Stratum::Sample);
     }
     BundleSelection {
@@ -600,12 +616,33 @@ pub fn plan_coverage_with_witnesses(
     // Shares: absent bundles' shares flow to the present ones pro rata.
     let present_share: u64 = present.iter().map(|b| u64::from(b.budget_share_bp)).sum();
     let planned_share = present_share.max(1);
+    // One full physical allowance stays available for finding verification or
+    // context followups. Initial review cannot consume the entire call ledger.
+    let gather_calls = present
+        .iter()
+        .filter(|bundle| bundle.id != lens_plan::BUNDLE_M1.id)
+        .count() as u64;
+    let followup_reserve = request.seat_token_budget;
+    let gather_reserve = request.seat_token_budget.saturating_mul(gather_calls);
+    let initial_budget = request
+        .run_token_budget
+        .saturating_sub(followup_reserve)
+        .saturating_sub(gather_reserve);
+    let minimum_calls = present.len() as u64 + gather_calls + 1;
+    if minimum_calls > request.max_total_seats {
+        return Err(AuditError::BoundExceeded(format!(
+            "audit budget infeasible: {} active coverage bundles require at least {} author calls, {gather_calls} cheap gathering calls & 1 verification/context reserve; maxTotalSeats is {}. Increase call budget or select fewer lenses; mandatory coverage was not reduced",
+            present.len(), present.len(), request.max_total_seats
+        )));
+    }
+    if initial_budget == 0 {
+        return Err(AuditError::BoundExceeded(format!("audit budget infeasible: {gather_reserve} cheap gathering tokens & {followup_reserve} verification/context tokens leave no author budget from runTokenBudget {}; increase budget or select fewer lenses", request.run_token_budget)));
+    }
     let spendable = 10_000 - u64::from(BUNDLE_ADJUDICATION.budget_share_bp);
     let base_tokens = |bundle: &BundleInfo| -> u64 {
         // Present bundles split the non-adjudication budget by relative share,
         // so an absent bundle's share is not wasted.
-        request.run_token_budget * spendable / 10_000 * u64::from(bundle.budget_share_bp)
-            / planned_share
+        initial_budget * spendable / 10_000 * u64::from(bundle.budget_share_bp) / planned_share
     };
 
     // Union eligible universe per bundle.
@@ -651,7 +688,11 @@ pub fn plan_coverage_with_witnesses(
             fits = false;
         }
     }
-    if estimated_seats > request.max_total_seats {
+    if estimated_seats
+        .saturating_add(gather_calls)
+        .saturating_add(1)
+        > request.max_total_seats
+    {
         fits = false;
     }
     let sampled = match request.mode {
@@ -746,6 +787,32 @@ pub fn plan_coverage_with_witnesses(
         })
         .collect();
     let mandatory_set: BTreeSet<&str> = mandatory.iter().copied().collect();
+    let mandatory_tokens: u64 = present
+        .iter()
+        .map(|bundle| {
+            denominators[bundle.id]
+                .iter()
+                .filter(|path| {
+                    mandatory_set.contains(**path) || bundle_witnesses[bundle.id].contains(**path)
+                })
+                .map(|path| {
+                    estimate_bytes(
+                        sample_mode(bundle, true),
+                        facts.get(*path).map_or(0, |f| f.size),
+                    )
+                })
+                .sum::<u64>()
+                .div_ceil(4)
+        })
+        .sum();
+    let output_reserve = super::ingest::dispatch_output_tokens(request.seat_token_budget)
+        .saturating_mul(present.len() as u64);
+    if mandatory_tokens.saturating_add(output_reserve) > initial_budget {
+        return Err(AuditError::BoundExceeded(format!(
+            "audit budget infeasible: mandatory coverage alone estimates {mandatory_tokens} input tokens plus {output_reserve} output tokens; {followup_reserve} tokens reserved for verification/context from runTokenBudget {}. Increase budget or narrow scope; mandatory coverage was not reduced",
+            request.run_token_budget
+        )));
+    }
     let mut hotspots: Vec<&str> = eligible
         .iter()
         .copied()
@@ -897,7 +964,13 @@ pub fn plan_coverage_with_witnesses(
         let m_refs: Vec<&str> = m.iter().map(String::as_str).collect();
         let h_refs: Vec<&str> = h.iter().map(String::as_str).collect();
         let r_refs: Vec<&str> = r.iter().map(String::as_str).collect();
-        let budget_bytes = budget_tokens[bundle.id] * 4 * COMMIT_PERCENT / 100;
+        let packet_tokens = (SEAT_PACKET_RESERVE_BYTES as u64 / 4)
+            .min(request.seat_token_budget / 4)
+            .saturating_add(super::ingest::dispatch_output_tokens(
+                request.seat_token_budget,
+            ));
+        let budget_bytes =
+            budget_tokens[bundle.id].saturating_sub(packet_tokens) * 4 * COMMIT_PERCENT / 100;
         selections.insert(
             bundle.id,
             select_for_bundle(bundle, budget_bytes, &m_refs, &h_refs, &r_refs, facts),
@@ -1010,6 +1083,9 @@ pub fn plan_coverage_with_witnesses(
                 "strata": strata,
                 "excluded": {"count": excluded},
                 "declaredUnsampled": declared_unsampled,
+                "sampleFloorTarget": SAMPLE_FLOOR.min(remainder_n),
+                "sampleFloorMet": strata_paths.get("remainder").map_or(0, Vec::len) >= SAMPLE_FLOOR.min(remainder_n),
+                "followupReserveTokens": followup_reserve,
                 "excerpt": {
                     "mode": bundle.sampled_mode,
                     "mandatoryMode": if bundle.raw_mandatory { json!(ExcerptMode::Raw) } else { Value::Null },
@@ -1105,6 +1181,9 @@ pub fn stratum_confidence(name: &str, population: u64, sampled: u64, high_findin
     }
     if sampled == 0 {
         return json!({"claim": "none", "basis": "empty-sample"});
+    }
+    if sampled < population.min(SAMPLE_FLOOR as u64) {
+        return json!({"claim":"none", "basis":"sample-floor-not-met"});
     }
     let assumption = "seeded uniform sample without replacement; bound is on the share of files in this stratum carrying a high-or-critical finding this lens can detect in a sampled file; says nothing about unsampled files' lens-undetectable defects";
     if high_findings == 0 {
@@ -1487,9 +1566,50 @@ mod tests {
     }
 
     #[test]
+    fn remainder_sample_count_is_independent_of_seed_order_and_file_cost() {
+        let facts = [
+            ("large.rs", 9000),
+            ("one.rs", 1000),
+            ("two.rs", 1000),
+            ("three.rs", 1000),
+        ]
+        .into_iter()
+        .map(|(path, size)| {
+            (
+                path.to_owned(),
+                FileFacts {
+                    size,
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+        let first = select_for_bundle(
+            &lens_plan::BUNDLE_S3,
+            10_000,
+            &[],
+            &[],
+            &["large.rs", "one.rs", "two.rs", "three.rs"],
+            &facts,
+        );
+        let other = select_for_bundle(
+            &lens_plan::BUNDLE_S3,
+            10_000,
+            &[],
+            &[],
+            &["one.rs", "two.rs", "three.rs", "large.rs"],
+            &facts,
+        );
+        assert_eq!(first.chosen.len(), 2);
+        assert_eq!(other.chosen.len(), 2);
+        assert!(first.estimated_bytes <= 10_000 && other.estimated_bytes <= 10_000);
+    }
+
+    #[test]
     fn confidence_is_scoped_to_the_random_stratum() {
         assert_eq!(rule_of_three_upper(0), None);
         assert!((rule_of_three_upper(30).unwrap() - 0.1).abs() < 1e-9);
+        assert_eq!(stratum_confidence("remainder", 800, 7, 0)["claim"], "none");
         let zero = stratum_confidence("remainder", 800, 30, 0);
         assert_eq!(zero["method"], "rule-of-three");
         assert!((zero["upperBound"].as_f64().unwrap() - 0.1).abs() < 1e-9);

@@ -33,22 +33,38 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 
 ## Coverage modes and quality outcome
 
-Status: target contract (2026-10-15 scaled-audit design). Until that build lands, `legion audit` has no
-`--coverage` flag, runs every lens over its full denominator, and reports exhaustive coverage. The
-rules below are the target.
+`legion audit` implements frozen lens coverage planning with `--coverage auto|exhaustive|risk-sampled`
+(`auto` by default). Coverage mode and review sets are sealed into the plan; deterministic providers
+still cover their full inventory.
 
 - `--coverage auto|exhaustive|risk-sampled` (default `auto`) is frozen into the plan with its review set.
 - `exhaustive`: every denominator path of every reasoning lens is examined. It refuses up front when the
   run exceeds the run budget; it never freezes an incomplete run.
 - `risk-sampled`: a frozen review set is examined. Its mandatory stratum (entrypoints, security-sensitive
   paths, files changed since the base commit, top churn files) is reviewed exhaustively. Its hotspot
-  stratum (churn, fan-in, size, deterministic-finding density) is reviewed up to budget. Its remainder is a
-  seeded sample ordered by `sha256(planDigest || path)`, so it is reproducible and cannot be cherry-picked.
+  stratum is reviewed up to budget. Its remainder is a seeded sample ordered from the frozen plan seed,
+  so it is reproducible and cannot be cherry-picked. The sample floor is a target bounded by budget;
+  shortfall is recorded by `sampleFloorMet` with the remaining denominator in `declaredUnsampled`, and
+  disables confidence claims.
   Paths outside the review set are recorded `declaredUnsampled`, not as gaps. A review-set path that was
-  not examined stays a gap, and the run stays `incomplete`.
+  not examined stays a gap, and the run stays `incomplete`. The planner does not shrink mandatory coverage
+  to satisfy optional sampling targets.
 - `auto`: `exhaustive` when it fits the run budget, `risk-sampled` otherwise. The mode chosen is recorded.
 - Deterministic providers always cover every inventory path. Coverage mode never changes them.
 - Deterministic findings can promote files into the review set, never remove them.
+
+Mandatory review is never reduced to meet an optional sample target. Planning refuses early if estimated
+mandatory work, minimum bundle/gather calls, and verification reserve cannot fit the frozen run budget.
+It adapts source chunks downward on whole-line boundaries to fit the rendered packet envelope; an
+irreducible source line or metadata that exceeds the bound is a typed refusal. Snapshot metadata is
+verified once per manifest during sizing, with digest checks retained on reads. Never increase budgets
+or seat limits implicitly to force a plan to fit.
+
+`next` reports `requiredInitialCalls` and `initialCallReservationTokens`; the reservation covers full
+per-call admission for required author and gatherer calls plus verification/context capacity. Follow-up
+work still needs its own admission. `max-total-seats` caps physical calls; `max-lens-seats` limits planned
+seats per wave. Calls run sequentially. Estimated tokens are not actual usage or spend: receipts carry
+host-reported actuals or `unknown`, and an overrun stops later calls.
 
 Report `coverageMode` (`exhaustive` or `sampled`) separately from the quality outcome. `auditStatus` keeps
 `pass | findings | incomplete`. `qualityGate` reads `proven` for an exhaustive clean run and `sampled` for a
@@ -59,10 +75,11 @@ statements are defined in [coverage and trajectory](coverage-and-trajectory.md#w
 
 ## Native reasoning runtime (step 7 detail)
 
-The supported execution path is `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`;
-lifecycle, frozen scope, host tools, verifier, usage, and prerequisites are defined in
-[reasoning runtime](reasoning-runtime.md). The packet/result details below also describe the lower-level
-manual ingest interface. Do not dispatch subagents as normal Stage 2 execution.
+The supported execution path is `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`;
+stages and tier routing are defined in [lens routing](lens-routing.md), while lifecycle, frozen scope,
+host tools, verifier, usage, and prerequisites are defined in [reasoning runtime](reasoning-runtime.md).
+The packet/result details below also describe the lower-level manual ingest interface. Do not dispatch
+subagents as normal Stage 2 execution.
 
 For each selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` work packet to
 `<run-dir>/lens-packets/<provider>.json`, lists it under `lensWork` and `reasoningLensesPending`, and
@@ -130,12 +147,11 @@ older receipts.
   `LIKELY_FALSE_POSITIVE`, `FALSE_POSITIVE`, `OUT_OF_SCOPE`, `HARDENING_GAP`, or `MISUSE_HAZARD`; every
   verdict also carries its `clusterId` and the canonical `workPacketDigest` of its batch. Every member of a
   cluster keeps its own verdict row, so no location is lost.
-  Each batch runs in one fresh Oracle context, separate from any generator context; the batch packet is
-  only an aggregation boundary. These result fields and an echoed `contextId` are
-  not trusted-host evidence of actual context isolation. The current CLI/model path uses `Derived`,
-  so every nonempty adjudication remains incomplete with the typed
-  `adjudication-context-derived:<provider>:...` gap. Previously saved batch packets without
-  `candidateWorkItems` remain ingestible under their original `Derived` behavior and retain that gap.
+  The frozen plan groups candidates into bounded batches, then records separate confirmation and
+  spot-check work. Each batch remains an aggregation boundary, not evidence that context isolation
+  occurred. A claimed `contextId` alone is not trusted-host evidence; missing isolation attestation
+  keeps adjudication incomplete with a typed gap. Previously saved packets without
+  `candidateWorkItems` remain ingestible under their original compatibility behavior.
   A verdict needs `threatModel`, `reachability`,
   `impact`. A surviving verdict (`TRUE_POSITIVE` /
   `LIKELY_TRUE_POSITIVE`) also needs `severity`, `attackerControl` above `unproven`, `proof`,
@@ -144,7 +160,8 @@ older receipts.
 
 ### Security adjudication batches
 
-Status: target contract, as above.
+The native planner and ingest implement these stages. Context isolation remains a required evidence
+condition: never treat a planned or self-reported fresh context as a completed attestation.
 
 1. **Deterministic triage.** Only provable non-issues close here, each with verdict basis `deterministic`
    and a rule id: the candidate path is excluded from the lens denominators (generated, vendored, minified,
@@ -153,7 +170,7 @@ Status: target contract, as above.
    Test and fixture paths are not auto-closed, because real secrets leak there.
 2. **Clustering.** Fingerprint = rule + normalized sink/excerpt digest. Each cluster gets one adjudicated
    representative. The duplicate-text check applies across clusters and allows expanded text within one.
-3. **Batching.** Stays on the judgment tier. Batches are bounded by token budget and cluster count, and every
+3. **Batching.** Batches are bounded by token budget and cluster count, and every
    candidate gets a recorded evidence and disposition row.
 4. **Confirmation.** Every surviving verdict (`TRUE_POSITIVE`, `LIKELY_TRUE_POSITIVE`, `HARDENING_GAP`,
    `MISUSE_HAZARD`) gets a second, single-candidate confirmation in a fresh context before it counts.

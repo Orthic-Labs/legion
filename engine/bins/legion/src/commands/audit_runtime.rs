@@ -17,6 +17,9 @@ pub struct RunReasoningArgs {
     pub claude: Option<PathBuf>,
     #[arg(long)]
     pub model: Option<String>,
+    /// Pin native reasoning effort; unsupported hosts stop before generation.
+    #[arg(long, value_parser = ["low", "medium", "high"])]
+    pub reasoning_effort: Option<String>,
 }
 
 /// Produces JSON result, always reconciles report.json/report.sarif, & runs
@@ -33,6 +36,7 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
     let options = RuntimeOptions {
         claude: args.claude,
         model: args.model,
+        reasoning_effort: args.reasoning_effort,
         ..Default::default()
     };
     let run = std::fs::canonicalize(&args.run)

@@ -710,7 +710,7 @@ fn counts_for(lines: &[RedLine]) -> RedactionCounts {
 /// Splits redacted lines into chunks of at most `MAX_BYTES_PER_FILE` bytes on
 /// line boundaries. A chunk always holds at least one line. An empty file is
 /// one empty chunk.
-fn chunk_ranges(lines: &[RedLine]) -> Vec<std::ops::Range<usize>> {
+fn chunk_ranges_budgeted(lines: &[RedLine], cap_bytes: usize) -> Vec<std::ops::Range<usize>> {
     if lines.is_empty() {
         return vec![0..0];
     }
@@ -719,7 +719,7 @@ fn chunk_ranges(lines: &[RedLine]) -> Vec<std::ops::Range<usize>> {
     let mut size = 0usize;
     for (index, line) in lines.iter().enumerate() {
         let bytes = line.text.len() + 1;
-        if index > start && size + bytes > MAX_BYTES_PER_FILE {
+        if index > start && size + bytes > cap_bytes.max(1) {
             ranges.push(start..index);
             start = index;
             size = 0;
@@ -905,6 +905,17 @@ fn prepare_file_scoped(
     hunks: Option<&[(usize, usize)]>,
     flagged: Option<&[(usize, usize)]>,
 ) -> Result<Vec<Excerpt>, &'static str> {
+    prepare_file_scoped_budgeted(root, path, mode, hunks, flagged, MAX_BYTES_PER_FILE)
+}
+
+fn prepare_file_scoped_budgeted(
+    root: &Path,
+    path: &str,
+    mode: ExcerptMode,
+    hunks: Option<&[(usize, usize)]>,
+    flagged: Option<&[(usize, usize)]>,
+    chunk_cap: usize,
+) -> Result<Vec<Excerpt>, &'static str> {
     let (bytes, side) = source_bytes(root, path, 32 * 1024 * 1024)?;
     if bytes.contains(&0) {
         return Err("binary");
@@ -918,21 +929,21 @@ fn prepare_file_scoped(
     let hunks = hunks.filter(|hunks| !hunks.is_empty() && mode == ExcerptMode::Raw);
     let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
     match hunks {
-        None => ranges = chunk_ranges(&lines),
+        None => ranges = chunk_ranges_budgeted(&lines, chunk_cap),
         Some(hunks) => {
             let total = lines.last().map_or(0, |line| line.end);
             let windows = hunk_windows(hunks, HUNK_CONTEXT_LINES, total);
             if windows.is_empty() {
                 // Hunks outside the file (for example a pure deletion past
                 // EOF): fall back to the whole file rather than excerpt nothing.
-                ranges = chunk_ranges(&lines);
+                ranges = chunk_ranges_budgeted(&lines, chunk_cap);
             }
             for (start, end) in windows {
                 let first = lines.iter().position(|line| line.end >= start);
                 let last = lines.iter().rposition(|line| line.start <= end);
                 if let (Some(first), Some(last)) = (first, last) {
                     if first <= last {
-                        for range in chunk_ranges(&lines[first..=last]) {
+                        for range in chunk_ranges_budgeted(&lines[first..=last], chunk_cap) {
                             ranges.push(first + range.start..first + range.end);
                         }
                     }
@@ -1249,7 +1260,13 @@ pub fn partition_review_set_budgeted(
         }
         let windowed = hunks.get(path).map(Vec::as_slice);
         let flagged = (!regions.is_empty()).then_some(regions.as_slice());
-        match prepare_file_scoped(root, path, item.mode, windowed, flagged) {
+        // Leave room for JSON escaping & source anchors. Small seat budgets
+        // split source on whole lines instead of forcing a 32KiB chunk past
+        // physical request limits. An indivisible long line refuses later.
+        let chunk_cap = budget.map_or(MAX_BYTES_PER_FILE, |budget| {
+            (budget.cap_bytes / 2).max(1).min(MAX_BYTES_PER_FILE)
+        });
+        match prepare_file_scoped_budgeted(root, path, item.mode, windowed, flagged, chunk_cap) {
             Err(reason) => {
                 let current = parts.last_mut().expect("at least one part");
                 current.paths.push(path.clone());

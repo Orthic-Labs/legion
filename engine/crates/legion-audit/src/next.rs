@@ -1106,6 +1106,26 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
     let budget = parse_budget(&dispatch)?;
     let runtime_encoding =
         dispatch.get("requestEncoding").and_then(Value::as_str) == Some("runtime-initial-v1");
+    if runtime_encoding {
+        let gather_calls = seats
+            .iter()
+            .filter(|seat| {
+                seat.providers.iter().any(|provider| {
+                    crate::native_providers::reasoning::lens_plan::lens_id_for_provider(provider)
+                        != Some("dead-file")
+                })
+            })
+            .count() as u64;
+        let required_calls = plan_seats
+            .saturating_add(gather_calls)
+            .saturating_add(u64::from(plan_seats > 0));
+        let required_tokens = required_calls.saturating_mul(budget.per_call);
+        if required_calls > budget.max_seats.unwrap_or(0) || required_tokens > budget.total {
+            return Err(AuditError::BoundExceeded(format!("audit budget infeasible before generation: {plan_seats} author seats + {gather_calls} cheap gathering calls + verification/context reserve require {required_calls} calls & {required_tokens} reserved tokens; limits permit {} calls & {} tokens. Narrow scope/lenses or increase budget; mandatory coverage was not reduced", budget.max_seats.unwrap_or(0), budget.total)));
+        }
+    }
+
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     for seat in &mut seats {
         let mut bytes = 0u64;
         let mut work = Vec::new();
@@ -1135,7 +1155,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
             }
         }
         if runtime_encoding {
-            bytes = crate::review_runtime::initial_seat_request_bytes(&work)?;
+            bytes = sizer.request_bytes(&work)?;
         }
         seat.estimated_tokens = estimated_request_tokens(bytes, budget.output);
     }
@@ -1707,7 +1727,7 @@ fn model_tier(tier: &str) -> &'static str {
     match tier {
         "mechanical" => "mechanical-cheap",
         "specialist" => "balanced-executor",
-        _ => "judgment",
+        _ => "balanced-executor",
     }
 }
 
@@ -1846,6 +1866,7 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                     "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
                     "requiresCallAuthorization": true,
                     "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "perCallTokenAllowance": loaded.snapshot.budget.as_ref().map(|budget| budget.per_call),
                     "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
                     "issuedAtMs": lease.issued_at_ms,
@@ -1884,6 +1905,7 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                     "reservationId": reservation_id(&state.dispatch_digest, &work.key, lease.attempts),
                     "requiresCallAuthorization": true,
                     "outputTokenLimit": loaded.snapshot.budget.as_ref().map(|budget| budget.output),
+                    "perCallTokenAllowance": loaded.snapshot.budget.as_ref().map(|budget| budget.per_call),
                     "budgetReservationTokens": work.tokens,
                     "attempt": lease.attempts,
                     "issuedAtMs": lease.issued_at_ms,

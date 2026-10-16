@@ -28,7 +28,7 @@ metadata:
 ```text
 PRIMARY_DELIVERABLE: Re-runnable audit report with bounded findings.
 SPECIALIST_REFS_MAX: 5
-CHILD_AGENTS_MAX: 16
+EXECUTION: Native staged reasoning runtime; no subagent fan-out.
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: BLUEPRINT, ARCHITECT, AUDIT-VISUAL
@@ -74,9 +74,10 @@ overrides it.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [reasoning runtime](references/reasoning-runtime.md), [lens routing](references/lens-routing.md),
    [lens cues](references/lens-cues.md), and [pattern cards](references/pattern-cards.md). Run
-   `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>]`. Native host executes
-   bounded one-turn calls over frozen packets, grants snapshot-only tools, records usage as known or
-   unknown, independently verifies findings, ingests authenticated receipts, and recomputes report.
+   `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`. Alchemist executes
+   staged evidence gathering and review under frozen packets; a fresh verifier checks proposed findings.
+   Calls use snapshot-only tools, record actual usage as known or unknown, ingest authenticated receipts,
+   and recompute the report. Model tiers and stage budgets are defined in [lens routing](references/lens-routing.md).
    Missing prerequisites, exhausted budget, and unresolved evidence remain typed gaps. Cards sharpen
    existing lenses and are selected only when applicable; they do not create new domains.
    See [execution contract](references/execution-contract.md) for packet and ingest invariants.

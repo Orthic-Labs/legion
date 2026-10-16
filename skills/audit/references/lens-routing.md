@@ -5,9 +5,40 @@ Read this file before Stage 2 of `/audit` or every iteration of `/audit-fix`.
 ## Execution boundary
 
 Reasoning runs through `legion audit run-reasoning`, which launches fresh, one-turn native Claude
-processes under host-enforced settings. It is not a subagent fan-out. Each call receives a bounded
-snapshot-only toolbox; shell, edits, MCP, plugins, and subagents are disabled. Runtime lifecycle,
-scope, usage, and prerequisite behavior live in [reasoning runtime](reasoning-runtime.md).
+processes under host-enforced settings. Audit is the method; Alchemist owns execution. It is not a
+subagent fan-out. Each call receives a bounded snapshot-only toolbox; shell, edits, MCP, plugins, and
+subagents are disabled. Runtime lifecycle, scope, usage, and prerequisites live in
+[reasoning runtime](reasoning-runtime.md).
+
+## Staged execution and model routing
+
+Run deterministic inventory and provider checks first. For each semantic review seat, the native
+runtime then uses a cheap Alchemist evidence pass to plan up to eight reads/searches against the frozen
+inventory and lens question. The host returns exact raw source evidence; the balanced Alchemist
+specialist judges mandatory excerpts together with those supplements. Never substitute summaries for
+source evidence or claim review of unexamined paths. `dead-file` remains a cheap, single-stage survey.
+
+| Work | Role | Tier |
+|---|---|---|
+| Evidence gathering and mechanical `dead-file` survey | `alchemist` | `mechanical-cheap` (Haiku / Luna) |
+| Semantic, architecture, correctness, and security review | `alchemist-specialist` | `balanced-executor` (Sonnet / Sol) |
+| Independent finding verification | `oracle` | `balanced-executor` |
+
+These are per-call assignments; Oracle is used for independent finding verification, not as the bulk
+Audit executor. The orchestrator may separately validate findings with Astra, Fable, or Opus; that
+optional check does not route bulk Audit work to frontier models. Model IDs come from
+`src/config/model-tiers.json`; no second mapping belongs here. `--model` accepts only canonical
+Alchemist execution models, cannot downgrade semantic/security review, and rejects frontier models.
+`--reasoning-effort low|medium|high` defaults to `high`. If the native host lacks required model or
+effort control, keep the run incomplete; do not inherit a host setting or silently substitute.
+
+Seats are planned review jobs, not agents or a concurrency promise. Each semantic author seat requires
+a cheap gathering call plus balanced review; verification and security follow-up add separately admitted
+calls. Planning reports required initial calls and reserves token capacity for them plus verification /
+context work before dispatch. `max-total-seats` bounds physical calls across the run; `max-lens-seats`
+limits planned seats per wave. The native runner currently processes calls sequentially. A planned token
+estimate is admission input, never actual usage or spend. Reconcile host-reported usage after each call;
+unknown usage stays unknown, and an overrun blocks later calls.
 
 The read-only lenses are `doc-drift`, `architecture`, `correctness`, `ai-slop`, `naming`,
 `dead-file`, `schema`, `security`, `minimize`, and `performance`, plus conditional `a11y`,
@@ -50,9 +81,9 @@ justified with searched scope and reason. Present but incomplete or inaccessible
 
 ## Model selection
 
-The runtime accepts a native Claude model override with `--model`; capability preflight must pass
-before execution. It does not silently downgrade tiers or substitute another provider. An unavailable
-binary/model or missing safe control leaves reasoning incomplete; see [reasoning runtime](reasoning-runtime.md).
+The stage and tier routing above is normative. Capability preflight must pass before execution. An
+unavailable binary/model or missing safe control leaves reasoning incomplete; see
+[reasoning runtime](reasoning-runtime.md).
 - `minimize` reads raw bodies and `references/ponytail-lens.md`; a skeleton alone cannot distinguish
   dead abstraction from a real DI, test, or extension seam.
 - Semantic lanes read [semantic review](semantic-review.md) for test-quality, design-smell,

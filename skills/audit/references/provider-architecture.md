@@ -44,14 +44,13 @@ If Blueprint is missing, stale, corrupt, incomplete, or changes generation durin
 
 ## Registry
 
-The executable registry is declarative (provider ids in `providers.json` are now native ids). `src/registry/providers.json` contains legacy/facts and
-reasoning contracts; `src/registry/providers-runtime.json` contains runtime provider contracts and
-coverage-family augmentations. The native registry loader in `legion-audit` is the sole authoritative
-loader: it parses, merges, and validates both files for the planner, verifier, manifest generator, and
-tests. Data shape: `schemas/provider-registry.v1.schema.json`.
+The native executable registry loader reads `src/registry/providers.json`; it does not merge
+`providers-runtime.json`. The file defines legacy/facts and reasoning contracts. Compatibility aliases
+may route selected runtime provider names to canonical native `legacy.*` providers; declarations without
+a native mapping are not executable coverage. Data shape: `schemas/provider-registry.v1.schema.json`.
 
-`legion-dev generate-manifest` renders the human/scanner compatibility manifest from that same
-loader. Edit registry data, regenerate the manifest, and run `legion-dev generate-manifest --check`; never
+`legion-dev generate-manifest` renders the compatibility manifest from the native registry data. Edit
+registry data, regenerate the manifest, and run `legion-dev generate-manifest --check`; never
 hand-maintain executable selection logic in `manifest.json`.
 
 Selection is additive. Every matching language, framework, platform, security, runtime, and release
@@ -116,19 +115,18 @@ candidates only.
 
 A different provider adjudicates candidates through threat model, attacker control, source-to-sink
 trace, reachability, primary controls, environmental mitigations, real impact, proof, and
-false-positive challenge. Candidates are triaged, then clustered by rule and normalized sink/excerpt
-digest; each cluster has one adjudicated representative, and every member keeps its own verdict row.
-Clusters are batched by rule family and file locality. Each batch runs in one fresh Oracle context,
-separate from any generator context, and the batch is an aggregation boundary only. Every surviving
-verdict is confirmed in a single-candidate fresh context, and seeded spot-checks re-adjudicate
-false-positive verdicts per batch (`execution-contract.md`, Security adjudication batches). Evidence
+false-positive challenge. Candidates are triaged, clustered by rule and normalized sink/excerpt
+digest, and batched by rule family and file locality. Each cluster has one representative and every
+member keeps its own verdict row. The plan also records single-candidate confirmations for surviving
+verdicts and seeded spot-checks for dismissals (`execution-contract.md`, Security adjudication batches).
+These are planned review jobs, not subagents; the native runtime executes model calls sequentially.
+Context isolation must be independently attested before adjudication counts complete. Evidence
 strength, verdict, and severity remain independent. Confirmed findings require a separate variant
 analysis before closure.
 
 Provider/context separation and verdict invariants are enforced by the `legion-audit` security pipeline
-(`engine/crates/legion-audit/src/p12_pipeline`). Under batching that pipeline must reject context reuse
-across batches and between a surviving verdict and its confirmation. Status: target; the pipeline still
-checks per-candidate contexts until the scaled-audit build lands.
+(`engine/crates/legion-audit/src/native_providers/reasoning/security_adjudication.rs`). Context labels
+alone do not prove isolation; missing trusted host attestation leaves the adjudication incomplete.
 
 ## Measured rule packs
 

@@ -129,8 +129,8 @@ impl LensPlan {
         }
         if matches!(self.lens, "security" | "architecture" | "correctness") {
             // Keep modelTier inside the established strict enum. This additive
-            // floor lets dispatch honor lens-routing's strongest-tier rule.
-            packet["minimumModelTier"] = json!("strongest");
+            // floor keeps semantic review on bounded specialist execution.
+            packet["minimumModelTier"] = json!("balanced-executor");
         }
         if self.lens == "minimize" {
             packet["ponytailGuidance"] = json!(include_str!(

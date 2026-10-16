@@ -57,7 +57,7 @@ fn spec(provider: &str, selector: Value) -> ProviderSpec {
         runner: json!({"kind":"reasoning-contract", "contract":"fixture-reasoning-v1"}),
         host_capabilities: Vec::new(),
         execution: json!({}),
-        reasoning: json!({"coverageRequest":{"mode":"risk-sampled", "runTokenBudget":100_000}}),
+        reasoning: json!({"coverageRequest":{"mode":"risk-sampled", "runTokenBudget":100_000, "seatTokenBudget":25_000}}),
         benchmark: json!({"status":"unproven", "requiredForCleanClaim":false}),
         clean_claim: "evidence-only".into(),
         control_ids: Vec::new(),
@@ -325,7 +325,8 @@ fn conditional_witnesses_do_not_turn_other_bundles_exhaustive() {
         &lenses,
         &coverage_plan::CoverageRequest {
             mode: coverage_plan::CoverageMode::RiskSampled,
-            run_token_budget: 20_000,
+            run_token_budget: 250_000,
+            seat_token_budget: 25_000,
             ..Default::default()
         },
         &witnesses,
@@ -449,12 +450,13 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
         .unwrap();
     let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
     assert!(work.len() > 1);
-    let target = 25_000 * 4
-        - coverage_plan::SEAT_PACKET_RESERVE_BYTES
-        - crate::next::DEFAULT_OUTPUT_TOKENS as usize * 4;
+    let target = (25_000 - ingest::dispatch_output_tokens(25_000)) * 4;
     let mut homes = Vec::new();
     for item in &work {
-        assert!(serde_json::to_vec_pretty(item).unwrap().len() <= target);
+        assert!(
+            crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)).unwrap()
+                <= target
+        );
         assert!(required_packet_gaps(&item.request).is_empty());
         homes.extend(
             item.request.packet["excerptCoverage"]["selectedPaths"]
@@ -470,4 +472,207 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
         homes.into_iter().collect::<BTreeSet<_>>(),
         inventory.paths().map(str::to_owned).collect()
     );
+}
+
+#[test]
+fn tiny_run_refuses_large_mandatory_source_before_packet_materialization() {
+    let paths = vec!["src/auth.rs".to_owned()];
+    let facts = BTreeMap::from([(
+        paths[0].clone(),
+        coverage_plan::FileFacts {
+            size: 10_000_000,
+            signal: Some("security-sensitive"),
+            ..Default::default()
+        },
+    )]);
+    let error = coverage_plan::plan_coverage(
+        &json!({}),
+        &facts,
+        &[coverage_plan::LensInput {
+            provider_id: "reasoning.security".into(),
+            paths,
+        }],
+        &coverage_plan::CoverageRequest {
+            mode: coverage_plan::CoverageMode::RiskSampled,
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+        },
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("mandatory coverage alone"), "{error}");
+    assert!(error.contains("mandatory coverage was not reduced"));
+    assert!(error.len() < 800);
+}
+
+#[test]
+fn sampled_remainder_target_never_overrides_tiny_run_budget() {
+    let paths = (0..1000)
+        .map(|index| format!("src/file_{index}.rs"))
+        .collect::<Vec<_>>();
+    let facts = paths
+        .iter()
+        .map(|path| {
+            (
+                path.clone(),
+                coverage_plan::FileFacts {
+                    size: 16_000,
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+    let plan = coverage_plan::plan_coverage(
+        &json!({}),
+        &facts,
+        &[coverage_plan::LensInput {
+            provider_id: "reasoning.performance".into(),
+            paths: paths.clone(),
+        }],
+        &coverage_plan::CoverageRequest {
+            mode: coverage_plan::CoverageMode::RiskSampled,
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+        },
+    )
+    .unwrap();
+    let coverage = &plan["reasoning.performance"];
+    let count = coverage["reviewSet"].as_array().unwrap().len();
+    assert!(count > 0 && count < coverage_plan::SAMPLE_FLOOR);
+    assert_eq!(coverage["sampleFloorMet"], false);
+    assert_eq!(coverage["declaredUnsampled"], paths.len() - count);
+    assert!(coverage["estimatedTokens"].as_u64().unwrap() <= 30_000);
+}
+
+#[test]
+fn source_chunks_adapt_to_small_parts_without_losing_source_lines() {
+    let source = (0..2000)
+        .map(|index| format!("let source_{index} = {index};\n"))
+        .collect::<String>();
+    let fixture = Fixture::new(&[("src/source.rs", source)]);
+    let parts = excerpts::partition_review_set_budgeted(
+        &fixture.0,
+        &[excerpts::ReviewItem {
+            path: "src/source.rs".into(),
+            mode: lens_plan::ExcerptMode::Raw,
+        }],
+        &BTreeMap::new(),
+        100,
+        &excerpts::ChangedHunks::new(),
+        &excerpts::FlaggedRegions::new(),
+        Some(excerpts::PartBudget {
+            cap_bytes: 4000,
+            listing_copies: 0,
+        }),
+    );
+    assert!(parts.parts.len() > 2);
+    assert!(parts.unscheduled_paths.is_empty());
+    let chunks = parts
+        .parts
+        .iter()
+        .flat_map(|part| &part.excerpts)
+        .collect::<Vec<_>>();
+    assert_eq!(chunks.len(), chunks[0].chunks);
+    let mut next_line = 1;
+    for chunk in chunks {
+        assert_eq!(chunk.start_line, next_line);
+        next_line = chunk.end_line + 1;
+        assert!(chunk.content.len() < 4000);
+    }
+    assert_eq!(next_line, 2001);
+}
+
+#[test]
+fn shared_seat_transports_exact_common_metadata_once() {
+    let (_fixture, _, _, work) = release_fixture();
+    let mut first = work[0].clone();
+    first.provider_id = "reasoning.security".into();
+    first.request.provider_id = first.provider_id.clone();
+    first.request.request_id = "security-context".into();
+    first.request.packet["reviewContext"] =
+        json!({"scopeBasis":"frozen scope metadata\n".repeat(2000)});
+    first.request.packet["lensPlan"] =
+        json!({"lens":"security", "bundle":{"id":"J1","tier":"judgment"}});
+    let mut second = first.clone();
+    second.provider_id = "reasoning.correctness".into();
+    second.request.provider_id = second.provider_id.clone();
+    second.request.request_id = "correctness-context".into();
+    second.request.packet["lensPlan"]["lens"] = json!("correctness");
+    let works = vec![first, second];
+    let payload = ingest::shared_seat_payload(&works).unwrap().unwrap();
+    assert_eq!(
+        payload["sharedContext"]["reviewContext"],
+        works[0].request.packet["reviewContext"]
+    );
+    assert_eq!(
+        payload["lenses"][0]["packet"]["reviewContext"],
+        json!({"$sharedContext":"reviewContext"})
+    );
+    let physical = crate::review_runtime::initial_seat_request_bytes(&works).unwrap();
+    let unshared = works
+        .iter()
+        .map(|work| {
+            crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(work)).unwrap()
+        })
+        .sum::<u64>();
+    assert!(physical + 40_000 < unshared);
+    let request = &works[0].request;
+    let mut proof = json!({
+        "schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport",
+        "receiptId":"shared-metadata","requestId":request.request_id,
+        "packetDigest":canonical_digest(&request.packet).unwrap(),
+        "transportEncoding":"shared-context-v1",
+        "reconstructedPacketBytes":canonical_json_bytes(&request.packet).unwrap().len(),
+        "physicalRequestBytes":physical,"physicalRequestDigest":format!("sha256:{}", "a".repeat(64)),
+        "sharedContextDigest":payload["sharedContextDigest"],
+        "reconstruction":{"sharedContext":payload["sharedContext"],"compactPacket":payload["lenses"][0]["packet"]},
+        "complete":true,"truncated":false,"chunks":delivery_chunk_manifest(request).unwrap(),
+    });
+    assert!(validate_delivery_evidence(request, &proof).is_ok());
+    proof["reconstruction"]["sharedContext"]["reviewContext"] = json!({"scopeBasis":"tampered"});
+    proof["sharedContextDigest"] =
+        json!(canonical_digest(&proof["reconstruction"]["sharedContext"]).unwrap());
+    assert!(validate_delivery_evidence(request, &proof).is_err());
+}
+
+#[test]
+fn tiny_call_cap_refuses_before_large_bundle_fanout() {
+    let paths = vec!["src/ordinary.rs".to_owned()];
+    let facts = BTreeMap::from([(
+        paths[0].clone(),
+        coverage_plan::FileFacts {
+            size: 10_000_000,
+            ..Default::default()
+        },
+    )]);
+    let lenses = [
+        "reasoning.security",
+        "reasoning.architecture",
+        "reasoning.performance",
+        "reasoning.minimize",
+        "reasoning.naming",
+        "reasoning.dead-file",
+    ]
+    .map(|provider| coverage_plan::LensInput {
+        provider_id: provider.into(),
+        paths: paths.clone(),
+    });
+    let error = coverage_plan::plan_coverage(
+        &json!({}),
+        &facts,
+        &lenses,
+        &coverage_plan::CoverageRequest {
+            mode: coverage_plan::CoverageMode::RiskSampled,
+            run_token_budget: 50_000,
+            seat_token_budget: 10_000,
+            max_total_seats: 5,
+        },
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("cheap gathering calls"));
+    assert!(error.contains("maxTotalSeats is 5"));
+    assert!(error.len() < 800);
 }

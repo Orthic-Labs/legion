@@ -30,19 +30,33 @@ const PROVIDER: &str = "reasoning.naming";
 const SOURCE_LINE: &str = "    a - b";
 // Keep these exact markers inside the executable for the bounded capability
 // probe. This is simulated capability evidence, never Claude qualification.
-const HELP: &str = "SIMULATED Claude: --tools --strict-mcp-config --mcp-config --safe-mode --restricted --disable-slash-commands --no-chrome --no-session-persistence --permission-prompts --json-schema --system-prompt --max-turns CLAUDE_CODE_MAX_OUTPUT_TOKENS";
+const HELP: &str = "SIMULATED Claude: --tools --strict-mcp-config --mcp-config --safe-mode --restricted --disable-slash-commands --no-chrome --no-session-persistence --permission-prompts --json-schema --system-prompt --effort --max-turns CLAUDE_CODE_MAX_OUTPUT_TOKENS";
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help") {
-        println!("{HELP}");
+        let help = if std::env::current_dir()
+            .unwrap()
+            .join("simulation-no-effort")
+            .is_file()
+        {
+            HELP.replace("--effort", "")
+        } else {
+            HELP.into()
+        };
+        println!("{help}");
     } else if args.iter().any(|arg| arg == "--print") {
         install_simulation_diagnostics();
         simulate_native(&args);
     } else {
         completes_after_host_tool_round_and_recovers_stale_lock_file();
-        completes_with_eager_selected_skeleton_source_in_one_call();
+        completes_with_eager_selected_skeleton_source_in_one_author_call();
         preserves_finding_after_fresh_verifier_success();
+        prohibits_frontier_and_low_tier_semantic_overrides();
+        rejects_observed_frontier_model_without_losing_usage();
+        insufficient_total_budget_starts_no_generation();
+        unsupported_effort_stops_before_generation();
+        no_extra_context_keeps_mandatory_source_review();
         refusal_and_missing_usage_remain_incomplete();
         rejects_unadvertised_native_tool();
         live_runtime_lock_excludes_another_controller();
@@ -72,6 +86,14 @@ fn value_after<'a>(args: &'a [String], flag: &str) -> &'a str {
         .and_then(|index| args.get(index + 1))
         .map(String::as_str)
         .unwrap_or_else(|| panic!("simulation missing native argument {flag}"))
+}
+fn canonical_model(tier: &str) -> String {
+    let map: Value =
+        serde_json::from_str(include_str!("../../../../src/config/model-tiers.json")).unwrap();
+    map["tiers"][tier]["hosts"]["claude-code"]
+        .as_str()
+        .unwrap()
+        .into()
 }
 fn simulate_native(args: &[String]) {
     assert_eq!(value_after(args, "--tools"), "");
@@ -109,12 +131,31 @@ fn simulate_native(args: &[String]) {
     let prompt: Value =
         serde_json::from_str(frame["message"]["content"].as_str().unwrap()).unwrap();
     let prompt_text = prompt.to_string();
-    assert!(
-        prompt_text.contains("runtime-simulation:"),
-        "fixture source marker absent"
+    let gatherer = prompt["stage"] == "evidence-gathering";
+    let model = value_after(args, "--model");
+    assert_eq!(value_after(args, "--effort"), "high");
+    assert_eq!(
+        model,
+        canonical_model(if gatherer {
+            "mechanical-cheap"
+        } else {
+            "balanced-executor"
+        })
     );
+    if !gatherer {
+        assert!(
+            prompt_text.contains("runtime-simulation:"),
+            "fixture source marker absent"
+        );
+    }
+    if gatherer {
+        assert!(!prompt_text.contains(SOURCE_LINE));
+        assert!(!prompt_text.contains("runtime-simulation:"));
+        assert!(prompt["inventoryPaths"].is_array());
+        assert!(value_after(args, "--system-prompt").contains("Alchemist"));
+    }
     let reviewer = prompt.get("finding").is_some();
-    if !reviewer && prompt_text.contains("runtime-simulation:clean-eager") {
+    if !reviewer && !gatherer && prompt_text.contains("runtime-simulation:clean-eager") {
         assert!(prompt["initialContext"]["deliveries"].is_array());
         assert!(prompt["initialContext"].to_string().contains(SOURCE_LINE));
         assert!(prompt["initialContext"]
@@ -136,13 +177,17 @@ fn simulate_native(args: &[String]) {
     let directory = std::env::current_dir().unwrap();
     write_json(
         &directory.join(format!("simulation-call-{}.json", std::process::id())),
-        &json!({"simulation":true,"args":args,"prompt":prompt,"outputTokenLimit":cap,"reviewer":reviewer,"toolRound":tool_round}),
+        &json!({"simulation":true,"args":args,"prompt":prompt,"outputTokenLimit":cap,"reviewer":reviewer,"gatherer":gatherer,"toolRound":tool_round}),
     );
     if !reviewer && prompt_text.contains("runtime-simulation:wait-for-release") {
         fs::write(directory.join("simulation-ready"), b"ready").unwrap();
         wait_for(&directory.join("simulation-release"));
     }
-    let reply = if reviewer {
+    let reply = if gatherer && directory.join("simulation-no-extra-context").is_file() {
+        json!({"contextRequests":[],"noAdditionalContextReason":"Mandatory excerpts suffice for this small source lane."})
+    } else if gatherer {
+        json!({"contextRequests":[{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}]})
+    } else if reviewer {
         json!({"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})
     } else if tool_round {
         json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}})
@@ -162,9 +207,39 @@ fn simulate_native(args: &[String]) {
         };
         json!({"finalResult":{"complete":true,"findings":findings,"withdrawn":[],"details":{}}})
     };
+    if !gatherer && !reviewer {
+        if directory.join("simulation-no-extra-context").is_file() {
+            assert!(prompt["supplementaryEvidence"]["deliveries"]
+                .as_array()
+                .unwrap()
+                .is_empty());
+            assert!(prompt["supplementaryEvidence"]["noAdditionalContextReason"].is_string());
+            assert!(prompt["initialContext"].to_string().contains(SOURCE_LINE));
+        } else {
+            assert!(prompt["supplementaryEvidence"]["deliveries"]
+                .to_string()
+                .contains(SOURCE_LINE));
+        }
+        assert_eq!(
+            prompt["supplementaryEvidence"]["mandatoryCoverageUnchanged"],
+            true
+        );
+        assert!(value_after(args, "--system-prompt").contains("Alchemist-specialist"));
+    }
+    if reviewer {
+        assert!(value_after(args, "--system-prompt").contains("Oracle"));
+    }
+    let observed_model =
+        if !gatherer && prompt_text.contains("runtime-simulation:observed-frontier") {
+            "claude-opus-5"
+        } else if gatherer {
+            "claude-haiku-5-5"
+        } else {
+            "claude-sonnet-5-5"
+        };
     println!(
         "{}",
-        json!({"type":"system","subtype":"init","session_id":format!("simulation-context-{}",std::process::id()),"tools":["StructuredOutput"]})
+        json!({"type":"system","subtype":"init","session_id":format!("simulation-context-{}",std::process::id()),"tools":["StructuredOutput"],"model":observed_model})
     );
     if prompt_text.contains("runtime-simulation:unexpected-tool") {
         println!(
@@ -394,8 +469,10 @@ impl Fixture {
         (output, result, report)
     }
     fn calls(&self) -> Vec<Value> {
-        let mut calls = fs::read_dir(self.run.join("runtime-host"))
-            .unwrap()
+        let Ok(entries) = fs::read_dir(self.run.join("runtime-host")) else {
+            return Vec::new();
+        };
+        let mut calls = entries
             .map(|entry| entry.unwrap().path())
             .filter(|path| {
                 path.file_name()
@@ -405,7 +482,7 @@ impl Fixture {
             })
             .map(|path| read_json(&path))
             .collect::<Vec<_>>();
-        calls.sort_by_key(|call| call["reviewer"].as_bool());
+        calls.sort_by_key(|call| (call["reviewer"].as_bool(), call["gatherer"].as_bool()));
         calls
     }
 }
@@ -447,11 +524,11 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert!(output.status.success(), "simulation runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(result["status"], "done");
-    assert_eq!(result["calls"], 2);
-    assert_eq!(result["callAttempts"], 2);
+    assert_eq!(result["calls"], 3);
+    assert_eq!(result["callAttempts"], 3);
     assert_eq!(
         result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-        "0.025"
+        "0.0375"
     );
     assert_eq!(result["budget"]["cost"]["invoiceChargeStatus"], "unknown");
     assert!(result["budget"]["cost"]["invoiceChargeUsd"].is_null());
@@ -465,7 +542,7 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
         .run
         .join(format!("lens-receipts/{PROVIDER}.json"))
         .is_file());
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 3);
     assert!(fixture.calls().iter().any(|call| call["toolRound"] == true));
     let budget = read_json(&fixture.run.join("next-state.json"));
     assert_eq!(
@@ -475,28 +552,31 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
             .values()
             .filter(|reservation| reservation["transportAuthorized"] == true)
             .count(),
-        2
+        3
     );
     assert!(fixture.run.join("report.sarif").is_file());
     assert!(!fixture.repo.join("must-never-execute").exists());
 }
-fn completes_with_eager_selected_skeleton_source_in_one_call() {
+fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     let fixture = Fixture::new("clean-eager");
     let (output, result, report) = fixture.run();
     assert!(output.status.success(), "simulation eager runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "clean");
-    assert_eq!(result["calls"], 1);
-    assert_eq!(result["callAttempts"], 1);
-    assert_eq!(fixture.calls().len(), 1);
+    assert_eq!(result["calls"], 2);
+    assert_eq!(result["callAttempts"], 2);
+    assert_eq!(fixture.calls().len(), 2);
     let receipts: Vec<_> = fs::read_dir(fixture.run.join("runtime-calls"))
         .unwrap()
         .map(|entry| read_json(&entry.unwrap().path()))
         .collect();
-    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts.len(), 2);
     let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
         &fixture.run,
-        &receipts[0],
+        receipts
+            .iter()
+            .find(|receipt| receipt["execution"]["stage"] == "source-review")
+            .unwrap(),
     )
     .unwrap();
     assert_eq!(receipt["modelAction"]["kind"], "finalResult");
@@ -504,7 +584,7 @@ fn completes_with_eager_selected_skeleton_source_in_one_call() {
         receipt["observation"]["reportedApiEquivalentCostUsd"],
         "0.0125"
     );
-    let mut changed_cost = receipts[0].clone();
+    let mut changed_cost = receipt.clone();
     changed_cost["observation"]["reportedApiEquivalentCostUsd"] = json!("0");
     assert!(
         legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
@@ -517,7 +597,7 @@ fn completes_with_eager_selected_skeleton_source_in_one_call() {
     assert!(receipt["requestAccounting"]["providerInputTokenCountBeforeSend"].is_null());
     assert!(receipt["initialContext"].to_string().contains(SOURCE_LINE));
     assert!(receipt["initialContext"].to_string().len() <= 32 * 1024);
-    let mut changed = receipts[0].clone();
+    let mut changed = receipt.clone();
     changed["modelAction"]["kind"] = json!("toolRequest");
     assert!(
         legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
@@ -537,7 +617,56 @@ fn preserves_finding_after_fresh_verifier_success() {
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "findings");
     assert_eq!(report["findings"].as_array().unwrap().len(), 1);
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 3);
+    let mut stages = Vec::new();
+    for entry in fs::read_dir(fixture.run.join("runtime-calls")).unwrap() {
+        let envelope = read_json(&entry.unwrap().path());
+        let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+            &fixture.run,
+            &envelope,
+        )
+        .unwrap();
+        let execution = &receipt["execution"];
+        let stage = execution["stage"].as_str().unwrap();
+        let (role, tier) = match stage {
+            "evidence-gathering" => ("alchemist", "mechanical-cheap"),
+            "source-review" => ("alchemist-specialist", "balanced-executor"),
+            "finding-verification" => ("oracle", "balanced-executor"),
+            other => panic!("unexpected stage {other}"),
+        };
+        assert_eq!(execution["role"], role);
+        assert_eq!(execution["modelTier"], tier);
+        assert_eq!(execution["model"], canonical_model(tier));
+        assert_eq!(execution["reasoningEffort"], "high");
+        assert_eq!(
+            receipt["observation"]["reportedApiEquivalentCostUsd"],
+            "0.0125"
+        );
+        assert_eq!(receipt["observation"]["usage"]["inputTokens"], 100);
+        assert!(!receipt["observation"]["observedModels"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        let mut tampered = envelope;
+        tampered["execution"]["reasoningEffort"] = json!("low");
+        assert!(
+            legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+                &fixture.run,
+                &tampered
+            )
+            .is_err()
+        );
+        stages.push(stage.to_owned());
+    }
+    stages.sort();
+    assert_eq!(
+        stages,
+        [
+            "evidence-gathering",
+            "finding-verification",
+            "source-review"
+        ]
+    );
     assert_eq!(
         fixture
             .calls()
@@ -571,7 +700,7 @@ fn refusal_and_missing_usage_remain_incomplete() {
             1,
             "paid finding lost:{report}"
         );
-        assert_eq!(fixture.calls().len(), 2);
+        assert_eq!(fixture.calls().len(), 3);
         let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
             .unwrap()
             .map(|entry| read_json(&entry.unwrap().path()))
@@ -604,13 +733,13 @@ fn refusal_and_missing_usage_remain_incomplete() {
                 assert!(result["budget"]["cost"]["reportedApiEquivalentCostUsd"].is_null());
                 assert_eq!(
                     result["budget"]["cost"]["knownReportedApiEquivalentSubtotalUsd"],
-                    "0.0125"
+                    "0.025"
                 );
             }
             let (resumed_output, resumed, _) = fixture.run();
             assert_eq!(resumed_output.status.code(), Some(2));
             assert_eq!(resumed["calls"], 0);
-            assert_eq!(fixture.calls().len(), 2, "resume spent after {mode}");
+            assert_eq!(fixture.calls().len(), 3, "resume spent after {mode}");
         }
     }
 }
@@ -627,7 +756,7 @@ fn rejects_unadvertised_native_tool() {
         .run
         .join(format!("lens-receipts/{PROVIDER}.json"))
         .exists());
-    assert_eq!(fixture.calls().len(), 1);
+    assert_eq!(fixture.calls().len(), 2);
 }
 fn live_runtime_lock_excludes_another_controller() {
     let fixture = Fixture::new("wait-for-release");
@@ -662,7 +791,100 @@ fn live_runtime_lock_excludes_another_controller() {
     );
     assert_eq!(
         fixture.calls().len(),
-        1,
+        2,
         "contender launched a model process"
     );
+}
+
+fn prohibits_frontier_and_low_tier_semantic_overrides() {
+    for model in [
+        "opus".to_owned(),
+        "claude-fable-5-1".to_owned(),
+        canonical_model("mechanical-cheap"),
+    ] {
+        let fixture = Fixture::new("upheld");
+        let output = fixture
+            .command()
+            .args(["--model", &model])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            fixture.calls().is_empty(),
+            "generation started for prohibited override {model}"
+        );
+    }
+}
+fn rejects_observed_frontier_model_without_losing_usage() {
+    let fixture = Fixture::new("observed-frontier");
+    let (output, result, report) = fixture.run();
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(result["complete"], false);
+    assert_eq!(report["status"], "incomplete");
+    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(
+        result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+        "0.025"
+    );
+    let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
+        .unwrap()
+        .map(|entry| read_json(&entry.unwrap().path()))
+        .collect::<Vec<_>>();
+    assert!(receipts
+        .iter()
+        .any(|receipt| receipt["observation"]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("observed model differs"))));
+    let (output, resumed, _) = fixture.run();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(resumed["error"]
+        .as_str()
+        .unwrap()
+        .contains("prior authenticated native model mismatch"));
+    assert_eq!(fixture.calls().len(), 2);
+}
+fn insufficient_total_budget_starts_no_generation() {
+    let fixture = Fixture::new("upheld");
+    let path = fixture.run.join("lens-dispatch.json");
+    let mut dispatch = read_json(&path);
+    dispatch["reasoningBudget"]["totalTokens"] = json!(10000);
+    dispatch["reasoningBudget"]["maxSeats"] = json!(1);
+    write_json(&path, &dispatch);
+    let (output, result, _) = fixture.run();
+    assert_eq!(output.status.code(), Some(2), "{result}");
+    assert_eq!(result["complete"], false);
+    assert!(
+        fixture.calls().is_empty(),
+        "gathering spent before full staged budget could fit"
+    );
+}
+
+fn unsupported_effort_stops_before_generation() {
+    let fixture = Fixture::new("clean-eager");
+    fs::create_dir_all(fixture.run.join("runtime-host")).unwrap();
+    fs::write(
+        fixture.run.join("runtime-host/simulation-no-effort"),
+        b"unsupported",
+    )
+    .unwrap();
+    let (output, result, _) = fixture.run();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(result["error"]
+        .as_str()
+        .unwrap()
+        .contains("host-reasoning-effort-unsupported"));
+    assert!(fixture.calls().is_empty());
+}
+fn no_extra_context_keeps_mandatory_source_review() {
+    let fixture = Fixture::new("clean-eager");
+    fs::create_dir_all(fixture.run.join("runtime-host")).unwrap();
+    fs::write(
+        fixture.run.join("runtime-host/simulation-no-extra-context"),
+        b"no extra",
+    )
+    .unwrap();
+    let (output, result, report) = fixture.run();
+    assert!(output.status.success(), "{result}");
+    assert_eq!(report["status"], "clean");
+    assert_eq!(fixture.calls().len(), 2);
 }

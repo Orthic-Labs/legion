@@ -30,11 +30,12 @@ bounded size, lines, file count, elapsed time, and snapshot identity. Caller res
 evidence, not a semantic call graph. Missing safe controls or native executable produces a typed
 incomplete result; no API provider fallback is used.
 
-Each call reserves budget before transport; observed usage is reconciled afterward. Usage fields
-remain unknown when the native result omits them. Missing usage is never recorded as zero, and every
-additional call requires its own reservation. The runtime retains partial findings and gaps when
-budget or runtime work stops. A separate fresh verifier receives each proposed finding and compact
-source evidence without the author's context or tools. It may uphold with anchored evidence,
+Each call reserves budget before transport; observed usage is reconciled afterward. Estimates govern
+admission and are not actual usage or spend. Missing usage remains unknown, never zero; every additional
+call requires its own reservation. Planning accounts for required initial calls and verification/context
+capacity before dispatch. The runtime retains partial findings and gaps when budget or runtime work
+stops. A fresh Oracle verifier runs at balanced-executor tier with each proposed finding and compact
+source evidence, without the author's context or tools. It may uphold with anchored evidence,
 contradict with anchored counterevidence, or leave the claim unresolved; unresolved findings are
 retained as unverified. Ingested receipts are authenticated and the report is recomputed. `done`
 requires complete applicable work, no unresolved runtime/snapshot/report gaps, and final report

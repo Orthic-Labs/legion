@@ -121,13 +121,15 @@ fn native_secret_fallback_reports_path_and_line_and_ignores_clean_files() {
     assert!(analysis(&result)["coverageGaps"]
         .as_array()
         .unwrap()
-        .is_empty());
+        .iter()
+        .any(|gap| gap["kind"] == "secret-history-not-examined"));
+    assert!(!result.complete);
     assert_eq!(analysis(&result)["denominator"]["expected"], json!(2));
     assert_eq!(analysis(&result)["denominator"]["examined"], json!(2));
 }
 
 #[test]
-fn native_secret_fallback_is_quiet_on_a_clean_tree() {
+fn native_secret_fallback_keeps_clean_tree_incomplete_without_history() {
     let root = fixture("secrets-clean");
     write(
         &root,
@@ -136,7 +138,48 @@ fn native_secret_fallback_is_quiet_on_a_clean_tree() {
     );
     let result = run(&root, bare(&root), "secrets.current-history");
     assert!(analysis(&result)["findings"].as_array().unwrap().is_empty());
-    assert_eq!(analysis(&result)["status"], json!("pass"));
+    assert_eq!(analysis(&result)["status"], json!("unproven"));
+    assert!(!result.complete);
+    assert!(analysis(&result)["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap["kind"] == "secret-history-not-examined"));
+}
+
+#[cfg(unix)]
+#[test]
+fn gitleaks_dir_keeps_findings_without_claiming_history_coverage() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = fixture("secrets-dir");
+    write(&root, "src/leak.rs", "fn main() {}\n");
+    let bin = fixture("secrets-dir-bin");
+    let script = bin.join("gitleaks");
+    fs::write(
+        &script,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'gitleaks 8.18.0'; exit 0; fi\nif [ \"$1\" != \"dir\" ]; then exit 2; fi\nprintf '%s\\n' '[{\"RuleID\":\"demo.secret\",\"File\":\"src/leak.rs\",\"StartLine\":1}]'\nexit 1\n",
+    )
+    .unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+
+    let producer = ArtifactProducer::new(&root)
+        .with_search_path(vec![bin])
+        .with_sandbox(SandboxPolicy::Disabled);
+    let result = run(&root, producer, "secrets.current-history");
+
+    assert_eq!(result.details["producer"]["mode"], "tool");
+    assert_eq!(result.details["producer"]["scope"], "current-tree");
+    assert_eq!(result.details["producer"]["argv"][1], "dir");
+    assert_eq!(analysis(&result)["findings"][0]["ruleId"], "demo.secret");
+    assert_eq!(analysis(&result)["findings"][0]["file"], "src/leak.rs");
+    assert_eq!(analysis(&result)["status"], "unproven");
+    assert!(!result.complete);
+    assert!(analysis(&result)["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap["kind"] == "secret-history-not-examined"));
 }
 
 #[test]

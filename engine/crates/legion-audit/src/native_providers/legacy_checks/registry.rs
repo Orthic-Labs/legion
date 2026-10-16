@@ -1,4 +1,4 @@
-//! Frozen registry projection for all 32 `legacy-check` providers.
+//! Frozen registry projection for all 33 `legacy-check` providers.
 
 use super::contracts::{CommandShape, LegacyCheckSpec};
 

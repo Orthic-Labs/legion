@@ -1,6 +1,6 @@
 //! Compatible lenses share exact source bytes once; receipts distinguish logical
 //! reconstruction from physical transport. Verification always stays separate.
-use super::{action, action_schema, digest, invalid, native, Controller, Observation, SYSTEM};
+use super::{action, action_schema, digest, invalid, native, Controller, Observation};
 use crate::{
     error::AuditError,
     native_providers::reasoning::{self, ingest, PendingLensWork},
@@ -17,10 +17,16 @@ pub(super) fn compatible(works: &[PendingLensWork]) -> bool {
     initial_prompt(works).is_ok_and(|prompt| prompt.is_some())
 }
 pub(super) fn initial_prompt(works: &[PendingLensWork]) -> Result<Option<Value>, AuditError> {
+    initial_prompt_with_sizer(works, &mut super::InitialRequestSizer::default())
+}
+pub(super) fn initial_prompt_with_sizer(
+    works: &[PendingLensWork],
+    sizer: &mut super::InitialRequestSizer,
+) -> Result<Option<Value>, AuditError> {
     let Some(mut prompt) = ingest::shared_seat_payload(works)? else {
         return Ok(None);
     };
-    prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:excerpts} resolves only to sharedContext.excerpts. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
+    prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:fieldName} resolves only to sharedContext[fieldName]; reconstruct every reference exactly. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
     prompt["contextTools"] = super::tools::specs();
     prompt["conversation"] = json!([]);
     let mut common = works[0].request.clone();
@@ -29,13 +35,19 @@ pub(super) fn initial_prompt(works: &[PendingLensWork]) -> Result<Option<Value>,
             .iter()
             .all(|work| work.request.denominator_paths.contains(path))
     });
-    super::attach_initial_context(&mut prompt, &common)?;
+    sizer.attach_context(&mut prompt, &common)?;
     // Both planning & transport must choose the same physical split before
     // authorization. No shared-byte credit applies to fallback singles.
     if native::rendered_input(&prompt)?.len() > super::MAX_REQUEST_BYTES / 2 {
         return Ok(None);
     }
-    let (_, rendered) = super::rendered_request(&prompt, SYSTEM, &action_schema(), None)?;
+    let selection = super::model::default_execution_for_works(works)?;
+    let (_, rendered) = super::rendered_request(
+        &prompt,
+        super::author_system(&selection),
+        &action_schema(),
+        &selection,
+    )?;
     if super::request_bytes(&rendered)? > super::MAX_REQUEST_BYTES as u64 {
         return Ok(None);
     }
@@ -63,8 +75,33 @@ impl Controller<'_> {
         }
         let schema = action_schema();
         let mut initial = initial;
+        let execution = super::model::author(
+            works.iter().map(|work| work.provider_id.as_str()),
+            self.options,
+        )?;
+        if works
+            .iter()
+            .any(|work| work.provider_id != "reasoning.dead-file")
+        {
+            let requests = works.iter().map(|work| &work.request).collect::<Vec<_>>();
+            self.gather_for_author(
+                seat,
+                &requests,
+                &mut prompt,
+                &schema,
+                &execution,
+                initial.take(),
+            )?;
+        }
         for _ in 0..self.options.max_calls_per_packet {
-            let author = self.call(seat, prompt.clone(), SYSTEM, &schema, initial.take())?;
+            let author = self.call(
+                seat,
+                prompt.clone(),
+                super::author_system(&execution),
+                &schema,
+                initial.take(),
+                &execution,
+            )?;
             if let Some(error) = &author.error {
                 return Err(invalid(format!("incomplete:shared-seat-host:{error}")));
             }
@@ -125,9 +162,8 @@ impl Controller<'_> {
                     gaps.push(format!("shared-result-missing:{id}"));
                     continue;
                 };
-                let mut compact = work.request.packet.clone();
+                let compact = ingest::compact_shared_packet(&work.request.packet, &shared)?;
                 super::partial::preserve_author(self.run, &work, &value, &author)?;
-                compact["excerpts"] = json!({"$sharedContext":"excerpts"});
                 let proof = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":format!("delivery:{}:{id}",author.context_id),"requestId":id,"packetDigest":digest(&work.request.packet)?,"transportEncoding":"shared-context-v1","reconstructedPacketBytes":legion_contracts::canonical_json_bytes(&work.request.packet).map_err(|error|invalid(error.to_string()))?.len(),"physicalRequestDigest":author.request_digest,"physicalRequestBytes":author.request_bytes,"sharedContextDigest":shared_digest,"reconstruction":{"sharedContext":shared,"compactPacket":compact},"complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(&work.request).map_err(invalid)?,"host":native::observation_value(&author)});
                 ingest::mint_runtime_delivery(self.run, &work.request, &proof)?;
                 items.push((work, value));

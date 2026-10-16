@@ -867,8 +867,13 @@ pub fn validate_delivery_evidence(
                 .get("compactPacket")
                 .and_then(Value::as_object)
                 .ok_or_else(|| "shared delivery compact packet missing".to_owned())?;
-            if shared.len() != 1 || !shared.contains_key("excerpts") {
-                return Err("shared delivery supports only exact common excerpts".into());
+            if !shared.contains_key("excerpts")
+                || shared.iter().any(|(field, value)| {
+                    !ingest::SHARED_PACKET_FIELDS.contains(&field.as_str())
+                        || request.packet.get(field) != Some(value)
+                })
+            {
+                return Err("shared delivery must preserve exact whitelisted packet fields".into());
             }
             let shared_digest = canonical_digest(shared).map_err(|error| error.to_string())?;
             if evidence.get("sharedContextDigest").and_then(Value::as_str)
@@ -896,7 +901,7 @@ pub fn validate_delivery_evidence(
             let mut restored = compact.clone();
             for (field, value) in compact {
                 if let Some(reference) = value.get("$sharedContext") {
-                    if field != "excerpts"
+                    if !ingest::SHARED_PACKET_FIELDS.contains(&field.as_str())
                         || value.as_object().is_none_or(|object| object.len() != 1)
                         || reference.as_str() != Some(field.as_str())
                     {
@@ -962,11 +967,18 @@ fn build_invocations(
         .and_then(|coverage| coverage.get("seatTokenBudget"))
         .and_then(Value::as_u64);
     let target = seat_tokens.map(|tokens| {
-        tokens.saturating_mul(4).saturating_sub(
-            coverage_plan::SEAT_PACKET_RESERVE_BYTES as u64
-                + crate::next::DEFAULT_OUTPUT_TOKENS.saturating_mul(4),
-        )
+        tokens
+            .saturating_sub(ingest::dispatch_output_tokens(tokens))
+            .saturating_mul(4)
+            .saturating_sub(
+                if lens_plan::lens_id_for_provider(&provider.id) == Some("dead-file") {
+                    0
+                } else {
+                    2048
+                },
+            )
     });
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     // Refine only materialization, never the frozen review set, promotion order,
     // part ceiling or scope. Every candidate is rebuilt from the same inputs.
     // A single irreducible chunk still reaches normal explicit size refusal.
@@ -993,13 +1005,17 @@ fn build_invocations(
                 request: request.clone(),
                 promotion: None,
             };
-            let size = serde_json::to_vec_pretty(&work)
-                .map_err(|error| AuditError::Invalid(error.to_string()))?
-                .len() as u64;
+            let size = sizer.request_bytes(std::slice::from_ref(&work))?;
             largest = largest.max(size);
         }
-        if largest <= target || attempt == 7 {
+        if largest <= target {
             return Ok(built);
+        }
+        if attempt == 7 || current.cap_bytes <= 1 {
+            return Err(AuditError::BoundExceeded(format!(
+                "audit packet for {} cannot fit: initial physical request needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
+                provider.id
+            )));
         }
         let ratio_cap =
             (current.cap_bytes as u128).saturating_mul(target as u128) / largest.max(1) as u128;
@@ -1008,7 +1024,10 @@ fn build_invocations(
             .saturating_sub(1024)
             .max(1);
         if next_cap >= current.cap_bytes {
-            return Ok(built);
+            return Err(AuditError::BoundExceeded(format!(
+                "audit packet for {} cannot fit the seat budget without dropping selected coverage",
+                provider.id
+            )));
         }
         budget = Some(excerpts::PartBudget {
             cap_bytes: next_cap,

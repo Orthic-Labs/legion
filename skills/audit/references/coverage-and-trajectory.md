@@ -1,11 +1,12 @@
 # Coverage-on-the-change and audit_diff trajectory
 
-Two report-renderer additions layered on the standard `report.json` shape
-(`references/engine-interface.md` §Report shape). Both are RENDERER-owned: the lenses (or `/commit`'s
+This reference separates implemented whole-repository risk-sampled lens coverage from two additional
+report-renderer proposals layered on the standard `report.json` shape
+(`references/engine-interface.md` §Report shape). Those additions are RENDERER-owned: the lenses (or `/commit`'s
 diff-scoped gate) supply input data; the renderer computes the gate/verdict and persists what
 needs to persist across runs. Neither one mutates `facts.json` or the frozen check set.
 
-**Status.** Not implemented in the native engine. A port of the renderer (`coverage_gate`,
+**Per-change gate and trajectory status.** Not implemented in the native engine. A port of the renderer (`coverage_gate`,
 `compute_trajectory`, `persist_trajectory`) existed but was never wired to a command and was removed on
 2026-10-10 (`docs/provenance/retirements.md`); `legion report` does not provide it:
 `legion report <report.json> --format md|html|sarif|json` only renders what the frozen report already
@@ -14,10 +15,9 @@ reported as `UNPROVEN`, never computed by hand.
 
 ## Whole-repository coverage statistics
 
-Applies only to `risk-sampled` runs (`execution-contract.md`, Coverage modes and quality outcome).
-Status: target, as there.
+Applies only to implemented `risk-sampled` runs (`execution-contract.md`, Coverage modes and quality outcome).
 
-- **Label.** Every rendering of a risk-sampled run is headed "whole-repository risk-sampled audit". The
+- **Label.** Risk-sampled report output is labeled "whole-repository risk-sampled audit". The
   label never reads as a full-repository proof.
 - **Assumptions.** The statements below cover only findings detectable in the random strata, under the
   stated seeded sampling within each stratum. They say nothing about findings no lens can detect.

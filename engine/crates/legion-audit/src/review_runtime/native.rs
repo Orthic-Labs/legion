@@ -47,6 +47,7 @@ pub struct Observation {
     pub response_digest: String,
     pub request_digest: String,
     pub request_bytes: u64,
+    pub observed_models: Vec<String>,
 }
 
 fn reader<R: Read + Send + 'static>(mut input: R, cap: usize) -> mpsc::Receiver<(Vec<u8>, bool)> {
@@ -155,6 +156,9 @@ pub fn resolve(options: &RuntimeOptions, cwd: &Path) -> Result<PathBuf, AuditErr
     if truncated || REQUIRED_FLAGS.iter().any(|flag| !help.contains(flag)) {
         return Err(invalid("incomplete:host-tool-boundary-unsupported"));
     }
+    if !help.contains("--effort") {
+        return Err(invalid("incomplete:host-reasoning-effort-unsupported"));
+    }
     // These hidden controls are accepted only when present in actual installed
     // native binary, not merely asserted by a model or package version.
     let needles = [
@@ -207,6 +211,7 @@ pub fn invoke(
     binary: &Path,
     cwd: &Path,
     options: &RuntimeOptions,
+    execution: &super::model::ExecutionSelection,
     call_id: &str,
     reservation_id: &str,
     output_limit: u64,
@@ -237,15 +242,22 @@ pub fn invoke(
         response_digest: String::new(),
         request_digest: String::new(),
         request_bytes: 0,
+        observed_models: Vec::new(),
     };
     let result = (|| -> Result<(), String> {
         let mut cmd = command(binary, cwd);
+        // Installed --help defines safe-mode as disabling user/project
+        // settings, hooks & plugins while retaining subscription auth. Bare
+        // mode disables OAuth/keychain auth, so it is not interchangeable.
+        // Explicit model/effort plus observed model checks prevent inherited
+        // orchestrator defaults from silently becoming paid Audit execution.
         let args = claude::build_args(&ClaudeOptions {
-            model: options.model.clone(),
+            model: Some(execution.model.clone()),
             ..Default::default()
         })?;
         cmd.command_mut()
             .args(args)
+            .args(["--effort", &execution.reasoning_effort])
             .args([
                 "--tools",
                 "",
@@ -306,6 +318,17 @@ pub fn invoke(
         let _ = stderr.recv_timeout(Duration::from_secs(2));
         observation.response_digest = super::digest_bytes(&bytes);
         decode_stream(&bytes, &mut observation, &mut usage)?;
+        if observation.observed_models.is_empty()
+            || observation
+                .observed_models
+                .iter()
+                .any(|model| !super::model::observed_model_matches(execution, model))
+        {
+            return Err(
+                "native observed model differs from authorized executor tier; usage retained"
+                    .into(),
+            );
+        }
         if truncated {
             return Err("native response exceeded byte cap".into());
         }
@@ -341,6 +364,13 @@ fn capture_accounting(
     usage: &mut UsageReceipt,
 ) {
     observation.reported_api_cost_usd = super::cost::native_root_cost(line);
+    if let Some(models) = raw.get("modelUsage").and_then(Value::as_object) {
+        for model in models.keys() {
+            if !observation.observed_models.contains(model) {
+                observation.observed_models.push(model.clone());
+            }
+        }
+    }
     if let Some(value) = raw.get("usage") {
         // Native final event is cumulative within this fresh one-turn
         // process; never add assistant snapshots or default absent to0.
@@ -388,8 +418,14 @@ fn decode_stream(
         for event in events {
             match event {
                 AgentEvent::Init {
-                    session_id, tools, ..
+                    session_id,
+                    model,
+                    tools,
+                    ..
                 } => {
+                    if let Some(model) = model {
+                        observation.observed_models.push(model);
+                    }
                     if !observation.context_id.is_empty() {
                         protocol_error = Some("duplicate native session initialization");
                     }
@@ -529,7 +565,7 @@ fn creation_time_value(time: Option<SystemTime>) -> Value {
         .unwrap_or(Value::Null)
 }
 pub fn observation_value(observation: &Observation) -> Value {
-    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
+    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes,"observedModels":observation.observed_models})
 }
 
 // Keep only the decision needed to diagnose another paid turn. Finding bodies
@@ -662,6 +698,7 @@ mod tests {
                 response_digest: String::new(),
                 request_digest: String::new(),
                 request_bytes: 0,
+                observed_models: Vec::new(),
             },
             usage,
         )

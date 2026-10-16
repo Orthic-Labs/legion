@@ -977,6 +977,7 @@ impl<'a> Run<'a> {
             })
             .collect();
         let evidence = json!({
+            "scope": "current-tree",
             "denominator": secret_denominator(files.len()),
             "findings": findings,
             "examined": files.len(),
@@ -1052,6 +1053,7 @@ impl<'a> Run<'a> {
             }
         }
         let evidence = json!({
+            "scope": "current-tree",
             "denominator": secret_denominator(files.len()),
             "findings": findings,
             "examined": examined,

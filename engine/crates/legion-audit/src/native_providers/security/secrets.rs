@@ -139,6 +139,27 @@ pub fn analyze(input: &Value) -> Value {
         .and_then(Value::as_u64)
         .unwrap_or(0);
     let mut gaps = Vec::new();
+    // This provider promises current files plus history. A current-tree scan
+    // can retain useful findings, but file counts (or merely counted refs)
+    // cannot attest that commit history was examined.
+    let history_examined = matches!(mode, "history" | "current-history")
+        && receipt
+            .get("historyRefs")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+        && matches!(
+            evidence.get("scope").and_then(Value::as_str),
+            Some("history" | "current-history")
+        )
+        && input
+            .get("producer")
+            .and_then(|p| p.get("scope"))
+            .and_then(Value::as_str)
+            != Some("current-tree");
+    if !history_examined {
+        gaps.push(json!({"kind":"secret-history-not-examined"}));
+    }
     if evidence
         .get("tool")
         .and_then(|t| t.get("version"))
@@ -157,4 +178,79 @@ pub fn analyze(input: &Value) -> Value {
         );
     }
     json!({"status":if !gaps.is_empty(){"unproven"}else if !findings.is_empty(){"fail"}else{"pass"},"complete":gaps.is_empty(),"denominator":{"kind":"secret-scope","expected":expected,"examined":examined},"findings":findings,"coverageGaps":gaps})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn history_input() -> Value {
+        json!({"artifacts":{"secretEvidence":{
+            "scope":"current-history",
+            "denominator":{"mode":"current-history","trackedFiles":2,"historyRefs":1},
+            "examined":3,
+            "tool":{"name":"gitleaks","version":"8.18.0"},
+            "rulesetDigest":format!("sha256:{}", "a".repeat(64)),
+            "findings":[],
+        }}})
+    }
+
+    fn assert_history_gap(input: &Value) {
+        let result = analyze(input);
+        assert_eq!(result["complete"], false, "{result}");
+        assert_eq!(result["status"], "unproven", "{result}");
+        assert!(result["coverageGaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap["kind"] == "secret-history-not-examined"));
+    }
+
+    #[test]
+    fn explicit_history_evidence_with_reconciled_counts_can_complete() {
+        let result = analyze(&history_input());
+        assert_eq!(result["complete"], true, "{result}");
+        assert_eq!(result["status"], "pass");
+        assert_eq!(result["denominator"]["expected"], 3);
+        assert_eq!(result["denominator"]["examined"], 3);
+    }
+
+    #[test]
+    fn current_tree_scope_with_counted_refs_cannot_complete_history() {
+        let mut input = history_input();
+        input["artifacts"]["secretEvidence"]["scope"] = json!("current-tree");
+        assert_history_gap(&input);
+    }
+
+    #[test]
+    fn history_ref_count_without_history_mode_cannot_complete() {
+        let mut input = history_input();
+        input["artifacts"]["secretEvidence"]["denominator"]["mode"] = json!("current");
+        assert_history_gap(&input);
+    }
+
+    #[test]
+    fn history_mode_without_explicit_scope_cannot_complete() {
+        let mut input = history_input();
+        input["artifacts"]["secretEvidence"]
+            .as_object_mut()
+            .unwrap()
+            .remove("scope");
+        assert_history_gap(&input);
+    }
+
+    #[test]
+    fn current_tree_producer_cannot_be_relabelled_as_history_evidence() {
+        let mut input = history_input();
+        input["producer"] = json!({"scope":"current-tree"});
+        assert_history_gap(&input);
+    }
+
+    #[test]
+    fn current_files_do_not_substitute_for_unexamined_history_refs() {
+        let mut input = history_input();
+        input["artifacts"]["secretEvidence"]["denominator"]["historyRefs"] = json!(0);
+        input["artifacts"]["secretEvidence"]["examined"] = json!(2);
+        assert_history_gap(&input);
+    }
 }
