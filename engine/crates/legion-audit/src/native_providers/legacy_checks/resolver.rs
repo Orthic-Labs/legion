@@ -1086,18 +1086,21 @@ fn digest_file(path: &Path) -> Result<String, ResolveError> {
 mod test_command_resolution_tests {
     use super::*;
     use crate::inventory::{FilesystemInventorySource, InventorySource};
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn fixture_root() -> PathBuf {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
         let root = std::env::temp_dir().join(format!(
-            "legion-test-command-{}-{nonce}",
-            std::process::id()
+            "legion-test-command-{}-{nonce}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed),
         ));
-        fs::create_dir_all(&root).unwrap();
+        fs::create_dir(&root).unwrap();
         root
     }
 

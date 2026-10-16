@@ -1367,9 +1367,10 @@ pub(crate) mod tests {
                         .unwrap();
                 }
                 "root" => {
-                    // Replacing a directory entry needs write access to its
-                    // parent even though the pinned snapshot tree is sealed.
+                    // macOS also requires the renamed directory itself to be
+                    // writable, even when its parent remains unchanged.
                     writable(root.parent().unwrap());
+                    writable(root);
                     let renamed = root.with_file_name("selected-old");
                     std::fs::rename(root, &renamed).unwrap();
                     std::fs::create_dir(root).unwrap();
