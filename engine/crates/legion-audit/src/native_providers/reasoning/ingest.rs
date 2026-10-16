@@ -3978,17 +3978,62 @@ struct SeatDraft {
     shared_excerpt_bytes_saved: u64,
 }
 
-fn draft_has_source(draft: &SeatDraft, work: &[PendingLensWork]) -> bool {
-    draft.members.iter().any(|position| {
-        let item = &work[*position];
-        item.provider_id == ADJUDICATOR_PROVIDER_ID
-            || item
-                .request
-                .packet
-                .get("excerpts")
-                .and_then(Value::as_array)
-                .is_some_and(|rows| !rows.is_empty())
-    })
+/// Stage prerequisites are frozen inputs, not successful empty reviews.
+/// Keep unavailable candidate generation distinct from a checked empty set.
+fn stage_readiness_gap(item: &PendingLensWork) -> Option<&'static str> {
+    let (field, unavailable, empty) = if item.provider_id == ADJUDICATOR_PROVIDER_ID {
+        (
+            "scannerCandidates",
+            "scanner-candidates-unavailable",
+            "scanner-candidates-empty",
+        )
+    } else if lens_plan::lens_id_for_provider(&item.provider_id) == Some("variant-analysis") {
+        (
+            "variantSeeds",
+            "variant-seeds-unavailable",
+            "variant-seeds-empty",
+        )
+    } else {
+        return None;
+    };
+    match item.request.packet.get(field).and_then(Value::as_array) {
+        None => Some(unavailable),
+        Some(rows) if rows.is_empty() => Some(empty),
+        Some(_) => None,
+    }
+}
+
+fn work_readiness_gap(item: &PendingLensWork) -> Option<&'static str> {
+    if let Some(gap) = stage_readiness_gap(item) {
+        return Some(gap);
+    }
+    if item.provider_id == ADJUDICATOR_PROVIDER_ID {
+        // Nonempty candidates require staged work. Child packets carry their
+        // signed evidence excerpts; missing source stays unknown & can use
+        // runtime's verified audit.read_file tools. This is task readiness,
+        // never excerpt-byte credit or proof source was delivered/reviewed.
+        return None;
+    }
+    let has_source = item
+        .request
+        .packet
+        .get("excerpts")
+        .and_then(Value::as_array)
+        .is_some_and(|rows| {
+            rows.iter().any(|row| {
+                row.get("content")
+                    .and_then(Value::as_str)
+                    .is_some_and(|content| !content.trim().is_empty())
+            })
+        });
+    (!has_source).then_some("selected-source-empty")
+}
+
+fn draft_readiness_gap(draft: &SeatDraft, work: &[PendingLensWork]) -> Option<&'static str> {
+    draft
+        .members
+        .iter()
+        .find_map(|position| work_readiness_gap(&work[*position]))
 }
 
 fn breadth_drafts(
@@ -4004,8 +4049,8 @@ fn breadth_drafts(
         let mut retained = Vec::new();
         let before = ordered.len();
         for draft in pending {
-            let eligible =
-                draft.model_input_bytes <= input_byte_limit && draft_has_source(&draft, work);
+            let eligible = draft.model_input_bytes <= input_byte_limit
+                && draft_readiness_gap(&draft, work).is_none();
             let introduces_provider = draft
                 .members
                 .iter()
@@ -4126,7 +4171,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "semantic"
         };
         let excerpt_digest = canonical_digest(&packet["excerpts"]).unwrap_or_default();
-        let key = if excerpt_bytes > 0 && !adjudicator {
+        let key = if excerpt_bytes > 0 && !adjudicator && work_readiness_gap(item).is_none() {
             format!("{route}|{excerpt_digest}")
         } else {
             format!("solo|{}|{part}|{position}", item.provider_id)
@@ -4203,9 +4248,13 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         let tokens = crate::next::estimated_request_tokens(model_bytes, output_tokens);
         let gather_tokens = 0u64;
         let context_reserve = 0u64;
-        let empty_source = !draft_has_source(draft, work);
-        let reason = if empty_source {
-            Some("selected-source-empty")
+        let readiness_gap = draft_readiness_gap(draft, work);
+        let stage_not_ready = draft
+            .members
+            .iter()
+            .any(|position| stage_readiness_gap(&work[*position]).is_some());
+        let reason = if readiness_gap.is_some() {
+            readiness_gap
         } else if model_bytes > input_byte_limit {
             Some("physical-envelope-headroom")
         } else if seats.len() as u64 >= initial_call_capacity {
@@ -4213,7 +4262,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         } else {
             None
         };
-        if sampled {
+        if sampled || stage_not_ready {
             if let Some(reason) = reason {
                 for position in &draft.members {
                     let item = &work[*position];
@@ -6204,6 +6253,109 @@ mod runtime_evidence_tests {
             "equal excerpt counts do not prove equal bytes"
         );
         assert_eq!(plan["sharedExcerptBytesSaved"], 0);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn unready_security_stages_preserve_author_capacity_and_exact_deferred_packets() {
+        let (run, request) = setup();
+        let mut source = planning_work(&request, "reasoning.correctness", "fn reviewed() {}\n");
+        source
+            .request
+            .packet
+            .as_object_mut()
+            .unwrap()
+            .remove("contractText");
+        source.request.packet["excerptCoverage"] = json!({"coverageMode":"risk-sampled"});
+        let mut adjudication = source.clone();
+        adjudication.provider_id = ADJUDICATOR_PROVIDER_ID.into();
+        adjudication.request.provider_id = adjudication.provider_id.clone();
+        adjudication.request.request_id = "adjudication-stage".into();
+        adjudication.request.packet["excerpts"] = Value::Null;
+        adjudication.request.packet["lensPlan"]["bundle"]["id"] = json!("ADJ");
+        let mut variant = source.clone();
+        variant.provider_id = super::super::followup::VARIANT_PROVIDER_ID.into();
+        variant.request.provider_id = variant.provider_id.clone();
+        variant.request.request_id = "variant-stage".into();
+        // Equal RAW would otherwise let an unready variant poison a useful
+        // shared author draft. Retain its full packet as explicit deferred work.
+        let limits = DispatchLimits {
+            seat_token_budget: 10_000,
+            run_token_budget: 50_000,
+            max_total_seats: 5,
+            wave_width: 1,
+        };
+        for (candidate_input, candidate_gap) in [
+            (Value::Null, "scanner-candidates-unavailable"),
+            (json!([]), "scanner-candidates-empty"),
+        ] {
+            for (seed_input, seed_gap) in [
+                (Value::Null, "variant-seeds-unavailable"),
+                (json!([]), "variant-seeds-empty"),
+            ] {
+                adjudication.request.packet["scannerCandidates"] = candidate_input.clone();
+                variant.request.packet["variantSeeds"] = seed_input;
+                let work = vec![adjudication.clone(), variant.clone(), source.clone()];
+                let original = work.clone();
+                let plan = lens_dispatch_plan(&work, &limits);
+                assert_eq!(plan["withinLimits"], true, "{}", plan["violations"]);
+                assert_eq!(plan["selectedPackets"], json!([source.packet_file_name()]));
+                assert_eq!(plan["requiredInitialCalls"], 1);
+                assert_eq!(plan["followupReserveCalls"], 1);
+                assert_eq!(plan["initialCallReservationTokens"], 10_000);
+                assert_eq!(plan["followupReserveTokens"], 10_000);
+                let deferred = plan["deferredWork"].as_array().unwrap();
+                assert_eq!(deferred.len(), 2);
+                for (item, reason) in [(&adjudication, candidate_gap), (&variant, seed_gap)] {
+                    assert!(deferred
+                        .iter()
+                        .any(|row| row["packet"] == item.packet_file_name()
+                            && row["providerId"] == item.provider_id
+                            && row["reason"] == reason));
+                }
+                assert_eq!(
+                    serde_json::to_value(&work).unwrap(),
+                    serde_json::to_value(&original).unwrap()
+                );
+            }
+        }
+        // Candidate evidence is stage input, not frozen excerpt delivery.
+        adjudication.request.packet["scannerCandidates"] = json!([ScannerCandidate {
+            finding_id: "candidate-one".into(),
+            provider: "security.source".into(),
+            rule: "fixture-rule".into(),
+            severity: "high".into(),
+            message: "review this candidate".into(),
+            evidence_excerpt: Some("fn reviewed() {}".into()),
+            path: Some("source.rs".into()),
+            ..ScannerCandidate::default()
+        }]);
+        assert_eq!(work_readiness_gap(&adjudication), None);
+        let staged = lens_dispatch_plan(&[adjudication.clone(), source.clone()], &limits);
+        assert_eq!(staged["requiredInitialCalls"], 2);
+        assert_eq!(staged["selectedPackets"].as_array().unwrap().len(), 2);
+        assert!(staged["deferredWork"].as_array().unwrap().is_empty());
+        assert_eq!(
+            staged["uniqueExcerptBytes"],
+            serde_json::to_vec(&source.request.packet["excerpts"])
+                .unwrap()
+                .len() as u64,
+            "stage readiness must not credit candidate context as frozen source excerpts"
+        );
+        adjudication.request.packet["scannerCandidates"][0]["evidenceExcerpt"] = Value::Null;
+        assert_eq!(
+            work_readiness_gap(&adjudication),
+            None,
+            "nonempty stages retain verified context-tool access; missing evidence remains unknown"
+        );
+        variant.request.packet["variantSeeds"] = json!([{"findingId":"confirmed-one"}]);
+        assert_eq!(work_readiness_gap(&variant), None);
+        let ready = lens_dispatch_plan(&[variant.clone(), source.clone()], &limits);
+        assert_eq!(ready["selectedPackets"].as_array().unwrap().len(), 2);
+        assert_eq!(ready["requiredSeats"], 1);
+        assert!(ready["deferredWork"].as_array().unwrap().is_empty());
+        variant.request.packet["excerpts"] = json!([]);
+        assert_eq!(work_readiness_gap(&variant), Some("selected-source-empty"));
         let _ = fs::remove_dir_all(run);
     }
 
