@@ -129,14 +129,35 @@ fn action_schema() -> Value {
     json!({"type":"object","properties":{"toolRequest":{"type":"object","additionalProperties":false,"required":["tool","arguments"],"properties":{"tool":{"type":"string","enum":["audit.read_file","audit.search_code","audit.list_files","audit.read_diff","audit.find_callers"]},"arguments":{"type":"object"}}},"finalResult":{"type":"object"}},"additionalProperties":false})
 }
 
+/// Denominator membership is frozen accounting, not source to review. Keep its
+/// exact list in the existing logical packet artifact rather than paying for
+/// every repository path on every physical call. Only this outer envelope is
+/// compacted: signed lens contracts, selected paths & source stay verbatim.
+fn physical_invocation(request: &ReasoningInvocation) -> Result<Value, AuditError> {
+    let mut envelope = serde_json::to_value(request).map_err(|error| invalid(error.to_string()))?;
+    let paths = envelope
+        .as_object_mut()
+        .and_then(|object| object.remove("denominatorPaths"))
+        .ok_or_else(|| invalid("logical invocation denominator paths missing"))?;
+    envelope["denominatorPathsRef"] = json!({
+        "artifact": format!("{}/{}", ingest::LENS_PACKET_DIR, request.packet_file_name()),
+        "pointer": "/request/denominatorPaths",
+        "digest": digest(&paths)?,
+        "count": request.denominator_count,
+        "invocationDigest": legion_contracts::canonical_digest(request)
+            .map_err(|error| invalid(error.to_string()))?,
+    });
+    Ok(envelope)
+}
+
 fn review_prompt(
     request: &ReasoningInvocation,
     snapshot_key: &str,
     stage: Option<&Value>,
-) -> Value {
+) -> Result<Value, AuditError> {
     let lens = lens_plan::lens_id_for_provider(&request.provider_id);
     let report_schema = lens.and_then(lens_schemas::lens_report_schema);
-    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields.","request":request,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
+    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields. denominatorPathsRef binds accounting in the frozen run artifact; it is not reviewed source or evidence of exhaustive coverage.","request":physical_invocation(request)?,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
     // Ordinary packets already transport this exact schema. Reference it
     // rather than paying for a second copy on every fresh native call.
     if stage.is_none() && request.packet["reportSchemaBody"].is_object() {
@@ -148,7 +169,7 @@ fn review_prompt(
         // Stage material is the sole candidate review context.
         prompt["request"]["packet"] = json!({"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
     }
-    prompt
+    Ok(prompt)
 }
 
 /// Reuse verified immutable manifests while sizing one frozen dispatch. Reads
@@ -235,7 +256,7 @@ impl InitialRequestSizer {
                 .unwrap_or(
                     "sha256:0000000000000000000000000000000000000000000000000000000000000000",
                 );
-            let mut prompt = review_prompt(&work.request, snapshot_key, None);
+            let mut prompt = review_prompt(&work.request, snapshot_key, None)?;
             self.attach_context(&mut prompt, &work.request)?;
             let selection = model::default_execution_for_works(std::slice::from_ref(work))?;
             let bytes = request_bytes(
@@ -430,7 +451,7 @@ impl Controller<'_> {
         initial: Option<String>,
     ) -> Result<(Value, Observation), AuditError> {
         let schema = action_schema();
-        let mut prompt = review_prompt(request, &self.snapshot.manifest.key, stage);
+        let mut prompt = review_prompt(request, &self.snapshot.manifest.key, stage)?;
         if stage.is_none() {
             attach_initial_context(&mut prompt, request)?;
         }
@@ -1020,7 +1041,7 @@ mod tests {
     #[test]
     fn initial_estimate_counts_host_frame_escaping_schema_and_tools() {
         let work = estimate_work("reasoning.naming", "naming", "quote:\" slash:\\ newline:\n");
-        let prompt = review_prompt(&work.request, "sha256:fixture", None);
+        let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
         assert_eq!(prompt["contextTools"], tools::specs());
         assert!(prompt["findingSchema"].is_object());
         let (frame, envelope) = rendered_request(
@@ -1041,7 +1062,7 @@ mod tests {
         let schema = lens_schemas::lens_report_schema("naming").unwrap();
         work.request.packet["reportSchemaBody"] = schema.clone();
         let original = work.request.packet.clone();
-        let prompt = review_prompt(&work.request, "sha256:fixture", None);
+        let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
         assert!(prompt.get("findingSchema").is_none());
         assert_eq!(
             prompt["findingSchemaRef"],
@@ -1050,8 +1071,80 @@ mod tests {
         assert_eq!(prompt["request"]["packet"], original);
         assert_eq!(prompt["request"]["packet"]["reportSchemaBody"], schema);
         // Stage packets omit reportSchemaBody, so still need their schema.
-        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({})));
+        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({}))).unwrap();
         assert!(stage["findingSchema"].is_object());
+    }
+    #[test]
+    fn physical_denominator_reference_resolves_exact_logical_run_artifact() {
+        for part in [Value::Null, json!({"number": 2, "total": 3})] {
+            let mut work = estimate_work("reasoning.correctness", "correctness", "raw source");
+            work.request.packet["part"] = part;
+            work.request.denominator_paths.push("unselected.rs".into());
+            work.request.denominator_count = 2;
+            let original = work.request.clone();
+            let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
+            let envelope = &prompt["request"];
+            let reference = &envelope["denominatorPathsRef"];
+            // write_lens_packets serializes this exact PendingLensWork at this
+            // canonical filename; the reference resolves inside that artifact.
+            let artifacts = std::collections::BTreeMap::from([(
+                format!("{}/{}", ingest::LENS_PACKET_DIR, work.packet_file_name()),
+                serde_json::to_value(&work).unwrap(),
+            )]);
+            let artifact = &artifacts[reference["artifact"].as_str().unwrap()];
+            let paths = artifact
+                .pointer(reference["pointer"].as_str().unwrap())
+                .unwrap();
+            assert_eq!(paths, &json!(original.denominator_paths));
+            assert_eq!(reference["digest"], digest(paths).unwrap());
+            assert_eq!(reference["count"], original.denominator_count);
+            assert_eq!(
+                reference["invocationDigest"],
+                legion_contracts::canonical_digest(&original).unwrap()
+            );
+            let mut restored = envelope.clone();
+            restored
+                .as_object_mut()
+                .unwrap()
+                .remove("denominatorPathsRef");
+            restored["denominatorPaths"] = paths.clone();
+            assert_eq!(restored, serde_json::to_value(&original).unwrap());
+            assert_eq!(envelope["packet"], original.packet);
+            assert_eq!(work.request, original);
+            assert!(envelope.get("denominatorPaths").is_none());
+            // Unselected accounting paths never become reviewed source.
+            assert!(!prompt.to_string().contains("unselected.rs"));
+            assert!(prompt["task"]
+                .as_str()
+                .unwrap()
+                .contains("not reviewed source or evidence of exhaustive coverage"));
+        }
+    }
+    #[test]
+    fn physical_denominator_metadata_growth_is_bounded_without_dropping_source() {
+        let mut work = estimate_work("reasoning.ai-slop", "ai-slop", "pub fn useful_raw() {}");
+        work.request.packet["lensPlan"] =
+            lens_plan::lens_plan_packet_value(&work.provider_id).unwrap();
+        work.request.packet["semanticReviewContract"] =
+            lens_plan::semantic_review_contract("ai-slop").unwrap();
+        let small = review_prompt(&work.request, "sha256:fixture", None).unwrap();
+        work.request
+            .denominator_paths
+            .extend((0..1070).map(|index| format!("src/unselected/file_{index:04}.rs")));
+        work.request.denominator_count = work.request.denominator_paths.len() as u64;
+        let large = review_prompt(&work.request, "sha256:fixture", None).unwrap();
+        assert!(large.to_string().len().abs_diff(small.to_string().len()) < 16);
+        assert_eq!(large["request"]["packet"], work.request.packet);
+        assert_ne!(
+            small["request"]["denominatorPathsRef"]["invocationDigest"],
+            large["request"]["denominatorPathsRef"]["invocationDigest"]
+        );
+        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({}))).unwrap();
+        assert_eq!(
+            stage["request"]["denominatorPathsRef"],
+            large["request"]["denominatorPathsRef"]
+        );
+        assert!(stage["request"].get("denominatorPaths").is_none());
     }
     #[test]
     fn shared_estimate_and_runtime_builder_transport_common_source_once() {

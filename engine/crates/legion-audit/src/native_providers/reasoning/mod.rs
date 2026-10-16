@@ -146,6 +146,22 @@ pub struct ReasoningInvocation {
 }
 
 impl ReasoningInvocation {
+    pub(crate) fn part(&self) -> Option<LensPartRef> {
+        let part = self.packet.get("part").filter(|part| !part.is_null())?;
+        Some(LensPartRef {
+            number: u32::try_from(part.get("number")?.as_u64()?).ok()?,
+            total: u32::try_from(part.get("total")?.as_u64()?).ok()?,
+        })
+    }
+
+    /// Canonical run artifact holding this complete logical invocation.
+    pub(crate) fn packet_file_name(&self) -> String {
+        match self.part() {
+            Some(part) => format!("{}.part-{:04}.json", self.provider_id, part.number),
+            None => format!("{}.json", self.provider_id),
+        }
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.schema_version != REASONING_RECEIPT_SCHEMA_VERSION
             || self.kind != REASONING_INVOCATION_KIND
@@ -2254,15 +2270,7 @@ impl PendingLensWork {
     /// `Some` when this packet is one part of a multi-part provider
     /// (`packet.part`); `None` for the single unnumbered packet.
     pub fn part(&self) -> Option<LensPartRef> {
-        let part = self
-            .request
-            .packet
-            .get("part")
-            .filter(|part| !part.is_null())?;
-        Some(LensPartRef {
-            number: u32::try_from(part.get("number")?.as_u64()?).ok()?,
-            total: u32::try_from(part.get("total")?.as_u64()?).ok()?,
-        })
+        self.request.part()
     }
 
     /// File stem under `lens-packets/`: `<provider>` for a single packet,
@@ -2276,7 +2284,7 @@ impl PendingLensWork {
 
     /// `<packet_file_stem>.json`.
     pub fn packet_file_name(&self) -> String {
-        format!("{}.json", self.packet_file_stem())
+        self.request.packet_file_name()
     }
 }
 
