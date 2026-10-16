@@ -341,6 +341,25 @@ mod continuation_staging_tests {
         assert!(!child.join(legion_audit::next::STATE_FILE).exists());
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn rejects_raw_parent_segments_in_verbatim_windows_output_before_resolution() {
+        let fixture = Fixture::new();
+        let parent = fixture.0.join("parent");
+        std::fs::create_dir(&parent).unwrap();
+        // canonicalize returns a verbatim root; its component parser treats
+        // forward slashes in joined text as normal filename characters.
+        for suffix in ["other/../child", r"other\..\child", "../child", r"..\child"] {
+            // Keep CLI's raw spelling: PathBuf::join can normalize verbatim
+            // backslash traversal before continuation receives it.
+            let mut raw = fixture.0.as_os_str().to_os_string();
+            raw.push(r"\");
+            raw.push(suffix);
+            let error = continuation_output_path(&parent, &PathBuf::from(raw)).unwrap_err();
+            assert!(error.message.contains("cannot contain parent traversal"));
+        }
+    }
+
     #[test]
     fn requires_explicit_instruction_before_staging_or_loading_parent() {
         let fixture = Fixture::new();
@@ -408,9 +427,18 @@ fn continuation_output_path(
     parent: &std::path::Path,
     requested: &std::path::Path,
 ) -> Result<PathBuf, CommandError> {
-    if requested
-        .components()
-        .any(|part| matches!(part, std::path::Component::ParentDir))
+    // Windows verbatim components do not split `/`, so inspect raw Windows
+    // separators before any path normalization can hide caller traversal.
+    let raw_windows_parent = cfg!(windows)
+        && requested
+            .as_os_str()
+            .to_string_lossy()
+            .split(['/', '\\'])
+            .any(|part| part == "..");
+    if raw_windows_parent
+        || requested
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
     {
         return Err(CommandError::usage(
             "continuation output cannot contain parent traversal",

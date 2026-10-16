@@ -1276,7 +1276,12 @@ mod tests {
             projected["excerptCoverage"]["omittedPaths"],
             original.packet["excerptCoverage"]["omittedPaths"]
         );
-        for (card, original) in projected["lensPlan"]["patternCards"]
+        let projection_proof = projection::evidence(&original).unwrap();
+        projection::validate(&original, &projection_proof).unwrap();
+        let omitted_pointers = projection_proof["manifest"]["omittedPointers"]
+            .as_array()
+            .unwrap();
+        for (index, (card, original_card)) in projected["lensPlan"]["patternCards"]
             .as_array()
             .unwrap()
             .iter()
@@ -1285,24 +1290,40 @@ mod tests {
                     .as_array()
                     .unwrap(),
             )
+            .enumerate()
         {
             for field in [
                 "id",
-                "version",
-                "ownerLens",
                 "applicability",
                 "triggerEvidence",
                 "requiredSourceTrace",
                 "falsifier",
                 "noEvidence",
             ] {
-                assert_eq!(card[field], original[field]);
+                assert_eq!(card[field], original_card[field]);
+            }
+            assert!(
+                crate::native_providers::reasoning::pattern_cards::PATTERN_CARDS
+                    .iter()
+                    .any(|canonical| {
+                        original_card["id"].as_str() == Some(canonical.id)
+                            && original_card["version"].as_str() == Some(canonical.version)
+                    })
+            );
+            assert_eq!(
+                original_card["ownerLens"],
+                original.packet["lensPlan"]["lens"]
+            );
+            for field in ["version", "ownerLens"] {
+                let pointer = format!("/lensPlan/patternCards/{index}/{field}");
+                assert!(card.get(field).is_none(), "{pointer}");
+                assert!(omitted_pointers.contains(&json!(pointer)), "{pointer}");
             }
             assert!(card.get("pairedCases").is_none());
         }
         let proof = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport",
             "receiptId":"delivery:one","requestId":original.request_id,"packetDigest":digest(&original.packet).unwrap(),
-            "transportEncoding":projection::ENCODING,"projection":projection::evidence(&original).unwrap(),
+            "transportEncoding":projection::ENCODING,"projection":projection_proof,
             "physicalRequestBytes":12000,"physicalRequestDigest":format!("sha256:{}","a".repeat(64)),
             "host":{"physicalRequestBytes":12000,"physicalRequestDigest":format!("sha256:{}","a".repeat(64))},
             "complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(&original).unwrap()});
