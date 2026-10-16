@@ -729,6 +729,17 @@ fn bounded_request() -> Value {
 }
 
 #[test]
+fn rendered_input_allowance_matches_dispatch_token_boundary() {
+    for per_call in [1, 10_000, 25_000, 150_000] {
+        let bytes = ingest::physical_planning_input_bytes(per_call);
+        let output = ingest::dispatch_output_tokens(per_call);
+        let limit = ingest::physical_planning_limit(per_call);
+        assert!(crate::next::estimated_request_tokens(bytes, output) <= limit);
+        assert!(crate::next::estimated_request_tokens(bytes + 1, output) > limit);
+    }
+}
+
+#[test]
 fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() {
     let files = (0..23).map(|index| (
         format!("apps/lightcraft-desktop/web/src/components/Control{index:04}.tsx"),
@@ -791,7 +802,31 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
             wave_width: 1,
         },
     );
-    assert_eq!(dispatch["withinLimits"], true, "{}", dispatch["violations"]);
+    let input_limit = ingest::physical_planning_input_bytes(10_000);
+    // Capacity cannot change physical grouping: the same frozen packets &
+    // per-call allowance determine drafts before run/call scheduling. Use
+    // their fully schedulable projection only to recover exact shared-group
+    // membership; the actual dispatch above keeps its exact 50k/5-call caps.
+    let reference_calls = work.len() as u64 + 1;
+    let physical_groups = ingest::lens_dispatch_plan(
+        &work,
+        &ingest::DispatchLimits {
+            run_token_budget: reference_calls * 10_000,
+            seat_token_budget: 10_000,
+            max_total_seats: reference_calls,
+            wave_width: 1,
+        },
+    );
+    let requests = work.iter().map(|item| {
+        let bytes = crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)).unwrap();
+        json!({"provider":item.provider_id,"packet":item.packet_file_name(),
+            "parts":item.request.packet.get("part"),"renderedBytes":bytes,
+            "estimatedTokens":crate::next::estimated_request_tokens(bytes, ingest::dispatch_output_tokens(10_000))})
+    }).collect::<Vec<_>>();
+    let diagnostics = json!({"inputByteLimit":input_limit,"requests":requests,
+        "dispatch":dispatch,"physicalGroups":physical_groups});
+    assert_eq!(dispatch["withinLimits"], true, "{diagnostics}");
+    assert_eq!(physical_groups["withinLimits"], true, "{diagnostics}");
     assert_eq!(dispatch["followupReserveCalls"], 1);
     assert_eq!(dispatch["gatherCalls"], 0);
     assert!(dispatch["requiredInitialCalls"].as_u64().unwrap() <= 4);
@@ -799,6 +834,19 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
     let deferred = dispatch["deferredPackets"].as_array().unwrap();
     assert_eq!(selected.len() + deferred.len(), work.len());
     assert!(selected.iter().all(|packet| !deferred.contains(packet)));
+    // Validate actual shared/single author envelopes, never add single-call
+    // estimates when dispatch has admitted one shared physical request.
+    for seat in dispatch["seats"].as_array().unwrap() {
+        let packets = seat["packets"].as_array().unwrap();
+        let members = work
+            .iter()
+            .filter(|item| packets.contains(&json!(item.packet_file_name())))
+            .cloned()
+            .collect::<Vec<_>>();
+        let bytes = crate::review_runtime::initial_seat_request_bytes(&members).unwrap();
+        assert_eq!(seat["plannedRequestBytes"], bytes, "{diagnostics}");
+        assert!(bytes <= input_limit, "{diagnostics}");
+    }
     let ledger = json!({"nativePlan":{"plan":plan.plan()}});
     for item in &work {
         let packet = &item.request.packet;
@@ -849,8 +897,114 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
             .mandatory_deferred
             .is_empty()
     );
-    assert!(work.iter().any(|item| item.provider_id == "reasoning.a11y"
-        && selected.contains(&json!(item.packet_file_name()))));
+    // Useful priority source work must survive graph compaction under this
+    // exact envelope. Four author calls are a capacity, not a promise that
+    // every lens's possibly partitioned source can run.
+    for provider in ["reasoning.correctness", "reasoning.ai-slop"] {
+        assert!(
+            work.iter().any(|item| item.provider_id == provider
+                && selected.contains(&json!(item.packet_file_name()))),
+            "{diagnostics}"
+        );
+    }
+    let deferred_work = dispatch["deferredWork"].as_array().unwrap();
+    let mut minimum_by_provider = BTreeMap::new();
+    for item in &work {
+        let packet_id = json!(item.packet_file_name());
+        let rows = deferred_work
+            .iter()
+            .filter(|row| row["packet"] == packet_id)
+            .collect::<Vec<_>>();
+        if selected.contains(&packet_id) {
+            assert!(rows.is_empty(), "{diagnostics}");
+            continue;
+        }
+        assert_eq!(rows.len(), 1, "{diagnostics}");
+        let row = rows[0];
+        assert_eq!(row["providerId"], item.provider_id, "{diagnostics}");
+        if let Some(group) = physical_groups["seats"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|seat| seat["packets"].as_array().unwrap().contains(&packet_id))
+        {
+            let packets = group["packets"].as_array().unwrap();
+            let members = work
+                .iter()
+                .filter(|member| packets.contains(&json!(member.packet_file_name())))
+                .cloned()
+                .collect::<Vec<_>>();
+            let bytes = crate::review_runtime::initial_seat_request_bytes(&members).unwrap();
+            assert_eq!(group["plannedRequestBytes"], bytes, "{diagnostics}");
+            assert_eq!(row["plannedRequestBytes"], bytes, "{diagnostics}");
+            assert!(bytes <= input_limit, "{diagnostics}");
+            // In particular, affordable a11y work can defer only after the
+            // four author slots are occupied; it cannot be called unfit.
+            assert_eq!(row["reason"], "fresh-verification-reserve", "{diagnostics}");
+            assert_eq!(dispatch["requiredInitialCalls"], 4, "{diagnostics}");
+            for packet in packets {
+                assert!(!selected.contains(packet), "{diagnostics}");
+                let rows = deferred_work
+                    .iter()
+                    .filter(|member| member["packet"] == *packet)
+                    .collect::<Vec<_>>();
+                assert_eq!(rows.len(), 1, "{diagnostics}");
+                assert_eq!(rows[0]["plannedRequestBytes"], bytes, "{diagnostics}");
+                assert_eq!(rows[0]["reason"], row["reason"], "{diagnostics}");
+            }
+        } else {
+            // Merging is allowed only when its complete shared request fits.
+            // Thus any draft still over budget must be a singleton, whose
+            // exact bytes remain unchanged when capacity limits are lifted.
+            let reference_rows = physical_groups["deferredWork"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|member| member["packet"] == packet_id)
+                .collect::<Vec<_>>();
+            assert_eq!(reference_rows.len(), 1, "{diagnostics}");
+            assert_eq!(reference_rows[0], row, "{diagnostics}");
+            let bytes =
+                crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item))
+                    .unwrap();
+            assert!(bytes > input_limit, "{diagnostics}");
+            assert_eq!(row["reason"], "physical-envelope-headroom", "{diagnostics}");
+            assert_eq!(row["plannedRequestBytes"], bytes, "{diagnostics}");
+            // An unfit contract must already have reached minimum whole-line
+            // materialization. Larger-fit source cannot be deferred early.
+            let minimum = minimum_by_provider
+                .entry(&item.provider_id)
+                .or_insert_with(|| {
+                    let provider = plan
+                        .providers()
+                        .iter()
+                        .find(|provider| provider.id == item.provider_id)
+                        .unwrap();
+                    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+                    let budget = seat_part_budget(provider).unwrap();
+                    build_invocations_with_budget(
+                        &plan,
+                        provider,
+                        &inventory,
+                        &denominator,
+                        "pending-host",
+                        &fixture.0,
+                        None,
+                        Some(excerpts::PartBudget {
+                            cap_bytes: 1,
+                            ..budget
+                        }),
+                    )
+                    .unwrap()
+                    .0
+                });
+            let minimum = minimum
+                .iter()
+                .find(|request| request.part() == item.part())
+                .unwrap();
+            assert_eq!(item.request.packet, minimum.packet, "{diagnostics}");
+        }
+    }
 }
 
 #[test]

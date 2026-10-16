@@ -4000,8 +4000,18 @@ pub(crate) fn physical_planning_limit(per_call: u64) -> u64 {
     per_call.saturating_sub((per_call * 15 / 100).min(1500))
 }
 
+/// Largest rendered input that fits dispatch's token estimate after its
+/// output reserve & host/tokenization headroom. Packet refinement must use
+/// this same allowance before dispatch decides work is unaffordable.
+pub(crate) fn physical_planning_input_bytes(per_call: u64) -> u64 {
+    physical_planning_limit(per_call)
+        .saturating_sub(dispatch_output_tokens(per_call))
+        .saturating_mul(4)
+}
+
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
     let output_tokens = dispatch_output_tokens(limits.seat_token_budget);
+    let input_byte_limit = physical_planning_input_bytes(limits.seat_token_budget);
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     let mut drafts: Vec<SeatDraft> = Vec::new();
     let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
@@ -4074,8 +4084,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
                 .collect::<Vec<_>>();
             // Strict physical compatibility, not merely equal path counts.
             let bytes = sizer.shared_request_bytes(&items).ok()??;
-            let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
-            (tokens <= physical_planning_limit(limits.seat_token_budget)).then_some((index, bytes))
+            (bytes <= input_byte_limit).then_some((index, bytes))
         });
         if let Some((index, bytes)) = merge {
             let draft = &mut drafts[index];
@@ -4143,7 +4152,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         });
         let reason = if empty_source {
             Some("selected-source-empty")
-        } else if tokens > physical_planning_limit(limits.seat_token_budget) {
+        } else if bytes > input_byte_limit {
             Some("physical-envelope-headroom")
         } else if seats.len() as u64 >= initial_call_capacity {
             Some("fresh-verification-reserve")
@@ -4185,7 +4194,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             .saturating_add(tokens)
             .saturating_add(gather_tokens)
             .saturating_add(context_reserve.div_ceil(4));
-        if tokens > physical_planning_limit(limits.seat_token_budget) {
+        if bytes > input_byte_limit {
             violations.push(format!(
                 "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds planning allowance {} (physical cap {})",
                 draft.bundle, draft.part, physical_planning_limit(limits.seat_token_budget), limits.seat_token_budget

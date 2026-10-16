@@ -1013,18 +1013,10 @@ fn build_invocations(
         .get("coverage")
         .and_then(|coverage| coverage.get("seatTokenBudget"))
         .and_then(Value::as_u64);
-    let target = seat_tokens.map(|tokens| {
-        tokens
-            .saturating_sub(ingest::dispatch_output_tokens(tokens))
-            .saturating_mul(4)
-            .saturating_sub(
-                if lens_plan::lens_id_for_provider(&provider.id) == Some("dead-file") {
-                    0
-                } else {
-                    2048
-                },
-            )
-    });
+    // Dispatch already reserves output & tokenization/host headroom. Refine
+    // to its exact input allowance so smaller-fit source is not deferred by
+    // a second, inconsistent limit. Fresh verification stays reserved there.
+    let target = seat_tokens.map(ingest::physical_planning_input_bytes);
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     // Refine only materialization, never the frozen review set, promotion order,
     // part ceiling or scope. Every candidate is rebuilt from the same inputs.
