@@ -48,6 +48,19 @@ reconciliation.
 The renderer's findings and status remain the machine source of truth. A completed run is not a
 claim that semantic recall or provider accuracy has been benchmark-qualified.
 
+## Explicit continuation
+
+After an operator explicitly resumes a stopped audit, use
+`legion audit continue --run <parent-run> --out <child-run> --operator-instruction <exact-resume-text>`.
+This prepares evidence only; inspect its remaining admission before running `run-reasoning` against
+the child. It reuses frozen source, scope, inventory, and deterministic evidence, without rescanning
+or resetting spend. Parent artifacts remain immutable; the child binds their digests, inherits charged
+reservations and physical-call/retry counts, and admits only remaining work under original ceilings.
+Unknown usage/cost, changed source or ancestry, an existing sibling, or unavailable fresh-verifier
+capacity refuses recovery. A historical per-call overrun remains an incomplete budget-history gap;
+successful later work cannot retroactively make that call compliant. Unsupported continuation states
+fail closed rather than creating a fresh allowance.
+
 ## Offline scanner prerequisites
 
 Named security scanners run only when their frozen provider is selected and applicable. The runner

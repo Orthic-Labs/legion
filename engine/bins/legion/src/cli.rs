@@ -168,6 +168,8 @@ struct AuditCommandArgs {
 }
 #[derive(Debug, Subcommand)]
 enum AuditSubcommand {
+    /// Prepare an explicit linked continuation within original cumulative caps.
+    Continue(commands::audit::ContinueAuditArgs),
     /// Run the frozen reasoning plan in an existing audit run directory.
     RunReasoning(commands::audit_runtime::RunReasoningArgs),
 }
@@ -1634,6 +1636,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Catalog(args) => commands::catalog::run(args),
         Command::Policy(args) => commands::policy::run(args),
         Command::Audit(args) => match args.command {
+            Some(AuditSubcommand::Continue(args)) => commands::audit::continue_command(args),
             Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
             None => commands::audit::run(args.legacy, cancellation.clone()).await,
         },
@@ -1833,6 +1836,66 @@ fn finish(result: CommandResult) -> i32 {
         Err(error) => {
             eprintln!("{}", error.message);
             error.code
+        }
+    }
+}
+
+#[cfg(test)]
+mod audit_continuation_cli_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_continue_parses_exact_resume_instruction() {
+        let instruction = "SSD is back, resume where you left off.\nCheck CI, install verified build & finish Ember audit within same budget.";
+        let cli = Cli::try_parse_from([
+            "legion",
+            "audit",
+            "continue",
+            "--run",
+            "/frozen/parent",
+            "--out",
+            "/scratch/child",
+            "--operator-instruction",
+            instruction,
+        ])
+        .unwrap();
+        let Some(Command::Audit(args)) = cli.command else {
+            panic!("expected audit command")
+        };
+        let Some(AuditSubcommand::Continue(args)) = args.command else {
+            panic!("expected explicit continuation")
+        };
+        assert_eq!(args.run, PathBuf::from("/frozen/parent"));
+        assert_eq!(args.out, PathBuf::from("/scratch/child"));
+        assert_eq!(args.operator_instruction, instruction);
+    }
+
+    #[test]
+    fn continuation_requires_run_output_and_operator_instruction() {
+        for arguments in [
+            vec![
+                "legion", "audit", "continue", "--run", "parent", "--out", "child",
+            ],
+            vec![
+                "legion",
+                "audit",
+                "continue",
+                "--operator-instruction",
+                "resume",
+                "--out",
+                "child",
+            ],
+            vec![
+                "legion",
+                "audit",
+                "continue",
+                "--operator-instruction",
+                "resume",
+                "--run",
+                "parent",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(arguments).is_err());
         }
     }
 }

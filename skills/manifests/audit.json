@@ -127,7 +127,7 @@
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:d2611be228995fd795955db405476f2b75de44779dcf22480ef782166c5e71e6"
+      "digest": "sha256:0f0e70f88019e7c5356001fc9044bc60f5b6f642608e4c814b03b595665f68d1"
     },
     {
       "path": "references/lens-cues.md",
@@ -177,7 +177,7 @@
     {
       "path": "references/reasoning-runtime.md",
       "uri": "legion-skill://audit/references/reasoning-runtime.md",
-      "digest": "sha256:7ad445f958bde7ac2f2f0d7ef27497b99cbc54919d9043370351038a5ba1ebf9"
+      "digest": "sha256:e963f83df67821491f9dac0fbce6f9cd39dc8fac7450dcb591ef46622b612a50"
     },
     {
       "path": "references/route-resources.json",

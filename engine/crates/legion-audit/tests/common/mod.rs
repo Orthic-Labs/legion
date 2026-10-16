@@ -111,6 +111,11 @@ pub fn record_budget_usage(run: &Path, request: &ReasoningInvocation, label: &st
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let ordinal = NEXT.fetch_add(1, Ordering::Relaxed);
     let call_id = format!("{label}:{}:{ordinal}", request.request_id);
+    let dispatch: Value =
+        serde_json::from_slice(&std::fs::read(run.join("lens-dispatch.json")).unwrap()).unwrap();
+    let output_token_limit = dispatch["reasoningBudget"]["outputTokens"]
+        .as_u64()
+        .expect("frozen dispatch output-token ceiling");
     let authorized = legion_audit::next::reserve_call(
         run,
         &legion_audit::next::BudgetCall {
@@ -119,7 +124,7 @@ pub fn record_budget_usage(run: &Path, request: &ReasoningInvocation, label: &st
             tier: "judgment".into(),
             rendered_request_bytes: bytes.max(1),
             model_input_bytes: bytes.max(1),
-            output_token_limit: 1,
+            output_token_limit,
             retry: false,
         },
     )

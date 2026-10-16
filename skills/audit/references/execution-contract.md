@@ -66,8 +66,15 @@ remain checked on reads. Do not enlarge the requested limits to force a plan to 
 
 `next` reports admitted initial calls and their reservation. Follow-up work needs its own admission.
 Calls run sequentially at width 1. Estimated tokens are admission input, not actual usage or spend:
-receipts retain authenticated actual usage/cost or `unknown`, and an overrun stops later calls without
-resetting persistent usage. The reserved verifier call is fresh and balanced-tier. Findings that do not
+receipts retain authenticated actual usage/cost or `unknown`, and an overrun stops automatic calls without
+resetting persistent usage. Only an explicit operator resume may create a native linked continuation;
+it preserves the stopped parent, frozen source/scope/evidence, authenticated usage/cost, charged
+reservations, physical-call counts, retries, and original ceilings. One active child is admitted under
+the root lock; changed ancestry, sibling forks, unknown accounting, or insufficient verifier reserve
+deny continuation. Re-freezing an execution recipe never grants a fresh budget. Historical overruns
+remain permanent report gaps even if the continuation finishes its admitted work. See
+[reasoning runtime](reasoning-runtime.md#explicit-continuation) for the supported command.
+The reserved verifier call is fresh and balanced-tier. Findings that do not
 fit verification admission remain persisted as unverified findings; never drop them or imply they passed.
 
 Report `coverageMode` (`exhaustive` or `sampled`) separately from the quality outcome. `auditStatus` keeps
@@ -89,8 +96,11 @@ subagents as normal Stage 2 execution.
 For each selected reasoning lens `legion audit --out <run-dir>` writes a `pending-host` work packet to
 `<run-dir>/lens-packets/<provider>.json`, lists it under `lensWork` and `reasoningLensesPending`, and
 generates a per-run epoch key at `<run-dir>/epoch.key` (mode 0600; only its digest appears in
-`plan.json` `epoch.digest` and the report claim `reasoningEpochDigest`). Never read, copy, or print the
-key. `run-reasoning` consumes selected frozen packets in the existing run and writes authenticated
+`plan.json` `epoch.digest` and the report claim `reasoningEpochDigest`). Never expose the key to
+agents, model context, shell output, or reports. Only the native linked-continuation operation may
+transfer its custody into an exclusively created child run, preserving private permissions and the
+original sealed-plan epoch; agent-authored key copying is forbidden.
+`run-reasoning` consumes selected frozen packets in the existing run and writes authenticated
 delivery, runtime-call, verification, and ingest evidence. The lower-level result shape remains useful
 for integrations that supply a result directly:
 

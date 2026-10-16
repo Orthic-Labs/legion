@@ -847,6 +847,23 @@ fn valid_sha256_label(value: &str) -> bool {
 }
 
 impl FrozenPlan {
+    /// Restore an existing seal without recompiling providers or coverage.
+    /// No unchecked constructor exists: persisted identity must authenticate.
+    pub(crate) fn restore_verified(
+        plan: AuditPlan,
+        digest: &str,
+        signature: &str,
+        key: &[u8],
+    ) -> Result<Self, AuditError> {
+        plan.validate()?;
+        crate::integrity::verify(&plan, digest, Some(signature), Some(key))?;
+        Ok(Self {
+            plan,
+            digest: digest.into(),
+            signature: Some(signature.into()),
+        })
+    }
+
     pub fn plan(&self) -> &AuditPlan {
         &self.plan
     }
@@ -864,5 +881,75 @@ impl FrozenPlan {
             .providers
             .iter()
             .find(|provider| provider.id == id)
+    }
+}
+
+#[cfg(test)]
+mod authenticated_restore_tests {
+    use super::*;
+
+    #[test]
+    fn restore_keeps_exact_frozen_scope_and_rejects_forged_identity() {
+        let mut configuration = [
+            "schemaVersion",
+            "family",
+            "consumes",
+            "produces",
+            "selector",
+            "denominatorKind",
+            "hostCapabilities",
+            "execution",
+            "reasoning",
+            "benchmark",
+            "controlIds",
+            "scopes",
+            "selectable",
+            "runnerClass",
+            "denominatorDigest",
+            "denominatorCount",
+        ]
+        .into_iter()
+        .map(|field| (field.to_owned(), Value::Null))
+        .collect::<BTreeMap<_, _>>();
+        configuration.insert("runner".into(), serde_json::json!({"kind":"built-in"}));
+        let plan = AuditPlan {
+            schema_version: 1,
+            repository_id: "/frozen/source".into(),
+            inventory_generation: "frozen-generation".into(),
+            inventory_digest: "frozen-inventory".into(),
+            providers: vec![AuditProvider {
+                id: "frozen.provider".into(),
+                version: "1".into(),
+                role: "deterministic".into(),
+                phase: "scan".into(),
+                lens_ids: Vec::new(),
+                dependencies: Vec::new(),
+                kind: ProviderKind::BuiltIn,
+                configuration,
+                bounds: BTreeMap::new(),
+                clean_claim: "frozen-claim".into(),
+                benchmark_status: "unqualified".into(),
+                benchmark_required_for_clean_claim: false,
+                qualification_digest: None,
+                required: true,
+            }],
+            bounds: BTreeMap::new(),
+            excluded_conditional_providers: Vec::new(),
+        };
+        let key = b"restore-fixture-key";
+        let digest = plan_digest(&plan).unwrap();
+        let signature = sign(&plan, key).unwrap();
+        let restored =
+            FrozenPlan::restore_verified(plan.clone(), &digest, &signature, key).unwrap();
+        assert_eq!(restored.plan(), &plan);
+        assert_eq!(restored.digest(), digest);
+        assert_eq!(restored.signature(), Some(signature.as_str()));
+        let mut changed = plan.clone();
+        changed.providers[0].required = false;
+        assert!(FrozenPlan::restore_verified(changed, &digest, &signature, key).is_err());
+        assert!(
+            FrozenPlan::restore_verified(plan.clone(), &digest, &signature, b"wrong-key").is_err()
+        );
+        assert!(FrozenPlan::restore_verified(plan, &digest, "forged-signature", key).is_err());
     }
 }

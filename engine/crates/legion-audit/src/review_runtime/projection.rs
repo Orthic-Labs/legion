@@ -58,6 +58,28 @@ fn zero_redaction_counts(excerpt: &Value) -> bool {
 pub(crate) fn packet(request: &ReasoningInvocation) -> Result<(Value, Value), AuditError> {
     let mut packet = request.packet.clone();
     let mut omitted = Vec::new();
+    // The authenticated logical reference pins these protocol tags. Only this
+    // supported invocation/packet pairing permits resolving them as metadata.
+    if request.schema_version == 1 && request.kind == "legion-reasoning-invocation" {
+        for (field, expected) in [
+            ("schemaVersion", json!(1)),
+            ("kind", json!("legion-reasoning-packet")),
+        ] {
+            if packet.get(field) == Some(&expected) {
+                remove(&mut packet, "", &[field], &mut omitted);
+            }
+        }
+    }
+    // These identities remain in single & shared physical invocation envelopes.
+    // Remove only exact duplicates; unexpected identities must stay visible.
+    for (field, identity) in [
+        ("provider", request.provider_id.as_str()),
+        ("contract", request.contract.as_str()),
+    ] {
+        if packet.get(field).and_then(Value::as_str) == Some(identity) {
+            remove(&mut packet, "", &[field], &mut omitted);
+        }
+    }
     remove(
         &mut packet,
         "",
@@ -216,6 +238,25 @@ pub(crate) fn packet(request: &ReasoningInvocation) -> Result<(Value, Value), Au
         .map_or(0, Vec::len);
     for index in 0..count {
         let parent = format!("/lensPlan/patternCards/{index}");
+        // Version is card identity metadata, pinned by the logical reference;
+        // all applicability, trigger, trace, falsifier & unknown prose remains.
+        if packet.pointer(&parent).is_some_and(|card| {
+            pattern_cards::PATTERN_CARDS.iter().any(|canonical| {
+                card.get("id").and_then(Value::as_str) == Some(canonical.id)
+                    && card.get("version").and_then(Value::as_str) == Some(canonical.version)
+            })
+        }) {
+            remove(&mut packet, &parent, &["version"], &mut omitted);
+        }
+        if packet
+            .pointer(&format!("{parent}/ownerLens"))
+            .and_then(Value::as_str)
+            .is_some_and(|owner| {
+                packet.pointer("/lensPlan/lens").and_then(Value::as_str) == Some(owner)
+            })
+        {
+            remove(&mut packet, &parent, &["ownerLens"], &mut omitted);
+        }
         if packet.pointer(&parent).is_some_and(duplicate_card_language) {
             remove(
                 &mut packet,
@@ -434,6 +475,79 @@ mod tests {
             reconstruct(&request, &physical["packet"], &physical["manifest"]).unwrap(),
             request.packet
         );
+    }
+
+    #[test]
+    fn exact_invocation_and_card_owner_duplicates_reconstruct() {
+        for matches in [true, false] {
+            let owner = if matches { "correctness" } else { "security" };
+            let provider = if matches {
+                "reasoning.correctness"
+            } else {
+                "reasoning.security"
+            };
+            let contract = if matches { "fixture" } else { "other" };
+            let version = if matches { "1" } else { "2" };
+            let schema_version = if matches { 1 } else { 2 };
+            let kind = if matches {
+                "legion-reasoning-packet"
+            } else {
+                "unknown-packet"
+            };
+            let request = request(json!({
+                "schemaVersion":schema_version,"kind":kind,
+                "provider":provider,"contract":contract,
+                "lensPlan":{"lens":"correctness","patternCards":[{
+                    "id":"return-key-consumer-migration","ownerLens":owner,"version":version,
+                    "requiredSourceTrace":"trace every source boundary"
+                }]}
+            }));
+            let physical = evidence(&request).unwrap();
+            for pointer in [
+                "/schemaVersion",
+                "/kind",
+                "/provider",
+                "/contract",
+                "/lensPlan/patternCards/0/version",
+                "/lensPlan/patternCards/0/ownerLens",
+            ] {
+                if matches {
+                    assert!(physical["packet"].pointer(pointer).is_none());
+                } else {
+                    assert_eq!(
+                        physical["packet"].pointer(pointer),
+                        request.packet.pointer(pointer)
+                    );
+                }
+            }
+            assert_eq!(
+                physical["packet"]["lensPlan"]["patternCards"][0]["requiredSourceTrace"],
+                request.packet["lensPlan"]["patternCards"][0]["requiredSourceTrace"]
+            );
+            assert_eq!(
+                reconstruct(&request, &physical["packet"], &physical["manifest"]).unwrap(),
+                request.packet
+            );
+            validate(&request, &physical).unwrap();
+        }
+    }
+
+    #[test]
+    fn unknown_protocol_or_card_identity_preserves_metadata() {
+        for (schema_version, kind) in [(2, "legion-reasoning-invocation"), (1, "unknown")] {
+            let mut request = request(json!({
+                "schemaVersion":1,"kind":"legion-reasoning-packet",
+                "lensPlan":{"patternCards":[{"id":"unknown-card","version":"1"}]}
+            }));
+            request.schema_version = schema_version;
+            request.kind = kind.into();
+            let physical = evidence(&request).unwrap();
+            assert_eq!(physical["packet"], request.packet);
+            assert_eq!(
+                reconstruct(&request, &physical["packet"], &physical["manifest"]).unwrap(),
+                request.packet
+            );
+        }
     }
 
     #[test]

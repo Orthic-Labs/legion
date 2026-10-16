@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod continuation;
 mod dag;
 mod error;
 mod execution;

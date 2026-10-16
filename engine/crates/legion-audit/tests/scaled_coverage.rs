@@ -551,7 +551,10 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
         assert!(seat["plannedRequestBytes"].as_u64().unwrap() > bytes);
         assert_eq!(
             seat["estimatedTokens"],
-            json!(bytes.div_ceil(4) + seat["outputTokenLimit"].as_u64().unwrap())
+            json!(legion_audit::next::estimated_request_tokens(
+                bytes,
+                seat["outputTokenLimit"].as_u64().unwrap()
+            ))
         );
         if seat["providers"].as_array().unwrap().len() > 1 {
             assert_eq!(seat["transportEncoding"], "shared-context-v1");

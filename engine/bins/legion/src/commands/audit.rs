@@ -131,6 +131,437 @@ pub struct AuditArgs {
     #[arg(long = "active", hide = true)]
     pub findings_active: bool,
 }
+
+#[derive(Debug, Clone, Args)]
+pub struct ContinueAuditArgs {
+    #[arg(long)]
+    pub run: PathBuf,
+    #[arg(long)]
+    pub out: PathBuf,
+    /// Exact explicit resume instruction authorizing this linked recovery.
+    #[arg(long = "operator-instruction")]
+    pub operator_instruction: String,
+}
+
+/// Stage a separate frozen-source recipe, then bind its inherited accounting.
+/// This command starts no model or scanner & never rewrites parent evidence.
+pub fn continue_command(args: ContinueAuditArgs) -> CommandResult {
+    use legion_audit::native_providers::reasoning::{self, ingest};
+    if args.operator_instruction.trim().is_empty() {
+        return Err(CommandError::usage(
+            "audit continue requires an explicit operator instruction",
+        ));
+    }
+    let parent = std::fs::canonicalize(&args.run).map_err(super::io_error)?;
+    let child = continuation_output_path(&parent, &args.out)?;
+    if let Ok(metadata) = std::fs::symlink_metadata(&child) {
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(CommandError::integrity(
+                "continuation output must not be a symlink or non-directory",
+            ));
+        }
+        // Only finish an already bound same-child crash recovery. Never adopt
+        // an existing unbound directory or overwrite its staged recipe.
+        if child
+            .join(legion_audit::continuation::CONTINUATION_FILE)
+            .is_file()
+        {
+            return legion_audit::continuation::prepare(
+                &parent,
+                &child,
+                &args.operator_instruction,
+            )
+            .map_err(|error| CommandError::integrity(error.to_string()));
+        }
+        return Err(CommandError::usage(
+            "audit continue requires a new output directory",
+        ));
+    }
+    reject_accepted_continuation_receipts(&parent)?;
+    let allowance = legion_audit::continuation::planning_budget(&parent)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let (plan, inventory, execution) = ingest::frozen_reasoning_basis(&parent)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    // Validate retained deterministic evidence before copying it. Recompute is
+    // read-only; it does not execute providers or acquire new source inventory.
+    ingest::recompute_run(&parent).map_err(|error| CommandError::integrity(error.to_string()))?;
+    let number = |field: &str| -> Result<u64, CommandError> {
+        allowance.get(field).and_then(Value::as_u64).ok_or_else(|| {
+            CommandError::integrity(format!("continuation allowance missing {field}"))
+        })
+    };
+    let limits = ingest::DispatchLimits {
+        run_token_budget: number("remainingTokens")?,
+        seat_token_budget: number("perCallTokens")?,
+        max_total_seats: number("remainingCalls")?,
+        wave_width: number("waveWidth")?,
+    };
+    if limits.max_total_seats < 2
+        || limits.run_token_budget < limits.seat_token_budget.saturating_mul(2)
+    {
+        return Err(CommandError::incomplete(
+            "continuation cannot reserve an author plus fresh verifier within remaining budget",
+        ));
+    }
+    let root = std::path::Path::new(&plan.plan().repository_id);
+    let candidates = reasoning::scanner_candidates_from_execution(root, &plan, &execution);
+    let work =
+        reasoning::pending_lens_work_with_candidates(root, &plan, &inventory, Some(&candidates))
+            .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let mut dispatch = ingest::lens_dispatch_plan(&work, &limits);
+    if dispatch["withinLimits"] != true
+        || dispatch["followupReserveCalls"].as_u64().unwrap_or(0) < 1
+        || dispatch["reasoningBudget"]["outputTokens"] != allowance["outputTokens"]
+    {
+        return Err(CommandError::incomplete(format!(
+            "continuation recipe cannot fit preserved call/output/reserve limits: {}",
+            dispatch["violations"]
+        )));
+    }
+    let namespace = legion_audit::digest(&(parent.as_path(), child.as_path()))
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    for (index, seat) in dispatch["seats"]
+        .as_array_mut()
+        .ok_or_else(|| CommandError::integrity("continuation dispatch has no seats"))?
+        .iter_mut()
+        .enumerate()
+    {
+        seat["seatId"] = json!(format!(
+            "continuation-{}-{:03}",
+            namespace.trim_start_matches("sha256:"),
+            index + 1
+        ));
+    }
+    // Planning subtracts charged history once. Admission retains original
+    // ceilings & inherits original counters, so it cannot subtract twice.
+    dispatch["continuationPlanningBudget"] = allowance.clone();
+    dispatch["reasoningBudget"] = allowance["originalReasoningBudget"].clone();
+    dispatch["continuationRecipe"] =
+        json!({"schemaVersion":1,"kind":"frozen-source-rematerialization","modelsStarted":0});
+    std::fs::create_dir(&child).map_err(super::io_error)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&child, std::fs::Permissions::from_mode(0o700))
+            .map_err(super::io_error)?;
+    }
+    for name in [
+        "plan.json",
+        "facts.json",
+        "execution.json",
+        reasoning::INVENTORY_SNAPSHOT_FILE,
+        "report.json",
+    ] {
+        copy_continuation_file(&parent, &child, name)?;
+    }
+    for name in [
+        "report.sarif",
+        reasoning::candidate_routing::ROUTING_SNAPSHOT_FILE,
+    ] {
+        if parent.join(name).try_exists().map_err(super::io_error)? {
+            copy_continuation_file(&parent, &child, name)?;
+        }
+    }
+    copy_continuation_file(&parent, &child, ingest::EPOCH_KEY_FILE)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(
+            child.join(ingest::EPOCH_KEY_FILE),
+            std::fs::Permissions::from_mode(0o600),
+        )
+        .map_err(super::io_error)?;
+    }
+    stage_continuation_effect_artifacts(&parent, &child, &execution)?;
+    ingest::write_lens_packets(&child.join(ingest::LENS_PACKET_DIR), &work)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    write_control_artifact(&child, legion_audit::next::DISPATCH_FILE, &dispatch)?;
+    // Last effect: core rechecks parent history, source & every staged byte
+    // under its root lock before publishing lineage or admitting any future call.
+    legion_audit::continuation::prepare(&parent, &child, &args.operator_instruction).map_err(
+        |error| {
+            CommandError::integrity(format!(
+                "continuation staging at {} was not admitted: {error}",
+                child.display()
+            ))
+        },
+    )
+}
+
+#[cfg(test)]
+mod continuation_staging_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    struct Fixture(PathBuf);
+    impl Fixture {
+        fn new() -> Self {
+            static NEXT: AtomicU64 = AtomicU64::new(0);
+            let root = std::env::temp_dir().join(format!(
+                "legion-continuation-staging-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir(&root).unwrap();
+            Self(std::fs::canonicalize(root).unwrap())
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn rejects_overlapping_traversal_and_existing_unbound_output() {
+        let fixture = Fixture::new();
+        let parent = fixture.0.join("parent");
+        std::fs::create_dir(&parent).unwrap();
+        for output in [
+            parent.clone(),
+            parent.join("child"),
+            fixture.0.clone(),
+            fixture.0.join("other/../child"),
+        ] {
+            assert!(continuation_output_path(&parent, &output).is_err());
+        }
+        let child = fixture.0.join("child");
+        std::fs::create_dir(&child).unwrap();
+        std::fs::write(child.join("sentinel"), b"unchanged").unwrap();
+        assert!(continue_command(ContinueAuditArgs {
+            run: parent,
+            out: child.clone(),
+            operator_instruction: "resume within same budget".into()
+        })
+        .is_err());
+        assert_eq!(std::fs::read(child.join("sentinel")).unwrap(), b"unchanged");
+        assert!(!child.join(legion_audit::next::STATE_FILE).exists());
+    }
+
+    #[test]
+    fn requires_explicit_instruction_before_staging_or_loading_parent() {
+        let fixture = Fixture::new();
+        let child = fixture.0.join("child");
+        assert!(continue_command(ContinueAuditArgs {
+            run: fixture.0.join("missing"),
+            out: child.clone(),
+            operator_instruction: " \n ".into()
+        })
+        .is_err());
+        assert!(!child.exists());
+    }
+
+    #[test]
+    fn copying_is_exclusive_and_accepted_semantic_receipts_stop_version_one() {
+        let fixture = Fixture::new();
+        let parent = fixture.0.join("parent");
+        let child = fixture.0.join("child");
+        std::fs::create_dir(&parent).unwrap();
+        std::fs::create_dir(&child).unwrap();
+        std::fs::write(parent.join("plan.json"), b"frozen").unwrap();
+        copy_continuation_file(&parent, &child, "plan.json").unwrap();
+        std::fs::write(parent.join("plan.json"), b"changed").unwrap();
+        assert!(copy_continuation_file(&parent, &child, "plan.json").is_err());
+        assert_eq!(std::fs::read(child.join("plan.json")).unwrap(), b"frozen");
+        std::fs::create_dir(parent.join("lens-receipts")).unwrap();
+        assert!(reject_accepted_continuation_receipts(&parent).is_ok());
+        std::fs::write(parent.join("lens-receipts/accepted.json"), b"receipt").unwrap();
+        assert!(reject_accepted_continuation_receipts(&parent).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_symlink_sources_and_outputs_and_keeps_copied_key_private() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+        let fixture = Fixture::new();
+        let parent = fixture.0.join("parent");
+        let child = fixture.0.join("child");
+        std::fs::create_dir(&parent).unwrap();
+        std::fs::create_dir(&child).unwrap();
+        std::fs::write(parent.join("opaque"), b"fixture-only").unwrap();
+        symlink(parent.join("opaque"), parent.join("plan.json")).unwrap();
+        assert!(copy_continuation_file(&parent, &child, "plan.json").is_err());
+        copy_continuation_file(&parent, &child, "opaque").unwrap();
+        assert_eq!(
+            std::fs::metadata(child.join("opaque"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o077,
+            0
+        );
+        let alias = fixture.0.join("alias");
+        symlink(&child, &alias).unwrap();
+        assert!(continue_command(ContinueAuditArgs {
+            run: parent,
+            out: alias,
+            operator_instruction: "resume".into()
+        })
+        .is_err());
+    }
+}
+
+fn continuation_output_path(
+    parent: &std::path::Path,
+    requested: &std::path::Path,
+) -> Result<PathBuf, CommandError> {
+    if requested
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return Err(CommandError::usage(
+            "continuation output cannot contain parent traversal",
+        ));
+    }
+    let absolute = if requested.is_absolute() {
+        requested.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(super::io_error)?
+            .join(requested)
+    };
+    let name = absolute
+        .file_name()
+        .ok_or_else(|| CommandError::usage("continuation output requires a directory name"))?;
+    let directory = std::fs::canonicalize(
+        absolute
+            .parent()
+            .ok_or_else(|| CommandError::usage("continuation output parent missing"))?,
+    )
+    .map_err(super::io_error)?;
+    let child = directory.join(name);
+    if child == parent || child.starts_with(parent) || parent.starts_with(&child) {
+        return Err(CommandError::usage(
+            "continuation parent & child must be separate directories",
+        ));
+    }
+    Ok(child)
+}
+
+fn reject_accepted_continuation_receipts(parent: &std::path::Path) -> Result<(), CommandError> {
+    let receipts = parent.join("lens-receipts");
+    if receipts.try_exists().map_err(super::io_error)? {
+        if std::fs::symlink_metadata(&receipts)
+            .map_err(super::io_error)?
+            .file_type()
+            .is_symlink()
+            || std::fs::read_dir(receipts)
+                .map_err(super::io_error)?
+                .next()
+                .is_some()
+        {
+            return Err(CommandError::incomplete(
+                "continuation version 1 cannot rematerialize accepted semantic receipts",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn copy_continuation_file(
+    parent: &std::path::Path,
+    child: &std::path::Path,
+    name: &str,
+) -> Result<(), CommandError> {
+    use std::io::Write;
+    let source = parent.join(name);
+    let metadata = std::fs::symlink_metadata(&source).map_err(super::io_error)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(CommandError::integrity(format!(
+            "continuation refuses non-regular artifact {name}"
+        )));
+    }
+    let mut input = std::fs::File::open(source).map_err(super::io_error)?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut output = options.open(child.join(name)).map_err(super::io_error)?;
+    std::io::copy(&mut input, &mut output).map_err(super::io_error)?;
+    output
+        .flush()
+        .and_then(|_| output.sync_all())
+        .map_err(super::io_error)
+}
+
+fn stage_continuation_effect_artifacts(
+    parent: &std::path::Path,
+    child: &std::path::Path,
+    execution: &legion_audit::ExecutionReport,
+) -> Result<(), CommandError> {
+    use std::io::Write;
+    let mut records = std::collections::BTreeMap::<String, EffectArtifactRef>::new();
+    for entry in &execution.results {
+        let mut references = Vec::new();
+        let receipt = entry
+            .result
+            .details
+            .get("executionReceipt")
+            .filter(|value| !value.is_null())
+            .or_else(|| {
+                entry
+                    .result
+                    .details
+                    .get("receipt")
+                    .filter(|value| !value.is_null())
+            });
+        if let Some(receipt) = receipt {
+            if receipt.get("kind").and_then(Value::as_str) != Some("native-legacy-check-receipt") {
+                for field in ["stdout", "stderr", "brokerStatus"] {
+                    if let Some(value) = receipt.get(field).filter(|value| !value.is_null()) {
+                        references.push(value);
+                    }
+                }
+            }
+        }
+        for field in legion_audit::DETAILS_ARTIFACT_REF_KEYS {
+            if let Some(value) = entry
+                .result
+                .details
+                .get(*field)
+                .filter(|value| !value.is_null())
+            {
+                references.push(value);
+            }
+        }
+        for reference in references {
+            let record = parse_effect_artifact_ref(reference).map_err(CommandError::integrity)?;
+            if let Some(previous) = records.insert(record.path.clone(), record.clone()) {
+                if previous != record {
+                    return Err(CommandError::integrity(
+                        "conflicting frozen effect artifact identity",
+                    ));
+                }
+            }
+        }
+    }
+    for record in records.values() {
+        let bytes = read_effect_artifact(&parent.join("artifacts"), record)
+            .map_err(CommandError::integrity)?;
+        let relative =
+            validate_effect_artifact_path(&record.path).map_err(CommandError::integrity)?;
+        let destination = child.join("artifacts").join(relative);
+        std::fs::create_dir_all(
+            destination
+                .parent()
+                .ok_or_else(|| CommandError::integrity("effect artifact parent missing"))?,
+        )
+        .map_err(super::io_error)?;
+        let mut output = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination)
+            .map_err(super::io_error)?;
+        output
+            .write_all(&bytes)
+            .and_then(|_| output.sync_all())
+            .map_err(super::io_error)?;
+    }
+    Ok(())
+}
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     if args.rightkit_trust.is_some() {
         if let Some(route) = rightkit_trust_early_subcommand(&args) {

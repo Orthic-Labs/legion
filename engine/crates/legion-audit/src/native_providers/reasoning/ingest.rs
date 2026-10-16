@@ -42,14 +42,16 @@ use super::{
     ReasoningHostResponse, ReasoningInvocation, ReasoningReceipt, REASONING_PROVIDER_IDS,
     REASONING_RECEIPT_KIND, REASONING_RECEIPT_SCHEMA_VERSION,
 };
-use crate::plan::{AuditPlan, PROVIDER_UNIVERSE_BOUND};
+use crate::plan::{AuditPlan, FrozenPlan, PROVIDER_UNIVERSE_BOUND};
 
 const VISUAL_PROVIDER_ID: &str = "legacy.visual.core";
 const VISUAL_PLAN_BINDING_UNAVAILABLE: &str = "visual-plan-binding-unavailable";
 use crate::{
     error::AuditError,
     execution::ExecutionReport,
-    inventory::{FilesystemInventorySource, InventoryDenominator, InventorySource},
+    inventory::{
+        FilesystemInventorySource, InventoryDenominator, InventoryEnvelope, InventorySource,
+    },
     report::canonical_report,
 };
 
@@ -3950,7 +3952,7 @@ pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, Au
         }
         let compact = compact_shared_packet(&item.request.packet, &shared)?;
         let lens = lens_plan::lens_id_for_provider(&item.provider_id);
-        let mut request = json!({"requestId":item.request.request_id,"providerId":item.provider_id,
+        let mut request = json!({"requestId":item.request.request_id,"providerId":item.provider_id,"contract":item.request.contract,
             "planDigest":item.request.plan_digest,"packetDigest":canonical_digest(&item.request.packet).map_err(|error|invalid(error.to_string()))?,
             "packet":compact});
         // Preserve the signed per-lens schema in its packet & transport it
@@ -5009,6 +5011,74 @@ fn set_derived_provider_coverage(
         }
         report.claims.insert("providerCoverage".into(), coverage);
     }
+}
+
+/// Reload only authenticated native scope, inventory & deterministic execution.
+/// Continuation may rematerialize packets, never compile a new provider universe.
+pub fn frozen_reasoning_basis(
+    run_dir: &Path,
+) -> Result<(FrozenPlan, InventoryEnvelope, ExecutionReport), AuditError> {
+    let outer = read_json(&run_dir.join("plan.json"))?;
+    let execution: ExecutionReport =
+        serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
+            .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
+    let plan = verify_persisted_native_plan(&outer, &execution, run_dir)?
+        .ok_or_else(|| invalid("continuation requires a sealed native plan"))?;
+    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
+        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
+        _ => load_epoch(run_dir)?.0,
+    };
+    let frozen = FrozenPlan::restore_verified(
+        plan,
+        &execution.plan_digest,
+        execution
+            .plan_signature
+            .as_deref()
+            .ok_or_else(|| invalid("continuation requires a plan signature"))?,
+        &key,
+    )?;
+    let inventory: InventoryEnvelope =
+        serde_json::from_value(read_json(&run_dir.join(super::INVENTORY_SNAPSHOT_FILE))?)
+            .map_err(|error| invalid(format!("inventory.json is invalid: {error}")))?;
+    inventory.validate()?;
+    if inventory.repository_id != frozen.plan().repository_id
+        || inventory.generation != frozen.plan().inventory_generation
+        || inventory.digest != frozen.plan().inventory_digest
+    {
+        return Err(invalid("continuation inventory differs from sealed plan"));
+    }
+    let context = outer
+        .get("reviewContext")
+        .ok_or_else(|| invalid("continuation review context missing"))?;
+    let manifest = context
+        .get("snapshotManifest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("continuation requires an immutable source snapshot"))?;
+    let snapshot = crate::snapshot::FrozenSnapshot::open(Path::new(manifest))?;
+    snapshot.verify_source_current()?;
+    if snapshot.manifest.execution_root != Path::new(&frozen.plan().repository_id)
+        || context.get("snapshotKey").and_then(Value::as_str)
+            != Some(snapshot.manifest.key.as_str())
+    {
+        return Err(invalid("continuation snapshot differs from sealed plan"));
+    }
+    for provider in frozen
+        .providers()
+        .iter()
+        .filter(|provider| REASONING_PROVIDER_IDS.contains(&provider.id.as_str()))
+    {
+        if provider
+            .configuration
+            .get("reasoning")
+            .and_then(|value| value.get("reviewContext"))
+            != Some(context)
+        {
+            return Err(invalid(
+                "continuation source context differs from sealed provider",
+            ));
+        }
+    }
+    Ok((frozen, inventory, execution))
 }
 
 fn verify_persisted_native_plan(

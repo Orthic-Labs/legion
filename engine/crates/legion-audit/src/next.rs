@@ -144,6 +144,11 @@ struct State {
     terminal_status: Option<String>,
     #[serde(default)]
     budget_blocked: Vec<String>,
+    /// Digest of the explicit linked continuation; never present in legacy runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    continuation_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    historical_terminal_status: Option<String>,
 }
 
 impl State {
@@ -166,6 +171,8 @@ impl State {
             reservations: BTreeMap::new(),
             terminal_status: None,
             budget_blocked: Vec::new(),
+            continuation_digest: None,
+            historical_terminal_status: None,
         }
     }
 }
@@ -1132,6 +1139,17 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         })
         .unwrap_or_default();
     let plan_seats = seats.len() as u64;
+    let runtime_encoding =
+        dispatch.get("requestEncoding").and_then(Value::as_str) == Some("runtime-initial-v1");
+    let adjudication_selected = seats.iter().any(|seat| {
+        seat.providers
+            .iter()
+            .any(|provider| provider == ADJUDICATOR_PROVIDER_ID)
+            || seat
+                .packets
+                .iter()
+                .any(|packet| packet == &format!("{ADJUDICATOR_PROVIDER_ID}.json"))
+    });
     let mut done = BTreeSet::new();
     if let Ok(entries) = fs::read_dir(run_dir.join(LENS_RECEIPT_DIR)) {
         for entry in entries.flatten() {
@@ -1147,7 +1165,13 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
     let mut adjudication = None;
     let mut context = None;
     let mut adjudication_candidates = 0;
-    if let Some((snapshot, ctx, count)) = load_adjudication(run_dir)? {
+    if let Some((snapshot, ctx, count)) = if !runtime_encoding || adjudication_selected {
+        load_adjudication(run_dir)?
+    } else {
+        // Native packets preserve the full pending universe. A deferred packet
+        // carries no authority to open rounds outside the selected recipe.
+        None
+    } {
         // The adjudicator seat is replaced by the round machine.
         seats.retain(|seat| seat.providers != [ADJUDICATOR_PROVIDER_ID.to_owned()]);
         adjudication = Some(snapshot);
@@ -1155,8 +1179,6 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         adjudication_candidates = count;
     }
     let budget = parse_budget(&dispatch)?;
-    let runtime_encoding =
-        dispatch.get("requestEncoding").and_then(Value::as_str) == Some("runtime-initial-v1");
     if runtime_encoding {
         let gather_calls = frozen_gather_calls(&seats)?;
         let required_calls = plan_seats
@@ -1239,6 +1261,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
 }
 
 fn load_state(run_dir: &Path, dispatch_digest: &str) -> Result<State, AuditError> {
+    crate::continuation::validate_lineage(run_dir)?;
     let path = run_dir.join(STATE_FILE);
     if !path.is_file() {
         if fs::read_dir(run_dir.join(LENS_RECEIPT_DIR)).is_ok_and(|mut entries| {
@@ -1309,13 +1332,14 @@ fn load_state(run_dir: &Path, dispatch_digest: &str) -> Result<State, AuditError
 /// Cross-process exclusion for every budget read/modify/write. OS releases
 /// this advisory lock on process exit, including crashes; a busy lock denies
 /// admission. Never unlink the lock file (that would split concurrent locks).
-struct StateLock {
+pub(crate) struct StateLock {
     _file: fs::File,
 }
 impl StateLock {
-    fn acquire(run_dir: &Path) -> Result<Self, AuditError> {
-        fs::create_dir_all(run_dir).map_err(|error| invalid(error.to_string()))?;
-        let path = run_dir.join(".next-state.lock");
+    pub(crate) fn acquire(run_dir: &Path) -> Result<Self, AuditError> {
+        let lock_root = crate::continuation::lock_root(run_dir)?;
+        fs::create_dir_all(&lock_root).map_err(|error| invalid(error.to_string()))?;
+        let path = lock_root.join(".next-state.lock");
         let file = fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -1352,6 +1376,35 @@ fn save_state(run_dir: &Path, state: &State) -> Result<(), AuditError> {
     let bytes = serde_json::to_vec_pretty(state).map_err(|error| invalid(error.to_string()))?;
     write_file(run_dir, STATE_FILE, &bytes)?;
     Ok(())
+}
+
+/// Caller holds the canonical lineage lock. This validates the actual ledger,
+/// rather than allowing a continuation to reinterpret partial JSON as zero.
+pub(crate) fn continuation_parent_state(run_dir: &Path) -> Result<Value, AuditError> {
+    let loaded = load(run_dir)?;
+    let state = load_state(run_dir, &loaded.dispatch_digest)?;
+    let summary = budget_summary(&state);
+    if state.terminal_status.as_deref() != Some("incomplete:budget-overrun")
+        || state.continuation_digest.is_some()
+        || summary["actual"]["status"] != "known"
+        || summary["cost"]["status"] != "known"
+        || state.reservations.is_empty()
+        || (summary["actualOverrunTokens"].as_u64().unwrap_or(0) == 0
+            && summary["outputCapOverrunTokens"].as_u64().unwrap_or(0) == 0)
+        || state
+            .reservations
+            .values()
+            .any(|entry| !entry.transport_authorized || entry.usage.is_none())
+    {
+        return Err(invalid("continuation requires an original budget-overrun stop with fully known usage/cost and no unresolved reservations"));
+    }
+    serde_json::to_value(state).map_err(|error| invalid(error.to_string()))
+}
+
+pub(crate) fn continuation_summary(state: &Value) -> Result<Value, AuditError> {
+    let state: State =
+        serde_json::from_value(state.clone()).map_err(|error| invalid(error.to_string()))?;
+    Ok(budget_summary(&state))
 }
 
 fn budget_summary(state: &State) -> Value {
@@ -1446,6 +1499,9 @@ fn budget_summary(state: &State) -> Value {
             "invoiceChargeUsd": null,
         },
         "terminalStatus": state.terminal_status,
+        "historicalTerminalStatus": state.historical_terminal_status,
+        "continuationDigest": state.continuation_digest,
+        "leaseAttempts": state.lease_issuances(),
     })
 }
 
@@ -1454,6 +1510,13 @@ fn budget_summary(state: &State) -> Value {
 /// call requires reconciled actuals, including explicit zeros for known usage.
 pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditError> {
     if !run_dir.join(STATE_FILE).is_file() {
+        crate::continuation::validate_lineage(run_dir)?;
+        if run_dir
+            .join(crate::continuation::CONTINUATION_FILE)
+            .exists()
+        {
+            return Err(invalid("continuation ledger missing; budget cannot reset"));
+        }
         return Ok(run_dir.join(DISPATCH_FILE).is_file().then(|| {
             json!({
                 "budget":{"actual":{"status":"unknown"},"cost":{"status":"unknown","reportedApiEquivalentCostUsd":null,"invoiceChargeStatus":"unknown","invoiceChargeUsd":null}},
@@ -1467,6 +1530,9 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
     let mut gaps = Vec::new();
     if let Some(status) = &state.terminal_status {
         gaps.push(format!("reasoning-budget-terminal:{status}"));
+    }
+    if let Some(status) = &state.historical_terminal_status {
+        gaps.push(format!("reasoning-budget-history:{status}"));
     }
     if state.issuances > state.reservations.len() as u64 {
         gaps.push("reasoning-budget-usage-unknown:legacy-issuances".into());
@@ -1962,7 +2028,9 @@ fn next_inner(
 
     // Save admission BEFORE materializing or exposing work. A failed output
     // operation can strand a reservation, never issue uncharged work.
-    save_state(run_dir, &state)?;
+    if state != before {
+        save_state(run_dir, &state)?;
+    }
     let mut seats_out: Vec<Value> = Vec::new();
     for (work, lease) in &decision.issued {
         match work.kind {
@@ -2918,6 +2986,81 @@ mod tests {
         assert_eq!(frozen_gather_calls(&[semantic.clone()]).unwrap(), 0);
         semantic.gather_policy = Some("invented-policy".into());
         assert!(frozen_gather_calls(&[semantic]).is_err());
+    }
+
+    #[test]
+    fn native_deferred_adjudication_packet_never_opens_unselected_rounds() {
+        use crate::native_providers::reasoning::{PendingLensWork, ReasoningInvocation};
+        let run = temp_run("deferred-adjudication");
+        let work = PendingLensWork {
+            provider_id: "reasoning.correctness".into(),
+            lens_ids: vec![],
+            status: "pending-host".into(),
+            promotion: None,
+            request: ReasoningInvocation {
+                schema_version: 1,
+                kind: "legion-reasoning-invocation".into(),
+                request_id: "selected".into(),
+                provider_id: "reasoning.correctness".into(),
+                contract: "estimate-fixture".into(),
+                plan_digest: "plan".into(),
+                plan_signature: "signature".into(),
+                repository_id: "repo".into(),
+                inventory_generation: "generation".into(),
+                inventory_digest: "inventory".into(),
+                denominator_digest: "denominator".into(),
+                denominator_count: 1,
+                denominator_paths: vec!["a.rs".into()],
+                packet: json!({"reviewContext":{"snapshotKey":"sha256:fixture"},"excerpts":[{"path":"a.rs","content":"fn selected() {}"}]}),
+            },
+        };
+        write_value(
+            &run.join(LENS_PACKET_DIR).join("reasoning.correctness.json"),
+            &serde_json::to_value(work).unwrap(),
+        );
+        let deferred = json!({"request":{"packet":{"scannerCandidates":[],"candidateWorkItems":{"clusters":[],"batches":[{"batchId":"unselected-batch","estimatedTokens":10,"packet":{}}]}}}});
+        let deferred_path = run
+            .join(LENS_PACKET_DIR)
+            .join(format!("{ADJUDICATOR_PROVIDER_ID}.json"));
+        write_value(&deferred_path, &deferred);
+        let gap = format!("reasoning-lens-uncovered:{ADJUDICATOR_PROVIDER_ID}");
+        write_value(&run.join("facts.json"), &json!({"coverageGaps":[gap]}));
+        write_value(
+            &run.join(DISPATCH_FILE),
+            &json!({
+            "requestEncoding":"runtime-initial-v1","reasoningBudget":{"schemaVersion":2,"totalTokens":50000,"perCallTokens":10000,"outputTokens":2500,"maxSeats":5},"limits":{"waveWidth":1},
+            "seats":[{"seat":1,"tier":"judgment","providers":["reasoning.correctness"],"packets":["reasoning.correctness.json"],"gatherPolicy":"deterministic"}],
+            "deferredPackets":[format!("{ADJUDICATOR_PROVIDER_ID}.json")],"deferredWork":[{"providerId":ADJUDICATOR_PROVIDER_ID,"reason":"fresh-verification-reserve"}]}),
+        );
+        let loaded = load(&run).unwrap();
+        assert!(loaded.snapshot.adjudication.is_none());
+        assert_eq!(loaded.snapshot.adjudication_candidates, 0);
+        let wave = next(&run, &options(0)).unwrap();
+        assert_eq!(wave["seats"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            wave["seats"][0]["providers"],
+            json!(["reasoning.correctness"])
+        );
+        let state = load_state(&run, &loaded.dispatch_digest).unwrap();
+        assert_eq!(state.issuances, 1);
+        assert_eq!(state.adjudication_round, 0);
+        assert!(state.leases.keys().all(|key| !key.starts_with("batch:")));
+        assert_eq!(
+            read_json(&deferred_path).unwrap(),
+            deferred,
+            "full pending evidence remains intact"
+        );
+        assert_eq!(
+            read_json(&run.join("facts.json")).unwrap()["coverageGaps"],
+            json!([gap]),
+            "deferred coverage gap remains incomplete evidence"
+        );
+        // Legacy plans still use their pre-existing implicit round protocol.
+        let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+        dispatch.as_object_mut().unwrap().remove("requestEncoding");
+        write_value(&run.join(DISPATCH_FILE), &dispatch);
+        assert!(load(&run).unwrap().snapshot.adjudication.is_some());
+        let _ = fs::remove_dir_all(run);
     }
 
     #[test]

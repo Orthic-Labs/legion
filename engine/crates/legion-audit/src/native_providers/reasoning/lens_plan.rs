@@ -300,12 +300,12 @@ const DOC_DRIFT_CUES: &[&str] = &[
 ];
 
 const CORRECTNESS_CUES: &[&str] = &[
-    "Business constants: propagation drift across code/tests/docs/config.",
-    "Spec: public behavior vs explicit requirements; keep missing/partial/wrong/unrequested distinct.",
+    "Business-constant drift across code/tests/docs/config.",
+    "SPEC fidelity: public behavior vs explicit spec; distinguish missing/partial/wrong/unrequested.",
     "Desktop/Tauri: async Mutex::lock().unwrap(), locks across .await/transactions, sync #[tauri::command] I/O, missing spawn_blocking, sequential await invoke() chains, event->full-refetch storms.",
-    "Tests: prefer behavioral assertions, independent expected values & real DI/framework seams; flag excessive internal mocks/refactor-fragile assertions; source-substring/snapshot-only tests are FALSE coverage.",
-    "meta.test_skew: heavy code/test skew in critical subtree.",
-    "meta.unsafe_sites clusters without error-path tests.",
+    "Tests: behavioral assertions, independent expected values & real DI/framework seams; excessive internal mocks/refactor-fragile assertions; source-substring/snapshot-only tests FALSE coverage.",
+    "meta.test_skew: critical-subtree code/test skew.",
+    "meta.unsafe_sites: clusters lack error-path tests.",
 ];
 
 const PERFORMANCE_CUES: &[&str] = &[
