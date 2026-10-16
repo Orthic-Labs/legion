@@ -13,9 +13,13 @@
 //! bodies, which is adequate for the structure/survey lenses that only
 //! reason about shape.
 
-use std::path::Path;
+use std::{cell::RefCell, io::Read, path::Path};
 
 use super::lens_plan::ExcerptMode;
+use crate::{
+    snapshot::{FrozenSnapshot, SnapshotAdmission, SnapshotSide},
+    AuditError,
+};
 
 /// Size of one chunk of a file, in redacted source bytes. A file larger than
 /// this is split across consecutive chunks on line boundaries (never
@@ -846,41 +850,176 @@ pub(crate) fn source_bytes(
     path: &str,
     max_bytes: usize,
 ) -> Result<(Vec<u8>, crate::snapshot::SnapshotSide), &'static str> {
-    use crate::snapshot::SnapshotSide;
-    match crate::inventory::frozen_snapshot(root).map_err(|_| "snapshot-invalid")? {
-        Some((snapshot, root_side)) => {
-            let side = if root_side == SnapshotSide::Base
-                || !snapshot.manifest.files.contains_key(path)
-                    && snapshot.manifest.scope.changed_paths.contains(path)
+    let source = SourceReader::new(root).map_err(|_| "snapshot-invalid")?;
+    let bytes = source.read(path, max_bytes)?;
+    source.revalidate().map_err(|_| "snapshot-invalid")?;
+    Ok(bytes)
+}
+
+/// One source admission spans all packet probes, providers & source-side
+/// checks. Failed integrity is retained until the operation can return it.
+pub(crate) struct SourceReader<'a> {
+    root: &'a Path,
+    snapshot: Option<(SnapshotAdmission, SnapshotSide)>,
+    failure: RefCell<Option<AuditError>>,
+}
+
+impl<'a> SourceReader<'a> {
+    pub(crate) fn admission(&self) -> Option<SnapshotAdmission> {
+        self.snapshot
+            .as_ref()
+            .map(|(admission, _)| admission.clone())
+    }
+    pub(crate) fn new(root: &'a Path) -> Result<Self, AuditError> {
+        let snapshot = crate::inventory::frozen_snapshot(root)
+            .map_err(|error| {
+                AuditError::SourceDrift(format!("Audit packet source admission failed: {error}"))
+            })?
+            .map(|(snapshot, side)| {
+                FrozenSnapshot::operation_admission(&snapshot)
+                    .map(|admission| (admission, side))
+                    .map_err(|error| {
+                        AuditError::SourceDrift(format!(
+                            "Audit packet source admission failed: {error}"
+                        ))
+                    })
+            })
+            .transpose()?;
+        Ok(Self {
+            root,
+            snapshot,
+            failure: RefCell::new(None),
+        })
+    }
+
+    fn failed(root: &'a Path, error: AuditError) -> Self {
+        Self {
+            root,
+            snapshot: None,
+            failure: RefCell::new(Some(error)),
+        }
+    }
+
+    fn bounded(root: &'a Path) -> Self {
+        Self::new(root).unwrap_or_else(|error| Self::failed(root, error))
+    }
+
+    pub(crate) fn source_sides(&self) -> std::collections::BTreeMap<String, String> {
+        let mut sides = std::collections::BTreeMap::new();
+        if let Some((admission, SnapshotSide::Selected)) = &self.snapshot {
+            let snapshot = admission.snapshot();
+            for path in &snapshot.manifest.scope.changed_paths {
+                if !snapshot.manifest.files.contains_key(path)
                     && snapshot.manifest.base_files.contains_key(path)
-            {
-                SnapshotSide::Base
-            } else {
-                SnapshotSide::Selected
+                {
+                    sides.insert(path.clone(), "base".into());
+                }
+            }
+        }
+        sides
+    }
+
+    pub(crate) fn revalidate(&self) -> Result<(), AuditError> {
+        if let Some(error) = self.failure.borrow().as_ref() {
+            return Err(error.clone());
+        }
+        if let Some((admission, side)) = &self.snapshot {
+            let snapshot = admission.snapshot();
+            let expected = match side {
+                SnapshotSide::Selected => &snapshot.manifest.execution_root,
+                SnapshotSide::Base => &snapshot.manifest.baseline_root,
             };
-            Ok((
-                snapshot
-                    .read(path, side, max_bytes)
-                    .map_err(|_| "snapshot-unavailable")?,
-                side,
-            ))
+            let current = self.root.canonicalize().map_err(|error| {
+                AuditError::SourceDrift(format!("Audit packet root changed: {error}"))
+            })?;
+            if &current != expected {
+                return Err(AuditError::SourceDrift("Audit packet root changed".into()));
+            }
+            return admission.revalidate().map_err(|error| {
+                AuditError::SourceDrift(format!("Audit packet source revalidation failed: {error}"))
+            });
         }
-        None => {
-            let canonical_root = root.canonicalize().map_err(|_| "unreadable")?;
-            let target = root.join(path).canonicalize().map_err(|_| "unreadable")?;
-            if !target.starts_with(&canonical_root) {
-                return Err("path-outside-root");
-            }
-            let metadata = std::fs::metadata(&target).map_err(|_| "unreadable")?;
-            if !metadata.is_file() || metadata.len() > max_bytes as u64 {
-                return Err("file-over-limit");
-            }
-            let bytes = std::fs::read(target).map_err(|_| "unreadable")?;
-            if bytes.len() > max_bytes {
-                return Err("file-over-limit");
-            }
-            Ok((bytes, SnapshotSide::Selected))
+        if crate::inventory::frozen_snapshot(self.root)
+            .map_err(|error| {
+                AuditError::SourceDrift(format!("Audit packet source revalidation failed: {error}"))
+            })?
+            .is_some()
+        {
+            return Err(AuditError::SourceDrift(
+                "Audit packet source admission changed".into(),
+            ));
         }
+        Ok(())
+    }
+
+    pub(crate) fn read(
+        &self,
+        path: &str,
+        max_bytes: usize,
+    ) -> Result<(Vec<u8>, SnapshotSide), &'static str> {
+        if self.failure.borrow().is_some() {
+            return Err("snapshot-invalid");
+        }
+        match &self.snapshot {
+            Some((admission, root_side)) => {
+                let snapshot = admission.snapshot();
+                let side = if *root_side == SnapshotSide::Base
+                    || !snapshot.manifest.files.contains_key(path)
+                        && snapshot.manifest.scope.changed_paths.contains(path)
+                        && snapshot.manifest.base_files.contains_key(path)
+                {
+                    SnapshotSide::Base
+                } else {
+                    SnapshotSide::Selected
+                };
+                let bytes = snapshot.read(path, side, max_bytes).map_err(|error| {
+                if !matches!(&error, AuditError::Invalid(reason) if reason == "denied:snapshot-read-byte-cap") {
+                    *self.failure.borrow_mut() = Some(AuditError::SourceDrift(format!("Audit packet source read failed: {error}")));
+                }
+                "snapshot-unavailable"
+            })?;
+                Ok((bytes, side))
+            }
+            None => {
+                let root = self.root;
+                let canonical_root = root.canonicalize().map_err(|_| "unreadable")?;
+                let target = root.join(path).canonicalize().map_err(|_| "unreadable")?;
+                if !target.starts_with(&canonical_root) {
+                    return Err("path-outside-root");
+                }
+                let metadata = std::fs::metadata(&target).map_err(|_| "unreadable")?;
+                if !metadata.is_file() || metadata.len() > max_bytes as u64 {
+                    return Err("file-over-limit");
+                }
+                let bytes = std::fs::read(target).map_err(|_| "unreadable")?;
+                if bytes.len() > max_bytes {
+                    return Err("file-over-limit");
+                }
+                Ok((bytes, SnapshotSide::Selected))
+            }
+        }
+    }
+
+    pub(crate) fn head(&self, path: &str) -> Result<(String, bool), ()> {
+        const CAP: usize = 64 * 1024;
+        if self.snapshot.is_some() || self.failure.borrow().is_some() {
+            let (bytes, _) = self.read(path, CAP).map_err(|_| ())?;
+            return Ok((String::from_utf8_lossy(&bytes).into_owned(), false));
+        }
+        let root = self.root.canonicalize().map_err(|_| ())?;
+        let path = self.root.join(path).canonicalize().map_err(|_| ())?;
+        if !path.starts_with(root) {
+            return Err(());
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|_| ())?
+            .take((CAP + 1) as u64)
+            .read_to_end(&mut bytes)
+            .map_err(|_| ())?;
+        let truncated = bytes.len() > CAP;
+        bytes.truncate(CAP);
+        Ok((String::from_utf8_lossy(&bytes).into_owned(), truncated))
     }
 }
 
@@ -917,6 +1056,30 @@ fn prepare_file_scoped_budgeted(
     chunk_cap: usize,
 ) -> Result<Vec<Excerpt>, &'static str> {
     let (bytes, side) = source_bytes(root, path, 32 * 1024 * 1024)?;
+    prepare_validated_bytes(path, mode, hunks, flagged, chunk_cap, bytes, side)
+}
+
+fn prepare_file_with_source(
+    source: &SourceReader<'_>,
+    path: &str,
+    mode: ExcerptMode,
+    hunks: Option<&[(usize, usize)]>,
+    flagged: Option<&[(usize, usize)]>,
+    chunk_cap: usize,
+) -> Result<Vec<Excerpt>, &'static str> {
+    let (bytes, side) = source.read(path, 32 * 1024 * 1024)?;
+    prepare_validated_bytes(path, mode, hunks, flagged, chunk_cap, bytes, side)
+}
+
+fn prepare_validated_bytes(
+    path: &str,
+    mode: ExcerptMode,
+    hunks: Option<&[(usize, usize)]>,
+    flagged: Option<&[(usize, usize)]>,
+    chunk_cap: usize,
+    bytes: Vec<u8>,
+    side: SnapshotSide,
+) -> Result<Vec<Excerpt>, &'static str> {
     if bytes.contains(&0) {
         return Err("binary");
     }
@@ -1015,6 +1178,7 @@ pub struct ExcerptSet {
 /// Single-batch, first-chunk-per-file builder with a total cap. Kept for
 /// callers that want one bounded view; packets use `partition_excerpts`.
 pub fn build_excerpt_set(root: &Path, paths: &[String], mode: ExcerptMode) -> ExcerptSet {
+    let source = SourceReader::bounded(root);
     let mut total = 0usize;
     let mut excerpts = Vec::new();
     let mut omitted = Vec::new();
@@ -1026,7 +1190,7 @@ pub fn build_excerpt_set(root: &Path, paths: &[String], mode: ExcerptMode) -> Ex
             });
             continue;
         }
-        match prepare_file(root, path, mode) {
+        match prepare_file_with_source(&source, path, mode, None, None, MAX_BYTES_PER_FILE) {
             Ok(mut chunks) => {
                 let truncated = chunks.len() > 1;
                 let mut first = chunks.swap_remove(0);
@@ -1039,6 +1203,18 @@ pub fn build_excerpt_set(root: &Path, paths: &[String], mode: ExcerptMode) -> Ex
                 reason,
             }),
         }
+    }
+    if source.revalidate().is_err() {
+        return ExcerptSet {
+            excerpts: Vec::new(),
+            omitted: paths
+                .iter()
+                .map(|path| OmittedExcerpt {
+                    path: path.clone(),
+                    reason: "snapshot-invalid",
+                })
+                .collect(),
+        };
     }
     ExcerptSet { excerpts, omitted }
 }
@@ -1131,6 +1307,29 @@ pub fn partition_excerpts_budgeted(
     hunks: &ChangedHunks,
     budget: Option<PartBudget>,
 ) -> Partition {
+    let source = SourceReader::bounded(root);
+    let partition = partition_excerpts_with_source(&source, paths, mode, max_parts, hunks, budget);
+    if let Err(error) = source.revalidate() {
+        return partition_excerpts_with_source(
+            &SourceReader::failed(root, error),
+            paths,
+            mode,
+            max_parts,
+            hunks,
+            budget,
+        );
+    }
+    partition
+}
+
+pub(crate) fn partition_excerpts_with_source(
+    source: &SourceReader<'_>,
+    paths: &[String],
+    mode: ExcerptMode,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+    budget: Option<PartBudget>,
+) -> Partition {
     let items: Vec<ReviewItem> = paths
         .iter()
         .map(|path| ReviewItem {
@@ -1138,8 +1337,8 @@ pub fn partition_excerpts_budgeted(
             mode,
         })
         .collect();
-    partition_review_set_budgeted(
-        root,
+    partition_review_set_with_source(
+        source,
         &items,
         &AliasMap::new(),
         max_parts,
@@ -1161,6 +1360,21 @@ pub fn review_item_cost(
     flags: &FlaggedRegions,
     listing_copies: usize,
 ) -> usize {
+    let source = SourceReader::bounded(root);
+    let cost = review_item_cost_with_source(&source, item, hunks, flags, listing_copies);
+    if source.revalidate().is_err() {
+        return listing_copies * (2 * item.path.len() + 32);
+    }
+    cost
+}
+
+pub(crate) fn review_item_cost_with_source(
+    source: &SourceReader<'_>,
+    item: &ReviewItem,
+    hunks: &ChangedHunks,
+    flags: &FlaggedRegions,
+    listing_copies: usize,
+) -> usize {
     let path = &item.path;
     let mut regions: Vec<(usize, usize)> = Vec::new();
     if item.mode == ExcerptMode::Regions {
@@ -1174,7 +1388,14 @@ pub fn review_item_cost(
     let windowed = hunks.get(path).map(Vec::as_slice);
     let flagged = (!regions.is_empty()).then_some(regions.as_slice());
     let listing = |name: &str| listing_copies * (2 * name.len() + 32);
-    match prepare_file_scoped(root, path, item.mode, windowed, flagged) {
+    match prepare_file_with_source(
+        source,
+        path,
+        item.mode,
+        windowed,
+        flagged,
+        MAX_BYTES_PER_FILE,
+    ) {
         Err(_) => listing(path),
         Ok(chunks) => chunks
             .iter()
@@ -1225,6 +1446,32 @@ pub fn partition_review_set_budgeted(
     flags: &FlaggedRegions,
     budget: Option<PartBudget>,
 ) -> Partition {
+    let source = SourceReader::bounded(root);
+    let partition =
+        partition_review_set_with_source(&source, items, aliases, max_parts, hunks, flags, budget);
+    if let Err(error) = source.revalidate() {
+        return partition_review_set_with_source(
+            &SourceReader::failed(root, error),
+            items,
+            aliases,
+            max_parts,
+            hunks,
+            flags,
+            budget,
+        );
+    }
+    partition
+}
+
+pub(crate) fn partition_review_set_with_source(
+    source: &SourceReader<'_>,
+    items: &[ReviewItem],
+    aliases: &AliasMap,
+    max_parts: usize,
+    hunks: &ChangedHunks,
+    flags: &FlaggedRegions,
+    budget: Option<PartBudget>,
+) -> Partition {
     let part_cap = budget.map_or(MAX_TOTAL_EXCERPT_BYTES, |budget| {
         budget.cap_bytes.min(MAX_TOTAL_EXCERPT_BYTES)
     });
@@ -1256,7 +1503,7 @@ pub fn partition_review_set_budgeted(
         let chunk_cap = budget.map_or(MAX_BYTES_PER_FILE, |budget| {
             (budget.cap_bytes / 2).max(1).min(MAX_BYTES_PER_FILE)
         });
-        match prepare_file_scoped_budgeted(root, path, item.mode, windowed, flagged, chunk_cap) {
+        match prepare_file_with_source(source, path, item.mode, windowed, flagged, chunk_cap) {
             Err(reason) => {
                 let current = parts.last_mut().expect("at least one part");
                 current.paths.push(path.clone());
@@ -1349,6 +1596,138 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(full, content).unwrap();
+    }
+
+    fn writable(path: &Path) {
+        let mut permissions = fs::metadata(path).unwrap().permissions();
+        permissions.set_readonly(false);
+        fs::set_permissions(path, permissions).unwrap();
+    }
+
+    #[test]
+    fn packet_probes_share_admission_preserve_deleted_base_and_bound_structure_walks() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let initial = fixture.capture(crate::scope::ScopeSpec::Local);
+        let root = &initial.manifest.scope.source_root;
+        let mut paths = vec!["file.rs".to_owned()];
+        fs::remove_file(root.join("file.rs")).unwrap();
+        for number in 0..24 {
+            let path = format!("source-{number:02}.rs");
+            write(root, &path, "pub fn source() { let value = 1; }\n");
+            paths.push(path);
+        }
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let before = crate::snapshot::structure_verification_count(&snapshot.manifest_path);
+        let cold_before = crate::snapshot::full_verification_count(&snapshot.manifest_path);
+        let source = SourceReader::new(&snapshot.manifest.execution_root).unwrap();
+        assert_eq!(
+            source.source_sides().get("file.rs").map(String::as_str),
+            Some("base")
+        );
+        assert_eq!(
+            source.read("file.rs", 5).unwrap(),
+            (b"base\n".to_vec(), SnapshotSide::Base)
+        );
+        let hunks = ChangedHunks::new();
+        let flags = FlaggedRegions::new();
+        for probe in 1..=8 {
+            for path in &paths {
+                let item = ReviewItem {
+                    path: path.clone(),
+                    mode: ExcerptMode::Raw,
+                };
+                assert!(review_item_cost_with_source(&source, &item, &hunks, &flags, 3) > 0);
+            }
+            let partition = partition_excerpts_with_source(
+                &source,
+                &paths,
+                ExcerptMode::Raw,
+                128,
+                &hunks,
+                Some(PartBudget {
+                    cap_bytes: probe * 256,
+                    listing_copies: 3,
+                }),
+            );
+            assert!(partition.unscheduled_paths.is_empty());
+            assert!(partition.parts.iter().all(|part| part.omitted.is_empty()));
+            assert_eq!(
+                partition
+                    .parts
+                    .iter()
+                    .map(|part| part.paths.len())
+                    .sum::<usize>(),
+                paths.len()
+            );
+            assert!(partition
+                .parts
+                .iter()
+                .flat_map(|part| &part.excerpts)
+                .any(|excerpt| excerpt.path == "file.rs" && excerpt.source_side == "base"));
+        }
+        source.revalidate().unwrap();
+        let walks = crate::snapshot::structure_verification_count(&snapshot.manifest_path) - before;
+        assert!((1..=5).contains(&walks));
+        assert!(
+            crate::snapshot::full_verification_count(&snapshot.manifest_path) - cold_before <= 2
+        );
+    }
+
+    #[test]
+    fn retained_packet_reader_rejects_boundary_drift_and_same_length_content_changes() {
+        for mutation in ["manifest", "marker", "path-set", "root", "content"] {
+            if mutation == "root" && !cfg!(unix) {
+                continue;
+            }
+            let fixture = crate::snapshot::tests::Fixture::new();
+            let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+            let root = &snapshot.manifest.execution_root;
+            let source = SourceReader::new(root).unwrap();
+            assert!(source.read("file.rs", 1).is_err()); // Raw byte cap stays enforced.
+            source.revalidate().unwrap(); // Cap denial alone is an explicit omission.
+            assert_eq!(source.read("file.rs", 5).unwrap().0, b"base\n");
+            match mutation {
+                "manifest" => {
+                    writable(&snapshot.manifest_path);
+                    let mut bytes = fs::read(&snapshot.manifest_path).unwrap();
+                    bytes.push(b'\n');
+                    fs::write(&snapshot.manifest_path, bytes).unwrap();
+                }
+                "marker" => {
+                    let marker = root.join(".legion-audit-snapshot");
+                    writable(&marker);
+                    fs::write(marker, b"2\n").unwrap();
+                }
+                "path-set" => {
+                    writable(root);
+                    fs::write(root.join("added.rs"), b"added\n").unwrap();
+                }
+                "root" => {
+                    writable(root.parent().unwrap());
+                    writable(root);
+                    fs::rename(root, root.with_file_name("selected-old")).unwrap();
+                    fs::create_dir(root).unwrap();
+                }
+                "content" => {
+                    let path = root.join("file.rs");
+                    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+                    writable(&path);
+                    fs::write(&path, b"fake\n").unwrap();
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .open(path)
+                        .unwrap()
+                        .set_times(fs::FileTimes::new().set_modified(modified))
+                        .unwrap();
+                    assert!(source.read("file.rs", 5).is_err());
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                matches!(source.revalidate(), Err(AuditError::SourceDrift(_))),
+                "{mutation}"
+            );
+        }
     }
 
     #[test]

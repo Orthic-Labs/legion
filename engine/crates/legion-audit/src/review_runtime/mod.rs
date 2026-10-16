@@ -164,12 +164,70 @@ fn review_prompt(
 /// Every admission rechecks sealed structure; reads still validate source digests.
 #[derive(Default)]
 pub(crate) struct InitialRequestSizer {
-    snapshots:
-        std::collections::BTreeMap<String, (std::sync::Arc<FrozenSnapshot>, tools::ContextTools)>,
+    snapshots: std::collections::BTreeMap<
+        String,
+        (crate::snapshot::SnapshotAdmission, tools::ContextTools),
+    >,
+    operation_active: bool,
+    admitted: std::collections::BTreeSet<String>,
+    failure: Option<AuditError>,
 }
 
 impl InitialRequestSizer {
+    pub(crate) fn with_operation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, AuditError>,
+    ) -> Result<T, AuditError> {
+        if self.operation_active {
+            return operation(self);
+        }
+        self.operation_active = true;
+        self.admitted.clear();
+        self.failure = None;
+        let result = operation(self);
+        let validation = self.admitted.iter().try_for_each(|manifest| {
+            self.snapshots[manifest].0.revalidate().map_err(|error| {
+                AuditError::SourceDrift(format!("initial source context boundary failed: {error}"))
+            })
+        });
+        self.operation_active = false;
+        self.admitted.clear();
+        let failure = self.failure.take();
+        validation?;
+        if let Some(error) = failure {
+            return Err(error);
+        }
+        result
+    }
+
+    pub(crate) fn use_admission(
+        &mut self,
+        admission: crate::snapshot::SnapshotAdmission,
+    ) -> Result<(), AuditError> {
+        let snapshot = admission.snapshot();
+        let manifest = snapshot.manifest_path.to_string_lossy().into_owned();
+        let tools = tools::ContextTools::new(snapshot.clone()).map_err(invalid)?;
+        self.snapshots.insert(manifest.clone(), (admission, tools));
+        self.admitted.insert(manifest);
+        Ok(())
+    }
+
     fn attach_context(
+        &mut self,
+        prompt: &mut Value,
+        request: &ReasoningInvocation,
+    ) -> Result<(), AuditError> {
+        if !self.operation_active {
+            return self.with_operation(|sizer| sizer.attach_context(prompt, request));
+        }
+        let result = self.attach_context_admitted(prompt, request);
+        if let Err(error) = &result {
+            self.failure = Some(error.clone());
+        }
+        result
+    }
+
+    fn attach_context_admitted(
         &mut self,
         prompt: &mut Value,
         request: &ReasoningInvocation,
@@ -181,17 +239,34 @@ impl InitialRequestSizer {
         else {
             return Ok(());
         };
-        // Re-admit even when this sizer already has tools: cached tools are not
-        // authority to ignore later manifest, marker, root or inventory drift.
-        let snapshot = FrozenSnapshot::verified_reader(Path::new(manifest))?;
-        if self.snapshots.get(manifest).map_or(true, |(cached, _)| {
-            !std::sync::Arc::ptr_eq(cached, &snapshot)
-        }) {
-            let tools = tools::ContextTools::new(snapshot.as_ref().clone()).map_err(invalid)?;
-            self.snapshots
-                .insert(manifest.to_owned(), (snapshot, tools));
+        if !self.admitted.contains(manifest) {
+            if let Some((admission, _)) = self.snapshots.get(manifest) {
+                admission.revalidate().map_err(|error| {
+                    AuditError::SourceDrift(format!(
+                        "initial source context admission failed: {error}"
+                    ))
+                })?;
+            } else {
+                let snapshot =
+                    FrozenSnapshot::verified_reader(Path::new(manifest)).map_err(|error| {
+                        AuditError::SourceDrift(format!(
+                            "initial source context admission failed: {error}"
+                        ))
+                    })?;
+                let admission =
+                    FrozenSnapshot::operation_admission(&snapshot).map_err(|error| {
+                        AuditError::SourceDrift(format!(
+                            "initial source context admission failed: {error}"
+                        ))
+                    })?;
+                let tools = tools::ContextTools::new(snapshot.as_ref().clone()).map_err(invalid)?;
+                self.snapshots
+                    .insert(manifest.to_owned(), (admission, tools));
+            }
+            self.admitted.insert(manifest.to_owned());
         }
-        let (snapshot, tools) = &self.snapshots[manifest];
+        let (admission, tools) = &self.snapshots[manifest];
+        let snapshot = admission.snapshot();
         if request
             .packet
             .pointer("/reviewContext/snapshotKey")
@@ -203,6 +278,14 @@ impl InitialRequestSizer {
             ));
         }
         let context = tools.eager_skeleton_context(request, snapshot);
+        if context["deliveries"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|row| row["hostToolReply"]["denied"] == true)
+        }) {
+            return Err(AuditError::SourceDrift(
+                "initial source context read denied".into(),
+            ));
+        }
         if context["deliveries"]
             .as_array()
             .is_some_and(|rows| !rows.is_empty())
@@ -216,6 +299,9 @@ impl InitialRequestSizer {
         &mut self,
         works: &[PendingLensWork],
     ) -> Result<Option<RequestSizes>, AuditError> {
+        if !self.operation_active {
+            return self.with_operation(|sizer| sizer.shared_request_sizes(works));
+        }
         let Some(prompt) = batch::initial_prompt_with_sizer(works, self)? else {
             return Ok(None);
         };
@@ -241,6 +327,9 @@ impl InitialRequestSizer {
         &mut self,
         works: &[PendingLensWork],
     ) -> Result<RequestSizes, AuditError> {
+        if !self.operation_active {
+            return self.with_operation(|sizer| sizer.request_sizes(works));
+        }
         if works.is_empty() {
             return Err(invalid("cannot estimate an empty reviewer seat"));
         }
@@ -1219,6 +1308,131 @@ mod tests {
             sizer.request_bytes(&[work]),
             Err(AuditError::SourceDrift(_))
         ));
+    }
+
+    fn snapshot_work(snapshot: &FrozenSnapshot, provider: &str) -> PendingLensWork {
+        let mut work = estimate_work(provider, provider, "source");
+        work.request.denominator_paths = vec!["file.rs".into()];
+        work.request.packet["reviewContext"] = json!({
+            "snapshotManifest": snapshot.manifest_path,
+            "snapshotKey": snapshot.manifest.key,
+        });
+        work.request.packet["excerpts"] = json!([
+            {"path":"file.rs", "mode":"skeleton", "sourceSide":"selected", "content":"source"}
+        ]);
+        work
+    }
+
+    fn writable(path: &Path) {
+        let mut permissions = fs::metadata(path).unwrap().permissions();
+        permissions.set_readonly(false);
+        fs::set_permissions(path, permissions).unwrap();
+    }
+
+    #[test]
+    fn sizing_operation_bounds_structure_walks_across_provider_and_merge_probes() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let works = [
+            snapshot_work(&snapshot, "reasoning.naming"),
+            snapshot_work(&snapshot, "reasoning.correctness"),
+        ];
+        let mut sizer = InitialRequestSizer::default();
+        for _ in 0..2 {
+            let before = crate::snapshot::structure_verification_count(&snapshot.manifest_path);
+            let cold_before = crate::snapshot::full_verification_count(&snapshot.manifest_path);
+            sizer
+                .with_operation(|sizer| {
+                    for _ in 0..24 {
+                        for work in &works {
+                            assert!(sizer.request_bytes(std::slice::from_ref(work))? > 0);
+                        }
+                        assert!(sizer.request_bytes(&works)? > 0);
+                        let _ = sizer.shared_request_sizes(&works)?;
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            let walks =
+                crate::snapshot::structure_verification_count(&snapshot.manifest_path) - before;
+            assert!((1..=5).contains(&walks));
+            assert!(
+                crate::snapshot::full_verification_count(&snapshot.manifest_path) - cold_before
+                    <= 2
+            );
+        }
+    }
+
+    #[test]
+    fn warmed_sizing_operation_rejects_drift_at_boundary() {
+        for mutation in ["manifest", "path-set", "root"] {
+            if mutation == "root" && !cfg!(unix) {
+                continue;
+            }
+            let fixture = crate::snapshot::tests::Fixture::new();
+            let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+            let work = snapshot_work(&snapshot, "reasoning.naming");
+            let mut sizer = InitialRequestSizer::default();
+            sizer.request_bytes(std::slice::from_ref(&work)).unwrap();
+            let result = sizer.with_operation(|sizer| {
+                sizer.request_bytes(std::slice::from_ref(&work))?;
+                let root = &snapshot.manifest.execution_root;
+                match mutation {
+                    "manifest" => {
+                        writable(&snapshot.manifest_path);
+                        let mut bytes = fs::read(&snapshot.manifest_path).unwrap();
+                        bytes.push(b'\n');
+                        fs::write(&snapshot.manifest_path, bytes).unwrap();
+                    }
+                    "path-set" => {
+                        writable(root);
+                        fs::write(root.join("added.rs"), b"added\n").unwrap();
+                    }
+                    "root" => {
+                        writable(root.parent().unwrap());
+                        writable(root);
+                        fs::rename(root, root.with_file_name("selected-old")).unwrap();
+                        fs::create_dir(root).unwrap();
+                    }
+                    _ => unreachable!(),
+                }
+                // No later source read is needed for a boundary change to fail.
+                Ok(())
+            });
+            assert!(
+                matches!(result, Err(AuditError::SourceDrift(_))),
+                "{mutation}"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_dispatch_rejects_source_digest_failure_and_legacy_wrapper_is_incomplete() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let works = [snapshot_work(&snapshot, "reasoning.naming")];
+        let limits = ingest::DispatchLimits::default();
+        ingest::lens_dispatch_plan_checked(&works, &limits).unwrap();
+        let path = snapshot.manifest.execution_root.join("file.rs");
+        let modified = fs::metadata(&path).unwrap().modified().unwrap();
+        writable(&path);
+        fs::write(&path, b"fake\n").unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert!(matches!(
+            ingest::lens_dispatch_plan_checked(&works, &limits),
+            Err(AuditError::SourceDrift(_))
+        ));
+        let report = ingest::lens_dispatch_plan(&works, &limits);
+        assert_eq!(report["status"], "incomplete");
+        assert_eq!(report["withinLimits"], false);
+        assert!(report["error"].is_string());
+        assert!(report["estimatedTokens"].is_null());
+        assert!(report["seats"].as_array().unwrap().is_empty());
     }
     #[test]
     fn signed_packet_finding_schema_is_sent_once_without_packet_mutation() {

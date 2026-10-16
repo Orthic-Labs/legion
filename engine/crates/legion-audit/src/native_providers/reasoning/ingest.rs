@@ -4130,9 +4130,35 @@ pub(crate) fn physical_planning_input_bytes(per_call: u64) -> u64 {
 }
 
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
+    lens_dispatch_plan_checked(work, limits).unwrap_or_else(|error| {
+        json!({
+            "schemaVersion": 1,
+            "kind": "legion-lens-dispatch",
+            "status": "incomplete",
+            "withinLimits": false,
+            "error": error.to_string(),
+            "violations": [format!("source admission failed: {error}")],
+            "seats": [],
+        })
+    })
+}
+
+/// Integrity failures are errors, never budget violations an override can waive.
+pub fn lens_dispatch_plan_checked(
+    work: &[PendingLensWork],
+    limits: &DispatchLimits,
+) -> Result<Value, AuditError> {
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+    sizer.with_operation(|sizer| Ok(lens_dispatch_plan_with_sizer(work, limits, sizer)))
+}
+
+fn lens_dispatch_plan_with_sizer(
+    work: &[PendingLensWork],
+    limits: &DispatchLimits,
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
+) -> Value {
     let output_ceiling = dispatch_output_tokens(limits.seat_token_budget);
     let input_byte_limit = physical_planning_input_bytes(limits.seat_token_budget);
-    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     let mut drafts: Vec<SeatDraft> = Vec::new();
     let mut by_key: BTreeMap<String, usize> = BTreeMap::new();
     let mut sampled = false;
@@ -4520,7 +4546,7 @@ pub fn write_lens_dispatch(
     work: &[PendingLensWork],
     limits: &DispatchLimits,
 ) -> Result<Value, AuditError> {
-    let plan = lens_dispatch_plan(work, limits);
+    let plan = lens_dispatch_plan_checked(work, limits)?;
     let bytes = serde_json::to_vec_pretty(&plan).map_err(|error| invalid(error.to_string()))?;
     write_atomic(out_dir, "lens-dispatch.json", &bytes)?;
     Ok(plan)

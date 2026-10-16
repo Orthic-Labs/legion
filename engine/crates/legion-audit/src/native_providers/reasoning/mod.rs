@@ -347,16 +347,26 @@ impl ReasoningProviderExecutor {
         if self.host.is_none() {
             return pending_host_result(provider, &denominator);
         }
-        let (mut requests, _) = build_invocations(
-            plan,
-            provider,
-            inventory,
-            &denominator,
-            &self.invocation_epoch,
-            &self.root,
-            None,
-            false,
-        )?;
+        let source = excerpts::SourceReader::new(&self.root)?;
+        let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+        let materialized = sizer.with_operation(|sizer| {
+            if let Some(admission) = source.admission() {
+                sizer.use_admission(admission)?;
+            }
+            build_invocations(
+                plan,
+                provider,
+                inventory,
+                &denominator,
+                &self.invocation_epoch,
+                &source,
+                sizer,
+                None,
+                false,
+            )
+        });
+        source.revalidate()?;
+        let (mut requests, _) = materialized?;
         // One in-process host invocation yields one receipt, which cannot
         // prove a partitioned denominator. Multi-part work is only ever
         // `pending-host` work for the invoking session.
@@ -587,8 +597,21 @@ fn seat_part_budget(provider: &AuditProvider) -> Option<excerpts::PartBudget> {
 }
 
 /// Resolve frozen trigger evidence without re-evaluating a risk-selected set.
+#[cfg(test)]
 fn trigger_evidence_for(
     root: &Path,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    denominator_paths: &[String],
+) -> Result<Option<Value>, AuditError> {
+    let source = excerpts::SourceReader::new(root)?;
+    let result = trigger_evidence_with_source(&source, provider, inventory, denominator_paths);
+    source.revalidate()?;
+    result
+}
+
+fn trigger_evidence_with_source(
+    source: &excerpts::SourceReader<'_>,
     provider: &AuditProvider,
     inventory: &InventoryEnvelope,
     denominator_paths: &[String],
@@ -603,10 +626,12 @@ fn trigger_evidence_for(
         Some(evidence) => evidence.clone(),
         None => {
             let paths = inventory.paths().map(str::to_owned).collect::<Vec<_>>();
-            let Some(evaluation) = triggers::evaluate_trigger(root, lens, &paths) else {
+            let Some(evaluation) =
+                triggers::evaluate_with_head(lens, &paths, &|path| source.head(path))
+            else {
                 return Ok(None);
             };
-            let source_sides = crate::inventory::snapshot_source_sides(root)?;
+            let source_sides = source.source_sides();
             let source_sides = source_sides
                 .into_iter()
                 .filter(|(path, _)| paths.contains(path))
@@ -625,7 +650,7 @@ fn trigger_evidence_for(
         let expected =
             canonical_digest(&unsigned).map_err(|error| AuditError::Invalid(error.to_string()))?;
         let checked: BTreeSet<&str> = inventory.paths().collect();
-        let actual_sides = crate::inventory::snapshot_source_sides(root)?;
+        let actual_sides = source.source_sides();
         let actual_sides: BTreeMap<_, _> = actual_sides
             .into_iter()
             .filter(|(path, _)| checked.contains(path.as_str()))
@@ -1032,7 +1057,8 @@ fn build_invocations(
     inventory: &InventoryEnvelope,
     denominator: &InventoryDenominator,
     invocation_epoch: &str,
-    root: &Path,
+    source: &excerpts::SourceReader<'_>,
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
     scanner_candidates: Option<&[ScannerCandidate]>,
     allow_deferred: bool,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
@@ -1059,12 +1085,11 @@ fn build_invocations(
             inventory,
             denominator,
             invocation_epoch,
-            root,
+            source,
             scanner_candidates,
             budget,
         );
     };
-    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     let mut build = |budget| {
         let built = build_invocations_with_budget(
             plan,
@@ -1072,7 +1097,7 @@ fn build_invocations(
             inventory,
             denominator,
             invocation_epoch,
-            root,
+            source,
             scanner_candidates,
             budget,
         )?;
@@ -1171,7 +1196,7 @@ fn build_invocations_with_budget(
     inventory: &InventoryEnvelope,
     denominator: &InventoryDenominator,
     invocation_epoch: &str,
-    root: &Path,
+    source: &excerpts::SourceReader<'_>,
     scanner_candidates: Option<&[ScannerCandidate]>,
     part_budget: Option<excerpts::PartBudget>,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
@@ -1221,7 +1246,7 @@ fn build_invocations_with_budget(
     // before.
     // Trigger applicability & mandatory witnesses are frozen before risk
     // selection. Legacy plans expose their missing frozen binding explicitly.
-    let actual_sides = crate::inventory::snapshot_source_sides(root)?;
+    let actual_sides = source.source_sides();
     let actual_sides: BTreeMap<_, _> = actual_sides
         .into_iter()
         .filter(|(path, _)| paths.contains(path))
@@ -1237,10 +1262,10 @@ fn build_invocations_with_budget(
             provider.id
         )));
     }
-    let trigger_evidence = trigger_evidence_for(root, provider, inventory, &paths)?;
+    let trigger_evidence = trigger_evidence_with_source(source, provider, inventory, &paths)?;
     let sampled = base_mode.and_then(|mode| {
         sampled_review(
-            root,
+            source,
             provider,
             denominator,
             // Any deterministic risk nomination may promote source into a
@@ -1252,8 +1277,8 @@ fn build_invocations_with_budget(
         )
     });
     let partition = match (&sampled, base_mode) {
-        (Some(sampled), _) => Some(excerpts::partition_review_set_budgeted(
-            root,
+        (Some(sampled), _) => Some(excerpts::partition_review_set_with_source(
+            source,
             &sampled.items,
             &sampled.aliases,
             ceiling,
@@ -1261,8 +1286,8 @@ fn build_invocations_with_budget(
             &sampled.flags,
             part_budget,
         )),
-        (None, Some(mode)) => Some(excerpts::partition_excerpts_budgeted(
-            root,
+        (None, Some(mode)) => Some(excerpts::partition_excerpts_with_source(
+            source,
             &paths,
             mode,
             ceiling,
@@ -1540,7 +1565,7 @@ fn mode_strength(mode: lens_plan::ExcerptMode) -> u8 {
 /// Files with identical content digests are excerpted once under their first
 /// path and credited to every path that shares the digest.
 fn sampled_review(
-    root: &Path,
+    source: &excerpts::SourceReader<'_>,
     provider: &AuditProvider,
     denominator: &InventoryDenominator,
     scanner_candidates: Option<&[ScannerCandidate]>,
@@ -1608,8 +1633,8 @@ fn sampled_review(
     // bytes: displacing many small files must never buy listings that a
     // single-part packet never emitted.
     let measured = |path: &str, copies: usize| {
-        excerpts::review_item_cost(
-            root,
+        excerpts::review_item_cost_with_source(
+            source,
             &excerpts::ReviewItem {
                 path: path.to_owned(),
                 mode: mode_of(path),
@@ -1676,8 +1701,13 @@ fn sampled_review(
                     path: path.clone(),
                     mode: mode_of(path),
                 };
-                let plain =
-                    excerpts::review_item_cost(root, &item, hunks, &unflagged, listing_copies);
+                let plain = excerpts::review_item_cost_with_source(
+                    source,
+                    &item,
+                    hunks,
+                    &unflagged,
+                    listing_copies,
+                );
                 measured(path, listing_copies).saturating_sub(plain as u64)
             })
             .sum()
@@ -2456,6 +2486,25 @@ pub fn pending_lens_work_with_candidates(
     inventory: &InventoryEnvelope,
     scanner_candidates: Option<&[ScannerCandidate]>,
 ) -> Result<Vec<PendingLensWork>, AuditError> {
+    let source = excerpts::SourceReader::new(root)?;
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+    let work = sizer.with_operation(|sizer| {
+        if let Some(admission) = source.admission() {
+            sizer.use_admission(admission)?;
+        }
+        pending_lens_work_from_source(plan, inventory, scanner_candidates, &source, sizer)
+    });
+    source.revalidate()?;
+    work
+}
+
+fn pending_lens_work_from_source(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+    source: &excerpts::SourceReader<'_>,
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
+) -> Result<Vec<PendingLensWork>, AuditError> {
     let mut work = Vec::new();
     for provider in plan.providers() {
         if provider.kind != ProviderKind::HostService
@@ -2473,7 +2522,8 @@ pub fn pending_lens_work_with_candidates(
             inventory,
             &denominator,
             "pending-host",
-            root,
+            source,
+            sizer,
             scanner_candidates,
             true,
         )?;

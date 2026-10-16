@@ -166,8 +166,9 @@ fn oversized_promotion_does_not_starve_later_affordable_candidate() {
             ..Default::default()
         },
     ];
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
     let review = sampled_review(
-        &fixture.0,
+        &source,
         &provider,
         &denominator,
         Some(&candidates),
@@ -1206,13 +1207,14 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
                         .unwrap();
                     let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
                     let budget = seat_part_budget(provider).unwrap();
+                    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
                     build_invocations_with_budget(
                         &plan,
                         provider,
                         &inventory,
                         &denominator,
                         "pending-host",
-                        &fixture.0,
+                        &source,
                         None,
                         Some(excerpts::PartBudget {
                             cap_bytes: 1,

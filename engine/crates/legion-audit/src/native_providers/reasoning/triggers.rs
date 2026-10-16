@@ -450,7 +450,7 @@ pub fn evaluate_trigger(root: &Path, lens: &str, paths: &[String]) -> Option<Tri
     evaluate_with_head(lens, paths, &|_| Err(()))
 }
 
-fn evaluate_with_head(
+pub(crate) fn evaluate_with_head(
     lens: &str,
     paths: &[String],
     read_head: &impl Fn(&str) -> Result<(String, bool), ()>,

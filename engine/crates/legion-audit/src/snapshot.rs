@@ -154,6 +154,7 @@ fn pinned_readers() -> &'static std::sync::Mutex<BTreeMap<PathBuf, VerifiedReade
 
 /// Retains an operation's original sealed identity even if the shared reader
 /// cache evicts it. Callers still consume source through FrozenSnapshot::read.
+#[derive(Clone)]
 pub(crate) struct SnapshotAdmission {
     snapshot: std::sync::Arc<FrozenSnapshot>,
     manifest_bytes: std::sync::Arc<Vec<u8>>,

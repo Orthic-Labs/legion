@@ -255,7 +255,8 @@ pub fn continue_command(args: ContinueAuditArgs) -> CommandResult {
     let work =
         reasoning::pending_lens_work_with_candidates(root, &plan, &inventory, Some(&candidates))
             .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    let mut dispatch = ingest::lens_dispatch_plan(&work, &limits);
+    let mut dispatch = ingest::lens_dispatch_plan_checked(&work, &limits)
+        .map_err(|error| CommandError::integrity(error.to_string()))?;
     if dispatch["withinLimits"] != true
         || dispatch["followupReserveCalls"].as_u64().unwrap_or(0) < 1
         || dispatch["reasoningBudget"]["outputTokens"] != allowance["outputTokens"]
@@ -2231,14 +2232,20 @@ fn lens_size_gate(
     let Ok((plan, inventory)) = basis.as_ref() else {
         return Ok((None, None));
     };
-    let Ok(work) = reasoning_lens::pending_lens_work_with_candidates(root, plan, inventory, None)
-    else {
-        return Ok((None, None));
+    let work = match reasoning_lens::pending_lens_work_with_candidates(root, plan, inventory, None)
+    {
+        Ok(work) => work,
+        Err(error @ legion_audit::AuditError::SourceDrift(_)) => {
+            return Err(CommandError::integrity(error.to_string()));
+        }
+        Err(_) => return Ok((None, None)),
     };
     if work.is_empty() {
         return Ok((None, None));
     }
-    let mut report = reasoning_lens::ingest::lens_dispatch_plan(&work, &dispatch_limits(args));
+    let mut report =
+        reasoning_lens::ingest::lens_dispatch_plan_checked(&work, &dispatch_limits(args))
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
     let violations: Vec<String> = report["violations"]
         .as_array()
         .map(|items| {
@@ -2382,9 +2389,10 @@ fn lens_work_items(
                 out, work, &limits,
             )
             .map_err(|error| error.to_string())?,
-            None => {
-                legion_audit::native_providers::reasoning::ingest::lens_dispatch_plan(work, &limits)
-            }
+            None => legion_audit::native_providers::reasoning::ingest::lens_dispatch_plan_checked(
+                work, &limits,
+            )
+            .map_err(|error| error.to_string())?,
         };
         annotate_lens_work(&mut items, &dispatch);
         // Findings promotion the run budget capped: one named gap per count,
