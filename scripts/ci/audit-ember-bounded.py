@@ -9,8 +9,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
+import time
 
 
 EMBER_URL = "https://github.com/Orthic-Labs/ember.git"
@@ -19,6 +21,7 @@ MAX_SECONDS = 120
 FULL_AUDIT_MAX_SECONDS = 600
 MAX_DIAGNOSTIC_CHARS = 6000
 MAX_JSON_ARTIFACT_BYTES = 16 * 1024 * 1024
+KNOWN_OUTPUT_ARTIFACTS = ("facts.json", "lens-dispatch.json", "plan.json", "report.json")
 CODE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".h", ".hpp", ".java", ".js",
     ".jsx", ".kt", ".m", ".mm", ".php", ".py", ".rb", ".rs", ".scala",
@@ -38,8 +41,33 @@ def diagnostic(text: str) -> str:
     return f"{text[:retained]}\n...[{omitted} characters omitted]...\n{text[-retained:]}"
 
 
+def output_artifact_summary(out: Path | None) -> str:
+    if out is None or out.is_symlink() or not out.is_dir():
+        return "(output directory unavailable)"
+    artifacts = []
+    for name in KNOWN_OUTPUT_ARTIFACTS[:32]:
+        path = out / name
+        try:
+            metadata = path.lstat()
+        except OSError:
+            continue
+        if stat.S_ISREG(metadata.st_mode):
+            artifacts.append(f"{name} ({metadata.st_size} bytes)")
+    return ", ".join(artifacts) if artifacts else "(no known regular artifacts present)"
+
+
+def progress(event: str, started_at: float, cache_pass: str) -> None:
+    print(json.dumps({
+        "kind": "ember-bounded-audit-gate-progress",
+        "event": event,
+        "cachePass": cache_pass,
+        "elapsedMs": max(0, int((time.monotonic() - started_at) * 1000)),
+    }, sort_keys=True), flush=True)
+
+
 def run(command: list[str], *, cwd: Path | None = None,
         env: dict[str, str] | None = None, timeout: int = MAX_SECONDS,
+        artifact_dir: Path | None = None,
         allowed_returncodes: set[int] | frozenset[int] = frozenset({0})) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(
@@ -47,8 +75,13 @@ def run(command: list[str], *, cwd: Path | None = None,
             stderr=subprocess.PIPE, timeout=timeout, check=False,
         )
     except subprocess.TimeoutExpired as error:
+        stdout = error.stdout.decode(errors="replace") if isinstance(error.stdout, bytes) else (error.stdout or "")
         stderr = error.stderr.decode(errors="replace") if isinstance(error.stderr, bytes) else (error.stderr or "")
-        fail(f"timed out after {timeout}s: {' '.join(command)}\n{diagnostic(stderr)}")
+        fail(
+            f"timed out after {timeout}s: {' '.join(command)}\n"
+            f"stdout:\n{diagnostic(stdout)}\nstderr:\n{diagnostic(stderr)}\n"
+            f"known output artifacts: {output_artifact_summary(artifact_dir)}"
+        )
     if result.returncode not in allowed_returncodes:
         fail(
             f"command failed ({result.returncode}): {' '.join(command)}\n"
@@ -414,11 +447,16 @@ def main() -> int:
     env = os.environ.copy()
     env["LEGION_PROVIDER_REGISTRY"] = str(args.provider_registry.resolve())
     env["LEGION_STATE_ROOT"] = str(host_state.resolve())
+    env["LEGION_AUDIT_TRACE_PHASES"] = "1"
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY"):
         env.pop(key, None)
 
+    gate_started = time.monotonic()
+    progress("gate-start", gate_started, "all")
     observations = []
     for label in ("cold", "warm"):
+        pass_started = time.monotonic()
+        progress("pass-start", pass_started, label)
         out = repo / ".audit" / f"ember-bounded-{label}"
         command = [
             str(args.legion.resolve()), "audit", str(repo), "--plan-only",
@@ -426,7 +464,7 @@ def main() -> int:
             "--run-token-budget", "50000", "--max-total-seats", "5",
             "--max-lens-seats", "1", "--out", str(out), "--json",
         ]
-        result = run(command, cwd=repo, env=env, allowed_returncodes={0, 2})
+        result = run(command, cwd=repo, env=env, artifact_dir=out, allowed_returncodes={0, 2})
         try:
             output = json.loads(result.stdout)
         except json.JSONDecodeError as error:
@@ -451,14 +489,6 @@ def main() -> int:
         if result.returncode == 2 and output.get("auditStatus") != "incomplete":
             fail("audit exited 2 without the expected incomplete plan-only status")
         observations.append((label, observation))
-
-    if observations[0][1]["excerpt_digest"] != observations[1][1]["excerpt_digest"]:
-        fail(
-            "cold and warm passes selected different source excerpts: "
-            f"{observations[0][1]['excerpt_digest']} != {observations[1][1]['excerpt_digest']}"
-        )
-
-    for label, observation in observations:
         dispatch = observation["dispatch"]
         print(json.dumps({
             "kind": "ember-bounded-audit-gate",
@@ -479,16 +509,25 @@ def main() -> int:
             "gatherPolicy": "deterministic",
             "withinLimits": dispatch["withinLimits"],
             "sourcePerformance": observation["source_performance"],
-        }, sort_keys=True))
+        }, sort_keys=True), flush=True)
+        progress("pass-finish", pass_started, label)
+
+    if observations[0][1]["excerpt_digest"] != observations[1][1]["excerpt_digest"]:
+        fail(
+            "cold and warm passes selected different source excerpts: "
+            f"{observations[0][1]['excerpt_digest']} != {observations[1][1]['excerpt_digest']}"
+        )
 
     out = repo / ".audit" / "ember-bounded-full"
+    full_pass_started = time.monotonic()
+    progress("pass-start", full_pass_started, "full")
     command = [
         str(args.legion.resolve()), "audit", str(repo),
         "--coverage", "risk-sampled", "--seat-token-budget", "10000",
         "--run-token-budget", "50000", "--max-total-seats", "5",
         "--max-lens-seats", "1", "--out", str(out), "--json",
     ]
-    result = run(command, cwd=repo, env=env, timeout=FULL_AUDIT_MAX_SECONDS,
+    result = run(command, cwd=repo, env=env, timeout=FULL_AUDIT_MAX_SECONDS, artifact_dir=out,
                  allowed_returncodes={0, 2})
     try:
         output = json.loads(result.stdout)
@@ -541,7 +580,9 @@ def main() -> int:
         "findings": full["finding_count"],
         "gaps": full["gap_count"],
         "sourcePerformance": observation["source_performance"],
-    }, sort_keys=True))
+    }, sort_keys=True), flush=True)
+    progress("pass-finish", full_pass_started, "full")
+    progress("gate-finish", gate_started, "all")
     return 0
 
 

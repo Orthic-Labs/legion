@@ -6,8 +6,55 @@ use legion_audit::{
 };
 use legion_effects::artifact::ArtifactRecord as EffectArtifactRef;
 use serde_json::{json, Value};
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Instant};
 use tokio_util::sync::CancellationToken;
+
+struct AuditPhase {
+    phase: &'static str,
+    started: Instant,
+    enabled: bool,
+}
+
+impl AuditPhase {
+    fn start(phase: &'static str) -> Self {
+        let enabled = matches!(
+            std::env::var("LEGION_AUDIT_TRACE_PHASES").as_deref(),
+            Ok("1")
+        );
+        if enabled {
+            eprintln!(
+                "{}",
+                json!({
+                    "kind": "audit-phase",
+                    "phase": phase,
+                    "event": "start"
+                })
+            );
+        }
+        Self {
+            phase,
+            started: Instant::now(),
+            enabled,
+        }
+    }
+}
+
+impl Drop for AuditPhase {
+    fn drop(&mut self) {
+        if self.enabled {
+            eprintln!(
+                "{}",
+                json!({
+                    "kind": "audit-phase",
+                    "phase": self.phase,
+                    "event": "end",
+                    "elapsedMs": u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX)
+                })
+            );
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct AuditArgs {
     #[arg(default_value = ".", allow_hyphen_values = true)]
@@ -647,23 +694,26 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_audit::scope::ScopeSpec::parse(args.r#type.as_deref().unwrap_or("repo"))
             .map_err(|error| CommandError::usage(error.to_string()))?
     };
-    let resolved_scope = legion_audit::scope::ResolvedScope::resolve(
-        &source_root,
-        scope_spec,
-        args.dir
-            .as_ref()
-            .and_then(|dir| clean_path(&dir.to_string_lossy())),
-    )
-    .map_err(|error| {
-        let message = error.to_string();
-        if message.contains("blocked:") {
-            CommandError::internal(message)
-        } else {
-            CommandError::incomplete(message)
-        }
-    })?;
-    let frozen_snapshot = legion_audit::snapshot::FrozenSnapshot::capture(resolved_scope)
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let frozen_snapshot = {
+        let _phase = AuditPhase::start("scope-resolve-snapshot-capture");
+        let resolved_scope = legion_audit::scope::ResolvedScope::resolve(
+            &source_root,
+            scope_spec,
+            args.dir
+                .as_ref()
+                .and_then(|dir| clean_path(&dir.to_string_lossy())),
+        )
+        .map_err(|error| {
+            let message = error.to_string();
+            if message.contains("blocked:") {
+                CommandError::internal(message)
+            } else {
+                CommandError::incomplete(message)
+            }
+        })?;
+        legion_audit::snapshot::FrozenSnapshot::capture(resolved_scope)
+            .map_err(|error| CommandError::incomplete(error.to_string()))?
+    };
     let frozen_snapshot = imported_direct_snapshot(&args, frozen_snapshot)?;
     let root = frozen_snapshot.manifest.execution_root.clone();
     let inventory_filter = frozen_snapshot.manifest.scope.inventory_filter();
@@ -809,21 +859,25 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     });
     review_context["snapshotKey"] = json!(frozen_snapshot.manifest.key);
     review_context["sourceRepository"] = json!(source_root);
-    let frozen_sources = frozen_snapshot
-        .manifest
-        .files
-        .keys()
-        .map(|path| {
-            frozen_snapshot
-                .read(
-                    path,
-                    legion_audit::snapshot::SnapshotSide::Selected,
-                    32 * 1024 * 1024,
-                )
-                .map(|bytes| (path.clone(), bytes))
-        })
-        .collect::<Result<std::collections::BTreeMap<_, _>, _>>()
-        .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let frozen_sources = {
+        let _phase = AuditPhase::start("frozen-source-map-read");
+        frozen_snapshot
+            .manifest
+            .files
+            .keys()
+            .map(|path| {
+                frozen_snapshot
+                    .read(
+                        path,
+                        legion_audit::snapshot::SnapshotSide::Selected,
+                        32 * 1024 * 1024,
+                    )
+                    .map(|bytes| (path.clone(), bytes))
+            })
+            .collect::<Result<std::collections::BTreeMap<_, _>, _>>()
+            .map_err(|error| CommandError::integrity(error.to_string()))?
+    };
+    let graph_phase = AuditPhase::start("graph-cache-build");
     let resolver_files = frozen_snapshot
         .manifest
         .files
@@ -910,6 +964,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     let graph_cache_stats = graph_cache.stats.clone();
     drop(graph_cache);
     drop(frozen_sources);
+    drop(graph_phase);
     // The coverage request freezes with the provider spec (like the review
     // context), so the executed plan and the lens basis plan, which compile
     // independently, derive the same review sets.
@@ -955,16 +1010,22 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Freeze the lens basis (plan + inventory) before any scanner runs, so lens
     // packets are built from the exact inventory the executed plan was frozen over
     // rather than a re-walk that scanner scratch output could perturb.
-    let lens_basis = freeze_lens_basis(
-        &root,
-        &selected_specs,
-        signing_key.as_deref(),
-        inventory_filter.as_ref(),
-    );
+    let lens_basis = {
+        let _phase = AuditPhase::start("freeze-lens-basis");
+        freeze_lens_basis(
+            &root,
+            &selected_specs,
+            signing_key.as_deref(),
+            inventory_filter.as_ref(),
+        )
+    };
     // Size gate: report every lens's packet bytes, estimated tokens, parts and
     // required seats, and refuse to freeze an oversize plan without an
     // explicit override. Runs before any scanner executes.
-    let (lens_size, size_gate_work) = lens_size_gate(&root, &lens_basis, &args)?;
+    let (lens_size, size_gate_work) = {
+        let _phase = AuditPhase::start("lens-size-gate");
+        lens_size_gate(&root, &lens_basis, &args)?
+    };
     let provider_selection = if !provider_scope_claims_allowed(trusted_scope_universe) {
         // Imported provider specs describe only the selected execution set.
         // They cannot establish the repository's full applicable universe, so
@@ -1028,6 +1089,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             plan_signature,
             providers,
         } => {
+            let _phase = AuditPhase::start("plan-artifact-materialization-write");
             let binding = match &lens_basis {
                 // The basis inventory is the one the plan was frozen over.
                 Ok((_, inventory)) => json!({
