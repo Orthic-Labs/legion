@@ -77,7 +77,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:3c685c5bc718012b93da807cbd17122ac6cd3b861d2d6c4ff95beccc2c760e91"
+      "digest": "sha256:588c8a4e96b0f79d53aaecfd9bc245f2b20195c6fb863d9961cca6cdc2d9bbc2"
     },
     {
       "path": "agents/openai.yaml",
@@ -112,7 +112,7 @@
     {
       "path": "references/coverage-and-trajectory.md",
       "uri": "legion-skill://audit/references/coverage-and-trajectory.md",
-      "digest": "sha256:af11b10138ab9a7ad808a4edac4cedb656c57ad298f0aba75196d0a1d0ea4fdd"
+      "digest": "sha256:b1e9a66b12242e35bf3735cf6dbad76070151652577cff1e8a835775f3d6e083"
     },
     {
       "path": "references/desktop-tauri-checklist.md",
@@ -122,12 +122,12 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:e95ad8d9ea409902e8e2e341de1ce8214989342546c7e5c77561936f01794dd3"
+      "digest": "sha256:2c403d99d3b71e2f48cd0d96f376b6a9974e96dcca11c86956140b0c3b9f9f87"
     },
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:c4decd46a13a19d57351883a57a3dd260c89a265a7aea0aaffb68d8a34b3d70e"
+      "digest": "sha256:05684ea510db904d33249dc7418c4c7ee48a24675d6d4100927fe910cc22751b"
     },
     {
       "path": "references/lens-cues.md",
@@ -137,12 +137,12 @@
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:0a3f70fed739a5002196418978370f6f1b1a2e83c136ae46436769d2609d2426"
+      "digest": "sha256:18f74210b4a54cfb40d577b3b8da0ff0d2b7e50d157b2ecf57e5143093becc4a"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:b346965fa24039956c7f4814693a9962c351a0f7ad0f349ffa80f448dd272a58"
+      "digest": "sha256:2a3fae17004a60d70352f0faee7da0cedf4ad7c0f8cfdc850b9638ea64743aa4"
     },
     {
       "path": "references/migration-safety.md",
@@ -172,12 +172,12 @@
     {
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
-      "digest": "sha256:ac2cdd130b818ffc43a349848a714efc830ca0dac8f708af5fd91fb17e93f3a5"
+      "digest": "sha256:55a631bf8b8b50ea7480a5650beab69b4211f680a4b2502ff077d45a068d09fe"
     },
     {
       "path": "references/reasoning-runtime.md",
       "uri": "legion-skill://audit/references/reasoning-runtime.md",
-      "digest": "sha256:573d599470562256f9de726ff5ed4173994eace885690556e58ba25493323b89"
+      "digest": "sha256:6b20662a1214f2d72435af2d05601694a13bfbd4e1fa2cc03581893912c94a22"
     },
     {
       "path": "references/route-resources.json",

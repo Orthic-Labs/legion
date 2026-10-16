@@ -213,12 +213,17 @@ pub(super) fn enforce_prior_receipts(run: &Path) -> Result<(), AuditError> {
         let receipt = super::read_json(&path)?;
         let receipt =
             crate::native_providers::reasoning::ingest::verify_runtime_call(run, &receipt)?;
+        // New receipts carry typed policy status even when refusal/protocol
+        // errors remain primary. Retain compatibility with old mismatch receipts.
         if receipt
-            .pointer("/observation/error")
-            .and_then(Value::as_str)
-            .is_some_and(|error| {
-                error.contains("native observed model differs from authorized executor tier")
-            })
+            .pointer("/observation/modelPolicyViolation")
+            .is_some_and(|violation| !violation.is_null())
+            || receipt
+                .pointer("/observation/error")
+                .and_then(Value::as_str)
+                .is_some_and(|error| {
+                    error.contains("native observed model differs from authorized executor tier")
+                })
         {
             return Err(invalid("incomplete:model-policy:prior authenticated native model mismatch; prepare a new run after correcting host model selection"));
         }

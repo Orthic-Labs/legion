@@ -54,6 +54,7 @@ fn main() {
         preserves_finding_after_fresh_verifier_success();
         prohibits_frontier_and_low_tier_semantic_overrides();
         rejects_observed_frontier_model_without_losing_usage();
+        first_verifier_model_mismatch_stops_remaining_findings_and_resume();
         insufficient_total_budget_starts_no_generation();
         unsupported_effort_stops_before_generation();
         no_extra_context_keeps_mandatory_source_review();
@@ -203,7 +204,14 @@ fn simulate_native(args: &[String]) {
         {
             json!([])
         } else {
-            json!([finding()])
+            if prompt_text.contains("runtime-simulation:verifier-frontier") {
+                let mut second = finding();
+                second["id"] = json!("simulation-naming-2");
+                second["title"] = json!("Simulation: another subtraction naming claim");
+                json!([finding(), second])
+            } else {
+                json!([finding()])
+            }
         };
         json!({"finalResult":{"complete":true,"findings":findings,"withdrawn":[],"details":{}}})
     };
@@ -229,13 +237,21 @@ fn simulate_native(args: &[String]) {
     if reviewer {
         assert!(value_after(args, "--system-prompt").contains("Oracle"));
     }
+    let observed_model = if (!gatherer
+        && prompt_text.contains("runtime-simulation:observed-frontier"))
+        || (reviewer && prompt_text.contains("runtime-simulation:verifier-frontier"))
+    {
+        "claude-opus-5"
+    } else if gatherer {
+        "claude-haiku-5-5"
+    } else {
+        "claude-sonnet-5-5"
+    };
     let observed_model =
-        if !gatherer && prompt_text.contains("runtime-simulation:observed-frontier") {
-            "claude-opus-5"
-        } else if gatherer {
-            "claude-haiku-5-5"
+        if reviewer && prompt_text.contains("runtime-simulation:verifier-frontier-missing") {
+            Value::Null
         } else {
-            "claude-sonnet-5-5"
+            json!(observed_model)
         };
     println!(
         "{}",
@@ -254,7 +270,10 @@ fn simulate_native(args: &[String]) {
     }
     let mut terminal =
         json!({"type":"result","subtype":"success","is_error":false,"structured_output":reply});
-    if reviewer && prompt_text.contains("runtime-simulation:refusal") {
+    if reviewer
+        && (prompt_text.contains("runtime-simulation:refusal")
+            || prompt_text.contains("runtime-simulation:verifier-frontier-refusal"))
+    {
         terminal = json!({"type":"result","subtype":"error_during_execution","is_error":true,"errors":["SIMULATED refusal"]});
     }
     if !(reviewer && prompt_text.contains("runtime-simulation:missing-usage")) {
@@ -269,6 +288,9 @@ fn simulate_native(args: &[String]) {
             };
     }
     println!("{terminal}");
+    if reviewer && prompt_text.contains("runtime-simulation:verifier-frontier-malformed") {
+        println!("malformed");
+    }
     std::io::stdout().flush().unwrap();
 }
 
@@ -857,6 +879,97 @@ fn insufficient_total_budget_starts_no_generation() {
         fixture.calls().is_empty(),
         "gathering spent before full staged budget could fit"
     );
+}
+
+fn first_verifier_model_mismatch_stops_remaining_findings_and_resume() {
+    for mode in [
+        "verifier-frontier",
+        "verifier-frontier-refusal",
+        "verifier-frontier-malformed",
+        "verifier-frontier-missing",
+    ] {
+        let fixture = Fixture::new(mode);
+        let (output, result, report) = fixture.run();
+        assert_eq!(output.status.code(), Some(2), "{result}");
+        assert_eq!(result["complete"], false);
+        assert_eq!(report["status"], "incomplete");
+        let calls = fixture.calls();
+        assert_eq!(
+            calls.len(),
+            3,
+            "second verifier generated after model violation"
+        );
+        assert_eq!(
+            calls.iter().filter(|call| call["reviewer"] == true).count(),
+            1
+        );
+        let author = calls
+            .iter()
+            .find(|call| call["gatherer"] == false && call["reviewer"] == false)
+            .unwrap();
+        assert!(author["prompt"]
+            .to_string()
+            .contains("runtime-simulation:verifier-frontier"));
+        assert_eq!(report["findings"].as_array().unwrap().len(), 2);
+        let lens_receipt = read_json(&fixture.run.join(format!("lens-receipts/{PROVIDER}.json")));
+        let dispositions = lens_receipt["result"]["details"]["verificationEvidence"]["findings"]
+            .as_array()
+            .unwrap();
+        assert_eq!(dispositions.len(), 2);
+        assert!(dispositions
+            .iter()
+            .all(|disposition| disposition["verdict"] == "unresolved"));
+        assert_eq!(
+            result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+            "0.0375"
+        );
+        let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
+            .unwrap()
+            .map(|entry| read_json(&entry.unwrap().path()))
+            .collect::<Vec<_>>();
+        let failed = receipts
+            .iter()
+            .find(|receipt| receipt["execution"]["stage"] == "finding-verification")
+            .unwrap();
+        let verified = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+            &fixture.run,
+            failed,
+        )
+        .unwrap();
+        assert_eq!(
+            verified["observation"]["modelPolicyViolation"],
+            if mode == "verifier-frontier-missing" {
+                "missing-observation"
+            } else {
+                "unauthorized-model"
+            }
+        );
+        let original_error = verified["observation"]["error"].as_str().unwrap();
+        match mode {
+            "verifier-frontier-refusal" => assert!(original_error.contains("failed/refused")),
+            "verifier-frontier-malformed" => assert!(original_error.contains("expected value")),
+            "verifier-frontier-missing" => {
+                assert!(original_error.contains("model observation missing"))
+            }
+            _ => assert!(original_error.contains("observed model differs")),
+        }
+        assert_eq!(verified["observation"]["usage"]["failed"], true);
+        assert_eq!(
+            verified["observation"]["reportedApiEquivalentCostUsd"],
+            "0.0125"
+        );
+        let (resumed_output, resumed, _) = fixture.run();
+        assert_eq!(resumed_output.status.code(), Some(2));
+        assert!(resumed["error"]
+            .as_str()
+            .unwrap()
+            .contains("prior authenticated native model mismatch"));
+        assert_eq!(
+            fixture.calls().len(),
+            3,
+            "resume generated after model violation"
+        );
+    }
 }
 
 fn unsupported_effort_stops_before_generation() {

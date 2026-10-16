@@ -2505,7 +2505,8 @@ mod tests {
         assert_eq!(first["status"], "wave");
         assert_eq!(first["wave"], 1);
         assert_eq!(first["seats"][0]["seatId"], "seat-001");
-        assert_eq!(first["seats"][0]["modelTier"], "judgment");
+        assert_eq!(first["seats"][0]["tier"], "judgment");
+        assert_eq!(first["seats"][0]["modelTier"], "balanced-executor");
         let state_before = fs::read(run.join(STATE_FILE)).unwrap();
         let second = next(&run, &options(200)).unwrap();
         assert_eq!(second, first, "same wave until results arrive");

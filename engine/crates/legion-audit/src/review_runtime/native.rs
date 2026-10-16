@@ -32,6 +32,13 @@ const REQUIRED_FLAGS: &[&str] = &[
     "--system-prompt",
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModelPolicyViolation {
+    MissingObservation,
+    UnauthorizedModel,
+}
+
 #[derive(Debug)]
 pub struct Observation {
     pub context_id: String,
@@ -48,6 +55,7 @@ pub struct Observation {
     pub request_digest: String,
     pub request_bytes: u64,
     pub observed_models: Vec<String>,
+    pub model_policy_violation: Option<ModelPolicyViolation>,
 }
 
 fn reader<R: Read + Send + 'static>(mut input: R, cap: usize) -> mpsc::Receiver<(Vec<u8>, bool)> {
@@ -243,6 +251,7 @@ pub fn invoke(
         request_digest: String::new(),
         request_bytes: 0,
         observed_models: Vec::new(),
+        model_policy_violation: None,
     };
     let result = (|| -> Result<(), String> {
         let mut cmd = command(binary, cwd);
@@ -318,17 +327,6 @@ pub fn invoke(
         let _ = stderr.recv_timeout(Duration::from_secs(2));
         observation.response_digest = super::digest_bytes(&bytes);
         decode_stream(&bytes, &mut observation, &mut usage)?;
-        if observation.observed_models.is_empty()
-            || observation
-                .observed_models
-                .iter()
-                .any(|model| !super::model::observed_model_matches(execution, model))
-        {
-            return Err(
-                "native observed model differs from authorized executor tier; usage retained"
-                    .into(),
-            );
-        }
         if truncated {
             return Err("native response exceeded byte cap".into());
         }
@@ -353,8 +351,45 @@ pub fn invoke(
         Ok(())
     })();
     observation.error = result.err();
+    finalize_model_policy(&mut observation, &mut usage, execution);
     observation.usage = usage;
     observation
+}
+
+// Finalize outside protocol decoding: refusals, malformed output, timeouts &
+// process failures must never bypass model authorization or erase paid usage.
+fn finalize_model_policy(
+    observation: &mut Observation,
+    usage: &mut UsageReceipt,
+    execution: &super::model::ExecutionSelection,
+) {
+    observation.model_policy_violation = if observation.process_id == 0 {
+        None
+    } else if observation.observed_models.is_empty() {
+        Some(ModelPolicyViolation::MissingObservation)
+    } else if observation
+        .observed_models
+        .iter()
+        .any(|model| !super::model::observed_model_matches(execution, model))
+    {
+        Some(ModelPolicyViolation::UnauthorizedModel)
+    } else {
+        None
+    };
+    if let Some(violation) = observation.model_policy_violation {
+        usage.failed = true;
+        observation.error.get_or_insert_with(|| {
+            match violation {
+                ModelPolicyViolation::MissingObservation => {
+                    "native model observation missing; usage retained"
+                }
+                ModelPolicyViolation::UnauthorizedModel => {
+                    "native observed model differs from authorized executor tier; usage retained"
+                }
+            }
+            .into()
+        });
+    }
 }
 
 fn capture_accounting(
@@ -565,7 +600,7 @@ fn creation_time_value(time: Option<SystemTime>) -> Value {
         .unwrap_or(Value::Null)
 }
 pub fn observation_value(observation: &Observation) -> Value {
-    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes,"observedModels":observation.observed_models})
+    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes,"observedModels":observation.observed_models,"modelPolicyViolation":observation.model_policy_violation})
 }
 
 // Keep only the decision needed to diagnose another paid turn. Finding bodies
@@ -699,6 +734,7 @@ mod tests {
                 request_digest: String::new(),
                 request_bytes: 0,
                 observed_models: Vec::new(),
+                model_policy_violation: None,
             },
             usage,
         )
@@ -761,6 +797,51 @@ mod tests {
             Some("0.1234567890123456789")
         );
         assert!(usage.failed);
+    }
+    #[test]
+    fn model_policy_finalization_survives_refusal_and_malformed_output() {
+        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        for (terminal, suffix) in [(true, ""), (false, "\nmalformed")] {
+            let (mut observation, mut usage) = empty();
+            let fixture = format!(
+                "{}\n{}{suffix}",
+                json!({"type":"system","subtype":"init","session_id":"fresh","model":"claude-opus-5","tools":[]}),
+                json!({"type":"result","is_error":terminal,"modelUsage":{"claude-opus-5":{}},"total_cost_usd":0.125,"usage":{"input_tokens":7,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"output_tokens":3}})
+            );
+            observation.error =
+                decode_stream(fixture.as_bytes(), &mut observation, &mut usage).err();
+            let original_error = observation.error.clone();
+            assert!(original_error.is_some());
+            finalize_model_policy(&mut observation, &mut usage, &execution);
+            assert_eq!(observation.error, original_error);
+            assert_eq!(
+                observation.model_policy_violation,
+                Some(ModelPolicyViolation::UnauthorizedModel)
+            );
+            assert_eq!(observation.reported_api_cost_usd.as_deref(), Some("0.125"));
+            assert_eq!(usage.input_tokens, Some(7));
+            assert_eq!(usage.output_tokens, Some(3));
+            assert!(usage.failed);
+        }
+    }
+    #[test]
+    fn started_native_process_requires_model_observation_for_every_outcome() {
+        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        let (mut observation, mut usage) = empty();
+        observation.error = Some("native process failed".into());
+        finalize_model_policy(&mut observation, &mut usage, &execution);
+        assert_eq!(
+            observation.model_policy_violation,
+            Some(ModelPolicyViolation::MissingObservation)
+        );
+        assert_eq!(observation.error.as_deref(), Some("native process failed"));
+        observation.process_id = 0;
+        finalize_model_policy(&mut observation, &mut usage, &execution);
+        assert_eq!(observation.model_policy_violation, None);
+        observation.process_id = 1;
+        observation.observed_models = vec![execution.model.clone()];
+        finalize_model_policy(&mut observation, &mut usage, &execution);
+        assert_eq!(observation.model_policy_violation, None);
     }
     #[test]
     fn unexpected_native_tool_exposure_is_rejected() {

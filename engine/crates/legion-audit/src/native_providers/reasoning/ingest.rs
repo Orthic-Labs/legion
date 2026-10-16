@@ -207,6 +207,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "physicalRequestDigest",
         "physicalRequestBytes",
         "observedModels",
+        "modelPolicyViolation",
     ];
     if observation
         .keys()
@@ -227,6 +228,18 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         })
     }) {
         return Err(invalid("runtime observed models exceed bounded metadata"));
+    }
+    if observation
+        .get("modelPolicyViolation")
+        .is_some_and(|violation| {
+            !violation.is_null()
+                && !matches!(
+                    violation.as_str(),
+                    Some("missing-observation" | "unauthorized-model")
+                )
+        })
+    {
+        return Err(invalid("runtime model policy classification invalid"));
     }
     if observation
         .get("reportedApiEquivalentCostUsd")

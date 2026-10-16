@@ -52,7 +52,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit-fix/SKILL.md",
-      "digest": "sha256:f4a4d20d83da40633ec5eff039567fc4865a8f2b70260f9a20e3a329b00b01a5"
+      "digest": "sha256:6835441e0c3e7d66413659a48aa2751e5ae0d42dea518c195743f1a9e2f30e06"
     },
     {
       "path": "agents/openai.yaml",

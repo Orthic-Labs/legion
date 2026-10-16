@@ -305,6 +305,7 @@ pub(super) struct Controller<'a> {
     nonce: String,
     serial: u64,
     physical_calls: u64,
+    fatal_error: Option<String>,
 }
 // Lease attempts survive child follow-up dispatch even when its physical
 // reservation is newly issued against the parent budget ledger.
@@ -321,6 +322,9 @@ impl Controller<'_> {
         initial: Option<String>,
         execution: &model::ExecutionSelection,
     ) -> Result<Observation, AuditError> {
+        if let Some(error) = &self.fatal_error {
+            return Err(invalid(error.clone()));
+        }
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
         let request_accounting = json!({"basis":"serialized-host-envelope","nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":legion_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
@@ -370,6 +374,9 @@ impl Controller<'_> {
             schema,
             frame,
         );
+        if observation.model_policy_violation.is_some() {
+            self.fatal_error = Some("incomplete:model-policy:native model authorization failed; further generation prohibited".into());
+        }
         if observation.process_id > 0 {
             self.physical_calls += 1;
         }
@@ -390,6 +397,9 @@ impl Controller<'_> {
             ),
             &authenticated,
         )?;
+        if let Some(error) = &self.fatal_error {
+            return Err(invalid(error.clone()));
+        }
         Ok(observation)
     }
     fn review(
@@ -631,6 +641,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         nonce: hex::encode(nonce),
         serial: 0,
         physical_calls: 0,
+        fatal_error: None,
     };
     let mut artifacts = Vec::new();
     let mut failures = Vec::new();

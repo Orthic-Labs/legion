@@ -154,7 +154,7 @@ fn variant_analysis_is_planned_here_not_by_adjudication() {
 
 #[test]
 fn model_tiers_match_lens_routing_without_changing_model_tier_enum() {
-    // Preserve strict modelTier values while adding the strongest dispatch floor.
+    // Preserve internal modelTier values while bounding specialist dispatch.
     for id in [
         "reasoning.security",
         "reasoning.architecture",
@@ -162,7 +162,7 @@ fn model_tiers_match_lens_routing_without_changing_model_tier_enum() {
     ] {
         let value = lens_plan_packet_value(id).expect("lens plan present");
         assert_eq!(value["modelTier"], "judgment", "{id}");
-        assert_eq!(value["minimumModelTier"], "strongest", "{id}");
+        assert_eq!(value["minimumModelTier"], "balanced-executor", "{id}");
     }
     // Mechanical-tier lenses per lens-routing.md: dead-file, a11y,
     // platform-parity.
