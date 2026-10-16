@@ -134,17 +134,68 @@ impl ReaderBinding {
 }
 struct VerifiedReader {
     snapshot: std::sync::Arc<FrozenSnapshot>,
-    manifest_bytes: Vec<u8>,
-    binding: ReaderBinding,
+    manifest_bytes: std::sync::Arc<Vec<u8>>,
+    binding: std::sync::Arc<ReaderBinding>,
+}
+impl VerifiedReader {
+    fn admission(&self) -> SnapshotAdmission {
+        SnapshotAdmission {
+            snapshot: self.snapshot.clone(),
+            manifest_bytes: self.manifest_bytes.clone(),
+            binding: self.binding.clone(),
+        }
+    }
+}
+fn pinned_readers() -> &'static std::sync::Mutex<BTreeMap<PathBuf, VerifiedReader>> {
+    use std::sync::{Mutex, OnceLock};
+    static PINNED: OnceLock<Mutex<BTreeMap<PathBuf, VerifiedReader>>> = OnceLock::new();
+    PINNED.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+/// Retains an operation's original sealed identity even if the shared reader
+/// cache evicts it. Callers still consume source through FrozenSnapshot::read.
+pub(crate) struct SnapshotAdmission {
+    snapshot: std::sync::Arc<FrozenSnapshot>,
+    manifest_bytes: std::sync::Arc<Vec<u8>>,
+    binding: std::sync::Arc<ReaderBinding>,
+}
+impl SnapshotAdmission {
+    pub(crate) fn snapshot(&self) -> &FrozenSnapshot {
+        &self.snapshot
+    }
+
+    pub(crate) fn revalidate(&self) -> Result<(), AuditError> {
+        let (current, bytes) = FrozenSnapshot::load_manifest(&self.snapshot.manifest_path)?;
+        if bytes.as_slice() != self.manifest_bytes.as_slice() {
+            return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
+        }
+        self.binding.validate(&current)?;
+        current.verify_structure()?;
+        self.binding.validate(&current)?;
+        if FrozenSnapshot::load_manifest(&self.snapshot.manifest_path)?
+            .1
+            .as_slice()
+            != self.manifest_bytes.as_slice()
+        {
+            return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
+        }
+        Ok(())
+    }
 }
 #[cfg(test)]
 thread_local! {
     static FULL_VERIFICATIONS: std::cell::RefCell<BTreeMap<PathBuf, usize>> =
         std::cell::RefCell::new(BTreeMap::new());
+    static STRUCTURE_VERIFICATIONS: std::cell::RefCell<BTreeMap<PathBuf, usize>> =
+        std::cell::RefCell::new(BTreeMap::new());
 }
 #[cfg(test)]
 pub(crate) fn full_verification_count(path: &Path) -> usize {
     FULL_VERIFICATIONS.with(|counts| counts.borrow().get(path).copied().unwrap_or(0))
+}
+#[cfg(test)]
+pub(crate) fn structure_verification_count(path: &Path) -> usize {
+    STRUCTURE_VERIFICATIONS.with(|counts| counts.borrow().get(path).copied().unwrap_or(0))
 }
 /// Windows canonical paths use a verbatim prefix even when the owner state
 /// locator used drive syntax. Resolve that spelling through the filesystem only
@@ -463,24 +514,48 @@ impl FrozenSnapshot {
     pub(crate) fn verified_reader(
         manifest_path: &Path,
     ) -> Result<std::sync::Arc<Self>, AuditError> {
-        use std::sync::{Arc, Mutex, OnceLock};
-        static PINNED: OnceLock<Mutex<BTreeMap<PathBuf, VerifiedReader>>> = OnceLock::new();
-        let cache = PINNED.get_or_init(|| Mutex::new(BTreeMap::new()));
-        let mut cache = cache
+        Ok(Self::verified_admission(manifest_path)?.snapshot)
+    }
+
+    /// Retain the admission that recognized this snapshot before an operation
+    /// starts. An intervening eviction can cold-admit the same sealed identity;
+    /// eviction after this point cannot discard the operation's root binding.
+    pub(crate) fn operation_admission(
+        snapshot: &std::sync::Arc<Self>,
+    ) -> Result<SnapshotAdmission, AuditError> {
+        let cache = pinned_readers()
+            .lock()
+            .map_err(|_| invalid("snapshot reader lock poisoned"))?;
+        if let Some(reader) = cache.get(&snapshot.manifest_path) {
+            if std::sync::Arc::ptr_eq(snapshot, &reader.snapshot) {
+                return Ok(reader.admission());
+            }
+        }
+        drop(cache);
+        let admission = Self::verified_admission(&snapshot.manifest_path)?;
+        if crate::digest(&snapshot.manifest)? != crate::digest(&admission.snapshot.manifest)? {
+            return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
+        }
+        Ok(admission)
+    }
+
+    fn verified_admission(manifest_path: &Path) -> Result<SnapshotAdmission, AuditError> {
+        use std::sync::Arc;
+        let mut cache = pinned_readers()
             .lock()
             .map_err(|_| invalid("snapshot reader lock poisoned"))?;
         let (snapshot, manifest_bytes) = Self::load_manifest(manifest_path)?;
         let locator = snapshot.manifest_path.clone();
         if let Some(reader) = cache.get(&locator) {
-            if reader.manifest_bytes != manifest_bytes {
+            if reader.manifest_bytes.as_slice() != manifest_bytes.as_slice() {
                 return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
             }
             reader.binding.validate(&snapshot)?;
             snapshot.verify_structure()?;
             reader.binding.validate(&snapshot)?;
-            return Ok(reader.snapshot.clone());
+            return Ok(reader.admission());
         }
-        let binding = ReaderBinding::pin(&snapshot)?;
+        let binding = Arc::new(ReaderBinding::pin(&snapshot)?);
         snapshot.verify()?;
         binding.validate(&snapshot)?;
         // Do not admit a manifest that changed while cold verification ran.
@@ -495,15 +570,14 @@ impl FrozenSnapshot {
                 cache.remove(&oldest);
             }
         }
-        cache.insert(
-            locator,
-            VerifiedReader {
-                snapshot: snapshot.clone(),
-                manifest_bytes,
-                binding,
-            },
-        );
-        Ok(snapshot)
+        let reader = VerifiedReader {
+            snapshot,
+            manifest_bytes: Arc::new(manifest_bytes),
+            binding,
+        };
+        let admission = reader.admission();
+        cache.insert(locator, reader);
+        Ok(admission)
     }
     /// Resolve both selected & baseline readers through the same sealed entry.
     pub fn for_execution_root(root: &Path) -> Result<std::sync::Arc<Self>, AuditError> {
@@ -613,6 +687,13 @@ impl FrozenSnapshot {
     /// Admission checks structure only. It is not fresh cryptographic proof of
     /// unread source; read() always validates bytes before returning them.
     fn verify_structure(&self) -> Result<(), AuditError> {
+        #[cfg(test)]
+        STRUCTURE_VERIFICATIONS.with(|counts| {
+            *counts
+                .borrow_mut()
+                .entry(self.manifest_path.clone())
+                .or_default() += 1;
+        });
         let m = &self.manifest;
         let key = crate::digest(&(
             1u32,
@@ -1280,6 +1361,28 @@ pub(crate) mod tests {
             assert!(std::sync::Arc::ptr_eq(&reader, &repeated));
         }
         assert_eq!(full_verification_count(&snapshot.manifest_path) - before, 1);
+    }
+    #[test]
+    fn operation_admission_retains_identity_across_reader_cache_eviction() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        let reader = FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        let admission = FrozenSnapshot::operation_admission(&reader).unwrap();
+        pinned_readers()
+            .lock()
+            .unwrap()
+            .remove(&snapshot.manifest_path);
+        admission.revalidate().unwrap();
+        let replacement = FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&reader, &replacement));
+        admission.revalidate().unwrap();
+        let mut changed = std::fs::read(&snapshot.manifest_path).unwrap();
+        changed.push(b'\n');
+        replace_bytes(&snapshot.manifest_path, &changed);
+        assert!(matches!(
+            admission.revalidate(),
+            Err(AuditError::SourceDrift(_))
+        ));
     }
     #[test]
     fn cached_reader_checks_same_length_bytes_even_with_restored_mtime() {

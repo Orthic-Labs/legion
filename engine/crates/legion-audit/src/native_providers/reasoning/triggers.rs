@@ -25,6 +25,7 @@ use legion_contracts::canonical_digest;
 use serde_json::{json, Value};
 
 use crate::error::AuditError;
+use crate::snapshot::{FrozenSnapshot, SnapshotAdmission, SnapshotSide};
 
 /// One evaluated trigger: whether it fired, and the human-readable evidence
 /// (grep hit or file path) recorded regardless of outcome, so a
@@ -109,17 +110,91 @@ impl TriggerEvaluation {
 /// in the file, not to read the whole file.
 const CONTENT_SCAN_CAP_BYTES: usize = 64 * 1024;
 
-fn read_head(root: &Path, path: &str) -> Result<(String, bool), ()> {
-    if crate::inventory::frozen_snapshot(root)
-        .map_err(|_| ())?
-        .is_some()
-    {
-        // Oversized sealed content remains applicability-unknown rather than
-        // reading unbound live bytes or silently declaring checked-zero.
-        let (bytes, _) =
-            super::excerpts::source_bytes(root, path, CONTENT_SCAN_CAP_BYTES).map_err(|_| ())?;
-        return Ok((String::from_utf8_lossy(&bytes).into_owned(), false));
+/// One planning operation admits the sealed reader before scanning, then
+/// revalidates it before publishing results. Each consumed file still hashes
+/// against its sealed digest; admission never occurs inside the file loop.
+pub(crate) struct TriggerSource<'a> {
+    root: &'a Path,
+    snapshot: Option<(SnapshotAdmission, SnapshotSide)>,
+}
+
+impl<'a> TriggerSource<'a> {
+    pub(crate) fn new(root: &'a Path) -> Result<Self, AuditError> {
+        let snapshot = crate::inventory::frozen_snapshot(root)?
+            .map(|(snapshot, side)| {
+                FrozenSnapshot::operation_admission(&snapshot).map(|admission| (admission, side))
+            })
+            .transpose()?;
+        Ok(Self { root, snapshot })
     }
+
+    pub(crate) fn source_sides(&self) -> std::collections::BTreeMap<String, String> {
+        let mut sides = std::collections::BTreeMap::new();
+        if let Some((snapshot, SnapshotSide::Selected)) = &self.snapshot {
+            let snapshot = snapshot.snapshot();
+            for path in &snapshot.manifest.scope.changed_paths {
+                if !snapshot.manifest.files.contains_key(path)
+                    && snapshot.manifest.base_files.contains_key(path)
+                {
+                    sides.insert(path.clone(), "base".into());
+                }
+            }
+        }
+        sides
+    }
+
+    pub(crate) fn revalidate(&self) -> Result<(), AuditError> {
+        if let Some((admission, side)) = &self.snapshot {
+            let snapshot = admission.snapshot();
+            let expected_root = match side {
+                SnapshotSide::Selected => &snapshot.manifest.execution_root,
+                SnapshotSide::Base => &snapshot.manifest.baseline_root,
+            };
+            let current_root = self.root.canonicalize().map_err(|error| {
+                AuditError::SourceDrift(format!("Audit trigger root changed: {error}"))
+            })?;
+            if &current_root != expected_root {
+                return Err(AuditError::SourceDrift("Audit trigger root changed".into()));
+            }
+            return admission.revalidate();
+        }
+        if crate::inventory::frozen_snapshot(self.root)?.is_none() {
+            Ok(())
+        } else {
+            Err(AuditError::SourceDrift(
+                "Audit trigger source admission changed during planning".into(),
+            ))
+        }
+    }
+
+    pub(crate) fn evaluate(&self, lens: &str, paths: &[String]) -> Option<TriggerEvaluation> {
+        evaluate_with_head(lens, paths, &|path| self.read_head(path))
+    }
+
+    fn read_head(&self, path: &str) -> Result<(String, bool), ()> {
+        if let Some((snapshot, root_side)) = &self.snapshot {
+            let snapshot = snapshot.snapshot();
+            let side = if *root_side == SnapshotSide::Base
+                || !snapshot.manifest.files.contains_key(path)
+                    && snapshot.manifest.scope.changed_paths.contains(path)
+                    && snapshot.manifest.base_files.contains_key(path)
+            {
+                SnapshotSide::Base
+            } else {
+                SnapshotSide::Selected
+            };
+            // Preserve the raw-byte cap: oversized sealed files remain
+            // applicability-unknown rather than reading unbound live bytes.
+            let bytes = snapshot
+                .read(path, side, CONTENT_SCAN_CAP_BYTES)
+                .map_err(|_| ())?;
+            return Ok((String::from_utf8_lossy(&bytes).into_owned(), false));
+        }
+        read_live_head(self.root, path)
+    }
+}
+
+fn read_live_head(root: &Path, path: &str) -> Result<(String, bool), ()> {
     let canonical_root = root.canonicalize().map_err(|_| ())?;
     let canonical_path = root.join(path).canonicalize().map_err(|_| ())?;
     if !canonical_path.starts_with(&canonical_root) {
@@ -214,7 +289,10 @@ fn evaluate_data_safety(paths: &[String]) -> TriggerEvaluation {
 /// content scan on plausible source files for a spawn/Command site — the
 /// path alone under-fires ("server.rs" is common but a raw spawn call
 /// inside an unrelated file would be missed by path alone).
-fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
+fn evaluate_resilience(
+    paths: &[String],
+    read_head: &impl Fn(&str) -> Result<(String, bool), ()>,
+) -> TriggerEvaluation {
     let path_needles = [
         "sidecar",
         "child_process",
@@ -240,7 +318,7 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
         if hits.contains(path) || !has_extension(path, &content_extensions) {
             continue;
         }
-        match read_head(root, path) {
+        match read_head(path) {
             Ok((content, truncated)) => {
                 if content_needles
                     .iter()
@@ -274,7 +352,10 @@ fn evaluate_resilience(root: &Path, paths: &[String]) -> TriggerEvaluation {
 
 /// `platform-parity`: fires on `cfg(target_os` (Rust) or `usePlatform`
 /// (TS/JS) content signatures, per `manual.md` line 275.
-fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation {
+fn evaluate_platform_parity(
+    paths: &[String],
+    read_head: &impl Fn(&str) -> Result<(String, bool), ()>,
+) -> TriggerEvaluation {
     let mut hits = Vec::new();
     let mut unavailable = Vec::new();
     for path in paths {
@@ -283,7 +364,7 @@ fn evaluate_platform_parity(root: &Path, paths: &[String]) -> TriggerEvaluation 
         if !is_rust && !is_ts {
             continue;
         }
-        match read_head(root, path) {
+        match read_head(path) {
             Ok((content, truncated)) => {
                 let matched = (is_rust && content.contains("cfg(target_os"))
                     || (is_ts && content.contains("usePlatform"));
@@ -354,11 +435,31 @@ fn evaluate_release_readiness(paths: &[String]) -> TriggerEvaluation {
 /// not conditional (those are `Applicability::Always` and never gated by a
 /// trigger).
 pub fn evaluate_trigger(root: &Path, lens: &str, paths: &[String]) -> Option<TriggerEvaluation> {
+    if !matches!(lens, "resilience" | "platform-parity") {
+        return evaluate_with_head(lens, paths, &|_| Err(()));
+    }
+    let source = TriggerSource::new(root);
+    if let Ok(source) = source {
+        let evaluation = source.evaluate(lens, paths);
+        if source.revalidate().is_ok() {
+            return evaluation;
+        }
+    }
+    // This compatibility API cannot return admission errors. Failed content
+    // checks remain explicit unknown applicability, never checked-zero.
+    evaluate_with_head(lens, paths, &|_| Err(()))
+}
+
+fn evaluate_with_head(
+    lens: &str,
+    paths: &[String],
+    read_head: &impl Fn(&str) -> Result<(String, bool), ()>,
+) -> Option<TriggerEvaluation> {
     match lens {
         "a11y" => Some(evaluate_a11y(paths)),
         "data-safety" => Some(evaluate_data_safety(paths)),
-        "resilience" => Some(evaluate_resilience(root, paths)),
-        "platform-parity" => Some(evaluate_platform_parity(root, paths)),
+        "resilience" => Some(evaluate_resilience(paths, read_head)),
+        "platform-parity" => Some(evaluate_platform_parity(paths, read_head)),
         "release-readiness" => Some(evaluate_release_readiness(paths)),
         _ => None,
     }
@@ -367,16 +468,26 @@ pub fn evaluate_trigger(root: &Path, lens: &str, paths: &[String]) -> Option<Tri
 /// Evaluates every conditional lens's trigger at once (the plan-freeze use
 /// case: decide, for each conditional lens, whether it belongs in the run).
 pub fn evaluate_all_conditional_triggers(root: &Path, paths: &[String]) -> Vec<TriggerEvaluation> {
-    [
+    let lenses = [
         "a11y",
         "data-safety",
         "resilience",
         "platform-parity",
         "release-readiness",
-    ]
-    .iter()
-    .filter_map(|lens| evaluate_trigger(root, lens, paths))
-    .collect()
+    ];
+    if let Ok(source) = TriggerSource::new(root) {
+        let evaluations = lenses
+            .iter()
+            .filter_map(|lens| source.evaluate(lens, paths))
+            .collect();
+        if source.revalidate().is_ok() {
+            return evaluations;
+        }
+    }
+    lenses
+        .iter()
+        .filter_map(|lens| evaluate_with_head(lens, paths, &|_| Err(())))
+        .collect()
 }
 
 #[cfg(test)]
@@ -422,6 +533,170 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(full, content).unwrap();
+    }
+
+    fn writable(path: &Path) {
+        let mut permissions = fs::metadata(path).unwrap().permissions();
+        permissions.set_readonly(false);
+        fs::set_permissions(path, permissions).unwrap();
+    }
+
+    fn snapshot_with_sources() -> (crate::snapshot::tests::Fixture, FrozenSnapshot) {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let initial = fixture.capture(crate::scope::ScopeSpec::Local);
+        let root = &initial.manifest.scope.source_root;
+        for index in 0..24 {
+            write(root, &format!("src/check{index}.rs"), "fn plain() {}\n");
+        }
+        write(
+            root,
+            "src/check0.rs",
+            "#[cfg(target_os = \"macos\")]\nfn run() { Command::new(\"x\"); }\n",
+        );
+        // The baseline remains a source for deleted selected-side paths.
+        fs::remove_file(root.join("file.rs")).unwrap();
+        let large = "é".repeat(CONTENT_SCAN_CAP_BYTES / 2 + 1);
+        write(root, "large.rs", &large);
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        (fixture, snapshot)
+    }
+
+    #[test]
+    fn multi_file_trigger_passes_keep_structure_verifications_constant() {
+        let (_fixture, snapshot) = snapshot_with_sources();
+        let root = &snapshot.manifest.execution_root;
+        let mut paths: Vec<_> = snapshot.manifest.files.keys().cloned().collect();
+        paths.push("file.rs".into());
+        let before_structure =
+            crate::snapshot::structure_verification_count(&snapshot.manifest_path);
+        let before_full = crate::snapshot::full_verification_count(&snapshot.manifest_path);
+        let evaluations = evaluate_all_conditional_triggers(root, &paths);
+        assert!(
+            crate::snapshot::structure_verification_count(&snapshot.manifest_path)
+                - before_structure
+                <= 5
+        );
+        let cold_admissions =
+            crate::snapshot::full_verification_count(&snapshot.manifest_path) - before_full;
+        assert!((1..=2).contains(&cold_admissions));
+        for lens in ["resilience", "platform-parity"] {
+            let evaluation = evaluations.iter().find(|item| item.lens == lens).unwrap();
+            assert!(evaluation.fired);
+            assert_eq!(evaluation.evidence_paths, vec!["src/check0.rs"]);
+            assert_eq!(evaluation.unavailable_paths, vec!["large.rs"]);
+        }
+        let before_structure =
+            crate::snapshot::structure_verification_count(&snapshot.manifest_path);
+        let before_full = crate::snapshot::full_verification_count(&snapshot.manifest_path);
+        assert_eq!(evaluate_all_conditional_triggers(root, &paths), evaluations);
+        let cold_readmissions =
+            crate::snapshot::full_verification_count(&snapshot.manifest_path) - before_full;
+        assert!(cold_readmissions <= 2);
+        let structure_checks =
+            crate::snapshot::structure_verification_count(&snapshot.manifest_path)
+                - before_structure;
+        assert!(structure_checks <= 5);
+        if cold_readmissions == 0 {
+            assert_eq!(structure_checks, 2);
+        }
+    }
+
+    #[test]
+    fn admitted_reader_preserves_deleted_base_raw_byte_cap_and_file_hashing() {
+        let (_fixture, snapshot) = snapshot_with_sources();
+        let source = TriggerSource::new(&snapshot.manifest.execution_root).unwrap();
+        assert_eq!(source.source_sides().get("file.rs").unwrap(), "base");
+        assert_eq!(
+            source.read_head("file.rs").unwrap(),
+            ("base\n".into(), false)
+        );
+        assert!(source.read_head("large.rs").is_err());
+        let baseline = TriggerSource::new(&snapshot.manifest.baseline_root).unwrap();
+        assert_eq!(
+            baseline.read_head("file.rs").unwrap(),
+            ("base\n".into(), false)
+        );
+        baseline.revalidate().unwrap();
+
+        let path = snapshot.manifest.execution_root.join("src/check1.rs");
+        writable(&path);
+        fs::write(path, "fn rogue() {}\n").unwrap();
+        let evaluation = source
+            .evaluate("platform-parity", &["src/check1.rs".into()])
+            .unwrap();
+        assert!(!evaluation.fired);
+        assert_eq!(evaluation.unavailable_paths, vec!["src/check1.rs"]);
+        // Equal-length drift evades a structure-only boundary check, so the
+        // per-file digest must keep it explicit as unavailable applicability.
+        source.revalidate().unwrap();
+    }
+
+    #[test]
+    fn trigger_pass_rejects_boundary_marker_manifest_and_path_set_drift() {
+        for mutation in [
+            "marker",
+            "removed-marker",
+            "manifest",
+            "selected-path",
+            "base-path",
+        ] {
+            let fixture = crate::snapshot::tests::Fixture::new();
+            let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+            let root = &snapshot.manifest.execution_root;
+            let source = TriggerSource::new(root).unwrap();
+            let evaluation = source
+                .evaluate("platform-parity", &["file.rs".into()])
+                .unwrap();
+            assert!(!evaluation.fired);
+            assert!(evaluation.unavailable_paths.is_empty());
+            match mutation {
+                "marker" => {
+                    let marker = root.join(".legion-audit-snapshot");
+                    writable(&marker);
+                    fs::write(marker, "2\n").unwrap();
+                }
+                "removed-marker" => {
+                    writable(root);
+                    fs::remove_file(root.join(".legion-audit-snapshot")).unwrap();
+                }
+                "manifest" => {
+                    writable(&snapshot.manifest_path);
+                    let mut bytes = fs::read(&snapshot.manifest_path).unwrap();
+                    bytes.push(b'\n');
+                    fs::write(&snapshot.manifest_path, bytes).unwrap();
+                }
+                "selected-path" | "base-path" => {
+                    let changed_root = if mutation == "base-path" {
+                        &snapshot.manifest.baseline_root
+                    } else {
+                        root
+                    };
+                    writable(changed_root);
+                    fs::write(changed_root.join("unexpected.rs"), "fn surprise() {}\n").unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(source.revalidate().is_err(), "{mutation}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trigger_pass_rejects_root_replacement() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let root = &snapshot.manifest.execution_root;
+        let source = TriggerSource::new(root).unwrap();
+        writable(root.parent().unwrap());
+        writable(root);
+        let renamed = root.with_file_name("selected-old");
+        fs::rename(root, &renamed).unwrap();
+        fs::create_dir(root).unwrap();
+        for entry in fs::read_dir(renamed).unwrap() {
+            let entry = entry.unwrap();
+            fs::copy(entry.path(), root.join(entry.file_name())).unwrap();
+        }
+        assert!(source.revalidate().is_err());
     }
 
     #[test]

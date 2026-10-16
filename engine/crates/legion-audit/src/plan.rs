@@ -256,8 +256,9 @@ impl AuditPlan {
                 "audit plan requires at least one frozen provider".into(),
             ));
         }
-        let source_sides = match root {
-            Some(root) => crate::inventory::snapshot_source_sides(root)?,
+        let trigger_source = root.map(triggers::TriggerSource::new).transpose()?;
+        let source_sides = match &trigger_source {
+            Some(source) => source.source_sides(),
             None => BTreeMap::new(),
         };
         let source_sides: BTreeMap<_, _> = source_sides
@@ -267,11 +268,11 @@ impl AuditPlan {
         let mut excluded_conditional_providers = Vec::new();
         let mut trigger_evidence = BTreeMap::new();
         let mut filtered_specs = Vec::new();
-        let specs: &[ProviderSpec] = if let Some(root) = root {
+        let specs: &[ProviderSpec] = if let Some(source) = &trigger_source {
             let paths: Vec<String> = inventory.paths().map(str::to_owned).collect();
             for spec in specs {
                 let evaluation = lens_plan::lens_id_for_provider(spec.id.as_str())
-                    .and_then(|lens| triggers::evaluate_trigger(root, lens, &paths));
+                    .and_then(|lens| source.evaluate(lens, &paths));
                 let Some(evaluation) = evaluation else {
                     filtered_specs.push(spec.clone());
                     continue;
@@ -519,6 +520,9 @@ impl AuditPlan {
             .into_iter()
             .map(|id| by_id.remove(&id).expect("validated provider id"))
             .collect();
+        if let Some(source) = &trigger_source {
+            source.revalidate()?;
+        }
         Ok(Self {
             schema_version: 1,
             repository_id: inventory.repository_id.clone(),

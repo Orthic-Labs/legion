@@ -756,7 +756,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Gaps the direct route adds when its provider plan could not be bound
     // (for example `unsealed-plan`); empty for every other route.
     let mut direct_gaps: Vec<String> = Vec::new();
-    let (application, mut context_notices, effect_artifact_scratch, trusted_scope_universe) =
+    let (application, mut context_notices, effect_artifact_scratch, trusted_scope_universe) = {
+        let _phase = AuditPhase::start("provider-application-setup");
         if direct {
             let (application, notices, gaps) =
                 direct_application(&args, &root, inventory_filter.as_ref())?;
@@ -784,8 +785,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 inventory_filter.as_ref(),
             )?;
             (Arc::new(application), notices, Some(scratch), true)
-        };
+        }
+    };
     if args.out.is_some() {
+        let _phase = AuditPhase::start("audit-dir-ignore-notice");
         if let Some(notice) = audit_dir_ignore_notice(&source_root) {
             context_notices.push(notice);
         }
