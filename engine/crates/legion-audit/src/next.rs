@@ -365,6 +365,10 @@ struct Reservation {
     retry: bool,
     transport_authorized: bool,
     usage: Option<UsageReceipt>,
+    #[serde(default)]
+    native_cost_required: bool,
+    #[serde(default)]
+    reported_api_cost_usd: Option<String>,
 }
 
 /// Host input for every physical model attempt, including reflection, retry,
@@ -421,6 +425,8 @@ fn record_reservation(
             retry: attempt > 1,
             transport_authorized: false,
             usage: None,
+            native_cost_required: false,
+            reported_api_cost_usd: None,
         },
     );
     id
@@ -1281,7 +1287,22 @@ fn budget_summary(state: &State) -> Value {
     let mut failures = 0usize;
     let mut overrun = 0u64;
     let mut output_cap_overrun = 0u64;
+    let mut reported_cost = Some("0".to_owned());
+    let mut unknown_cost = 0usize;
     for reservation in state.reservations.values() {
+        if reservation.transport_authorized {
+            match &reservation.reported_api_cost_usd {
+                Some(cost) => {
+                    reported_cost = reported_cost
+                        .as_deref()
+                        .and_then(|sum| crate::review_runtime::cost::add(sum, cost));
+                    if reported_cost.is_none() {
+                        unknown_cost += 1;
+                    }
+                }
+                None => unknown_cost += 1,
+            }
+        }
         match &reservation.usage {
             Some(usage) => {
                 input = input.saturating_add(usage.input_tokens.unwrap_or(0));
@@ -1314,6 +1335,10 @@ fn budget_summary(state: &State) -> Value {
         }
     }
     let known = unknown == 0 && state.issuances == state.reservations.len() as u64;
+    let legacy_unknown = state
+        .issuances
+        .saturating_sub(state.reservations.len() as u64);
+    let cost_known = unknown_cost == 0 && legacy_unknown == 0 && reported_cost.is_some();
     json!({
         "admissionBasis": "bytes/4 plus output is a planning heuristic; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
         "plannedTokens": state.reservations.values().fold(0u64, |sum, reservation| sum.saturating_add(reservation.planned_tokens)),
@@ -1333,6 +1358,17 @@ fn budget_summary(state: &State) -> Value {
         "retryCalls": state.reservations.values().filter(|reservation| reservation.retry).count(),
         "failedCalls": failures, "actualOverrunTokens": overrun,
         "outputCapOverrunTokens": output_cap_overrun,
+        "cost": {
+            "currency": "USD",
+            "basis": "provider-reported API-equivalent cost; not invoice charge",
+            "status": if cost_known { "known" } else { "unknown" },
+            "reportedApiEquivalentCostUsd": if cost_known { reported_cost.as_deref() } else { None },
+            "knownReportedApiEquivalentSubtotalUsd": reported_cost,
+            "unknownCostCalls": unknown_cost,
+            "legacyUnknownCostCalls": legacy_unknown,
+            "invoiceChargeStatus": "unknown",
+            "invoiceChargeUsd": null,
+        },
         "terminalStatus": state.terminal_status,
     })
 }
@@ -1344,7 +1380,7 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
     if !run_dir.join(STATE_FILE).is_file() {
         return Ok(run_dir.join(DISPATCH_FILE).is_file().then(|| {
             json!({
-                "budget":{"actual":{"status":"unknown"}},
+                "budget":{"actual":{"status":"unknown"},"cost":{"status":"unknown","reportedApiEquivalentCostUsd":null,"invoiceChargeStatus":"unknown","invoiceChargeUsd":null}},
                 "gaps":["reasoning-budget-state-missing"]
             })
         }));
@@ -1364,6 +1400,12 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
         .values()
         .filter(|entry| entry.transport_authorized)
     {
+        if reservation.native_cost_required && reservation.reported_api_cost_usd.is_none() {
+            gaps.push(format!(
+                "reasoning-budget-cost-unknown:{}",
+                reservation.call_id
+            ));
+        }
         match &reservation.usage {
             Some(usage) => {
                 if usage.input_tokens.is_none()
@@ -1504,6 +1546,8 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             retry,
             transport_authorized: true,
             usage: None,
+            native_cost_required: false,
+            reported_api_cost_usd: None,
         },
     );
     save_state(run_dir, &state)?;
@@ -1514,12 +1558,79 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
 }
 
 /// Idempotently reconcile one trusted provider receipt. Conflicting receipts
-/// are errors. Unknown actuals retain admission charge; overruns are recorded
-/// & prohibit further transport without erasing any findings/receipts.
+/// are errors. Unknown actuals retain admission charge; unknowns & overruns
+/// prohibit further transport without erasing any findings/receipts.
 pub fn reconcile_usage(run_dir: &Path, receipt: &UsageReceipt) -> Result<Value, AuditError> {
+    reconcile_usage_inner(run_dir, receipt, false, None)
+}
+
+/// Native invocations require exact provider-reported cost before another call.
+pub(crate) fn reconcile_native_usage(
+    run_dir: &Path,
+    receipt: &UsageReceipt,
+    reported_cost: Option<&str>,
+) -> Result<Value, AuditError> {
+    reconcile_usage_inner(run_dir, receipt, true, reported_cost)
+}
+
+/// A restarted native controller must not spend after an interrupted call or
+/// an older receipt that cannot establish exact usage/cost. Generic hosts may
+/// still reserve parallel calls; this check runs only at native startup.
+pub(crate) fn enforce_native_accounting(run_dir: &Path) -> Result<(), AuditError> {
     let _lock = StateLock::acquire(run_dir)?;
     let loaded = load(run_dir)?;
     let mut state = load_state(run_dir, &loaded.dispatch_digest)?;
+    if state.terminal_status.is_none() && state.issuances > state.reservations.len() as u64 {
+        state.terminal_status = Some("incomplete:usage-unknown".into());
+        save_state(run_dir, &state)?;
+    }
+    if state.terminal_status.is_none() {
+        for entry in state
+            .reservations
+            .values()
+            .filter(|entry| entry.transport_authorized)
+        {
+            let status = match &entry.usage {
+                None => Some("incomplete:usage-unknown"),
+                Some(usage)
+                    if usage.input_tokens.is_none()
+                        || usage.output_tokens.is_none()
+                        || usage.cached_input_tokens.is_none()
+                        || usage.retry_tokens.is_none() =>
+                {
+                    Some("incomplete:usage-unknown")
+                }
+                Some(_)
+                    if entry
+                        .reported_api_cost_usd
+                        .as_deref()
+                        .and_then(crate::review_runtime::cost::normalize)
+                        .is_none() =>
+                {
+                    Some("incomplete:cost-unknown")
+                }
+                Some(_) => None,
+            };
+            if let Some(status) = status {
+                state.terminal_status = Some(status.into());
+                save_state(run_dir, &state)?;
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reconcile_usage_inner(
+    run_dir: &Path,
+    receipt: &UsageReceipt,
+    cost_required: bool,
+    reported_cost: Option<&str>,
+) -> Result<Value, AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    let mut state = load_state(run_dir, &loaded.dispatch_digest)?;
+    let reported_cost = reported_cost.and_then(crate::review_runtime::cost::normalize);
     if receipt.receipt_id.trim().is_empty() {
         return Err(invalid("usage receipt ID missing"));
     }
@@ -1548,7 +1659,10 @@ pub fn reconcile_usage(run_dir: &Path, receipt: &UsageReceipt) -> Result<Value, 
         return Err(invalid("usage has no transport authorization"));
     }
     if let Some(existing) = &entry.usage {
-        if existing != receipt {
+        if existing != receipt
+            || (cost_required
+                && (!entry.native_cost_required || entry.reported_api_cost_usd != reported_cost))
+        {
             return Err(invalid("conflicting usage receipt for reservation"));
         }
         return Ok(
@@ -1567,10 +1681,23 @@ pub fn reconcile_usage(run_dir: &Path, receipt: &UsageReceipt) -> Result<Value, 
         .saturating_sub(entry.output_token_limit);
     let tier = entry.tier.clone();
     entry.usage = Some(receipt.clone());
+    entry.native_cost_required = cost_required;
+    entry.reported_api_cost_usd = reported_cost;
+    let cost_unknown = cost_required && entry.reported_api_cost_usd.is_none();
     if extra > 0 || output_excess > 0 {
         let spent = state.spent.entry(tier).or_insert(0);
         *spent = spent.saturating_add(extra);
         state.terminal_status = Some("incomplete:budget-overrun".to_owned());
+    } else if state.terminal_status.is_none() {
+        if receipt.input_tokens.is_none()
+            || receipt.output_tokens.is_none()
+            || receipt.cached_input_tokens.is_none()
+            || receipt.retry_tokens.is_none()
+        {
+            state.terminal_status = Some("incomplete:usage-unknown".to_owned());
+        } else if cost_unknown {
+            state.terminal_status = Some("incomplete:cost-unknown".to_owned());
+        }
     }
     save_state(run_dir, &state)?;
     Ok(json!({"status": "reconciled", "idempotent": false, "budget": budget_summary(&state)}))
@@ -2670,6 +2797,27 @@ mod tests {
         let summary = reconcile_usage(&run, &receipt).unwrap();
         assert_eq!(summary["budget"]["actual"]["status"], "unknown");
         assert!(summary["budget"]["actual"]["inputTokens"].is_null());
+        assert_eq!(
+            summary["budget"]["terminalStatus"],
+            "incomplete:usage-unknown"
+        );
+        assert_eq!(
+            reserve_call(&run, &call("second")).unwrap()["authorized"],
+            false
+        );
+        assert_eq!(
+            next(
+                &run,
+                &NextOptions {
+                    now_ms: 100,
+                    lease_ms: 1
+                }
+            )
+            .unwrap()["status"],
+            "incomplete:usage-unknown"
+        );
+        let _ = fs::remove_dir_all(&run);
+        let run = budget_run("overrun", 100);
         let second = reserve_call(&run, &call("second")).unwrap();
         receipt.reservation_id = second["reservationId"].as_str().unwrap().into();
         receipt.receipt_id = "receipt-2".into();
@@ -2682,6 +2830,85 @@ mod tests {
             reserve_call(&run, &call("third")).unwrap()["authorized"],
             false
         );
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn native_cost_is_exact_idempotent_and_unknown_cost_is_terminal() {
+        let run = budget_run("native-cost", 100);
+        let first = reserve_call(&run, &call("first")).unwrap();
+        let mut receipt = UsageReceipt {
+            reservation_id: first["reservationId"].as_str().unwrap().into(),
+            receipt_id: "cost-1".into(),
+            input_tokens: Some(5),
+            output_tokens: Some(3),
+            cached_input_tokens: Some(0),
+            retry_tokens: Some(0),
+            failed: false,
+        };
+        let result = reconcile_native_usage(&run, &receipt, Some("0.1")).unwrap();
+        assert_eq!(
+            result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+            "0.1"
+        );
+        assert_eq!(
+            reconcile_native_usage(&run, &receipt, Some("0.10")).unwrap()["idempotent"],
+            true
+        );
+        assert!(reconcile_native_usage(&run, &receipt, Some("0.2")).is_err());
+        let second = reserve_call(&run, &call("second")).unwrap();
+        receipt.reservation_id = second["reservationId"].as_str().unwrap().into();
+        receipt.receipt_id = "cost-2".into();
+        let result = reconcile_native_usage(&run, &receipt, Some("0.2")).unwrap();
+        assert_eq!(
+            result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+            "0.3"
+        );
+        assert!(result["budget"]["cost"]["invoiceChargeUsd"].is_null());
+        let third = reserve_call(&run, &call("third")).unwrap();
+        receipt.reservation_id = third["reservationId"].as_str().unwrap().into();
+        receipt.receipt_id = "cost-3".into();
+        let result = reconcile_native_usage(&run, &receipt, Some("-1")).unwrap();
+        assert_eq!(result["budget"]["cost"]["status"], "unknown");
+        assert!(result["budget"]["cost"]["reportedApiEquivalentCostUsd"].is_null());
+        assert_eq!(
+            result["budget"]["cost"]["knownReportedApiEquivalentSubtotalUsd"],
+            "0.3"
+        );
+        assert_eq!(
+            result["budget"]["terminalStatus"],
+            "incomplete:cost-unknown"
+        );
+        assert_eq!(
+            reserve_call(&run, &call("retry")).unwrap()["authorized"],
+            false
+        );
+        enforce_native_accounting(&run).unwrap();
+        assert_eq!(
+            reserve_call(&run, &call("followup")).unwrap()["authorized"],
+            false
+        );
+        let report = persisted_budget_report(&run).unwrap().unwrap();
+        assert!(report["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|gap| gap.as_str().unwrap().contains("cost-unknown")));
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn native_resume_stops_after_authorized_call_without_receipt() {
+        let run = budget_run("native-interrupted", 100);
+        reserve_call(&run, &call("interrupted")).unwrap();
+        enforce_native_accounting(&run).unwrap();
+        let denied = reserve_call(&run, &call("resumed")).unwrap();
+        assert_eq!(denied["authorized"], false);
+        assert_eq!(
+            denied["budget"]["terminalStatus"],
+            "incomplete:usage-unknown"
+        );
+        assert!(denied["budget"]["cost"]["reportedApiEquivalentCostUsd"].is_null());
         let _ = fs::remove_dir_all(run);
     }
 

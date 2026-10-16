@@ -198,6 +198,8 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "error",
         "usage",
         "rawUsage",
+        "reportedApiEquivalentCostUsd",
+        "invoiceChargeUsd",
         "physicalRequestDigest",
         "physicalRequestBytes",
     ];
@@ -207,6 +209,22 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
     {
         return Err(invalid(
             "runtime call contains unbounded observation fields",
+        ));
+    }
+    if observation
+        .get("reportedApiEquivalentCostUsd")
+        .is_some_and(|cost| {
+            !cost.is_null()
+                && !cost.as_str().is_some_and(|value| {
+                    crate::review_runtime::cost::normalize(value).as_deref() == Some(value)
+                })
+        })
+        || observation
+            .get("invoiceChargeUsd")
+            .is_some_and(|cost| !cost.is_null())
+    {
+        return Err(invalid(
+            "runtime call cost must be bounded canonical USD or unknown",
         ));
     }
     if receipt
@@ -5596,6 +5614,42 @@ mod runtime_evidence_tests {
         assert!(mint_runtime_call(&run, &raw).is_err());
         let _ = fs::remove_dir_all(run);
         let _ = fs::remove_dir_all(other_run);
+    }
+
+    #[test]
+    fn runtime_call_cost_fields_are_bounded_authenticated_and_preserve_unknown() {
+        let (run, _) = setup();
+        let mut receipt = call_fixture(&run);
+        receipt["observation"]["reportedApiEquivalentCostUsd"] = json!("0.1234567890123456789");
+        receipt["observation"]["invoiceChargeUsd"] = Value::Null;
+        let minted = mint_runtime_call(&run, &receipt).unwrap();
+        let verified = verify_runtime_call(&run, &minted).unwrap();
+        assert_eq!(
+            verified["observation"]["reportedApiEquivalentCostUsd"],
+            "0.1234567890123456789"
+        );
+        assert!(verified["observation"]["invoiceChargeUsd"].is_null());
+        let mut changed = minted;
+        changed["observation"]["reportedApiEquivalentCostUsd"] = json!("0");
+        assert!(verify_runtime_call(&run, &changed).is_err());
+        for invalid_cost in [
+            json!(0.1),
+            json!("-1"),
+            json!("NaN"),
+            json!("0.10"),
+            json!("1".repeat(129)),
+        ] {
+            receipt["observation"]["reportedApiEquivalentCostUsd"] = invalid_cost;
+            assert!(mint_runtime_call(&run, &receipt).is_err());
+        }
+        receipt["observation"]["reportedApiEquivalentCostUsd"] = Value::Null;
+        let unknown = mint_runtime_call(&run, &receipt).unwrap();
+        assert!(verify_runtime_call(&run, &unknown).unwrap()["observation"]
+            ["reportedApiEquivalentCostUsd"]
+            .is_null());
+        receipt["observation"]["invoiceChargeUsd"] = json!("0");
+        assert!(mint_runtime_call(&run, &receipt).is_err());
+        let _ = fs::remove_dir_all(run);
     }
 
     fn delivery(request: &ReasoningInvocation) -> Value {

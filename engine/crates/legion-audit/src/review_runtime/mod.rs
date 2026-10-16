@@ -1,6 +1,7 @@
 //! Controlled Audit reviewer: frozen source, host-owned tools & budgeted native calls.
 //! Native Claude supplies structured data only; host owns all effects & receipts.
 mod batch;
+pub(crate) mod cost;
 mod native;
 mod partial;
 mod tools;
@@ -300,7 +301,11 @@ impl Controller<'_> {
         }
         observation.request_bytes = bytes;
         observation.request_digest = digest(&rendered)?;
-        let settled = next::reconcile_usage(budget_run, &observation.usage)?;
+        let settled = next::reconcile_native_usage(
+            budget_run,
+            &observation.usage,
+            observation.reported_api_cost_usd.as_deref(),
+        )?;
         let receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":native::observation_value(&observation),"modelAction":native::action_diagnostic(&observation),"budget":settled});
         let authenticated = ingest::mint_runtime_call(self.run, &receipt)?;
         persist(
@@ -499,6 +504,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     }
     let run = fs::canonicalize(run_dir).map_err(|error| invalid(error.to_string()))?;
     let _guard = lock(&run)?;
+    next::enforce_native_accounting(options.budget_run.as_deref().unwrap_or(&run))?;
     let plan = read_json(&run.join("plan.json"))?;
     let snapshot = prepared_snapshot(&run, &plan)?;
     let cwd = run.join("runtime-host");

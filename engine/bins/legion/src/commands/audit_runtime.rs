@@ -110,6 +110,14 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
         output["status"] = json!("incomplete:required-evidence");
     }
     output["followup"] = variant;
+    // Follow-up transports spend against this parent ledger. Read final
+    // reconciled claims rather than retaining pre-follow-up runtime totals.
+    output["budget"] = reconciled
+        .report
+        .claims
+        .get("reasoningBudget")
+        .cloned()
+        .unwrap_or(Value::Null);
     output["report"] = json!(run.join("report.json"));
     output["reportStatus"] = json!(reconciled.report.status);
     output["gaps"] = json!(reconciled.report.gaps);

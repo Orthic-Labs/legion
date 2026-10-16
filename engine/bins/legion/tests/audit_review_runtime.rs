@@ -185,6 +185,14 @@ fn simulate_native(args: &[String]) {
     if !(reviewer && prompt_text.contains("runtime-simulation:missing-usage")) {
         terminal["usage"] = json!({"input_tokens":100,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"output_tokens":20});
     }
+    if !(reviewer && prompt_text.contains("runtime-simulation:missing-cost")) {
+        terminal["total_cost_usd"] =
+            if reviewer && prompt_text.contains("runtime-simulation:invalid-cost") {
+                json!(-0.1)
+            } else {
+                json!(0.0125)
+            };
+    }
     println!("{terminal}");
     std::io::stdout().flush().unwrap();
 }
@@ -441,6 +449,16 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert_eq!(result["status"], "done");
     assert_eq!(result["calls"], 2);
     assert_eq!(result["callAttempts"], 2);
+    assert_eq!(
+        result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
+        "0.025"
+    );
+    assert_eq!(result["budget"]["cost"]["invoiceChargeStatus"], "unknown");
+    assert!(result["budget"]["cost"]["invoiceChargeUsd"].is_null());
+    assert_eq!(
+        report["claims"]["reasoningBudget"]["cost"],
+        result["budget"]["cost"]
+    );
     assert_eq!(report["status"], "clean");
     assert!(report["gaps"].as_array().unwrap().is_empty());
     assert!(fixture
@@ -482,6 +500,19 @@ fn completes_with_eager_selected_skeleton_source_in_one_call() {
     )
     .unwrap();
     assert_eq!(receipt["modelAction"]["kind"], "finalResult");
+    assert_eq!(
+        receipt["observation"]["reportedApiEquivalentCostUsd"],
+        "0.0125"
+    );
+    let mut changed_cost = receipts[0].clone();
+    changed_cost["observation"]["reportedApiEquivalentCostUsd"] = json!("0");
+    assert!(
+        legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+            &fixture.run,
+            &changed_cost,
+        )
+        .is_err()
+    );
     assert_eq!(receipt["requestAccounting"]["nativeFramingIncluded"], false);
     assert!(receipt["requestAccounting"]["providerInputTokenCountBeforeSend"].is_null());
     assert!(receipt["initialContext"].to_string().contains(SOURCE_LINE));
@@ -528,7 +559,7 @@ fn preserves_finding_after_fresh_verifier_success() {
     );
 }
 fn refusal_and_missing_usage_remain_incomplete() {
-    for mode in ["refusal", "missing-usage"] {
+    for mode in ["refusal", "missing-usage", "missing-cost", "invalid-cost"] {
         let fixture = Fixture::new(mode);
         let (output, result, report) = fixture.run();
         assert_eq!(output.status.code(), Some(2), "simulation {mode}:{result}");
@@ -541,6 +572,14 @@ fn refusal_and_missing_usage_remain_incomplete() {
             "paid finding lost:{report}"
         );
         assert_eq!(fixture.calls().len(), 2);
+        let receipts = fs::read_dir(fixture.run.join("runtime-calls"))
+            .unwrap()
+            .map(|entry| read_json(&entry.unwrap().path()))
+            .collect::<Vec<_>>();
+        assert!(receipts.iter().any(|receipt| receipt
+            .pointer("/observation/reportedApiEquivalentCostUsd")
+            .and_then(Value::as_str)
+            == Some("0.0125")));
         if mode == "missing-usage" {
             let state = read_json(&fixture.run.join("next-state.json"));
             assert!(
@@ -551,6 +590,27 @@ fn refusal_and_missing_usage_remain_incomplete() {
                     .any(|reservation| reservation.pointer("/usage/inputTokens")
                         == Some(&Value::Null))
             );
+        }
+        if mode != "refusal" {
+            let state = read_json(&fixture.run.join("next-state.json"));
+            let expected = if mode == "missing-usage" {
+                "incomplete:usage-unknown"
+            } else {
+                "incomplete:cost-unknown"
+            };
+            assert_eq!(state["terminalStatus"], expected);
+            if mode != "missing-usage" {
+                assert_eq!(result["budget"]["cost"]["status"], "unknown");
+                assert!(result["budget"]["cost"]["reportedApiEquivalentCostUsd"].is_null());
+                assert_eq!(
+                    result["budget"]["cost"]["knownReportedApiEquivalentSubtotalUsd"],
+                    "0.0125"
+                );
+            }
+            let (resumed_output, resumed, _) = fixture.run();
+            assert_eq!(resumed_output.status.code(), Some(2));
+            assert_eq!(resumed["calls"], 0);
+            assert_eq!(fixture.calls().len(), 2, "resume spent after {mode}");
         }
     }
 }

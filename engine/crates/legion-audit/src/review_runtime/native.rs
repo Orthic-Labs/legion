@@ -41,6 +41,7 @@ pub struct Observation {
     pub reply: Option<Value>,
     pub usage: UsageReceipt,
     pub raw_usage: Option<Value>,
+    pub reported_api_cost_usd: Option<String>,
     pub sent: bool,
     pub error: Option<String>,
     pub response_digest: String,
@@ -230,6 +231,7 @@ pub fn invoke(
         reply: None,
         usage: usage.clone(),
         raw_usage: None,
+        reported_api_cost_usd: None,
         sent: false,
         error: None,
         response_digest: String::new(),
@@ -332,6 +334,38 @@ pub fn invoke(
     observation
 }
 
+fn capture_accounting(
+    raw: &Value,
+    line: &str,
+    observation: &mut Observation,
+    usage: &mut UsageReceipt,
+) {
+    observation.reported_api_cost_usd = super::cost::native_root_cost(line);
+    if let Some(value) = raw.get("usage") {
+        // Native final event is cumulative within this fresh one-turn
+        // process; never add assistant snapshots or default absent to0.
+        let count = |key: &str| value.get(key).and_then(Value::as_u64);
+        let ordinary = count("input_tokens");
+        let cache_read = count("cache_read_input_tokens");
+        let cache_create = count("cache_creation_input_tokens");
+        usage.input_tokens = match (ordinary, cache_read, cache_create) {
+            (Some(input), Some(read), Some(create)) => {
+                input.checked_add(read).and_then(|n| n.checked_add(create))
+            }
+            _ => None,
+        };
+        usage.cached_input_tokens = cache_read;
+        usage.output_tokens = count("output_tokens");
+        // Final native usage is cumulative for this fresh process. This
+        // field counts only ADDITIONAL spend absent from that total, not
+        // retry attribution (which native transport does not report).
+        if usage.input_tokens.is_some() && usage.output_tokens.is_some() {
+            usage.retry_tokens = Some(0);
+        }
+        observation.raw_usage = Some(value.clone());
+    }
+}
+
 fn decode_stream(
     bytes: &[u8],
     observation: &mut Observation,
@@ -346,6 +380,10 @@ fn decode_stream(
         .filter(|line| !line.trim().is_empty())
     {
         let raw: Value = serde_json::from_str(line).map_err(|error| error.to_string())?;
+        if raw.get("type").and_then(Value::as_str) == Some("result") {
+            // Retain paid accounting even if later parser/protocol data fails.
+            capture_accounting(&raw, line, observation, usage);
+        }
         let events = parser.parse_line(line).map_err(|error| error.to_string())?;
         for event in events {
             match event {
@@ -379,29 +417,6 @@ fn decode_stream(
         }
     }
     if let Some(raw) = terminal {
-        if let Some(value) = raw.get("usage") {
-            // Native final event is cumulative within this fresh one-turn
-            // process; never add assistant snapshots or default absent to0.
-            let count = |key: &str| value.get(key).and_then(Value::as_u64);
-            let ordinary = count("input_tokens");
-            let cache_read = count("cache_read_input_tokens");
-            let cache_create = count("cache_creation_input_tokens");
-            usage.input_tokens = match (ordinary, cache_read, cache_create) {
-                (Some(input), Some(read), Some(create)) => {
-                    input.checked_add(read).and_then(|n| n.checked_add(create))
-                }
-                _ => None,
-            };
-            usage.cached_input_tokens = cache_read;
-            usage.output_tokens = count("output_tokens");
-            // Final native usage is cumulative for this fresh process. This
-            // field counts only ADDITIONAL spend absent from that total, not
-            // retry attribution (which native transport does not report).
-            if usage.input_tokens.is_some() && usage.output_tokens.is_some() {
-                usage.retry_tokens = Some(0);
-            }
-            observation.raw_usage = Some(value.clone());
-        }
         if raw.get("is_error").and_then(Value::as_bool) == Some(true) {
             return Err("native result failed/refused; raw usage retained".into());
         }
@@ -514,7 +529,7 @@ fn creation_time_value(time: Option<SystemTime>) -> Value {
         .unwrap_or(Value::Null)
 }
 pub fn observation_value(observation: &Observation) -> Value {
-    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
+    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes})
 }
 
 // Keep only the decision needed to diagnose another paid turn. Finding bodies
@@ -641,6 +656,7 @@ mod tests {
                 reply: None,
                 usage: usage.clone(),
                 raw_usage: None,
+                reported_api_cost_usd: None,
                 sent: true,
                 error: None,
                 response_digest: String::new(),
@@ -699,10 +715,14 @@ mod tests {
     #[test]
     fn native_refusal_retains_observed_provider_usage() {
         let (mut observation, mut usage) = empty();
-        let fixture = r#"{"type":"result","subtype":"error_during_execution","is_error":true,"usage":{"input_tokens":7,"cache_read_input_tokens":2,"cache_creation_input_tokens":1,"output_tokens":3}}"#;
+        let fixture = r#"{"type":"result","subtype":"error_during_execution","is_error":true,"total_cost_usd":0.1234567890123456789,"usage":{"input_tokens":7,"cache_read_input_tokens":2,"cache_creation_input_tokens":1,"output_tokens":3}}"#;
         assert!(decode_stream(fixture.as_bytes(), &mut observation, &mut usage).is_err());
         assert_eq!(usage.input_tokens, Some(10));
         assert_eq!(usage.output_tokens, Some(3));
+        assert_eq!(
+            observation.reported_api_cost_usd.as_deref(),
+            Some("0.1234567890123456789")
+        );
         assert!(usage.failed);
     }
     #[test]
@@ -714,6 +734,18 @@ mod tests {
             r#"{"type":"result","subtype":"success","is_error":false,"structured_output":{"finalResult":{}}}"#
         );
         assert!(decode_stream(fixture.as_bytes(), &mut observation, &mut usage).is_err());
+    }
+    #[test]
+    fn native_accounting_survives_later_malformed_protocol_data() {
+        let (mut observation, mut usage) = empty();
+        let fixture = concat!(
+            r#"{"type":"result","is_error":false,"total_cost_usd":0.125,"usage":{"input_tokens":7,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"output_tokens":3}}"#,
+            "\nmalformed"
+        );
+        assert!(decode_stream(fixture.as_bytes(), &mut observation, &mut usage).is_err());
+        assert_eq!(observation.reported_api_cost_usd.as_deref(), Some("0.125"));
+        assert_eq!(usage.input_tokens, Some(7));
+        assert_eq!(usage.output_tokens, Some(3));
     }
     #[test]
     fn data_only_native_structured_output_is_allowed_but_bash_is_not() {
