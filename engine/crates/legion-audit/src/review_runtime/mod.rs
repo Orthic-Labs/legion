@@ -160,11 +160,12 @@ fn review_prompt(
     Ok(prompt)
 }
 
-/// Reuse verified immutable manifests while sizing one frozen dispatch. Reads
-/// still validate source digests; no cache escapes this planning operation.
+/// Share cold snapshot verification across independent provider/dispatch sizers.
+/// Every admission rechecks sealed structure; reads still validate source digests.
 #[derive(Default)]
 pub(crate) struct InitialRequestSizer {
-    snapshots: std::collections::BTreeMap<String, (FrozenSnapshot, tools::ContextTools)>,
+    snapshots:
+        std::collections::BTreeMap<String, (std::sync::Arc<FrozenSnapshot>, tools::ContextTools)>,
 }
 
 impl InitialRequestSizer {
@@ -180,9 +181,13 @@ impl InitialRequestSizer {
         else {
             return Ok(());
         };
-        if !self.snapshots.contains_key(manifest) {
-            let snapshot = FrozenSnapshot::open(Path::new(manifest))?;
-            let tools = tools::ContextTools::new(snapshot.clone()).map_err(invalid)?;
+        // Re-admit even when this sizer already has tools: cached tools are not
+        // authority to ignore later manifest, marker, root or inventory drift.
+        let snapshot = FrozenSnapshot::verified_reader(Path::new(manifest))?;
+        if self.snapshots.get(manifest).map_or(true, |(cached, _)| {
+            !std::sync::Arc::ptr_eq(cached, &snapshot)
+        }) {
+            let tools = tools::ContextTools::new(snapshot.as_ref().clone()).map_err(invalid)?;
             self.snapshots
                 .insert(manifest.to_owned(), (snapshot, tools));
         }
@@ -1148,6 +1153,72 @@ mod tests {
         let mut more_source = prompt;
         more_source["source"] = json!(more_source["source"].as_str().unwrap().to_owned() + "extra");
         assert!(model_visible_input_bytes(&more_source, SYSTEM, &schema).unwrap() > model_bytes);
+    }
+    #[test]
+    fn independent_provider_and_dispatch_sizers_share_cold_snapshot_verification() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let before = crate::snapshot::full_verification_count(&snapshot.manifest_path);
+        for provider in ["reasoning.naming", "reasoning.correctness"] {
+            let mut work = estimate_work(provider, provider, "source");
+            work.request.packet["reviewContext"] = json!({
+                "snapshotManifest": snapshot.manifest_path,
+                "snapshotKey": snapshot.manifest.key,
+            });
+            let mut provider_sizer = InitialRequestSizer::default();
+            provider_sizer
+                .request_bytes(std::slice::from_ref(&work))
+                .unwrap();
+            provider_sizer
+                .request_bytes(std::slice::from_ref(&work))
+                .unwrap();
+            // Dispatch uses another independently constructed sizer.
+            initial_seat_request_bytes(std::slice::from_ref(&work)).unwrap();
+        }
+        assert_eq!(
+            crate::snapshot::full_verification_count(&snapshot.manifest_path) - before,
+            1
+        );
+    }
+    #[test]
+    fn warm_sizer_still_rejects_packet_snapshot_key_mismatch() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let mut work = estimate_work("reasoning.naming", "naming", "source");
+        work.request.packet["reviewContext"] = json!({
+            "snapshotManifest": snapshot.manifest_path,
+            "snapshotKey": snapshot.manifest.key,
+        });
+        let mut sizer = InitialRequestSizer::default();
+        sizer.request_bytes(std::slice::from_ref(&work)).unwrap();
+        work.request.packet["reviewContext"]["snapshotKey"] = json!("sha256:wrong");
+        assert!(sizer
+            .request_bytes(&[work])
+            .unwrap_err()
+            .to_string()
+            .contains("initial context snapshot differs from frozen packet"));
+    }
+    #[test]
+    fn warm_sizer_readmits_manifest_before_reusing_context_tools() {
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let mut work = estimate_work("reasoning.naming", "naming", "source");
+        work.request.packet["reviewContext"] = json!({
+            "snapshotManifest": snapshot.manifest_path,
+            "snapshotKey": snapshot.manifest.key,
+        });
+        let mut sizer = InitialRequestSizer::default();
+        sizer.request_bytes(std::slice::from_ref(&work)).unwrap();
+        let mut permissions = fs::metadata(&snapshot.manifest_path).unwrap().permissions();
+        permissions.set_readonly(false);
+        fs::set_permissions(&snapshot.manifest_path, permissions).unwrap();
+        let mut bytes = fs::read(&snapshot.manifest_path).unwrap();
+        bytes.push(b'\n');
+        fs::write(&snapshot.manifest_path, bytes).unwrap();
+        assert!(matches!(
+            sizer.request_bytes(&[work]),
+            Err(AuditError::SourceDrift(_))
+        ));
     }
     #[test]
     fn signed_packet_finding_schema_is_sent_once_without_packet_mutation() {

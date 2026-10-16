@@ -67,6 +67,85 @@ pub struct FrozenSnapshot {
     pub manifest: SnapshotManifest,
     pub manifest_path: PathBuf,
 }
+/// Retain no-reparse directory pins for the cache lifetime. Windows pins also
+/// deny directory replacement; Unix permits rename, so compare device/inode.
+struct ReaderBinding {
+    _pins: Vec<StateDir>,
+    #[cfg(unix)]
+    identities: Vec<(u64, u64)>,
+    #[cfg(unix)]
+    _identity_pins: Vec<std::fs::File>,
+}
+impl ReaderBinding {
+    fn pin(snapshot: &FrozenSnapshot) -> Result<Self, AuditError> {
+        let parent = snapshot
+            .manifest_path
+            .parent()
+            .ok_or_else(|| invalid("snapshot parent missing"))?;
+        let mut pins = Vec::new();
+        #[cfg(unix)]
+        let mut identities = Vec::new();
+        #[cfg(unix)]
+        let mut identity_pins = Vec::new();
+        for root in [
+            parent,
+            snapshot.manifest.execution_root.as_path(),
+            snapshot.manifest.baseline_root.as_path(),
+        ] {
+            pins.push(StateDir::open(root).map_err(io)?);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                let file = std::fs::File::open(root).map_err(io)?;
+                let pinned = file.metadata().map_err(io)?;
+                let metadata = std::fs::symlink_metadata(root).map_err(io)?;
+                if !metadata.is_dir()
+                    || !pinned.is_dir()
+                    || (metadata.dev(), metadata.ino()) != (pinned.dev(), pinned.ino())
+                {
+                    return Err(invalid("snapshot root identity changed while pinning"));
+                }
+                identities.push((pinned.dev(), pinned.ino()));
+                identity_pins.push(file);
+            }
+        }
+        #[cfg(not(any(unix, windows)))]
+        return Err(invalid("snapshot reader root identity unavailable"));
+        #[cfg(any(unix, windows))]
+        Ok(Self {
+            _pins: pins,
+            #[cfg(unix)]
+            identities,
+            #[cfg(unix)]
+            _identity_pins: identity_pins,
+        })
+    }
+    fn validate(&self, snapshot: &FrozenSnapshot) -> Result<(), AuditError> {
+        let current = Self::pin(snapshot)?;
+        #[cfg(unix)]
+        if current.identities != self.identities {
+            return Err(AuditError::SourceDrift(
+                "snapshot root identity changed".into(),
+            ));
+        }
+        let _ = current;
+        Ok(())
+    }
+}
+struct VerifiedReader {
+    snapshot: std::sync::Arc<FrozenSnapshot>,
+    manifest_bytes: Vec<u8>,
+    binding: ReaderBinding,
+}
+#[cfg(test)]
+thread_local! {
+    static FULL_VERIFICATIONS: std::cell::RefCell<BTreeMap<PathBuf, usize>> =
+        std::cell::RefCell::new(BTreeMap::new());
+}
+#[cfg(test)]
+pub(crate) fn full_verification_count(path: &Path) -> usize {
+    FULL_VERIFICATIONS.with(|counts| counts.borrow().get(path).copied().unwrap_or(0))
+}
 /// Windows canonical paths use a verbatim prefix even when the owner state
 /// locator used drive syntax. Resolve that spelling through the filesystem only
 /// after a no-reparse pin; keep it alive so Windows cannot swap any ancestor.
@@ -379,35 +458,66 @@ impl FrozenSnapshot {
         std::fs::set_permissions(&snapshot.manifest_path, permissions).map_err(io)?;
         Ok(snapshot)
     }
-    /// Pin one verified immutable manifest per execution root. Cached identity
-    /// never follows later manifest edits; every requested byte still hashes.
-    pub fn for_execution_root(root: &Path) -> Result<std::sync::Arc<Self>, AuditError> {
+    /// Reuse cold verification, never source bytes. Each admission rechecks the
+    /// exact sealed manifest, markers, roots & inventory; consumed bytes hash.
+    pub(crate) fn verified_reader(
+        manifest_path: &Path,
+    ) -> Result<std::sync::Arc<Self>, AuditError> {
         use std::sync::{Arc, Mutex, OnceLock};
-        static PINNED: OnceLock<Mutex<BTreeMap<PathBuf, Arc<FrozenSnapshot>>>> = OnceLock::new();
+        static PINNED: OnceLock<Mutex<BTreeMap<PathBuf, VerifiedReader>>> = OnceLock::new();
         let cache = PINNED.get_or_init(|| Mutex::new(BTreeMap::new()));
         let mut cache = cache
             .lock()
             .map_err(|_| invalid("snapshot reader lock poisoned"))?;
-        if let Some(snapshot) = cache.get(root) {
-            return Ok(snapshot.clone());
+        let (snapshot, manifest_bytes) = Self::load_manifest(manifest_path)?;
+        let locator = snapshot.manifest_path.clone();
+        if let Some(reader) = cache.get(&locator) {
+            if reader.manifest_bytes != manifest_bytes {
+                return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
+            }
+            reader.binding.validate(&snapshot)?;
+            snapshot.verify_structure()?;
+            reader.binding.validate(&snapshot)?;
+            return Ok(reader.snapshot.clone());
         }
+        let binding = ReaderBinding::pin(&snapshot)?;
+        snapshot.verify()?;
+        binding.validate(&snapshot)?;
+        // Do not admit a manifest that changed while cold verification ran.
+        if Self::load_manifest(manifest_path)?.1 != manifest_bytes {
+            return Err(AuditError::SourceDrift("snapshot manifest changed".into()));
+        }
+        snapshot.verify_structure()?;
+        binding.validate(&snapshot)?;
+        let snapshot = Arc::new(snapshot);
+        if cache.len() >= 32 {
+            if let Some(oldest) = cache.keys().next().cloned() {
+                cache.remove(&oldest);
+            }
+        }
+        cache.insert(
+            locator,
+            VerifiedReader {
+                snapshot: snapshot.clone(),
+                manifest_bytes,
+                binding,
+            },
+        );
+        Ok(snapshot)
+    }
+    /// Resolve both selected & baseline readers through the same sealed entry.
+    pub fn for_execution_root(root: &Path) -> Result<std::sync::Arc<Self>, AuditError> {
         let manifest = root
             .parent()
             .ok_or_else(|| invalid("snapshot root parent missing"))?
             .join("manifest.json");
-        let snapshot = Arc::new(Self::open(&manifest)?);
+        let snapshot = Self::verified_reader(&manifest)?;
         let root_location = directory_location(root)?;
         if directory_location(&snapshot.manifest.execution_root)? != root_location
             && directory_location(&snapshot.manifest.baseline_root)? != root_location
         {
             return Err(invalid("execution root is not bound to snapshot"));
         }
-        if cache.len() >= 32 {
-            if let Some(oldest) = cache.keys().next().cloned() {
-                cache.remove(&oldest);
-            }
-        }
-        cache.insert(root.into(), snapshot.clone());
         Ok(snapshot)
     }
     pub fn source_for_root(
@@ -448,6 +558,11 @@ impl FrozenSnapshot {
         Ok(parent.join(name))
     }
     pub fn open(manifest_path: &Path) -> Result<Self, AuditError> {
+        let (snapshot, _) = Self::load_manifest(manifest_path)?;
+        snapshot.verify()?;
+        Ok(snapshot)
+    }
+    fn load_manifest(manifest_path: &Path) -> Result<(Self, Vec<u8>), AuditError> {
         let parent = manifest_path
             .parent()
             .ok_or_else(|| invalid("manifest parent missing"))?;
@@ -472,12 +587,32 @@ impl FrozenSnapshot {
         }
         let snapshot = Self {
             manifest,
-            manifest_path: manifest_path.into(),
+            manifest_path: parent_location.join(name),
         };
-        snapshot.verify()?;
-        Ok(snapshot)
+        Ok((snapshot, bytes))
     }
     pub fn verify(&self) -> Result<(), AuditError> {
+        #[cfg(test)]
+        FULL_VERIFICATIONS.with(|counts| {
+            *counts
+                .borrow_mut()
+                .entry(self.manifest_path.clone())
+                .or_default() += 1;
+        });
+        self.verify_structure()?;
+        for (side, files) in [
+            (SnapshotSide::Selected, &self.manifest.files),
+            (SnapshotSide::Base, &self.manifest.base_files),
+        ] {
+            for path in files.keys() {
+                self.read(path, side, MAX_FILE_BYTES)?;
+            }
+        }
+        Ok(())
+    }
+    /// Admission checks structure only. It is not fresh cryptographic proof of
+    /// unread source; read() always validates bytes before returning them.
+    fn verify_structure(&self) -> Result<(), AuditError> {
         let m = &self.manifest;
         let key = crate::digest(&(
             1u32,
@@ -511,12 +646,20 @@ impl FrozenSnapshot {
                 SnapshotSide::Base => &m.baseline_root,
             };
             let mut actual = BTreeSet::new();
+            let mut directories = BTreeSet::new();
+            let expected_directories: BTreeSet<_> = files
+                .keys()
+                .flat_map(|path| {
+                    path.match_indices('/')
+                        .map(|(index, _)| path[..index].to_owned())
+                })
+                .collect();
             for entry in walkdir::WalkDir::new(root).follow_links(false) {
                 let entry = entry.map_err(io)?;
-                if entry.depth() == 0 || entry.file_type().is_dir() {
+                if entry.depth() == 0 {
                     continue;
                 }
-                if !entry.file_type().is_file() {
+                if !entry.file_type().is_file() && !entry.file_type().is_dir() {
                     return Err(invalid("snapshot contains non-regular entry"));
                 }
                 let relative = entry
@@ -526,16 +669,24 @@ impl FrozenSnapshot {
                     .to_str()
                     .ok_or_else(|| invalid("snapshot path is not UTF-8"))?
                     .replace('\\', "/");
+                if entry.file_type().is_dir() {
+                    directories.insert(relative);
+                    continue;
+                }
                 if matches!(relative.as_str(), ".git" | ".legion-audit-snapshot") {
                     continue;
                 }
+                if let Some(file) = files.get(&relative) {
+                    if entry.metadata().map_err(io)?.len() != file.bytes as u64 {
+                        return Err(AuditError::SourceDrift(format!(
+                            "snapshot length changed:{relative}"
+                        )));
+                    }
+                }
                 actual.insert(relative);
             }
-            if actual != files.keys().cloned().collect() {
+            if actual != files.keys().cloned().collect() || directories != expected_directories {
                 return Err(invalid("snapshot path set differs from sealed manifest"));
-            }
-            for path in files.keys() {
-                self.read(path, side, MAX_FILE_BYTES)?;
             }
         }
         Ok(())
@@ -808,7 +959,7 @@ pub fn record_completed(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     #[test]
     fn completion_history_never_accepts_partial_or_malformed_reports() {
@@ -824,9 +975,9 @@ mod tests {
             crate::digest(&b"source\n".to_vec()).unwrap()
         );
     }
-    struct Fixture(PathBuf);
+    pub(crate) struct Fixture(PathBuf);
     impl Fixture {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             let mut nonce = [0u8; 8];
             getrandom::fill(&mut nonce).unwrap();
             let path =
@@ -857,7 +1008,7 @@ mod tests {
                 .unwrap()
                 .success());
         }
-        fn capture(&self, spec: scope::ScopeSpec) -> FrozenSnapshot {
+        pub(crate) fn capture(&self, spec: scope::ScopeSpec) -> FrozenSnapshot {
             FrozenSnapshot::capture(ResolvedScope::resolve(&self.0, spec, None).unwrap()).unwrap()
         }
     }
@@ -1105,5 +1256,165 @@ mod tests {
         std::fs::create_dir_all(fixture.0.join(".audit/state")).unwrap();
         std::fs::write(fixture.0.join(".audit/state/audited.jsonl"), b"broken\n").unwrap();
         assert!(read_last_completed(&fixture.0).is_err());
+    }
+    fn writable(path: &Path) {
+        let mut permissions = std::fs::metadata(path).unwrap().permissions();
+        permissions.set_readonly(false);
+        std::fs::set_permissions(path, permissions).unwrap();
+    }
+    fn replace_bytes(path: &Path, bytes: &[u8]) {
+        writable(path);
+        std::fs::write(path, bytes).unwrap();
+    }
+    #[test]
+    fn verified_reader_reuses_one_cold_verification_for_both_roots() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        let before = full_verification_count(&snapshot.manifest_path);
+        let reader = FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        for root in [
+            &snapshot.manifest.execution_root,
+            &snapshot.manifest.baseline_root,
+        ] {
+            let repeated = FrozenSnapshot::for_execution_root(root).unwrap();
+            assert!(std::sync::Arc::ptr_eq(&reader, &repeated));
+        }
+        assert_eq!(full_verification_count(&snapshot.manifest_path) - before, 1);
+    }
+    #[test]
+    fn cached_reader_checks_same_length_bytes_even_with_restored_mtime() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        let reader = FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        let path = snapshot.manifest.execution_root.join("file.rs");
+        let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
+        replace_bytes(&path, b"fake\n");
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().modified().unwrap(),
+            modified
+        );
+        // Admission proves structure, not unread bytes. Consumption must fail.
+        FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        assert!(matches!(
+            reader.read("file.rs", SnapshotSide::Selected, 100),
+            Err(AuditError::SourceDrift(_))
+        ));
+    }
+    #[test]
+    fn cached_reader_rejects_manifest_markers_inventory_and_lengths() {
+        let fixture = Fixture::new();
+        for mutation in [
+            "manifest",
+            "marker",
+            "git",
+            "added",
+            "directory",
+            "deleted",
+            "length",
+        ] {
+            let snapshot = fixture.capture(scope::ScopeSpec::Local);
+            FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+            let root = &snapshot.manifest.execution_root;
+            match mutation {
+                "manifest" => {
+                    let mut bytes = std::fs::read(&snapshot.manifest_path).unwrap();
+                    bytes.push(b'\n'); // Same parsed manifest/key, different sealed bytes.
+                    replace_bytes(&snapshot.manifest_path, &bytes);
+                }
+                "marker" => replace_bytes(&root.join(".legion-audit-snapshot"), b"2\n"),
+                "git" => replace_bytes(&root.join(".git"), b"changed\n"),
+                "added" => {
+                    writable(root);
+                    std::fs::write(root.join("extra.rs"), b"extra\n").unwrap();
+                }
+                "directory" => {
+                    writable(root);
+                    std::fs::create_dir(root.join("extra")).unwrap();
+                }
+                "deleted" => {
+                    writable(root);
+                    writable(&root.join("file.rs"));
+                    std::fs::remove_file(root.join("file.rs")).unwrap();
+                }
+                "length" => replace_bytes(&root.join("file.rs"), b"longer content\n"),
+                _ => unreachable!(),
+            }
+            assert!(
+                FrozenSnapshot::verified_reader(&snapshot.manifest_path).is_err(),
+                "{mutation}"
+            );
+        }
+    }
+    #[cfg(unix)]
+    #[test]
+    fn cached_reader_rejects_symlink_paths_and_root_replacement() {
+        let fixture = Fixture::new();
+        for mutation in ["symlink", "root", "manifest-symlink"] {
+            let snapshot = fixture.capture(scope::ScopeSpec::Local);
+            FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+            let root = &snapshot.manifest.execution_root;
+            match mutation {
+                "symlink" => {
+                    writable(root);
+                    std::fs::remove_file(root.join("file.rs")).unwrap();
+                    std::os::unix::fs::symlink(fixture.0.join("file.rs"), root.join("file.rs"))
+                        .unwrap();
+                }
+                "root" => {
+                    let renamed = root.with_file_name("selected-old");
+                    std::fs::rename(root, &renamed).unwrap();
+                    std::fs::create_dir(root).unwrap();
+                    for entry in std::fs::read_dir(&renamed).unwrap() {
+                        let entry = entry.unwrap();
+                        std::fs::copy(entry.path(), root.join(entry.file_name())).unwrap();
+                    }
+                }
+                "manifest-symlink" => {
+                    let other = snapshot.manifest_path.with_file_name("manifest-copy.json");
+                    std::fs::copy(&snapshot.manifest_path, &other).unwrap();
+                    std::fs::remove_file(&snapshot.manifest_path).unwrap();
+                    std::os::unix::fs::symlink(other, &snapshot.manifest_path).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                FrozenSnapshot::verified_reader(&snapshot.manifest_path).is_err(),
+                "{mutation}"
+            );
+        }
+    }
+    #[cfg(windows)]
+    #[test]
+    fn cached_reader_pins_windows_roots_against_replacement() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        let root = &snapshot.manifest.execution_root;
+        assert!(std::fs::rename(root, root.with_file_name("selected-old")).is_err());
+        FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+    }
+    #[test]
+    fn failed_cold_verification_is_never_cached() {
+        let fixture = Fixture::new();
+        let snapshot = fixture.capture(scope::ScopeSpec::Local);
+        let path = snapshot.manifest.execution_root.join("file.rs");
+        replace_bytes(&path, b"fake\n");
+        let before = full_verification_count(&snapshot.manifest_path);
+        for _ in 0..2 {
+            assert!(matches!(
+                FrozenSnapshot::verified_reader(&snapshot.manifest_path),
+                Err(AuditError::SourceDrift(_))
+            ));
+        }
+        assert_eq!(full_verification_count(&snapshot.manifest_path) - before, 2);
+        replace_bytes(&path, b"base\n");
+        FrozenSnapshot::verified_reader(&snapshot.manifest_path).unwrap();
+        assert_eq!(full_verification_count(&snapshot.manifest_path) - before, 3);
     }
 }
