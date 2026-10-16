@@ -486,7 +486,7 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
             .count() as u64
     };
     // Runtime shared-context-v1 supplies security + correctness (bundle J1)
-    // excerpts once per part; performance (S1) remains its own bundle.
+    // excerpts once per part. Compatible performance (S1) may join them.
     let expected_max_seats = parts_of("reasoning.performance")
         + parts_of("reasoning.security")
         + parts_of("reasoning.correctness");
@@ -500,9 +500,20 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
         seats[0]["tier"], "judgment",
         "judgment seats are scheduled first"
     );
-    assert!(seats
-        .iter()
-        .any(|seat| seat["providers"].as_array().unwrap().len() == 2));
+    assert!(
+        seats.iter().any(|seat| {
+            let providers = seat["providers"].as_array().unwrap();
+            providers.contains(&json!("reasoning.security"))
+                && providers.contains(&json!("reasoning.correctness"))
+        }),
+        "security + correctness must share RAW context; groups: {:?}",
+        seats
+            .iter()
+            .map(|seat| &seat["providers"])
+            .collect::<Vec<_>>()
+    );
+    assert!(plan["sharedExcerptBytesSaved"].as_u64().unwrap() > 0);
+    assert!(plan["physicalRequestBytesSaved"].as_u64().unwrap() > 0);
     assert_eq!(plan["waves"], json!(expected_seats.div_ceil(16)));
     let mut carried = seats
         .iter()
@@ -544,6 +555,35 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
         );
         if seat["providers"].as_array().unwrap().len() > 1 {
             assert_eq!(seat["transportEncoding"], "shared-context-v1");
+            let members = seat["packets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|name| {
+                    env.work
+                        .iter()
+                        .find(|work| work.packet_file_name() == name.as_str().unwrap())
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                members
+                    .iter()
+                    .map(|work| &work.provider_id)
+                    .collect::<BTreeSet<_>>()
+                    .len(),
+                members.len(),
+                "shared context must retain distinct providers"
+            );
+            let excerpts = &members[0].request.packet["excerpts"];
+            assert!(excerpts
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row["mode"] == "raw"));
+            assert!(members
+                .iter()
+                .all(|work| work.request.packet["excerpts"] == *excerpts));
         }
     }
 }
