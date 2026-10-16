@@ -73,10 +73,11 @@ fn benchmark_redis_git_objects_keep_true_locations_and_clean_controls_through_re
         .join("../../../evals/audit-bench/fixtures/audit-behavior.bundle")
         .canonicalize()
         .unwrap();
+    fs::copy(&bundle, root.join("audit-behavior.bundle")).unwrap();
     let output = Command::new("git")
         .current_dir(&root)
         .args(["clone", "--quiet", "--no-checkout"])
-        .arg(&bundle)
+        .arg("./audit-behavior.bundle")
         .arg("repo")
         .output()
         .unwrap();
