@@ -5,10 +5,10 @@ use super::common::{analyze_language, LanguageConfig};
 pub const PROVIDER_ID: &str = "code.javascript";
 pub const CONFIG: LanguageConfig = LanguageConfig::new(
     "javascript",
-    &["js", "jsx", "ts", "tsx"],
+    &["js", "jsx", "ts", "tsx", "cjs", "mjs", "cts", "mts"],
     &[
-        ("javascript", &["js"]),
-        ("typescript", &["ts"]),
+        ("javascript", &["js", "cjs", "mjs"]),
+        ("typescript", &["ts", "cts", "mts"]),
         ("jsx", &["jsx"]),
         ("tsx", &["tsx"]),
     ],

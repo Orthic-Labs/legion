@@ -618,25 +618,13 @@ pub fn plan_coverage_with_witnesses(
     let planned_share = present_share.max(1);
     // One full physical allowance stays available for finding verification or
     // context followups. Initial review cannot consume the entire call ledger.
-    let gather_calls = present
-        .iter()
-        .filter(|bundle| bundle.id != lens_plan::BUNDLE_M1.id)
-        .count() as u64;
     let followup_reserve = request.seat_token_budget;
-    let gather_reserve = request.seat_token_budget.saturating_mul(gather_calls);
-    let initial_budget = request
-        .run_token_budget
-        .saturating_sub(followup_reserve)
-        .saturating_sub(gather_reserve);
-    let minimum_calls = present.len() as u64 + gather_calls + 1;
-    if minimum_calls > request.max_total_seats {
-        return Err(AuditError::BoundExceeded(format!(
-            "audit budget infeasible: {} active coverage bundles require at least {} author calls, {gather_calls} cheap gathering calls & 1 verification/context reserve; maxTotalSeats is {}. Increase call budget or select fewer lenses; mandatory coverage was not reduced",
-            present.len(), present.len(), request.max_total_seats
-        )));
-    }
-    if initial_budget == 0 {
-        return Err(AuditError::BoundExceeded(format!("audit budget infeasible: {gather_reserve} cheap gathering tokens & {followup_reserve} verification/context tokens leave no author budget from runTokenBudget {}; increase budget or select fewer lenses", request.run_token_budget)));
+    let initial_budget = request.run_token_budget.saturating_sub(followup_reserve);
+    // Bundle count is not a physical call floor: compatible contracts share
+    // exact source bytes across bundles. Host selection uses no model call.
+    // Only the rendered dispatch plan can admit or reject physical calls.
+    if !present.is_empty() && (initial_budget == 0 || request.max_total_seats < 2) {
+        return Err(AuditError::BoundExceeded(format!("audit budget infeasible: no author call plus fresh verification reserve fits runTokenBudget {} & maxTotalSeats {}", request.run_token_budget, request.max_total_seats)));
     }
     let spendable = 10_000 - u64::from(BUNDLE_ADJUDICATION.budget_share_bp);
     let base_tokens = |bundle: &BundleInfo| -> u64 {
@@ -688,11 +676,7 @@ pub fn plan_coverage_with_witnesses(
             fits = false;
         }
     }
-    if estimated_seats
-        .saturating_add(gather_calls)
-        .saturating_add(1)
-        > request.max_total_seats
-    {
+    if estimated_seats.saturating_add(1) > request.max_total_seats {
         fits = false;
     }
     let sampled = match request.mode {
@@ -807,11 +791,19 @@ pub fn plan_coverage_with_witnesses(
         .sum();
     let output_reserve = super::ingest::dispatch_output_tokens(request.seat_token_budget)
         .saturating_mul(present.len() as u64);
-    if mandatory_tokens.saturating_add(output_reserve) > initial_budget {
-        return Err(AuditError::BoundExceeded(format!(
-            "audit budget infeasible: mandatory coverage alone estimates {mandatory_tokens} input tokens plus {output_reserve} output tokens; {followup_reserve} tokens reserved for verification/context from runTokenBudget {}. Increase budget or narrow scope; mandatory coverage was not reduced",
-            request.run_token_budget
-        )));
+    if request.seat_token_budget <= SEAT_PACKET_RESERVE_BYTES as u64
+        || present.len() as u64 + 1 > request.max_total_seats
+        || mandatory_tokens.saturating_add(output_reserve) > initial_budget
+    {
+        return bounded_coverage(
+            &seed,
+            facts,
+            lenses,
+            request,
+            witnesses,
+            &mandatory_set,
+            fits,
+        );
     }
     let mut hotspots: Vec<&str> = eligible
         .iter()
@@ -1097,6 +1089,149 @@ pub fn plan_coverage_with_witnesses(
     Ok(configs)
 }
 
+/// Tight envelopes use one deterministic raw-source selection across semantic
+/// contracts. This is a bounded risk review, not a uniform statistical sample.
+/// The whole mandatory universe remains frozen even when only some paths fit.
+fn bounded_coverage(
+    seed: &str,
+    facts: &BTreeMap<String, FileFacts>,
+    lenses: &[LensInput],
+    request: &CoverageRequest,
+    witnesses: &BTreeMap<String, BTreeSet<String>>,
+    mandatory: &BTreeSet<&str>,
+    fits: bool,
+) -> Result<BTreeMap<String, Value>, AuditError> {
+    let universe: BTreeSet<&str> = lenses
+        .iter()
+        .filter(|lens| lens_plan::bundle_for_provider(&lens.provider_id).is_some())
+        .flat_map(|lens| lens.paths.iter().map(String::as_str))
+        .collect();
+    let witness_union: BTreeSet<&str> = witnesses.values().flatten().map(String::as_str).collect();
+    let mut ranked: Vec<&str> = universe
+        .iter()
+        .copied()
+        .filter(|path| !is_lens_excluded(path) || witness_union.contains(path))
+        .collect();
+    ranked.sort_by(|left, right| {
+        let default = FileFacts::default();
+        let l = facts.get(*left).unwrap_or(&default);
+        let r = facts.get(*right).unwrap_or(&default);
+        let priority = |path: &str, fact: &FileFacts| {
+            (
+                fact.changed,
+                witness_union.contains(path),
+                mandatory.contains(path),
+                fact.signal == Some("entrypoint"),
+                hotspot_score(fact),
+            )
+        };
+        priority(right, r)
+            .cmp(&priority(left, l))
+            .then_with(|| left.cmp(right))
+    });
+    // Raw source gets one quarter of input capacity; contracts, schemas,
+    // framing, escaping & tokenization headroom occupy the remainder. Exact
+    // rendered dispatch remains authoritative, never this byte estimate.
+    let input_tokens =
+        request
+            .seat_token_budget
+            .saturating_sub(super::ingest::dispatch_output_tokens(
+                request.seat_token_budget,
+            ));
+    let source_budget = input_tokens.min(initial_source_budget(request));
+    let mut used = 0u64;
+    let mut selected = BTreeSet::new();
+    for path in ranked {
+        let cost = facts
+            .get(path)
+            .map_or(0, |fact| fact.size)
+            .saturating_add(384);
+        if used.saturating_add(cost) <= source_budget {
+            selected.insert(path);
+            used = used.saturating_add(cost);
+        }
+    }
+    let mut configs = BTreeMap::new();
+    for lens in lenses {
+        let Some(bundle) = lens_plan::bundle_for_provider(&lens.provider_id) else {
+            continue;
+        };
+        let denominator: BTreeSet<&str> = lens.paths.iter().map(String::as_str).collect();
+        let mandatory_universe: BTreeSet<&str> = denominator
+            .iter()
+            .copied()
+            .filter(|path| {
+                mandatory.contains(path)
+                    || witnesses
+                        .get(&lens.provider_id)
+                        .is_some_and(|paths| paths.contains(*path))
+            })
+            .collect();
+        let review: Vec<&str> = denominator.intersection(&selected).copied().collect();
+        let selected_mandatory: Vec<&str> = review
+            .iter()
+            .copied()
+            .filter(|path| mandatory_universe.contains(path))
+            .collect();
+        let deferred: Vec<&str> = mandatory_universe.difference(&selected).copied().collect();
+        let selected_other: Vec<&str> = review
+            .iter()
+            .copied()
+            .filter(|path| !mandatory_universe.contains(path))
+            .collect();
+        let excluded = denominator
+            .iter()
+            .filter(|path| is_lens_excluded(path) && !mandatory_universe.contains(**path))
+            .count();
+        let digest = |value: &Value| {
+            canonical_digest(value).map_err(|error| AuditError::Invalid(error.to_string()))
+        };
+        let mode = if lens_plan::lens_id_for_provider(&lens.provider_id) == Some("dead-file") {
+            ExcerptMode::Skeleton
+        } else {
+            ExcerptMode::Raw
+        };
+        configs.insert(lens.provider_id.clone(), json!({
+            "schemaVersion":1, "mode":MODE_RISK_SAMPLED,
+            "requestedMode":request.mode.as_str(), "fitsExhaustive":fits,
+            "boundedAudit":true, "selection":"deterministic-risk-ranked",
+            "confidence":{"claim":"none","basis":"bounded-risk-selection"},
+            "seed":seed, "bundle":bundle.id, "tier":bundle.tier,
+            "budgetShareBp":bundle.budget_share_bp,
+            "tokenBudget":request.run_token_budget.saturating_sub(request.seat_token_budget),
+            "seatTokenBudget":request.seat_token_budget,
+            "bundleLensCount":1,
+            "estimatedTokens":used.div_ceil(4),
+            "denominator":denominator.len(), "reviewSet":review,
+            "reviewSetDigest":digest(&json!(review))?,
+            "mandatoryUniverse":mandatory_universe,
+            "mandatoryUniverseDigest":digest(&json!(mandatory_universe))?,
+            "mandatoryDeferred":deferred,
+            "mandatoryDeferredDigest":digest(&json!(deferred))?,
+            "mandatoryWitnessPaths":witnesses.get(&lens.provider_id).cloned().unwrap_or_default(),
+            "declaredUnsampled":denominator.len().saturating_sub(review.len()),
+            "excluded":{"count":excluded},
+            "sampleFloorTarget":0, "sampleFloorMet":false,
+            "followupReserveTokens":request.seat_token_budget,
+            "strata":[
+                {"name":"mandatory","N":mandatory_universe.len(),"n":selected_mandatory.len(),"paths":selected_mandatory},
+                {"name":"risk-ranked","N":denominator.len().saturating_sub(mandatory_universe.len()).saturating_sub(excluded),"n":selected_other.len(),"paths":selected_other},
+                {"name":"excluded","N":excluded,"n":0,"paths":null}
+            ],
+            "excerpt":{"mode":mode,"mandatoryMode":mode,"dedup":true}
+        }));
+    }
+    Ok(configs)
+}
+
+fn initial_source_budget(request: &CoverageRequest) -> u64 {
+    // Keep selected source bounded even for asymmetric run/per-call limits.
+    request
+        .run_token_budget
+        .saturating_sub(request.seat_token_budget)
+        .min(16 * 1024)
+}
+
 // ---------------------------------------------------------------------------
 // Confidence (Astra D2: narrow, assumption-stated)
 // ---------------------------------------------------------------------------
@@ -1228,6 +1363,9 @@ pub struct FrozenCoverage {
     pub denominator: usize,
     pub excluded: usize,
     pub mandatory: BTreeSet<String>,
+    pub mandatory_universe: BTreeSet<String>,
+    pub mandatory_deferred: BTreeSet<String>,
+    pub bounded: bool,
     pub default_mode: Option<ExcerptMode>,
     pub mandatory_mode: Option<ExcerptMode>,
     pub dedup: bool,
@@ -1314,6 +1452,12 @@ impl FrozenCoverage {
                 .and_then(Value::as_u64)
                 .unwrap_or(0) as usize,
             mandatory,
+            mandatory_universe: strings("mandatoryUniverse"),
+            mandatory_deferred: strings("mandatoryDeferred"),
+            bounded: object
+                .get("boundedAudit")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             default_mode: mode_of("mode"),
             mandatory_mode: mode_of("mandatoryMode"),
             dedup: object
@@ -1512,6 +1656,84 @@ mod tests {
             assert_eq!(config["reviewSet"].as_array().unwrap().len(), 40);
             assert_eq!(config["declaredUnsampled"], 0);
         }
+    }
+
+    #[test]
+    fn ember_sized_budget_freezes_mandatory_deferred_without_bundle_call_floor() {
+        // Paths & sizes from Ember 9961562, including its tiny executable
+        // entrypoints & a large mandatory body that cannot fit this source set.
+        let source = [
+            ("apps/lightcraft-desktop/src/main.rs", 478),
+            ("apps/lightcraft-desktop/web/src/main.tsx", 605),
+            ("crates/ui-egui/src/command_error.rs", 1164),
+            ("crates/ui-egui/src/auth.rs", 120_000),
+        ];
+        let paths = source
+            .iter()
+            .map(|(path, _)| (*path).to_owned())
+            .collect::<Vec<_>>();
+        let facts = source
+            .iter()
+            .map(|(path, size)| {
+                (
+                    (*path).to_owned(),
+                    FileFacts {
+                        size: *size,
+                        signal: classify_signal(path, &[]),
+                        ..FileFacts::default()
+                    },
+                )
+            })
+            .collect();
+        for mode in [CoverageMode::RiskSampled, CoverageMode::Auto] {
+            let request = CoverageRequest {
+                mode,
+                run_token_budget: 50_000,
+                seat_token_budget: 10_000,
+                max_total_seats: 5,
+            };
+            let plan = plan_coverage(
+                &json!({"revision":"9961562"}),
+                &facts,
+                &lenses(&paths),
+                &request,
+            )
+            .unwrap();
+            let config = &plan["reasoning.security"];
+            assert_eq!(config["mode"], MODE_RISK_SAMPLED);
+            assert_eq!(config["requestedMode"], mode.as_str());
+            assert!(config["reviewSet"].as_array().unwrap().len() >= 2);
+            assert_eq!(
+                config["mandatoryDeferred"],
+                json!(["crates/ui-egui/src/auth.rs"])
+            );
+            assert_eq!(config["strata"][0]["N"], 3);
+            assert_eq!(config["strata"][0]["n"], 2);
+            assert_eq!(config["confidence"]["claim"], "none");
+            assert_eq!(plan["reasoning.minimize"]["reviewSet"], config["reviewSet"]);
+            assert_eq!(plan["reasoning.minimize"]["excerpt"]["mode"], "raw");
+            assert_eq!(config["followupReserveTokens"], 10_000);
+        }
+        let exhaustive = plan_coverage(
+            &json!({}),
+            &facts,
+            &lenses(&paths),
+            &CoverageRequest {
+                mode: CoverageMode::Exhaustive,
+                run_token_budget: 50_000,
+                seat_token_budget: 10_000,
+                max_total_seats: 5,
+            },
+        )
+        .unwrap();
+        assert_eq!(exhaustive["reasoning.security"]["mode"], MODE_EXHAUSTIVE);
+        assert_eq!(
+            exhaustive["reasoning.security"]["reviewSet"]
+                .as_array()
+                .unwrap()
+                .len(),
+            paths.len()
+        );
     }
 
     #[test]

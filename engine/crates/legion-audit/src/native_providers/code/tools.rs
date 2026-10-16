@@ -31,10 +31,14 @@
 //! | `code.go` | `module` | `go list -m` (`GOPROXY=off`, `GOTOOLCHAIN=local`) |
 //! | | `vet` | `go vet ./...` |
 //! | | `format` | `gofmt -l .` |
+//! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
+//! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //!
 //! Never run: test suites (`test` is always the typed gap
 //! `tool-not-run:test:policy-no-project-code-execution`), package-manager
 //! scripts and builds, installs, network-dependent audits.
+//! Applicable historical build/test contracts are recorded separately as
+//! deferred commands; they never become executed receipts or tool passes.
 
 use super::evidence::NativeFinding;
 use crate::{
@@ -57,6 +61,9 @@ use std::{
     time::Instant,
 };
 use tokio_util::sync::CancellationToken;
+
+#[path = "native_commands.rs"]
+mod native_commands;
 
 /// Findings kept per provider from tool diagnostics; the rest is a counted gap.
 pub const MAX_TOOL_FINDINGS: usize = 200;
@@ -159,6 +166,9 @@ pub struct ToolEvidence {
     pub gaps: Vec<String>,
     /// One receipt summary per tool run.
     pub receipts: Vec<Value>,
+    /// Applicable command contracts blocked by project execution policy.
+    /// These are plans, never execution receipts or completed tool evidence.
+    pub deferred_commands: Vec<Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +187,7 @@ enum Parser {
     GoVet,
     Gofmt,
     GoList,
+    Syntax,
 }
 
 struct Planned {
@@ -197,6 +208,9 @@ struct Planned {
     env: Vec<(&'static str, String)>,
     /// Diagnostics are printed on stderr (`go vet`).
     diagnostics_on_stderr: bool,
+    /// Original denominator path for an isolated syntax input.
+    source_path: Option<String>,
+    source_digest: Option<String>,
 }
 
 #[derive(Default)]
@@ -208,6 +222,7 @@ struct Plan {
     notes: Vec<String>,
     /// Scratch files to remove after the runs.
     cleanup: Vec<PathBuf>,
+    deferred: Vec<Planned>,
 }
 
 fn name_of(path: &str) -> &str {
@@ -299,6 +314,8 @@ fn plan_rust(root: &Path, entries: &[InventoryEntry], plan: &mut Plan) {
                 accepted,
                 env: Vec::new(),
                 diagnostics_on_stderr: false,
+                source_path: None,
+                source_digest: None,
             };
         plan.commands.push(command(
             "metadata",
@@ -386,6 +403,8 @@ fn plan_javascript(
             accepted: &[0, 1, 2],
             env: Vec::new(),
             diagnostics_on_stderr: false,
+            source_path: None,
+            source_digest: None,
         });
     }
     let eslint_dirs = cap_roots(
@@ -420,6 +439,8 @@ fn plan_javascript(
             accepted: &[0, 1],
             env: Vec::new(),
             diagnostics_on_stderr: false,
+            source_path: None,
+            source_digest: None,
         });
     }
 }
@@ -479,6 +500,8 @@ fn plan_python(
                 accepted: &[0, 1],
                 env: Vec::new(),
                 diagnostics_on_stderr: false,
+                source_path: None,
+                source_digest: None,
             });
         } else {
             plan.not_planned.insert("compile", "scratch-unwritable");
@@ -502,6 +525,8 @@ fn plan_python(
             accepted: &[0, 1],
             env: Vec::new(),
             diagnostics_on_stderr: false,
+            source_path: None,
+            source_digest: None,
         });
     }
 }
@@ -541,6 +566,8 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
                 ("GOTOOLCHAIN", "local".to_owned()),
             ],
             diagnostics_on_stderr: stderr,
+            source_path: None,
+            source_digest: None,
         };
         plan.commands.push(command(
             "module",
@@ -592,6 +619,7 @@ fn plan_commands(
         "code.go" => plan_go(entries, &mut plan),
         _ => {}
     }
+    native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
     plan
 }
 
@@ -922,6 +950,19 @@ async fn run_one(
 
     let executable_text = executable.to_string_lossy().into_owned();
     let cwd_text = cwd.to_string_lossy().into_owned();
+    // Windows PowerShell has no --version switch. Its fixed, profile-free
+    // probe is also valid for pwsh & never evaluates repository content.
+    let tool_version_args = if command.tool == "powershell-syntax" {
+        vec![
+            "-NoLogo".into(),
+            "-NoProfile".into(),
+            "-NonInteractive".into(),
+            "-Command".into(),
+            "$PSVersionTable.PSVersion.ToString()".into(),
+        ]
+    } else {
+        vec!["--version".into()]
+    };
     let (launch_executable, launch_args, sandbox, version_args, needs_sandbox) = match ctx.sandbox {
         SandboxPolicy::Disabled => (
             executable_text.clone(),
@@ -941,7 +982,7 @@ async fn run_one(
                 // Probe the real tool's version through the same wrapper
                 // prefix (`-f profile -- tool`).
                 let mut probe: Vec<String> = auth.wrapped_args.iter().take(4).cloned().collect();
-                probe.push("--version".into());
+                probe.extend(tool_version_args.iter().cloned());
                 (
                     auth.wrapped_executable,
                     auth.wrapped_args,
@@ -989,7 +1030,7 @@ async fn run_one(
         timeout_ms,
         stdout_limit: ctx.output_limit,
         stderr_limit: ctx.output_limit,
-        version_args: version_args.unwrap_or_else(|| vec!["--version".into()]),
+        version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
     let receipt = ctx.tool.execute(request, cancellation).await;
@@ -1037,6 +1078,8 @@ async fn run_one(
     output.receipt = Some(json!({
         "tool": command.tool,
         "program": program_label,
+        "sourcePath": command.source_path,
+        "sourceDigest": command.source_digest,
         "version": output.version,
         "argv": argv,
         "cwd": cwd_label,
@@ -1061,7 +1104,19 @@ async fn run_one(
         output.outcome = outcome;
         return output;
     }
-    let stream = if command.diagnostics_on_stderr {
+    if command.parser == Parser::Syntax && (stdout.is_none() || stderr.is_none()) {
+        output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
+        return output;
+    }
+    let syntax_output = (command.parser == Parser::Syntax).then(|| {
+        let mut bytes = stdout.clone().unwrap_or_default();
+        bytes.push(b'\n');
+        bytes.extend_from_slice(stderr.as_deref().unwrap_or_default());
+        bytes
+    });
+    let stream = if let Some(bytes) = &syntax_output {
+        Some(bytes.as_slice())
+    } else if command.diagnostics_on_stderr {
         stderr.as_deref()
     } else {
         stdout.as_deref()
@@ -1071,7 +1126,14 @@ async fn run_one(
         return output;
     };
     match parse(command.parser, bytes, receipt.exit_code) {
-        Ok(diagnostics) => output.diagnostics = diagnostics,
+        Ok(mut diagnostics) => {
+            if let Some(path) = &command.source_path {
+                for diagnostic in &mut diagnostics {
+                    diagnostic.path = path.clone();
+                }
+            }
+            output.diagnostics = diagnostics;
+        }
         Err(reason) => {
             output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         }
@@ -1106,11 +1168,36 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::GoVet => parse_go_vet(bytes, exit),
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
+        Parser::Syntax => parse_syntax(bytes, exit),
     }
 }
 
 fn line_of(value: Option<u64>) -> usize {
     value.unwrap_or(1).max(1) as usize
+}
+
+fn parse_syntax(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
+    if exit.is_none() {
+        return Err("syntax-check-missing-exit-code".into());
+    }
+    if exit == Some(0) {
+        return Ok(Vec::new());
+    }
+    let text = String::from_utf8_lossy(bytes);
+    if text.trim().is_empty() {
+        return Err("syntax-check-no-diagnostic".into());
+    }
+    let line = Regex::new(r"(?:line |:)(\d+)")
+        .ok()
+        .and_then(|re| re.captures(&text).and_then(|c| c[1].parse().ok()))
+        .unwrap_or(1);
+    Ok(vec![Diag {
+        rule: "native-syntax".into(),
+        severity: "error",
+        path: String::new(),
+        line,
+        message: shorten(&text),
+    }])
 }
 
 fn parse_cargo(bytes: &[u8], clippy: bool) -> Result<Vec<Diag>, String> {
@@ -1396,8 +1483,27 @@ pub async fn run(
     let provider_id = ctx.provider_id;
     let plan = plan_commands(provider_id, ctx.root, entries, selected, ctx.scratch);
     let mut evidence = ToolEvidence::default();
+    for command in &plan.deferred {
+        evidence.deferred_commands.push(json!({
+            "tool": command.tool, "programCandidates": command.programs,
+            "argv": command.args, "cwd": command.cwd_rel,
+            "executed": false, "reason": POLICY_NO_PROJECT_CODE,
+        }));
+        evidence
+            .outcomes
+            .insert(command.tool, Outcome::NotRun(POLICY_NO_PROJECT_CODE.into()));
+        evidence.gaps.push(format!(
+            "{provider_id}:tool-not-run:{}:{POLICY_NO_PROJECT_CODE}",
+            command.tool
+        ));
+    }
     for note in &plan.notes {
         evidence.gaps.push(format!("{provider_id}:{note}"));
+    }
+    for (tool, why) in &plan.not_planned {
+        evidence
+            .outcomes
+            .insert(tool, Outcome::NotRun((*why).into()));
     }
 
     // Tools that are never run, by policy or because nothing applies.
@@ -1454,6 +1560,9 @@ pub async fn run(
             accumulator.stdout_digests.push(digest.clone());
         }
         accumulator.merge(output.outcome.clone());
+        if let Some(why) = plan.not_planned.get(command.tool) {
+            accumulator.merge(Outcome::NotRun((*why).into()));
+        }
         for diag in output.diagnostics {
             diagnostics.push((command.cwd_rel.clone(), diag));
         }
@@ -1542,12 +1651,33 @@ pub async fn run(
         ));
     }
     evidence.findings = findings;
+    for (tool, outcome) in &evidence.outcomes {
+        if *outcome != Outcome::Ran {
+            evidence
+                .gaps
+                .push(format!("{provider_id}:{}", outcome.reason(tool)));
+        }
+    }
     evidence
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_syntax_failure_is_diagnostic_not_a_clean_pass() {
+        assert!(parse_syntax(b"Syntax OK", Some(0)).unwrap().is_empty());
+        let diagnostics = parse_syntax(
+            b"PHP Parse error: bad token in snapshot.php on line 12",
+            Some(255),
+        )
+        .unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].line, 12);
+        assert_eq!(diagnostics[0].severity, "error");
+        assert!(parse_syntax(b"", Some(1)).is_err());
+    }
 
     #[test]
     fn repo_relative_normalizes_and_rejects_escapes() {

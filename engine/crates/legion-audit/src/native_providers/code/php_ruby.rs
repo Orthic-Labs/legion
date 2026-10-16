@@ -5,8 +5,8 @@ use super::common::{analyze_language, LanguageConfig};
 pub const PROVIDER_ID: &str = "code.php-ruby";
 pub const CONFIG: LanguageConfig = LanguageConfig::new(
     "php",
-    &["php"],
-    &[("php", &["php"])],
+    &["php", "rb"],
+    &[("php", &["php"]), ("ruby", &["rb"])],
     &["package", "lint", "type", "test", "security"],
     &[],
 );

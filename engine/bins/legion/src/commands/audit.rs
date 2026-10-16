@@ -375,12 +375,33 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_audit::source_cache::DEFAULT_MAX_BYTES,
     )
     .map_err(super::io_error)?;
-    let graph_context = legion_audit::graph_context::build_graph_context_cached(
+    let graph_input = std::env::var_os("LEGION_AUDIT_GRAPH_ARTIFACT")
+        .map(|path| {
+            legion_audit::graph_context::load_host_artifact(
+                std::path::Path::new(&path),
+                &[source_root.as_path(), root.as_path()],
+            )
+        })
+        .transpose();
+    let mut graph_context = legion_audit::graph_context::build_graph_context_cached(
         &frozen_sources,
-        None,
+        graph_input.as_ref().ok().and_then(Option::as_ref),
         &resolver_digest,
         &mut graph_cache,
     );
+    if let Err(cause) = graph_input.as_ref() {
+        graph_context.freshness = "artifact-input-rejected".into();
+        graph_context
+            .unknowns
+            .push(legion_audit::graph_context::GraphUnknown {
+                path: None,
+                cause: cause.clone(),
+            });
+        direct_gaps.push(cause.clone());
+    }
+    if graph_context.freshness == "artifact-rejected-unbound-or-stale" {
+        direct_gaps.push("blueprint-artifact-unbound-or-stale".into());
+    }
     let graph_paths: Vec<_> = if frozen_snapshot.manifest.scope.spec.is_diff() {
         frozen_snapshot
             .manifest
@@ -410,6 +431,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         "coveredFilesDigest": graph_context.covered_files_digest,
         "resolverConfigDigest": graph_context.resolver_config_digest,
         "coverageFloor": graph_context.coverage_floor,
+        "input": if graph_input.as_ref().ok().is_some_and(Option::is_some) { "host-supplied-data" } else { "lexical-fallback" },
+        "freshness": graph_context.freshness,
+        "unknowns": graph_context.unknowns,
         "artifact": graph_artifact,
         "blastRadius": graph_context.compact_blast_radius(&graph_paths, 256),
         "truncated": graph_context.truncated,
@@ -1606,6 +1630,55 @@ fn annotate_lens_work(items: &mut [Value], dispatch: &Value) {
                 object.insert("tier".into(), first["tier"].clone());
             }
             object.insert("seats".into(), Value::Array(seats));
+            let deferred: Vec<Value> = dispatch["deferredWork"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|row| row["providerId"].as_str() == Some(provider.as_str()))
+                .cloned()
+                .collect();
+            let selected = dispatch["seats"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .flat_map(|seat| seat["packets"].as_array().into_iter().flatten())
+                .filter_map(Value::as_str)
+                .collect::<std::collections::BTreeSet<_>>();
+            let packet_selected = |packet: &Value, part: Option<u64>| {
+                let basename = packet
+                    .as_str()
+                    .and_then(|path| {
+                        std::path::Path::new(path)
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                    })
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| match part {
+                        Some(number) => format!("{provider}.part-{number:04}.json"),
+                        None => format!("{provider}.json"),
+                    });
+                selected.contains(basename.as_str())
+            };
+            let mut selected_count = 0;
+            if let Some(parts) = object.get_mut("parts").and_then(Value::as_array_mut) {
+                for part in parts {
+                    let admitted = packet_selected(&part["packet"], part["part"].as_u64());
+                    selected_count += usize::from(admitted);
+                    part["status"] = json!(if admitted {
+                        "pending-host"
+                    } else {
+                        "deferred-budget"
+                    });
+                }
+            } else if packet_selected(object.get("packet").unwrap_or(&Value::Null), None) {
+                selected_count = 1;
+            }
+            object.insert("selectedParts".into(), json!(selected_count));
+            object.insert("deferredParts".into(), json!(deferred.len()));
+            if selected_count == 0 && !deferred.is_empty() {
+                object.insert("status".into(), json!("deferred-budget"));
+            }
+            object.insert("deferredWork".into(), json!(deferred));
         }
     }
 }
@@ -1729,6 +1802,30 @@ fn lens_work_items(
                 root, plan, execution,
             )
         });
+        if let Some(candidates) = candidates.as_deref() {
+            let accounting =
+                legion_audit::native_providers::reasoning::candidate_routing::accounting(
+                    plan.plan(),
+                    candidates,
+                );
+            if let Some(out) = out {
+                write_artifact(
+                    out,
+                    "candidate-routing.json",
+                    &serde_json::to_vec_pretty(&accounting).map_err(|error| error.to_string())?,
+                )
+                .map_err(|error| error.message)?;
+            }
+            for row in accounting["routes"].as_array().into_iter().flatten() {
+                if row["route"].as_str() == Some("unavailable") {
+                    promotion_gaps.push(format!(
+                        "candidate-route-unavailable:{}:{}",
+                        row["provider"].as_str().unwrap_or("unknown"),
+                        row["candidateId"].as_str().unwrap_or("unknown")
+                    ));
+                }
+            }
+        }
         // Without scanner results the packets equal the size gate's: reuse
         // them. With results (promotion, adjudicator candidates) rebuild.
         let rebuilt;
@@ -1804,6 +1901,20 @@ fn lens_work_items(
             }
             let mut gaps: Vec<String> = dispatch_gap.into_iter().collect();
             gaps.extend(promotion_gaps);
+            gaps.extend(
+                dispatch["deferredWork"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|row| {
+                        format!(
+                            "lens-budget-deferred:{}:{}:{}",
+                            row["providerId"].as_str().unwrap_or("unknown"),
+                            row["part"].as_u64().unwrap_or(1),
+                            row["reason"].as_str().unwrap_or("budget")
+                        )
+                    }),
+            );
             (items, gaps, Some(dispatch))
         }
         Err(message) => (
@@ -6066,5 +6177,34 @@ mod effect_artifact_retention_tests {
         assert!(!execution.results[0].result.complete);
         assert!(!outside.join("stdout").exists());
         std::fs::remove_dir_all(base).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod bounded_dispatch_projection_tests {
+    use super::*;
+
+    #[test]
+    fn selected_and_deferred_parts_remain_distinct_in_output() {
+        let mut items = vec![
+            json!({"provider":"reasoning.schema", "status":"pending-host",
+            "parts":[{"packet":"lens-packets/schema.part1.json", "status":"pending-host"},
+                     {"packet":"lens-packets/schema.part2.json", "status":"pending-host"}]}),
+            json!({"provider":"reasoning.naming", "status":"pending-host", "packet":"lens-packets/naming.json"}),
+        ];
+        let dispatch = json!({"seats":[{"seat":1,"wave":1,"part":1,"bundle":"mixed",
+            "tier":"judgment","providers":["reasoning.schema"],"packets":["schema.part1.json"]}],
+            "deferredWork":[{"providerId":"reasoning.schema","packet":"schema.part2.json","part":2,"reason":"fresh-verification-reserve"},
+                            {"providerId":"reasoning.naming","packet":"naming.json","part":1,"reason":"fresh-verification-reserve"}]});
+        annotate_lens_work(&mut items, &dispatch);
+        assert_eq!(items[0]["selectedParts"], 1);
+        assert_eq!(items[0]["deferredParts"], 1);
+        assert_eq!(items[0]["status"], "pending-host");
+        assert_eq!(items[0]["parts"][0]["status"], "pending-host");
+        assert_eq!(items[0]["parts"][1]["status"], "deferred-budget");
+        assert_eq!(items[1]["status"], "deferred-budget");
+        assert_eq!(items[1]["selectedParts"], 0);
+        assert_eq!(items[1]["seats"], json!([]));
+        assert_eq!(items[1]["deferredWork"].as_array().unwrap().len(), 1);
     }
 }

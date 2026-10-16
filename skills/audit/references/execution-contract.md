@@ -34,44 +34,49 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 ## Coverage modes and quality outcome
 
 `legion audit` implements frozen lens coverage planning with `--coverage auto|exhaustive|risk-sampled`
-(`auto` by default). Coverage mode and review sets are sealed into the plan; deterministic providers
-still cover their full inventory.
+(`auto` by default). The plan seals the full applicable provider/lens/path universe, coverage mode,
+selected paths, and every deferred path. Deterministic provider inventories remain unchanged; receipts determine actual executed coverage.
 
-- `--coverage auto|exhaustive|risk-sampled` (default `auto`) is frozen into the plan with its review set.
+- `--coverage auto|exhaustive|risk-sampled` (default `auto`) is frozen into the plan with its selection.
 - `exhaustive`: every denominator path of every reasoning lens is examined. It refuses up front when the
-  run exceeds the run budget; it never freezes an incomplete run.
-- `risk-sampled`: a frozen review set is examined. Its mandatory stratum (entrypoints, security-sensitive
-  paths, files changed since the base commit, top churn files) is reviewed exhaustively. Its hotspot
-  stratum is reviewed up to budget. Its remainder is a seeded sample ordered from the frozen plan seed,
-  so it is reproducible and cannot be cherry-picked. The sample floor is a target bounded by budget;
-  shortfall is recorded by `sampleFloorMet` with the remaining denominator in `declaredUnsampled`, and
-  disables confidence claims.
-  Paths outside the review set are recorded `declaredUnsampled`, not as gaps. A review-set path that was
-  not examined stays a gap, and the run stays `incomplete`. The planner does not shrink mandatory coverage
-  to satisfy optional sampling targets.
-- `auto`: `exhaustive` when it fits the run budget, `risk-sampled` otherwise. The mode chosen is recorded.
-- Deterministic providers always cover every inventory path. Coverage mode never changes them.
+  fixed run limits cannot fit the plan; it never silently samples.
+- `risk-sampled`: select a deterministic bounded subset from the full frozen universe. The plan records
+  `mandatoryUniverse` and its digest, `selected` actual mandatory paths and digest, and
+  `mandatoryDeferred` actual paths plus digest. Mandatory paths include entrypoints, security-sensitive
+  paths, changed paths, and top-churn paths. Any deferred mandatory path is an explicit coverage gap and makes the run `incomplete`;
+  it is never declared clean or used to make a confidence claim. Optional remainder paths may be seeded
+  and sampled. The frozen plan preserves the complete denominator and all selected, deferred, and
+  unsampled paths, so a subset never rewrites the universe.
+- `auto`: select an affordable bounded risk-sampled subset that fits the run's frozen limits, preserving the full
+  applicable universe and recording deferred mandatory paths as gaps. It does not refuse merely because
+  mandatory work exceeds the budget. The selected mode is recorded.
+- Coverage mode preserves deterministic providers' full frozen inventories. Actual coverage still requires applicable, completed execution receipts.
 - Deterministic findings can promote files into the review set, never remove them.
 
-Mandatory review is never reduced to meet an optional sample target. Planning refuses early if estimated
-mandatory work, minimum bundle/gather calls, and verification reserve cannot fit the frozen run budget.
-It adapts source chunks downward on whole-line boundaries to fit the rendered packet envelope; an
-irreducible source line or metadata that exceeds the bound is a typed refusal. Snapshot metadata is
-verified once per manifest during sizing, with digest checks retained on reads. Never increase budgets
-or seat limits implicitly to force a plan to fit.
+For the requested bounded Ember run, freeze admission at 50,000 total tokens across input and output,
+10,000 total tokens per physical model call (including at most 2,500 output tokens), at most 5 calls,
+and width 1. These are run-scoped caps, not general CLI defaults; each other run freezes its selected
+limits. Admit at most four initial author calls and reserve at least one call for fresh verification.
+Deterministic host-side evidence gathering costs zero model calls. Cheap model gathering is optional: use
+it only when source selection needs it and the call fits admission; never require one gather call per lens
+or author call. Multiple lenses may share a call only when they receive the exact same RAW source bytes
+and retain separate lens questions, contracts, and result IDs. Chunk source on whole-line boundaries to
+fit each call; an irreducible line or metadata over the per-call limit is a typed gap. Snapshot digests
+remain checked on reads. Do not enlarge the requested limits to force a plan to fit.
 
-`next` reports `requiredInitialCalls` and `initialCallReservationTokens`; the reservation covers full
-per-call admission for required author and gatherer calls plus verification/context capacity. Follow-up
-work still needs its own admission. `max-total-seats` caps physical calls; `max-lens-seats` limits planned
-seats per wave. Calls run sequentially. Estimated tokens are not actual usage or spend: receipts carry
-host-reported actuals or `unknown`, and an overrun stops later calls.
+`next` reports admitted initial calls and their reservation. Follow-up work needs its own admission.
+Calls run sequentially at width 1. Estimated tokens are admission input, not actual usage or spend:
+receipts retain authenticated actual usage/cost or `unknown`, and an overrun stops later calls without
+resetting persistent usage. The reserved verifier call is fresh and balanced-tier. Findings that do not
+fit verification admission remain persisted as unverified findings; never drop them or imply they passed.
 
 Report `coverageMode` (`exhaustive` or `sampled`) separately from the quality outcome. `auditStatus` keeps
 `pass | findings | incomplete`. `qualityGate` reads `proven` for an exhaustive clean run and `sampled` for a
 clean risk-sampled run; `sampled` is never `proven`. Findings and missing evidence keep their failure and
-incomplete states in either mode. Each reasoning lens reports `lensCoverage`:
-`{mode, denominator, reviewSet, examined, strata: [{name, N, n, findings, confidence}]}`. Statistical
-statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
+incomplete states in either mode. Each reasoning lens reports `lensCoverage` with the full denominator,
+mandatory universe and digest, selected/deferred mandatory paths and digests, examined paths, and optional
+sampled strata. Confidence applies only to eligible random strata; it never closes or softens a mandatory
+coverage gap. Statistical statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
 
 ## Native reasoning runtime (step 7 detail)
 
@@ -285,6 +290,9 @@ audit incomplete. An unadjudicated security candidate stays `UNPROVEN` whatever 
 - Legacy scanner adapters receive their applicability from the frozen provider plan. Any internal
   stack-detection disagreement may only produce `UNPROVEN`; it may never narrow the frozen
   denominator or produce a clean result.
+- The native historical adapter restores observed syntax/static checks and typed policy-gap reporting.
+  This evidence does not establish full native build or test parity; unimplemented or unverified build/test
+  branches remain typed gaps and cannot support a clean claim.
 - Cite real `file:line` or scanner-log evidence for every finding.
 - Redact secret values.
 - Treat size as review trigger, never decomposition proof.

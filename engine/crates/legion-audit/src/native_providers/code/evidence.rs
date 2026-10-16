@@ -49,6 +49,15 @@ const OVERSIZED_LINES: usize = 1500;
 const DUP_WINDOW: usize = 6;
 const DUP_MIN_CHARS: usize = 120;
 
+/// Historical generic-source inputs. These are selected for bounded source
+/// analysis even when inventory extraction has no language parser. Selection
+/// does not confer language/compiler coverage: long-tail retains its typed gap.
+pub(super) const HISTORICAL_SOURCE_EXTENSIONS: &[&str] = &[
+    "astro", "bash", "bat", "cjs", "cts", "css", "cxx", "dart", "erl", "ex", "exs", "gql",
+    "graphql", "hrl", "html", "kts", "mjs", "mts", "nsh", "nsi", "ps1", "psm1", "rb", "sh", "sql",
+    "svelte", "vbs", "vue", "zsh",
+];
+
 /// Work bounds. Defaults are generous for a source tree and small enough that
 /// a pathological repository cannot stall an audit.
 #[derive(Clone, Debug)]
@@ -190,7 +199,8 @@ pub fn select_entries<'a>(
         .filter(|entry| {
             let ext = extension_of(&entry.path);
             if wildcard {
-                entry.source_file && !claimed.contains(ext.as_str())
+                (entry.source_file || HISTORICAL_SOURCE_EXTENSIONS.contains(&ext.as_str()))
+                    && !claimed.contains(ext.as_str())
             } else {
                 config.extensions.contains(&ext.as_str())
             }
@@ -406,6 +416,22 @@ const PHP_RULES: &[RuleDef] = &[
         "eval executes dynamic code",
     ),
 ];
+const RUBY_RULES: &[RuleDef] = &[
+    (
+        "debug-leftover",
+        "low",
+        r"\bbinding\.(?:pry|irb)\b",
+        None,
+        "Interactive debugger left in Ruby source",
+    ),
+    (
+        "error-swallowed",
+        "medium",
+        r"^\s*rescue(?:\s+[\w:]+)?\s*$",
+        Some("end"),
+        "Empty rescue block swallows the error",
+    ),
+];
 
 fn rule_defs(provider_id: &str) -> &'static [RuleDef] {
     match provider_id {
@@ -431,20 +457,25 @@ struct Rule {
 }
 
 fn compile_rules(provider_id: &str) -> Result<Vec<Rule>, AuditError> {
-    rule_defs(provider_id)
-        .iter()
-        .map(|&(id, severity, pattern, next_line, message)| {
-            Regex::new(pattern)
-                .map(|re| Rule {
-                    id,
-                    severity,
-                    re,
-                    next_line,
-                    message,
-                })
-                .map_err(|error| AuditError::Provider(format!("invalid code rule {id}: {error}")))
+    rule_defs(provider_id).iter().map(compile_rule).collect()
+}
+
+fn compile_rule(
+    &(id, severity, pattern, next_line, message): &RuleDef,
+) -> Result<Rule, AuditError> {
+    Regex::new(pattern)
+        .map(|re| Rule {
+            id,
+            severity,
+            re,
+            next_line,
+            message,
         })
-        .collect()
+        .map_err(|error| AuditError::Provider(format!("invalid code rule {id}: {error}")))
+}
+
+fn ruby_rules() -> Result<Vec<Rule>, AuditError> {
+    RUBY_RULES.iter().map(compile_rule).collect()
 }
 
 fn is_comment_line(trimmed: &str) -> bool {
@@ -648,6 +679,23 @@ fn read_entry(
     {
         return Err(Skip::UnsafePath);
     }
+    let mut ancestor = root.to_path_buf();
+    for component in relative.components() {
+        ancestor.push(component.as_os_str());
+        if std::fs::symlink_metadata(&ancestor)
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Skip::Missing
+                } else {
+                    Skip::Unreadable
+                }
+            })?
+            .file_type()
+            .is_symlink()
+        {
+            return Err(Skip::Symlink);
+        }
+    }
     let full = root.join(relative);
     let meta = std::fs::symlink_metadata(&full).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
@@ -684,6 +732,30 @@ fn read_entry(
         }
     }
     String::from_utf8(buffer).map_err(|_| Skip::NotUtf8)
+}
+
+/// Syntax adapters stage only bounded, digest-verified source, never a path
+/// that could cause an interpreter to follow an unchecked repository symlink.
+pub(super) fn syntax_source(root: &Path, entry: &InventoryEntry) -> Option<String> {
+    let canonical_root = root.canonicalize().ok()?;
+    let mut ancestor = root.to_path_buf();
+    for component in Path::new(&entry.path).components() {
+        let Component::Normal(part) = component else {
+            return None;
+        };
+        ancestor.push(part);
+        if std::fs::symlink_metadata(&ancestor)
+            .ok()?
+            .file_type()
+            .is_symlink()
+        {
+            return None;
+        }
+    }
+    if !ancestor.canonicalize().ok()?.starts_with(canonical_root) {
+        return None;
+    }
+    read_entry(root, entry, 1024 * 1024, 1024 * 1024).ok()
 }
 
 // ---------------------------------------------------------------------------
@@ -853,6 +925,11 @@ pub fn produce(
 ) -> Result<Produced, AuditError> {
     let selected = select_entries(config, entries);
     let rules = compile_rules(provider_id)?;
+    let ruby = if provider_id == "code.php-ruby" {
+        ruby_rules()?
+    } else {
+        Vec::new()
+    };
     let debt = Regex::new(r"\b(?:TODO|FIXME|HACK|XXX)\b")
         .map_err(|error| AuditError::Provider(format!("invalid debt rule: {error}")))?;
     let long_tail = provider_id == "code.long-tail";
@@ -869,6 +946,7 @@ pub fn produce(
     let mut bytes_read = 0u64;
     let mut lines_read = 0u64;
     let mut build_tags: BTreeSet<String> = BTreeSet::new();
+    let mut source_accounting = Vec::new();
 
     for entry in &selected {
         let outcome = match root {
@@ -896,12 +974,26 @@ pub fn produce(
                         }
                     }
                 }
-                let sig = scan_text(&entry.path, &text, &rules, &debt, &mut findings);
-                if !long_tail {
-                    duplicates.scan(&entry.path, &sig, &mut findings);
-                }
+                let active_rules =
+                    if provider_id == "code.php-ruby" && extension_of(&entry.path) == "rb" {
+                        &ruby
+                    } else {
+                        &rules
+                    };
+                let sig = scan_text(&entry.path, &text, active_rules, &debt, &mut findings);
+                duplicates.scan(&entry.path, &sig, &mut findings);
+                source_accounting.push(json!({
+                    "path": entry.path, "extension": extension_of(&entry.path),
+                    "status": "examined", "bytes": text.len(),
+                    "digest": format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes()))),
+                    "analysis": if long_tail { "generic-source" } else { "language-source" },
+                }));
             }
             Err(skip) => {
+                source_accounting.push(json!({
+                    "path": entry.path, "extension": extension_of(&entry.path),
+                    "status": "skipped", "reason": skip.label(),
+                }));
                 if skips.len() < limits.max_skip_records {
                     skips.push(format!("{}:{}", skip.label(), entry.path));
                 } else {
@@ -922,10 +1014,9 @@ pub fn produce(
     let context = derive_context(entries, config.required_context, tags);
 
     let mut rule_ids = rules.iter().map(|rule| rule.id).collect::<Vec<_>>();
+    rule_ids.extend(ruby.iter().map(|rule| rule.id));
     rule_ids.extend(["debt-marker", "oversized-file"]);
-    if !long_tail {
-        rule_ids.push("duplicate-block");
-    }
+    rule_ids.push("duplicate-block");
     rule_ids.sort_unstable();
     rule_ids.dedup();
 
@@ -950,6 +1041,7 @@ pub fn produce(
     let mut input = json!({
         "files": selected.iter().map(|entry| json!({"path": entry.path})).collect::<Vec<_>>(),
         "context": Value::Object(context),
+        "sourceAccounting": source_accounting,
         "facts": [{
             "kind": "native-metrics",
             "filesRead": examined,
@@ -976,4 +1068,115 @@ pub fn produce(
         tool_discovery,
         rule_ids,
     })
+}
+
+#[cfg(test)]
+mod historical_source_tests {
+    use super::*;
+
+    fn entry(path: String) -> InventoryEntry {
+        InventoryEntry {
+            path,
+            symbols: Vec::new(),
+            dependencies: Vec::new(),
+            package_scripts: Vec::new(),
+            source_file: false,
+            digest: None,
+        }
+    }
+
+    #[test]
+    fn all_29_historical_extensions_are_read_and_analyzed_once_without_whitelist_pass() {
+        let root = std::env::temp_dir().join(format!(
+            "historical-source-accounting-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let entries = HISTORICAL_SOURCE_EXTENSIONS
+            .iter()
+            .map(|extension| {
+                let entry = entry(format!("fixture.{extension}"));
+                std::fs::write(
+                    root.join(&entry.path),
+                    "// TODO historical coverage fixture\n",
+                )
+                .unwrap();
+                entry
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 29);
+        let mut read = 0;
+        let mut debts = 0;
+        for provider in PROVIDER_IDS {
+            let config = config_for(provider).unwrap();
+            let made = produce(
+                provider,
+                config,
+                Some(&root),
+                &entries,
+                &EvidenceLimits::default(),
+            )
+            .unwrap();
+            read += made.examined;
+            debts += made
+                .findings
+                .iter()
+                .filter(|finding| finding.rule == "debt-marker")
+                .count();
+            assert_eq!(made.examined, made.expected);
+            assert!(made.input["sourceAccounting"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|item| item["status"] == "examined"
+                    && item["digest"].as_str().unwrap().starts_with("sha256:")));
+            if provider == "code.long-tail" {
+                let analysis = long_tail::analyze(&made.input);
+                assert_eq!(analysis["complete"], false);
+                assert!(!analysis["coverageGaps"].as_array().unwrap().is_empty());
+            }
+        }
+        assert_eq!(read, 29);
+        assert_eq!(debts, 29);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_historical_source_is_a_skip_not_examined() {
+        let entries = [entry("fixture.vue".into())];
+        let made = produce(
+            "code.long-tail",
+            &long_tail::CONFIG,
+            None,
+            &entries,
+            &EvidenceLimits::default(),
+        )
+        .unwrap();
+        assert_eq!((made.expected, made.examined), (1, 0));
+        assert_eq!(made.input["sourceAccounting"][0]["status"], "skipped");
+        assert_eq!(long_tail::analyze(&made.input)["complete"], false);
+    }
+
+    #[test]
+    fn ruby_has_its_own_static_rules() {
+        let rules = ruby_rules().unwrap();
+        let mut findings = Vec::new();
+        scan_text(
+            "app.rb",
+            "binding.pry\nbegin\nrescue\nend\n",
+            &rules,
+            &Regex::new("TODO").unwrap(),
+            &mut findings,
+        );
+        assert!(findings
+            .iter()
+            .any(|finding| finding.rule == "debug-leftover"));
+        assert!(findings
+            .iter()
+            .any(|finding| finding.rule == "error-swallowed"));
+    }
 }

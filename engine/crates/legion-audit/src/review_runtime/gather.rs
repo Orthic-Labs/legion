@@ -105,6 +105,13 @@ impl Controller<'_> {
         execution: &model::ExecutionSelection,
         initial: Option<String>,
     ) -> Result<(), AuditError> {
+        // Frozen raw context needs no paid ceremonial planning call. The
+        // author may still request narrowly bounded host context if needed.
+        match seat["gatherPolicy"].as_str() {
+            Some("deterministic") => return Ok(()),
+            Some("cheap-planner") | None => {}
+            Some(_) => return Err(invalid("unknown frozen gatherPolicy")),
+        }
         let allowance = seat["perCallTokenAllowance"]
             .as_u64()
             .ok_or_else(|| invalid("incomplete:gathering-budget:per-call allowance missing"))?;

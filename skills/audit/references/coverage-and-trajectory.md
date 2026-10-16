@@ -20,14 +20,17 @@ Applies only to implemented `risk-sampled` runs (`execution-contract.md`, Covera
 - **Label.** Risk-sampled report output is labeled "whole-repository risk-sampled audit". The
   label never reads as a full-repository proof.
 - **Assumptions.** The statements below cover only findings detectable in the random strata, under the
-  stated seeded sampling within each stratum. They say nothing about findings no lens can detect.
+  stated seeded sampling within each stratum. They say nothing about findings no lens can detect. They
+  do not cover mandatory paths deferred under budget limits; any such path is an explicit gap, makes the
+  run incomplete, and cannot be hidden by or folded into a confidence estimate.
 - **Zero findings: rule of three.** With zero findings at high severity or above in `n` reviewed files,
   the 95% upper bound on the share of affected files is `3/n`.
 - **Findings present: Clopper-Pearson.** Report the exact Clopper-Pearson 95% interval for the affected
   share, and only where the binomial assumptions hold (files independent, one per-file probability within
   each stratum). Where they do not hold, report the counts and name the failed assumption.
-- **Per stratum.** Each sampled stratum reports its own `N`, `n`, findings, and confidence. Strata are
-  never pooled into one estimate.
+- **Per stratum.** Each sampled stratum reports its own `N`, `n`, findings, and confidence only when
+  its sampling assumptions hold. Strata are never pooled into one estimate, and confidence never
+  converts incomplete mandatory coverage into a clean result.
 
 ## Per-change coverage rows (§2A)
 

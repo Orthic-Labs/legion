@@ -39,7 +39,7 @@ pub enum ModelPolicyViolation {
     UnauthorizedModel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Observation {
     pub context_id: String,
     pub process_id: u32,

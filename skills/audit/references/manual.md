@@ -169,7 +169,12 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
 2. **Run reasoning:** `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`
    executes applicable lens packets through a fresh native Claude process per bounded turn. The
    host grants only snapshot read/search/list/diff/caller tools; it grants no shell, edit, MCP, or
-   subagent tools. Every author finding goes through a separate evidence verifier before ingest.
+   subagent tools. Findings admitted within the run budget go through a separate fresh verifier before
+   ingest; overflow findings remain persisted as unverified. For the requested bounded Ember run, use
+   50,000 total tokens across input and output, 10,000 total tokens per physical model call (including
+   at most 2,500 output tokens), five calls maximum, and width one. These are run-scoped caps, not general
+   CLI defaults; admit at most four author calls and reserve at least one verification call. See
+   [execution contract](execution-contract.md).
    See [reasoning runtime](reasoning-runtime.md) for scope, usage, and prerequisite semantics.
    Pattern cards sharpen existing lenses; they do not create new audit domains. Each lens must
    still ground findings in frozen-source evidence. **Security lenses may not emit clean-bill
@@ -566,8 +571,9 @@ ask for: credentials/secrets, payments/billing, legal/compliance, destructive da
 claims, public copy), or any proposed feature/functionality removal. Everything else is the agent's to
 fix while preserving functionality.
 
-1. Run the **full** audit — `legion audit` **AND every applicable reasoning lens** → `report.json`
-   (which MUST set `lenses_ran`). A scanner-only pass is NOT an audit and can never be "clean":
+1. Run the **full** audit — `legion audit` and applicable reasoning lenses under the selected coverage
+   mode → `report.json` (which MUST set `lenses_ran` and preserve the full applicable universe). A
+   scanner-only pass is NOT an audit and can never be "clean":
    decomposition, AI-slop, architecture, correctness, and minimize all live in the lenses. Skipping
    them = the report renders WITHHELD/INCOMPLETE, not clean.
 2. Apply fixes in validated GoalRoute dependency order, using tier as safety/authority classification:

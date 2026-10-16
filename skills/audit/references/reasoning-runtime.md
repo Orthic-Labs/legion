@@ -30,14 +30,18 @@ bounded size, lines, file count, elapsed time, and snapshot identity. Caller res
 evidence, not a semantic call graph. Missing safe controls or native executable produces a typed
 incomplete result; no API provider fallback is used.
 
-Each call reserves budget before transport; observed usage is reconciled afterward. Estimates govern
-admission and are not actual usage or spend. Missing usage remains unknown, never zero; every additional
-call requires its own reservation. Planning accounts for required initial calls and verification/context
-capacity before dispatch. The runtime retains partial findings and gaps when budget or runtime work
-stops. A fresh Oracle verifier runs at balanced-executor tier with each proposed finding and compact
-source evidence, without the author's context or tools. It may uphold with anchored evidence,
-contradict with anchored counterevidence, or leave the claim unresolved; unresolved findings are
-retained as unverified. Ingested receipts are authenticated and the report is recomputed. `done`
+For the requested bounded Ember run, freeze a 50,000-token total budget across input and output, a
+10,000-token total per physical model call (including at most 2,500 output tokens), at most 5 calls,
+and width 1. These are run-scoped caps, not general CLI defaults. Each call reserves budget before
+transport; observed usage and cost are reconciled afterward. Estimates govern admission and are not
+actual usage or spend. Missing usage/cost remains unknown, never zero; every additional call requires
+its own reservation. Planning admits at most four initial author calls and reserves at least one fresh
+verification call. Deterministic host gathering uses no model call; optional cheap gathering requires
+separate admission. The runtime retains partial findings and gaps when budget or runtime work stops. The reserved fresh Oracle verifier
+runs at balanced-executor tier, without the author's context or tools. It may uphold with anchored
+evidence, contradict with anchored counterevidence, or leave the claim unresolved; unresolved findings
+are retained as unverified. Findings left outside verification admission remain present and unverified.
+Authenticated usage and cost persist across calls and retries. Ingested receipts are authenticated and the report is recomputed. `done`
 requires complete applicable work, no unresolved runtime/snapshot/report gaps, and final report
 reconciliation.
 

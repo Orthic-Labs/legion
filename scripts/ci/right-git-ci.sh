@@ -126,6 +126,16 @@ fi
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release --profile debug --out "${RUNNER_TEMP}/legion-install" --force
 cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
 
+# Real-repository affordability gate against a pinned public Ember checkout.
+# The helper uses plan-only mode: it freezes actual source packets and dispatch
+# limits without executing Ember tooling or invoking a model.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  python3 "${GITHUB_WORKSPACE}/scripts/ci/audit-ember-bounded.py" \
+    --legion "${RUNNER_TEMP}/legion-install/bin/legion" \
+    --provider-registry "${RUNNER_TEMP}/legion-install/share/legion/assets/registry/providers.json" \
+    --runner-temp "${RUNNER_TEMP}"
+fi
+
 # Deterministic behavior benchmark: record a reproducible A/A × 2 sample against
 # the assembled installed CLI. This lane never invokes model reasoning.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then

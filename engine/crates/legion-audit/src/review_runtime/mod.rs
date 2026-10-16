@@ -341,6 +341,21 @@ impl Controller<'_> {
             self.serial
         );
         let budget_run = self.options.budget_run.as_deref().unwrap_or(self.run);
+        if execution.stage != "finding-verification"
+            && seat["gatherPolicy"] == "deterministic"
+            && !next::native_author_has_verifier_reserve(
+                budget_run,
+                if budget_run == self.run {
+                    initial.as_deref()
+                } else {
+                    None
+                },
+            )?
+        {
+            return Err(AuditError::BoundExceeded(
+                "budget-exhausted:preserved-fresh-verification-reserve".into(),
+            ));
+        }
         let call = BudgetCall {
             reservation_id: if budget_run == self.run {
                 initial
@@ -348,7 +363,12 @@ impl Controller<'_> {
                 None
             },
             call_id: call_id.clone(),
-            tier: seat["tier"].as_str().unwrap_or("judgment").into(),
+            tier: if execution.stage == "finding-verification" {
+                "judgment"
+            } else {
+                seat["tier"].as_str().unwrap_or("judgment")
+            }
+            .into(),
             rendered_request_bytes: bytes,
             output_token_limit: seat["outputTokenLimit"]
                 .as_u64()
@@ -416,7 +436,7 @@ impl Controller<'_> {
         }
         let mut initial = initial;
         let execution = model::author([request.provider_id.as_str()], self.options)?;
-        if request.provider_id != "reasoning.dead-file" {
+        if request.provider_id != "reasoning.dead-file" && seat["gatherPolicy"] != "deterministic" {
             self.gather_for_author(
                 seat,
                 &[request],
@@ -644,11 +664,17 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         fatal_error: None,
     };
     let mut artifacts = Vec::new();
+    let mut pending_verification = Vec::new();
+    let mut authored_packets = BTreeSet::new();
     let mut failures = Vec::new();
     let mut final_status = "incomplete:runtime-step-limit".to_owned();
     let mut seen = BTreeSet::new();
     'steps: for _ in 0..4096 {
-        let dispatch = next::next(&run, &NextOptions::now(next::DEFAULT_LEASE_MS))?;
+        let dispatch = next::next_author_phase(
+            &run,
+            &NextOptions::now(next::DEFAULT_LEASE_MS),
+            &authored_packets,
+        )?;
         let status = dispatch["status"]
             .as_str()
             .unwrap_or("incomplete:invalid-next");
@@ -690,14 +716,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                             for (work, raw) in batch.items {
                                 let attempt = (|| -> Result<Value, AuditError> {
                                     partial::preserve_author(&run, &work, &raw, &batch.author)?;
-                                    let mut result = host_result(&work.request, raw)?;
-                                    verification::verify_findings(
-                                        &mut controller,
-                                        seat,
-                                        &work.request,
-                                        &batch.author,
-                                        &mut result,
-                                    )?;
+                                    let result = host_result(&work.request, raw)?;
                                     let index = works
                                         .iter()
                                         .position(|other| {
@@ -714,18 +733,24 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                                     if !destination.starts_with(&run) {
                                         return Err(invalid("shared result path escapes run"));
                                     }
-                                    let name = destination
-                                        .file_name()
-                                        .and_then(|name| name.to_str())
-                                        .ok_or_else(|| invalid("shared result filename invalid"))?;
-                                    persist(
-                                        destination.parent().ok_or_else(|| {
-                                            invalid("shared result parent missing")
-                                        })?,
-                                        name,
-                                        &result,
-                                    )?;
-                                    ingest::ingest_lens_result(&run, &work.provider_id, &result)?;
+                                    let packet_name = Path::new(
+                                        paths
+                                            .get(index)
+                                            .and_then(Value::as_str)
+                                            .ok_or_else(|| invalid("shared packet path missing"))?,
+                                    )
+                                    .file_name()
+                                    .and_then(|name| name.to_str())
+                                    .ok_or_else(|| invalid("shared packet filename missing"))?
+                                    .to_owned();
+                                    pending_verification.push(verification::PendingVerification {
+                                        work: work.clone(),
+                                        result,
+                                        author: batch.author.clone(),
+                                        seat: seat.clone(),
+                                        destination: destination.clone(),
+                                    });
+                                    authored_packets.insert(packet_name);
                                     Ok(
                                         json!({"provider":work.provider_id,"result":destination,"contextId":batch.author.context_id,"sharedPhysicalCall":true,"processId":batch.author.process_id}),
                                     )
@@ -802,15 +827,24 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                     if !staged {
                         partial::preserve_author(&run, &work, &raw, &author)?;
                     }
-                    let mut result = host_result(&work.request, raw)?;
+                    let result = host_result(&work.request, raw)?;
                     if !staged {
-                        verification::verify_findings(
-                            &mut controller,
-                            seat,
-                            &work.request,
-                            &author,
-                            &mut result,
-                        )?;
+                        let packet_name = path
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .ok_or_else(|| invalid("packet filename missing"))?
+                            .to_owned();
+                        pending_verification.push(verification::PendingVerification {
+                            work: work.clone(),
+                            result,
+                            author: author.clone(),
+                            seat: seat.clone(),
+                            destination: destination.clone(),
+                        });
+                        authored_packets.insert(packet_name);
+                        return Ok(
+                            json!({"provider":work.provider_id,"result":destination,"contextId":author.context_id,"processId":author.process_id,"verification":"pending-fresh-batch"}),
+                        );
                     }
                     let name = destination
                         .file_name()
@@ -903,6 +937,45 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                 }
             }
         }
+    }
+    // Every paid author has been preserved before fresh independent review.
+    // Even an exhausted verifier leaves each original explicitly unverified.
+    if let Err(error) = verification::verify_pending(&mut controller, &mut pending_verification) {
+        failures.push(json!({"stage":"fresh-batch-verification","error":error.to_string()}));
+        final_status = "incomplete:fresh-batch-verification".into();
+    } else {
+        for item in pending_verification {
+            let attempt = (|| -> Result<(), AuditError> {
+                let name = item
+                    .destination
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .ok_or_else(|| invalid("result filename invalid"))?;
+                persist(
+                    item.destination
+                        .parent()
+                        .ok_or_else(|| invalid("result parent missing"))?,
+                    name,
+                    &item.result,
+                )?;
+                ingest::ingest_lens_result(&run, &item.work.provider_id, &item.result)?;
+                Ok(())
+            })();
+            if let Err(error) = attempt {
+                failures.push(json!({"stage":"verified-result-ingest","provider":item.work.provider_id,"error":error.to_string()}));
+                final_status = "incomplete:verified-result-ingest".into();
+            }
+        }
+    }
+    if final_status == "done" {
+        let final_dispatch = next::next(&run, &NextOptions::now(next::DEFAULT_LEASE_MS))?;
+        if final_dispatch["status"] != "done" {
+            final_status = "incomplete:required-evidence".into();
+        }
+    }
+    if let Some(error) = &controller.fatal_error {
+        final_status = error.clone();
+        failures.push(json!({"stage":"model-policy","error":error}));
     }
     let recomputed = recompute_with_partial_results(&run)?;
     let complete = final_status == "done"

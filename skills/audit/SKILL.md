@@ -77,7 +77,12 @@ overrides it.
    `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`. Alchemist executes
    staged evidence gathering and review under frozen packets; a fresh verifier checks proposed findings.
    Calls use snapshot-only tools, record actual usage as known or unknown, ingest authenticated receipts,
-   and recompute the report. Model tiers and stage budgets are defined in [lens routing](references/lens-routing.md).
+   and recompute the report. For the requested bounded Ember run, freeze a 50,000-token total budget
+   across input and output, a 10,000-token total per physical model call (including at most 2,500 output
+   tokens), at most 5 calls, and width 1. These are run-scoped caps, not general CLI defaults. Reserve at
+   least one call for fresh finding verification, so no more than four initial author calls are admitted.
+   Deterministic host gathering uses zero model calls; optional cheap gathering is used only when needed
+   and separately admitted. See [lens routing](references/lens-routing.md).
    Missing prerequisites, exhausted budget, and unresolved evidence remain typed gaps. Cards sharpen
    existing lenses and are selected only when applicable; they do not create new domains.
    See [execution contract](references/execution-contract.md) for packet and ingest invariants.
@@ -99,8 +104,11 @@ Return gate vector, coverage, findings with evidence loci, rerun commands, & rec
 typed degradation; `quality_gate` stays separate, and `coverageMode` (`exhaustive` or `sampled`) is
 reported apart from both. A risk-sampled run is labelled "whole-repository risk-sampled audit" and reports
 `qualityGate: sampled`, never `proven`; its findings and missing evidence keep their own states. A zero-finding result is reportable only after
-every planned provider, lens, candidate adjudication, denominator, & required qualification
-reconciles complete.
+every selected provider, lens, candidate adjudication, denominator, & required qualification
+reconciles. The frozen plan retains the full applicable provider/lens/path universe. If the bounded
+selection defers mandatory paths, record their exact paths and digest as `mandatoryDeferred`, emit
+explicit coverage gaps, and keep the run `incomplete`; never call deferred mandatory coverage clean
+or convert it into confidence. Explicit `exhaustive` mode remains strict and refuses when it cannot fit.
 
 Read [full manual](references/manual.md) only for complex runtime, migration, desktop/Tauri,
 data-safety, or report-schema edges. Frozen provider order, executable registry truth, real

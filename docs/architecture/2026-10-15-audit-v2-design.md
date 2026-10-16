@@ -297,16 +297,20 @@ The adopt and reject lists are as in rev 1. The coverage ledger now includes `re
 - A resident transport is not a prerequisite.
 - The extraction runs as its own track, owned by the Membrane/Blueprint owner, and does not gate any Audit phase.
 
-**Invocation.** `blueprint graph export --contract legion-graph/1 --root <dir> --scoped-bytes <manifest.json> --out <file>`. The manifest maps each path to its sha256, taken from Legion's snapshot.
+**Transport.** Membrane owns graph production & host transport. Legion's Audit consumer accepts an existing artifact; it does not spawn graph extraction. The original proposed separate `blueprint graph export` invocation is superseded by revised ownership above.
+
+**Audit artifact input.** `LEGION_AUDIT_GRAPH_ARTIFACT` explicitly selects host-supplied `legion-graph/1` JSON. Use an absolute regular-file path without parent traversal, symlinks, or reparse points, in a host-owned directory outside audited source & snapshot roots. RightKit pins its parent & limits reads to 16 MiB before parsing; on Unix that parent must be user-owned & not group/other writable. Absence keeps labelled lexical imports; load/parse rejection records an explicit input gap. Parsed artifacts still pass source, coverage, resolver, path, span, & graph-size validation before any Blueprint edges enter context. Host selection & byte bindings do not authenticate Blueprint producer identity.
 
 **Output contract (`legion-graph/1`).**
-- `contractVersion`, `blueprintVersion`, `scopedBytesDigest` (echoed);
+- `contractVersion: "legion-graph/1"`, nonempty `blueprintVersion`, `scopedBytesDigest`, `coveredFilesDigest`, `resolverConfigDigest`;
 - `coverage {files[], languages[], unsupported[{path,cause}]}`;
 - `nodes[{id, kind: file|symbol|test, path, range}]`;
 - `edges[{from, to, kind: imports|calls|implements|tests, confidence: certain|likely|possible, evidence}]`;
 - `unknowns[{location, cause}]`.
 
-Exit codes: 0 ok, 2 partial (coverage lists the gaps), anything else unavailable.
+`scopedBytesDigest` is SHA-256 of serialized ordered path→raw-source-SHA-256 map for covered frozen files; `coveredFilesDigest` independently hashes serialized sorted coverage membership. Both algorithms live in `graph_context.rs`. `resolverConfigDigest` matches Audit CLI's digest of frozen snapshot manifest entries for Cargo/package/TypeScript/JavaScript resolver configuration. Host artifacts must bind those exact inputs; partial coverage keeps uncovered paths explicit.
+
+For host transports exposing exit status: 0 ok, 2 partial (coverage lists gaps), anything else unavailable. Artifact-file ingestion reads no process exit status.
 
 **Freshness and use.**
 - The output is accepted only when its `scopedBytesDigest` equals Legion's digest over the covered files.

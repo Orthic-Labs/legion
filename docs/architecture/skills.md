@@ -25,8 +25,8 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 
 ### `blueprint-graph`
 
-- **Absent behavior:** Use bounded Blueprint one-shot regardless of enrollment. Return a `NO_CAPABILITY` result naming `blueprint-graph` only when it is unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.
-- **Remedy:** Install the Blueprint graph engine and put its `blueprint` executable on `PATH`, then re-run. This package does not ship it.
+- **Absent behavior:** Blueprint requests use bounded host one-shot regardless of enrollment, or return `NO_CAPABILITY` naming `blueprint-graph`. Audit optional artifact consumption retains labelled lexical import leads when absent or rejected; those leads prove no call graph or dead-code claim.
+- **Remedy:** Provide Blueprint transport through Membrane or put host's `blueprint` executable on `PATH`. Audit also accepts explicit host-supplied `legion-graph/1` JSON through `LEGION_AUDIT_GRAPH_ARTIFACT`; see [Audit artifact contract](2026-10-15-audit-v2-design.md#adr-7--blueprint-integration-contract-c8-new-in-rev-2-ownership-revised-by-adrian-2026-10-15). This package ships no graph engine.
 
 ### `legion`
 

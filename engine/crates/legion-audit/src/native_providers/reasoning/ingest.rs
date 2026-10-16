@@ -1941,10 +1941,12 @@ pub fn ingest_lens_result(
         Some(Value::Object(map)) => map.clone(),
         Some(_) => return Err(invalid(format!("{who}: `details` must be an object"))),
     };
-    if let Some(key) = extra_details
-        .keys()
-        .find(|key| !matches!(key.as_str(), "semanticReview" | "changeRisk"))
-    {
+    if let Some(key) = extra_details.keys().find(|key| {
+        !matches!(
+            key.as_str(),
+            "semanticReview" | "changeRisk" | "candidateDispositions"
+        )
+    }) {
         return Err(invalid(format!(
             "{who}: details.{key} is not an accepted detail"
         )));
@@ -2351,6 +2353,15 @@ pub fn ingest_lens_result(
     );
     coverage.gaps.append(&mut ledger_gaps);
     coverage.gaps.extend(super::required_packet_gaps(request));
+    if let Some(frozen) = frozen_coverage_for(&plan, provider_id) {
+        if !frozen.mandatory_deferred.is_empty() {
+            coverage.gaps.push(format!(
+                "lens-mandatory-deferred:{provider_id}:{}",
+                frozen.mandatory_deferred.len()
+            ));
+            coverage.detail["mandatoryDeferred"] = json!(frozen.mandatory_deferred);
+        }
+    }
     let verification = runtime_verification(run_dir, request, &key, &digest)?;
     if stage_observations.is_empty() {
         coverage.gaps.extend(verification_result_gaps(
@@ -2451,8 +2462,8 @@ pub fn ingest_lens_result(
             "verdictsNamingNoContext": unnamed,
         }));
     }
-    let complete = coverage.gaps.is_empty();
-    let status = if complete {
+    let mut complete = coverage.gaps.is_empty();
+    let mut status = if complete {
         ProviderStatus::Complete
     } else {
         ProviderStatus::Partial
@@ -2464,6 +2475,9 @@ pub fn ingest_lens_result(
     details.insert("reasoningHostState".into(), json!("ingested"));
     details.insert("lensIds".into(), json!(work.lens_ids));
     details.insert("lensFindings".into(), Value::Array(findings.clone()));
+    if let Some(dispositions) = result.get("candidateDispositions") {
+        details.insert("candidateDispositions".into(), dispositions.clone());
+    }
     details.insert("withdrawnFindings".into(), Value::Array(withdrawn.clone()));
     details.insert("findingTitles".into(), Value::Object(titles));
     details.insert("findingMessages".into(), Value::Object(messages));
@@ -2506,7 +2520,7 @@ pub fn ingest_lens_result(
         details.insert(field, value);
     }
     let provider = ProviderId::new(provider_id)?;
-    let provider_result = ProviderResult {
+    let mut provider_result = ProviderResult {
         schema_version: 1,
         provider,
         applicable: true,
@@ -2524,6 +2538,19 @@ pub fn ingest_lens_result(
         degradation: Vec::new(),
         details,
     };
+    let candidate_gaps =
+        super::pending_candidate_review_gaps(request, &provider_result).map_err(invalid)?;
+    if !candidate_gaps.is_empty() {
+        coverage.gaps.extend(candidate_gaps);
+        complete = false;
+        status = ProviderStatus::Partial;
+        provider_result.complete = complete;
+        provider_result.status = status;
+        provider_result.coverage_gaps = coverage.gaps.clone();
+        if let Some(value) = provider_result.coverage.as_mut() {
+            value.gaps = coverage.gaps.clone();
+        }
+    }
     provider_result
         .validate()
         .map_err(|error| invalid(format!("{who}: {error}")))?;
@@ -3848,6 +3875,9 @@ pub const SHARED_PACKET_FIELDS: &[&str] = &[
     "triggerEvidence",
     "part",
     "excerptCoverage",
+    "reportSchemaBody",
+    "semanticReviewContract",
+    "changeRiskContract",
 ];
 
 pub fn compact_shared_packet(packet: &Value, shared: &Value) -> Result<Value, AuditError> {
@@ -3880,8 +3910,12 @@ pub fn shared_seat_payload(work: &[PendingLensWork]) -> Result<Option<Value>, Au
     else {
         return Ok(None);
     };
+    let mechanical = |item: &PendingLensWork| {
+        lens_plan::lens_id_for_provider(&item.provider_id) == Some("dead-file")
+    };
     if work.iter().any(|item| {
         item.provider_id == ADJUDICATOR_PROVIDER_ID
+            || mechanical(item) != mechanical(&work[0])
             || item.request.packet.get("excerpts") != Some(excerpts)
     }) {
         return Ok(None);
@@ -3960,6 +3994,12 @@ pub(crate) fn dispatch_output_tokens(seat_token_budget: u64) -> u64 {
     crate::next::DEFAULT_OUTPUT_TOKENS.min((seat_token_budget / 4).max(1))
 }
 
+pub(crate) fn physical_planning_limit(per_call: u64) -> u64 {
+    // Reserve tokenization/host overhead headroom without reducing the
+    // physical ledger allowance. Actual host usage still reconciles to cap.
+    per_call.saturating_sub((per_call * 15 / 100).min(1500))
+}
+
 pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> Value {
     let output_tokens = dispatch_output_tokens(limits.seat_token_budget);
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
@@ -3986,15 +4026,6 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             }
         };
         unshared_request_bytes = unshared_request_bytes.saturating_add(request_bytes);
-        if lens_plan::lens_id_for_provider(&item.provider_id) != Some("dead-file") {
-            match crate::review_runtime::initial_gather_request_bytes(std::slice::from_ref(item)) {
-                Ok(bytes) => unshared_request_bytes = unshared_request_bytes.saturating_add(bytes),
-                Err(error) => planning_errors.push(format!(
-                    "{} gathering request cannot render: {error}",
-                    item.provider_id
-                )),
-            }
-        }
         let adjudicator = item.provider_id == ADJUDICATOR_PROVIDER_ID;
         let bundle = packet
             .pointer("/lensPlan/bundle/id")
@@ -4021,24 +4052,16 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         {
             sampled = true;
         }
-        let identity = coverage
-            .and_then(|value| value.get("reviewSetDigest"))
-            .and_then(Value::as_str)
-            .unwrap_or(item.request.denominator_digest.as_str());
-        let paths_digest = packet
-            .pointer("/part/pathsDigest")
-            .and_then(Value::as_str)
-            .unwrap_or("single");
-        let mode = packet
-            .pointer("/excerpts/0/mode")
-            .and_then(Value::as_str)
-            .unwrap_or("none");
-        let chunks = packet
-            .get("excerpts")
-            .and_then(Value::as_array)
-            .map_or(0, Vec::len);
+        // Physical sharing crosses historical bundle boundaries only when
+        // exact raw excerpts match & executor routes are compatible.
+        let route = if lens_plan::lens_id_for_provider(&item.provider_id) == Some("dead-file") {
+            "mechanical"
+        } else {
+            "semantic"
+        };
+        let excerpt_digest = canonical_digest(&packet["excerpts"]).unwrap_or_default();
         let key = if excerpt_bytes > 0 && !adjudicator {
-            format!("{bundle}|{part}|{identity}|{paths_digest}|{mode}|{chunks}")
+            format!("{route}|{excerpt_digest}")
         } else {
             format!("solo|{}|{part}|{position}", item.provider_id)
         };
@@ -4052,12 +4075,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             // Strict physical compatibility, not merely equal path counts.
             let bytes = sizer.shared_request_bytes(&items).ok()??;
             let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
-            let needs_gather = items.iter().any(|item| {
-                lens_plan::lens_id_for_provider(&item.provider_id) != Some("dead-file")
-            });
-            let reserve_tokens = if needs_gather { 512 } else { 0 };
-            (tokens.saturating_add(reserve_tokens) <= limits.seat_token_budget)
-                .then_some((index, bytes))
+            (tokens <= physical_planning_limit(limits.seat_token_budget)).then_some((index, bytes))
         });
         if let Some((index, bytes)) = merge {
             let draft = &mut drafts[index];
@@ -4095,51 +4113,60 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
     let mut total_bytes = 0u64;
     let mut unique_excerpt_bytes = 0u64;
     let mut shared_excerpt_bytes_saved = 0u64;
-    for (index, draft) in drafts.iter().enumerate() {
-        let number = index as u64 + 1;
-        let gathers = draft.members.iter().any(|position| {
-            lens_plan::lens_id_for_provider(&work[*position].provider_id) != Some("dead-file")
-        });
+    let mut deferred_work = Vec::new();
+    let mut selected_packets = Vec::new();
+    let mut selected_unshared_bytes = 0u64;
+    let initial_call_capacity = limits.max_total_seats.saturating_sub(1).min(
+        limits
+            .run_token_budget
+            .saturating_sub(limits.seat_token_budget)
+            / limits.seat_token_budget.max(1),
+    );
+    for draft in &drafts {
+        let number = seats.len() as u64 + 1;
+        let gathers = false;
         gather_calls += u64::from(gathers);
         let bytes = draft.request_bytes;
-        let items = draft
-            .members
-            .iter()
-            .map(|position| work[*position].clone())
-            .collect::<Vec<_>>();
-        let gather_bytes = if gathers {
-            match crate::review_runtime::initial_gather_request_bytes(&items) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    violations.push(format!(
-                        "seat {number} gathering request cannot render: {error}"
-                    ));
-                    u64::MAX
-                }
-            }
-        } else {
-            0
-        };
+        let gather_bytes = 0u64;
         let tokens = crate::next::estimated_request_tokens(bytes, output_tokens);
-        let gather_tokens = if gathers {
-            crate::next::estimated_request_tokens(gather_bytes, output_tokens)
+        let gather_tokens = 0u64;
+        let context_reserve = 0u64;
+        let empty_source = draft.members.iter().all(|position| {
+            let item = &work[*position];
+            item.provider_id != ADJUDICATOR_PROVIDER_ID
+                && item
+                    .request
+                    .packet
+                    .get("excerpts")
+                    .and_then(Value::as_array)
+                    .is_none_or(Vec::is_empty)
+        });
+        let reason = if empty_source {
+            Some("selected-source-empty")
+        } else if tokens > physical_planning_limit(limits.seat_token_budget) {
+            Some("physical-envelope-headroom")
+        } else if seats.len() as u64 >= initial_call_capacity {
+            Some("fresh-verification-reserve")
         } else {
-            0
+            None
         };
-        let input_allowance = limits
-            .seat_token_budget
-            .saturating_sub(output_tokens)
-            .saturating_mul(4);
-        let context_reserve = if gathers {
-            input_allowance.saturating_sub(bytes).min(16 * 1024)
-        } else {
-            0
-        };
-        if gathers && context_reserve < 2048 {
-            violations.push(format!("seat {number} needs at least 2048 input bytes for gathered raw context after its author envelope; increase seatTokenBudget or narrow scope"));
+        if sampled {
+            if let Some(reason) = reason {
+                for position in &draft.members {
+                    let item = &work[*position];
+                    deferred_work.push(json!({"providerId":item.provider_id,
+                        "packet":item.packet_file_name(),"part":item.part().map_or(1, |part| part.number),
+                        "reason":reason,"plannedRequestBytes":bytes,"estimatedTokens":tokens}));
+                }
+                continue;
+            }
         }
-        if gather_tokens > limits.seat_token_budget {
-            violations.push(format!("seat {number} cheap gathering request needs ~{gather_tokens} tokens; per-call budget is {}", limits.seat_token_budget));
+        for position in &draft.members {
+            let item = &work[*position];
+            selected_packets.push(item.packet_file_name());
+            if let Ok(bytes) = sizer.request_bytes(std::slice::from_ref(item)) {
+                selected_unshared_bytes = selected_unshared_bytes.saturating_add(bytes);
+            }
         }
         total_tokens = total_tokens
             .saturating_add(tokens)
@@ -4158,10 +4185,10 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             .saturating_add(tokens)
             .saturating_add(gather_tokens)
             .saturating_add(context_reserve.div_ceil(4));
-        if tokens > limits.seat_token_budget {
+        if tokens > physical_planning_limit(limits.seat_token_budget) {
             violations.push(format!(
-                "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds the per-seat budget of {}",
-                draft.bundle, draft.part, limits.seat_token_budget
+                "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds planning allowance {} (physical cap {})",
+                draft.bundle, draft.part, physical_planning_limit(limits.seat_token_budget), limits.seat_token_budget
             ));
         }
         seats.push(json!({
@@ -4172,6 +4199,7 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "wave": (number - 1) / wave_width + 1,
             "part": draft.part,
             "estimatedTokens": tokens,
+            "gatherPolicy": "deterministic",
             "initialPhysicalCalls": if gathers { 2 } else { 1 },
             "estimatedInitialTokens": tokens.saturating_add(gather_tokens).saturating_add(context_reserve.div_ceil(4)),
             "evidenceGatherer": if gathers { json!({"role":"alchemist", "modelTier":"mechanical-cheap", "reservedTokens":limits.seat_token_budget}) } else { Value::Null },
@@ -4188,10 +4216,15 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "packets": draft.members.iter().map(|i| work[*i].packet_file_name()).collect::<Vec<_>>(),
         }));
     }
-    let required_seats = drafts.len() as u64;
+    if sampled && !work.is_empty() && seats.is_empty() {
+        violations.push(
+            "bounded audit has no physical review call with source context admitted".to_owned(),
+        );
+    }
+    let required_seats = seats.len() as u64;
     let waves = required_seats.div_ceil(wave_width);
     let initial_calls = required_seats.saturating_add(gather_calls);
-    let followup_calls = u64::from(!drafts.is_empty());
+    let followup_calls = u64::from(!seats.is_empty());
     let reserved_calls = initial_calls.saturating_add(followup_calls);
     let initial_reservation_tokens = initial_calls.saturating_mul(limits.seat_token_budget);
     let followup_reserve_tokens = followup_calls.saturating_mul(limits.seat_token_budget);
@@ -4263,10 +4296,10 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "schemaVersion": 1,
         "kind": "legion-lens-dispatch",
         "planDigest": work.first().map(|item| item.request.plan_digest.clone()),
-        "estimateBasis": "estimate: author plus cheap gathering rendered bytes / 4, output reserve for each physical call & bounded supplementary raw-context reserve; every physical call preflights actual rendered request",
+        "estimateBasis": "estimate: exact rendered author bytes / 4 plus output reserve; deterministic host selection costs no model calls; every physical call preflights actual rendered request",
         "requestEncoding": "runtime-initial-v1",
         "byteBasis": {
-            "packetBytes": "author baseline plus cheap gathering initial physical requests, including model, effort, system, schemas, tools, framing & escaping; unknown supplementary raw context is reserved separately",
+            "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
             "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
             "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
             "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
@@ -4282,6 +4315,11 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
             "maxSeats": limits.max_total_seats,
         },
         "coverageMode": if sampled { coverage_plan::MODE_RISK_SAMPLED } else { coverage_plan::MODE_EXHAUSTIVE },
+        "boundedAudit": sampled,
+        "selectedPackets": selected_packets,
+        "deferredPackets": deferred_work.iter().filter_map(|row| row.get("packet")).collect::<Vec<_>>(),
+        "deferredWork": deferred_work,
+        "plannedSeats": drafts.len(),
         "limits": {
             "seatTokenBudget": limits.seat_token_budget,
             "waveWidth": wave_width,
@@ -4303,8 +4341,9 @@ pub fn lens_dispatch_plan(work: &[PendingLensWork], limits: &DispatchLimits) -> 
         "perLensPacketBytes": per_lens_bytes,
         "uniqueExcerptBytes": unique_excerpt_bytes,
         "sharedExcerptBytesSaved": shared_excerpt_bytes_saved,
-        "unsharedRequestBytes": unshared_request_bytes,
-        "physicalRequestBytesSaved": unshared_request_bytes.saturating_sub(total_bytes),
+        "unsharedRequestBytes": selected_unshared_bytes,
+        "universeUnsharedRequestBytes": unshared_request_bytes,
+        "physicalRequestBytesSaved": selected_unshared_bytes.saturating_sub(total_bytes),
         "estimatedTokens": total_tokens,
         "withinLimits": violations.is_empty(),
         "violations": violations,
@@ -4734,7 +4773,9 @@ pub fn lens_coverage_claims(
                             .unwrap_or(0)
                             .min(coverage_plan::SAMPLE_FLOOR as u64)
                 });
-            let confidence = if frozen.is_sampled() && !floor_met {
+            let confidence = if frozen.bounded {
+                json!({"claim":"none", "basis":"bounded-risk-selection"})
+            } else if frozen.is_sampled() && !floor_met {
                 json!({"claim":"none", "basis":"sample-floor-not-met"})
             } else if frozen.is_sampled() && complete {
                 coverage_plan::stratum_confidence(name, population, selected, high)
@@ -4777,6 +4818,9 @@ pub fn lens_coverage_claims(
                 "examined": review_examined,
                 "declaredUnsampled": (frozen.denominator as u64).saturating_sub(review_total),
                 "excluded": frozen.excluded,
+                "boundedAudit": frozen.bounded,
+                "mandatoryUniverse": frozen.mandatory_universe,
+                "mandatoryDeferred": frozen.mandatory_deferred,
                 "seed": frozen.seed,
                 "status": match receipt {
                     None => "pending",
@@ -5951,15 +5995,15 @@ mod runtime_evidence_tests {
         );
         let roomy = DispatchLimits {
             // Shared author, output & minimum 2048-byte gathered context.
-            seat_token_budget: shared.div_ceil(4) + 4096 + 512 + 100,
+            seat_token_budget: shared.div_ceil(4) + 4096 + 1500 + 100,
             run_token_budget: 1_000_000,
             ..DispatchLimits::default()
         };
         let plan = lens_dispatch_plan(&work, &roomy);
         assert_eq!(plan["withinLimits"], true, "{}", plan["violations"]);
         assert_eq!(plan["requiredSeats"], 1);
-        assert_eq!(plan["gatherCalls"], 1);
-        assert_eq!(plan["requiredInitialCalls"], 2);
+        assert_eq!(plan["gatherCalls"], 0);
+        assert_eq!(plan["requiredInitialCalls"], 1);
         assert_eq!(plan["followupReserveCalls"], 1);
         assert_eq!(plan["seats"][0]["plannedRequestBytes"], shared);
         assert_eq!(plan["seats"][0]["transportEncoding"], "shared-context-v1");
@@ -5977,7 +6021,7 @@ mod runtime_evidence_tests {
         assert_eq!(issued["seats"][0]["budgetReservationTokens"],plan["seats"][0]["estimatedTokens"],
             "resume/admission must reconstruct the same physical shared request, not sum logical packet copies");
         let bounded = DispatchLimits {
-            seat_token_budget: (single.div_ceil(4) + shared.div_ceil(4)) / 2 + 4096 + 512,
+            seat_token_budget: (single.div_ceil(4) + shared.div_ceil(4)) / 2 + 4096 + 1500,
             ..roomy
         };
         let split = lens_dispatch_plan(&work, &bounded);
@@ -5998,6 +6042,111 @@ mod runtime_evidence_tests {
             "equal excerpt counts do not prove equal bytes"
         );
         assert_eq!(plan["sharedExcerptBytesSaved"], 0);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn bounded_dispatch_packs_real_lens_contracts_across_bundles_and_retains_deferrals() {
+        let (run, request) = setup();
+        // Exact Ember executable entrypoint; raw bodies, not a toy schema or
+        // a reconstructed summary. Contracts/schemas come from shipped lenses.
+        let text = r##"#![forbid(unsafe_code)]
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[path = "native.rs"]
+mod native;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn main() {
+    native::run();
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn main() {
+    eprintln!("Ember native host is supported on macOS & Windows only");
+}
+"##;
+        let ids = [
+            "correctness",
+            "security",
+            "schema",
+            "architecture",
+            "doc-drift",
+            "performance",
+            "minimize",
+            "ai-slop",
+            "naming",
+            "dead-file",
+            "a11y",
+            "data-safety",
+            "resilience",
+            "platform-parity",
+            "release-readiness",
+        ];
+        let work = ids.iter().map(|lens| {
+            let provider = format!("reasoning.{lens}");
+            let mut item = planning_work(&request, &provider, text);
+            item.request.packet = json!({
+                "lensPlan":lens_plan::lens_plan_packet_value(&provider).unwrap(),
+                "reportSchemaBody":lens_schemas::lens_report_schema(lens).unwrap(),
+                "semanticReviewContract":lens_plan::semantic_review_contract(lens),
+                "changeRiskContract":lens_plan::change_risk_contract(lens),
+                "excerpts":[{"path":"apps/lightcraft-desktop/src/main.rs","mode":if *lens == "dead-file" {"skeleton"} else {"raw"},"content":text}],
+                "excerptCoverage":{"coverageMode":"risk-sampled","reviewSetDigest":"sha256:ember","reviewSetCount":1}
+            });
+            item
+        }).collect::<Vec<_>>();
+        let limits = DispatchLimits {
+            seat_token_budget: 10_000,
+            run_token_budget: 50_000,
+            max_total_seats: 5,
+            wave_width: 1,
+        };
+        let plan = lens_dispatch_plan(&work, &limits);
+        assert_eq!(plan["withinLimits"], true, "{}", plan["violations"]);
+        assert!(plan["requiredInitialCalls"].as_u64().unwrap() <= 4);
+        assert_eq!(plan["gatherCalls"], 0);
+        assert_eq!(plan["followupReserveCalls"], 1);
+        assert_eq!(plan["reasoningBudget"]["outputTokens"], 2500);
+        let selected = plan["selectedPackets"].as_array().unwrap();
+        let deferred = plan["deferredWork"].as_array().unwrap();
+        assert_eq!(selected.len() + deferred.len(), work.len());
+        assert!(
+            selected.len() >= 2,
+            "useful review needs multiple real contracts"
+        );
+        for seat in plan["seats"].as_array().unwrap() {
+            assert_eq!(seat["gatherPolicy"], "deterministic");
+            assert!(seat["estimatedTokens"].as_u64().unwrap() <= 8500);
+            let members = seat["providers"].as_array().unwrap();
+            if members
+                .iter()
+                .any(|provider| provider == "reasoning.dead-file")
+            {
+                assert_eq!(
+                    members.len(),
+                    1,
+                    "mechanical survey keeps its executor boundary"
+                );
+            }
+        }
+        // A smaller call ledger retains all omitted work explicitly, with no
+        // fictional successful result or erased provider denominator.
+        let tight = lens_dispatch_plan(
+            &work,
+            &DispatchLimits {
+                max_total_seats: 2,
+                ..limits
+            },
+        );
+        assert_eq!(tight["requiredInitialCalls"], 1);
+        assert!(!tight["deferredWork"].as_array().unwrap().is_empty());
+        assert_eq!(
+            tight["selectedPackets"].as_array().unwrap().len()
+                + tight["deferredWork"].as_array().unwrap().len(),
+            work.len()
+        );
         let _ = fs::remove_dir_all(run);
     }
 

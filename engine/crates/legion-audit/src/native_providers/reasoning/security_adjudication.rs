@@ -813,8 +813,78 @@ fn detail_entry<'a>(result: &'a ProviderResult, key: &str, id: &str) -> Option<&
 
 /// Routing remains explicit: unknown families do not become security claims.
 pub fn candidate_domain(provider: &str, rule: &str) -> &'static str {
+    // Current framework rules are mixed-domain despite security-candidates in
+    // their legacy output contract. Do not infer future rules from that label.
+    if provider == "legacy.framework.major-suite" {
+        match rule {
+            "nuxt-ssr-disabled" => return "architecture",
+            "fastify-schema-missing"
+            | "nest-validation-missing-transform"
+            | "fastapi-no-response-model" => return "schema",
+            "go-http-no-timeouts" | "rust-web-unbounded-body" => return "reliability",
+            "next-public-secret"
+            | "next-unsafe-html"
+            | "next-unvalidated-redirect"
+            | "vue-v-html"
+            | "nuxt-public-secret"
+            | "angular-trust-bypass"
+            | "angular-inner-html"
+            | "svelte-raw-html"
+            | "sveltekit-public-env-secret"
+            | "sveltekit-unvalidated-redirect"
+            | "express-trust-proxy-all"
+            | "express-open-cors"
+            | "express-error-leak"
+            | "fastify-open-cors"
+            | "nest-open-cors"
+            | "electron-node-integration"
+            | "electron-context-isolation"
+            | "electron-web-security"
+            | "electron-shell-open-external"
+            | "django-debug"
+            | "django-hosts-all"
+            | "django-csrf-exempt"
+            | "django-mark-safe"
+            | "fastapi-open-cors"
+            | "flask-debug"
+            | "flask-secret-fallback"
+            | "flask-render-template-string"
+            | "spring-csrf-disabled"
+            | "spring-sensitive-permit-all"
+            | "spring-spel-input"
+            | "ktor-any-host"
+            | "ktor-forwarded-headers"
+            | "rails-forgery-skip"
+            | "rails-html-safe"
+            | "rails-constantize-input"
+            | "phoenix-check-origin-disabled"
+            | "phoenix-raw-html"
+            | "flutter-bad-cert-callback"
+            | "flutter-webview-js-unrestricted"
+            | "go-template-html"
+            | "rust-web-command-input" => return "security",
+            _ => {}
+        }
+    }
     for identity in [rule, provider] {
         let family = identity.to_ascii_lowercase();
+        for (prefix, domain) in [
+            ("architecture", "architecture"),
+            ("documentation", "documentation"),
+            ("docs", "documentation"),
+            ("doc-drift", "documentation"),
+            ("quality", "quality"),
+            ("correctness", "correctness"),
+            ("schema", "schema"),
+            ("performance", "performance"),
+        ] {
+            if family == prefix
+                || family.starts_with(&format!("{prefix}."))
+                || family.contains(&format!(".{prefix}."))
+            {
+                return domain;
+            }
+        }
         if family.starts_with("data.") || family.contains(".data.") {
             return "data";
         }
@@ -986,12 +1056,7 @@ pub fn scanner_candidates(
                 domain: candidate
                     .get("domain")
                     .and_then(Value::as_str)
-                    .filter(|domain| {
-                        matches!(
-                            *domain,
-                            "security" | "data" | "reliability" | "release" | "unknown"
-                        )
-                    })
+                    .filter(|domain| !domain.trim().is_empty())
                     .unwrap_or_else(|| {
                         candidate_domain(
                             provider,

@@ -181,6 +181,7 @@ struct LensSeat {
     wave: u64,
     tier: String,
     bundle: String,
+    gather_policy: Option<String>,
     providers: Vec<String>,
     packets: Vec<String>,
     estimated_tokens: u64,
@@ -762,6 +763,10 @@ fn parse_seat(seat: &Value, width: u64) -> Option<LensSeat> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_owned(),
+        gather_policy: seat
+            .get("gatherPolicy")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
         providers: strings(seat.get("providers")),
         packets: strings(seat.get("packets")),
         estimated_tokens: seat
@@ -1063,6 +1068,26 @@ fn packet_receipt_complete(receipt: &Value) -> bool {
             })
 }
 
+fn frozen_gather_calls(seats: &[LensSeat]) -> Result<u64, AuditError> {
+    let mut calls = 0;
+    for seat in seats {
+        match seat.gather_policy.as_deref() {
+            Some("deterministic") => {}
+            Some("cheap-planner") | None => {
+                if seat
+                    .providers
+                    .iter()
+                    .any(|provider| provider != "reasoning.dead-file")
+                {
+                    calls += 1;
+                }
+            }
+            Some(_) => return Err(invalid("unknown frozen gatherPolicy")),
+        }
+    }
+    Ok(calls)
+}
+
 fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
     let dispatch_path = run_dir.join(DISPATCH_FILE);
     let bytes = fs::read(&dispatch_path).map_err(|error| {
@@ -1115,15 +1140,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
     let runtime_encoding =
         dispatch.get("requestEncoding").and_then(Value::as_str) == Some("runtime-initial-v1");
     if runtime_encoding {
-        let gather_calls = seats
-            .iter()
-            .filter(|seat| {
-                seat.providers.iter().any(|provider| {
-                    crate::native_providers::reasoning::lens_plan::lens_id_for_provider(provider)
-                        != Some("dead-file")
-                })
-            })
-            .count() as u64;
+        let gather_calls = frozen_gather_calls(&seats)?;
         let required_calls = plan_seats
             .saturating_add(gather_calls)
             .saturating_add(u64::from(plan_seats > 0));
@@ -1582,6 +1599,38 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
     )
 }
 
+/// Keep one full fresh verifier call available while collecting authors.
+/// This read-only preflight never consumes a reservation or resets a stop.
+pub(crate) fn native_author_has_verifier_reserve(
+    run_dir: &Path,
+    initial: Option<&str>,
+) -> Result<bool, AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    let state = load_state(run_dir, &loaded.dispatch_digest)?;
+    let budget = loaded
+        .snapshot
+        .budget
+        .as_ref()
+        .ok_or_else(|| invalid("reasoning budget missing"))?;
+    let previous = initial.and_then(|id| state.reservations.get(id));
+    let new_author = u64::from(previous.is_none());
+    let additional = budget
+        .per_call
+        .saturating_sub(previous.map_or(0, |entry| entry.reserved_tokens));
+    let total = state
+        .spent
+        .values()
+        .fold(0u64, |sum, value| sum.saturating_add(*value));
+    Ok(state.terminal_status.is_none()
+        && state.issuances.saturating_add(new_author).saturating_add(1)
+            <= budget.max_seats.unwrap_or(0)
+        && total
+            .saturating_add(additional)
+            .saturating_add(budget.per_call)
+            <= budget.total)
+}
+
 /// Idempotently reconcile one trusted provider receipt. Conflicting receipts
 /// are errors. Unknown actuals retain admission charge; unknowns & overruns
 /// prohibit further transport without erasing any findings/receipts.
@@ -1823,8 +1872,30 @@ fn paths_json(paths: &[PathBuf]) -> Value {
 /// Computes the next ready wave for `run_dir`, records leases, and returns the
 /// CLI document (`kind: legion-audit-next`).
 pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> {
+    next_inner(run_dir, options, &BTreeSet::new())
+}
+
+/// Current controller's observed author completions advance collection only.
+/// They grant no ingestion, verification or public completion credit.
+pub(crate) fn next_author_phase(
+    run_dir: &Path,
+    options: &NextOptions,
+    authored_packets: &BTreeSet<String>,
+) -> Result<Value, AuditError> {
+    next_inner(run_dir, options, authored_packets)
+}
+
+fn next_inner(
+    run_dir: &Path,
+    options: &NextOptions,
+    authored_packets: &BTreeSet<String>,
+) -> Result<Value, AuditError> {
     let _lock = StateLock::acquire(run_dir)?;
-    let loaded = load(run_dir)?;
+    let mut loaded = load(run_dir)?;
+    loaded
+        .snapshot
+        .done
+        .extend(authored_packets.iter().cloned());
     let before = load_state(run_dir, &loaded.dispatch_digest)?;
     let mut state = before.clone();
     let decision = decide(
@@ -1864,6 +1935,7 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
                     "tier": seat.tier,
                     "modelTier": model_tier(&seat.tier),
                     "bundle": seat.bundle,
+                    "gatherPolicy": seat.gather_policy,
                     "providers": seat.providers,
                     "packetPaths": paths_json(&packets),
                     "resultPaths": paths_json(&results),
@@ -1993,6 +2065,7 @@ mod tests {
 
     fn seat(number: u64, wave: u64, tier: &str) -> LensSeat {
         LensSeat {
+            gather_policy: None,
             id: format!("seat-{number:03}"),
             number,
             wave,
@@ -2774,6 +2847,62 @@ mod tests {
             output_token_limit: 10,
             retry: false,
         }
+    }
+
+    #[test]
+    fn deterministic_gather_policy_does_not_charge_ceremonial_model_calls() {
+        let mut semantic = seat(1, 1, "judgment");
+        semantic.providers = vec!["reasoning.correctness".into()];
+        assert_eq!(frozen_gather_calls(&[semantic.clone()]).unwrap(), 1);
+        semantic.gather_policy = Some("deterministic".into());
+        assert_eq!(frozen_gather_calls(&[semantic.clone()]).unwrap(), 0);
+        semantic.gather_policy = Some("invented-policy".into());
+        assert!(frozen_gather_calls(&[semantic]).is_err());
+    }
+
+    #[test]
+    fn author_collection_advances_width_one_without_public_completion_credit() {
+        let run = budget_run_with_limits("author-collection", 10000, 1000, 10);
+        let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+        dispatch["limits"] = json!({"waveWidth":1});
+        write_value(&run.join(DISPATCH_FILE), &dispatch);
+        let first = next_author_phase(&run, &options(0), &BTreeSet::new()).unwrap();
+        assert_eq!(first["seats"][0]["seatId"], "seat-001");
+        let authored = BTreeSet::from(["reasoning.a.json".to_owned()]);
+        let second = next_author_phase(&run, &options(1), &authored).unwrap();
+        assert_eq!(second["seats"][0]["seatId"], "seat-002");
+        let all = BTreeSet::from(["reasoning.a.json".to_owned(), "reasoning.b.json".to_owned()]);
+        assert_eq!(
+            next_author_phase(&run, &options(2), &all).unwrap()["status"],
+            "done"
+        );
+        assert_ne!(next(&run, &options(3)).unwrap()["status"], "done");
+        assert!(!run.join(LENS_RECEIPT_DIR).exists());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn native_authors_preserve_one_full_physical_verifier_call() {
+        let run = budget_run_with_limits("fresh-verifier-reserve", 40000, 10000, 10);
+        for index in 0..3 {
+            assert!(native_author_has_verifier_reserve(&run, None).unwrap());
+            assert_eq!(
+                reserve_call(&run, &call(&format!("author-{index}"))).unwrap()["authorized"],
+                true
+            );
+        }
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        assert!(!native_author_has_verifier_reserve(&run, None).unwrap());
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
+        assert_eq!(
+            reserve_call(&run, &call("fresh-oracle")).unwrap()["authorized"],
+            true
+        );
+        assert_eq!(
+            reserve_call(&run, &call("beyond-physical-cap")).unwrap()["authorized"],
+            false
+        );
+        let _ = fs::remove_dir_all(run);
     }
 
     #[test]

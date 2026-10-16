@@ -12,15 +12,17 @@ subagents are disabled. Runtime lifecycle, scope, usage, and prerequisites live 
 
 ## Staged execution and model routing
 
-Run deterministic inventory and provider checks first. For each semantic review seat, the native
-runtime then uses a cheap Alchemist evidence pass to plan up to eight reads/searches against the frozen
-inventory and lens question. The host returns exact raw source evidence; the balanced Alchemist
-specialist judges mandatory excerpts together with those supplements. Never substitute summaries for
-source evidence or claim review of unexamined paths. `dead-file` remains a cheap, single-stage survey.
+Run deterministic inventory and provider checks first. Deterministic host gathering reads the frozen
+snapshot without model calls. If source selection needs semantic assistance, an optional cheap Alchemist
+gathering call may plan reads/searches; admit it only within the fixed call and token limits. Do not force
+one gather call per author or lens. Semantic authors receive exact RAW source bytes; lenses bundled into
+one call must share those exact bytes while keeping independent lens questions, contracts, and result IDs.
+Never substitute summaries for source evidence or claim review of unexamined paths. `dead-file` remains a
+cheap, single-stage survey.
 
 | Work | Role | Tier |
 |---|---|---|
-| Evidence gathering and mechanical `dead-file` survey | `alchemist` | `mechanical-cheap` (Haiku / Luna) |
+| Mechanical `dead-file` survey and optional cheap gathering | `alchemist` | `mechanical-cheap` (Haiku / Luna) |
 | Semantic, architecture, correctness, and security review | `alchemist-specialist` | `balanced-executor` (Sonnet / Sol) |
 | Independent finding verification | `oracle` | `balanced-executor` |
 
@@ -32,13 +34,14 @@ Alchemist execution models, cannot downgrade semantic/security review, and rejec
 `--reasoning-effort low|medium|high` defaults to `high`. If the native host lacks required model or
 effort control, keep the run incomplete; do not inherit a host setting or silently substitute.
 
-Seats are planned review jobs, not agents or a concurrency promise. Each semantic author seat requires
-a cheap gathering call plus balanced review; verification and security follow-up add separately admitted
-calls. Planning reports required initial calls and reserves token capacity for them plus verification /
-context work before dispatch. `max-total-seats` bounds physical calls across the run; `max-lens-seats`
-limits planned seats per wave. The native runner currently processes calls sequentially. A planned token
-estimate is admission input, never actual usage or spend. Reconcile host-reported usage after each call;
-unknown usage stays unknown, and an overrun blocks later calls.
+For the requested bounded Ember run, use a 50,000-token total budget across input and output, a
+10,000-token total per physical model call (including at most 2,500 output tokens), at most 5 calls,
+and width 1. These are run-scoped caps, not general CLI defaults. Admit at most four initial author calls
+and reserve at least one fresh balanced-tier call for finding verification. Optional gathering and
+follow-ups need their own admission within those limits. Estimates are admission inputs, never actual
+usage or cost. Keep authenticated actual usage/cost or `unknown` across calls; an overrun stops later
+calls without resetting the persistent budget. Findings that do not fit verifier admission remain
+present as unverified.
 
 The read-only lenses are `doc-drift`, `architecture`, `correctness`, `ai-slop`, `naming`,
 `dead-file`, `schema`, `security`, `minimize`, and `performance`, plus conditional `a11y`,
@@ -104,10 +107,12 @@ plan, and a pack that matches no scoped file is simply not loaded.
 
 ## Finding verification
 
-Every proposed finding is sent to an independent, fresh verifier context without the author's
-conversation or tools. It must uphold with frozen-source anchors and a concrete case, contradict
-with anchored counterevidence, or remain unresolved. Unresolved findings are retained as unverified;
-they are not silently withdrawn. This verifier is separate from any later product-level reproduction.
+Every proposed finding admitted for verification is sent to an independent, fresh balanced-tier verifier
+context without the author's conversation or tools. It must uphold with frozen-source anchors and a
+concrete case, contradict with anchored counterevidence, or remain unresolved. Unresolved and
+unverified findings are retained; they are not silently withdrawn. When the five-call budget cannot
+verify every finding, preserve overflow findings as unverified. This verifier is separate from any later
+product-level reproduction.
 
 ## Reconciliation
 

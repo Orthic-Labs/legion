@@ -1,5 +1,18 @@
 # Scaled full-repo audit design (Sage, 2026-10-15)
 
+> **Superseded execution proposal.** The limits and selection details below record the original design,
+> not current runtime behavior. Current Audit preserves the full applicable provider/lens/path universe,
+> selects a bounded risk-sampled subset, records deferred mandatory paths as explicit incomplete gaps,
+> and keeps explicit exhaustive mode strict. For the requested bounded Ember run, reasoning admission
+> is capped at 50,000 total tokens across input and output, 10,000 total tokens per physical model call
+> (including at most 2,500 output tokens), at most five calls, and width one, with at most four author
+> calls and at least one reserved fresh verification call. These are run-scoped caps, not general CLI
+> defaults. Deterministic gathering has no model-call floor; optional cheap gathering is admitted only
+> when needed. See
+> [`skills/audit/references/execution-contract.md`](../../skills/audit/references/execution-contract.md)
+> and [`skills/audit/references/lens-routing.md`](../../skills/audit/references/lens-routing.md) for
+> normative behavior.
+
 Approved with changes by Astra under Adrian's delegated-decision rule; see workspace `decisions.md` (D1 batched adjudication, D2 risk-sampled coverage). Astra's conditions override the design where they differ.
 
 ## Diagnosis

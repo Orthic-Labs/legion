@@ -5,8 +5,8 @@ use super::common::{analyze_language, LanguageConfig};
 pub const PROVIDER_ID: &str = "code.c-family";
 pub const CONFIG: LanguageConfig = LanguageConfig::new(
     "c-family",
-    &["c", "cc", "cpp", "h", "hpp"],
-    &[("c", &["c", "h"]), ("cpp", &["cc", "cpp", "hpp"])],
+    &["c", "cc", "cpp", "cxx", "h", "hpp"],
+    &[("c", &["c", "h"]), ("cpp", &["cc", "cpp", "cxx", "hpp"])],
     &["compiler", "lint", "analyzer", "sanitizer", "test"],
     &["compileDatabase"],
 );

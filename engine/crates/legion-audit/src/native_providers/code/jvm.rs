@@ -5,10 +5,10 @@ use super::common::{analyze_language, LanguageConfig};
 pub const PROVIDER_ID: &str = "code.jvm";
 pub const CONFIG: LanguageConfig = LanguageConfig::new(
     "jvm",
-    &["java", "kt", "scala"],
+    &["java", "kt", "kts", "scala"],
     &[
         ("java", &["java"]),
-        ("kotlin", &["kt"]),
+        ("kotlin", &["kt", "kts"]),
         ("scala", &["scala"]),
     ],
     &["wrapper", "compile", "lint", "test", "dependency"],

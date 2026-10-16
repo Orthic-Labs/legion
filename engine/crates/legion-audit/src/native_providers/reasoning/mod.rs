@@ -30,6 +30,7 @@ use crate::{
     plan::{AuditProvider, FrozenPlan, ProviderKind},
 };
 
+pub mod candidate_routing;
 pub mod coverage_plan;
 #[cfg(test)]
 mod coverage_regressions;
@@ -42,6 +43,7 @@ pub mod pattern_cards;
 pub mod security_adjudication;
 pub mod triggers;
 
+pub use candidate_routing::pending_review_gaps as pending_candidate_review_gaps;
 pub use security_adjudication::{ScannerCandidate, ADJUDICATOR_PROVIDER_ID};
 
 /// Run-relative path of the inventory artifact that lens packets reference
@@ -647,9 +649,10 @@ fn trigger_evidence_for(
             .as_str()
             .ok_or_else(|| AuditError::Invalid("invalid trigger witness path".into()))?;
         if !denominator.contains(path)
-            || frozen
-                .as_ref()
-                .is_some_and(|coverage| !coverage.review_set.contains(path))
+            || frozen.as_ref().is_some_and(|coverage| {
+                !coverage.review_set.contains(path)
+                    && !(coverage.bounded && coverage.mandatory_deferred.contains(path))
+            })
         {
             return Err(AuditError::Invalid(format!(
                 "provider {} omits mandatory trigger witness {path}",
@@ -672,15 +675,16 @@ fn trigger_evidence_for(
     Ok(Some(evidence))
 }
 
-/// Every scanner candidate belongs to exactly one domain partition. Existing
-/// candidate adjudication remains lossless; nonsecurity semantic review needs
-/// its own authority contract and is an explicit gap until that stage ships.
+/// Every scanner candidate belongs to one domain partition. Only security
+/// uses threat adjudication; other domains use their existing lens contracts.
 pub fn candidate_domain_partitions(candidates: &[ScannerCandidate]) -> Value {
     let mut partitions: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for candidate in candidates {
-        let domain = match candidate.domain.as_str() {
-            "security" | "data" | "reliability" | "release" => candidate.domain.as_str(),
-            _ => "unknown",
+        let actual_domain = security_adjudication::effective_candidate_domain(candidate);
+        let domain = if candidate_routing::target_lens(actual_domain).is_some() {
+            actual_domain
+        } else {
+            "unknown"
         };
         partitions
             .entry(domain)
@@ -689,20 +693,14 @@ pub fn candidate_domain_partitions(candidates: &[ScannerCandidate]) -> Value {
     }
     let partitions = partitions.into_iter().map(|(domain, mut ids)| {
         ids.sort_unstable();
-        let lens = match domain {
-            "security" => Some("security"),
-            "data" => Some("data-safety"),
-            "reliability" => Some("resilience"),
-            "release" => Some("release-readiness"),
-            _ => None,
-        };
+        let lens = candidate_routing::target_lens(domain);
         json!({
             "domain": domain,
             "candidateIds": ids,
             "targetLens": lens,
             "semanticReviewContract": lens.and_then(lens_plan::semantic_review_contract),
-            "status": if domain != "unknown" { "candidate-adjudication" } else { "domain-review-unavailable" },
-            "adjudicationDomainContract": if domain == "security" { json!(["threatModel", "attackerControl", "reachability", "impact", "proof", "evidence", "devilsAdvocate"]) } else if domain != "unknown" { json!(["domainProof.domain", "domainProof.invariant", "domainProof.trigger", "reachability", "impact", "proof", "evidence", "devilsAdvocate"]) } else { Value::Null },
+            "status": if domain == "security" { "candidate-adjudication" } else if lens.is_some() { "pending-lens-review" } else { "domain-review-unavailable" },
+            "adjudicationDomainContract": if domain == "security" { json!(["threatModel", "attackerControl", "reachability", "impact", "proof", "evidence", "devilsAdvocate"]) } else { Value::Null },
         })
     }).collect::<Vec<_>>();
     json!({"schemaVersion": 1, "candidateCount": candidates.len(), "partitions": partitions})
@@ -786,6 +784,27 @@ pub fn required_packet_gaps(request: &ReasoningInvocation) -> Vec<String> {
                 "candidate-domain-review-unavailable:{}",
                 partition
                     .get("domain")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+            ));
+        }
+    }
+    for route in request
+        .packet
+        .pointer("/candidateRouting/routes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if route.get("status").and_then(Value::as_str) == Some("domain-review-unavailable") {
+            gaps.push(format!(
+                "candidate-route-unavailable:{}:{}",
+                route
+                    .get("provider")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                route
+                    .get("candidateId")
                     .and_then(Value::as_str)
                     .unwrap_or("unknown")
             ));
@@ -1064,6 +1083,10 @@ fn build_invocations_with_budget(
         .iter()
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
+    let all_scanner_candidates = scanner_candidates;
+    let routed_candidates = scanner_candidates
+        .map(|candidates| candidate_routing::routed_candidates(&provider.id, candidates));
+    let scanner_candidates = routed_candidates.as_deref();
     // Per-lens work-packet planning (question, applicability trigger, excerpt
     // scoping, report schema, model tier, verify-pass requirement, ponytail
     // tags, cues) per skills/audit/references/{lens-routing,manual,
@@ -1111,7 +1134,9 @@ fn build_invocations_with_budget(
             root,
             provider,
             denominator,
-            scanner_candidates,
+            // Any deterministic risk nomination may promote source into a
+            // lens review. Only disposition context is domain-routed above.
+            all_scanner_candidates,
             mode,
             &changed_hunks,
             part_budget.map_or(0, |budget| budget.listing_copies),
@@ -1187,6 +1212,10 @@ fn build_invocations_with_budget(
         .unwrap_or(Value::Null);
     // Chunks of files continued from an earlier part, per part.
     let mut invocations = Vec::with_capacity(emitted_parts);
+    let candidate_part_paths = part_slots
+        .iter()
+        .map(|part| part.map(|part| part.paths.clone()).unwrap_or_default())
+        .collect::<Vec<_>>();
     for (index, part) in part_slots.into_iter().enumerate() {
         let number = index + 1;
         // Packet materialization is separate from host delivery & review.
@@ -1242,6 +1271,19 @@ fn build_invocations_with_budget(
             "excerpts": excerpts_value,
             "excerptCoverage": excerpt_coverage,
             "scannerCandidates": candidates_value,
+            "candidateContext": if provider.id == ADJUDICATOR_PROVIDER_ID { Value::Null } else {
+                scanner_candidates.map(|candidates| json!(candidate_routing::candidates_for_part(candidates, &candidate_part_paths, index)))
+                    .unwrap_or(Value::Null)
+            },
+            "candidateDispositionContract": if provider.id == ADJUDICATOR_PROVIDER_ID { Value::Null } else { json!({
+                "resultField": "candidateDispositions",
+                "identity": ["candidateId", "provider", "evidenceDigest"],
+                "statuses": ["confirmed", "dismissed", "unresolved"],
+                "required": ["reason", "evidence"],
+                "confirmed": "findingId must name a returned lens finding; apply this lens report schema & verification contract",
+                "dismissed": "cite source evidence in the candidate file & explain counterevidence",
+                "unresolved": "retain candidate-review-pending coverage gap; context inclusion is not a disposition"
+            }) },
             "triggerEvidence": trigger_evidence,
             "sourceSides": provider.configuration.get("sourceSides").cloned().unwrap_or_else(|| json!({})),
             "reportSchemaBody": report_schema_body,
@@ -1251,13 +1293,15 @@ fn build_invocations_with_budget(
             "inventoryRef": inventory_ref.clone(),
             "artifactIds": [],
         });
+        if candidate_routing::accounting_owner(plan) == Some(provider.id.as_str()) {
+            packet["candidateRouting"] = all_scanner_candidates
+                .map(|candidates| candidate_routing::accounting(plan, candidates))
+                .unwrap_or(Value::Null);
+        }
         // === LANE B BOUNDARY: security adjudicator packet construction. ===
         // Everything inside this `if` belongs to security_adjudication.rs and
         // wf064 finalize (batched adjudication); lane A does not edit it.
         if provider.id == ADJUDICATOR_PROVIDER_ID {
-            packet["candidateRouting"] = scanner_candidates
-                .map(candidate_domain_partitions)
-                .unwrap_or(Value::Null);
             let child_work = match scanner_candidates {
                 Some(candidates) => {
                     let parent_packet_digest =
@@ -1829,6 +1873,16 @@ pub(crate) fn verify_response(
         return Err("reasoning receipt denominator count mismatch".into());
     }
     verify_authenticated_receipt(receipt, key)?;
+    let candidate_gaps = pending_candidate_review_gaps(request, &response.result)?;
+    if response.result.complete && !candidate_gaps.is_empty() {
+        return Err("complete reasoning result has unresolved candidate dispositions".into());
+    }
+    if candidate_gaps
+        .iter()
+        .any(|gap| !response.result.coverage_gaps.contains(gap))
+    {
+        return Err("reasoning result omits candidate disposition gaps".into());
+    }
     let packet_gaps = required_packet_gaps(request);
     if response.result.complete && !packet_gaps.is_empty() {
         return Err(format!(
@@ -2238,7 +2292,7 @@ pub fn pending_lens_work(
 }
 
 /// Scanner candidates raised by the plan's candidate-generator providers in
-/// `execution`, for the security adjudicator's packet.
+/// `execution`, preserving frozen generator context for domain lens routing.
 pub fn scanner_candidates_from_execution(
     root: &Path,
     plan: &FrozenPlan,
@@ -2255,14 +2309,22 @@ pub fn scanner_candidates_from_execution(
         .iter()
         .filter(|entry| generators.contains(entry.provider.as_str()))
         .flat_map(|entry| {
-            let source_sides = plan
+            let generator = plan
                 .providers()
                 .iter()
-                .find(|provider| provider.id == entry.provider.as_str())
-                .and_then(|provider| provider.configuration.get("sourceSides"));
+                .find(|provider| provider.id == entry.provider.as_str());
+            let source_sides =
+                generator.and_then(|provider| provider.configuration.get("sourceSides"));
             security_adjudication::scanner_candidates(root, &entry.provider, &entry.result)
                 .into_iter()
                 .map(move |mut candidate| {
+                    if !candidate.source_mapping.is_object() {
+                        candidate.source_mapping =
+                            json!({"originalMapping": candidate.source_mapping});
+                    }
+                    if let Some(generator) = generator {
+                        candidate_routing::bind_generator(&mut candidate, generator, &entry.result);
+                    }
                     if let Some(path) = &candidate.path {
                         let side = source_sides
                             .and_then(|sides| sides.get(path))

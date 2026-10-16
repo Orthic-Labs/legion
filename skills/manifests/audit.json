@@ -77,7 +77,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:588c8a4e96b0f79d53aaecfd9bc245f2b20195c6fb863d9961cca6cdc2d9bbc2"
+      "digest": "sha256:6cc009255d4464b50a89b9fda0a3b3c0410191c6676c6eac6fed6cf7d1ce78fe"
     },
     {
       "path": "agents/openai.yaml",
@@ -112,7 +112,7 @@
     {
       "path": "references/coverage-and-trajectory.md",
       "uri": "legion-skill://audit/references/coverage-and-trajectory.md",
-      "digest": "sha256:b1e9a66b12242e35bf3735cf6dbad76070151652577cff1e8a835775f3d6e083"
+      "digest": "sha256:fa792c2d955957b2df2a379aa00c026a34d193351a93c41a78ce6bc9245c045d"
     },
     {
       "path": "references/desktop-tauri-checklist.md",
@@ -127,7 +127,7 @@
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:05684ea510db904d33249dc7418c4c7ee48a24675d6d4100927fe910cc22751b"
+      "digest": "sha256:d2611be228995fd795955db405476f2b75de44779dcf22480ef782166c5e71e6"
     },
     {
       "path": "references/lens-cues.md",
@@ -137,12 +137,12 @@
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:18f74210b4a54cfb40d577b3b8da0ff0d2b7e50d157b2ecf57e5143093becc4a"
+      "digest": "sha256:064d148efc885a0faad9fdbe3e60b3e2db5d916f584a026a654d3c16d3516612"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:2a3fae17004a60d70352f0faee7da0cedf4ad7c0f8cfdc850b9638ea64743aa4"
+      "digest": "sha256:20f2fa90e298a0fe570e41bd94fca086a838fba7c69b56ccbcb13ca0de621b9d"
     },
     {
       "path": "references/migration-safety.md",
@@ -177,7 +177,7 @@
     {
       "path": "references/reasoning-runtime.md",
       "uri": "legion-skill://audit/references/reasoning-runtime.md",
-      "digest": "sha256:6b20662a1214f2d72435af2d05601694a13bfbd4e1fa2cc03581893912c94a22"
+      "digest": "sha256:7ad445f958bde7ac2f2f0d7ef27497b99cbc54919d9043370351038a5ba1ebf9"
     },
     {
       "path": "references/route-resources.json",

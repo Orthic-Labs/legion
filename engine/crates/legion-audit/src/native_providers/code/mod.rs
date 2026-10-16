@@ -439,6 +439,7 @@ impl ProviderExecutorAdapter {
                     "filesRead": made.examined,
                     "bytesRead": made.bytes_read,
                     "rules": made.rule_ids,
+                    "sourceAccounting": made.input.get("sourceAccounting"),
                     "limits": {
                         "maxFileBytes": self.limits.max_file_bytes,
                         "maxTotalBytes": self.limits.max_total_bytes,
@@ -446,6 +447,7 @@ impl ProviderExecutorAdapter {
                     },
                     "toolDiscovery": discovery,
                     "toolReceipts": tools.map(|tools| tools.receipts.clone()).unwrap_or_default(),
+                    "deferredCommands": tools.map(|tools| tools.deferred_commands.clone()).unwrap_or_default(),
                 }),
             );
         }
@@ -457,6 +459,9 @@ impl ProviderExecutorAdapter {
         }
         gaps.sort();
         gaps.dedup();
+        if !gaps.is_empty() {
+            complete = false;
+        }
         let status = if complete {
             ProviderStatus::Complete
         } else {

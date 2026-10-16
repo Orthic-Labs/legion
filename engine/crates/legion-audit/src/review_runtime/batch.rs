@@ -79,9 +79,10 @@ impl Controller<'_> {
             works.iter().map(|work| work.provider_id.as_str()),
             self.options,
         )?;
-        if works
-            .iter()
-            .any(|work| work.provider_id != "reasoning.dead-file")
+        if seat["gatherPolicy"] != "deterministic"
+            && works
+                .iter()
+                .any(|work| work.provider_id != "reasoning.dead-file")
         {
             let requests = works.iter().map(|work| &work.request).collect::<Vec<_>>();
             self.gather_for_author(

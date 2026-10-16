@@ -4,12 +4,68 @@ use crate::source_cache::bytes_digest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Component, Path};
 
 pub const GRAPH_CONTRACT: &str = "legion-graph/1";
 const MAX_FILES: usize = 20_000;
 const MAX_NODES: usize = 50_000;
 const MAX_EDGES: usize = 100_000;
 const MAX_ARTIFACT_BYTES: usize = 16 * 1024 * 1024;
+
+/// Load explicitly selected host data, never repository-discovered graph input.
+/// RightKit pins the parent without following symlinks/reparse points & caps the
+/// regular-file read before JSON parsing. On Unix that parent must be user-owned
+/// & not group/other writable. This authenticates no Blueprint producer: callers
+/// must still validate source/resolver bindings with `build_graph_context`.
+pub fn load_host_artifact(path: &Path, disallowed_roots: &[&Path]) -> Result<Value, String> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err("blueprint-artifact-input-path-not-absolute-or-traversal".into());
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| "blueprint-artifact-input-parent-missing".to_owned())?;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "blueprint-artifact-input-file-name-invalid".to_owned())?;
+    let directory = rightkit_fs::state::StateDir::open(parent)
+        .map_err(|error| format!("blueprint-artifact-input-parent-rejected: {error}"))?;
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|error| format!("blueprint-artifact-input-unavailable: {error}"))?;
+    #[cfg(windows)]
+    let reparse = {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0
+    };
+    #[cfg(not(windows))]
+    let reparse = false;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || reparse {
+        return Err("blueprint-artifact-input-not-regular-file".into());
+    }
+    if metadata.len() > MAX_ARTIFACT_BYTES as u64 {
+        return Err("blueprint-artifact-input-cap-exceeded".into());
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("blueprint-artifact-input-unavailable: {error}"))?;
+    for root in disallowed_roots {
+        let root = root
+            .canonicalize()
+            .map_err(|error| format!("blueprint-artifact-input-root-unavailable: {error}"))?;
+        if canonical.starts_with(root) {
+            return Err("blueprint-artifact-input-inside-audited-root".into());
+        }
+    }
+    let bytes = directory
+        .read(name, MAX_ARTIFACT_BYTES as u64)
+        .map_err(|error| format!("blueprint-artifact-input-read-rejected: {error}"))?;
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("blueprint-artifact-input-invalid-json: {error}"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -557,6 +613,88 @@ fn resolve_relative(from: &str, import: &str, files: &BTreeMap<String, Vec<u8>>)
 mod tests {
     use super::*;
     use serde_json::json;
+    struct HostArtifactFixture(std::path::PathBuf);
+    impl HostArtifactFixture {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let root = std::env::temp_dir().canonicalize().unwrap().join(format!(
+                "legion-graph-host-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ));
+            std::fs::create_dir(&root).unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+            }
+            Self(root)
+        }
+    }
+    impl Drop for HostArtifactFixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn explicit_host_artifact_reaches_existing_source_binding_validation() {
+        let fixture = HostArtifactFixture::new();
+        let audited_root = fixture.0.join("repository");
+        std::fs::create_dir(&audited_root).unwrap();
+        let path = fixture.0.join("host-graph.json");
+        let files = source();
+        std::fs::write(&path, serde_json::to_vec(&artifact(&files)).unwrap()).unwrap();
+        let loaded = load_host_artifact(&path, &[&audited_root]).unwrap();
+        let graph = build_graph_context(&files, Some(&loaded), "resolver-v1");
+        assert_eq!(graph.freshness, "bound-to-frozen-covered-bytes");
+        assert!(graph.edges.iter().any(|edge| edge.source == "blueprint"));
+        let stale = build_graph_context(&files, Some(&loaded), "another-resolver");
+        assert!(stale.trusted_files.is_empty());
+        assert!(stale.edges.iter().all(|edge| edge.source == "lexical"));
+    }
+
+    #[test]
+    fn host_artifact_rejects_unbounded_or_repository_controlled_inputs() {
+        let fixture = HostArtifactFixture::new();
+        let path = fixture.0.join("graph.json");
+        std::fs::write(&path, b"{}").unwrap();
+        assert!(load_host_artifact(Path::new("graph.json"), &[]).is_err());
+        assert!(load_host_artifact(&fixture.0.join("../graph.json"), &[]).is_err());
+        assert_eq!(
+            load_host_artifact(&path, &[&fixture.0]).unwrap_err(),
+            "blueprint-artifact-input-inside-audited-root"
+        );
+        assert!(load_host_artifact(&fixture.0, &[]).is_err());
+        std::fs::write(&path, b"invalid json").unwrap();
+        assert!(load_host_artifact(&path, &[])
+            .unwrap_err()
+            .starts_with("blueprint-artifact-input-invalid-json"));
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(MAX_ARTIFACT_BYTES as u64 + 1)
+            .unwrap();
+        assert_eq!(
+            load_host_artifact(&path, &[]).unwrap_err(),
+            "blueprint-artifact-input-cap-exceeded"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn host_artifact_rejects_symlink_files_and_parent_components() {
+        use std::os::unix::fs::symlink;
+        let fixture = HostArtifactFixture::new();
+        let path = fixture.0.join("graph.json");
+        std::fs::write(&path, b"{}").unwrap();
+        let link = fixture.0.join("linked.json");
+        symlink(&path, &link).unwrap();
+        assert!(load_host_artifact(&link, &[]).is_err());
+        let linked_parent = fixture.0.join("parent-link");
+        symlink(&fixture.0, &linked_parent).unwrap();
+        assert!(load_host_artifact(&linked_parent.join("graph.json"), &[]).is_err());
+    }
+
     fn source() -> BTreeMap<String, Vec<u8>> {
         BTreeMap::from([
             (
