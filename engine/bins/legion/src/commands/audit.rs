@@ -317,13 +317,20 @@ mod continuation_staging_tests {
         let fixture = Fixture::new();
         let parent = fixture.0.join("parent");
         std::fs::create_dir(&parent).unwrap();
+        let separator = std::path::MAIN_SEPARATOR;
+        let mut traversal = fixture.0.as_os_str().to_owned();
+        traversal.push(format!("{separator}other{separator}..{separator}child"));
         for output in [
             parent.clone(),
             parent.join("child"),
             fixture.0.clone(),
-            fixture.0.join("other/../child"),
+            PathBuf::from(traversal),
         ] {
-            assert!(continuation_output_path(&parent, &output).is_err());
+            assert!(
+                continuation_output_path(&parent, &output).is_err(),
+                "overlapping output path: {}",
+                output.display()
+            );
         }
         let child = fixture.0.join("child");
         std::fs::create_dir(&child).unwrap();
