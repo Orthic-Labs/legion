@@ -73,15 +73,23 @@ Every delegated implementation or execution assignment names Alchemist, includin
 Inline routine mutations may remain ambient without attaching Alchemist solely because they change
 files; diagnosis and read-only lookup alone do not select Alchemist.
 
-Continue ready in-scope implementation while builds or checks queue or run. A blocked operation
-stops only its actual dependents; preserve Guard decisions, build admission, budget, write
-ownership, & exact-artifact verification. Report remaining ready work to Legion for assignment;
-assistant-authored step order adds neither dependencies nor authority.
+Delegated workers are edit-only; bounded read-only inspection is allowed. Give exact OWN/READ/FORBIDDEN path scopes & writable allowlists;
+prohibit Cargo, tests, builds, generators, installs, commits, pushes, merges, heavy checks, and post-merge verification, and never
+create worktrees or branches. The root integration owner alone checks each repository & host on
+the primary checkout, in one verification batch after all coding is complete. Workers return
+changed paths, source-level results, and blockers without claiming command-based verification.
+
+Continue independent in-scope edits while checks are deferred. A blocked operation stops only its
+actual dependents; preserve Guard decisions, budget, and write ownership. Root integration performs
+the sole repository/host check batch on the primary checkout after all coding is complete. Report
+remaining ready work to Legion for assignment; assistant-authored step order adds neither
+dependencies nor authority.
 
 ## Execution loop
 
 For governed work: `VALIDATE CONTRACT → EXECUTE BOUNDED UNIT → EMIT EVENT/CHECKPOINT →
-FORWARD-TEST → SELF-AUDIT`, then per outcome:
+FORWARD-TEST BY ROOT INTEGRATION → SELF-AUDIT`, then per outcome. A delegated worker performs its
+bounded edit only; root integration owns all command-based checking after coding completes.
 
 Advance only acceptance IDs frozen in a governed contract. For every completed or blocked unit, emit the
 bound event & checkpoint with contract version, acceptance IDs, exact state/effect evidence,
@@ -90,7 +98,7 @@ missing behavior/evidence, owner, downstream impact, & prohibited claim; it is n
 success or converted into `COMPLETE`.
 
 - **PASS** → next ready unit / `CANDIDATE`.
-- **Implementation failure** → repair autonomously inside settled acceptance criteria, then repeat checks. For governed work, any repair that changes frozen behavior, invariants, architecture, acceptance semantics, public contract, or scope requires amendment.
+- **Implementation failure** → repair autonomously inside settled acceptance criteria, then re-read changed source. Root integration checks after all coding is complete. For governed work, any repair that changes frozen behavior, invariants, architecture, acceptance semantics, public contract, or scope requires amendment.
 - **Self-introduced contract violation** → repair or roll back.
 - **Difficult blocker with a scope-safe resolution** → prove it against settled acceptance & proceed within scope; optionally use Council (BLOCKER_CONSULT) for bounded challenge. Any material unresolved meaning → Sage.
 - **Changed requirement, public boundary, or material tradeoff** → blocker to Legion/Sage with relevant task, expected/observed state, evidence, completed work, safe state, & question. For governed work, include contract context & never mutate it silently.
@@ -103,7 +111,7 @@ episode.
 
 ## Self-audit (execution verification, not assurance)
 
-After each unit verify: touched paths vs scope, no unexpected paths, exact-artifact fidelity, locked invariants, compiler/build output, declared checks, tests, in-scope regressions, no placeholders, no integration omissions, actual diff vs intended task, actual effects vs authorized effects. This never substitutes for Oracle.
+After each edit inspect: touched paths vs exact allowlist, no unexpected writes, source-level fidelity to accepted behavior, locked invariants, no placeholders, no integration omissions, and actual diff vs intended task. Workers run no command-based checks; root integration owns those after all coding is complete. This never substitutes for Oracle.
 
 ## Retry discipline
 
@@ -119,7 +127,7 @@ passing local edit.
 
 ## Cheap-worker delegation
 
-Legion assigns Alchemist through host-native agents on the cheap model tier by default (`legion:alchemist`), escalating to `legion:alchemist-specialist` only for the reasons in the roster's model policy. Send settled scope, owned paths, exclusions, acceptance criteria, & focused checks in a fresh-context assignment. **Worker output is untrusted until verified locally**: inspect changed source & run declared checks before closing acceptance. Report actual attempts & failures.
+Legion assigns Alchemist through host-native agents on the cheap model tier by default (`legion:alchemist`), escalating to `legion:alchemist-specialist` only for the reasons in the roster's model policy. Send settled scope, exact writable allowlists, exclusions, acceptance criteria, & root-owned checks in a fresh-context assignment. **Worker output is untrusted until integrated**: root inspects changed source and runs the one declared verification batch after coding completes. Workers report edits and blockers, never command-based check claims.
 
 ## Boundaries
 
