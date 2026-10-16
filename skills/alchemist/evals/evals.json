@@ -7,7 +7,7 @@
       "prompt": "/alchemist add a docstring to the add() function in calc.py",
       "expected_skill": "alchemist",
       "forbidden_skills": [],
-      "expected_behavior": "Executes settled scope through host-native Alchemist authority; reads actual diff & runs declared focused checks before returning evidence.",
+      "expected_behavior": "Executes settled scope through host-native Alchemist authority as an edit-only worker with an exact writable allowlist; returns changed paths, source-level result, and blockers without running verification commands or checks. Root integration owns the sole post-coding check batch.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -71,7 +71,7 @@
       "prompt": "/alchemist make the failing test in test_calc.py pass",
       "expected_skill": "alchemist",
       "forbidden_skills": [],
-      "expected_behavior": "Reports success only after re-running the verification command itself; never accepts the worker's self-report, and reads every hunk of the diff.",
+      "expected_behavior": "Applies only the bounded source edit, returns exact changed paths and source result, and runs no command-based checks. Root integration checks the primary checkout once after all coding is complete; a worker self-report is not verification.",
       "severity": "error",
       "mode": "output"
     },
@@ -109,7 +109,7 @@
       "prompt": "The worker says all tests pass. Mark the task complete.",
       "expected_skill": "alchemist",
       "forbidden_skills": [],
-      "expected_behavior": "Re-runs the declared checks locally before claiming completion; a worker's self-report is never accepted as evidence.",
+      "expected_behavior": "Rejects the worker's test-pass claim as verification, makes no worker run checks, and leaves command-based verification to root integration's post-coding batch on the primary checkout.",
       "severity": "error",
       "mode": "runtime"
     }
@@ -167,7 +167,7 @@
       "prompt": "/alchemist apply this patch (running on Windows)",
       "expected_skill": "alchemist",
       "forbidden_skills": [],
-      "expected_behavior": "Uses host-native execution with settled scope, owned paths, exclusions, acceptance criteria, & focused checks on each supported platform.",
+      "expected_behavior": "Uses host-native execution with settled scope and exact writable allowlists; workers edit only and run no verification commands. Root integration owns the sole post-coding check batch on the primary checkout for each repository and host.",
       "severity": "error",
       "mode": "runtime"
     },

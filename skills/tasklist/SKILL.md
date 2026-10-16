@@ -31,11 +31,15 @@ show conditional dependencies on each step they can change; trace outputs into d
 place final checks after all steps that contribute to them. Derive dependencies from consumed
 outputs, shared write ownership, or required effect order; assistant-authored sequence adds no
 permission gate. Independent ready work proceeds within real capacity, budget, ownership, &
-safety limits, including coding while admitted builds queue or run.
+safety limits. Bounded read-only inspection is allowed. Delegated workers are edit-only with exact OWN/READ/FORBIDDEN scopes & writable
+allowlists: no Cargo, tests, builds, generators, installs, commits, pushes, merges, heavy checks, or post-merge verification;
+do not create worktrees or branches. Root integration owner is sole checker per repository & host
+on the primary checkout. Defer one verification batch until all coding is complete. Worker check
+commands may be listed as root-owned follow-up steps, never assigned for worker execution.
 
 ## Inline tasklist mode
 
-Use for ordinary same-agent work. Freeze the requested outcome, scope, constraints, & useful completion check, then give concise numbered actions. Each action names its dependency (`START` or a prior step) & an observable check when useful. Include exact paths when known; parallelize independent work. Start the first step when execution was requested.
+Use for ordinary same-agent work. Freeze the requested outcome, scope, constraints, & useful completion check, then give concise numbered actions. Each action names its dependency (`START` or a prior step) & an observable check when useful. Include exact paths when known; parallelize independent work. Start the first step when execution was requested. When work is delegated, workers edit only within exact allowlists; root integration owner runs the sole check batch on primary checkout after coding is complete.
 
 Keep the list in chat unless persistence or a reusable record was requested. Ordinary work needs no packet, receipt, adversarial review, timing formula, line-rate estimate, or invented ETA. For explicit contract or locked-domain/effect work, follow [durable workflow](references/durable-workflow.md) & the governing typed-packet/receipt requirements. Inline Markdown is not natively validated.
 
@@ -51,6 +55,10 @@ Before execution or handoff, inspect the exact intended environment and command 
 4. **Recovery & bounds:** set a timeout or wall-clock bound and visible progress/heartbeat for long work. For interrupted work, explain checkpoint/resume behavior; make retries idempotent or state how duplicate effects are prevented. Write outputs atomically when partial files could be mistaken for completed results. Distinguish retryable failures from fatal input/auth/schema/code failures.
 5. **Efficiency:** check for avoidable duplicated work, safe overlap, and bounded concurrency when scale makes those relevant. Explain deliberate limits; do not add optimization ceremony to a trivial command.
 
+For delegated source changes, workers never execute verification commands. Do not smoke, build, test, generate,
+install, or otherwise check a worker's edit before coding is complete; root integration performs one
+verification batch on the primary checkout after all coding ends.
+
 If a required check cannot be performed, name missing evidence & withhold claims for affected
 execution. Gate only affected operations & their actual dependents; continue unrelated authorized
 work. Build admission still governs build launch, & final checks must verify their exact artifact.
@@ -65,7 +73,7 @@ Before changing hook or automation configuration, read its current status throug
 
 ## Implementation-plan mode
 
-Use when asked for a plan from a spec or requirements. State the goal and acceptance checks, map exact files to their responsibilities, then write small tasks that can be checked independently. Name real dependencies, project-native checks, and expected outcomes; avoid file ownership overlap unless an explicit integration task owns it. Do not save a plan unless a durable artifact was requested. Self-review against the source for coverage, missing paths, placeholder steps, incompatible interfaces, and checks that do not prove the stated behavior. Route materially unresolved target design to Architect before treating the plan as settled.
+Use when asked for a plan from a spec or requirements. State the goal and acceptance checks, map exact files to their responsibilities, then write small tasks that can be checked independently. Name real dependencies, project-native checks, and expected outcomes; avoid file ownership overlap unless an explicit integration task owns it. Assign checks to root integration only, after all coding is complete. Do not save a plan unless a durable artifact was requested. Self-review against the source for coverage, missing paths, placeholder steps, incompatible interfaces, and checks that do not prove the stated behavior. Route materially unresolved target design to Architect before treating the plan as settled.
 
 ## Boundaries
 

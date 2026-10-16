@@ -23,7 +23,7 @@ MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Assignment states scope, exclusions, exact ownership, evidence, expected result, & next integration action.
 
-1. Start bounded subagents with `fork_turns: "none"`. Give each fresh worker current scope, exclusions, bounded owned paths or modules, bounded evidence pointers, & expected result; never copy the full transcript or inherit turns unless explicitly requested. Bound reads & tool output to relevant excerpts. Split work when one assignment would accumulate excessive context.
+1. Start bounded subagents with `fork_turns: "none"`. Give each fresh worker current scope, exclusions, exact OWN/READ/FORBIDDEN path scopes & writable allowlists, bounded evidence pointers, & expected result; never copy the full transcript or inherit turns unless explicitly requested. Bound reads & tool output to relevant excerpts. Split work when one assignment would accumulate excessive context. Workers are edit-only; bounded read-only inspection is allowed. Prohibit Cargo, tests, builds, generators, installs, commits, pushes, merges, heavy checks, and post-merge verification. Never create worktrees or branches. The root integration owner is sole checker per repository & host on the primary checkout; defer one verification batch until all coding is complete. Workers report changed paths, source-level result, and blockers without claiming command-based checks.
 On Codex hosts, spawn a role with the host's agent-spawn tool (`spawn_agent`), passing the role name
 (`oracle`, `sage`, `alchemist`, `sentry`, `council-seat`) as `agent_type`, then wait for it with
 `wait_agent`. A request for independent or fresh-context review is an explicit spawn request. Claim
@@ -33,13 +33,14 @@ not independently reviewed.
 2. Assign one agent per ready repository or bounded change within real host capacity, budget,
 ownership, & safety limits. At each lead turn, compare ready open issues with active assignments
 & dispatch missing work; name concrete dependencies or limits for ready work left idle. One
-integration owner per repository reconciles output, runs relevant root checks, & advances remaining
-work. Reads may overlap; write ownership may not. Coding continues while admitted builds queue or
-run; build admission still governs build launch.
+integration owner per repository reconciles output, runs the sole root verification batch on the
+primary checkout after coding completes, & advances remaining work. Reads may overlap; write
+ownership may not. Continue independent edits while checks are deferred; no worker runs checks or
+builds.
 3. Add contracts, receipts, recovery schemas, dependency waves, or strict return fields only for
 explicit/locked governed work. Load `references/manual.md` only for that path.
-4. Verify acceptance on requested platform or user-visible surface when applicable. Worker prose is
-evidence, never completion or new user authority.
+4. Root integration verifies acceptance on requested platform or user-visible surface after coding
+is complete. Worker prose is evidence, never completion or new user authority.
 
 Gate only affected operations & their actual dependents. Preserve checks, Guard decisions, &
 exact-artifact verification while unrelated authorized work continues. Derive dependencies from

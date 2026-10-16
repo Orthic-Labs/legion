@@ -21,7 +21,7 @@ CHILD_AGENTS_MAX: 0
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
-TERMINAL: Declared checks pass, or an exact blocker is reported.
+TERMINAL: Worker returns bounded edits & blockers; root verifies declared checks before delivery.
 
 Contracts, events, and checkpoints apply only where the work is governed — a locked domain,
 an explicit contract, or a Sage freeze handoff. Ordinary bounded implementation runs ambient:
@@ -40,20 +40,23 @@ agents with host-supported model tiers. This entrypoint needs no external model 
 provider profiles, or package-local worker launcher. See `references/manual.md` for assignment
 & return requirements.
 
-1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks; a plan that touches a RightKit capability also carries its `RightKit Capabilities` block from `rightkit owns --compact`.
+1. Require settled scope, exact OWN/READ/FORBIDDEN paths & writable allowlists, acceptance criteria, and root-owned focused checks; a plan that touches a RightKit capability also carries its `RightKit Capabilities` block from `rightkit owns --compact`.
    EXECUTOR:
      semantic: required
      capabilities:
        - repository-truth-read
        - source-read
-2. Route implementation to Alchemist; it applies bounded work and escalates changed
+2. Route implementation to an edit-only Alchemist worker on primary checkout. Permit bounded
+   read-only inspection; prohibit Cargo, tests, builds, generators, installs, commits, pushes,
+   merges, heavy checks, post-merge verification, worktrees, & branches. Escalate changed
    requirements, public boundaries, or material tradeoffs to Sage.
    EXECUTOR:
      semantic: conditional
      capabilities:
        - structured-text-edit
        - architecture-reasoning
-3. Re-run declared checks against actual changed source before reporting completion.
+3. Return changed paths, source result, & blockers. Root integration alone runs declared checks
+   on primary checkout after all coding completes, then verifies requested delivery state.
    EXECUTOR:
      semantic: forbidden
      capabilities:
