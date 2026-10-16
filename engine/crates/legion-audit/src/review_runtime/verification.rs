@@ -347,7 +347,8 @@ mod tests {
             super::super::model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap(),
             expected
         );
-        let execution = model::verifier(&super::super::RuntimeOptions::default()).unwrap();
+        let execution =
+            super::super::model::verifier(&super::super::RuntimeOptions::default()).unwrap();
         let sizes = super::super::request_sizes(&prompt, SYSTEM, &schema, &execution).unwrap();
         assert_eq!(sizes.model_visible_input_bytes, expected);
         assert!(sizes.host_envelope_bytes > expected);
