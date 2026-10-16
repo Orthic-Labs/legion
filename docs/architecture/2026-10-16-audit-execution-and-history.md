@@ -145,5 +145,22 @@ of a completed live repository audit.
 The supported transport remains native Claude. Haiku/Sonnet are its executable choices; Luna/Sol
 are corresponding Codex tiers in canonical policy, not a claim that an OpenAI audit transport exists.
 
-Validation status will be recorded after independent review & CI. The earlier Ember attempt dispatched
-zero model calls; its rejected 802-job/25.47M-token plan is failure evidence, not an audit verdict.
+Revision `6ede1515fab643a3ca2ccd69dcedd8cdfa802a67` received independent Oracle Standards PASS & Spec PASS.
+[CI 38859651460](https://github.com/Orthic-Labs/legion/actions/runs/38859651460) passed macOS (5,135 tests)
+& Windows (5,101 tests), zero failures, seven ignored per platform; native simulation passed both.
+Its exact macOS artifact was installed through canonical headless installer; setup repair, status & doctor
+passed. Installed binary SHA-256 matches CI payload:
+`ece435b0c238e5f98d1a4519b5275810a96ff6ed84b1e29c5e9a149ae6cf5da8`.
+
+Fresh Ember `9961562ed4c652b0bc6a9b3bc3a63142d885f583` rerun kept 50,000 total tokens,
+10,000 per call, 2,500 output tokens, five physical calls & concurrency one. Preflight refused after
+34.978 seconds: six active bundles need at least six author calls, five cheap gathering calls & one
+verification/context reserve (12 total). Mandatory coverage was preserved. No plan froze or reasoning
+transport ran: exact Audit model calls/input/cache/output/cost were `0 / 0 / 0 / 0 / $0`.
+This meter excludes chat, implementation/review agents, CI & subscription billing. Minimum call count
+is a lower bound, not proof that 12 calls would fit token budget. Ember quality/security remains unproven;
+[issue #33](https://github.com/Orthic-Labs/legion/issues/33) tracks remaining audit outcome.
+
+Local run evidence: `/Volumes/D/scratch/ember-audit-rerun-6ede1515/attempt-summary.json`;
+installation evidence: `/Volumes/D/scratch/legion-verified-6ede1515/installation-receipt.json`.
+Earlier rejected 802-job/25.47M-token attempt remains failure evidence, not an audit verdict.
