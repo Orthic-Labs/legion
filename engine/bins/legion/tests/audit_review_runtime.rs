@@ -567,6 +567,13 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert_eq!(fixture.calls().len(), 3);
     assert!(fixture.calls().iter().any(|call| call["toolRound"] == true));
     let budget = read_json(&fixture.run.join("next-state.json"));
+    assert_eq!(budget["issuances"], 3);
+    assert!(budget["terminalStatus"].is_null());
+    let per_call = read_json(&fixture.run.join("lens-dispatch.json"))["reasoningBudget"]
+        ["perCallTokens"]
+        .as_u64()
+        .unwrap();
+    assert_eq!(result["budget"]["reservedTokens"], 3 * per_call);
     assert_eq!(
         budget["reservations"]
             .as_object()
@@ -576,8 +583,33 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
             .count(),
         3
     );
+    let mut stages = Vec::new();
+    let mut reservation_ids = std::collections::BTreeSet::new();
+    for entry in fs::read_dir(fixture.run.join("runtime-calls")).unwrap() {
+        let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
+            &fixture.run,
+            &read_json(&entry.unwrap().path()),
+        )
+        .unwrap();
+        stages.push(receipt["execution"]["stage"].as_str().unwrap().to_owned());
+        assert!(reservation_ids.insert(
+            receipt["authorization"]["reservationId"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        ));
+    }
+    stages.sort();
+    assert_eq!(
+        stages,
+        ["evidence-gathering", "source-review", "source-review"]
+    );
     assert!(fixture.run.join("report.sarif").is_file());
     assert!(!fixture.repo.join("must-never-execute").exists());
+    let (resumed_output, resumed, _) = fixture.run();
+    assert!(resumed_output.status.success(), "{resumed}");
+    assert_eq!(resumed["calls"], 0);
+    assert_eq!(fixture.calls().len(), 3);
 }
 fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     let fixture = Fixture::new("clean-eager");

@@ -18,8 +18,10 @@
 //! a result is reissued and counts as an attempt.
 //!
 //! Termination is explicit. Limits: two attempts per seat; three adjudication
-//! rounds plus one confirmation-only fourth round; a total issuance cap of `2 x plan seats + 3 x adjudication
-//! candidates`; a required frozen reasoning budget. Hitting a limit ends the
+//! rounds plus one confirmation-only fourth round; a lease issuance cap of
+//! `2 x plan seats + 3 x adjudication candidates`; a required frozen physical
+//! call/token budget. Context & verification calls use that physical budget
+//! without consuming lease retries. Hitting a limit ends the
 //! run as `incomplete:retry-exhausted` (listing the items) or
 //! `budget-exhausted`, never a silent loop.
 //!
@@ -121,7 +123,7 @@ struct State {
     /// Digest of the `lens-dispatch.json` bytes the state belongs to. A
     /// re-frozen plan starts a fresh state.
     dispatch_digest: String,
-    /// Leases ever issued (the counter the issuance cap bounds).
+    /// Physical calls reserved, including scheduler leases awaiting transport.
     #[serde(default)]
     issuances: u64,
     /// Estimated tokens charged per tier.
@@ -145,6 +147,12 @@ struct State {
 }
 
 impl State {
+    fn lease_issuances(&self) -> u64 {
+        self.leases.values().fold(0u64, |sum, lease| {
+            sum.saturating_add(u64::from(lease.attempts))
+        })
+    }
+
     fn fresh(dispatch_digest: &str) -> Self {
         Self {
             schema_version: 2,
@@ -574,7 +582,7 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
         if capacity == 0 {
             break;
         }
-        if state.issuances >= cap {
+        if state.lease_issuances() >= cap {
             exhausted.push((item.key.clone(), "issuance-cap".to_owned()));
             continue;
         }
@@ -1540,11 +1548,8 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             json!({"authorized": false, "status": "budget-exhausted", "complete": false, "callId": call.call_id, "budget": budget_summary(&state)}),
         );
     }
-    if new_call && state.issuances >= loaded.snapshot.issuance_cap() {
-        return Err(invalid(
-            "issuance cap reached; extra attempt cannot be authorized",
-        ));
-    }
+    // Physical calls already obey maxSeats & full per-call token admission.
+    // A context continuation is not another scheduler lease attempt.
     if new_call {
         state.issuances += 1;
     }
@@ -1960,7 +1965,9 @@ pub fn next(run_dir: &Path, options: &NextOptions) -> Result<Value, AuditError> 
             "lensSeats": {"total": lens_total, "done": lens_done},
             "adjudication": adjudication,
             "issuances": state.issuances,
-            "issuanceCap": loaded.snapshot.issuance_cap(),
+            "issuanceCap": loaded.snapshot.budget.as_ref().and_then(|budget| budget.max_seats),
+            "leaseIssuances": state.lease_issuances(),
+            "leaseIssuanceCap": loaded.snapshot.issuance_cap(),
             "attemptLimit": MAX_SEAT_ATTEMPTS,
             "waveWidth": loaded.snapshot.wave_width,
         },
@@ -2767,6 +2774,46 @@ mod tests {
             output_token_limit: 10,
             retry: false,
         }
+    }
+
+    #[test]
+    fn gather_author_and_context_calls_use_physical_budget_not_lease_retries() {
+        let run = temp_run("physical-stages");
+        write_value(
+            &run.join(DISPATCH_FILE),
+            &json!({
+                "reasoningBudget":{"schemaVersion":2,"totalTokens":4000,"perCallTokens":1000,"outputTokens":10,"maxSeats":3},
+                "seats":[{"seat":1,"tier":"judgment","packets":["reasoning.a.json"]}]
+            }),
+        );
+        fs::write(run.join(LENS_PACKET_DIR).join("reasoning.a.json"), b"{}").unwrap();
+        let wave = next(&run, &options(0)).unwrap();
+        let mut gather = call("gather");
+        gather.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
+        for request in [gather, call("author"), call("author-context-continuation")] {
+            let admitted = reserve_call(&run, &request).unwrap();
+            assert_eq!(admitted["authorized"], true, "{}", request.call_id);
+            assert_eq!(admitted["reservedTokens"], 1000);
+        }
+        let loaded = load(&run).unwrap();
+        let state = load_state(&run, &loaded.dispatch_digest).unwrap();
+        assert_eq!(state.issuances, 3);
+        assert_eq!(state.lease_issuances(), 1);
+        assert_eq!(state.reservations.len(), 3);
+        assert_eq!(state.spent["judgment"], 3000);
+        let resumed = next(&run, &options(1)).unwrap();
+        assert_eq!(resumed["status"], "wave");
+        assert_eq!(resumed["progress"]["leaseIssuances"], 1);
+        assert_eq!(resumed["progress"]["issuanceCap"], 3);
+        let denied = reserve_call(&run, &call("excess-context-call")).unwrap();
+        assert_eq!(
+            denied["authorized"], false,
+            "maxSeats must still bound physical calls despite remaining tokens"
+        );
+        let state = load_state(&run, &loaded.dispatch_digest).unwrap();
+        assert_eq!(state.issuances, 3);
+        assert_eq!(state.spent["judgment"], 3000);
+        let _ = fs::remove_dir_all(run);
     }
 
     #[test]

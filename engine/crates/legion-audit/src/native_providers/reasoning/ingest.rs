@@ -5950,7 +5950,8 @@ mod runtime_evidence_tests {
             "distinct lens contracts & schemas still consume bytes"
         );
         let roomy = DispatchLimits {
-            seat_token_budget: shared.div_ceil(4) + 4096 + 100,
+            // Shared author, output & minimum 2048-byte gathered context.
+            seat_token_budget: shared.div_ceil(4) + 4096 + 512 + 100,
             run_token_budget: 1_000_000,
             ..DispatchLimits::default()
         };
@@ -5976,7 +5977,7 @@ mod runtime_evidence_tests {
         assert_eq!(issued["seats"][0]["budgetReservationTokens"],plan["seats"][0]["estimatedTokens"],
             "resume/admission must reconstruct the same physical shared request, not sum logical packet copies");
         let bounded = DispatchLimits {
-            seat_token_budget: (single.div_ceil(4) + shared.div_ceil(4)) / 2 + 4096,
+            seat_token_budget: (single.div_ceil(4) + shared.div_ceil(4)) / 2 + 4096 + 512,
             ..roomy
         };
         let split = lens_dispatch_plan(&work, &bounded);

@@ -143,6 +143,15 @@ fn build_env(
     reasoning: Value,
     files: &[(String, Vec<u8>)],
 ) -> Env {
+    try_build_env(name, providers, reasoning, files).unwrap()
+}
+
+fn try_build_env(
+    name: &str,
+    providers: &[(&'static str, &'static str)],
+    reasoning: Value,
+    files: &[(String, Vec<u8>)],
+) -> Result<Env, AuditError> {
     let root = temp_dir(name);
     for (path, content) in files {
         let full = root.join(path);
@@ -174,8 +183,7 @@ fn build_env(
             reasoning.clone(),
         ));
     }
-    let plan = AuditPlan::compile_with_root(Some(&root), &inventory, &specs)
-        .unwrap()
+    let plan = AuditPlan::compile_with_root(Some(&root), &inventory, &specs)?
         .freeze(Some(key.as_slice()))
         .unwrap();
     let executor = Fixture {
@@ -211,13 +219,13 @@ fn build_env(
     write("report.json", serde_json::to_value(&report).unwrap());
     write("execution.json", serde_json::to_value(&execution).unwrap());
     write_lens_packets(&run.join(LENS_PACKET_DIR), &work).unwrap();
-    Env {
+    Ok(Env {
         root,
         run,
         plan,
         inventory,
         work,
-    }
+    })
 }
 
 fn filler_file(file: usize, bytes: usize) -> Vec<u8> {
@@ -301,8 +309,10 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
     );
     let frozen = frozen_coverage(&env, PERFORMANCE.0);
     assert!(frozen.is_sampled());
+    // Stage reserves leave a valid sample below the statistical floor; every
+    // selected path must still complete & unsampled paths remain explicit.
     assert!(
-        frozen.review_set.len() >= 30 && frozen.review_set.len() < 150,
+        !frozen.review_set.is_empty() && frozen.review_set.len() < 30,
         "review set {}",
         frozen.review_set.len()
     );
@@ -368,7 +378,21 @@ fn sampled_lens_is_complete_once_its_review_set_is_ingested_and_the_gate_is_samp
         .iter()
         .find(|stratum| stratum["name"] == "remainder")
         .unwrap();
-    assert_eq!(remainder["confidence"]["method"], "rule-of-three");
+    assert!(remainder["n"].as_u64().unwrap() < 30);
+    assert!(
+        remainder["confidence"].is_null(),
+        "under-floor samples cannot support confidence claims"
+    );
+    let coverage = &env
+        .plan
+        .plan()
+        .providers
+        .iter()
+        .find(|provider| provider.id == PERFORMANCE.0)
+        .unwrap()
+        .configuration["coverage"];
+    assert_eq!(coverage["sampleFloorTarget"], 30);
+    assert_eq!(coverage["sampleFloorMet"], false);
 }
 
 #[test]
@@ -685,26 +709,24 @@ fn ember_like_auto_plan_freezes_with_every_seat_within_budget() {
 
 #[test]
 fn ember_like_plan_still_refuses_when_the_run_budget_is_genuinely_exceeded() {
-    let env = build_env(
+    let error = try_build_env(
         "ember-tight",
         &EMBER_PROVIDERS,
         coverage_reasoning("auto", 1_000_000),
         &ember_like_files(),
-    );
-    let limits = DispatchLimits {
-        run_token_budget: 1_000_000,
-        ..DispatchLimits::default()
-    };
-    let plan = lens_dispatch_plan(&env.work, &limits);
-    assert_eq!(plan["withinLimits"], false);
+    )
+    .err()
+    .expect("mandatory coverage cannot fit the frozen budget");
+    assert!(matches!(&error, AuditError::BoundExceeded(_)));
+    let message = error.to_string();
+    assert!(message.contains("mandatory coverage alone"), "{message}");
     assert!(
-        plan["violations"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|violation| violation.as_str().unwrap().contains("over the run budget")),
-        "{:?}",
-        plan["violations"]
+        message.contains("mandatory coverage was not reduced"),
+        "{message}"
+    );
+    assert!(
+        message.len() < 1024,
+        "refusal should remain actionable & concise"
     );
 }
 
@@ -931,7 +953,9 @@ fn promotion_beyond_the_budget_is_capped_by_severity_and_named_as_a_gap() {
     let env = build_env(
         "promotion-capped",
         &[PERFORMANCE],
-        coverage_reasoning("risk-sampled", 100_000),
+        // Preserve a 100k author allowance after one 150k gather call & one
+        // 150k verification/context reserve.
+        coverage_reasoning("risk-sampled", 400_000),
         &files,
     );
     let frozen = frozen_coverage(&env, PERFORMANCE.0);
