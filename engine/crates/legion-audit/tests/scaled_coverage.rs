@@ -535,7 +535,9 @@ fn lenses_of_one_bundle_share_seats_and_waves_follow_the_tier_order() {
     }));
     assert_eq!(plan["withinLimits"], true, "{:?}", plan["violations"]);
     for seat in seats {
-        let bytes = seat["plannedRequestBytes"].as_u64().unwrap();
+        let bytes = seat["plannedModelInputBytes"].as_u64().unwrap();
+        assert_eq!(seat["modelVisibleInputBytes"], bytes);
+        assert!(seat["plannedRequestBytes"].as_u64().unwrap() > bytes);
         assert_eq!(
             seat["estimatedTokens"],
             json!(bytes.div_ceil(4) + seat["outputTokenLimit"].as_u64().unwrap())

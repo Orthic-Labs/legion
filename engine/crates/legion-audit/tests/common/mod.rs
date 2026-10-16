@@ -118,6 +118,7 @@ pub fn record_budget_usage(run: &Path, request: &ReasoningInvocation, label: &st
             call_id: call_id.clone(),
             tier: "judgment".into(),
             rendered_request_bytes: bytes.max(1),
+            model_input_bytes: bytes.max(1),
             output_token_limit: 1,
             retry: false,
         },

@@ -23,10 +23,24 @@ pub(super) fn initial_prompt_with_sizer(
     works: &[PendingLensWork],
     sizer: &mut super::InitialRequestSizer,
 ) -> Result<Option<Value>, AuditError> {
-    let Some(mut prompt) = ingest::shared_seat_payload(works)? else {
+    let mut projected = works.to_vec();
+    for work in &mut projected {
+        work.request.packet = super::projection::packet(&work.request)?.0;
+    }
+    let Some(mut prompt) = ingest::shared_seat_payload(&projected)? else {
         return Ok(None);
     };
-    prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:fieldName} resolves only to sharedContext[fieldName]; reconstruct every reference exactly. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
+    for (row, work) in prompt["lenses"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .zip(works)
+    {
+        row["packetDigest"] = json!(digest(&work.request.packet)?);
+        row["logicalReference"] =
+            super::projection::invocation(&work.request)?["logicalReference"].clone();
+    }
+    prompt["task"] = json!("Review every compatible lens independently against shared exact excerpts. A top-level packet field {$sharedContext:fieldName} resolves only to sharedContext[fieldName]. logicalReference binds omitted run accounting & illustrative examples in the frozen invocation artifact; referenced material is not model-delivered, reviewed source or evidence of exhaustive coverage. Missing graph relationships remain unknown. Return finalResult:{results:[{requestId,finalResult:{complete:true,findings:[],withdrawn:[],details:{...required signed semanticReview/changeRisk}}}]}; exactly one result per requested requestId, no unknown or duplicate IDs. No claim of independent author contexts across lenses. Each finding includes id,title,anchor plus schema fields.");
     prompt["contextTools"] = super::tools::specs();
     prompt["conversation"] = json!([]);
     let mut common = works[0].request.clone();
@@ -163,9 +177,10 @@ impl Controller<'_> {
                     gaps.push(format!("shared-result-missing:{id}"));
                     continue;
                 };
-                let compact = ingest::compact_shared_packet(&work.request.packet, &shared)?;
+                let projected = super::projection::packet(&work.request)?.0;
+                let compact = ingest::compact_shared_packet(&projected, &shared)?;
                 super::partial::preserve_author(self.run, &work, &value, &author)?;
-                let proof = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":format!("delivery:{}:{id}",author.context_id),"requestId":id,"packetDigest":digest(&work.request.packet)?,"transportEncoding":"shared-context-v1","reconstructedPacketBytes":legion_contracts::canonical_json_bytes(&work.request.packet).map_err(|error|invalid(error.to_string()))?.len(),"physicalRequestDigest":author.request_digest,"physicalRequestBytes":author.request_bytes,"sharedContextDigest":shared_digest,"reconstruction":{"sharedContext":shared,"compactPacket":compact},"complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(&work.request).map_err(invalid)?,"host":native::observation_value(&author)});
+                let proof = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":format!("delivery:{}:{id}",author.context_id),"requestId":id,"packetDigest":digest(&work.request.packet)?,"transportEncoding":"shared-audit-packet-reference-v1","projection":super::projection::evidence(&work.request)?,"reconstructedPacketBytes":legion_contracts::canonical_json_bytes(&projected).map_err(|error|invalid(error.to_string()))?.len(),"physicalRequestDigest":author.request_digest,"physicalRequestBytes":author.request_bytes,"sharedContextDigest":shared_digest,"reconstruction":{"sharedContext":shared,"compactPacket":compact},"complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(&work.request).map_err(invalid)?,"host":native::observation_value(&author)});
                 ingest::mint_runtime_delivery(self.run, &work.request, &proof)?;
                 items.push((work, value));
             }

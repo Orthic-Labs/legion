@@ -882,17 +882,51 @@ pub fn validate_delivery_evidence(
     if evidence.get("packetDigest").and_then(Value::as_str) != Some(digest.as_str()) {
         return Err("delivery evidence does not bind exact packet digest".into());
     }
-    match evidence
+    let encoding = evidence
         .get("transportEncoding")
         .and_then(Value::as_str)
-        .unwrap_or("literal-packet-v1")
-    {
+        .unwrap_or("literal-packet-v1");
+    let projected_packet;
+    let expected_packet = if matches!(
+        encoding,
+        "audit-packet-reference-v1" | "shared-audit-packet-reference-v1"
+    ) {
+        crate::review_runtime::projection::validate(request, &evidence["projection"])?;
+        if evidence.get("deliveredPacketBytes").is_some()
+            || evidence
+                .get("physicalRequestBytes")
+                .and_then(Value::as_u64)
+                .is_none_or(|bytes| bytes == 0)
+            || evidence
+                .get("physicalRequestDigest")
+                .and_then(Value::as_str)
+                .is_none_or(|digest| {
+                    digest.strip_prefix("sha256:").is_none_or(|hex| {
+                        hex.len() != 64 || !hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+                    })
+                })
+            || evidence.get("physicalRequestDigest")
+                != evidence.pointer("/host/physicalRequestDigest")
+            || evidence.get("physicalRequestBytes")
+                != evidence.pointer("/host/physicalRequestBytes")
+        {
+            return Err("projected delivery must bind actual physical transport separately from logical reconstruction".into());
+        }
+        projected_packet = crate::review_runtime::projection::packet(request)
+            .map_err(|error| error.to_string())?
+            .0;
+        &projected_packet
+    } else {
+        &request.packet
+    };
+    match encoding {
+        "audit-packet-reference-v1" => {}
         "literal-packet-v1" => {
             if evidence.get("deliveredPacketBytes").and_then(Value::as_u64) != Some(bytes) {
                 return Err("literal delivery evidence does not bind exact packet bytes".into());
             }
         }
-        "shared-context-v1" => {
+        "shared-context-v1" | "shared-audit-packet-reference-v1" => {
             let reconstruction = evidence
                 .get("reconstruction")
                 .ok_or_else(|| "shared delivery reconstruction missing".to_owned())?;
@@ -907,7 +941,7 @@ pub fn validate_delivery_evidence(
             if !shared.contains_key("excerpts")
                 || shared.iter().any(|(field, value)| {
                     !ingest::SHARED_PACKET_FIELDS.contains(&field.as_str())
-                        || request.packet.get(field) != Some(value)
+                        || expected_packet.get(field) != Some(value)
                 })
             {
                 return Err("shared delivery must preserve exact whitelisted packet fields".into());
@@ -918,7 +952,11 @@ pub fn validate_delivery_evidence(
                 || evidence
                     .get("reconstructedPacketBytes")
                     .and_then(Value::as_u64)
-                    != Some(bytes)
+                    != Some(
+                        canonical_json_bytes(expected_packet)
+                            .map_err(|error| error.to_string())?
+                            .len() as u64,
+                    )
                 || evidence.get("deliveredPacketBytes").is_some()
                 || evidence
                     .get("physicalRequestBytes")
@@ -955,7 +993,7 @@ pub fn validate_delivery_evidence(
                     );
                 }
             }
-            if Value::Object(restored) != request.packet {
+            if Value::Object(restored) != *expected_packet {
                 return Err("shared delivery cannot reconstruct exact original packet".into());
             }
         }
@@ -1044,7 +1082,7 @@ fn build_invocations(
                 request: request.clone(),
                 promotion: None,
             };
-            let size = sizer.request_bytes(std::slice::from_ref(&work))?;
+            let size = sizer.model_visible_input_bytes(std::slice::from_ref(&work))?;
             largest = largest.max(size);
         }
         if largest <= target {
@@ -1055,7 +1093,7 @@ fn build_invocations(
                 return Ok(built);
             }
             return Err(AuditError::BoundExceeded(format!(
-                "audit packet for {} cannot fit: initial physical request needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
+                "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes plus output reserve. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
                 provider.id
             )));
         }

@@ -3,7 +3,7 @@
 use super::{invalid, model, tools, Controller};
 use crate::{
     error::AuditError,
-    native_providers::reasoning::{PendingLensWork, ReasoningInvocation},
+    native_providers::reasoning::{ingest, PendingLensWork, ReasoningInvocation},
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -76,7 +76,9 @@ pub(super) fn prompt(requests: &[&ReasoningInvocation], snapshot_key: &str) -> V
     json!({"stage":"evidence-gathering","task":"Select narrow supplementary context requests for these source-review lanes. Inventory paths and lens questions are metadata; mandatory excerpts will be separately supplied to specialist. Use audit.list_files for omitted inventory when useful. No findings or coverage decisions are accepted from this stage.","snapshotKey":snapshot_key,"lanes":lanes,"inventoryPaths":listed,"inventoryCount":count,"inventoryListingTruncated":listed.len()<count,"contextTools":tools::specs(),"maxRequests":MAX_REQUESTS})
 }
 
-pub(super) fn initial_request_bytes(works: &[PendingLensWork]) -> Result<u64, AuditError> {
+pub(super) fn initial_request_sizes(
+    works: &[PendingLensWork],
+) -> Result<super::RequestSizes, AuditError> {
     let requests = works.iter().map(|work| &work.request).collect::<Vec<_>>();
     let snapshot_key = requests
         .first()
@@ -84,14 +86,11 @@ pub(super) fn initial_request_bytes(works: &[PendingLensWork]) -> Result<u64, Au
         .and_then(Value::as_str)
         .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
     let execution = model::gatherer(&super::RuntimeOptions::default())?;
-    super::request_bytes(
-        &super::rendered_request(
-            &prompt(&requests, snapshot_key),
-            GATHER_SYSTEM,
-            &schema(),
-            &execution,
-        )?
-        .1,
+    super::request_sizes(
+        &prompt(&requests, snapshot_key),
+        GATHER_SYSTEM,
+        &schema(),
+        &execution,
     )
 }
 
@@ -118,18 +117,14 @@ impl Controller<'_> {
         let output = seat["outputTokenLimit"]
             .as_u64()
             .ok_or_else(|| invalid("incomplete:gathering-budget:output cap missing"))?;
-        let input_bytes = allowance
+        let input_bytes = ingest::physical_planning_limit(allowance)
             .saturating_sub(output)
             .saturating_mul(4)
             .min(super::MAX_REQUEST_BYTES as u64);
-        let baseline = super::request_bytes(
-            &super::rendered_request(
-                author_prompt,
-                super::author_system(execution),
-                author_schema,
-                execution,
-            )?
-            .1,
+        let baseline = super::model_visible_input_bytes(
+            author_prompt,
+            super::author_system(execution),
+            author_schema,
         )?;
         let reserve = input_bytes
             .saturating_sub(baseline)
@@ -139,14 +134,10 @@ impl Controller<'_> {
         }
         let supplement = self.gather(seat, requests, initial, ((reserve - 2048) / 2) as usize)?;
         author_prompt["supplementaryEvidence"] = supplement;
-        if super::request_bytes(
-            &super::rendered_request(
-                author_prompt,
-                super::author_system(execution),
-                author_schema,
-                execution,
-            )?
-            .1,
+        if super::model_visible_input_bytes(
+            author_prompt,
+            super::author_system(execution),
+            author_schema,
         )? > input_bytes
         {
             return Err(invalid("incomplete:gathering-budget:actual supplementary envelope exceeds author allowance"));
@@ -204,6 +195,23 @@ impl Controller<'_> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn gather_sizing_uses_same_once_counted_model_input() {
+        let work = crate::review_runtime::tests::estimate_work(
+            "reasoning.correctness",
+            "gather",
+            "quoted \"source\"\n",
+        );
+        let sizes = initial_request_sizes(std::slice::from_ref(&work)).unwrap();
+        let prompt = prompt(&[&work.request], "sha256:fixture");
+        let expected = (legion_contracts::canonical_json_bytes(&prompt)
+            .unwrap()
+            .len()
+            + GATHER_SYSTEM.len()
+            + schema().to_string().len()) as u64;
+        assert_eq!(sizes.model_visible_input_bytes, expected);
+        assert!(sizes.host_envelope_bytes > expected);
+    }
     #[test]
     fn gathering_cannot_supply_findings_or_unbounded_requests() {
         assert!(validated_requests(json!({"contextRequests":[],"noAdditionalContextReason":"Mandatory excerpts already cover this narrow lane."})).is_ok());

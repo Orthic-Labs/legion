@@ -216,9 +216,7 @@ pub(super) fn verify_pending(
             let candidate = json!({"candidateId":label,"finding":finding,"sourcePacket":compact_source(&controller.snapshot,&item.work.request,finding),"sourceIdentity":{"requestId":item.work.request.request_id,"planDigest":item.work.request.plan_digest,"inventoryDigest":item.work.request.inventory_digest,"denominatorDigest":item.work.request.denominator_digest}});
             candidates.push(candidate);
             let prompt = batch_prompt(&candidates, &controller.snapshot.manifest.key);
-            let bytes = super::request_bytes(
-                &super::rendered_request(&prompt, SYSTEM, &schema, &execution)?.1,
-            )?;
+            let bytes = super::model_visible_input_bytes(&prompt, SYSTEM, &schema)?;
             if bytes > input_cap {
                 candidates.pop();
                 continue;
@@ -331,6 +329,29 @@ pub(super) fn verify_pending(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn verifier_affordability_counts_source_quotes_once() {
+        let prompt = batch_prompt(
+            &[
+                json!({"candidateId":"candidate-0","source":"quote:\" slash:\\ newline:\n".repeat(100)}),
+            ],
+            "sha256:fixture",
+        );
+        let schema = batch_schema();
+        let expected = (legion_contracts::canonical_json_bytes(&prompt)
+            .unwrap()
+            .len()
+            + SYSTEM.len()
+            + schema.to_string().len()) as u64;
+        assert_eq!(
+            super::super::model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap(),
+            expected
+        );
+        let execution = model::verifier(&super::super::RuntimeOptions::default()).unwrap();
+        let sizes = super::super::request_sizes(&prompt, SYSTEM, &schema, &execution).unwrap();
+        assert_eq!(sizes.model_visible_input_bytes, expected);
+        assert!(sizes.host_envelope_bytes > expected);
+    }
     #[test]
     fn batch_dispositions_cannot_cross_bind_or_overwrite_candidates() {
         let expected = BTreeSet::from(["one".to_owned(), "two".to_owned()]);

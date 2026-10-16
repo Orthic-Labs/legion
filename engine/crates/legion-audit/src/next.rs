@@ -355,12 +355,13 @@ fn budget_allows_tokens(
         && (!new_call || tokens <= budget.per_call)
 }
 
-/// Byte-derived planning heuristic, not a provider token count. The host must
-/// preflight the complete rendered request before send; physical authorization
+/// Model-input-byte planning heuristic, not a provider token count. Canonical
+/// prompt, system & schema count once; host-envelope escaping is separate.
+/// Host preflight still checks exact serialized bytes; physical authorization
 /// reserves the full frozen per-call allowance because native overhead and
 /// tokenization are not known in advance.
-pub fn estimated_request_tokens(rendered_bytes: u64, output_tokens: u64) -> u64 {
-    rendered_bytes.div_ceil(4).saturating_add(output_tokens)
+pub fn estimated_request_tokens(model_input_bytes: u64, output_tokens: u64) -> u64 {
+    model_input_bytes.div_ceil(4).saturating_add(output_tokens)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -389,7 +390,10 @@ pub struct BudgetCall {
     pub reservation_id: Option<String>,
     pub call_id: String,
     pub tier: String,
+    /// Exact serialized host envelope, retained independently of model input.
     pub rendered_request_bytes: u64,
+    /// Canonical prompt UTF8 + system UTF8 + schema JSON UTF8, each once.
+    pub model_input_bytes: u64,
     pub output_token_limit: u64,
     pub retry: bool,
 }
@@ -1180,7 +1184,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
             }
         }
         if runtime_encoding {
-            bytes = sizer.request_bytes(&work)?;
+            bytes = sizer.model_visible_input_bytes(&work)?;
         }
         seat.estimated_tokens = estimated_request_tokens(bytes, budget.output);
     }
@@ -1482,8 +1486,8 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
 /// Preflight every exact rendered request before transport. Returned
 /// authorization is one-shot; replaying call_id or reservation_id is rejected.
 /// Initial `next` reservations are upgraded in-place to the full frozen
-/// per-call allowance. Extra calls get new entries. Rendered-byte estimates
-/// remain planning data, since native input token counts are unavailable before
+/// per-call allowance. Extra calls get new entries. Model-visible-byte estimates
+/// remain planning data, since provider input token counts are unavailable before
 /// transport. Authorization is not a hard bound on provider-reported usage.
 pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditError> {
     let _lock = StateLock::acquire(run_dir)?;
@@ -1501,11 +1505,13 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
         .ok_or_else(|| invalid("reasoning budget missing"))?;
     if call.call_id.trim().is_empty()
         || call.rendered_request_bytes == 0
+        || call.model_input_bytes == 0
+        || call.model_input_bytes > call.rendered_request_bytes
         || call.output_token_limit == 0
         || call.output_token_limit > budget.output
     {
         return Err(invalid(
-            "call requires nonempty ID, full rendered bytes & output cap within frozen budget",
+            "call requires nonempty ID, exact host envelope, bounded model input bytes & output cap within frozen budget",
         ));
     }
     if state
@@ -1517,7 +1523,7 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             "call already authorized; replay requires a new bounded attempt",
         ));
     }
-    let tokens = estimated_request_tokens(call.rendered_request_bytes, call.output_token_limit);
+    let tokens = estimated_request_tokens(call.model_input_bytes, call.output_token_limit);
     let (id, previous, new_call) = match &call.reservation_id {
         Some(id) => {
             let previous = state
@@ -1595,7 +1601,9 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
     save_state(run_dir, &state)?;
     Ok(
         json!({"authorized": true, "reservationId": id, "callId": call.call_id, "reservedTokens": reserved,
-        "outputTokenLimit": call.output_token_limit, "budget": budget_summary(&state)}),
+        "outputTokenLimit": call.output_token_limit, "requestBytes":call.rendered_request_bytes,
+        "requestByteBasis":"serialized-host-envelope", "modelVisibleInputBytes":call.model_input_bytes,
+        "modelVisibleInputBasis":"canonical-prompt-utf8+system-utf8+schema-json-utf8-once", "budget": budget_summary(&state)}),
     )
 }
 
@@ -2844,6 +2852,7 @@ mod tests {
             call_id: id.into(),
             tier: "judgment".into(),
             rendered_request_bytes: 40,
+            model_input_bytes: 40,
             output_token_limit: 10,
             retry: false,
         }
@@ -3124,6 +3133,7 @@ mod tests {
         let mut request = call("transport");
         request.reservation_id = Some(wave["seats"][0]["reservationId"].as_str().unwrap().into());
         request.rendered_request_bytes = 2000;
+        request.model_input_bytes = 2000;
         let authorized = reserve_call(&run, &request).unwrap();
         assert_eq!(authorized["reservedTokens"], 1000);
         let state = load_state(&run, &load(&run).unwrap().dispatch_digest).unwrap();
@@ -3135,10 +3145,33 @@ mod tests {
     }
 
     #[test]
+    fn wire_expansion_does_not_spend_model_input_twice_or_reduce_physical_reservation() {
+        let run = budget_run_with_limits("wire-expansion", 20000, 10000, 2500);
+        let mut request = call("escaped-wire");
+        request.rendered_request_bytes = 90000;
+        request.model_input_bytes = 24000;
+        request.output_token_limit = 2500;
+        let admitted = reserve_call(&run, &request).unwrap();
+        assert_eq!(admitted["authorized"], true);
+        assert_eq!(admitted["reservedTokens"], 10000);
+        assert_eq!(admitted["budget"]["plannedTokens"], 8500);
+        assert_eq!(admitted["requestBytes"], 90000);
+        assert_eq!(admitted["modelVisibleInputBytes"], 24000);
+        assert_eq!(admitted["requestByteBasis"], "serialized-host-envelope");
+        let mut missing = call("missing-model-estimate");
+        missing.model_input_bytes = 0;
+        assert!(reserve_call(&run, &missing).is_err());
+        missing.model_input_bytes = missing.rendered_request_bytes + 1;
+        assert!(reserve_call(&run, &missing).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
     fn physical_allowance_covers_unpredicted_input_and_still_stops_actual_overrun() {
         let run = budget_run_with_limits("native-allowance", 20000, 10000, 2500);
         let mut request = call("native-first");
         request.rendered_request_bytes = 17409;
+        request.model_input_bytes = 17409;
         request.output_token_limit = 2500;
         let admitted = reserve_call(&run, &request).unwrap();
         assert_eq!(admitted["reservedTokens"], 10000);
@@ -3217,6 +3250,7 @@ mod tests {
         let run = budget_run_with_limits("estimate-over-cap", 20000, 10000, 2500);
         let mut request = call("oversized");
         request.rendered_request_bytes = 30001;
+        request.model_input_bytes = 30001;
         request.output_token_limit = 2500;
         assert_eq!(estimated_request_tokens(30001, 2500), 10001);
         assert_eq!(reserve_call(&run, &request).unwrap()["authorized"], false);

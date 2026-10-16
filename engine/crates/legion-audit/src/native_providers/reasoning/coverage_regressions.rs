@@ -467,7 +467,9 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
     let mut homes = Vec::new();
     for item in &work {
         assert!(
-            crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)).unwrap()
+            crate::review_runtime::InitialRequestSizer::default()
+                .model_visible_input_bytes(std::slice::from_ref(item))
+                .unwrap()
                 <= target
         );
         assert!(required_packet_gaps(&item.request).is_empty());
@@ -818,10 +820,12 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
         },
     );
     let requests = work.iter().map(|item| {
-        let bytes = crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item)).unwrap();
+        let sizes = crate::review_runtime::InitialRequestSizer::default().request_sizes(std::slice::from_ref(item)).unwrap();
         json!({"provider":item.provider_id,"packet":item.packet_file_name(),
-            "parts":item.request.packet.get("part"),"renderedBytes":bytes,
-            "estimatedTokens":crate::next::estimated_request_tokens(bytes, ingest::dispatch_output_tokens(10_000))})
+            "parts":item.request.packet.get("part"),"renderedBytes":sizes.host_envelope_bytes,
+            "modelVisibleInputBytes":sizes.model_visible_input_bytes,
+            "rawBytes":item.request.packet["excerpts"].as_array().unwrap().iter().map(|row|row["content"].as_str().unwrap().len()).sum::<usize>(),
+            "estimatedTokens":crate::next::estimated_request_tokens(sizes.model_visible_input_bytes, ingest::dispatch_output_tokens(10_000))})
     }).collect::<Vec<_>>();
     let diagnostics = json!({"inputByteLimit":input_limit,"requests":requests,
         "dispatch":dispatch,"physicalGroups":physical_groups});
@@ -844,8 +848,21 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
             .cloned()
             .collect::<Vec<_>>();
         let bytes = crate::review_runtime::initial_seat_request_bytes(&members).unwrap();
+        let model_bytes = crate::review_runtime::InitialRequestSizer::default()
+            .model_visible_input_bytes(&members)
+            .unwrap();
         assert_eq!(seat["plannedRequestBytes"], bytes, "{diagnostics}");
-        assert!(bytes <= input_limit, "{diagnostics}");
+        assert_eq!(seat["plannedModelInputBytes"], model_bytes, "{diagnostics}");
+        assert_eq!(seat["modelVisibleInputBytes"], model_bytes, "{diagnostics}");
+        assert!(model_bytes <= input_limit, "{diagnostics}");
+        assert_eq!(
+            seat["estimatedTokens"],
+            crate::next::estimated_request_tokens(
+                model_bytes,
+                ingest::dispatch_output_tokens(10_000)
+            ),
+            "{diagnostics}"
+        );
     }
     let ledger = json!({"nativePlan":{"plan":plan.plan()}});
     for item in &work {
@@ -903,7 +920,20 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
     for provider in ["reasoning.correctness", "reasoning.ai-slop"] {
         assert!(
             work.iter().any(|item| item.provider_id == provider
-                && selected.contains(&json!(item.packet_file_name()))),
+                && selected.contains(&json!(item.packet_file_name()))
+                && item.request.packet["excerpts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|excerpt| {
+                        files.iter().any(|(path, body)| {
+                            excerpt["path"] == *path
+                                && excerpt["mode"] == "raw"
+                                && excerpt["content"] == *body
+                                && excerpt["startLine"] == 1
+                                && excerpt["endLine"] == 12
+                        })
+                    })),
             "{diagnostics}"
         );
     }
@@ -936,8 +966,16 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
                 .collect::<Vec<_>>();
             let bytes = crate::review_runtime::initial_seat_request_bytes(&members).unwrap();
             assert_eq!(group["plannedRequestBytes"], bytes, "{diagnostics}");
+            let model_bytes = crate::review_runtime::InitialRequestSizer::default()
+                .model_visible_input_bytes(&members)
+                .unwrap();
             assert_eq!(row["plannedRequestBytes"], bytes, "{diagnostics}");
-            assert!(bytes <= input_limit, "{diagnostics}");
+            assert_eq!(
+                group["plannedModelInputBytes"], model_bytes,
+                "{diagnostics}"
+            );
+            assert_eq!(row["plannedModelInputBytes"], model_bytes, "{diagnostics}");
+            assert!(model_bytes <= input_limit, "{diagnostics}");
             // In particular, affordable a11y work can defer only after the
             // four author slots are occupied; it cannot be called unfit.
             assert_eq!(row["reason"], "fresh-verification-reserve", "{diagnostics}");
@@ -950,6 +988,10 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
                     .collect::<Vec<_>>();
                 assert_eq!(rows.len(), 1, "{diagnostics}");
                 assert_eq!(rows[0]["plannedRequestBytes"], bytes, "{diagnostics}");
+                assert_eq!(
+                    rows[0]["plannedModelInputBytes"], model_bytes,
+                    "{diagnostics}"
+                );
                 assert_eq!(rows[0]["reason"], row["reason"], "{diagnostics}");
             }
         } else {
@@ -967,7 +1009,11 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
             let bytes =
                 crate::review_runtime::initial_seat_request_bytes(std::slice::from_ref(item))
                     .unwrap();
-            assert!(bytes > input_limit, "{diagnostics}");
+            let model_bytes = crate::review_runtime::InitialRequestSizer::default()
+                .model_visible_input_bytes(std::slice::from_ref(item))
+                .unwrap();
+            assert!(model_bytes > input_limit, "{diagnostics}");
+            assert_eq!(row["plannedModelInputBytes"], model_bytes, "{diagnostics}");
             assert_eq!(row["reason"], "physical-envelope-headroom", "{diagnostics}");
             assert_eq!(row["plannedRequestBytes"], bytes, "{diagnostics}");
             // An unfit contract must already have reached minimum whole-line

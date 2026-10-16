@@ -6,6 +6,7 @@ mod gather;
 mod model;
 mod native;
 mod partial;
+pub(crate) mod projection;
 mod tools;
 mod verification;
 use crate::{
@@ -134,46 +135,7 @@ fn action_schema() -> Value {
 /// every repository path on every physical call. Only this outer envelope is
 /// compacted: signed lens contracts, selected paths & source stay verbatim.
 fn physical_invocation(request: &ReasoningInvocation) -> Result<Value, AuditError> {
-    let mut envelope = serde_json::to_value(request).map_err(|error| invalid(error.to_string()))?;
-    let paths = envelope
-        .as_object_mut()
-        .and_then(|object| object.remove("denominatorPaths"))
-        .ok_or_else(|| invalid("logical invocation denominator paths missing"))?;
-    envelope["denominatorPathsRef"] = json!({
-        "artifact": format!("{}/{}", ingest::LENS_PACKET_DIR, request.packet_file_name()),
-        "pointer": "/request/denominatorPaths",
-        "digest": digest(&paths)?,
-        "count": request.denominator_count,
-        "invocationDigest": legion_contracts::canonical_digest(request)
-            .map_err(|error| invalid(error.to_string()))?,
-    });
-    // The packet already carries these exact frozen bindings. Repeating long
-    // repository paths, signatures & digests in the outer envelope adds no
-    // review context; retain explicit references backed by invocationDigest.
-    let mut binding_fields = Vec::new();
-    for field in [
-        "repositoryId",
-        "inventoryGeneration",
-        "inventoryDigest",
-        "planDigest",
-        "planSignature",
-        "denominatorDigest",
-        "denominatorCount",
-    ] {
-        if request
-            .packet
-            .get("binding")
-            .and_then(|binding| binding.get(field))
-            == envelope.get(field)
-        {
-            envelope.as_object_mut().unwrap().remove(field);
-            binding_fields.push(field);
-        }
-    }
-    if !binding_fields.is_empty() {
-        envelope["bindingRef"] = json!({"pointer":"/packet/binding", "fields":binding_fields});
-    }
-    Ok(envelope)
+    projection::invocation(request)
 }
 
 fn review_prompt(
@@ -183,7 +145,7 @@ fn review_prompt(
 ) -> Result<Value, AuditError> {
     let lens = lens_plan::lens_id_for_provider(&request.provider_id);
     let report_schema = lens.and_then(lens_schemas::lens_report_schema);
-    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields. denominatorPathsRef binds accounting in the frozen run artifact; it is not reviewed source or evidence of exhaustive coverage. bindingRef resolves its listed outer fields from packet.binding.","request":physical_invocation(request)?,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
+    let mut prompt = json!({"task":"Review supplied frozen source under signed lens contract. Return finalResult object with complete:true, findings:[],withdrawn:[],details:{semanticReview/changeRisk when required}, verdicts:[] for security adjudication. Every finding includes id,title,anchor:{path,line,text} plus required lens schema fields. Do not set host receipt or authentication fields. logicalReference binds omitted run accounting & illustrative examples in the frozen invocation artifact; referenced material is not model-delivered, reviewed source or evidence of exhaustive coverage. Missing graph relationships remain unknown.","request":physical_invocation(request)?,"snapshotKey":snapshot_key,"stagePacket":stage,"contextTools":tools::specs(),"conversation":[]});
     // Ordinary packets already transport this exact schema. Reference it
     // rather than paying for a second copy on every fresh native call.
     if stage.is_none() && request.packet["reportSchemaBody"].is_object() {
@@ -193,7 +155,7 @@ fn review_prompt(
     }
     if stage.is_some() {
         // Stage material is the sole candidate review context.
-        prompt["request"]["packet"] = json!({"binding":request.packet.get("binding"),"lensPlan":request.packet.get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
+        prompt["request"]["packet"] = json!({"lensPlan":prompt["request"]["packet"].get("lensPlan"),"excerpts":request.packet.get("excerpts"),"stageOnly":true});
     }
     Ok(prompt)
 }
@@ -245,34 +207,42 @@ impl InitialRequestSizer {
         Ok(())
     }
 
-    pub(crate) fn shared_request_bytes(
+    pub(crate) fn shared_request_sizes(
         &mut self,
         works: &[PendingLensWork],
-    ) -> Result<Option<u64>, AuditError> {
+    ) -> Result<Option<RequestSizes>, AuditError> {
         let Some(prompt) = batch::initial_prompt_with_sizer(works, self)? else {
             return Ok(None);
         };
         let selection = model::default_execution_for_works(works)?;
-        request_bytes(
-            &rendered_request(
-                &prompt,
-                author_system(&selection),
-                &action_schema(),
-                &selection,
-            )?
-            .1,
+        request_sizes(
+            &prompt,
+            author_system(&selection),
+            &action_schema(),
+            &selection,
         )
         .map(Some)
     }
 
-    pub(crate) fn request_bytes(&mut self, works: &[PendingLensWork]) -> Result<u64, AuditError> {
+    pub(crate) fn shared_request_bytes(
+        &mut self,
+        works: &[PendingLensWork],
+    ) -> Result<Option<u64>, AuditError> {
+        self.shared_request_sizes(works)
+            .map(|sizes| sizes.map(|sizes| sizes.host_envelope_bytes))
+    }
+
+    pub(crate) fn request_sizes(
+        &mut self,
+        works: &[PendingLensWork],
+    ) -> Result<RequestSizes, AuditError> {
         if works.is_empty() {
             return Err(invalid("cannot estimate an empty reviewer seat"));
         }
-        if let Some(bytes) = self.shared_request_bytes(works)? {
-            return Ok(bytes);
+        if let Some(sizes) = self.shared_request_sizes(works)? {
+            return Ok(sizes);
         }
-        let mut total = 0u64;
+        let mut total = RequestSizes::default();
         for work in works {
             let snapshot_key = work
                 .request
@@ -285,20 +255,35 @@ impl InitialRequestSizer {
             let mut prompt = review_prompt(&work.request, snapshot_key, None)?;
             self.attach_context(&mut prompt, &work.request)?;
             let selection = model::default_execution_for_works(std::slice::from_ref(work))?;
-            let bytes = request_bytes(
-                &rendered_request(
-                    &prompt,
-                    author_system(&selection),
-                    &action_schema(),
-                    &selection,
-                )?
-                .1,
+            let sizes = request_sizes(
+                &prompt,
+                author_system(&selection),
+                &action_schema(),
+                &selection,
             )?;
-            total = total
-                .checked_add(bytes)
+            total.host_envelope_bytes = total
+                .host_envelope_bytes
+                .checked_add(sizes.host_envelope_bytes)
                 .ok_or_else(|| invalid("reviewer seat byte estimate overflow"))?;
+            total.model_visible_input_bytes = total
+                .model_visible_input_bytes
+                .checked_add(sizes.model_visible_input_bytes)
+                .ok_or_else(|| invalid("reviewer seat model input estimate overflow"))?;
         }
         Ok(total)
+    }
+
+    pub(crate) fn request_bytes(&mut self, works: &[PendingLensWork]) -> Result<u64, AuditError> {
+        self.request_sizes(works)
+            .map(|sizes| sizes.host_envelope_bytes)
+    }
+
+    pub(crate) fn model_visible_input_bytes(
+        &mut self,
+        works: &[PendingLensWork],
+    ) -> Result<u64, AuditError> {
+        self.request_sizes(works)
+            .map(|sizes| sizes.model_visible_input_bytes)
     }
 }
 
@@ -325,6 +310,42 @@ fn request_bytes(rendered: &Value) -> Result<u64, AuditError> {
         .map_err(|error| invalid(error.to_string()))
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RequestSizes {
+    pub host_envelope_bytes: u64,
+    pub model_visible_input_bytes: u64,
+}
+
+/// Model-input planning heuristic: canonical prompt text, system & schema each
+/// counted once. Provider conversion/tokenization remains unknown; transport
+/// framing, telemetry escaping & execution controls are not model input.
+fn model_visible_input_bytes(
+    prompt: &Value,
+    system: &str,
+    schema: &Value,
+) -> Result<u64, AuditError> {
+    let prompt_bytes = legion_contracts::canonical_json_bytes(prompt)
+        .map_err(|error| invalid(error.to_string()))?;
+    (prompt_bytes.len() as u64)
+        .checked_add(system.len() as u64)
+        .and_then(|bytes| bytes.checked_add(schema.to_string().len() as u64))
+        .ok_or_else(|| invalid("model input byte estimate overflow"))
+}
+
+fn request_sizes(
+    prompt: &Value,
+    system: &str,
+    schema: &Value,
+    execution: &model::ExecutionSelection,
+) -> Result<RequestSizes, AuditError> {
+    Ok(RequestSizes {
+        host_envelope_bytes: request_bytes(
+            &rendered_request(prompt, system, schema, execution)?.1,
+        )?,
+        model_visible_input_bytes: model_visible_input_bytes(prompt, system, schema)?,
+    })
+}
+
 /// Initial physical host envelopes, including JSON escaping, schemas & tools.
 /// Additional context/verification calls & native hidden overhead are not
 /// predicted here; each actual call still requires its own authorization.
@@ -339,7 +360,7 @@ pub(crate) fn shared_seat_supported(works: &[PendingLensWork]) -> Result<bool, A
 }
 
 pub(crate) fn initial_gather_request_bytes(works: &[PendingLensWork]) -> Result<u64, AuditError> {
-    gather::initial_request_bytes(works)
+    gather::initial_request_sizes(works).map(|sizes| sizes.host_envelope_bytes)
 }
 
 pub(super) struct Controller<'a> {
@@ -374,7 +395,8 @@ impl Controller<'_> {
         }
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
-        let request_accounting = json!({"basis":"serialized-host-envelope","nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":legion_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
+        let model_input_bytes = model_visible_input_bytes(&prompt, system, schema)?;
+        let request_accounting = json!({"basis":"serialized-host-envelope","modelVisibleInputBasis":"canonical-prompt-utf8+system-utf8+schema-json-utf8-once","modelVisibleInputBytes":model_input_bytes,"nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":legion_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
         if bytes > MAX_REQUEST_BYTES as u64 {
             return Err(AuditError::BoundExceeded(
                 "complete reviewer request exceeds byte cap".into(),
@@ -417,6 +439,7 @@ impl Controller<'_> {
             }
             .into(),
             rendered_request_bytes: bytes,
+            model_input_bytes,
             output_token_limit: seat["outputTokenLimit"]
                 .as_u64()
                 .ok_or_else(|| invalid("frozen output token cap missing"))?,
@@ -516,7 +539,7 @@ impl Controller<'_> {
                 } => {
                     if stage.is_none() {
                         partial::preserve_request(self.run, request, &result, &observation)?;
-                        let evidence = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":format!("delivery:{}",observation.context_id),"requestId":request.request_id,"packetDigest":digest(&request.packet)?,"deliveredPacketBytes":legion_contracts::canonical_json_bytes(&request.packet).map_err(|error|invalid(error.to_string()))?.len(),"complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(request).map_err(invalid)?,"host":native::observation_value(&observation)});
+                        let evidence = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport","receiptId":format!("delivery:{}",observation.context_id),"requestId":request.request_id,"packetDigest":digest(&request.packet)?,"transportEncoding":projection::ENCODING,"projection":projection::evidence(request)?,"physicalRequestDigest":observation.request_digest,"physicalRequestBytes":observation.request_bytes,"complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(request).map_err(invalid)?,"host":native::observation_value(&observation)});
                         ingest::mint_runtime_delivery(self.run, request, &evidence)?;
                     }
                     return Ok((result, observation));
@@ -1040,7 +1063,11 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn estimate_work(provider: &str, request_id: &str, content: &str) -> PendingLensWork {
+    pub(crate) fn estimate_work(
+        provider: &str,
+        request_id: &str,
+        content: &str,
+    ) -> PendingLensWork {
         PendingLensWork {
             provider_id: provider.into(),
             lens_ids: vec![],
@@ -1083,6 +1110,46 @@ mod tests {
         assert_eq!(initial_seat_request_bytes(&[work]).unwrap(), exact);
     }
     #[test]
+    fn model_input_counts_canonical_text_once_despite_wire_escaping() {
+        let prompt = json!({"source":"quote:\" slash:\\ newline:\n".repeat(200),"contextTools":tools::specs()});
+        let schema = action_schema();
+        let work = estimate_work("reasoning.correctness", "correctness", "source");
+        let execution = model::default_execution_for_works(&[work]).unwrap();
+        let (frame, mut envelope) = rendered_request(&prompt, SYSTEM, &schema, &execution).unwrap();
+        let canonical = legion_contracts::canonical_json_bytes(&prompt).unwrap();
+        let turn: Value = serde_json::from_str(&frame).unwrap();
+        assert_eq!(
+            turn["message"]["content"].as_str().unwrap().as_bytes(),
+            canonical
+        );
+        let model_bytes = model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap();
+        assert_eq!(
+            model_bytes,
+            (canonical.len() + SYSTEM.len() + schema.to_string().len()) as u64
+        );
+        let wire_bytes = request_bytes(&envelope).unwrap();
+        assert!(wire_bytes > model_bytes);
+        envelope["controls"] = json!(["long telemetry-only control".repeat(300)]);
+        envelope["execution"] =
+            json!({"model":"telemetry-only-model","effort":"telemetry-only-effort"});
+        assert_ne!(request_bytes(&envelope).unwrap(), wire_bytes);
+        assert_eq!(
+            model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap(),
+            model_bytes
+        );
+        assert!(
+            model_visible_input_bytes(&prompt, &(SYSTEM.to_owned() + "x"), &schema).unwrap()
+                > model_bytes
+        );
+        assert!(
+            model_visible_input_bytes(&prompt, SYSTEM, &json!({"schema":schema})).unwrap()
+                > model_bytes
+        );
+        let mut more_source = prompt;
+        more_source["source"] = json!(more_source["source"].as_str().unwrap().to_owned() + "extra");
+        assert!(model_visible_input_bytes(&more_source, SYSTEM, &schema).unwrap() > model_bytes);
+    }
+    #[test]
     fn signed_packet_finding_schema_is_sent_once_without_packet_mutation() {
         let mut work = estimate_work("reasoning.naming", "naming", "source");
         let schema = lens_schemas::lens_report_schema("naming").unwrap();
@@ -1101,7 +1168,7 @@ mod tests {
         assert!(stage["findingSchema"].is_object());
     }
     #[test]
-    fn physical_denominator_reference_resolves_exact_logical_run_artifact() {
+    fn physical_reference_resolves_exact_logical_run_artifact() {
         for part in [Value::Null, json!({"number": 2, "total": 3})] {
             let mut work = estimate_work("reasoning.correctness", "correctness", "raw source");
             work.request.packet["part"] = part;
@@ -1110,122 +1177,185 @@ mod tests {
             let original = work.request.clone();
             let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
             let envelope = &prompt["request"];
-            let reference = &envelope["denominatorPathsRef"];
-            // write_lens_packets serializes this exact PendingLensWork at this
-            // canonical filename; the reference resolves inside that artifact.
+            let reference = &envelope["logicalReference"];
             let artifacts = std::collections::BTreeMap::from([(
                 format!("{}/{}", ingest::LENS_PACKET_DIR, work.packet_file_name()),
                 serde_json::to_value(&work).unwrap(),
             )]);
-            let artifact = &artifacts[reference["artifact"].as_str().unwrap()];
-            let paths = artifact
+            let invocation = artifacts[reference["artifact"].as_str().unwrap()]
                 .pointer(reference["pointer"].as_str().unwrap())
                 .unwrap();
-            assert_eq!(paths, &json!(original.denominator_paths));
-            assert_eq!(reference["digest"], digest(paths).unwrap());
-            assert_eq!(reference["count"], original.denominator_count);
-            assert_eq!(
-                reference["invocationDigest"],
-                legion_contracts::canonical_digest(&original).unwrap()
-            );
-            let mut restored = envelope.clone();
-            restored
-                .as_object_mut()
-                .unwrap()
-                .remove("denominatorPathsRef");
-            restored["denominatorPaths"] = paths.clone();
-            if let Some(binding_ref) = restored.as_object_mut().unwrap().remove("bindingRef") {
-                for field in binding_ref["fields"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .filter_map(Value::as_str)
-                {
-                    restored[field] = original.packet["binding"][field].clone();
-                }
-            }
-            assert_eq!(restored, serde_json::to_value(&original).unwrap());
-            assert_eq!(envelope["packet"], original.packet);
+            assert_eq!(invocation, &serde_json::to_value(&original).unwrap());
+            assert_eq!(reference["invocationDigest"], digest(invocation).unwrap());
+            assert_eq!(reference["packetDigest"], digest(&original.packet).unwrap());
+            assert_eq!(envelope["packet"], projection::packet(&original).unwrap().0);
             assert_eq!(work.request, original);
             assert!(envelope.get("denominatorPaths").is_none());
-            // Unselected accounting paths never become reviewed source.
             assert!(!prompt.to_string().contains("unselected.rs"));
-            assert!(prompt["task"]
-                .as_str()
-                .unwrap()
-                .contains("not reviewed source or evidence of exhaustive coverage"));
+            assert!(prompt["task"].as_str().unwrap().contains(
+                "not model-delivered, reviewed source or evidence of exhaustive coverage"
+            ));
         }
     }
     #[test]
-    fn physical_denominator_metadata_growth_is_bounded_without_dropping_source() {
+    fn physical_accounting_metadata_growth_is_bounded_without_dropping_source() {
         let mut work = estimate_work("reasoning.ai-slop", "ai-slop", "pub fn useful_raw() {}");
         work.request.packet["lensPlan"] =
             lens_plan::lens_plan_packet_value(&work.provider_id).unwrap();
-        work.request.packet["semanticReviewContract"] =
-            lens_plan::semantic_review_contract("ai-slop").unwrap();
         let small = review_prompt(&work.request, "sha256:fixture", None).unwrap();
         work.request
             .denominator_paths
             .extend((0..1070).map(|index| format!("src/unselected/file_{index:04}.rs")));
         work.request.denominator_count = work.request.denominator_paths.len() as u64;
         let large = review_prompt(&work.request, "sha256:fixture", None).unwrap();
-        assert!(large.to_string().len().abs_diff(small.to_string().len()) < 16);
-        assert_eq!(large["request"]["packet"], work.request.packet);
+        assert_eq!(large.to_string().len(), small.to_string().len());
+        assert_eq!(
+            large["request"]["packet"]["excerpts"],
+            work.request.packet["excerpts"]
+        );
         assert_ne!(
-            small["request"]["denominatorPathsRef"]["invocationDigest"],
-            large["request"]["denominatorPathsRef"]["invocationDigest"]
+            small["request"]["logicalReference"]["invocationDigest"],
+            large["request"]["logicalReference"]["invocationDigest"]
         );
         let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({}))).unwrap();
         assert_eq!(
-            stage["request"]["denominatorPathsRef"],
-            large["request"]["denominatorPathsRef"]
+            stage["request"]["logicalReference"],
+            large["request"]["logicalReference"]
         );
-        assert!(stage["request"].get("denominatorPaths").is_none());
     }
     #[test]
-    fn duplicated_outer_bindings_reuse_exact_packet_values_without_changing_invocation() {
+    fn full_run_bindings_are_referenced_without_changing_invocation() {
         let mut work = estimate_work("reasoning.correctness", "correctness", "useful raw source");
         work.request.repository_id = "long-host-repository-path/".repeat(40);
-        work.request.packet["binding"] = json!({
-            "repositoryId":work.request.repository_id,
-            "inventoryGeneration":work.request.inventory_generation,
-            "inventoryDigest":work.request.inventory_digest,
-            "planDigest":work.request.plan_digest,
-            "planSignature":work.request.plan_signature,
-            "denominatorDigest":work.request.denominator_digest,
-            "denominatorCount":work.request.denominator_count,
-        });
+        work.request.packet["binding"] = json!({"repositoryId":work.request.repository_id,
+            "inventoryGeneration":work.request.inventory_generation,"inventoryDigest":work.request.inventory_digest,
+            "planDigest":work.request.plan_digest,"planSignature":work.request.plan_signature,
+            "denominatorDigest":work.request.denominator_digest,"denominatorCount":work.request.denominator_count});
         let original = work.request.clone();
         let projected = physical_invocation(&work.request).unwrap();
         assert!(projected.get("repositoryId").is_none());
-        assert_eq!(projected["packet"], original.packet);
+        assert!(projected["packet"].get("binding").is_none());
         assert_eq!(
-            projected["bindingRef"]["fields"].as_array().unwrap().len(),
-            7
-        );
-        assert_eq!(
-            projected["denominatorPathsRef"]["invocationDigest"],
+            projected["logicalReference"]["invocationDigest"],
             legion_contracts::canonical_digest(&original).unwrap()
         );
         assert_eq!(work.request, original);
-        let stage = review_prompt(&work.request, "sha256:fixture", Some(&json!({}))).unwrap();
-        let stage_request = &stage["request"];
-        let stage_binding = stage_request
-            .pointer(stage_request["bindingRef"]["pointer"].as_str().unwrap())
-            .unwrap();
-        for field in stage_request["bindingRef"]["fields"]
+        let mut proof = projection::evidence(&original).unwrap();
+        projection::validate(&original, &proof).unwrap();
+        proof["manifest"]["omittedPointers"] = json!(["/excerpts"]);
+        assert!(projection::validate(&original, &proof).is_err());
+    }
+    #[test]
+    fn projection_preserves_normative_cards_source_candidates_and_rejects_tampering() {
+        let mut work = estimate_work("reasoning.correctness", "correctness", "useful RAW");
+        work.request.packet["lensPlan"] =
+            lens_plan::lens_plan_packet_value(&work.provider_id).unwrap();
+        work.request.packet["sourceSides"] = json!({"a.rs":"base","unselected.rs":"selected"});
+        work.request.packet["candidateContext"] =
+            json!([{"candidateId":"one","path":"a.rs","evidence":"selected evidence"}]);
+        work.request.packet["excerptCoverage"] = json!({"selectedPaths":["a.rs"],"omittedPaths":[{"path":"a.rs","reason":"unavailable"}],"aliasedPaths":[{"path":"unselected.rs","of":"a.rs"}]});
+        work.request.packet["triggerEvidence"] = json!({"applicability":"unavailable","evidencePaths":["a.rs","unselected.rs"],"unavailablePaths":["unselected.rs"]});
+        let original = work.request.clone();
+        let projected = projection::packet(&original).unwrap().0;
+        assert_eq!(projected["excerpts"], original.packet["excerpts"]);
+        assert_eq!(
+            projected["candidateContext"],
+            original.packet["candidateContext"]
+        );
+        assert_eq!(projected["sourceSides"], json!({"a.rs":"base"}));
+        assert_eq!(
+            projected["triggerEvidence"]["evidencePaths"],
+            json!(["a.rs"])
+        );
+        assert_eq!(projected["triggerEvidence"]["applicability"], "unavailable");
+        assert_eq!(
+            projected["triggerEvidence"]["unavailableOutsidePacket"],
+            true
+        );
+        assert_eq!(
+            projected["excerptCoverage"]["omittedPaths"],
+            original.packet["excerptCoverage"]["omittedPaths"]
+        );
+        for (card, original) in projected["lensPlan"]["patternCards"]
             .as_array()
             .unwrap()
             .iter()
-            .filter_map(Value::as_str)
+            .zip(
+                original.packet["lensPlan"]["patternCards"]
+                    .as_array()
+                    .unwrap(),
+            )
         {
-            assert_eq!(stage_binding[field], original.packet["binding"][field]);
+            for field in [
+                "id",
+                "version",
+                "ownerLens",
+                "applicability",
+                "triggerEvidence",
+                "requiredSourceTrace",
+                "falsifier",
+                "noEvidence",
+            ] {
+                assert_eq!(card[field], original[field]);
+            }
+            assert!(card.get("pairedCases").is_none());
         }
-        work.request.packet["binding"]["repositoryId"] = json!("different");
-        assert_eq!(
-            physical_invocation(&work.request).unwrap()["repositoryId"],
-            original.repository_id
-        );
+        let proof = json!({"schemaVersion":1,"kind":"legion-evidence-delivery","source":"host-transport",
+            "receiptId":"delivery:one","requestId":original.request_id,"packetDigest":digest(&original.packet).unwrap(),
+            "transportEncoding":projection::ENCODING,"projection":projection::evidence(&original).unwrap(),
+            "physicalRequestBytes":12000,"physicalRequestDigest":format!("sha256:{}","a".repeat(64)),
+            "host":{"physicalRequestBytes":12000,"physicalRequestDigest":format!("sha256:{}","a".repeat(64))},
+            "complete":true,"truncated":false,"chunks":reasoning::delivery_chunk_manifest(&original).unwrap()});
+        reasoning::validate_delivery_evidence(&original, &proof).unwrap();
+        let mut other = work.clone();
+        other.provider_id = "reasoning.architecture".into();
+        other.request.provider_id = other.provider_id.clone();
+        other.request.request_id = "architecture".into();
+        other.request.packet["lensPlan"] =
+            lens_plan::lens_plan_packet_value(&other.provider_id).unwrap();
+        let works = [work.clone(), other];
+        let batch = batch::initial_prompt(&works).unwrap().unwrap();
+        for (row, item) in batch["lenses"].as_array().unwrap().iter().zip(&works) {
+            assert_eq!(
+                row["logicalReference"]["invocationDigest"],
+                legion_contracts::canonical_digest(&item.request).unwrap()
+            );
+            let mut projected_request = item.request.clone();
+            projected_request.packet = projection::packet(&item.request).unwrap().0;
+            assert_ne!(
+                row["logicalReference"]["invocationDigest"],
+                legion_contracts::canonical_digest(&projected_request).unwrap()
+            );
+        }
+        let mut shared_proof = proof.clone();
+        shared_proof["transportEncoding"] = json!("shared-audit-packet-reference-v1");
+        shared_proof["reconstructedPacketBytes"] =
+            json!(legion_contracts::canonical_json_bytes(&projected)
+                .unwrap()
+                .len());
+        shared_proof["sharedContextDigest"] = batch["sharedContextDigest"].clone();
+        shared_proof["reconstruction"] = json!({"sharedContext":batch["sharedContext"],"compactPacket":batch["lenses"][0]["packet"]});
+        reasoning::validate_delivery_evidence(&original, &shared_proof).unwrap();
+        shared_proof["reconstruction"]["sharedContext"]["excerpts"] = json!([]);
+        assert!(reasoning::validate_delivery_evidence(&original, &shared_proof).is_err());
+        for pointer in [
+            "/projection/manifest/reference/invocationDigest",
+            "/projection/manifest/reference/packetDigest",
+            "/projection/manifest/omittedPointers",
+            "/projection/packet/excerpts",
+            "/projection/projectedPacketBytes",
+            "/projection/logicalReconstructedPacketBytes",
+            "/physicalRequestBytes",
+            "/chunks",
+        ] {
+            let mut forged = proof.clone();
+            *forged.pointer_mut(pointer).unwrap() = Value::Null;
+            assert!(
+                reasoning::validate_delivery_evidence(&original, &forged).is_err(),
+                "{pointer}"
+            );
+        }
+        assert_eq!(work.request, original);
     }
     #[test]
     fn shared_estimate_and_runtime_builder_transport_common_source_once() {
@@ -1236,7 +1366,23 @@ mod tests {
         ];
         let prompt = batch::initial_prompt(&works).unwrap().unwrap();
         let shared = ingest::shared_seat_payload(&works).unwrap().unwrap();
-        assert_eq!(prompt["lenses"], shared["lenses"]);
+        for (index, row) in prompt["lenses"].as_array().unwrap().iter().enumerate() {
+            let mut transported = row.clone();
+            let reference = transported
+                .as_object_mut()
+                .unwrap()
+                .remove("logicalReference")
+                .unwrap();
+            assert_eq!(
+                reference["invocationDigest"],
+                legion_contracts::canonical_digest(&works[index].request).unwrap()
+            );
+            assert_eq!(
+                reference,
+                physical_invocation(&works[index].request).unwrap()["logicalReference"]
+            );
+            assert_eq!(transported, shared["lenses"][index]);
+        }
         assert_eq!(prompt["sharedContext"], shared["sharedContext"]);
         assert_eq!(prompt.to_string().matches(marker.as_str()).count(), 1);
         assert!(shared_seat_supported(&works).unwrap());
@@ -1246,6 +1392,27 @@ mod tests {
             .map(|work| initial_seat_request_bytes(std::slice::from_ref(work)).unwrap())
             .sum::<u64>();
         assert!(physical < split);
+        let sizes = InitialRequestSizer::default()
+            .request_sizes(&works)
+            .unwrap();
+        assert_eq!(sizes.host_envelope_bytes, physical);
+        assert_eq!(
+            sizes.model_visible_input_bytes,
+            model_visible_input_bytes(&prompt, SYSTEM, &action_schema()).unwrap()
+        );
+        for work in &works {
+            let single = std::slice::from_ref(work);
+            let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
+            let sizes = InitialRequestSizer::default()
+                .request_sizes(single)
+                .unwrap();
+            assert_eq!(
+                sizes.model_visible_input_bytes,
+                model_visible_input_bytes(&prompt, SYSTEM, &action_schema()).unwrap()
+            );
+            assert!(sizes.host_envelope_bytes > sizes.model_visible_input_bytes);
+        }
+
         assert_eq!(
             physical,
             request_bytes(
@@ -1278,7 +1445,23 @@ mod tests {
             .collect();
         let prompt = batch::initial_prompt(&works).unwrap().unwrap();
         let shared = ingest::shared_seat_payload(&works).unwrap().unwrap();
-        assert_eq!(prompt["lenses"], shared["lenses"]);
+        for (index, row) in prompt["lenses"].as_array().unwrap().iter().enumerate() {
+            let mut transported = row.clone();
+            let reference = transported
+                .as_object_mut()
+                .unwrap()
+                .remove("logicalReference")
+                .unwrap();
+            assert_eq!(
+                reference["invocationDigest"],
+                legion_contracts::canonical_digest(&works[index].request).unwrap()
+            );
+            assert_eq!(
+                reference,
+                physical_invocation(&works[index].request).unwrap()["logicalReference"]
+            );
+            assert_eq!(transported, shared["lenses"][index]);
+        }
         for (index, row) in prompt["lenses"].as_array().unwrap().iter().enumerate() {
             assert!(row.get("findingSchema").is_none());
             assert_eq!(row["findingSchemaRef"], "packet.reportSchemaBody");
@@ -1382,6 +1565,7 @@ mod tests {
             call_id: "parent-physical-call".into(),
             tier: "judgment".into(),
             rendered_request_bytes: 10,
+            model_input_bytes: 10,
             output_token_limit: 10,
             retry: transport_is_retry(&child_seat),
         };
