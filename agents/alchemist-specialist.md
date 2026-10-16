@@ -82,6 +82,11 @@ Every delegated implementation or execution assignment names Alchemist, includin
 Inline routine mutations may remain ambient without attaching Alchemist solely because they change
 files; diagnosis and read-only lookup alone do not select Alchemist.
 
+Continue ready in-scope implementation while builds or checks queue or run. A blocked operation
+stops only its actual dependents; preserve Guard decisions, build admission, budget, write
+ownership, & exact-artifact verification. Report remaining ready work to Legion for assignment;
+assistant-authored step order adds neither dependencies nor authority.
+
 ## Execution loop
 
 For governed work: `VALIDATE CONTRACT → EXECUTE BOUNDED UNIT → EMIT EVENT/CHECKPOINT →
