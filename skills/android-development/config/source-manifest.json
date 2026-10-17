@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-17",
+  "composition": "Independently written Legion guidance based on the listed public documentation. Five official Google skill entrypoints were reviewed at the pinned commit for workflow inventory; their linked reference trees were not reviewed. No upstream skill content, code, payload, binaries, or executable helpers copied.",
+  "sources": [
+    {
+      "id": "android-compose",
+      "url": "https://developer.android.com/develop/ui/compose/architecture",
+      "title": "Compose UI architecture",
+      "retrievedAt": "2026-10-17",
+      "locator": "Unidirectional data flow",
+      "supports": "UI state ownership & events"
+    },
+    {
+      "id": "compose-state",
+      "url": "https://developer.android.com/develop/ui/compose/state",
+      "title": "State & Jetpack Compose",
+      "retrievedAt": "2026-10-17",
+      "locator": "State in composables; other supported state",
+      "supports": "Lifecycle-aware Flow collection & state retention"
+    },
+    {
+      "id": "compose-effects",
+      "url": "https://developer.android.com/develop/ui/compose/side-effects",
+      "title": "Side effects in Compose",
+      "retrievedAt": "2026-10-17",
+      "locator": "LaunchedEffect; effect lifecycle",
+      "supports": "Keyed restart/cancellation & bounded UI effects"
+    },
+    {
+      "id": "compose-semantics",
+      "url": "https://developer.android.com/develop/ui/compose/accessibility/semantics",
+      "title": "Semantics",
+      "retrievedAt": "2026-10-17",
+      "locator": "Properties; accessibility & testing",
+      "supports": "Accessible roles/state/actions & semantic assertions"
+    },
+    {
+      "id": "gradle-wrapper",
+      "url": "https://docs.gradle.org/current/userguide/gradle_wrapper.html",
+      "title": "Gradle Wrapper",
+      "retrievedAt": "2026-10-17",
+      "locator": "Introduction",
+      "supports": "Use project-pinned wrapper"
+    },
+    {
+      "id": "uniffi-gradle",
+      "url": "https://mozilla.github.io/uniffi-rs/latest/kotlin/gradle.html",
+      "title": "Integrating with Gradle",
+      "retrievedAt": "2026-10-17",
+      "locator": "Generated Kotlin; JNA; coroutines",
+      "supports": "Version-bound generated bindings & Android packaging"
+    },
+    {
+      "id": "jni-tips",
+      "url": "https://developer.android.com/ndk/guides/jni-tips",
+      "title": "JNI tips",
+      "retrievedAt": "2026-10-17",
+      "locator": "JavaVM & JNIEnv; threads; references",
+      "supports": "Thread-local JNI environments & resource lifetimes"
+    },
+    {
+      "id": "play-data-safety",
+      "url": "https://support.google.com/googleplay/android-developer/answer/10787469",
+      "title": "Provide information for Data safety",
+      "retrievedAt": "2026-10-17",
+      "locator": "Getting information ready; third-party code",
+      "supports": "Declarations reflect actual app & SDK handling"
+    },
+    {
+      "id": "play-fgs-declarations",
+      "url": "https://support.google.com/googleplay/android-developer/answer/13392821",
+      "title": "Foreground service requirements",
+      "retrievedAt": "2026-10-17",
+      "locator": "Foreground service permissions; declaration",
+      "supports": "Applicable Play service-type declarations"
+    },
+    {
+      "id": "agp-compatibility",
+      "url": "https://developer.android.com/build/releases/agp-9-2-0-release-notes",
+      "title": "Android Gradle plugin 9.2.0",
+      "retrievedAt": "2026-10-17",
+      "locator": "Compatibility table (Gradle, SDK Build Tools, NDK, JDK, KGP; API support)",
+      "supports": "Pinned AGP compatibility must be checked against Gradle, JDK, SDK Build Tools, NDK, and Kotlin Gradle Plugin."
+    },
+    {
+      "id": "adb",
+      "url": "https://developer.android.com/tools/adb",
+      "title": "Android Debug Bridge (adb)",
+      "retrievedAt": "2026-10-17",
+      "locator": "Send commands to a specific device; shell commands; activity manager",
+      "supports": "Enumerate devices and target each command with -s SERIAL when multiple devices are present."
+    },
+    {
+      "id": "emulator-usage",
+      "url": "https://developer.android.com/studio/run/advanced-emulator-usage",
+      "title": "Advanced emulator usage",
+      "retrievedAt": "2026-10-17",
+      "locator": "Limitations; simulation and emulator features",
+      "supports": "Emulator offers virtual behavior and has no virtual Bluetooth, NFC, attached headphones, USB, or SD-card insertion hardware."
+    },
+    {
+      "id": "compose-testing",
+      "url": "https://developer.android.com/develop/ui/compose/testing/apis",
+      "title": "Testing APIs | Jetpack Compose",
+      "retrievedAt": "2026-10-17",
+      "locator": "Finders, assertions, actions, semantics tree; links to local and instrumented tests",
+      "supports": "Compose UI tests interact through semantics matchers and the semantics tree; local and on-device instrumented tests cover different layers."
+    },
+    {
+      "id": "app-signing",
+      "url": "https://developer.android.com/studio/publish/app-signing",
+      "title": "Sign your app",
+      "retrievedAt": "2026-10-17",
+      "locator": "Play App Signing; upload key and app signing key; release signing",
+      "supports": "For Play App Signing, developer signs the uploaded bundle with upload key and Google signs distributed APKs with app signing key."
+    },
+    {
+      "id": "play-target-api",
+      "url": "https://support.google.com/googleplay/android-developer/answer/11926878",
+      "title": "Target API level requirements for Google Play apps",
+      "retrievedAt": "2026-10-17",
+      "locator": "What to do to comply; app category tables",
+      "supports": "Target API submission rules are category-specific and date-sensitive; verify current requirement when advising."
+    },
+    {
+      "id": "page-size-16k",
+      "url": "https://developer.android.com/guide/practices/page-sizes",
+      "title": "Support 16 KB page sizes",
+      "retrievedAt": "2026-10-17",
+      "locator": "Compile app using 16 KB ELF alignment; prebuilt shared libraries",
+      "supports": "Native shared libraries require suitable 16 KB ELF alignment, including prebuilt libraries."
+    },
+    {
+      "id": "android-runtime-permissions",
+      "url": "https://developer.android.com/training/permissions/requesting",
+      "title": "Request runtime permissions",
+      "retrievedAt": "2026-10-17",
+      "locator": "Basic principles; workflow; handle permission denial; one-time permissions; app process terminates when permission revoked",
+      "supports": "Contextual permission requests, rechecking access, graceful denial handling, temporary grants & process termination after revocation."
+    },
+    {
+      "id": "android-fgs-types",
+      "url": "https://developer.android.com/develop/background-work/services/fgs/service-types",
+      "title": "Foreground service types",
+      "retrievedAt": "2026-10-17",
+      "locator": "Introduction; Microphone; alternatives",
+      "supports": "Service-type declarations, base/type-specific permissions, microphone RECORD_AUDIO prerequisite & while-in-use restrictions."
+    },
+    {
+      "id": "android-fgs-start-restrictions",
+      "url": "https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start",
+      "title": "Restrictions on starting a foreground service from the background",
+      "retrievedAt": "2026-10-17",
+      "locator": "Introduction; Restrictions on starting foreground services that need while-in-use permissions; defined exemptions",
+      "supports": "Target-31 background-start restriction; separate while-in-use gate; target-34 creation checks & visible-activity initiation."
+    },
+    {
+      "id": "android-workmanager",
+      "url": "https://developer.android.com/develop/background-work/background-tasks/persistent",
+      "title": "Task scheduling",
+      "retrievedAt": "2026-10-17",
+      "locator": "WorkManager features; Use WorkManager for reliable work; Relationship to other APIs",
+      "supports": "Persistent scheduling, constraints, unique work, retry, coroutine integration & distinction from precise alarms.",
+      "requestedUrl": "https://developer.android.com/topic/libraries/architecture/workmanager"
+    },
+    {
+      "id": "android-keystore",
+      "url": "https://developer.android.com/privacy-and-security/keystore",
+      "title": "Android Keystore system",
+      "retrievedAt": "2026-10-17",
+      "locator": "Extraction prevention; StrongBox KeyMint; Key use authorizations; Choose between a keychain and Android Keystore provider; Require user authentication for key use",
+      "supports": "Non-exportable keys, conditional hardware protection, authorized key use, app credentials & biometric-related invalidation."
+    },
+    {
+      "id": "android-mediarecorder",
+      "url": "https://developer.android.com/media/platform/mediarecorder",
+      "title": "MediaRecorder overview",
+      "retrievedAt": "2026-10-17",
+      "locator": "Requesting permission to record audio; Creating and running a MediaRecorder; sample onStop cleanup",
+      "supports": "Encoded recording setup order, native-resource release, hardware dependence & API-28 background microphone restrictions."
+    },
+    {
+      "id": "android-audiorecord",
+      "url": "https://developer.android.com/reference/android/media/AudioRecord",
+      "title": "AudioRecord",
+      "retrievedAt": "2026-10-17",
+      "locator": "Constructor; STATE_INITIALIZED; getMinBufferSize; read; ERROR_DEAD_OBJECT; release",
+      "supports": "Initialization checks, buffer sizing limitations, read results, dead-instance recreation & native-resource invalidation."
+    },
+    {
+      "id": "android-storage",
+      "url": "https://developer.android.com/training/data-storage",
+      "title": "Data and file storage overview",
+      "retrievedAt": "2026-10-17",
+      "locator": "Storage-options table; Permissions and access to external storage; Scoped storage",
+      "supports": "App-private files, shared media via MediaStore, documents via SAF, uninstall behavior & target-dependent storage access."
+    },
+    {
+      "id": "android-autobackup",
+      "url": "https://developer.android.com/identity/data/autobackup",
+      "title": "Back up user data with Auto Backup",
+      "retrievedAt": "2026-10-17",
+      "locator": "Files that are backed up; Enable and disable backup; Include and exclude files; Control backup on Android 12 or higher",
+      "supports": "Default backup coverage, excluded directories, legacy/current rules & distinct cloud/device-transfer settings."
+    },
+    {
+      "id": "google-skill-adaptive",
+      "url": "https://github.com/android/skills/blob/5bda39f154fb859a08d45e2392f3568e049f83fb/jetpack-compose/adaptive/SKILL.md",
+      "title": "adaptive",
+      "retrievedAt": "2026-10-17",
+      "locator": "Entrypoint & relevant workflow sections; linked reference trees not reviewed",
+      "supports": "Reference-only inventory & selective original synthesis",
+      "commit": "5bda39f154fb859a08d45e2392f3568e049f83fb"
+    },
+    {
+      "id": "google-skill-compose-performance",
+      "url": "https://github.com/android/skills/blob/5bda39f154fb859a08d45e2392f3568e049f83fb/jetpack-compose/jetpack-compose-performance/SKILL.md",
+      "title": "compose-performance",
+      "retrievedAt": "2026-10-17",
+      "locator": "Entrypoint & relevant workflow sections; linked reference trees not reviewed",
+      "supports": "Reference-only inventory & selective original synthesis",
+      "commit": "5bda39f154fb859a08d45e2392f3568e049f83fb"
+    },
+    {
+      "id": "google-skill-permission-security",
+      "url": "https://github.com/android/skills/blob/5bda39f154fb859a08d45e2392f3568e049f83fb/security/android-permissions-security/SKILL.md",
+      "title": "permission-security",
+      "retrievedAt": "2026-10-17",
+      "locator": "Entrypoint & relevant workflow sections; linked reference trees not reviewed",
+      "supports": "Reference-only inventory & selective original synthesis",
+      "commit": "5bda39f154fb859a08d45e2392f3568e049f83fb"
+    },
+    {
+      "id": "google-skill-edge-to-edge",
+      "url": "https://github.com/android/skills/blob/5bda39f154fb859a08d45e2392f3568e049f83fb/system/edge-to-edge/SKILL.md",
+      "title": "edge-to-edge",
+      "retrievedAt": "2026-10-17",
+      "locator": "Entrypoint & relevant workflow sections; linked reference trees not reviewed",
+      "supports": "Reference-only inventory & selective original synthesis",
+      "commit": "5bda39f154fb859a08d45e2392f3568e049f83fb"
+    },
+    {
+      "id": "google-skill-testing-setup",
+      "url": "https://github.com/android/skills/blob/5bda39f154fb859a08d45e2392f3568e049f83fb/testing/testing-setup/SKILL.md",
+      "title": "testing-setup",
+      "retrievedAt": "2026-10-17",
+      "locator": "Entrypoint & relevant workflow sections; linked reference trees not reviewed",
+      "supports": "Reference-only inventory & selective original synthesis",
+      "commit": "5bda39f154fb859a08d45e2392f3568e049f83fb"
+    }
+  ],
+  "referenceClasses": {
+    "PACKAGE_INTERNAL": [
+      "references/compose-kotlin.md",
+      "references/platform-apis.md",
+      "references/toolchain-testing-release.md",
+      "references/rust-interop.md",
+      "config/source-manifest.json",
+      "references/route-resources.json"
+    ],
+    "PROJECT_OVERLAY": [
+      "The target app repository instructions, existing architecture, pinned commands, and shared-code owners",
+      "RightKit checkout source at the recorded revision, using paths relative to that checkout when present"
+    ],
+    "HOST_CAPABILITY": [
+      "android-gradle-toolchain",
+      "android-sdk",
+      "android-ndk"
+    ],
+    "HISTORICAL_EVIDENCE": []
+  }
+}

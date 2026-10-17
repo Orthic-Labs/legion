@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "workflows": {
+    "gradle-build-test": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-gradle-toolchain"
+      },
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-sdk"
+      }
+    ],
+    "android-device-test": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-gradle-toolchain"
+      },
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-sdk"
+      }
+    ],
+    "native-android-build": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-gradle-toolchain"
+      },
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-sdk"
+      },
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "android-ndk"
+      }
+    ]
+  },
+  "adapters": {}
+}
