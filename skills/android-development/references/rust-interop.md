@@ -1,15 +1,16 @@
 # Rust, UniFFI & JNI
 
 This reference records source inspection at RightKit commit
-`70ee319aaf3f5bc22b966c8249e30f0982d8784b` on 2026-10-17. Paths below are relative to
-the consuming RightKit checkout and are PROJECT_OVERLAY inputs, not files shipped in
-this skill. Reinspect them before implementation.
+`70ee319aaf3f5bc22b966c8249e30f0982d8784b` on 2026-10-17. The module path below is
+relative to the consuming RightKit checkout; paths listed inside it are relative to
+`crates/rightkit-android/`. These are PROJECT_OVERLAY inputs, not files shipped in this
+skill. Reinspect them before implementation.
 
 ## Shared owner
 
 When the consuming RightKit checkout contains `crates/rightkit-android/`, it is the
-shared Rust bridge and Gradle Android library. Read its `README.md`, `TOOLCHAIN.md`,
-`Cargo.toml`, `uniffi.toml`, `src/context.rs`, `src/jni_entry.rs`, Kotlin
+shared Rust bridge and Gradle Android library. Within that module, read `README.md`,
+`TOOLCHAIN.md`, `Cargo.toml`, `uniffi.toml`, `src/context.rs`, `src/jni_entry.rs`, Kotlin
 `android/src/main/kotlin/com/orthiclabs/rightkit/android/RightKit.kt`,
 `android/build.gradle.kts`, `android/settings.gradle.kts`, and
 `scripts/toolchain.versions`. Its documented boundary centralizes shared JNI/context/
@@ -42,7 +43,7 @@ class-loader context. Review callback lifetime, threading, and shutdown. Define
 cancellation, resource release, and typed errors at the FFI boundary; do not let Rust
 panics cross JNI. See Android's [JNI guidance](https://developer.android.com/ndk/guides/jni-tips).
 
-Read `scripts/toolchain.versions` and Gradle configuration together; do not promote
+Read the module's `scripts/toolchain.versions` and Gradle configuration together; do not promote
 unverified pins into universal recommendations. Route Rust through managed workspace
 tooling and preserve build admission. Check packaged ABI
 directories, exported entry points, generated Kotlin linkage, transitive `.so`

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "PROJECT_OVERLAY",
+      "path": "<rightkit-checkout>",
+      "optional": true,
+      "absent": "If the consuming RightKit checkout is absent, preserve and inspect the target project's existing Rust/Android bridge; do not assume RightKit is available, add a second shared owner, or infer toolchain pins."
+    }
+  ]
+}
