@@ -993,12 +993,25 @@ fn qualify_inner(
             r#"param([string]$Installer, [string]$InstallRoot)
 $ErrorActionPreference = 'Stop'
 $mutex = [Threading.Mutex]::new($false, 'Local\OrthicLabs.Legion.Setup')
+$lockAcquired = $false
+$installerProcess = $null
 try {
-  if (-not $mutex.WaitOne(0)) { throw 'Could not acquire installer qualification mutex' }
-  & $Installer '/VERYSILENT' '/SUPPRESSMSGBOXES' '/NORESTART' ('/DIR=' + $InstallRoot)
-  if ($LASTEXITCODE -eq 0) { throw 'Concurrent installer falsely succeeded' }
-  Write-Output ('blockedInstallerExit=' + $LASTEXITCODE)
-} finally { $mutex.ReleaseMutex(); $mutex.Dispose() }
+  $lockAcquired = $mutex.WaitOne(0)
+  if (-not $lockAcquired) { throw 'Could not acquire installer qualification mutex' }
+  # A standalone GUI invocation can return before Setup checks its mutex.
+  # Keep it held through the complete process tree & read this process's exit.
+  $installerArguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $InstallRoot + '"'
+  $installerProcess = Start-Process -FilePath $Installer -ArgumentList $installerArguments -WindowStyle Hidden -Wait -PassThru
+  if (-not $installerProcess.HasExited) { throw 'Concurrent installer did not exit' }
+  $installerExitCode = $installerProcess.ExitCode
+  if ($null -eq $installerExitCode) { throw 'Concurrent installer exit code is unavailable' }
+  if ($installerExitCode -eq 0) { throw 'Concurrent installer falsely succeeded' }
+  Write-Output ('blockedInstallerExit=' + $installerExitCode)
+} finally {
+  if ($null -ne $installerProcess) { $installerProcess.Dispose() }
+  if ($lockAcquired) { $mutex.ReleaseMutex() }
+  $mutex.Dispose()
+}
 "#,
         )
         .map_err(|e| fail(e.to_string()))?;
@@ -1024,7 +1037,8 @@ try {
                 "concurrent installer rejection",
             )
         })?;
-        assert_no_new_runtime_events(&activation_events, &events_before_lock)?;
+        assert_no_new_runtime_events(&activation_events, &events_before_lock)
+            .map_err(|error| format!("{error}; stage=concurrent-installer-rejection"))?;
         if sha256_file(&executable)? != installed_sha256
             || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
                 != installed_receipt
@@ -1064,7 +1078,8 @@ try {
                     stage,
                 )
             })?;
-            assert_no_new_runtime_events(&activation_events, &prior_events)?;
+            assert_no_new_runtime_events(&activation_events, &prior_events)
+                .map_err(|error| format!("{error}; stage={stage}"))?;
             if fs::read_to_string(foreign_root.join("foreign.txt"))
                 .map_err(|e| fail(e.to_string()))?
                 != "preserve unowned state"
@@ -1113,7 +1128,8 @@ try {
                 "foreign current junction rejection",
             )
         })?;
-        assert_no_new_runtime_events(&activation_events, &foreign_events)?;
+        assert_no_new_runtime_events(&activation_events, &foreign_events)
+            .map_err(|error| format!("{error}; stage=foreign-junction-rejection"))?;
         if sha256_file(&foreign_current.join("bin/legion.exe"))? != installed_sha256
             || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
                 != installed_receipt
