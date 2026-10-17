@@ -63,4 +63,5 @@ This supplies platform expertise within Legion's existing authority & effect con
 - Preserve other platforms; an Android request does not authorize an app rewrite or
   migration to Compose Multiplatform, Navigation 3 or newest AGP.
 
-[Source manifest](config/source-manifest.json) records dated sources & reuse limits.
+[Source manifest](config/source-manifest.json) records dated sources & reuse limits;
+[third-party notices](references/third-party-notices.md) records reference-only inventory.

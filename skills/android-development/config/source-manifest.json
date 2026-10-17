@@ -77,10 +77,10 @@
     },
     {
       "id": "agp-compatibility",
-      "url": "https://developer.android.com/build/releases/agp-9-2-0-release-notes",
-      "title": "Android Gradle plugin 9.2.0",
+      "url": "https://developer.android.com/build/releases/gradle-plugin",
+      "title": "Android Gradle plugin release notes",
       "retrievedAt": "2026-10-17",
-      "locator": "Compatibility table (Gradle, SDK Build Tools, NDK, JDK, KGP; API support)",
+      "locator": "Current release notes; select the project-pinned release for its compatibility table",
       "supports": "Pinned AGP compatibility must be checked against Gradle, JDK, SDK Build Tools, NDK, and Kotlin Gradle Plugin."
     },
     {
@@ -257,7 +257,8 @@
       "references/toolchain-testing-release.md",
       "references/rust-interop.md",
       "config/source-manifest.json",
-      "references/route-resources.json"
+      "references/route-resources.json",
+      "references/third-party-notices.md"
     ],
     "PROJECT_OVERLAY": [
       "The target app repository instructions, existing architecture, pinned commands, and shared-code owners",
