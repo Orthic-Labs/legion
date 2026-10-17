@@ -62,6 +62,11 @@
       "digest": "sha256:030d7c33879b0cdf100bd58eec1d3a203d0cbef8f06bc3ffa6b25903cc173c64"
     },
     {
+      "path": "dependencies.json",
+      "uri": "legion-skill://android-development/dependencies.json",
+      "digest": "sha256:fc6c941330a4bb92c97239a2349795634831b56339d439c927c212150f70a70c"
+    },
+    {
       "path": "references/compose-kotlin.md",
       "uri": "legion-skill://android-development/references/compose-kotlin.md",
       "digest": "sha256:25424de5834f777001041bdbb22fc9e9c09dd005a5b6f2245ab5a38d1c3c819d"
@@ -79,7 +84,7 @@
     {
       "path": "references/rust-interop.md",
       "uri": "legion-skill://android-development/references/rust-interop.md",
-      "digest": "sha256:58fb1e2017eaf1912f87f1e3b147ffb8da3221cd7a50eabbcce8590d07852f32"
+      "digest": "sha256:5518509f7a00fe9dfd026e594efe1eabcd59a257157ea6bca0502faedac1aa5b"
     },
     {
       "path": "references/toolchain-testing-release.md",
