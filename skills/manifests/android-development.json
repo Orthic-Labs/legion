@@ -33,13 +33,16 @@
       "references/platform-apis.md",
       "references/route-resources.json",
       "references/rust-interop.md",
+      "references/third-party-notices.md",
       "references/toolchain-testing-release.md"
     ],
     "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
-    "evals": [],
+    "evals": [
+      "evals/evals.json"
+    ],
     "consumers": [
       "src/registry/skills/index.json",
       "src/registry/routing/domains.json"
@@ -49,7 +52,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://android-development/SKILL.md",
-      "digest": "sha256:4ce18fed4cfaadc38d9ca096c599b56ea041e1c1036e93a10e2e7f4112c7e4fb"
+      "digest": "sha256:ceac55d32ad9975cf1ed5a626dabcbbe58ca47c08dcbda274d9f8a4c6e6f8542"
     },
     {
       "path": "agents/openai.yaml",
@@ -59,12 +62,17 @@
     {
       "path": "config/source-manifest.json",
       "uri": "legion-skill://android-development/config/source-manifest.json",
-      "digest": "sha256:030d7c33879b0cdf100bd58eec1d3a203d0cbef8f06bc3ffa6b25903cc173c64"
+      "digest": "sha256:cf842a64aa40cb720aa3db060a6d6baf19c2b4797a9f03bf9d9d8f8baa722bee"
     },
     {
       "path": "dependencies.json",
       "uri": "legion-skill://android-development/dependencies.json",
       "digest": "sha256:fc6c941330a4bb92c97239a2349795634831b56339d439c927c212150f70a70c"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://android-development/evals/evals.json",
+      "digest": "sha256:e7dc98229f9c25931ab489a270d623d213df5f9f33672335f6c1dd59f2a827c8"
     },
     {
       "path": "references/compose-kotlin.md",
@@ -87,9 +95,14 @@
       "digest": "sha256:5518509f7a00fe9dfd026e594efe1eabcd59a257157ea6bca0502faedac1aa5b"
     },
     {
+      "path": "references/third-party-notices.md",
+      "uri": "legion-skill://android-development/references/third-party-notices.md",
+      "digest": "sha256:753f6f1e3e6a704f6e46cd2396fd14b3059da94669b1372f042285f3278e1a7a"
+    },
+    {
       "path": "references/toolchain-testing-release.md",
       "uri": "legion-skill://android-development/references/toolchain-testing-release.md",
-      "digest": "sha256:b370466bb947fe98de4c35e66c86eb333b32defed43dc422f5a0709234b62f32"
+      "digest": "sha256:9f09f93dcdadf84ae8afa628251c1d5bf417abdec025c30f29f8d9286cedc7c3"
     }
   ]
 }
