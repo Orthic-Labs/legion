@@ -855,6 +855,7 @@ fn tool_candidates(provider_id: &str, tool: &str) -> &'static [&'static str] {
         ("code.mobile", _) => &["xcodebuild", "swift"],
         ("code.php-ruby", "package" | "security") => &["composer"],
         ("code.php-ruby", "lint") => &["php"],
+        ("code.php-ruby", "ruby-lint") => &["rubocop"],
         ("code.php-ruby", "type") => &["phpstan", "psalm"],
         ("code.php-ruby", _) => &["phpunit"],
         _ => &[],

@@ -105,6 +105,23 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   )
 fi
 
+# Native fixture qualification is intentionally ignored by ordinary unit tests.
+# Both native hosts must execute it after shared RightKit provisions pinned
+# Chrome assets (plus Windows headless shell & sandbox ACLs). Require the exact
+# two-test terminal count so a stale selector cannot pass without execution.
+browser_fixture_log="${RUNNER_TEMP}/legion-native-fixture-qualification.log"
+(cd engine && cargo test --locked -p legion-audit --lib native_fixture_qualification -- --ignored --nocapture --test-threads=1) 2>&1 | tee "$browser_fixture_log"
+python3 - "$browser_fixture_log" <<'PY'
+import pathlib
+import re
+import sys
+
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+results = re.findall(r"^test result: (\w+)\. (\d+) passed; (\d+) failed; (\d+) ignored;", text, re.MULTILINE)
+assert results and results[-1] == ("ok", "2", "0", "0"), results
+print("Native browser fixture qualification: exactly two tests passed")
+PY
+
 # Planted-defect recall gate (formerly the ci.yml bench job). Runs on the
 # macOS leg because dead-code, duplication and type checks must run inside
 # sandbox-exec; provisions the scanners so a tool-missing class fails

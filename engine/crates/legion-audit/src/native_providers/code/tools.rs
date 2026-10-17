@@ -32,6 +32,7 @@
 //! | | `vet` | `go vet ./...` |
 //! | | `format` | `gofmt -l .` |
 //! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
+//! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //!
 //! Never run: test suites (`test` is always the typed gap
@@ -64,6 +65,8 @@ use tokio_util::sync::CancellationToken;
 
 #[path = "native_commands.rs"]
 mod native_commands;
+#[path = "rubocop.rs"]
+mod rubocop;
 
 /// Findings kept per provider from tool diagnostics; the rest is a counted gap.
 pub const MAX_TOOL_FINDINGS: usize = 200;
@@ -188,6 +191,7 @@ enum Parser {
     Gofmt,
     GoList,
     Syntax,
+    Rubocop,
 }
 
 struct Planned {
@@ -617,6 +621,7 @@ fn plan_commands(
         "code.javascript" => plan_javascript(root, entries, scratch, &mut plan),
         "code.python" => plan_python(entries, selected, scratch, &mut plan),
         "code.go" => plan_go(entries, &mut plan),
+        "code.php-ruby" => rubocop::plan(root, entries, selected, scratch, &mut plan),
         _ => {}
     }
     native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
@@ -751,7 +756,12 @@ impl<'a> Resolver<'a> {
             return cached.clone();
         }
         let found = command.programs.iter().find_map(|name| {
-            if command.local_bin {
+            if command.parser == Parser::Rubocop {
+                rubocop::search_dirs(self.ctx)
+                    .iter()
+                    .find_map(|dir| in_dir(dir, name))
+                    .filter(|path| rubocop::trusted_path(self.ctx.root, path))
+            } else if command.local_bin {
                 self.local_bin(cwd, name)
             } else {
                 self.on_path(name)
@@ -889,6 +899,11 @@ async fn run_one(
     timeout_ms: u64,
     cancellation: CancellationToken,
 ) -> RunOutput {
+    if command.parser == Parser::Rubocop && !rubocop::staged_input_valid(command) {
+        return RunOutput::failed(Outcome::Failed(
+            "tool-failed:ruby-lint:staged-input-changed".into(),
+        ));
+    }
     let cwd = if command.cwd_rel.is_empty() {
         ctx.root.to_path_buf()
     } else {
@@ -947,6 +962,21 @@ async fn run_one(
         environment.insert((*name).into(), value.clone());
         allowlist.insert((*name).into());
     }
+    if command.parser == Parser::Rubocop {
+        if let Ok(path) = std::env::join_paths(rubocop::search_dirs(ctx)) {
+            environment.insert("PATH".into(), path.to_string_lossy().into_owned());
+        } else {
+            return RunOutput::failed(Outcome::Failed(
+                "tool-failed:ruby-lint:invalid-search-path".into(),
+            ));
+        }
+        if let Some(gem_home) = rubocop::gem_home(ctx.root, &executable) {
+            for name in ["GEM_HOME", "GEM_PATH"] {
+                environment.insert(name.into(), gem_home.clone());
+                allowlist.insert(name.into());
+            }
+        }
+    }
 
     let executable_text = executable.to_string_lossy().into_owned();
     let cwd_text = cwd.to_string_lossy().into_owned();
@@ -960,6 +990,8 @@ async fn run_one(
             "-Command".into(),
             "$PSVersionTable.PSVersion.ToString()".into(),
         ]
+    } else if command.parser == Parser::Rubocop {
+        vec!["--no-server".into(), "--version".into()]
     } else {
         vec!["--version".into()]
     };
@@ -1125,7 +1157,12 @@ async fn run_one(
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
     };
-    match parse(command.parser, bytes, receipt.exit_code) {
+    let parsed = if command.parser == Parser::Rubocop {
+        rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
+    } else {
+        parse(command.parser, bytes, receipt.exit_code)
+    };
+    match parsed {
         Ok(mut diagnostics) => {
             if let Some(path) = &command.source_path {
                 for diagnostic in &mut diagnostics {
@@ -1169,6 +1206,7 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
         Parser::Syntax => parse_syntax(bytes, exit),
+        Parser::Rubocop => Err("rubocop-source-binding-required".into()),
     }
 }
 
@@ -1564,7 +1602,15 @@ pub async fn run(
             accumulator.merge(Outcome::NotRun((*why).into()));
         }
         for diag in output.diagnostics {
-            diagnostics.push((command.cwd_rel.clone(), diag));
+            // Isolated adapters already rebind diagnostics to the original
+            // repository-relative source. Their physical scratch cwd is only
+            // execution evidence, never the diagnostic path's base.
+            let diagnostic_cwd = if command.source_path.is_some() {
+                String::new()
+            } else {
+                command.cwd_rel.clone()
+            };
+            diagnostics.push((diagnostic_cwd, diag));
         }
     }
     for path in &plan.cleanup {
