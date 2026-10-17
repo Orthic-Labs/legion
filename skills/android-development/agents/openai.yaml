@@ -1,0 +1,6 @@
+interface:
+  display_name: "Android Development"
+  short_description: "Build, change, debug, test, or optimize native Android apps & components. Use for Kotlin/Jetpack Compose or Views, Android SDK APIs, lifecycle, permissions, background work, audio, storage, Gradle/AGP, adb/emulator testing, Rust JNI/UniFFI integration & Play release preparation; preserve existing cross-platform hosts."
+  default_prompt: "Use $android-development when this request matches: Build, change, debug, test, or optimize native Android apps & components. Use for Kotlin/Jetpack Compose or Views, Android SDK APIs, lifecycle, permissions, background work, audio, storage, Gradle/AGP, adb/emulator testing, Rust JNI/UniFFI integration & Play release preparation; preserve existing cross-platform hosts."
+policy:
+  allow_implicit_invocation: true

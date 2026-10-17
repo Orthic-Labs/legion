@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "id": "android-development",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://android-development/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/android-development",
+      "Build, change, debug, test, or optimize native Android apps & components. Use for Kotlin/Jetpack Compose or Views, Android SDK APIs, lifecycle, permissions, background work, audio, storage, Gradle/AGP, adb/emulator testing, Rust JNI/UniFFI integration & Play release preparation; preserve existing cross-platform hosts."
+    ],
+    "outputs": [
+      "references/compose-kotlin.md",
+      "references/platform-apis.md",
+      "references/route-resources.json",
+      "references/rust-interop.md",
+      "references/toolchain-testing-release.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://android-development/SKILL.md",
+      "digest": "sha256:4ce18fed4cfaadc38d9ca096c599b56ea041e1c1036e93a10e2e7f4112c7e4fb"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://android-development/agents/openai.yaml",
+      "digest": "sha256:38952a359aa71b3bc9985a8602559c83a7ae112cc60b0dd5bcc4aab846438913"
+    },
+    {
+      "path": "config/source-manifest.json",
+      "uri": "legion-skill://android-development/config/source-manifest.json",
+      "digest": "sha256:030d7c33879b0cdf100bd58eec1d3a203d0cbef8f06bc3ffa6b25903cc173c64"
+    },
+    {
+      "path": "references/compose-kotlin.md",
+      "uri": "legion-skill://android-development/references/compose-kotlin.md",
+      "digest": "sha256:25424de5834f777001041bdbb22fc9e9c09dd005a5b6f2245ab5a38d1c3c819d"
+    },
+    {
+      "path": "references/platform-apis.md",
+      "uri": "legion-skill://android-development/references/platform-apis.md",
+      "digest": "sha256:96e36de2a0273cec9954f1d95dafee8e9a588cc69cecb060ff3e018cb87402a5"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://android-development/references/route-resources.json",
+      "digest": "sha256:ce861a9520384286d234ccc6137b38d7ab89c5d112753badf123ef6182c7b02b"
+    },
+    {
+      "path": "references/rust-interop.md",
+      "uri": "legion-skill://android-development/references/rust-interop.md",
+      "digest": "sha256:58fb1e2017eaf1912f87f1e3b147ffb8da3221cd7a50eabbcce8590d07852f32"
+    },
+    {
+      "path": "references/toolchain-testing-release.md",
+      "uri": "legion-skill://android-development/references/toolchain-testing-release.md",
+      "digest": "sha256:b370466bb947fe98de4c35e66c86eb333b32defed43dc422f5a0709234b62f32"
+    }
+  ]
+}

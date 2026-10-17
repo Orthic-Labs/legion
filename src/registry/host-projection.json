@@ -152,6 +152,102 @@
       "source": "skills/alchemist/SKILL.md"
     },
     {
+      "id": "android-development",
+      "name": "android-development",
+      "description": "Build, change, debug, test, or optimize native Android apps & components. Use for Kotlin/Jetpack Compose or Views, Android SDK APIs, lifecycle, permissions, background work, audio, storage, Gradle/AGP, adb/emulator testing, Rust JNI/UniFFI integration & Play release preparation; preserve existing cross-platform hosts.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
+      "domain": "engineering",
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirements": [
+        {
+          "scope": "workflow:android-device-test",
+          "scopeKind": "workflow",
+          "id": "android-gradle-toolchain",
+          "kind": "language-runtime",
+          "summary": "Project-pinned Gradle wrapper and compatible JDK for Android build and test routes; the wrapper is supplied by the consuming project, not a global Gradle install.",
+          "degradation": "The selected Gradle build or test route remains unrun; source review and implementation can continue without claiming build verification.",
+          "remedy": "Use the consuming project’s checked-in Gradle wrapper and compatible JDK. Do not assume global Gradle or install or upgrade tooling automatically.",
+          "probe": {
+            "kind": "command",
+            "command": "java"
+          }
+        },
+        {
+          "scope": "workflow:android-device-test",
+          "scopeKind": "workflow",
+          "id": "android-sdk",
+          "kind": "command-line-tool",
+          "summary": "Android SDK platform tools, SDK components, and optional emulator for selected Android build, device-test, and native-build routes.",
+          "degradation": "The selected Android SDK-dependent build or device route remains unrun; source review and implementation can continue without claiming Android runtime verification.",
+          "remedy": "Use an authorized host with project-compatible Android SDK components and an explicitly selected device or emulator when runtime evidence is required. This skill does not install SDK components automatically.",
+          "probe": null
+        },
+        {
+          "scope": "workflow:gradle-build-test",
+          "scopeKind": "workflow",
+          "id": "android-gradle-toolchain",
+          "kind": "language-runtime",
+          "summary": "Project-pinned Gradle wrapper and compatible JDK for Android build and test routes; the wrapper is supplied by the consuming project, not a global Gradle install.",
+          "degradation": "The selected Gradle build or test route remains unrun; source review and implementation can continue without claiming build verification.",
+          "remedy": "Use the consuming project’s checked-in Gradle wrapper and compatible JDK. Do not assume global Gradle or install or upgrade tooling automatically.",
+          "probe": {
+            "kind": "command",
+            "command": "java"
+          }
+        },
+        {
+          "scope": "workflow:gradle-build-test",
+          "scopeKind": "workflow",
+          "id": "android-sdk",
+          "kind": "command-line-tool",
+          "summary": "Android SDK platform tools, SDK components, and optional emulator for selected Android build, device-test, and native-build routes.",
+          "degradation": "The selected Android SDK-dependent build or device route remains unrun; source review and implementation can continue without claiming Android runtime verification.",
+          "remedy": "Use an authorized host with project-compatible Android SDK components and an explicitly selected device or emulator when runtime evidence is required. This skill does not install SDK components automatically.",
+          "probe": null
+        },
+        {
+          "scope": "workflow:native-android-build",
+          "scopeKind": "workflow",
+          "id": "android-gradle-toolchain",
+          "kind": "language-runtime",
+          "summary": "Project-pinned Gradle wrapper and compatible JDK for Android build and test routes; the wrapper is supplied by the consuming project, not a global Gradle install.",
+          "degradation": "The selected Gradle build or test route remains unrun; source review and implementation can continue without claiming build verification.",
+          "remedy": "Use the consuming project’s checked-in Gradle wrapper and compatible JDK. Do not assume global Gradle or install or upgrade tooling automatically.",
+          "probe": {
+            "kind": "command",
+            "command": "java"
+          }
+        },
+        {
+          "scope": "workflow:native-android-build",
+          "scopeKind": "workflow",
+          "id": "android-ndk",
+          "kind": "language-runtime",
+          "summary": "Project-compatible Android NDK for routes that build or package native Android libraries.",
+          "degradation": "The selected native Android build or packaging route remains unrun; Kotlin-only work can continue.",
+          "remedy": "Use the NDK version required by the project through its configured Android SDK. Do not install or change NDK versions automatically.",
+          "probe": null
+        },
+        {
+          "scope": "workflow:native-android-build",
+          "scopeKind": "workflow",
+          "id": "android-sdk",
+          "kind": "command-line-tool",
+          "summary": "Android SDK platform tools, SDK components, and optional emulator for selected Android build, device-test, and native-build routes.",
+          "degradation": "The selected Android SDK-dependent build or device route remains unrun; source review and implementation can continue without claiming Android runtime verification.",
+          "remedy": "Use an authorized host with project-compatible Android SDK components and an explicitly selected device or emulator when runtime evidence is required. This skill does not install SDK components automatically.",
+          "probe": null
+        }
+      ],
+      "source": "skills/android-development/SKILL.md"
+    },
+    {
       "id": "architect",
       "name": "architect",
       "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, invariants, migrations, and architecture-significant planning.",
@@ -1434,6 +1530,18 @@
     {
       "id": "ahrefs",
       "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated."
+    },
+    {
+      "id": "android-gradle-toolchain",
+      "degradation": "The selected Gradle build or test route remains unrun; source review and implementation can continue without claiming build verification."
+    },
+    {
+      "id": "android-ndk",
+      "degradation": "The selected native Android build or packaging route remains unrun; Kotlin-only work can continue."
+    },
+    {
+      "id": "android-sdk",
+      "degradation": "The selected Android SDK-dependent build or device route remains unrun; source review and implementation can continue without claiming Android runtime verification."
     },
     {
       "id": "apple-appstore-connect-cli",

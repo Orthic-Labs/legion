@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:1f618de3dbf037c957dfe2b5b8a0d8c1995047a75815b2bf1d198307a4be522a",
+  "digest": "sha256:fef1685678a64e7a0ebc8e8d7cf893d818892c0a35495a94719ae4a99062a56b",
   "counts": {
-    "skills": 30,
+    "skills": 31,
     "agents": 6,
     "mcpServers": 1,
     "hookEvents": 9
@@ -13,6 +13,7 @@
     "skills": [
       "ads",
       "alchemist",
+      "android-development",
       "architect",
       "audit",
       "audit-fix",

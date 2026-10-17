@@ -48,6 +48,9 @@
       "kind": "group",
       "children": [
         {
+          "id": "android-development"
+        },
+        {
           "id": "architect"
         },
         {
