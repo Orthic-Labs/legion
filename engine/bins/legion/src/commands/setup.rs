@@ -4631,18 +4631,19 @@ async fn preview_host_integrations(
             inspect_native_marketplace(input, &request.release, cancellation.clone()).await?,
         );
     }
-    for input in &inputs.client_projections {
-        if !should_process_client(request, &input.client_id) {
-            continue;
-        }
-        let key = projection_key(&input.client_id);
+    let selected_projections = inputs
+        .client_projections
+        .iter()
+        .filter(|input| should_process_client(request, &input.client_id))
+        .collect::<Vec<_>>();
+    for inspection in legion_host::setup_registry::inspect_client_projections(&selected_projections)
+        .map_err(setup_error)?
+    {
+        let key = projection_key(&inspection.client_id);
         integrations.insert(
             key.into(),
-            serde_json::to_value(
-                legion_host::setup_registry::inspect_client_projection(input)
-                    .map_err(setup_error)?,
-            )
-            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+            serde_json::to_value(inspection)
+                .map_err(|error| CommandError::incomplete(error.to_string()))?,
         );
     }
     Ok(Value::Object(integrations))

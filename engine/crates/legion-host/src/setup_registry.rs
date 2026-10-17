@@ -244,10 +244,104 @@ fn path_component_is(path: &Path, expected: &str) -> bool {
 pub fn inspect_client_projection(
     input: &ClientProjectionInput,
 ) -> Result<ClientProjectionInspection, SetupError> {
+    inspect_client_projection_with_digest(input, &mut digest_path)
+}
+
+/// Inspect a read-only batch in input order, reading each identical source
+/// file once. Full-source projections share one safe source snapshot per exact
+/// source binding. Input validation, projection maps, ownership ledgers, and
+/// destination inspections remain per client. Nothing survives this call.
+pub fn inspect_client_projections(
+    inputs: &[&ClientProjectionInput],
+) -> Result<Vec<ClientProjectionInspection>, SetupError> {
+    inspect_client_projections_with_digest(inputs, &mut digest_path)
+}
+
+fn inspect_client_projections_with_digest(
+    inputs: &[&ClientProjectionInput],
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<Vec<ClientProjectionInspection>, SetupError> {
+    inspect_client_projections_with_readers(inputs, source_digest, &mut capture_projection_source)
+}
+
+type ProjectionSourceFiles = BTreeMap<String, (PathBuf, String)>;
+type ProjectionSourceDigest<'a> = dyn FnMut(&Path) -> Result<String, SetupError> + 'a;
+type ProjectionSourceKey = (PathBuf, String, Option<PathBuf>);
+
+fn projection_source_key(input: &ClientProjectionInput) -> ProjectionSourceKey {
+    (
+        input.source_root.clone(),
+        input.origin.clone(),
+        input.install_root.clone(),
+    )
+}
+
+fn inspect_client_projections_with_readers(
+    inputs: &[&ClientProjectionInput],
+    source_digest: &mut ProjectionSourceDigest<'_>,
+    capture_source: &mut impl FnMut(
+        &ClientProjectionInput,
+        &mut ProjectionSourceDigest<'_>,
+    ) -> Result<ProjectionSourceFiles, SetupError>,
+) -> Result<Vec<ClientProjectionInspection>, SetupError> {
+    let full_sources = inputs
+        .iter()
+        .filter(|input| !matches!(input.projection.as_str(), "skills-only" | "devin-user"))
+        .map(|input| (projection_source_key(input), ()))
+        .collect::<BTreeMap<_, _>>();
+    let mut snapshots = BTreeMap::<ProjectionSourceKey, ProjectionSourceFiles>::new();
+    let mut digests: BTreeMap<PathBuf, String> = BTreeMap::new();
+    let mut cached_digest = |path: &Path| {
+        if let Some(digest) = digests.get(path) {
+            return Ok(digest.clone());
+        }
+        let digest = source_digest(path)?;
+        digests.insert(path.to_path_buf(), digest.clone());
+        Ok(digest)
+    };
+    inputs
+        .iter()
+        .map(|input| {
+            inspect_client_projection_with_source(input, &mut |input| {
+                let key = projection_source_key(input);
+                let source_available = path_exists(&input.source_root)?;
+                let expected = if full_sources.contains_key(&key) {
+                    if !snapshots.contains_key(&key) {
+                        snapshots.insert(key.clone(), capture_source(input, &mut cached_digest)?);
+                    }
+                    projection_files_for_client(input, &snapshots[&key], &mut cached_digest)?
+                } else {
+                    // Subset-only batches retain selective byte reads instead
+                    // of hashing unrelated files merely to populate a cache.
+                    projection_source_files_with_digest(input, &mut cached_digest)?
+                };
+                Ok((source_available, expected))
+            })
+        })
+        .collect()
+}
+
+fn inspect_client_projection_with_digest(
+    input: &ClientProjectionInput,
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<ClientProjectionInspection, SetupError> {
+    inspect_client_projection_with_source(input, &mut |input| {
+        Ok((
+            path_exists(&input.source_root)?,
+            projection_source_files_with_digest(input, source_digest)?,
+        ))
+    })
+}
+
+fn inspect_client_projection_with_source(
+    input: &ClientProjectionInput,
+    source_files: &mut impl FnMut(
+        &ClientProjectionInput,
+    ) -> Result<(bool, ProjectionSourceFiles), SetupError>,
+) -> Result<ClientProjectionInspection, SetupError> {
     validate_projection_input(input)?;
     let allowed_target_root_link = projection_allowed_target_root_link(input)?;
-    let source_available = path_exists(&input.source_root)?;
-    let expected = projection_source_files(input)?;
+    let (source_available, expected) = source_files(input)?;
     let ledger = read_projection_ledger(input)?;
     let target_exists = path_exists(&input.target_root)?;
     let mut files = expected.keys().cloned().collect::<Vec<_>>();
@@ -2428,8 +2522,47 @@ fn reject_source_checkout_descendant(path: &Path) -> Result<(), SetupError> {
 fn projection_source_files(
     input: &ClientProjectionInput,
 ) -> Result<BTreeMap<String, (PathBuf, String)>, SetupError> {
-    if !path_exists(&input.source_root)? {
+    projection_source_files_with_digest(input, &mut digest_path)
+}
+
+fn projection_source_files_with_digest(
+    input: &ClientProjectionInput,
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<BTreeMap<String, (PathBuf, String)>, SetupError> {
+    if !projection_source_is_available(input)? {
         return Ok(BTreeMap::new());
+    }
+    let mut files = BTreeMap::new();
+    if input.projection == "skills-only" {
+        for skill_id in &input.skill_ids {
+            if !projection_skill_id_is_safe(skill_id) {
+                continue;
+            }
+            let source = input.source_root.join(skill_id);
+            if path_exists(&source)? {
+                collect_projection_files(&source, Path::new(skill_id), &mut files, source_digest)?;
+            }
+        }
+    } else if input.projection == "devin-user" {
+        // Devin's user config root is shared with the host's own files, so the
+        // projection carries only the two subtrees Devin actually scans:
+        // skills/<name>/ and agents/<name>.md.
+        for subtree in ["skills", "agents"] {
+            let source = input.source_root.join(subtree);
+            if path_exists(&source)? {
+                collect_projection_files(&source, Path::new(subtree), &mut files, source_digest)?;
+            }
+        }
+    } else {
+        collect_projection_files(&input.source_root, Path::new(""), &mut files, source_digest)?;
+        add_projection_source_aliases(input, &mut files, source_digest)?;
+    }
+    Ok(files)
+}
+
+fn projection_source_is_available(input: &ClientProjectionInput) -> Result<bool, SetupError> {
+    if !path_exists(&input.source_root)? {
+        return Ok(false);
     }
     if input.origin == ORIGIN_INSTALLED {
         reject_source_checkout_reference(&input.source_root)?;
@@ -2443,58 +2576,83 @@ fn projection_source_files(
         &input.source_root,
         allowed_source_root.as_deref(),
     )?;
+    Ok(true)
+}
+
+fn capture_projection_source(
+    input: &ClientProjectionInput,
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<ProjectionSourceFiles, SetupError> {
     let mut files = BTreeMap::new();
-    if input.projection == "skills-only" {
-        for skill_id in &input.skill_ids {
-            if skill_id.trim().is_empty()
-                || skill_id.contains('/')
-                || skill_id.contains('\\')
-                || skill_id == "."
-                || skill_id == ".."
-            {
-                continue;
-            }
-            let source = input.source_root.join(skill_id);
-            if path_exists(&source)? {
-                collect_projection_files(&source, Path::new(skill_id), &mut files)?;
-            }
-        }
-    } else if input.projection == "devin-user" {
-        // Devin's user config root is shared with the host's own files, so the
-        // projection carries only the two subtrees Devin actually scans:
-        // skills/<name>/ and agents/<name>.md.
-        for subtree in ["skills", "agents"] {
-            let source = input.source_root.join(subtree);
-            if path_exists(&source)? {
-                collect_projection_files(&source, Path::new(subtree), &mut files)?;
-            }
-        }
-    } else {
-        collect_projection_files(&input.source_root, Path::new(""), &mut files)?;
-        if input.client_id == CLIENT_CLAUDE && files.contains_key("plugin.json") {
-            let source = input.source_root.join("plugin.json");
-            let digest = digest_path(&source)?;
-            files.insert(".claude-plugin/plugin.json".into(), (source, digest));
-        }
-        // Claude Code loads a plugin's MCP server from `.mcp.json`; the portable
-        // core carries `mcp.json`, which every other client reads, so the
-        // projection adds the dotted copy. Without it `claude plugin details`
-        // reports "MCP servers (0)" for a plugin that declares one.
-        if input.client_id == CLIENT_CLAUDE
-            && files.contains_key("mcp.json")
-            && !files.contains_key(".mcp.json")
-        {
-            let source = input.source_root.join("mcp.json");
-            let digest = digest_path(&source)?;
-            files.insert(".mcp.json".into(), (source, digest));
-        }
-        if input.client_id == CLIENT_ANTIGRAVITY && files.contains_key("mcp.json") {
-            let source = input.source_root.join("mcp.json");
-            let digest = digest_path(&source)?;
-            files.insert("mcp_config.json".into(), (source, digest));
-        }
+    if projection_source_is_available(input)? {
+        collect_projection_files(&input.source_root, Path::new(""), &mut files, source_digest)?;
     }
     Ok(files)
+}
+
+fn projection_skill_id_is_safe(skill_id: &str) -> bool {
+    !skill_id.trim().is_empty()
+        && !skill_id.contains('/')
+        && !skill_id.contains('\\')
+        && skill_id != "."
+        && skill_id != ".."
+}
+
+fn projection_files_for_client(
+    input: &ClientProjectionInput,
+    snapshot: &ProjectionSourceFiles,
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<ProjectionSourceFiles, SetupError> {
+    let mut files = snapshot
+        .iter()
+        .filter(|(relative, _)| {
+            let under =
+                |unit: &str| relative.as_str() == unit || relative.starts_with(&format!("{unit}/"));
+            match input.projection.as_str() {
+                "skills-only" => input
+                    .skill_ids
+                    .iter()
+                    .any(|id| projection_skill_id_is_safe(id) && under(id)),
+                "devin-user" => under("skills") || under("agents"),
+                _ => true,
+            }
+        })
+        .map(|(relative, file)| (relative.clone(), file.clone()))
+        .collect();
+    if !matches!(input.projection.as_str(), "skills-only" | "devin-user") {
+        add_projection_source_aliases(input, &mut files, source_digest)?;
+    }
+    Ok(files)
+}
+
+fn add_projection_source_aliases(
+    input: &ClientProjectionInput,
+    files: &mut ProjectionSourceFiles,
+    source_digest: &mut ProjectionSourceDigest<'_>,
+) -> Result<(), SetupError> {
+    if input.client_id == CLIENT_CLAUDE && files.contains_key("plugin.json") {
+        let source = input.source_root.join("plugin.json");
+        let digest = source_digest(&source)?;
+        files.insert(".claude-plugin/plugin.json".into(), (source, digest));
+    }
+    // Claude Code loads a plugin's MCP server from `.mcp.json`; the portable
+    // core carries `mcp.json`, which every other client reads, so the
+    // projection adds the dotted copy. Without it `claude plugin details`
+    // reports "MCP servers (0)" for a plugin that declares one.
+    if input.client_id == CLIENT_CLAUDE
+        && files.contains_key("mcp.json")
+        && !files.contains_key(".mcp.json")
+    {
+        let source = input.source_root.join("mcp.json");
+        let digest = source_digest(&source)?;
+        files.insert(".mcp.json".into(), (source, digest));
+    }
+    if input.client_id == CLIENT_ANTIGRAVITY && files.contains_key("mcp.json") {
+        let source = input.source_root.join("mcp.json");
+        let digest = source_digest(&source)?;
+        files.insert("mcp_config.json".into(), (source, digest));
+    }
+    Ok(())
 }
 
 fn projection_missing_surfaces(
@@ -4282,6 +4440,7 @@ fn collect_projection_files(
     root: &Path,
     relative_root: &Path,
     files: &mut BTreeMap<String, (PathBuf, String)>,
+    source_digest: &mut ProjectionSourceDigest<'_>,
 ) -> Result<(), SetupError> {
     let metadata = fs::symlink_metadata(root).map_err(io)?;
     if metadata.file_type().is_symlink() {
@@ -4295,13 +4454,13 @@ fn collect_projection_files(
         if relative.is_empty() {
             return Ok(());
         }
-        files.insert(relative, (root.to_path_buf(), digest_path(root)?));
+        files.insert(relative, (root.to_path_buf(), source_digest(root)?));
         return Ok(());
     }
     for entry in fs::read_dir(root).map_err(io)? {
         let entry = entry.map_err(io)?;
         let child_relative = relative_root.join(entry.file_name());
-        collect_projection_files(&entry.path(), &child_relative, files)?;
+        collect_projection_files(&entry.path(), &child_relative, files, source_digest)?;
     }
     Ok(())
 }
@@ -5348,6 +5507,195 @@ mod tests {
             skill_ids: vec!["example".into()],
             host_config_root: Some(host_home),
         }
+    }
+
+    fn projection_test_peer(
+        input: &ClientProjectionInput,
+        client_id: &str,
+    ) -> ClientProjectionInput {
+        let boundary = client_boundary(client_id).unwrap();
+        ClientProjectionInput {
+            client_id: boundary.client_id,
+            projection: boundary.projection,
+            target_root: input.state_root.join("client").join(client_id),
+            executable_registration: boundary.executable_registration,
+            explicit_only: boundary.explicit_only,
+            ..input.clone()
+        }
+    }
+
+    #[test]
+    fn projection_batch_hashes_shared_source_once_and_keeps_client_aliases() {
+        let root = TestRoot::new("projection-batch-aliases");
+        let claude = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let cursor = projection_test_peer(&claude, CLIENT_CURSOR);
+        let antigravity = projection_test_peer(&claude, CLIENT_ANTIGRAVITY);
+        let inputs = [&cursor, &claude, &antigravity, &claude];
+        let mut reads = BTreeMap::<PathBuf, usize>::new();
+        let mut captures = 0;
+        let inspections = inspect_client_projections_with_readers(
+            &inputs,
+            &mut |path| {
+                *reads.entry(path.to_path_buf()).or_default() += 1;
+                digest_path(path)
+            },
+            &mut |input, digest| {
+                captures += 1;
+                capture_projection_source(input, digest)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            captures, 1,
+            "one source safety walk and raw capture per binding"
+        );
+        assert_eq!(reads.len(), 3);
+        assert!(reads.values().all(|count| *count == 1));
+        for (input, inspection) in inputs.iter().zip(&inspections) {
+            assert_eq!(*inspection, inspect_client_projection(input).unwrap());
+            assert!(
+                !input.target_root.exists(),
+                "inspection must not create targets"
+            );
+            assert!(read_projection_ledger(input).unwrap().is_none());
+        }
+        assert!(!inspections[0].files.contains(&".mcp.json".into()));
+        assert!(!inspections[0]
+            .files
+            .contains(&".claude-plugin/plugin.json".into()));
+        assert!(inspections[1].files.contains(&".mcp.json".into()));
+        assert!(inspections[1]
+            .files
+            .contains(&".claude-plugin/plugin.json".into()));
+        assert!(inspections[2].files.contains(&"mcp_config.json".into()));
+        assert!(!inspections[2].files.contains(&".mcp.json".into()));
+    }
+
+    #[test]
+    fn projection_batch_rehashes_same_length_source_changes_in_next_batch() {
+        let root = TestRoot::new("projection-batch-fresh-source");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        repair_client_projection(&input).unwrap();
+        let before = inspect_client_projections(&[&input, &input]).unwrap();
+        assert!(before
+            .iter()
+            .all(|inspection| inspection.state == "current"));
+
+        let source = input.source_root.join("plugin.json");
+        let changed = br#"{"name":"change"}"#;
+        assert_eq!(fs::metadata(&source).unwrap().len(), changed.len() as u64);
+        fs::write(&source, changed).unwrap();
+        let after = inspect_client_projections(&[&input, &input]).unwrap();
+        assert!(after.iter().all(|inspection| inspection.state == "stale"));
+        assert_eq!(after[0], inspect_client_projection(&input).unwrap());
+    }
+
+    #[test]
+    fn projection_batch_keeps_projection_kinds_and_skill_selections_separate() {
+        let root = TestRoot::new("projection-batch-kinds");
+        let claude = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        fs::create_dir_all(claude.source_root.join("agents")).unwrap();
+        fs::write(claude.source_root.join("agents/sage.md"), b"# Sage").unwrap();
+        let devin = projection_test_peer(&claude, CLIENT_DEVIN);
+        let mut pi_skills = projection_test_peer(&claude, CLIENT_PI);
+        // Use one source root across all shapes to exercise digest reuse while
+        // each projection independently selects its own relative file map.
+        pi_skills.skill_ids = vec!["skills".into()];
+        let pi_agents = ClientProjectionInput {
+            skill_ids: vec!["agents".into()],
+            target_root: claude.state_root.join("client/pi-agents"),
+            ..pi_skills.clone()
+        };
+        let inputs = [&pi_skills, &devin, &claude, &pi_agents];
+        let mut reads = BTreeMap::<PathBuf, usize>::new();
+        let inspections = inspect_client_projections_with_digest(&inputs, &mut |path| {
+            *reads.entry(path.to_path_buf()).or_default() += 1;
+            digest_path(path)
+        })
+        .unwrap();
+
+        assert_eq!(reads.len(), 4);
+        assert!(reads.values().all(|count| *count == 1));
+        for (input, inspection) in inputs.iter().zip(&inspections) {
+            assert_eq!(*inspection, inspect_client_projection(input).unwrap());
+        }
+        assert_eq!(inspections[0].files, vec!["skills/example/SKILL.md"]);
+        assert_eq!(
+            inspections[1].files,
+            vec!["agents/sage.md", "skills/example/SKILL.md"]
+        );
+        assert!(inspections[2].files.contains(&"plugin.json".into()));
+        assert_eq!(inspections[3].files, vec!["agents/sage.md"]);
+    }
+
+    #[test]
+    fn projection_batch_propagates_source_errors_and_validates_every_client() {
+        let root = TestRoot::new("projection-batch-errors");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let source_error = inspect_client_projections_with_digest(&[&input], &mut |_| {
+            Err(err(
+                SetupErrorCode::VerificationFailed,
+                "source read failed",
+            ))
+        })
+        .unwrap_err();
+        assert_eq!(source_error.code, SetupErrorCode::VerificationFailed);
+
+        let invalid = ClientProjectionInput {
+            state_root: root.0.join("unowned-state"),
+            ..input.clone()
+        };
+        assert_eq!(
+            inspect_client_projections(&[&input, &invalid])
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PurgeOwnershipUnproven
+        );
+    }
+
+    #[test]
+    fn projection_batch_with_only_subsets_never_hashes_unselected_files() {
+        let root = TestRoot::new("projection-batch-subsets");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let mut pi = projection_test_peer(&input, CLIENT_PI);
+        pi.source_root = input.source_root.join("skills");
+        fs::write(pi.source_root.join("unselected.txt"), b"unselected").unwrap();
+        let mut reads = Vec::new();
+        let inspections = inspect_client_projections_with_readers(
+            &[&pi, &pi],
+            &mut |path| {
+                reads.push(path.to_path_buf());
+                digest_path(path)
+            },
+            &mut |_, _| panic!("subset-only batch must not capture full source"),
+        )
+        .unwrap();
+        assert_eq!(inspections.len(), 2);
+        assert_eq!(reads, vec![pi.source_root.join("example/SKILL.md")]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn projection_batch_rechecks_source_symlink_safety_in_next_batch() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-batch-source-safety");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        inspect_client_projections(&[&input, &input]).unwrap();
+        let outside = root.0.join("outside.md");
+        fs::write(&outside, b"outside").unwrap();
+        symlink(outside, input.source_root.join("new-link.md")).unwrap();
+        assert_eq!(
+            inspect_client_projections(&[&input, &input])
+                .unwrap_err()
+                .code,
+            SetupErrorCode::PathEscapeRefused
+        );
+        assert_eq!(
+            inspect_client_projection(&input).unwrap_err().code,
+            SetupErrorCode::PathEscapeRefused
+        );
     }
 
     #[test]
