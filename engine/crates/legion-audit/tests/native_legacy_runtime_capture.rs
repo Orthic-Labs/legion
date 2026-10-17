@@ -270,6 +270,16 @@ fn run(runtime: Option<Value>, mode: Mode, with_tool: bool) -> Run {
 }
 
 fn run_with(runtime: Option<Value>, mode: Mode, perf: PerfLine, with_tool: bool) -> Run {
+    run_with_cancellation(runtime, mode, perf, with_tool, CancellationToken::new())
+}
+
+fn run_with_cancellation(
+    runtime: Option<Value>,
+    mode: Mode,
+    perf: PerfLine,
+    with_tool: bool,
+    cancellation: CancellationToken,
+) -> Run {
     let root = root();
     let inventory = inventory();
     let plan = plan_with(&inventory, runtime);
@@ -288,7 +298,7 @@ fn run_with(runtime: Option<Value>, mode: Mode, perf: PerfLine, with_tool: bool)
             &plan,
             &inventory,
             &registry,
-            CancellationToken::new(),
+            cancellation,
         ))
         .unwrap();
     let result = report.results[0].result.clone();
@@ -515,13 +525,17 @@ fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
         "expiresAfterMs":30000,
         "actions":actions,
     }]);
-    let run = run(
+    let cancellation = CancellationToken::new();
+    cancellation.cancel();
+    let run = run_with_cancellation(
         Some(runtime),
         Mode::Good {
             entries: Vec::new(),
             total: None,
         },
+        PerfLine::Valid,
         true,
+        cancellation,
     );
     assert_valid_not_rejected(&run.result);
     assert!(
@@ -537,10 +551,26 @@ fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
     assert_eq!(runtime["interactions"][0]["status"], "unavailable");
     assert_eq!(
         runtime["interactions"][0]["reason"],
-        "rightkit-fixture-api-unavailable"
+        "fixture-cancelled-before-start"
     );
+    assert!(runtime["interactions"][0].get("attestation").is_none());
+    assert_eq!(runtime["interactionCoverage"]["passed"], 0);
+    assert_eq!(run.result.details["executionReceipt"]["state"], "cancelled");
+    assert_eq!(
+        run.result.details["executionReceipt"]["providerId"],
+        PROVIDER
+    );
+    assert_eq!(
+        run.result.details["executionReceipt"]["processTree"]["started"],
+        false
+    );
+    assert_eq!(
+        run.result.details["executionReceipt"]["gaps"],
+        json!(["runtime-live-capture-disabled-for-frozen-fixtures"])
+    );
+    assert_eq!(run.result.details["executionReceipts"], json!([]));
     assert!(run.result.coverage_gaps.contains(
-        &"runtime-probe-unavailable:save-probe:rightkit-fixture-api-unavailable".to_owned()
+        &"runtime-probe-unavailable:save-probe:fixture-cancelled-before-start".to_owned()
     ));
 }
 

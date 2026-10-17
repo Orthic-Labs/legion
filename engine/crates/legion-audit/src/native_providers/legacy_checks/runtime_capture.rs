@@ -1922,14 +1922,45 @@ pub(super) async fn execute(
         fixture_outcomes.push(execute_fixture_probe(probe, &cancellation).await);
     }
     if fixture_only(&params) {
-        return assemble(
+        let mut result = assemble(
             provider,
             input,
             &params,
             Vec::new(),
             "not-run",
             fixture_outcomes,
+        )?;
+        // This receipt covers only the refused external live-project route.
+        // FixtureSession launch, identity & cleanup remain in fixture attestations.
+        let args = command_parts(spec(&provider.id).expect("validated above").command).1;
+        let request = base_request(
+            provider,
+            &plan_digest,
+            input,
+            "fixture-only-live-capture",
+            &executor.root,
+            args,
         );
+        let state = if cancellation.is_cancelled() {
+            ExecutionState::Cancelled
+        } else {
+            ExecutionState::Blocked
+        };
+        let receipt = ExecutionReceipt::failure(
+            &request,
+            state,
+            "runtime-live-capture-disabled-for-frozen-fixtures",
+        );
+        result
+            .details
+            .insert("executionReceipt".into(), receipt_json(&receipt));
+        result
+            .details
+            .insert("receiptId".into(), json!(receipt.receipt_id));
+        result
+            .details
+            .insert("processState".into(), json!(receipt.state.as_str()));
+        return Ok(result);
     }
     let Some(tool) = executor.external_project_tool.clone() else {
         return unavailable_with_interactions(
@@ -2345,7 +2376,7 @@ mod tests {
         params: &RuntimeParams,
         cancellation: CancellationToken,
     ) -> ProviderResult {
-        let root = PathBuf::from("fixture-only-runtime");
+        let root = std::env::current_dir().unwrap();
         let inventory = crate::inventory::InventoryEnvelope::new(
             "fixture-only-runtime",
             "generation",
@@ -2391,7 +2422,7 @@ mod tests {
         let input = crate::native_providers::legacy_checks::LegacyCheckDispatcher::new()
             .input(provider, &inventory, &root, None, None, &Value::Null)
             .unwrap();
-        execute(
+        let result = execute(
             &NativeLegacyCheckExecutor::new(root),
             &plan,
             provider,
@@ -2399,7 +2430,14 @@ mod tests {
             cancellation,
         )
         .await
-        .unwrap()
+        .unwrap();
+        crate::execution::validate_external_receipt_projection(
+            &provider.id,
+            &result.details,
+            result.complete,
+        )
+        .unwrap();
+        result
     }
 
     #[test]
@@ -2507,7 +2545,19 @@ mod tests {
         assert!(!result.complete);
         assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
         assert_eq!(result.details["executionReceipts"], json!([]));
-        assert!(result.details.get("executionReceipt").is_none());
+        assert_eq!(result.details["executionReceipt"]["state"], "cancelled");
+        assert_eq!(result.details["processState"], "cancelled");
+        assert_eq!(
+            result.details["executionReceipt"]["processTree"]["started"],
+            false
+        );
+        assert_eq!(
+            result.details["executionReceipt"]["gaps"],
+            json!(["runtime-live-capture-disabled-for-frozen-fixtures"])
+        );
+        assert!(result.details["runtime"]["interactions"][0]
+            .get("attestation")
+            .is_none());
         assert!(result
             .coverage_gaps
             .iter()
@@ -2751,6 +2801,15 @@ mod tests {
         assert_eq!(result.details["runtime"]["a11y_axe"], "not-run");
         assert!(result.details["runtime"]["a11y_violations_total"].is_null());
         assert_eq!(result.details["executionReceipts"], json!([]));
+        assert_eq!(result.details["executionReceipt"]["state"], "blocked");
+        assert_eq!(
+            result.details["executionReceipt"]["processTree"]["started"],
+            false
+        );
+        assert_eq!(
+            result.details["executionReceipt"]["gaps"],
+            json!(["runtime-live-capture-disabled-for-frozen-fixtures"])
+        );
         assert!(!result.complete); // Evidence-only provider never claims whole-app cleanliness.
 
         let mut mixed = fixture_test_params(actions.clone());
