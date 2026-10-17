@@ -909,6 +909,7 @@ const LENS_TRIAGE_FIELDS: &[&str] = &[
     "ponytailTag",
     "parentFindingId",
     "action",
+    "failureScenario",
 ];
 
 pub(super) fn invalid(message: impl Into<String>) -> AuditError {

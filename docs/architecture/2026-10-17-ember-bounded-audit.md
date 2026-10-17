@@ -35,6 +35,14 @@ Linked continuation will retain immutable parent history, original cumulative ca
 
 Independent Oracle reviewed this delivery status against raw CI counts, qualification logs, artifact hashes, installed CLI hash & selected native usage fields: PASS for status accuracy. That review excludes installer source certification, signing, installation completion & Ember completion. Public-repository signing remains bound to managed GitHub CI; pending shared route must support existing qualified artifact without rebuilding.
 
+## Remaining source work
+
+Browser fixture source now executes pure fixtures through native `FixtureSession`, binds terminal evidence to session-issued attestation & awaits cancellation cleanup. Fresh source-only Oracle review passed. Two native qualification tests must run explicitly on both CI hosts with pinned Chrome assets; Windows also needs matching headless shell & sandbox ACLs. Shared RightKit provisioning entry point is pending publication. No browser runtime qualification is claimed for this candidate.
+
+Review/Ponytail projections now retain native action/failureScenario fields, supplied fixes, graph uncertainty & deterministic metadata. Source Oracle recheck passed all four prior defects after repair. Their output remains labelled “inspired by”; installed semantic qualification has not run. These browser/report edits postdate CI candidate `59f451ae` & require a new CI qualification before signing or installation.
+
+Issue [#39](https://github.com/Orthic-Labs/legion/issues/39) retains six unimplemented optional scanner adapters: Sqllint, SQLFluff, RuboCop, Checkov, Bandit & Oxlint. Typed language build/test plans exist but remain `executed: false` where host containment or dependency policy denies execution. Graph consumption is implemented; optional Membrane producer transport remains external integration work. These items remain open; they are not counted as executable coverage.
+
 ## Delivery evidence
 
 | Item | Result |

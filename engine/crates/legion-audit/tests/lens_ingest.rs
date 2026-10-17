@@ -705,6 +705,10 @@ fn finding_summary_carries_confidence_and_verify_status() {
     assert_eq!(evidence["verifyStatus"], json!("unverified"));
     assert_eq!(evidence["lens"], json!("naming"));
     assert_eq!(evidence["action"], json!("use +"));
+    assert_eq!(
+        evidence["failureScenario"],
+        json!("add subtracts instead of adding")
+    );
     // Existing summary keys are unchanged.
     let finding = &recomputed.report.findings[0];
     assert_eq!(finding.severity, "medium");

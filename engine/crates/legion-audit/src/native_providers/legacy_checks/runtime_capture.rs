@@ -25,6 +25,11 @@
 //! - a11y: axe-core 4.14.0 is bundled as the default; a project-installed copy
 //!   overrides it. Both run the historical WCAG 2 A/AA tag set.
 //!
+//! Frozen fixture interactions use RightKit's owned `FixtureSession`, with
+//! native confinement, session-issued attestations & terminal cleanup evidence.
+//! Fixture-only requests require no external-tool capability; fixture probes
+//! never count as live screenshot, accessibility or performance evidence.
+//!
 //! Inputs (`--url`, `--surfaces`, `--width`, `--height`) arrive through the
 //! provider's frozen `runner.runtime` object, so they are covered by the plan
 //! seal. Without a URL the provider is `unavailable:runtime-url-not-supplied`.
@@ -38,6 +43,11 @@ use std::{
 use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+};
+use rightkit_browser::{
+    actions_digest as fixture_actions_digest, FixtureAction, FixtureAttestation, FixtureBundle,
+    FixtureCancellation, FixtureFile, FixtureIntent, FixtureOutcome, FixtureOutcomeStatus,
+    FixtureRunFailure, FixtureServer, FixtureSession, FIXTURE_SCHEMA,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -220,10 +230,6 @@ impl RuntimeParams {
             .filter(|(_, (_, url))| !fixture_urls.contains(url))
             .map(|(index, (label, url))| (index, label, url))
             .collect()
-    }
-
-    fn fixture_only(&self) -> bool {
-        !self.interactions.is_empty() && self.live_surfaces().is_empty()
     }
 
     fn to_value(&self) -> Value {
@@ -1396,6 +1402,361 @@ fn unavailable_result(
     Ok(result)
 }
 
+fn fixture_cleanup_complete(attestation: &FixtureAttestation) -> bool {
+    let cleanup = &attestation.output_cleanup;
+    cleanup.browser_stopped
+        && cleanup.transport_stopped
+        && cleanup.proxy_stopped
+        && cleanup.server_stopped
+        && cleanup.profile_removed
+}
+
+fn fixture_attestation_matches(attestation: &FixtureAttestation, probe: &InteractionProbe) -> bool {
+    let backend_matches = (cfg!(target_os = "macos")
+        && matches!(
+            attestation.confinement_backend,
+            rightkit_browser::FixtureConfinementBackend::MacosSeatbeltProxy
+        ))
+        || (cfg!(windows)
+            && matches!(
+                attestation.confinement_backend,
+                rightkit_browser::FixtureConfinementBackend::WindowsAppcontainerPipeFulfillment
+            ));
+    backend_matches
+        && attestation.schema == "rightkit.browser.fixture-attestation.v1"
+        && !attestation.host_binding_id.is_empty()
+        && !attestation.server_instance_id.is_empty()
+        && !attestation.browser_process_instance.is_empty()
+        && attestation.browser_pid > 0
+        && !attestation.profile_identity.is_empty()
+        && !attestation.browser_session_id.is_empty()
+        && !attestation.page_id.is_empty()
+        && !attestation.frame_id.is_empty()
+        && !attestation.loader_id.is_empty()
+        && !attestation.unique_context_id.is_empty()
+        && valid_sha256(&attestation.policy_digest)
+        && probe
+            .surface_url
+            .strip_prefix("http://")
+            .and_then(|url| url.split('/').next())
+            == Some(attestation.server_endpoint.as_str())
+        && attestation.fixture_id == probe.fixture_id
+        && attestation.fixture_source_digest == probe.fixture_source_digest
+        && attestation.exact_url == probe.surface_url
+        && attestation.probe_id == probe.probe_id
+        && attestation.actions_digest == probe.actions_digest
+}
+
+/// Only cleanup may change between the host-issued launch binding & terminal evidence.
+fn fixture_terminal_binding_matches(
+    issued: &FixtureAttestation,
+    terminal: &FixtureAttestation,
+    probe: &InteractionProbe,
+) -> bool {
+    let mut identity = terminal.clone();
+    identity.output_cleanup = issued.output_cleanup.clone();
+    fixture_attestation_matches(issued, probe) && identity == *issued
+}
+
+fn fixture_attestation_unexpired(attestation: &FixtureAttestation) -> bool {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    attestation.expires_at_unix_ms > now_ms
+        && attestation.expires_at_unix_ms <= now_ms.saturating_add(30_000)
+}
+
+fn interaction_outcomes(params: &RuntimeParams, outcomes: &[Value]) -> Vec<Value> {
+    params
+        .interactions
+        .iter()
+        .enumerate()
+        .map(|(index, probe)| {
+            outcomes
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| probe.result_value())
+        })
+        .collect()
+}
+
+fn passed_interaction_count(outcomes: &[Value]) -> usize {
+    outcomes
+        .iter()
+        .filter(|outcome| outcome.get("status").and_then(Value::as_str) == Some("passed"))
+        .count()
+}
+
+fn interaction_gaps(params: &RuntimeParams, outcomes: &[Value]) -> Vec<String> {
+    params
+        .interactions
+        .iter()
+        .enumerate()
+        .filter_map(|(index, probe)| {
+            let outcome = outcomes.get(index);
+            if outcome
+                .and_then(|value| value.get("status"))
+                .and_then(Value::as_str)
+                == Some("passed")
+            {
+                None
+            } else {
+                let reason = outcome
+                    .and_then(|value| value.get("reason"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("rightkit-fixture-api-unavailable");
+                Some(format!("runtime-probe-unavailable:{}:{reason}", probe.id))
+            }
+        })
+        .collect()
+}
+
+fn fixture_surface_records(params: &RuntimeParams, outcomes: &[Value]) -> Vec<Value> {
+    params
+        .interactions
+        .iter()
+        .enumerate()
+        .map(|(index, probe)| {
+            let status = outcomes
+                .get(index)
+                .and_then(|outcome| outcome.get("status"))
+                .and_then(Value::as_str)
+                .unwrap_or("unavailable");
+            json!({
+                "label": probe.surface_label,
+                "url": probe.surface_url,
+                "status": format!("fixture-probe-{status}"),
+                "coverage": "fixture-only-not-live-surface-evidence",
+            })
+        })
+        .collect()
+}
+
+fn fixture_files(probe: &InteractionProbe) -> Result<Vec<FixtureFile>, String> {
+    probe
+        .fixture_files
+        .iter()
+        .map(|file| {
+            let path = file
+                .get("path")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "runtime-interaction-fixture-file-invalid".to_owned())?;
+            let content_type = file
+                .get("contentType")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "runtime-interaction-fixture-file-invalid".to_owned())?;
+            let body = file
+                .get("body")
+                .and_then(Value::as_array)
+                .ok_or_else(|| "runtime-interaction-fixture-body-invalid".to_owned())?
+                .iter()
+                .map(|byte| {
+                    byte.as_u64()
+                        .filter(|byte| *byte <= u8::MAX as u64)
+                        .map(|byte| byte as u8)
+                        .ok_or_else(|| "runtime-interaction-fixture-body-invalid".to_owned())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(FixtureFile {
+                path: path.to_owned(),
+                content_type: content_type.to_owned(),
+                body,
+            })
+        })
+        .collect()
+}
+
+fn fixture_actions(probe: &InteractionProbe) -> Result<Vec<FixtureAction>, String> {
+    let actions: Vec<FixtureAction> =
+        serde_json::from_value(Value::Array(probe.actions.clone()))
+            .map_err(|_| "runtime-interaction-actions-invalid".to_owned())?;
+    let digest = fixture_actions_digest(&actions)
+        .map_err(|_| "runtime-interaction-actions-invalid".to_owned())?;
+    if digest != probe.actions_digest {
+        return Err("runtime-interaction-actions-digest-mismatch".into());
+    }
+    Ok(actions)
+}
+
+async fn launch_fixture_probe(probe: &InteractionProbe) -> Result<FixtureSession, String> {
+    // Consume only frozen bytes; sourcePath is provenance, never a runtime filesystem read.
+    let files = fixture_files(probe)?;
+    let actions = fixture_actions(probe)?;
+    let bundle = FixtureBundle::verify(
+        probe.fixture_id.clone(),
+        &probe.fixture_source_digest,
+        files,
+    )
+    .map_err(|error| format!("fixture-bundle-invalid:{error}"))?;
+    let intent = FixtureIntent {
+        schema: FIXTURE_SCHEMA.to_owned(),
+        fixture_id: probe.fixture_id.clone(),
+        fixture_source_digest: probe.fixture_source_digest.clone(),
+        probe_id: probe.probe_id.clone(),
+        actions_digest: probe.actions_digest.clone(),
+        exact_url: probe.surface_url.clone(),
+        actions,
+        expires_after_ms: probe.expires_after_ms,
+    };
+    let server = FixtureServer::prepare_at(bundle, &probe.surface_url)
+        .await
+        .map_err(|error| format!("fixture-server-unavailable:{error}"))?;
+    FixtureSession::launch(server, intent)
+        .await
+        .map_err(|error| format!("fixture-launch-failed:{error}"))
+}
+
+async fn execute_fixture_probe(
+    probe: &InteractionProbe,
+    cancellation: &CancellationToken,
+) -> Value {
+    let result = async {
+        if cancellation.is_cancelled() {
+            return Err("fixture-cancelled-before-start".to_owned());
+        }
+        let session = launch_fixture_probe(probe).await?;
+        Ok(execute_fixture_session(probe, session, cancellation).await)
+    }
+    .await;
+    fixture_probe_value(probe, result)
+}
+
+async fn execute_fixture_session(
+    probe: &InteractionProbe,
+    session: FixtureSession,
+    cancellation: &CancellationToken,
+) -> Value {
+    let issued = session.attestation().clone();
+    let cancellation_signal = FixtureCancellation::new();
+    if cancellation.is_cancelled() || !fixture_attestation_matches(&issued, probe) {
+        cancellation_signal.cancel();
+    }
+    let run = session.run_with_cancel(cancellation_signal.clone());
+    tokio::pin!(run);
+    // Never drop a running session on cancellation: await its cleanup receipt.
+    let terminal = tokio::select! {
+        result = &mut run => result,
+        _ = cancellation.cancelled() => {
+            cancellation_signal.cancel();
+            run.await
+        }
+    };
+    fixture_terminal_value(probe, &issued, terminal, cancellation.is_cancelled())
+}
+
+fn fixture_terminal_value(
+    probe: &InteractionProbe,
+    issued: &FixtureAttestation,
+    terminal: Result<FixtureOutcome, FixtureRunFailure>,
+    cancelled: bool,
+) -> Value {
+    let expected_actions = probe.actions.len();
+    match terminal {
+        Ok(outcome) => {
+            let identity_bound =
+                fixture_terminal_binding_matches(issued, &outcome.attestation, probe);
+            let bound = outcome.schema == "rightkit.browser.fixture-outcome.v1"
+                && outcome.status == FixtureOutcomeStatus::Passed
+                && outcome.fixture_id == probe.fixture_id
+                && outcome.probe_id == probe.probe_id
+                && outcome.completed_actions == expected_actions
+                && outcome.cleanup_complete
+                && !cancelled
+                && identity_bound
+                && fixture_attestation_unexpired(&outcome.attestation)
+                && fixture_cleanup_complete(&outcome.attestation);
+            if !bound {
+                return json!({
+                    "status": "integrity-failed",
+                    "reason": "fixture-outcome-binding-or-cleanup-invalid",
+                    "completedActions": outcome.completed_actions,
+                    "expectedActions": expected_actions,
+                    "cleanupComplete": identity_bound && outcome.cleanup_complete && fixture_cleanup_complete(&outcome.attestation),
+                    "attestation": outcome.attestation,
+                });
+            }
+            json!({
+                "status": "passed",
+                "completedActions": outcome.completed_actions,
+                "expectedActions": expected_actions,
+                "cleanupComplete": true,
+                "attestation": outcome.attestation,
+            })
+        }
+        Err(failure) => {
+            let bound = fixture_terminal_binding_matches(issued, &failure.attestation, probe);
+            let reason = if bound {
+                failure.cause.to_string()
+            } else {
+                "fixture-failure-attestation-binding-invalid".to_owned()
+            };
+            let cause = serde_json::to_value(&failure.cause).unwrap_or(Value::Null);
+            let cleanup_error = failure
+                .cleanup_error
+                .as_ref()
+                .and_then(|error| serde_json::to_value(error).ok());
+            json!({
+                "status": if bound { "failed" } else { "integrity-failed" },
+                "reason": reason,
+                "cause": cause,
+                "completedActions": failure.completed_actions,
+                "expectedActions": expected_actions,
+                "cleanupComplete": bound && failure.cleanup_complete && fixture_cleanup_complete(&failure.attestation),
+                "cleanupError": cleanup_error,
+                "attestation": failure.attestation,
+            })
+        }
+    }
+}
+
+fn fixture_probe_value(probe: &InteractionProbe, result: Result<Value, String>) -> Value {
+    let (status, reason, result) = match result {
+        Ok(value) => {
+            let status = value
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("failed")
+                .to_owned();
+            let reason = value
+                .get("reason")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            (status, reason, value)
+        }
+        Err(reason) => (
+            "unavailable".to_owned(),
+            Some(reason.clone()),
+            json!({
+                "status": "unavailable",
+                "reason": reason,
+                "completedActions": 0,
+                "expectedActions": probe.actions.len(),
+                "cleanupComplete": false,
+            }),
+        ),
+    };
+    let mut output = probe.to_value();
+    output["fixture"] = json!({
+        "id": probe.fixture_id,
+        "sourceDigest": probe.fixture_source_digest,
+        "inventoryDigest": probe.fixture_inventory_digest,
+        "fileCount": probe.fixture_files.len(),
+    });
+    output["status"] = json!(status);
+    if let Some(reason) = reason {
+        output["reason"] = json!(reason);
+    }
+    if let Some(object) = result.as_object() {
+        for (key, value) in object {
+            if key != "status" && key != "reason" {
+                output[key] = value.clone();
+            }
+        }
+    }
+    output
+}
+
 fn unavailable_with_interactions(
     executor: &NativeLegacyCheckExecutor,
     provider: &AuditProvider,
@@ -1403,21 +1764,13 @@ fn unavailable_with_interactions(
     plan_digest: &str,
     params: &RuntimeParams,
     reason: &str,
+    fixture_outcomes: &[Value],
 ) -> Result<ProviderResult, AuditError> {
     let mut result = unavailable_result(executor, provider, input, plan_digest, reason)?;
     if params.interactions.is_empty() {
         return Ok(result);
     }
-    let interaction_gaps = params
-        .interactions
-        .iter()
-        .map(|probe| {
-            format!(
-                "runtime-probe-unavailable:{}:rightkit-fixture-api-unavailable",
-                probe.id
-            )
-        })
-        .collect::<Vec<_>>();
+    let interaction_gaps = interaction_gaps(params, fixture_outcomes);
     let unsupported_gaps = params
         .unsupported
         .iter()
@@ -1433,18 +1786,7 @@ fn unavailable_with_interactions(
         coverage.gaps.extend(interaction_gaps.iter().cloned());
         coverage.gaps.extend(unsupported_gaps.iter().cloned());
     }
-    let fixture_surfaces = params
-        .interactions
-        .iter()
-        .map(|probe| {
-            json!({
-                "label": probe.surface_label,
-                "url": probe.surface_url,
-                "status": "fixture-probe-unavailable",
-                "coverage": "fixture-only-not-live-surface-evidence",
-            })
-        })
-        .collect::<Vec<_>>();
+    let fixture_surfaces = fixture_surface_records(params, fixture_outcomes);
     result.details.insert(
         "runtime".into(),
         json!({
@@ -1455,19 +1797,19 @@ fn unavailable_with_interactions(
             "complete": false,
             "incomplete": true,
             "surfaces": [],
-            "fixtureBoundSurfaces": fixture_surfaces,
             "unsupportedSurfaces": params.unsupported,
-            "interactions": params.interactions.iter().map(InteractionProbe::result_value).collect::<Vec<_>>(),
+            "fixtureBoundSurfaces": fixture_surfaces,
+            "interactions": interaction_outcomes(params, fixture_outcomes),
             "interactionCoverage": {
                 "expected": params.interactions.len(),
-                "examined": 0,
+                "examined": fixture_outcomes.len(),
+                "passed": passed_interaction_count(fixture_outcomes),
                 "gaps": interaction_gaps,
-                "reason": "rightkit-fixture-api-unavailable",
             },
             "denominator": {
                 "kind": "runtime-surfaces-and-probes",
                 "expected": params.live_surfaces().len() + params.unsupported.len() + params.interactions.len(),
-                "examined": 0,
+                "examined": passed_interaction_count(fixture_outcomes),
             },
         }),
     );
@@ -1575,14 +1917,18 @@ pub(super) async fn execute(
             );
         }
     };
-    if params.fixture_only() {
-        return unavailable_with_interactions(
-            executor,
+    let mut fixture_outcomes = Vec::with_capacity(params.interactions.len());
+    for probe in &params.interactions {
+        fixture_outcomes.push(execute_fixture_probe(probe, &cancellation).await);
+    }
+    if fixture_only(&params) {
+        return assemble(
             provider,
             input,
-            &plan_digest,
             &params,
-            "rightkit-fixture-api-unavailable",
+            Vec::new(),
+            "not-run",
+            fixture_outcomes,
         );
     }
     let Some(tool) = executor.external_project_tool.clone() else {
@@ -1593,6 +1939,7 @@ pub(super) async fn execute(
             &plan_digest,
             &params,
             "external-project-tool-capability-unavailable",
+            &fixture_outcomes,
         );
     };
     let scratch = executor.scratch()?;
@@ -1635,7 +1982,18 @@ pub(super) async fn execute(
     for (index, label, url) in params.live_surfaces() {
         outcomes.push(capture_surface(&ctx, index, &label, &url).await);
     }
-    assemble(provider, input, &params, outcomes, &axe_source_label)
+    assemble(
+        provider,
+        input,
+        &params,
+        outcomes,
+        &axe_source_label,
+        fixture_outcomes,
+    )
+}
+
+fn fixture_only(params: &RuntimeParams) -> bool {
+    !params.interactions.is_empty() && params.live_surfaces().is_empty()
 }
 
 fn assemble(
@@ -1644,10 +2002,12 @@ fn assemble(
     params: &RuntimeParams,
     mut outcomes: Vec<SurfaceOutcome>,
     axe_source: &str,
+    fixture_outcomes: Vec<Value>,
 ) -> Result<ProviderResult, AuditError> {
     let provider_id =
         ProviderId::new(&provider.id).map_err(|error| AuditError::Provider(error.to_string()))?;
-    let expected_surfaces = outcomes.len();
+    let expected_surfaces = params.live_surfaces().len();
+    let passed_probes = passed_interaction_count(&fixture_outcomes);
     let captured = outcomes
         .iter()
         .filter(|outcome| outcome.status == "captured")
@@ -1758,16 +2118,7 @@ fn assemble(
     for outcome in &outcomes {
         gaps.extend(outcome.gaps.iter().cloned());
     }
-    let interaction_gaps = params
-        .interactions
-        .iter()
-        .map(|probe| {
-            format!(
-                "runtime-probe-unavailable:{}:rightkit-fixture-api-unavailable",
-                probe.id
-            )
-        })
-        .collect::<Vec<_>>();
+    let interaction_gaps = interaction_gaps(params, &fixture_outcomes);
     gaps.extend(interaction_gaps.iter().cloned());
     let mut degradation: Vec<String> = Vec::new();
     for outcome in &outcomes {
@@ -1782,6 +2133,22 @@ fn assemble(
         outcomes
             .iter()
             .find_map(|outcome| outcome.unavailable.clone())
+            .or_else(|| {
+                if fixture_only(params) && passed_probes == 0 {
+                    fixture_outcomes.iter().find_map(|outcome| {
+                        if outcome.get("status").and_then(Value::as_str) == Some("unavailable") {
+                            outcome
+                                .get("reason")
+                                .and_then(Value::as_str)
+                                .map(str::to_owned)
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            })
     } else {
         None
     };
@@ -1792,10 +2159,13 @@ fn assemble(
 
     let expected = input.denominator.entries.len() as u64;
     let all_captured = captured == expected_surfaces
-        && expected_surfaces > 0
-        && params.interactions.is_empty()
+        && (expected_surfaces > 0 || !params.interactions.is_empty())
+        && passed_probes == params.interactions.len()
         && params.unsupported.is_empty();
-    let status = if captured > 0 || unavailable_reason.is_some() || !params.interactions.is_empty()
+    let status = if captured > 0
+        || passed_probes > 0
+        || unavailable_reason.is_some()
+        || !params.interactions.is_empty()
     {
         ProviderStatus::Partial
     } else {
@@ -1824,24 +2194,15 @@ fn assemble(
             })
         })
         .collect();
-    let fixture_bound_surfaces = params
-        .interactions
-        .iter()
-        .map(|probe| {
-            json!({
-                "label": probe.surface_label,
-                "url": probe.surface_url,
-                "status": "fixture-probe-unavailable",
-                "coverage": "not-live-surface-evidence",
-            })
-        })
-        .collect::<Vec<_>>();
+    let fixture_bound_surfaces = fixture_surface_records(params, &fixture_outcomes);
     details.insert(
         "runtime".to_owned(),
         json!({
             "schemaVersion": 1,
             "kind": "audit-runtime",
-            "source": "legion script qa/qa-functional",
+            "source": if fixture_only(params) { "rightkit-browser/fixture-session" }
+                else if params.interactions.is_empty() { "legion script qa/qa-functional" }
+                else { "legion script qa/qa-functional+rightkit-browser/fixture-session" },
             "url": params.url,
             "viewport": {"width": params.width, "height": params.height},
             "status": "unproven",
@@ -1849,18 +2210,18 @@ fn assemble(
             "incomplete": true,
             "surfaces": surfaces_json,
             "fixtureBoundSurfaces": fixture_bound_surfaces,
-            "interactions": params.interactions.iter().map(InteractionProbe::result_value).collect::<Vec<_>>(),
+            "interactions": interaction_outcomes(params, &fixture_outcomes),
             "interactionCoverage": {
                 "expected": params.interactions.len(),
-                "examined": 0,
+                "examined": fixture_outcomes.len(),
+                "passed": passed_probes,
                 "gaps": interaction_gaps,
-                "reason": "rightkit-fixture-api-unavailable",
             },
             "unsupportedSurfaces": params.unsupported,
             "denominator": {
                 "kind": if params.interactions.is_empty() { "runtime-surfaces" } else { "runtime-surfaces-and-probes" },
                 "expected": expected_surfaces + params.unsupported.len() + params.interactions.len(),
-                "examined": captured,
+                "examined": captured + passed_probes,
             },
             "console_total": console_total,
             "a11y_axe": a11y_status,
@@ -1893,7 +2254,14 @@ fn assemble(
         .iter()
         .find(|outcome| outcome.process_state != "completed")
         .map(|outcome| outcome.process_state.clone())
-        .unwrap_or_else(|| "completed".to_owned());
+        .unwrap_or_else(|| {
+            if outcomes.is_empty() {
+                "not-used"
+            } else {
+                "completed"
+            }
+            .to_owned()
+        });
     details.insert("processState".to_owned(), Value::String(process_state));
     details.insert(
         "exitCode".to_owned(),
@@ -1935,6 +2303,105 @@ fn assemble(
 mod tests {
     use super::*;
 
+    fn fixture_test_params(actions: Value) -> RuntimeParams {
+        // Allocate an unused exact endpoint, then let FixtureServer exclusively bind it.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/index.html", listener.local_addr().unwrap());
+        drop(listener);
+        let body = b"<!doctype html><meta charset=utf-8><link rel=icon href=data:,><input id=value><p id=frozen>Frozen source</p>";
+        let files = vec![json!({
+            "sourcePath":"never-read-from-live-root.html",
+            "sourceDigest":sha256_label(body),
+            "path":"/index.html",
+            "contentType":"text/html; charset=utf-8",
+            "body":body.to_vec(),
+        })];
+        let source_digest = FixtureBundle::source_digest(&[FixtureFile {
+            path: "/index.html".into(),
+            content_type: "text/html; charset=utf-8".into(),
+            body: body.to_vec(),
+        }])
+        .unwrap();
+        RuntimeParams::from_value(&json!({
+            "url":url,
+            "interactions":[{
+                "id":"native-fixture",
+                "surface":{"label":"entry","url":url},
+                "fixture":{
+                    "id":"native-fixture",
+                    "sourceDigest":source_digest,
+                    "inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "files":files,
+                },
+                "probe":{"id":"native-probe","actionsDigest":legion_contracts::canonical_digest(&actions).unwrap()},
+                "isolationBindingId":"frozen-source-only",
+                "expiresAfterMs":30000,
+                "actions":actions,
+            }],
+        })).unwrap().unwrap()
+    }
+
+    async fn execute_test_runtime(
+        params: &RuntimeParams,
+        cancellation: CancellationToken,
+    ) -> ProviderResult {
+        let root = PathBuf::from("fixture-only-runtime");
+        let inventory = crate::inventory::InventoryEnvelope::new(
+            "fixture-only-runtime",
+            "generation",
+            vec![crate::inventory::InventoryEntry {
+                path: "index.html".into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: true,
+                digest: None,
+            }],
+        )
+        .unwrap();
+        let provider_spec: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+            "schemaVersion":2,
+            "id":"legacy.runtime.app",
+            "providerVersion":"2.0.0",
+            "family":"performance",
+            "role":"deterministic",
+            "phase":"runtime",
+            "lensIds":["runtime"],
+            "dependsOn":[],
+            "consumes":[],
+            "produces":["provider-result"],
+            "selector":{"op":"always"},
+            "denominatorKind":"runnable app",
+            "runner":{"kind":"legacy-check","check":"runtime","runtime":params.to_value()},
+            "hostCapabilities":[],
+            "execution":{},
+            "reasoning":{},
+            "benchmark":{"status":"unproven","requiredForCleanClaim":false},
+            "cleanClaim":"evidence-only",
+            "controlIds":[],
+            "scopes":[],
+            "selectable":true
+        }))
+        .unwrap();
+        let plan = crate::plan::AuditPlan::compile(&inventory, &[provider_spec])
+            .unwrap()
+            .freeze(Some(b"fixture-only-runtime"))
+            .unwrap();
+        let provider = plan.provider("legacy.runtime.app").unwrap();
+        let input = crate::native_providers::legacy_checks::LegacyCheckDispatcher::new()
+            .input(provider, &inventory, &root, None, None, &Value::Null)
+            .unwrap();
+        execute(
+            &NativeLegacyCheckExecutor::new(root),
+            &plan,
+            provider,
+            &input,
+            cancellation,
+        )
+        .await
+        .unwrap()
+    }
+
     #[test]
     fn params_without_url_are_not_supplied() {
         assert_eq!(RuntimeParams::from_value(&Value::Null), Ok(None));
@@ -1974,7 +2441,7 @@ mod tests {
     }
 
     #[test]
-    fn frozen_interactions_are_digest_bound_and_never_authorize_execution() {
+    fn frozen_interactions_are_digest_bound_and_cancellation_prevents_launch() {
         let fixture_body = serde_json::to_value(b"<main>fixture</main>").unwrap();
         let fixture_file = json!({
             "sourcePath":"index.html",
@@ -1997,6 +2464,7 @@ mod tests {
             {"type":"click","selector":"button.save"},
             {"type":"type","text":"fixture value"},
             {"type":"press","key":"Tab"},
+            {"type":"assertVisible","selector":".status","timeout":100},
             {"type":"assertText","selector":".status","text":"Saved"}
         ]);
         let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
@@ -2011,12 +2479,80 @@ mod tests {
         });
         let params = RuntimeParams::from_value(&json!({
             "url":"http://127.0.0.1:1422/index.html",
+            "unsupportedSurfaces":["editor"],
             "interactions":[descriptor.clone()],
         }))
         .unwrap()
         .unwrap();
         assert_eq!(params.interactions.len(), 1);
         assert!(params.live_surfaces().is_empty());
+        assert!(fixture_only(&params));
+
+        let mixed = RuntimeParams::from_value(&json!({
+            "url":"http://127.0.0.1:1422/index.html",
+            "surfaces":[{"label":"settings","url":"http://127.0.0.1:1422/settings"}],
+            "interactions":[descriptor.clone()],
+        }))
+        .unwrap()
+        .unwrap();
+        assert!(!fixture_only(&mixed));
+
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let result = runtime.block_on(execute_test_runtime(&params, cancellation));
+        assert!(!result.complete);
+        assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+        assert_eq!(result.details["executionReceipts"], json!([]));
+        assert!(result.details.get("executionReceipt").is_none());
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap
+                == "runtime-probe-unavailable:profile-save:fixture-cancelled-before-start"));
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == "runtime-surface-unsupported:editor"));
+        assert_eq!(
+            result.details["runtime"]["unsupportedSurfaces"],
+            json!(["editor"])
+        );
+        assert_eq!(
+            result.details["runtime"]["interactionCoverage"]["examined"],
+            1
+        );
+        assert_eq!(result.details["runtime"]["denominator"]["expected"], 2);
+        assert_eq!(result.details["runtime"]["denominator"]["examined"], 0);
+        assert_eq!(
+            result.details["runtime"]["interactions"][0]["reason"],
+            "fixture-cancelled-before-start"
+        );
+        assert_eq!(
+            result.details["runtime"]["interactions"][0]["fixture"]["id"],
+            "profile-fixture"
+        );
+        assert_eq!(
+            result.details["runtime"]["interactions"][0]["fixture"]["fileCount"],
+            1
+        );
+        assert_eq!(
+            result.details["runtime"]["fixtureBoundSurfaces"][0]["coverage"],
+            "fixture-only-not-live-surface-evidence"
+        );
+        assert_eq!(
+            fixture_actions_digest(&fixture_actions(&params.interactions[0]).unwrap()).unwrap(),
+            params.interactions[0].actions_digest
+        );
+        let fixture_record = fixture_surface_records(&params, &[json!({"status":"passed"})]);
+        assert_eq!(fixture_record[0]["status"], "fixture-probe-passed");
+        assert_eq!(
+            fixture_record[0]["coverage"],
+            "fixture-only-not-live-surface-evidence"
+        );
         let result = params.interactions[0].result_value();
         assert_eq!(result["status"], "unavailable");
         assert_eq!(result["reason"], "rightkit-fixture-api-unavailable");
@@ -2119,6 +2655,297 @@ mod tests {
     }
 
     #[test]
+    fn frozen_fixture_bytes_reject_tampering_and_missing_resources() {
+        let params = fixture_test_params(json!([{"type":"assertVisible","selector":"#frozen"}]));
+        let probe = &params.interactions[0];
+        assert_eq!(fixture_files(probe).unwrap()[0].body,
+            b"<!doctype html><meta charset=utf-8><link rel=icon href=data:,><input id=value><p id=frozen>Frozen source</p>");
+        let mut changed = params.to_value();
+        changed["interactions"][0]["fixture"]["files"][0]["body"][0] = json!(0);
+        assert_eq!(
+            RuntimeParams::from_value(&changed),
+            Err("runtime-interaction-fixture-source-digest-mismatch".into())
+        );
+        let mut missing = params.to_value();
+        missing["url"] = json!(probe.surface_url.replace("index.html", "absent.html"));
+        missing["interactions"][0]["surface"]["url"] = missing["url"].clone();
+        assert_eq!(
+            RuntimeParams::from_value(&missing),
+            Err("runtime-interaction-fixture-url-path-mismatch".into())
+        );
+    }
+
+    #[cfg(any(target_os = "macos", windows))]
+    async fn assert_native_fixture_cleanup(value: &Value) {
+        assert_eq!(value["cleanupComplete"], true, "{value}");
+        let attestation: FixtureAttestation =
+            serde_json::from_value(value["attestation"].clone()).unwrap();
+        assert!(fixture_cleanup_complete(&attestation));
+        assert!(
+            !Path::new(&attestation.profile_identity).exists(),
+            "profile survived cleanup"
+        );
+        let endpoint = attestation.server_endpoint.parse().unwrap();
+        assert!(
+            std::net::TcpStream::connect_timeout(&endpoint, std::time::Duration::from_millis(300))
+                .is_err(),
+            "fixture listener survived cleanup"
+        );
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+        let listener = loop {
+            match std::net::TcpListener::bind(endpoint) {
+                Ok(listener) => break listener,
+                Err(_) if tokio::time::Instant::now() < deadline => {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                Err(error) => panic!("fixture socket failed to rebind after cleanup: {error}"),
+            }
+        };
+        drop(listener);
+        #[cfg(target_os = "macos")]
+        let status = std::process::Command::new("kill")
+            .args(["-0", &attestation.browser_pid.to_string()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        #[cfg(windows)]
+        let status = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &format!(
+                "if (Get-Process -Id {} -ErrorAction SilentlyContinue) {{ exit 0 }} else {{ exit 1 }}",
+                attestation.browser_pid)])
+            .status().unwrap();
+        assert!(!status.success(), "fixture browser survived cleanup");
+    }
+
+    /// CI explicitly runs this selector with --ignored on both supported hosts.
+    /// Missing assets fail qualification; no synthetic host identity or skipped success.
+    #[cfg(any(target_os = "macos", windows))]
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "requires provisioned Chrome for Testing; Windows also needs headless shell"]
+    async fn native_fixture_qualification() {
+        rightkit_browser::chrome_for_testing_path(None)
+            .expect("native fixture assets must be provisioned");
+        let actions = json!([
+            {"type":"click","selector":"#value"},
+            {"type":"type","text":"native input"},
+            {"type":"press","key":"Tab"},
+            {"type":"assertText","selector":"#frozen","text":"Frozen source"},
+        ]);
+        let params = fixture_test_params(actions.clone());
+        let result = execute_test_runtime(&params, CancellationToken::new()).await;
+        let evidence = &result.details["runtime"]["interactions"][0];
+        assert_eq!(evidence["status"], "passed", "{result:?}");
+        assert_native_fixture_cleanup(evidence).await;
+        assert_eq!(
+            result.details["runtime"]["source"],
+            "rightkit-browser/fixture-session"
+        );
+        assert_eq!(result.details["runtime"]["denominator"]["expected"], 1);
+        assert_eq!(result.details["runtime"]["denominator"]["examined"], 1);
+        assert_eq!(
+            result.coverage.as_ref().unwrap().examined,
+            result.coverage.as_ref().unwrap().expected
+        );
+        assert!(result.coverage_gaps.is_empty(), "{result:?}");
+        assert_eq!(result.details["runtime"]["a11y_axe"], "not-run");
+        assert!(result.details["runtime"]["a11y_violations_total"].is_null());
+        assert_eq!(result.details["executionReceipts"], json!([]));
+        assert!(!result.complete); // Evidence-only provider never claims whole-app cleanliness.
+
+        let mut mixed = fixture_test_params(actions.clone());
+        mixed
+            .surfaces
+            .push(("live".into(), "http://127.0.0.1:9/live".into()));
+        let mixed_result = execute_test_runtime(&mixed, CancellationToken::new()).await;
+        assert_eq!(
+            mixed_result.details["runtime"]["interactionCoverage"]["passed"],
+            1
+        );
+        assert_native_fixture_cleanup(&mixed_result.details["runtime"]["interactions"][0]).await;
+        assert_eq!(
+            mixed_result.details["runtime"]["denominator"]["expected"],
+            2
+        );
+        assert_eq!(
+            mixed_result.details["runtime"]["denominator"]["examined"],
+            1
+        );
+        assert!(mixed_result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap.contains("external-project-tool-capability-unavailable")));
+
+        let params = fixture_test_params(actions);
+        let probe = &params.interactions[0];
+        let session = launch_fixture_probe(probe).await.expect("native session");
+        let issued = session.attestation().clone();
+        let outcome = session
+            .run_with_cancel(FixtureCancellation::new())
+            .await
+            .expect("real successful outcome");
+        let accepted = fixture_terminal_value(probe, &issued, Ok(outcome.clone()), false);
+        assert_eq!(accepted["status"], "passed");
+        assert_native_fixture_cleanup(&accepted).await;
+        for field in [
+            "hostBindingId",
+            "serverEndpoint",
+            "serverInstanceId",
+            "fixtureSourceDigest",
+            "browserProcessInstance",
+            "profileIdentity",
+            "browserSessionId",
+            "pageId",
+            "frameId",
+            "loaderId",
+            "uniqueContextId",
+            "exactUrl",
+            "probeId",
+            "actionsDigest",
+            "policyDigest",
+        ] {
+            let mut changed = serde_json::to_value(&outcome.attestation).unwrap();
+            changed[field] = json!("tampered-terminal-identity");
+            let mut forged = outcome.clone();
+            forged.attestation = serde_json::from_value(changed).unwrap();
+            assert_eq!(
+                fixture_terminal_value(probe, &issued, Ok(forged), false)["status"],
+                "integrity-failed",
+                "{field}"
+            );
+        }
+        let mut expired = outcome.clone();
+        expired.attestation.expires_at_unix_ms = 0;
+        assert_eq!(
+            fixture_terminal_value(probe, &issued, Ok(expired), false)["status"],
+            "integrity-failed"
+        );
+        let mut dirty = outcome.clone();
+        dirty.attestation.output_cleanup.transport_stopped = false;
+        assert_eq!(
+            fixture_terminal_value(probe, &issued, Ok(dirty), false)["status"],
+            "integrity-failed"
+        );
+        assert_eq!(
+            fixture_terminal_value(probe, &issued, Ok(outcome), true)["status"],
+            "integrity-failed"
+        );
+
+        let params = fixture_test_params(
+            json!([{"type":"assertVisible","selector":"#missing","timeout":5000}]),
+        );
+        let probe = &params.interactions[0];
+        let session = launch_fixture_probe(probe)
+            .await
+            .expect("native cancellation session");
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let cancelled = execute_fixture_session(probe, session, &cancellation).await;
+        assert_eq!(cancelled["status"], "failed", "{cancelled}");
+        assert_eq!(cancelled["cause"]["code"], "cancelled");
+        assert_native_fixture_cleanup(&cancelled).await;
+
+        let params = fixture_test_params(
+            json!([{"type":"assertVisible","selector":"#missing","timeout":50}]),
+        );
+        let failed =
+            execute_fixture_probe(&params.interactions[0], &CancellationToken::new()).await;
+        assert_eq!(failed["status"], "failed", "{failed}");
+        assert_native_fixture_cleanup(&failed).await;
+
+        let params = fixture_test_params(json!([{"type":"assertVisible","selector":"#frozen"}]));
+        let probe = &params.interactions[0];
+        let session = launch_fixture_probe(probe)
+            .await
+            .expect("native expiry session");
+        let remaining = session.attestation().expires_at_unix_ms.saturating_sub(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis(),
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(remaining as u64 + 25)).await;
+        let expired = execute_fixture_session(probe, session, &CancellationToken::new()).await;
+        assert_eq!(expired["status"], "failed", "{expired}");
+        assert_eq!(expired["cause"]["code"], "expired");
+        assert_native_fixture_cleanup(&expired).await;
+    }
+
+    #[cfg(any(target_os = "macos", windows))]
+    #[tokio::test]
+    #[ignore = "native fixture negative qualification; run with native_fixture_qualification selector"]
+    async fn native_fixture_qualification_missing_assets() {
+        const CHILD: &str = "LEGION_FIXTURE_MISSING_ASSETS_TEST";
+        if std::env::var_os(CHILD).is_none() {
+            // Isolate asset overrides from concurrent tests; never mutate parent environment.
+            let missing =
+                std::env::temp_dir().join(format!("legion-missing-browser-{}", std::process::id()));
+            assert!(!missing.exists());
+            let test_name = format!(
+                "{}::native_fixture_qualification_missing_assets",
+                module_path!().split_once("::").unwrap().1
+            );
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", &test_name, "--ignored", "--nocapture"])
+                .env(CHILD, "1")
+                .env("RIGHTKIT_CHROME_FOR_TESTING", &missing)
+                .env("RIGHTKIT_CHROME_HEADLESS_SHELL", &missing)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "missing-assets child failed: {}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(
+                String::from_utf8_lossy(&output.stdout)
+                    .contains("fixture-missing-assets: unavailable verified"),
+                "missing-assets child did not execute its assertion"
+            );
+            return;
+        }
+        let params = fixture_test_params(json!([{"type":"assertVisible","selector":"#frozen"}]));
+        let result = execute_test_runtime(&params, CancellationToken::new()).await;
+        let evidence = &result.details["runtime"]["interactions"][0];
+        assert_eq!(evidence["status"], "unavailable", "{result:?}");
+        assert!(
+            evidence["reason"]
+                .as_str()
+                .unwrap()
+                .contains("missing file"),
+            "{evidence}"
+        );
+        assert!(evidence.get("attestation").is_none());
+        assert_eq!(evidence["cleanupComplete"], false);
+        assert_eq!(
+            result.details["runtime"]["interactionCoverage"]["passed"],
+            0
+        );
+        assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+        assert!(!result.complete);
+        println!("fixture-missing-assets: unavailable verified");
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
+    #[tokio::test]
+    async fn unsupported_fixture_host_remains_unavailable() {
+        let params = fixture_test_params(json!([{"type":"assertVisible","selector":"#frozen"}]));
+        let result = execute_test_runtime(&params, CancellationToken::new()).await;
+        let evidence = &result.details["runtime"]["interactions"][0];
+        assert_eq!(evidence["status"], "unavailable");
+        assert!(evidence["reason"]
+            .as_str()
+            .unwrap()
+            .contains("confinement is unsupported"));
+        assert_eq!(
+            result.details["runtime"]["interactionCoverage"]["passed"],
+            0
+        );
+        assert!(!result.complete);
+    }
+
+    #[test]
     fn frozen_interaction_size_limit_counts_repeated_fixture_bodies() {
         let body = serde_json::to_value(vec![120_u8; 600_000]).unwrap();
         let file = json!({"body":body,"contentType":"text/html","path":"/index.html"});
@@ -2130,121 +2957,15 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn fixture_only_probe_refusal_is_typed_before_live_capture() {
-        let body = serde_json::to_value(b"<main>fixture</main>").unwrap();
-        let file = json!({
-            "sourcePath":"index.html",
-            "sourceDigest":sha256_label(b"<main>fixture</main>"),
-            "path":"/index.html",
-            "contentType":"text/html",
-            "body":body,
-        });
-        let fixture_digest = legion_contracts::canonical_digest(&json!({
-            "files":[{"body":body,"contentType":"text/html","path":"/index.html"}]
-        }))
-        .unwrap();
-        let actions = json!([{"type":"click","selector":"button.save"}]);
-        let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
-        let runtime = RuntimeParams::from_value(&json!({
-            "url":"http://127.0.0.1:1422/index.html",
-            "unsupportedSurfaces":["editor"],
-            "interactions":[{
-                "id":"save",
-                "surface":{"label":"entry","url":"http://127.0.0.1:1422/index.html"},
-                "fixture":{"id":"profile-fixture","sourceDigest":fixture_digest,
-                    "inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                    "files":[file]},
-                "probe":{"id":"save-probe","actionsDigest":action_digest},
-                "isolationBindingId":"isolated-profile-fixture",
-                "expiresAfterMs":30000,
-                "actions":actions,
-            }]
-        })).unwrap().unwrap();
-        assert!(runtime.fixture_only());
-        assert!(runtime.live_surfaces().is_empty());
-
-        let inventory = crate::InventoryEnvelope::new(
-            "fixture-repo",
-            "generation",
-            vec![crate::InventoryEntry {
-                path: "package.json".into(),
-                symbols: vec![],
-                dependencies: vec![],
-                package_scripts: vec![],
-                source_file: false,
-                digest: None,
-            }],
-        )
-        .unwrap();
-        let provider_spec = serde_json::from_value(json!({
-            "schemaVersion":2,"id":"legacy.runtime.app","providerVersion":"2.0.0",
-            "family":"performance","role":"deterministic","phase":"runtime",
-            "lensIds":["runtime"],"dependsOn":[],"consumes":[],"produces":["provider-result"],
-            "selector":{"op":"always"},"denominatorKind":"runnable app",
-            "runner":{"kind":"legacy-check","check":"runtime","runtime":runtime.to_value()},
-            "hostCapabilities":[],"execution":{},"reasoning":{},
-            "benchmark":{"status":"unproven","requiredForCleanClaim":false},
-            "cleanClaim":"evidence-only","controlIds":[],"scopes":[],"selectable":true
-        }))
-        .unwrap();
-        let plan = crate::AuditPlan::compile(&inventory, &[provider_spec])
-            .unwrap()
-            .freeze(Some(b"fixture-only-test"))
-            .unwrap();
-        let provider = plan.provider("legacy.runtime.app").unwrap();
-        let root = std::env::current_dir().unwrap();
-        let input = super::super::LegacyCheckDispatcher::new()
-            .input(provider, &inventory, &root, None, None, &Value::Null)
-            .unwrap();
-        let result = execute(
-            &NativeLegacyCheckExecutor::new(root),
-            &plan,
-            provider,
-            &input,
-            CancellationToken::new(),
-        )
-        .await
-        .unwrap();
-        assert!(!result.complete);
-        assert_eq!(result.status, ProviderStatus::Partial);
-        assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
-        assert!(result
-            .coverage_gaps
-            .iter()
-            .any(|gap| gap == "unavailable:rightkit-fixture-api-unavailable"));
-        assert!(result
-            .coverage_gaps
-            .iter()
-            .any(|gap| gap == "runtime-surface-unsupported:editor"));
-        assert_eq!(result.details["executionReceipt"]["state"], "blocked");
-        assert_eq!(
-            result.details["executionReceipt"]["processTree"]["started"],
-            false
-        );
-        assert_eq!(
-            result.details["runtime"]["unsupportedSurfaces"],
-            json!(["editor"])
-        );
-        assert_eq!(
-            result.details["runtime"]["fixtureBoundSurfaces"][0]["coverage"],
-            "fixture-only-not-live-surface-evidence"
-        );
-        assert_eq!(
-            result.details["runtime"]["interactions"][0]["reason"],
-            "rightkit-fixture-api-unavailable"
-        );
-        assert_eq!(
-            result.details["runtime"]["interactionCoverage"]["examined"],
-            0
-        );
-        assert_eq!(result.details["runtime"]["denominator"]["expected"], 2);
-        assert_eq!(result.details["runtime"]["denominator"]["examined"], 0);
-    }
-
     #[test]
     fn fixture_only_and_mixed_accessibility_are_not_reported_as_clean_zero() {
         let fixture_only: [&Value; 0] = [];
+        assert_eq!(
+            accessibility_summary(&fixture_only),
+            ("not-run", None, None)
+        );
+        let fixture_outcomes = [json!({"status":"passed"})];
+        assert_eq!(passed_interaction_count(&fixture_outcomes), 1);
         assert_eq!(
             accessibility_summary(&fixture_only),
             ("not-run", None, None)
@@ -2255,6 +2976,34 @@ mod tests {
         assert_eq!(
             accessibility_summary(&[&ran, &not_run]),
             ("partial", None, Some(2))
+        );
+        assert_eq!(
+            interaction_gaps(
+                &RuntimeParams {
+                    url: "http://127.0.0.1:1422/index.html".into(),
+                    surfaces: Vec::new(),
+                    width: DEFAULT_WIDTH,
+                    height: DEFAULT_HEIGHT,
+                    unsupported: Vec::new(),
+                    interactions: vec![InteractionProbe {
+                        id: "failed-probe".into(),
+                        surface_label: "entry".into(),
+                        surface_url: "http://127.0.0.1:1422/index.html".into(),
+                        fixture_id: "fixture".into(),
+                        fixture_source_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+                        fixture_inventory_digest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+                        fixture_files: Vec::new(),
+                        probe_id: "probe".into(),
+                        actions_digest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into(),
+                        isolation_binding_id: "binding".into(),
+                        expires_after_ms: 1000,
+                        actions: Vec::new(),
+                    }],
+                    artifact_dir: None,
+                },
+                &[json!({"status":"failed","reason":"fixture-cancelled"})],
+            ),
+            vec!["runtime-probe-unavailable:failed-probe:fixture-cancelled"]
         );
     }
 

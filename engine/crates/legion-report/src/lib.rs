@@ -7,6 +7,8 @@ pub mod escape;
 pub mod html;
 pub mod json;
 pub mod markdown;
+pub mod ponytail;
+pub mod review;
 pub mod sarif;
 
 pub use error::ReportError;
@@ -26,6 +28,31 @@ pub fn render_markdown(report: &ReportV1) -> Result<String, ReportError> {
 }
 pub fn render_html(report: &ReportV1) -> Result<String, ReportError> {
     html::render(report)
+}
+
+/// Renders an evidence-preserving source review from a schema-v2 report.
+pub fn render_review(report: &ReportV2) -> Result<String, ReportError> {
+    report
+        .validate()
+        .map_err(|error| ReportError::Contract(error.to_string()))?;
+    Ok(review::render(report))
+}
+
+/// Renders the canonical Ponytail five-tag finding projection from a v2 report.
+pub fn render_ponytail(report: &ReportV2) -> Result<String, ReportError> {
+    report
+        .validate()
+        .map_err(|error| ReportError::Contract(error.to_string()))?;
+    Ok(ponytail::render(report))
+}
+
+/// Renders GitHub's review-file JSON shape. This only creates a local payload;
+/// it never posts a review or comment.
+pub fn render_github_review(report: &ReportV2) -> Result<String, ReportError> {
+    report
+        .validate()
+        .map_err(|error| ReportError::Contract(error.to_string()))?;
+    review::render_github_review(report)
 }
 
 pub(crate) fn status_label(status: ReportStatus) -> &'static str {
@@ -185,5 +212,79 @@ mod tests {
         assert!(!markdown.contains("<script>") && markdown.contains("\\<script\\>"));
         assert!(markdown.contains("\\<provider\\>"));
         assert!(markdown.contains("bad\\`\\<id\\>"));
+    }
+
+    #[test]
+    fn native_minimize_projection_reaches_json_review_comments_and_ponytail() {
+        // Native ingest copies action into title, failureScenario into message,
+        // & canonical lens fields into evidence. Lift against actual bytes as
+        // audit's report writer does; supplied model confidence is not proof.
+        let action = "inline the only implementation";
+        let case = "wrapper delegates to its sole implementation";
+        let item = Finding {
+            id: FindingId::new("minimize-1").unwrap(),
+            severity: "medium".into(),
+            title: action.into(),
+            message: case.into(),
+            provider: Some("reasoning.minimize".into()),
+            locations: vec!["src/lib.rs:2".into()],
+            evidence: BTreeMap::from([
+                ("lens".into(), json!("minimize")),
+                ("confidence".into(), json!("likely")),
+                ("verifyStatus".into(), json!("unverified")),
+                ("ponytailTag".into(), json!("yagni")),
+                ("action".into(), json!(action)),
+                ("failureScenario".into(), json!(case)),
+            ]),
+        };
+        let native = report(ReportStatus::Incomplete, vec![item]);
+        let resolve = |path: &str| {
+            (path == "src/lib.rs")
+                .then(|| b"pub fn wrapper() {\n    implementation();\n}\n".to_vec())
+        };
+        let diff = |_: &str, _: u32, _: u32| legion_contracts::DiffTag::InDiff;
+        let mut context =
+            legion_contracts::LiftContext::new(legion_contracts::ReportScope::legacy(), &resolve);
+        context.diff_tag = Some(&diff);
+        let lifted = ReportV2::from_v1_with(&native, &context).unwrap();
+        assert_eq!(
+            lifted.findings[0].confidence,
+            legion_contracts::Confidence::Likely
+        );
+        let json: serde_json::Value =
+            serde_json::from_str(&render_json_schema(&lifted, 2).unwrap()).unwrap();
+        assert_eq!(json["findings"][0]["evidence"]["action"], action);
+        assert_eq!(json["findings"][0]["evidence"]["failureScenario"], case);
+        let review = render_review(&lifted).unwrap();
+        assert!(review.contains(&format!("Supplied fix: {action}")));
+        let payload: serde_json::Value =
+            serde_json::from_str(&render_github_review(&lifted).unwrap()).unwrap();
+        let comments = payload["comments"].as_array().unwrap();
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0]["path"], "src/lib.rs");
+        assert_eq!(comments[0]["line"], 2);
+        let body = comments[0]["body"].as_str().unwrap();
+        assert!(body.contains(&format!("Supplied fix: {action}")));
+        assert!(body.contains(&format!("Case: {case}")));
+        assert!(body.contains("Confidence: `likely`"));
+        assert!(!body.contains("proven"));
+        let ponytail = render_ponytail(&lifted).unwrap();
+        assert!(ponytail.contains(&format!("yagni {case}. {action}. [src/lib.rs:2]")));
+        assert!(ponytail.contains("net: unavailable"));
+        assert!(ponytail.contains("inspired by Ponytail"));
+        assert!(review.contains("inspired by CodeRabbit"));
+        assert!(ponytail.contains("provider denominator unavailable"));
+
+        let mut missing = lifted.clone();
+        missing.findings[0].evidence.remove("failureScenario");
+        let missing_ponytail = render_ponytail(&missing).unwrap();
+        assert!(missing_ponytail.contains("Case: unavailable"));
+        let mut outside_diff = lifted;
+        outside_diff.findings[0].anchor.as_mut().unwrap().state =
+            legion_contracts::AnchorState::BeyondDiff;
+        let outside: serde_json::Value =
+            serde_json::from_str(&render_github_review(&outside_diff).unwrap()).unwrap();
+        assert_eq!(outside["comments"].as_array().unwrap().len(), 0);
+        assert!(outside["body"].as_str().unwrap().contains(action));
     }
 }
