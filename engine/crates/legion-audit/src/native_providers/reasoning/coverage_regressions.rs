@@ -1292,3 +1292,458 @@ fn irreducible_sampled_lens_remains_deferred_while_affordable_lens_runs() {
         assert_eq!(deferred.request.packet["excerpts"][0]["mode"], "raw");
     }
 }
+
+#[test]
+fn sampled_irreducible_source_defers_with_fitting_candidate_continuation() {
+    // Whole lines are indivisible, so source refinement cannot fit this line.
+    // Candidate evidence itself is small enough for its own physical call.
+    let fixture = Fixture::new(&[
+        (
+            "src/main.tsx",
+            format!(
+                "export function App() {{ return <button>{}</button>; }}\n",
+                "visible ".repeat(9000)
+            ),
+        ),
+        ("src/small.ts", "export const answer = 42;\n".into()),
+    ]);
+    let inventory = fixture.inventory();
+    let candidates = vec![ScannerCandidate {
+        finding_id: "small-a11y-candidate".into(),
+        provider: "scanner.a11y".into(),
+        domain: "a11y".into(),
+        rule: "button-label".into(),
+        severity: "medium".into(),
+        path: Some("src/main.tsx".into()),
+        line: Some(1),
+        end_line: None,
+        location_status: "known".into(),
+        message: "Review button label".into(),
+        evidence_excerpt: Some("<button>visible</button>".into()),
+        evidence_digest: "small-a11y-evidence".into(),
+        source_mapping: json!({"domain":"a11y"}),
+    }];
+    for mode in ["risk-sampled", "exhaustive"] {
+        let mut specs = [
+            spec(
+                "reasoning.a11y",
+                json!({"op":"paths", "paths":["src/main.tsx"]}),
+            ),
+            spec(
+                "reasoning.ai-slop",
+                json!({"op":"paths", "paths":["src/small.ts"]}),
+            ),
+        ];
+        for provider in &mut specs {
+            provider.reasoning["coverageRequest"] = json!({"mode":mode,
+                "runTokenBudget":125_000,"seatTokenBudget":25_000,"maxTotalSeats":5});
+        }
+        let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &specs)
+            .unwrap()
+            .freeze(Some(b"irreducible-candidate-lens-fixture-key"))
+            .unwrap();
+        let result =
+            pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates));
+        if mode == "exhaustive" {
+            assert!(matches!(result, Err(AuditError::BoundExceeded(_))));
+            continue;
+        }
+        let work = result.unwrap();
+        assert_eq!(work.len(), 3);
+        let source = work
+            .iter()
+            .find(|item| {
+                item.provider_id == "reasoning.a11y"
+                    && !candidate_routing::is_candidate_part(&item.request)
+            })
+            .unwrap();
+        let candidate = work
+            .iter()
+            .find(|item| candidate_routing::is_candidate_part(&item.request))
+            .unwrap();
+        let affordable = work
+            .iter()
+            .find(|item| item.provider_id == "reasoning.ai-slop")
+            .unwrap();
+        assert_eq!(source.request.packet["candidateContext"], json!([]));
+        assert_eq!(
+            candidate.request.packet["candidateContext"],
+            json!(candidates)
+        );
+        assert_eq!(
+            candidate.request.packet["excerptCoverage"]["examinedPaths"],
+            json!([])
+        );
+        let provider = plan
+            .providers()
+            .iter()
+            .find(|provider| provider.id == "reasoning.a11y")
+            .unwrap();
+        let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+        assert_eq!(
+            measure_invocations(std::slice::from_ref(&source.request), provider, &mut sizer)
+                .unwrap(),
+            u64::MAX
+        );
+        assert_ne!(
+            measure_invocations(
+                std::slice::from_ref(&candidate.request),
+                provider,
+                &mut sizer
+            )
+            .unwrap(),
+            u64::MAX
+        );
+        let dispatch = ingest::lens_dispatch_plan(
+            &work,
+            &ingest::DispatchLimits {
+                run_token_budget: 125_000,
+                seat_token_budget: 25_000,
+                max_total_seats: 5,
+                wave_width: 1,
+            },
+        );
+        assert_eq!(dispatch["withinLimits"], true, "{dispatch}");
+        let selected = dispatch["selectedPackets"].as_array().unwrap();
+        assert_eq!(selected.len(), 2, "{dispatch}");
+        assert!(
+            selected.contains(&json!(affordable.packet_file_name())),
+            "{dispatch}"
+        );
+        assert!(
+            selected.contains(&json!(candidate.packet_file_name())),
+            "{dispatch}"
+        );
+        assert_eq!(
+            dispatch["deferredPackets"],
+            json!([source.packet_file_name()])
+        );
+        assert_eq!(
+            dispatch["deferredWork"][0]["reason"],
+            "physical-envelope-headroom"
+        );
+        assert_eq!(dispatch["followupReserveCalls"], 1);
+    }
+}
+
+fn candidate_partition_fixture() -> (
+    Fixture,
+    InventoryEnvelope,
+    FrozenPlan,
+    Vec<ScannerCandidate>,
+) {
+    let paths = (0..169)
+        .map(|index| format!("src/data/record-{index:03}.rs"))
+        .collect::<Vec<_>>();
+    let files = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            (
+                path.as_str(),
+                format!("pub fn persist_transaction_{index}() {{ /* write data */ }}\n"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let fixture = Fixture::new(&files);
+    let inventory = fixture.inventory();
+    let mut provider = spec("reasoning.data-safety", json!({"op":"always"}));
+    provider.reasoning["coverageRequest"] = json!({"mode":"risk-sampled",
+        "runTokenBudget":12_000_000,"seatTokenBudget":150_000,"maxTotalSeats":80});
+    let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &[provider])
+        .unwrap()
+        .freeze(Some(b"candidate-partition-regression-key"))
+        .unwrap();
+    let candidates = (0..1320)
+        .map(|index| {
+            let mapping = json!({"originalAdapter":"mixed-data-scanner","domain":"data",
+            "rawEvidence":{"message":"full original evidence ".repeat(45),"ordinal":index}});
+            ScannerCandidate {
+                finding_id: format!("candidate-{index:04}"),
+                provider: "scanner.data".into(),
+                domain: "data".into(),
+                rule: "transaction-safety".into(),
+                severity: "medium".into(),
+                path: if index < 167 {
+                    Some(paths[index].clone())
+                } else if index % 2 == 0 {
+                    Some(format!("outside/record-{index}.sql"))
+                } else {
+                    None
+                },
+                line: (index % 2 == 0).then_some(1),
+                end_line: None,
+                location_status: if index < 167 { "known" } else { "unknown" }.into(),
+                message: format!("scanner record {index} requires data lens review"),
+                evidence_excerpt: Some("original full scanner evidence ".repeat(40)),
+                evidence_digest: canonical_digest(&mapping).unwrap(),
+                source_mapping: mapping,
+            }
+        })
+        .collect();
+    (fixture, inventory, plan, candidates)
+}
+
+#[test]
+fn full_candidate_context_partitions_losslessly_without_source_credit_or_reordering() {
+    let (fixture, inventory, plan, candidates) = candidate_partition_fixture();
+    let provider = &plan.providers()[0];
+    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
+    let (original, _) = build_invocations_with_budget(
+        &plan,
+        provider,
+        &inventory,
+        &denominator,
+        "pending-host",
+        &source,
+        Some(&candidates),
+        seat_part_budget(provider),
+    )
+    .unwrap();
+    let work = pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates))
+        .unwrap();
+    assert_eq!(
+        candidates
+            .iter()
+            .filter(|candidate| candidate
+                .path
+                .as_ref()
+                .is_none_or(|path| !denominator.entries.iter().any(|entry| &entry.path == path)))
+            .count(),
+        1153
+    );
+    let source_parts = work
+        .iter()
+        .filter(|item| !candidate_routing::is_candidate_part(&item.request))
+        .collect::<Vec<_>>();
+    assert_eq!(source_parts.len(), original.len());
+    for (actual, before) in source_parts.iter().zip(&original) {
+        assert_eq!(actual.request.packet["excerpts"], before.packet["excerpts"]);
+        assert_eq!(
+            actual.request.packet["excerptCoverage"],
+            before.packet["excerptCoverage"]
+        );
+        assert_eq!(actual.request.packet["candidateContext"], json!([]));
+    }
+    let mut reconstructed = Vec::new();
+    let mut identities = BTreeSet::new();
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+    for item in &work {
+        let sizes = sizer.request_sizes(std::slice::from_ref(item)).unwrap();
+        assert!(sizes.host_envelope_bytes <= crate::review_runtime::MAX_REQUEST_BYTES as u64);
+        let floor = ingest::minimum_output_tokens(ingest::dispatch_output_tokens(150_000), 1)
+            .max(candidate_routing::disposition_output_tokens(&item.request));
+        assert!(ingest::fitting_output_tokens(
+            150_000,
+            ingest::dispatch_output_tokens(150_000),
+            sizes.model_visible_input_bytes,
+            floor
+        )
+        .is_some());
+        assert_eq!(
+            item.request.denominator_paths,
+            original[0].denominator_paths
+        );
+        assert_eq!(
+            item.request.denominator_digest,
+            original[0].denominator_digest
+        );
+        assert_eq!(
+            item.request.request_id,
+            ingest::expected_request_id(item).unwrap()
+        );
+        if candidate_routing::is_candidate_part(&item.request) {
+            assert!(delivery_chunk_manifest(&item.request).unwrap().is_empty());
+            assert_eq!(
+                item.request.packet["excerptCoverage"]["examinedPaths"],
+                json!([])
+            );
+        }
+        for candidate in serde_json::from_value::<Vec<ScannerCandidate>>(
+            item.request.packet["candidateContext"].clone(),
+        )
+        .unwrap()
+        {
+            assert!(identities.insert((candidate.provider.clone(), candidate.finding_id.clone())));
+            reconstructed.push(candidate);
+        }
+    }
+    assert_eq!(reconstructed, candidates);
+    assert!(work
+        .iter()
+        .any(|item| candidate_routing::is_candidate_part(&item.request)));
+    let limits = ingest::DispatchLimits {
+        run_token_budget: 12_000_000,
+        seat_token_budget: 150_000,
+        max_total_seats: 80,
+        wave_width: 1,
+    };
+    let dispatch = ingest::lens_dispatch_plan(&work, &limits);
+    assert_eq!(dispatch["withinLimits"], true, "{dispatch}");
+    assert_eq!(
+        dispatch["selectedPackets"].as_array().unwrap().len(),
+        work.len()
+    );
+    for limited in [
+        ingest::DispatchLimits {
+            max_total_seats: 1,
+            ..limits
+        },
+        ingest::DispatchLimits {
+            run_token_budget: 150_000,
+            ..limits
+        },
+    ] {
+        let dispatch = ingest::lens_dispatch_plan(&work, &limited);
+        assert_eq!(dispatch["withinLimits"], false);
+        assert_eq!(
+            dispatch["selectedPackets"].as_array().unwrap().len()
+                + dispatch["deferredWork"].as_array().unwrap().len(),
+            work.len()
+        );
+    }
+}
+
+#[test]
+fn candidate_partition_refuses_indivisible_records_duplicates_and_part_exhaustion() {
+    let (fixture, inventory, plan, mut candidates) = candidate_partition_fixture();
+    let provider = &plan.providers()[0];
+    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+    let mut capped = provider.clone();
+    capped.bounds.insert("maxReasoningParts".into(), json!(1));
+    let error = build_invocations(
+        &plan,
+        &capped,
+        &inventory,
+        &denominator,
+        "pending-host",
+        &source,
+        &mut sizer,
+        Some(&candidates),
+        true,
+    )
+    .unwrap_err();
+    assert!(matches!(error, AuditError::BoundExceeded(_)));
+    assert!(error.to_string().contains("maxReasoningParts"));
+    candidates.truncate(1);
+    candidates[0].evidence_excerpt = Some("indivisible-secret-test-marker ".repeat(100_000));
+    let error = pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates))
+        .unwrap_err();
+    assert!(matches!(error, AuditError::BoundExceeded(_)));
+    assert!(error.to_string().contains("scanner.data:candidate-0000"));
+    assert!(!error.to_string().contains("indivisible-secret-test-marker"));
+    candidates.push(candidates[0].clone());
+    candidates[1].domain = "security".into();
+    let error = pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates))
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("duplicate routed candidate identity"));
+}
+
+#[test]
+fn fitting_candidate_context_keeps_original_inline_ownership_and_packet_identity() {
+    let (fixture, inventory, plan, mut candidates) = candidate_partition_fixture();
+    candidates.truncate(3);
+    let provider = &plan.providers()[0];
+    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
+    let (original, _) = build_invocations_with_budget(
+        &plan,
+        provider,
+        &inventory,
+        &denominator,
+        "pending-host",
+        &source,
+        Some(&candidates),
+        seat_part_budget(provider),
+    )
+    .unwrap();
+    let work = pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates))
+        .unwrap();
+    assert_eq!(
+        work.iter().map(|item| &item.request).collect::<Vec<_>>(),
+        original.iter().collect::<Vec<_>>()
+    );
+    assert!(!work
+        .iter()
+        .any(|item| candidate_routing::is_candidate_part(&item.request)));
+}
+
+#[test]
+fn ordinary_source_overflow_refines_full_context_before_detaching_candidates() {
+    let paths = (0..4)
+        .map(|index| format!("src/data/transaction-{index}.rs"))
+        .collect::<Vec<_>>();
+    let files = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            (
+                path.as_str(),
+                format!(
+                    "pub fn transaction_{index}() {{ let data = \"{}\"; }}\n",
+                    "source".repeat(8)
+                )
+                .repeat(600),
+            )
+        })
+        .collect::<Vec<_>>();
+    let fixture = Fixture::new(&files);
+    let inventory = fixture.inventory();
+    let mut provider = spec("reasoning.data-safety", json!({"op":"always"}));
+    provider.reasoning["coverageRequest"] = json!({"mode":"risk-sampled",
+        "runTokenBudget":12_000_000,"seatTokenBudget":25_000,"maxTotalSeats":80});
+    let plan = AuditPlan::compile_with_root(Some(&fixture.0), &inventory, &[provider])
+        .unwrap()
+        .freeze(Some(b"inline-source-refinement-key"))
+        .unwrap();
+    let candidates = vec![ScannerCandidate {
+        provider: "scanner.data".into(),
+        finding_id: "small-context".into(),
+        domain: "data".into(),
+        evidence_digest: "small-evidence".into(),
+        path: Some(paths[0].clone()),
+        line: Some(1),
+        ..Default::default()
+    }];
+    let provider = &plan.providers()[0];
+    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
+    let mut sizer = crate::review_runtime::InitialRequestSizer::default();
+    let (initial, _) = build_invocations_with_budget(
+        &plan,
+        provider,
+        &inventory,
+        &denominator,
+        "pending-host",
+        &source,
+        Some(&candidates),
+        seat_part_budget(provider),
+    )
+    .unwrap();
+    assert!(
+        measure_invocations(&initial, provider, &mut sizer).unwrap()
+            > ingest::physical_planning_input_bytes(25_000)
+    );
+    let work = pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates))
+        .unwrap();
+    assert!(!work
+        .iter()
+        .any(|item| candidate_routing::is_candidate_part(&item.request)));
+    assert_eq!(
+        work.iter()
+            .flat_map(|item| item.request.packet["candidateContext"].as_array().unwrap())
+            .count(),
+        1
+    );
+    for item in &work {
+        assert!(
+            measure_invocations(std::slice::from_ref(&item.request), provider, &mut sizer).unwrap()
+                <= ingest::physical_planning_input_bytes(25_000)
+        );
+    }
+}

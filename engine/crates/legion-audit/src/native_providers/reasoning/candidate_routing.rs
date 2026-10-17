@@ -110,6 +110,113 @@ pub fn routed_candidates(provider: &str, candidates: &[ScannerCandidate]) -> Vec
         .collect()
 }
 
+/// Validate before routing or partitioning so duplicate ownership cannot hide
+/// in different lenses or physical continuations.
+pub(super) fn validate_identities(candidates: &[ScannerCandidate]) -> Result<(), String> {
+    let mut seen = BTreeSet::new();
+    for candidate in candidates {
+        if !seen.insert((&candidate.provider, &candidate.finding_id)) {
+            return Err("duplicate routed candidate identity".into());
+        }
+    }
+    Ok(())
+}
+
+/// Candidate continuations have no source-coverage authority. Require the
+/// exact role, full typed records, owning lens & empty source-bearing arrays.
+pub(super) fn is_candidate_part(request: &ReasoningInvocation) -> bool {
+    let packet = &request.packet;
+    if request.validate().is_err()
+        || request.provider_id == ADJUDICATOR_PROVIDER_ID
+        || packet.pointer("/part/kind").and_then(Value::as_str) != Some("candidate-context")
+        || request
+            .part()
+            .is_none_or(|part| part.number == 0 || part.number > part.total)
+        || packet
+            .pointer("/excerptCoverage/basis")
+            .and_then(Value::as_str)
+            != Some("candidate-context")
+        || [
+            "/part/paths",
+            "/part/continuedPaths",
+            "/excerpts",
+            "/excerptCoverage/selectedPaths",
+            "/excerptCoverage/materializedPaths",
+            "/excerptCoverage/examinedPaths",
+            "/excerptCoverage/chunkedPaths",
+            "/excerptCoverage/omittedPaths",
+            "/excerptCoverage/truncatedPaths",
+            "/excerptCoverage/aliasedPaths",
+        ]
+        .iter()
+        .any(|pointer| packet.pointer(pointer) != Some(&json!([])))
+    {
+        return false;
+    }
+    if packet
+        .pointer("/binding/denominatorDigest")
+        .and_then(Value::as_str)
+        != Some(request.denominator_digest.as_str())
+        || packet
+            .pointer("/binding/denominatorCount")
+            .and_then(Value::as_u64)
+            != Some(request.denominator_count)
+        || packet
+            .pointer("/binding/planDigest")
+            .and_then(Value::as_str)
+            != Some(request.plan_digest.as_str())
+        || packet
+            .pointer("/binding/inventoryDigest")
+            .and_then(Value::as_str)
+            != Some(request.inventory_digest.as_str())
+    {
+        return false;
+    }
+    let Some(context) = packet.get("candidateContext") else {
+        return false;
+    };
+    let Ok(candidates) = serde_json::from_value::<Vec<ScannerCandidate>>(context.clone()) else {
+        return false;
+    };
+    !candidates.is_empty()
+        && json!(candidates) == *context
+        && validate_identities(&candidates).is_ok()
+        && candidates.iter().all(|candidate| {
+            !candidate.provider.trim().is_empty()
+                && !candidate.finding_id.trim().is_empty()
+                && !candidate.evidence_digest.trim().is_empty()
+                && target_provider(candidate).as_deref() == Some(request.provider_id.as_str())
+        })
+}
+
+/// Serializer-derived minimum for returning one explicit disposition per
+/// owned candidate. Evidence/reason content still consumes the fitting cap.
+pub(super) fn disposition_output_tokens(request: &ReasoningInvocation) -> u64 {
+    let rows = request
+        .packet
+        .get("candidateContext")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|candidate| {
+            json!({
+                "candidateId": candidate["findingId"],
+                "provider": candidate["provider"],
+                "evidenceDigest": candidate["evidenceDigest"],
+                "status": "unresolved", "reason": "pending", "evidence": [],
+            })
+        })
+        .collect::<Vec<_>>();
+    if rows.is_empty() {
+        return 0;
+    }
+    let bytes = serde_json::to_vec(&json!({"finalResult": {
+        "complete": true, "findings": [], "withdrawn": [], "candidateDispositions": rows,
+    }}))
+    .map_or(u64::MAX, |bytes| bytes.len() as u64);
+    crate::next::estimated_request_tokens(bytes, 0)
+}
+
 /// A candidate belongs to its first materialized path part. Unmaterialized or
 /// unknown anchors stay in part one, where they require an explicit gap.
 pub fn candidates_for_part(

@@ -1062,6 +1062,9 @@ fn build_invocations(
     scanner_candidates: Option<&[ScannerCandidate]>,
     allow_deferred: bool,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    if let Some(candidates) = scanner_candidates {
+        candidate_routing::validate_identities(candidates).map_err(AuditError::Invalid)?;
+    }
     // Pending sampled work may exceed one physical call: retain its exact
     // logical packets so dispatch can defer them explicitly & admit other
     // lenses. In-process invocation & exhaustive requests still refuse.
@@ -1090,8 +1093,8 @@ fn build_invocations(
             budget,
         );
     };
-    let mut build = |budget| {
-        let built = build_invocations_with_budget(
+    let mut build = |budget, source_only| {
+        let mut built = build_invocations_with_budget(
             plan,
             provider,
             inventory,
@@ -1101,26 +1104,243 @@ fn build_invocations(
             scanner_candidates,
             budget,
         )?;
-        let mut largest = 0u64;
-        for request in &built.0 {
-            let work = PendingLensWork {
-                provider_id: provider.id.clone(),
-                lens_ids: provider.lens_ids.clone(),
-                status: "pending-host".into(),
-                request: request.clone(),
-                promotion: None,
-            };
-            largest = largest.max(sizer.model_visible_input_bytes(std::slice::from_ref(&work))?);
+        if source_only {
+            for (index, request) in built.0.iter_mut().enumerate() {
+                request.packet["candidateContext"] = json!([]);
+                number_continuation(request, index + 1, part_ceiling(provider), false)?;
+                refresh_request_identity(request, invocation_epoch)?;
+            }
         }
+        let largest = measure_invocations(&built.0, provider, sizer)?;
         Ok((built, largest))
     };
-    let (built, largest) =
-        refine_packet_materialization(budget, target, |budget| build(Some(budget)))?;
+    let mut full_attempts = 0;
+    let (built, largest) = refine_packet_materialization(budget, target, |budget| {
+        full_attempts += 1;
+        build(Some(budget), false)
+    })?;
+    if largest <= target {
+        return Ok(built);
+    }
+    // Refine only source once candidates make their original ownership
+    // physically impossible. Promotion still sees the complete scanner set.
+    let separate_candidates = provider.id != ADJUDICATOR_PROVIDER_ID
+        && scanner_candidates.is_some_and(|candidates| {
+            !candidate_routing::routed_candidates(&provider.id, candidates).is_empty()
+        });
+    let (built, largest) = if separate_candidates {
+        // A failed full-context search consumes its original & minimum
+        // probes. Reuse the remaining eight-probe allowance for source only.
+        refine_packet_materialization_with_limit(
+            budget,
+            target,
+            8usize.saturating_sub(full_attempts),
+            |budget| build(Some(budget), true),
+        )?
+    } else {
+        (built, largest)
+    };
     if largest > target && !allow_deferred {
         return Err(AuditError::BoundExceeded(format!(
             "audit packet for {} cannot fit: initial model-visible input estimate needs at least {largest} bytes; seat allows {target} input bytes while retaining minimum meaningful output & planning headroom. Increase seatTokenBudget or narrow scope; selected coverage was not truncated",
             provider.id
         )));
+    }
+    if separate_candidates {
+        append_candidate_parts(
+            built,
+            plan,
+            provider,
+            invocation_epoch,
+            scanner_candidates.unwrap(),
+            sizer,
+            allow_deferred,
+        )
+    } else {
+        Ok(built)
+    }
+}
+
+fn invocation_work(request: &ReasoningInvocation, provider: &AuditProvider) -> PendingLensWork {
+    PendingLensWork {
+        provider_id: provider.id.clone(),
+        lens_ids: provider.lens_ids.clone(),
+        status: "pending-host".into(),
+        request: request.clone(),
+        promotion: None,
+    }
+}
+
+/// An over-host-ceiling or output-starved packet is also an input non-fit.
+fn measure_invocations(
+    requests: &[ReasoningInvocation],
+    provider: &AuditProvider,
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
+) -> Result<u64, AuditError> {
+    let per_call = provider
+        .configuration
+        .get("coverage")
+        .and_then(|coverage| coverage.get("seatTokenBudget"))
+        .and_then(Value::as_u64)
+        .unwrap_or(u64::MAX);
+    let ceiling = ingest::dispatch_output_tokens(per_call);
+    let mut largest = 0;
+    for request in requests {
+        let sizes = sizer.request_sizes(&[invocation_work(request, provider)])?;
+        let minimum = ingest::minimum_output_tokens(ceiling, 1)
+            .max(candidate_routing::disposition_output_tokens(request));
+        if sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64
+            || ingest::fitting_output_tokens(
+                per_call,
+                ceiling,
+                sizes.model_visible_input_bytes,
+                minimum,
+            )
+            .is_none()
+        {
+            return Ok(u64::MAX);
+        }
+        largest = largest.max(sizes.model_visible_input_bytes);
+    }
+    Ok(largest)
+}
+
+fn refresh_request_identity(
+    request: &mut ReasoningInvocation,
+    epoch: &str,
+) -> Result<(), AuditError> {
+    let signature = if request.plan_signature.is_empty() {
+        Value::Null
+    } else {
+        json!(request.plan_signature)
+    };
+    request.request_id = canonical_digest(&json!({
+        "invocationEpoch": epoch, "packetDigest": canonical_digest(&request.packet)
+            .map_err(|error| AuditError::Invalid(error.to_string()))?,
+        "providerId": request.provider_id, "contract": request.contract,
+        "planDigest": request.plan_digest, "planSignature": signature,
+        "repositoryId": request.repository_id, "inventoryGeneration": request.inventory_generation,
+        "inventoryDigest": request.inventory_digest, "denominatorDigest": request.denominator_digest,
+        "denominatorCount": request.denominator_count, "denominatorPaths": request.denominator_paths,
+    })).map_err(|error| AuditError::Invalid(error.to_string()))?;
+    Ok(())
+}
+
+fn number_continuation(
+    request: &mut ReasoningInvocation,
+    number: usize,
+    total: usize,
+    candidate: bool,
+) -> Result<(), AuditError> {
+    if request.packet.get("part").is_none_or(Value::is_null) {
+        let paths = request
+            .packet
+            .pointer("/excerptCoverage/selectedPaths")
+            .cloned()
+            .unwrap_or(json!([]));
+        request.packet["part"] = json!({"pathsDigest": canonical_digest(&paths)
+            .map_err(|error| AuditError::Invalid(error.to_string()))?, "paths": paths,
+            "continuedPaths": [], "overCeiling": null,
+            "indexFile": format!("{}.index.json", request.provider_id)});
+    }
+    let part = &mut request.packet["part"];
+    part["number"] = json!(number);
+    part["total"] = json!(total);
+    part["requiredParts"] = json!(total);
+    part["findingIdPrefix"] = json!(format!("p{number:04}-"));
+    if candidate {
+        part["kind"] = json!("candidate-context");
+    }
+    Ok(())
+}
+
+fn append_candidate_parts(
+    mut built: (Vec<ReasoningInvocation>, Option<Value>),
+    plan: &FrozenPlan,
+    provider: &AuditProvider,
+    epoch: &str,
+    candidates: &[ScannerCandidate],
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
+    allow_deferred: bool,
+) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    let routed = candidate_routing::routed_candidates(&provider.id, candidates);
+    let max_parts = part_ceiling(provider);
+    let source_part_count = built.0.len();
+    let mut template =
+        built.0.first().cloned().ok_or_else(|| {
+            AuditError::Invalid("candidate continuation has no source packet".into())
+        })?;
+    template.packet["excerpts"] = json!([]);
+    template.packet["lensPlan"] = lens_plan_for_part(
+        lens_plan::lens_plan_packet_value(&provider.id).as_ref(),
+        &[],
+    )
+    .unwrap_or(Value::Null);
+    template.packet["reviewContext"] = packet_context::review_context(plan, provider, &[])?;
+    for field in [
+        "selectedPaths",
+        "materializedPaths",
+        "examinedPaths",
+        "chunkedPaths",
+        "omittedPaths",
+        "truncatedPaths",
+        "aliasedPaths",
+    ] {
+        template.packet["excerptCoverage"][field] = json!([]);
+    }
+    template.packet["excerptCoverage"]["basis"] = json!("candidate-context");
+    template.packet["part"] = Value::Null;
+    number_continuation(&mut template, max_parts, max_parts, true)?;
+    let mut offset = 0;
+    while offset < routed.len() {
+        if built.0.len() >= max_parts {
+            return Err(AuditError::BoundExceeded(format!("candidate context for {} requires more than maxReasoningParts {max_parts}; first unscheduled identity {}:{}", provider.id, routed[offset].provider, routed[offset].finding_id)));
+        }
+        // Longest fitting prefix, preserving frozen records & order exactly.
+        let mut low = 0;
+        let mut high = routed.len() - offset;
+        while low < high {
+            let count = low + (high - low + 1) / 2;
+            template.packet["candidateContext"] = json!(&routed[offset..offset + count]);
+            refresh_request_identity(&mut template, epoch)?;
+            if measure_invocations(std::slice::from_ref(&template), provider, sizer)? != u64::MAX {
+                low = count;
+            } else {
+                high = count - 1;
+            }
+        }
+        if low == 0 {
+            template.packet["candidateContext"] = json!(&routed[offset..offset + 1]);
+            refresh_request_identity(&mut template, epoch)?;
+            let sizes = sizer.request_sizes(&[invocation_work(&template, provider)])?;
+            return Err(AuditError::BoundExceeded(format!("candidate {}:{} for {} requires model input {} bytes, host envelope {} bytes & mandatory disposition {} tokens; frozen seat/output/host bounds refuse this indivisible record", routed[offset].provider, routed[offset].finding_id, provider.id, sizes.model_visible_input_bytes, sizes.host_envelope_bytes, candidate_routing::disposition_output_tokens(&template))));
+        }
+        template.packet["candidateContext"] = json!(&routed[offset..offset + low]);
+        built.0.push(template.clone());
+        offset += low;
+    }
+    let total = built.0.len();
+    for (index, request) in built.0.iter_mut().enumerate() {
+        let candidate = request.packet.pointer("/part/kind").and_then(Value::as_str)
+            == Some("candidate-context");
+        number_continuation(request, index + 1, total, candidate)?;
+        refresh_request_identity(request, epoch)?;
+        if candidate && !candidate_routing::is_candidate_part(request) {
+            return Err(AuditError::Invalid("candidate continuation requires complete evidence-bound records for its target provider".into()));
+        }
+    }
+    for (index, request) in built.0.iter().enumerate() {
+        // Sampled source work may remain explicitly deferred. Appended
+        // candidate continuations always satisfy every physical bound.
+        if allow_deferred && index < source_part_count {
+            continue;
+        }
+        if measure_invocations(std::slice::from_ref(request), provider, sizer)? == u64::MAX {
+            return Err(AuditError::BoundExceeded(format!(
+                "final candidate continuations for {} exceed frozen physical request bounds",
+                provider.id
+            )));
+        }
     }
     Ok(built)
 }
@@ -1132,10 +1352,19 @@ fn build_invocations(
 fn refine_packet_materialization<T>(
     budget: excerpts::PartBudget,
     target: u64,
+    measure: impl FnMut(excerpts::PartBudget) -> Result<(T, u64), AuditError>,
+) -> Result<(T, u64), AuditError> {
+    refine_packet_materialization_with_limit(budget, target, 8, measure)
+}
+
+fn refine_packet_materialization_with_limit<T>(
+    budget: excerpts::PartBudget,
+    target: u64,
+    attempts: usize,
     mut measure: impl FnMut(excerpts::PartBudget) -> Result<(T, u64), AuditError>,
 ) -> Result<(T, u64), AuditError> {
     let original = measure(budget)?;
-    if original.1 <= target || budget.cap_bytes <= 1 {
+    if original.1 <= target || budget.cap_bytes <= 1 || attempts <= 1 {
         return Ok(original);
     }
     let minimum = measure(excerpts::PartBudget {
@@ -1148,7 +1377,7 @@ fn refine_packet_materialization<T>(
     let mut best = minimum;
     let mut fit_cap = 1;
     let mut over_cap = budget.cap_bytes;
-    for _ in 0..6 {
+    for _ in 0..attempts.saturating_sub(2) {
         if over_cap - fit_cap <= 1 {
             break;
         }
@@ -1200,6 +1429,9 @@ fn build_invocations_with_budget(
     scanner_candidates: Option<&[ScannerCandidate]>,
     part_budget: Option<excerpts::PartBudget>,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    if let Some(candidates) = scanner_candidates {
+        candidate_routing::validate_identities(candidates).map_err(AuditError::Invalid)?;
+    }
     let contract = provider
         .configuration
         .get("runner")

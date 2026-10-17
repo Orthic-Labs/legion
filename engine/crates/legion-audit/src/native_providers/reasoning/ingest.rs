@@ -1528,6 +1528,24 @@ fn packet_coverage(
         .and_then(Value::as_str)
         .unwrap_or("unrecorded");
     match basis {
+        "candidate-context" => {
+            // This part owns only scanner dispositions. Every source path &
+            // chunk must still be proved by source parts in the final union.
+            let part = part.unwrap_or(LensPartRef {
+                number: 0,
+                total: 0,
+            });
+            PacketCoverage {
+                examined: 0,
+                gaps: vec![format!(
+                    "reasoning-part-scope:{provider_id}:part {}/{}",
+                    part.number, part.total
+                )],
+                detail: json!({"basis":basis,"examined":0,"expected":expected,
+                    "part":{"number":part.number,"total":part.total},
+                    "examinedPaths":[],"chunkedPaths":[],"omittedPaths":[],"truncatedPaths":[]}),
+            }
+        }
         "bounded-excerpts" => {
             let mut included = string_list(coverage.and_then(|value| {
                 value
@@ -1899,6 +1917,18 @@ pub fn ingest_lens_result(
     if request.request_id != expected_request_id(&work)? {
         return Err(invalid(
             "lens packet binding was altered after the run froze",
+        ));
+    }
+    if (request.packet.pointer("/part/kind").and_then(Value::as_str) == Some("candidate-context")
+        || request
+            .packet
+            .pointer("/excerptCoverage/basis")
+            .and_then(Value::as_str)
+            == Some("candidate-context"))
+        && !super::candidate_routing::is_candidate_part(request)
+    {
+        return Err(invalid(
+            "candidate-context continuation has invalid role or source shape",
         ));
     }
     verify_review_binding(
@@ -2965,8 +2995,34 @@ fn string_at<'a>(value: &'a Value, pointer: &str) -> Option<&'a str> {
 fn merge_parts(
     provider: &str,
     mut parts: Vec<(u32, u32, ProviderResult)>,
+    ownership: Option<&BTreeMap<u32, ReasoningInvocation>>,
 ) -> Result<(ProviderResult, PartsProgress), AuditError> {
     let who = format!("lens receipts for {provider}");
+    if let Some(ownership) = ownership {
+        let mut candidates_seen = BTreeSet::new();
+        for request in ownership.values() {
+            if let Some(context) = request
+                .packet
+                .get("candidateContext")
+                .filter(|value| !value.is_null())
+            {
+                let candidates: Vec<ScannerCandidate> = serde_json::from_value(context.clone())
+                    .map_err(|error| {
+                        invalid(format!("{who}: malformed candidate ownership: {error}"))
+                    })?;
+                for candidate in candidates {
+                    if super::candidate_routing::target_provider(&candidate).as_deref()
+                        != Some(provider)
+                        || !candidates_seen.insert((candidate.provider, candidate.finding_id))
+                    {
+                        return Err(invalid(format!(
+                            "{who}: duplicate or misrouted candidate ownership"
+                        )));
+                    }
+                }
+            }
+        }
+    }
     parts.sort_by_key(|(number, _, _)| *number);
     let total = parts
         .first()
@@ -3000,8 +3056,41 @@ fn merge_parts(
     // Risk-sampled lenses: review-set expectation and alias credit.
     let mut sampled_meta: Option<(usize, usize, usize, String, String, usize)> = None;
     let mut alias_pairs: Vec<(String, String)> = Vec::new();
+    let mut candidate_dispositions = BTreeMap::new();
+    let mut seen_parts = BTreeSet::new();
 
     for (number, file_total, result) in &parts {
+        if !seen_parts.insert(*number) {
+            return Err(invalid(format!("{who}: duplicate part {number}")));
+        }
+        if let Some(ownership) = ownership {
+            let request = ownership
+                .get(number)
+                .ok_or_else(|| invalid(format!("{who}: unknown part {number}")))?;
+            verify_result_packet(request, result)?;
+            inherited_gaps
+                .extend(super::pending_candidate_review_gaps(request, result).map_err(invalid)?);
+        }
+        for row in result
+            .details
+            .get("candidateDispositions")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let identity = (
+                string_field(row, "provider", &who)?.to_owned(),
+                string_field(row, "candidateId", &who)?.to_owned(),
+            );
+            if candidate_dispositions
+                .insert(identity, row.clone())
+                .is_some()
+            {
+                return Err(invalid(format!(
+                    "{who}: duplicate candidate disposition across parts"
+                )));
+            }
+        }
         let coverage = result
             .coverage
             .as_ref()
@@ -3096,7 +3185,9 @@ fn merge_parts(
                     alias_pairs.push((path.to_owned(), of.to_owned()));
                 }
             }
-        } else if sampled_meta.is_some() {
+        } else if sampled_meta.is_some()
+            && packet_coverage.get("basis").and_then(Value::as_str) != Some("candidate-context")
+        {
             return Err(invalid(format!(
                 "{who}: part {number} mixes risk-sampled and exhaustive packets"
             )));
@@ -3271,6 +3362,10 @@ fn merge_parts(
             .unwrap_or(Value::Array(Vec::new())),
     );
     details.insert("lensFindings".into(), Value::Array(lens_findings));
+    details.insert(
+        "candidateDispositions".into(),
+        Value::Array(candidate_dispositions.into_values().collect()),
+    );
     details.insert("withdrawnFindings".into(), Value::Array(withdrawn));
     details.insert("findingTitles".into(), Value::Object(titles));
     details.insert("findingMessages".into(), Value::Object(messages));
@@ -3463,6 +3558,206 @@ fn merge_change_risks(risks: &[(u32, Value)]) -> Value {
 /// partitioned provider's `<provider>.part-NNNN.json` receipts are each
 /// verified independently (MAC, epoch, plan binding, result digest) and then
 /// merged into one provider-level result.
+fn bound_packet_ownership(
+    run_dir: &Path,
+    plan: &Value,
+    execution: &ExecutionReport,
+    provider: &str,
+) -> Result<BTreeMap<u32, ReasoningInvocation>, AuditError> {
+    let dir = run_dir.join(LENS_PACKET_DIR);
+    let single = dir.join(format!("{provider}.json"));
+    let parts = part_packet_files(&dir, provider);
+    if single.is_file() && !parts.is_empty() {
+        return Err(invalid(format!(
+            "lens packets for {provider} mix whole-lens & part packets"
+        )));
+    }
+    let files = if single.is_file() {
+        vec![(0, single)]
+    } else {
+        parts
+    };
+    let mut ownership = BTreeMap::new();
+    let mut identities = BTreeSet::new();
+    let mut total = None;
+    for (number, file) in files {
+        let work = parse_packet(&file)?;
+        let request = &work.request;
+        request.validate().map_err(invalid)?;
+        if work.provider_id != provider
+            || request.provider_id != provider
+            || work.status != "pending-host"
+            || request.plan_digest != execution.plan_digest
+            || request.inventory_generation != execution.generation
+            || request.inventory_digest != execution.inventory_digest
+            || request.plan_signature != execution.plan_signature.clone().unwrap_or_default()
+            || request.request_id != expected_request_id(&work)?
+        {
+            return Err(invalid(format!(
+                "lens packet for {provider} differs from frozen request binding"
+            )));
+        }
+        match request.part() {
+            Some(part) if number > 0 && part.number == number && number <= part.total => {
+                if total.is_some_and(|total| total != part.total) {
+                    return Err(invalid("logical packet parts disagree on total"));
+                }
+                total = Some(part.total);
+            }
+            None if number == 0 => {}
+            _ => return Err(invalid("logical packet part identity is invalid")),
+        }
+        if (request.packet.pointer("/part/kind").and_then(Value::as_str)
+            == Some("candidate-context")
+            || request
+                .packet
+                .pointer("/excerptCoverage/basis")
+                .and_then(Value::as_str)
+                == Some("candidate-context"))
+            && !super::candidate_routing::is_candidate_part(request)
+        {
+            return Err(invalid(
+                "logical candidate continuation has invalid role or source shape",
+            ));
+        }
+        verify_review_binding(
+            run_dir,
+            plan,
+            provider,
+            &request.packet,
+            &request.denominator_paths,
+        )?;
+        if let Some(configuration) = plan
+            .pointer("/nativePlan/plan/providers")
+            .and_then(Value::as_array)
+            .and_then(|providers| {
+                providers
+                    .iter()
+                    .find(|entry| entry.get("id").and_then(Value::as_str) == Some(provider))
+            })
+            .and_then(|entry| entry.get("configuration"))
+        {
+            if configuration
+                .get("denominatorDigest")
+                .and_then(Value::as_str)
+                != Some(request.denominator_digest.as_str())
+                || configuration
+                    .get("denominatorCount")
+                    .and_then(Value::as_u64)
+                    != Some(request.denominator_count)
+            {
+                return Err(invalid(
+                    "logical packet denominator differs from frozen provider",
+                ));
+            }
+        }
+        if let Some(context) = request
+            .packet
+            .get("candidateContext")
+            .filter(|context| !context.is_null())
+        {
+            let candidates: Vec<ScannerCandidate> = serde_json::from_value(context.clone())
+                .map_err(|error| invalid(error.to_string()))?;
+            for candidate in candidates {
+                if super::candidate_routing::target_provider(&candidate).as_deref()
+                    != Some(provider)
+                    || !identities.insert((candidate.provider, candidate.finding_id))
+                {
+                    return Err(invalid(
+                        "duplicate or misrouted candidate ownership in logical packets",
+                    ));
+                }
+            }
+        }
+        if ownership.insert(number, work.request).is_some() {
+            return Err(invalid("duplicate logical packet part"));
+        }
+    }
+    if let Some(total) = total {
+        if ownership.len() != total as usize
+            || !(1..=total).all(|number| ownership.contains_key(&number))
+        {
+            return Err(invalid("logical packet manifest is missing a continuation"));
+        }
+    }
+    if ownership.is_empty() {
+        return Err(invalid(format!("no logical packets for {provider}")));
+    }
+    Ok(ownership)
+}
+
+fn verify_result_packet(
+    request: &ReasoningInvocation,
+    result: &ProviderResult,
+) -> Result<(), AuditError> {
+    let digest = canonical_digest(&request.packet).map_err(|error| invalid(error.to_string()))?;
+    if result
+        .details
+        .get("ingest")
+        .and_then(|ingest| ingest.get("packetDigest"))
+        .and_then(Value::as_str)
+        != Some(digest.as_str())
+        || result
+            .details
+            .get("executionReceipt")
+            .and_then(|receipt| receipt.get("requestId"))
+            .and_then(Value::as_str)
+            != Some(request.request_id.as_str())
+        || result.coverage.as_ref().is_none_or(|coverage| {
+            coverage.denominator_digest != request.denominator_digest
+                || coverage.expected != request.denominator_count
+        })
+    {
+        return Err(invalid(
+            "ingested result does not correspond to its bound logical packet",
+        ));
+    }
+    if let Some(part) = request.part() {
+        if result
+            .details
+            .get("packetCoverage")
+            .and_then(|coverage| coverage.pointer("/part/number"))
+            .and_then(Value::as_u64)
+            != Some(u64::from(part.number))
+            || result
+                .details
+                .get("packetCoverage")
+                .and_then(|coverage| coverage.pointer("/part/total"))
+                .and_then(Value::as_u64)
+                != Some(u64::from(part.total))
+        {
+            return Err(invalid(
+                "ingested result changes logical packet part identity",
+            ));
+        }
+    }
+    if super::candidate_routing::is_candidate_part(request) {
+        let detail = result
+            .details
+            .get("packetCoverage")
+            .ok_or_else(|| invalid("candidate part has no packet coverage"))?;
+        if result
+            .coverage
+            .as_ref()
+            .is_none_or(|coverage| coverage.examined != 0)
+            || detail.get("basis").and_then(Value::as_str) != Some("candidate-context")
+            || [
+                "examinedPaths",
+                "chunkedPaths",
+                "omittedPaths",
+                "truncatedPaths",
+            ]
+            .iter()
+            .any(|field| detail.get(field) != Some(&json!([])))
+        {
+            return Err(invalid(
+                "candidate continuation cannot claim source coverage",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn load_receipts(
     run_dir: &Path,
     plan: &Value,
@@ -3496,6 +3791,7 @@ fn load_receipts(
     files.sort();
     let mut singles: Vec<LoadedReceipt> = Vec::new();
     let mut grouped: BTreeMap<String, Vec<(u32, u32, ProviderResult)>> = BTreeMap::new();
+    let mut ownership = BTreeMap::new();
     for file in files {
         let value = read_json(&file)?;
         let provider = value
@@ -3505,6 +3801,12 @@ fn load_receipts(
             .to_owned();
         if only.is_some_and(|only| only != provider) {
             continue;
+        }
+        if !ownership.contains_key(&provider) {
+            ownership.insert(
+                provider.clone(),
+                bound_packet_ownership(run_dir, plan, execution, &provider)?,
+            );
         }
         let name = file
             .file_name()
@@ -3531,6 +3833,17 @@ fn load_receipts(
                     )));
                 }
                 verify_ingested(&provider, &result, &key, &digest, execution)?;
+                let request = ownership[&provider]
+                    .get(&0)
+                    .ok_or_else(|| invalid("whole-lens receipt has no whole-lens packet"))?;
+                verify_result_packet(request, &result)?;
+                if super::pending_candidate_review_gaps(request, &result)
+                    .map_err(invalid)?
+                    .iter()
+                    .any(|gap| !result.coverage_gaps.contains(gap))
+                {
+                    return Err(invalid("whole-lens result omits pending candidate gaps"));
+                }
                 singles.push(LoadedReceipt {
                     provider,
                     result,
@@ -3573,7 +3886,7 @@ fn load_receipts(
                 "lens receipts for {provider} mix a whole-lens receipt with part receipts"
             )));
         }
-        let (result, progress) = merge_parts(&provider, parts)?;
+        let (result, progress) = merge_parts(&provider, parts, ownership.get(&provider))?;
         singles.push(LoadedReceipt {
             provider,
             result,
@@ -4017,6 +4330,11 @@ fn work_readiness_gap(item: &PendingLensWork) -> Option<&'static str> {
         // never excerpt-byte credit or proof source was delivered/reviewed.
         return None;
     }
+    if item.provider_id == item.request.provider_id
+        && super::candidate_routing::is_candidate_part(&item.request)
+    {
+        return None;
+    }
     let has_source = item
         .request
         .packet
@@ -4236,11 +4554,21 @@ fn lens_dispatch_plan_with_sizer(
                 .collect::<Vec<_>>();
             // Strict physical compatibility, not merely equal path counts.
             let sizes = sizer.shared_request_sizes(&items).ok()??;
+            if sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64 {
+                return None;
+            }
             fitting_output_tokens(
                 limits.seat_token_budget,
                 output_ceiling,
                 sizes.model_visible_input_bytes,
-                minimum_output_tokens(output_ceiling, members.len()),
+                minimum_output_tokens(output_ceiling, members.len()).max(
+                    items
+                        .iter()
+                        .map(|item| {
+                            super::candidate_routing::disposition_output_tokens(&item.request)
+                        })
+                        .fold(0u64, u64::saturating_add),
+                ),
             )
             .map(|_| (index, sizes))
         });
@@ -4302,7 +4630,15 @@ fn lens_dispatch_plan_with_sizer(
         let bytes = draft.request_bytes;
         let model_bytes = draft.model_input_bytes;
         let gather_bytes = 0u64;
-        let minimum_output = minimum_output_tokens(output_ceiling, draft.members.len());
+        let minimum_output = minimum_output_tokens(output_ceiling, draft.members.len()).max(
+            draft
+                .members
+                .iter()
+                .map(|position| {
+                    super::candidate_routing::disposition_output_tokens(&work[*position].request)
+                })
+                .fold(0u64, u64::saturating_add),
+        );
         let fitting_output = fitting_output_tokens(
             limits.seat_token_budget,
             output_ceiling,
@@ -4321,6 +4657,8 @@ fn lens_dispatch_plan_with_sizer(
             .any(|position| stage_readiness_gap(&work[*position]).is_some());
         let reason = if readiness_gap.is_some() {
             readiness_gap
+        } else if bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64 {
+            Some("host-request-byte-ceiling")
         } else if fitting_output.is_none() {
             Some("physical-envelope-headroom")
         } else if seats.len() as u64 >= initial_call_capacity {
@@ -4368,6 +4706,12 @@ fn lens_dispatch_plan_with_sizer(
             violations.push(format!(
                 "seat {number} (bundle {} part {}): ~{tokens} estimated tokens exceeds planning allowance {} (physical cap {})",
                 draft.bundle, draft.part, physical_planning_limit(limits.seat_token_budget), limits.seat_token_budget
+            ));
+        }
+        if bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64 {
+            violations.push(format!(
+                "seat {number}: host request {bytes} bytes exceeds {}",
+                crate::review_runtime::MAX_REQUEST_BYTES
             ));
         }
         seats.push(json!({
@@ -6697,6 +7041,7 @@ fn main() {
                     (1, 2, part_result(1, Some(gap))),
                     (2, 2, part_result(2, None)),
                 ],
+                None,
             )
             .unwrap();
             assert!(progress.pending.is_empty());
@@ -6711,9 +7056,221 @@ fn main() {
         let (merged, _) = merge_parts(
             "reasoning.correctness",
             vec![(1, 2, part_result(1, None)), (2, 2, part_result(2, None))],
+            None,
         )
         .unwrap();
         assert!(merged.complete);
+    }
+
+    fn candidate_merge_requests() -> BTreeMap<u32, ReasoningInvocation> {
+        let candidate = ScannerCandidate {
+            provider: "scanner.data".into(),
+            finding_id: "candidate-one".into(),
+            domain: "correctness".into(),
+            evidence_digest: "candidate-evidence".into(),
+            path: Some("file-2".into()),
+            ..Default::default()
+        };
+        let mut source = ReasoningInvocation {
+            schema_version: 1,
+            kind: super::super::REASONING_INVOCATION_KIND.into(),
+            request_id: String::new(),
+            provider_id: "reasoning.correctness".into(),
+            contract: "fixture".into(),
+            plan_digest: "plan".into(),
+            plan_signature: "signature".into(),
+            repository_id: "repo".into(),
+            inventory_generation: "revision".into(),
+            inventory_digest: "inventory".into(),
+            denominator_digest: "denominator".into(),
+            denominator_count: 2,
+            denominator_paths: vec!["file-1".into(), "file-2".into()],
+            packet: json!({"candidateContext":[],"excerpts":[{"path":"file-1","content":"source"}],
+                "binding":{"planDigest":"plan","inventoryDigest":"inventory","denominatorDigest":"denominator","denominatorCount":2},
+                "part":{"number":1,"total":2,"paths":["file-1","file-2"],"continuedPaths":[]},
+                "excerptCoverage":{"basis":"bounded-excerpts","selectedPaths":["file-1","file-2"],"materializedPaths":["file-1","file-2"],"examinedPaths":[],"chunkedPaths":[],"omittedPaths":[],"truncatedPaths":[],"aliasedPaths":[]}}),
+        };
+        super::super::refresh_request_identity(&mut source, "pending-host").unwrap();
+        let mut continuation = source.clone();
+        continuation.packet["part"] =
+            json!({"number":2,"total":2,"kind":"candidate-context","paths":[],"continuedPaths":[]});
+        continuation.packet["excerpts"] = json!([]);
+        continuation.packet["candidateContext"] = json!([candidate]);
+        continuation.packet["excerptCoverage"]["basis"] = json!("candidate-context");
+        continuation.packet["excerptCoverage"]["selectedPaths"] = json!([]);
+        continuation.packet["excerptCoverage"]["materializedPaths"] = json!([]);
+        super::super::refresh_request_identity(&mut continuation, "pending-host").unwrap();
+        BTreeMap::from([(1, source), (2, continuation)])
+    }
+
+    fn candidate_merge_results(
+        ownership: &BTreeMap<u32, ReasoningInvocation>,
+    ) -> Vec<(u32, u32, ProviderResult)> {
+        ownership.iter().map(|(number, request)| {
+            let mut result = part_result(*number, None);
+            if *number == 1 {
+                result.coverage.as_mut().unwrap().examined = 2;
+                result.details.insert("packetCoverage".into(), json!({"basis":"bounded-excerpts",
+                    "part":{"number":number,"total":2},"examinedPaths":["file-1","file-2"]}));
+            } else {
+                result.coverage.as_mut().unwrap().examined = 0;
+                result.details.insert("packetCoverage".into(), json!({"basis":"candidate-context","examined":0,
+                    "part":{"number":number,"total":2},"examinedPaths":[],"chunkedPaths":[],"omittedPaths":[],"truncatedPaths":[]}));
+                result.details.insert("candidateDispositions".into(), json!([{
+                    "candidateId":"candidate-one","provider":"scanner.data","evidenceDigest":"candidate-evidence",
+                    "status":"dismissed","reason":"counterevidence in candidate file","evidence":["file-2:1"]}]));
+            }
+            result.details.insert("ingest".into(), json!({"packetDigest":canonical_digest(&request.packet).unwrap()}));
+            result.details.insert("executionReceipt".into(), json!({"requestId":request.request_id}));
+            (*number,2,result)
+        }).collect()
+    }
+
+    #[test]
+    fn candidate_continuation_readiness_is_narrow_and_credits_zero_source() {
+        let requests = candidate_merge_requests();
+        let request = requests[&2].clone();
+        assert!(super::super::candidate_routing::is_candidate_part(&request));
+        let work = PendingLensWork {
+            provider_id: request.provider_id.clone(),
+            lens_ids: vec!["correctness".into()],
+            status: "pending-host".into(),
+            request: request.clone(),
+            promotion: None,
+        };
+        assert_eq!(work_readiness_gap(&work), None);
+        let coverage = packet_coverage(
+            &request.provider_id,
+            None,
+            &request.packet,
+            &request.denominator_paths,
+            false,
+            request.part(),
+        );
+        assert_eq!(coverage.examined, 0);
+        assert_eq!(coverage.detail["examinedPaths"], json!([]));
+        for pointer in [
+            "/part/kind",
+            "/candidateContext",
+            "/excerptCoverage/materializedPaths",
+            "/binding/denominatorDigest",
+        ] {
+            let mut changed = work.clone();
+            *changed.request.packet.pointer_mut(pointer).unwrap() = json!("invalid");
+            assert_eq!(work_readiness_gap(&changed), Some("selected-source-empty"));
+        }
+        let mut unknown = work;
+        unknown.request.packet["candidateContext"][0]["domain"] = json!("security");
+        assert_eq!(work_readiness_gap(&unknown), Some("selected-source-empty"));
+    }
+
+    #[test]
+    fn merged_candidate_dispositions_survive_without_substituting_for_missing_parts() {
+        let ownership = candidate_merge_requests();
+        let results = candidate_merge_results(&ownership);
+        let (merged, progress) =
+            merge_parts("reasoning.correctness", results.clone(), Some(&ownership)).unwrap();
+        assert!(merged.complete);
+        assert!(progress.pending.is_empty());
+        assert_eq!(
+            merged.details["candidateDispositions"],
+            results[1].2.details["candidateDispositions"]
+        );
+        assert_eq!(merged.coverage.unwrap().examined, 2);
+        let (missing, progress) = merge_parts(
+            "reasoning.correctness",
+            vec![results[0].clone()],
+            Some(&ownership),
+        )
+        .unwrap();
+        assert!(!missing.complete);
+        assert_eq!(progress.pending, vec![2]);
+        let mut missing_source = results.clone();
+        missing_source[0].2.coverage.as_mut().unwrap().examined = 1;
+        missing_source[0]
+            .2
+            .details
+            .get_mut("packetCoverage")
+            .unwrap()["examinedPaths"] = json!(["file-1"]);
+        assert!(
+            !merge_parts("reasoning.correctness", missing_source, Some(&ownership))
+                .unwrap()
+                .0
+                .complete
+        );
+        for unresolved in [false, true] {
+            let mut results = results.clone();
+            if unresolved {
+                results[1]
+                    .2
+                    .details
+                    .get_mut("candidateDispositions")
+                    .unwrap()[0]["status"] = json!("unresolved");
+            } else {
+                results[1].2.details.remove("candidateDispositions");
+            }
+            let (merged, _) =
+                merge_parts("reasoning.correctness", results, Some(&ownership)).unwrap();
+            assert!(!merged.complete);
+            assert!(merged
+                .coverage_gaps
+                .iter()
+                .any(|gap| gap == "candidate-review-pending:scanner.data:candidate-one"));
+        }
+    }
+
+    #[test]
+    fn candidate_merge_rejects_wrong_digest_duplicates_unknown_and_unsupported_evidence() {
+        let ownership = candidate_merge_requests();
+        for (field, value) in [
+            ("evidenceDigest", json!("wrong")),
+            ("candidateId", json!("unknown")),
+            ("provider", json!("unknown")),
+            ("evidence", json!(["another-file:1"])),
+            ("reason", json!("")),
+            ("status", json!("unsupported")),
+            ("status", json!("confirmed")),
+        ] {
+            let mut results = candidate_merge_results(&ownership);
+            results[1]
+                .2
+                .details
+                .get_mut("candidateDispositions")
+                .unwrap()[0][field] = value;
+            assert!(
+                merge_parts("reasoning.correctness", results, Some(&ownership)).is_err(),
+                "{field}"
+            );
+        }
+        let mut results = candidate_merge_results(&ownership);
+        results[1].2.details.get_mut("ingest").unwrap()["packetDigest"] = json!("wrong");
+        assert!(merge_parts("reasoning.correctness", results, Some(&ownership)).is_err());
+        let mut results = candidate_merge_results(&ownership);
+        let duplicate = results[1].2.details["candidateDispositions"][0].clone();
+        results[1]
+            .2
+            .details
+            .get_mut("candidateDispositions")
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .push(duplicate);
+        assert!(merge_parts("reasoning.correctness", results, Some(&ownership)).is_err());
+        let mut duplicated = ownership.clone();
+        duplicated.get_mut(&1).unwrap().packet["candidateContext"] =
+            ownership[&2].packet["candidateContext"].clone();
+        assert!(merge_parts(
+            "reasoning.correctness",
+            candidate_merge_results(&duplicated),
+            Some(&duplicated)
+        )
+        .is_err());
+        let mut results = candidate_merge_results(&ownership);
+        results[1].2.coverage.as_mut().unwrap().examined = 1;
+        assert!(merge_parts("reasoning.correctness", results, Some(&ownership)).is_err());
+        let mut results = candidate_merge_results(&ownership);
+        results.push(results[1].clone());
+        assert!(merge_parts("reasoning.correctness", results, Some(&ownership)).is_err());
     }
 
     #[test]
