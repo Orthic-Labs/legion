@@ -24,7 +24,8 @@ jobs:
   regenerate:
     needs: [private-repo-guard]
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-24.04
+    # The ownership step below supports only macOS and Windows runners; Linux fails "unsupported platform: linux".
+    runs-on: macos-15
     timeout-minutes: 60
     permissions:
       contents: write

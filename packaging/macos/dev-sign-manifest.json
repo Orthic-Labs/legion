@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "refreshRoot": "Legion Installer.app/Contents/Resources/payload",
+  "entries": [
+    {
+      "file": "Legion Installer.app/Contents/Resources/payload/bin/legion",
+      "identifier": "com.orthiclabs.legion"
+    },
+    {
+      "file": "Legion Installer.app/Contents/Resources/payload/bin/legion-hook",
+      "identifier": "com.orthiclabs.legion.hook"
+    },
+    {
+      "file": "Legion Installer.app/Contents/Resources/payload/bin/legion-mcp",
+      "identifier": "com.orthiclabs.legion.mcp"
+    },
+    {
+      "file": "Legion Installer.app",
+      "identifier": "com.orthiclabs.legion.installer"
+    }
+  ],
+  "refresh": [
+    {
+      "file": "plugin/release-binding.json",
+      "pointer": "/runtimeSha256",
+      "compute": "sha256-file",
+      "of": "bin/legion"
+    },
+    {
+      "file": "plugin/release-binding.json",
+      "pointer": "/runtimeProvenance",
+      "compute": "sha256-file",
+      "of": "bin/legion",
+      "format": "local-build://macos-aarch64/{value}",
+      "currentMatches": "^local-build://macos-aarch64/"
+    },
+    {
+      "file": "share/legion/release.json",
+      "pointer": "/runtime/sha256",
+      "compute": "sha256-file",
+      "of": "bin/legion"
+    },
+    {
+      "file": "share/legion/release.json",
+      "pointer": "/runtime/provenance",
+      "compute": "sha256-file",
+      "of": "bin/legion",
+      "format": "local-build://macos-aarch64/{value}",
+      "currentMatches": "^local-build://macos-aarch64/"
+    },
+    {
+      "file": "share/legion/release.json",
+      "pointer": "/portableCoreSha256",
+      "compute": "verify-sha256-file",
+      "of": "plugin/rightax-portable-core.json"
+    },
+    {
+      "file": "share/legion/composition.json",
+      "pointer": "/releaseBinding/runtimeProvenance",
+      "compute": "sha256-file",
+      "of": "bin/legion",
+      "format": "local-build://macos-aarch64/{value}",
+      "currentMatches": "^local-build://macos-aarch64/"
+    },
+    {
+      "file": "share/legion/release.json",
+      "pointer": "/pluginSha256",
+      "compute": "sha256-tree-v1",
+      "of": "plugin"
+    }
+  ]
+}

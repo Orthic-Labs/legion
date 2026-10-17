@@ -1,0 +1,182 @@
+# Managed by right-git — do not hand-edit. Run `right-git sync` to update.
+# Template: profiles/rust-hybrid/sign-existing.yml | Template version: 1.8.0
+# Manual only. Signs an already-qualified artifact of another run of this repository
+# with right-release sign-dev-artifact (fixed per-file identifiers, Developer ID) inside
+# the protected signing environment. It verifies the run, artifact and source commit
+# through the GitHub API first, never rebuilds and never builds a release.
+name: legion-sign-existing
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Workflow run id that produced the qualified artifact
+        required: true
+        type: string
+      artifact:
+        description: Artifact id or artifact name inside that run
+        required: true
+        type: string
+      source_sha:
+        description: Source commit the artifact was built from (7 to 40 lowercase hex characters, a prefix of the run head sha)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: legion-sign-existing
+  cancel-in-progress: false
+jobs:
+  private-repo-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse private repository
+        if: ${{ github.event.repository.private }}
+        run: exit 1
+
+  sign-existing:
+    # Default branch only: the signing code and sign manifest come from this revision, and the protected
+    # environment's rules (required reviewers, branch policy) apply. Nothing here compiles the app.
+    needs: [private-repo-guard]
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch }}
+    environment: release
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.24.0
+      - run: pnpm install --frozen-lockfile
+      - name: RightKit ownership (protected registry roots)
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}" && pnpm exec right-release ownership --app . --advisory-when-pending
+      - name: Verify the existing artifact belongs to this repository, run and source commit
+        id: verify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_ARTIFACT: ${{ inputs.artifact }}
+          INPUT_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          fail() { echo "sign-existing refused: $*" >&2; exit 1; }
+          command -v jq >/dev/null || fail "jq is not available on this runner"
+          [[ "$INPUT_RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]] || fail "run_id must be a numeric workflow run id"
+          [[ "$INPUT_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "artifact must be a numeric artifact id or a plain artifact name"
+          [[ "$INPUT_SOURCE_SHA" =~ ^[0-9a-f]{7,40}$ ]] || fail "source_sha must be 7 to 40 lowercase hexadecimal characters"
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INPUT_RUN_ID")"
+          run_id="$(jq -r '.id' <<<"$run_json")"
+          run_repo="$(jq -r '.repository.full_name' <<<"$run_json")"
+          run_repo_id="$(jq -r '.repository.id' <<<"$run_json")"
+          head_repo="$(jq -r '.head_repository.full_name // empty' <<<"$run_json")"
+          head_repo_id="$(jq -r '.head_repository.id // empty' <<<"$run_json")"
+          head_sha="$(jq -r '.head_sha' <<<"$run_json")"
+          status="$(jq -r '.status' <<<"$run_json")"
+          conclusion="$(jq -r '.conclusion // empty' <<<"$run_json")"
+          [ "$run_id" = "$INPUT_RUN_ID" ] || fail "run id mismatch"
+          [ "$run_repo" = "$GITHUB_REPOSITORY" ] || fail "run $INPUT_RUN_ID belongs to $run_repo, not $GITHUB_REPOSITORY"
+          [ "$head_repo" = "$GITHUB_REPOSITORY" ] && [ "$head_repo_id" = "$run_repo_id" ] || fail "run $INPUT_RUN_ID was built from another repository or a fork"
+          [ "$status" = completed ] && [ "$conclusion" = success ] || fail "run $INPUT_RUN_ID is $status/$conclusion, not a successful completed run"
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || fail "run head sha is not a full commit sha"
+          case "$head_sha" in "$INPUT_SOURCE_SHA"*) ;; *) fail "run $INPUT_RUN_ID head sha $head_sha does not start with source_sha $INPUT_SOURCE_SHA" ;; esac
+          artifacts_json="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$INPUT_RUN_ID/artifacts?per_page=100" | jq -s '[.[].artifacts[]]')"
+          if [[ "$INPUT_ARTIFACT" =~ ^[0-9]+$ ]]; then
+            picked="$(jq -c --argjson id "$INPUT_ARTIFACT" '[.[] | select(.id == $id)]' <<<"$artifacts_json")"
+          else
+            picked="$(jq -c --arg name "$INPUT_ARTIFACT" '[.[] | select(.name == $name)]' <<<"$artifacts_json")"
+          fi
+          [ "$(jq 'length' <<<"$picked")" = 1 ] || fail "artifact $INPUT_ARTIFACT is not exactly one artifact of run $INPUT_RUN_ID"
+          artifact_id="$(jq -r '.[0].id' <<<"$picked")"
+          artifact_name="$(jq -r '.[0].name' <<<"$picked")"
+          [ "$(jq -r '.[0].expired' <<<"$picked")" = false ] || fail "artifact $artifact_name has expired"
+          [ "$(jq -r '.[0].workflow_run.id' <<<"$picked")" = "$INPUT_RUN_ID" ] || fail "artifact $artifact_name belongs to another run"
+          [ "$(jq -r '.[0].workflow_run.head_sha' <<<"$picked")" = "$head_sha" ] || fail "artifact $artifact_name was built from another commit"
+          [ "$(jq -r '.[0].workflow_run.head_repository_id' <<<"$picked")" = "$run_repo_id" ] || fail "artifact $artifact_name was built from another repository"
+          [[ "$artifact_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "artifact name is not a plain name"
+          git cat-file -e "$head_sha^{commit}" 2>/dev/null || fail "source commit $head_sha is not in this repository's history"
+          git merge-base --is-ancestor "$head_sha" "$GITHUB_SHA" || fail "source commit $head_sha is not an ancestor of the signing revision $GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/dev-signed"
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg run "$run_id" --argjson artifactId "$artifact_id" --arg artifactName "$artifact_name" --arg sourceSha "$head_sha" --arg requested "$INPUT_SOURCE_SHA" --arg signingRevision "$GITHUB_SHA" '{schema: 1, repository: $repo, runId: $run, artifactId: $artifactId, artifactName: $artifactName, sourceSha: $sourceSha, requestedSourceSha: $requested, signingRevision: $signingRevision}' > "$RUNNER_TEMP/dev-signed/source-verification.json"
+          {
+            printf 'run_id=%s\n' "$run_id"
+            printf 'artifact_id=%s\n' "$artifact_id"
+            printf 'artifact_name=%s\n' "$artifact_name"
+            printf 'head_sha=%s\n' "$head_sha"
+          } >> "$GITHUB_OUTPUT"
+      - name: Download the verified artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ steps.verify.outputs.artifact_name }}
+          run-id: ${{ steps.verify.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/existing-artifact
+      - name: Install Apple signing identity in temporary keychain
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/apple-signing.p12"
+          keychain_path="$RUNNER_TEMP/apple-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+      - name: Developer ID sign existing artifact (no rebuild, no notarization)
+        shell: bash
+        env:
+          APPLE_DEVELOPER_ID: ${{ vars.APPLE_DEVELOPER_ID }}
+        run: |
+          set -euo pipefail
+          downloaded="$RUNNER_TEMP/existing-artifact"
+          work="$RUNNER_TEMP/dev-sign"
+          rm -rf "$work" && mkdir -p "$work" "$RUNNER_TEMP/dev-signed"
+          zips=()
+          while IFS= read -r -d '' file; do zips+=("$file"); done < <(find "$downloaded" -type f -name '*.zip' -print0)
+          if [ "${#zips[@]}" -eq 1 ]; then
+            ditto -x -k "${zips[0]}" "$work"
+            out="$(basename "${zips[0]}")"
+          elif [ "${#zips[@]}" -eq 0 ]; then
+            ditto "$downloaded" "$work"
+            out="signed-artifact.zip"
+          else
+            echo "sign-existing refused: the artifact holds more than one zip" >&2
+            exit 1
+          fi
+          pnpm exec right-release sign-dev-artifact --artifact "$work" --manifest "$GITHUB_WORKSPACE/packaging/macos/dev-sign-manifest.json" --metadata "$work/payload.json" --evidence "$RUNNER_TEMP/dev-signed/sign-evidence.json"
+          ditto -c -k "$work" "$RUNNER_TEMP/dev-signed/$out"
+      - name: Upload signed existing artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signed-${{ steps.verify.outputs.artifact_name }}-${{ steps.verify.outputs.head_sha }}
+          path: |
+            ${{ runner.temp }}/dev-signed/*.zip
+            ${{ runner.temp }}/dev-signed/sign-evidence.json
+            ${{ runner.temp }}/dev-signed/source-verification.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Remove Apple signing material
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/apple-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/apple-signing.p12"

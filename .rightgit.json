@@ -4,7 +4,8 @@
   "lanes": [
     "ci",
     "release-candidate",
-    "regenerate"
+    "regenerate",
+    "sign-existing"
   ],
   "matrix": {
     "os": [
@@ -68,12 +69,19 @@
     "mac": "unsigned",
     "macAppPath": "dist/dev-macos/Legion Installer.app"
   },
+  "signExisting": {
+    "macSignManifest": "packaging/macos/dev-sign-manifest.json",
+    "macPayloadMetadata": "payload.json",
+    "macPayloadMetadataSource": "dist/dev-macos/payload.json",
+    "environment": "release"
+  },
   "ciAllOs": true,
   "regenerate": {
     "script": "ci:regenerate"
   },
   "ciIncremental": true,
   "concurrency": {
-    "mainPushes": "queue"
+    "mainPushes": "queue",
+    "reason": "Preserve warm native caches & finish one batched qualification before signing its exact artifact."
   }
 }

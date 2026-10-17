@@ -92,6 +92,16 @@ if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
   exit 0
 fi
 
+# Provision pinned Chrome assets through RightKit before native qualification.
+RIGHTKIT_CHROME_FOR_TESTING_ROOT="${RUNNER_TEMP}/rightkit-chrome-for-testing"
+export RIGHTKIT_CHROME_FOR_TESTING_ROOT
+RIGHTKIT_CHROME_FOR_TESTING="$(pnpm exec rightkit-qa-chrome install)"
+export RIGHTKIT_CHROME_FOR_TESTING
+if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
+  RIGHTKIT_CHROME_HEADLESS_SHELL="$(pnpm exec rightkit-qa-chrome path --headless-shell)"
+  export RIGHTKIT_CHROME_HEADLESS_SHELL
+fi
+
 # Format and lint gate (formerly the ci.yml lint job): rustfmt drift and
 # clippy::correctness findings fail the build; other warnings are allowed.
 (cd engine && cargo fmt --all -- --check)
@@ -285,6 +295,23 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$dev_app/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.orthiclabs.legion.installer' "$dev_app/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$dev_app/Contents/Info.plist"
+  node --input-type=module <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileEvidence } from "@rightkit/release/macos-file-evidence.mjs";
+
+const root = path.resolve("dist/dev-macos");
+const manifest = JSON.parse(readFileSync("packaging/macos/dev-sign-manifest.json", "utf8"));
+const files = manifest.entries.map(({ file }) => {
+  if (typeof file !== "string" || path.isAbsolute(file) || path.win32.isAbsolute(file) || file.split(/[\\/]/).includes("..")) {
+    throw new Error(`Unsafe development payload path: ${file}`);
+  }
+  const target = path.resolve(root, file);
+  if (!target.startsWith(`${root}${path.sep}`)) throw new Error(`Unsafe development payload path: ${file}`);
+  return { path: file, sha256: fileEvidence(target).sha256 };
+});
+writeFileSync(path.join(root, "payload.json"), `${JSON.stringify({ schema: 1, files }, null, 2)}\n`);
+NODE
 fi
 
 # Known-answer recall gate. The bench scores planted defects against

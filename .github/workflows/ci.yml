@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# concurrency.mainPushes queue, recorded exception to one CI run per repo: Preserve warm native caches & finish one batched qualification before signing its exact artifact.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !(github.event_name == 'push' && github.ref_name == github.event.repository.default_branch) }}
@@ -172,7 +173,12 @@ jobs:
           set -euo pipefail
           test -d "$DEV_APP_PATH"
           mkdir -p "$RUNNER_TEMP/dev-unsigned"
-          ditto -c -k --keepParent "$DEV_APP_PATH" "$RUNNER_TEMP/dev-unsigned/app.zip"
+          test -f "dist/dev-macos/payload.json"
+          stage="$RUNNER_TEMP/dev-unsigned-stage"
+          rm -rf "$stage" && mkdir -p "$stage"
+          ditto "$DEV_APP_PATH" "$stage/$(basename "$DEV_APP_PATH")"
+          cp "dist/dev-macos/payload.json" "$stage/payload.json"
+          ditto -c -k "$stage" "$RUNNER_TEMP/dev-unsigned/app.zip"
       - name: Upload unsigned dev app (macOS)
         if: ${{ (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch') && runner.os == 'macOS' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

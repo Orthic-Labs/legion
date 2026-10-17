@@ -42,7 +42,8 @@ jobs:
         run: exit 1
   admission:
     needs: [private-repo-guard]
-    runs-on: ubuntu-24.04
+    # Ownership approval supports only macOS and Windows; Linux fails "unsupported platform: linux".
+    runs-on: macos-15
     permissions:
       contents: read
     outputs:
@@ -101,6 +102,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
+      RIGHTKIT_DEV_SIGNING: "ci-adhoc"
     strategy:
       fail-fast: false
       matrix:
@@ -287,6 +289,7 @@ jobs:
           RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-windows-candidate
           RIGHT_GIT_FINALIZED_WINDOWS_ROOT: ${{ runner.temp }}/finalized-windows
           RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_RELEASE_QA_RECEIPT: ${{ runner.temp }}/unsigned-windows-candidate/qa
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
@@ -404,6 +407,7 @@ jobs:
           RIGHT_GIT_UNSIGNED_CANDIDATE_ROOT: ${{ runner.temp }}/unsigned-macos-candidate
           RIGHT_GIT_FINALIZED_MACOS_ROOT: ${{ runner.temp }}/finalized-macos
           RIGHT_GIT_SOURCE_REVISION: ${{ needs.admission.outputs.source_revision }}
+          RIGHT_RELEASE_QA_RECEIPT: ${{ runner.temp }}/unsigned-macos-candidate/qa
           RIGHT_GIT_RELEASE_PLATFORM: ${{ matrix.platform }}
           RIGHT_GIT_RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
           APPLE_DEVELOPER_ID: ${{ vars.APPLE_DEVELOPER_ID }}
