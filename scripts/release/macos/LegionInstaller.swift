@@ -60,14 +60,18 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
     let home = fileManager.homeDirectoryForCurrentUser
     let root = home.appendingPathComponent("Library/Application Support/Orthic Labs/Legion", isDirectory: true)
     let current = root.appendingPathComponent("current")
+#if !LEGION_DEVELOPMENT_INSTALL
     let previous = root.appendingPathComponent("current.previous", isDirectory: true)
+#endif
     // Staging is never an executable installation root. Both activation &
     // rollback execute exclusively through the real, fixed current directory.
     let temporary = root.appendingPathComponent(".install-\(UUID().uuidString)", isDirectory: true)
     let candidate = temporary.appendingPathComponent("candidate", isDirectory: true)
+#if !LEGION_DEVELOPMENT_INSTALL
     let priorCopy = temporary.appendingPathComponent("prior", isDirectory: true)
     let displacedCurrent = temporary.appendingPathComponent("displaced-current")
     let displacedPrevious = temporary.appendingPathComponent("displaced-previous")
+#endif
     try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
     guard try root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
       throw InstallerError.transactionFailed("installation root must be a real directory")
@@ -81,6 +85,7 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
     let priorRoot = try installedPayloadRoot(current: current, root: root)
     let priorManifest = try priorRoot.map { try payloadManifest(at: $0) }
     let expectedManifest = try payloadManifest(at: payload)
+#if !LEGION_DEVELOPMENT_INSTALL
     if itemExists(previous) { _ = try payloadManifest(at: previous) }
     let priorCurrentSupportsMarketplace: Bool = {
       let metadataURL = current.appendingPathComponent("share/legion/release.json")
@@ -88,19 +93,35 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
             let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
       return value["nativeMarketplaces"] != nil
     }()
+#endif
     var candidateCurrentInstalled = false
+#if LEGION_DEVELOPMENT_INSTALL
+    var replacementStarted = false
+#else
     var candidateRegistrationAttempted = false
     var priorCurrentDetached = false
     var priorCopyPublished = false
     var previousDisplaced = false
     var legacyCodexSnapshot: LegacyCodexSnapshot?
+#endif
     var codexDisabledIntent: CodexDisabledIntent?
     do {
       try fileManager.createDirectory(at: temporary, withIntermediateDirectories: false)
       codexDisabledIntent = try captureCodexDisabledIntent(home: home)
+#if !LEGION_DEVELOPMENT_INSTALL
       legacyCodexSnapshot = try captureLegacyCodexProjection(home: home, installRoot: root, stagingRoot: temporary)
+#endif
       try fileManager.copyItem(at: payload, to: candidate)
       try requirePayload(at: candidate, matching: expectedManifest)
+#if LEGION_DEVELOPMENT_INSTALL
+      // CI compiles this mode into the signed installer. Never retain, move or
+      // restore prior executable bytes; current.previous remains untouched.
+      if let priorRoot, let priorManifest {
+        try requirePayload(at: priorRoot, matching: priorManifest)
+      }
+      replacementStarted = true
+      if itemExists(current) { try fileManager.removeItem(at: current) }
+#else
       if let priorRoot, let priorManifest {
         // Copy the resolved legacy payload, never its current symlink. Keep
         // historical versions untouched; unknown files are not migration debris.
@@ -116,6 +137,7 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
         try fileManager.moveItem(at: current, to: displacedCurrent)
         priorCurrentDetached = true
       }
+#endif
       try fileManager.moveItem(at: candidate, to: current)
       candidateCurrentInstalled = true
       try requirePayload(at: current, matching: expectedManifest)
@@ -131,15 +153,39 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
         try fileManager.moveItem(at: replacementLink, to: link)
       }
       let binary = current.appendingPathComponent("bin/legion")
+#if !LEGION_DEVELOPMENT_INSTALL
       candidateRegistrationAttempted = true
+#endif
       try runInstalledStep(binary: binary, arguments: ["setup", "repair", "--confirm"], label: "setup repair")
       try runInstalledStep(binary: binary, arguments: ["setup", "status"], label: "setup status")
       try runInstalledStep(binary: binary, arguments: ["doctor"], label: "doctor")
       try requirePayload(at: current, matching: expectedManifest)
+#if LEGION_DEVELOPMENT_INSTALL
+      if let intent = codexDisabledIntent { try restoreCodexDisabledIntent(intent) }
+#endif
 
       try? fileManager.removeItem(at: temporary)
     } catch {
       let installError = error
+#if LEGION_DEVELOPMENT_INSTALL
+      var settingsError = ""
+      if candidateCurrentInstalled, let intent = codexDisabledIntent {
+        do { try restoreCodexDisabledIntent(intent) }
+        catch { settingsError = " Codex disabled choice recovery failed: \(error.localizedDescription)" }
+      }
+      if candidateCurrentInstalled {
+        // Keep the stable installed source available to repair registrations.
+        try? fileManager.removeItem(at: temporary)
+        throw InstallerError.transactionFailed("\(installError.localizedDescription) Development payload remains at \(current.path); no prior payload was restored.\(settingsError)")
+      }
+      if replacementStarted {
+        // A failed replace may leave current absent. Preserve verified candidate
+        // bytes for recovery without making staging an executable source.
+        throw InstallerError.transactionFailed("\(installError.localizedDescription) Development replacement failed; staged payload retained at \(candidate.path). Current was not rolled back.")
+      }
+      try? fileManager.removeItem(at: temporary)
+      throw installError
+#else
       var rollbackErrors: [String] = []
       if !priorCurrentSupportsMarketplace, candidateRegistrationAttempted {
         do {
@@ -198,6 +244,7 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
       if rollbackErrors.isEmpty { try? fileManager.removeItem(at: temporary) }
       if rollbackErrors.isEmpty { throw installError }
       throw InstallerError.transactionFailed("\(installError.localizedDescription) Rollback issues: \(rollbackErrors.joined(separator: "; "))")
+#endif
     }
   }
 

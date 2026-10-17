@@ -283,13 +283,14 @@ if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
 fi
 
 # Unsigned macOS development installer (formerly macos-development.yml): the
-# same headless installer app the release ships, wrapped around the payload
-# assembled above. The managed ci.yml zips it as dev-mac-unsigned-<sha>.
+# canonical installer app with compile-time in-place development activation,
+# wrapped around the payload assembled above. The managed ci.yml zips it as
+# dev-mac-unsigned-<sha>; signing binds the mode inside its executable.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   python3 scripts/release/macos/test-fixed-install.py --output-root "$RUNNER_TEMP/legion-fixed-install"
   dev_app="dist/dev-macos/Legion Installer.app"
   mkdir -p "$dev_app/Contents/MacOS" "$dev_app/Contents/Resources"
-  swiftc -parse-as-library scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$dev_app/Contents/MacOS/Legion Installer"
+  swiftc -parse-as-library -D LEGION_DEVELOPMENT_INSTALL scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$dev_app/Contents/MacOS/Legion Installer"
   cp -R "${RUNNER_TEMP}/legion-install" "$dev_app/Contents/Resources/payload"
   node -p 'require("./release/version.json").version' > "$dev_app/Contents/Resources/version.txt"
   /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$dev_app/Contents/Info.plist"

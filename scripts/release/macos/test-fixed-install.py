@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """CI-only native harness for the shipped fixed-path installer transaction.
 
-Compiles a copy of LegionInstaller.swift with exactly two fixture substitutions:
-resource directory & home directory. Transaction, validation, entry point & Process
-execution remain unchanged; only fixture payload executables simulate setup.
+Compiles production & development modes of LegionInstaller.swift with exactly two
+fixture substitutions: resource directory & home directory. Transaction,
+validation, entry point & Process execution remain unchanged; only fixture
+payload executables simulate setup.
 """
 
 import argparse
@@ -108,6 +109,22 @@ def host_projection(home, root):
 
 def compile_fixture(output):
     source = SOURCE.read_text()
+    mode = "LEGION_DEVELOPMENT_INSTALL"
+    require(f"#if {mode}" in source, "development mode must be compile-time bound")
+    require(all(line.startswith("#if ") for line in source.splitlines() if mode in line),
+            "installer must not select development mode from arguments or environment")
+    repository = SOURCE.parents[3]
+    ci_source = (repository / "scripts/ci/right-git-ci.sh").read_text()
+    compile_lines = [line for line in ci_source.splitlines() if "swiftc " in line and "LegionInstaller.swift" in line]
+    require(len(compile_lines) == 1 and f"-D {mode}" in compile_lines[0]
+            and '"$dev_app/Contents/MacOS/Legion Installer"' in compile_lines[0],
+            "only CI development wrapper must select development mode")
+    sign_manifest = json.loads((repository / "packaging/macos/dev-sign-manifest.json").read_text())
+    require(any(entry["file"] == "Legion Installer.app"
+                and entry["identifier"] == "com.orthiclabs.legion.installer"
+                for entry in sign_manifest["entries"]), "development installer must retain signed production identity")
+    require('return { path: file, sha256: fileEvidence(target).sha256 };' in ci_source,
+            "development payload manifest must bind signed installer bytes")
     substitutions = {
         "let resources = Bundle.main.resourceURL!":
             'let resources = URL(fileURLWithPath: ProcessInfo.processInfo.environment["LEGION_INSTALL_FIXTURE_RESOURCES"]!, isDirectory: true)',
@@ -119,14 +136,21 @@ def compile_fixture(output):
         source = source.replace(original, replacement)
     copied = output / "LegionInstaller.fixture.swift"
     copied.write_text(source)
-    executable = output / "LegionInstaller.fixture"
-    subprocess.run(["xcrun", "swiftc", "-parse-as-library", str(copied), "-framework", "Cocoa", "-o", str(executable)], check=True)
-    return executable
+    executables = {}
+    for development in (False, True):
+        executable = output / ("LegionInstaller.development.fixture" if development else "LegionInstaller.fixture")
+        command = ["xcrun", "swiftc", "-parse-as-library"]
+        if development:
+            command.extend(["-D", mode])
+        subprocess.run([*command, str(copied), "-framework", "Cocoa", "-o", str(executable)], check=True)
+        executables[development] = executable
+    return executables
 
 
 def scenario(output, executable, name, *, legacy=False, fresh=False, native=True,
              failure=None, cleanup_failure=False, migrate_host=False, tamper=False,
-             unsafe_payload=False, foreign_current=False, unknown_backup=False, locked=False):
+             unsafe_payload=False, foreign_current=False, unknown_backup=False, locked=False,
+             development=False, runtime_development_opt_in=False):
     case = output / name
     home = case / "home"
     root = home / RELATIVE_ROOT
@@ -158,6 +182,7 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         shutil.rmtree(previous)
         previous.mkdir()
         (previous / "private-notes.txt").write_text("preserve unknown backup")
+    previous_before = tree(previous) if previous.exists() else None
     host = host_projection(home, root) if migrate_host else None
     if not migrate_host:
         (home / ".codex").mkdir()
@@ -176,11 +201,18 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         "LEGION_FIXTURE_MIGRATE_HOST": "1" if migrate_host else "0",
         "LEGION_FIXTURE_TAMPER": "1" if tamper else "0",
     })
+    # Runtime inputs must never change a production executable's mode.
+    environment.pop("LEGION_DEVELOPMENT_INSTALL", None)
+    if runtime_development_opt_in:
+        environment["LEGION_DEVELOPMENT_INSTALL"] = "1"
     lock = open(root / ".install.lock", "a")
     if locked:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     try:
-        result = subprocess.run([str(executable), "--headless"], env=environment, capture_output=True, text=True, timeout=90)
+        arguments = [str(executable), "--headless"]
+        if runtime_development_opt_in:
+            arguments.append("--development-install")
+        result = subprocess.run(arguments, env=environment, capture_output=True, text=True, timeout=90)
     finally:
         lock.close()
     (case / "installer.stdout").write_text(result.stdout)
@@ -189,7 +221,7 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
     for call in calls:
         require(call["binary"] == str(current / "bin/legion"), f"{name}: executed outside current: {call}")
         require(call["real"] == str(current / "bin/legion"), f"{name}: current was a symlink during execution: {call}")
-    rejected = unsafe_payload or foreign_current or unknown_backup or locked
+    rejected = unsafe_payload or foreign_current or (unknown_backup and not development) or locked
     failed = failure is not None or cleanup_failure or tamper or rejected
     require((result.returncode != 0) == failed, f"{name}: unexpected status {result.returncode}\n{result.stderr}")
     if rejected:
@@ -199,6 +231,24 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
             require(current.is_symlink(), f"{name}: foreign pointer changed")
         if unknown_backup:
             require((previous / "private-notes.txt").read_text() == "preserve unknown backup", f"{name}: unknown backup changed")
+    elif development:
+        require(not current.is_symlink() and current.is_dir(), f"{name}: candidate authority lost from real current")
+        actual = tree(current)
+        if tamper:
+            require((current / "generation.txt").read_text() == "tampered", f"{name}: tampered current state hidden")
+            actual.pop("generation.txt")
+            expected.pop("generation.txt")
+        require(actual == expected, f"{name}: candidate payload changed or prior bytes restored")
+        require(all(call["generation"] == "candidate" for call in calls), f"{name}: prior payload executed")
+        require(not any(call["step"] == "setup remove --confirm" for call in calls), f"{name}: candidate authority removed")
+        steps = ["setup repair --confirm", "setup status", "doctor"]
+        if failure:
+            steps = steps[:steps.index(failure) + 1]
+        require([call["step"] for call in calls] == steps, f"{name}: development activation steps changed")
+        if failed:
+            require("Development payload remains" in result.stderr, f"{name}: retained failure state was not reported")
+            require("Rollback incomplete" not in result.stderr and "Rollback issues" not in result.stderr,
+                    f"{name}: development failure entered production rollback")
     elif cleanup_failure:
         require(not current.is_symlink() and tree(current) == expected, f"{name}: cleanup failure lost candidate")
         require(tree(previous) == prior, f"{name}: cleanup failure lost prior backup")
@@ -217,6 +267,9 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         require(not current.is_symlink() and tree(current) == expected, f"{name}: exact candidate missing at real current")
         require(not previous.exists() if fresh else tree(previous) == prior, f"{name}: incorrect retained backup")
         require([call["step"] for call in calls] == ["setup repair --confirm", "setup status", "doctor"], f"{name}: activation steps changed")
+    if development:
+        require((tree(previous) if previous.exists() else None) == previous_before,
+                f"{name}: development install created or altered prior backup")
     if not rejected:
         for name_ in ("legion", "legion-hook", "legion-mcp"):
             link = home / ".local/bin" / name_
@@ -227,11 +280,14 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
     elif not legacy:
         require(not (root / "versions").exists(), f"{name}: created versioned installation")
     require((home / ".codex/config.toml").read_text().rstrip("\n") == (UNRELATED + DISABLED).rstrip("\n"), f"{name}: host choice or unrelated setting changed")
-    if host:
+    if host and not development:
         ledger, ledger_bytes, plugin_bytes = host
         require(ledger.read_bytes() == ledger_bytes, f"{name}: prior projection ledger lost")
         require((home / ".codex/plugins/legion/plugin.json").read_bytes() == plugin_bytes, f"{name}: prior projection lost")
         require((home / ".codex/plugins/legion/skills/sage").is_symlink(), f"{name}: prior skill link lost")
+    if development and not rejected and not legacy:
+        require(not any(path.read_text() in ("prior", "older") for path in root.rglob("generation.txt")
+                        if previous not in path.parents), f"{name}: prior executable payload was copied")
     require(not list(root.glob(".install-*")), f"{name}: transaction staging was not cleaned")
     print(f"PASS {name}")
 
@@ -244,7 +300,7 @@ def main():
     output = arguments.output_root.resolve()
     require(not output.exists(), f"output path already exists: {output}")
     output.mkdir(parents=True)
-    executable = compile_fixture(output)
+    executables = compile_fixture(output)
     cases = [
         ("fresh", {"fresh": True}),
         ("fresh-failure", {"fresh": True, "native": False, "failure": "doctor"}),
@@ -260,9 +316,28 @@ def main():
         ("foreign-current", {"foreign_current": True}),
         ("unknown-backup", {"unknown_backup": True}),
         ("concurrent-install", {"locked": True}),
+        ("production-runtime-dev-opt-in-ignored", {"runtime_development_opt_in": True, "failure": "doctor"}),
     ]
     for name, options in cases:
-        scenario(output, executable, name, **options)
+        scenario(output, executables[False], name, **options)
+    development_cases = [
+        ("dev-fresh", {"fresh": True}),
+        ("dev-same-version-update", {}),
+        ("dev-legacy-migration", {"legacy": True}),
+        ("dev-fresh-failure", {"fresh": True, "native": False, "failure": "doctor"}),
+        ("dev-repair-failure", {"native": False, "failure": "setup repair --confirm"}),
+        ("dev-status-failure", {"failure": "setup status"}),
+        ("dev-doctor-failure", {"failure": "doctor"}),
+        ("dev-disabled-intent", {"legacy": True, "native": False, "migrate_host": True}),
+        ("dev-disabled-intent-failure", {"legacy": True, "native": False, "failure": "setup status", "migrate_host": True}),
+        ("dev-post-activation-tamper", {"tamper": True}),
+        ("dev-unsafe-payload", {"unsafe_payload": True}),
+        ("dev-foreign-current", {"foreign_current": True}),
+        ("dev-unknown-backup-untouched", {"unknown_backup": True}),
+        ("dev-concurrent-install", {"locked": True}),
+    ]
+    for name, options in development_cases:
+        scenario(output, executables[True], name, development=True, **options)
 
 
 if __name__ == "__main__":

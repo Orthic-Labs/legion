@@ -1295,14 +1295,15 @@ fn irreducible_sampled_lens_remains_deferred_while_affordable_lens_runs() {
 
 #[test]
 fn sampled_irreducible_source_defers_with_fitting_candidate_continuation() {
-    // Whole lines are indivisible, so source refinement cannot fit this line.
-    // Candidate evidence itself is small enough for its own physical call.
+    // Keep raw bytes inside bounded selection, but force JSON escaping past
+    // physical input capacity. Non-NUL control bytes remain valid UTF-8 source.
+    // Whole lines are indivisible; candidate evidence still fits its own call.
     let fixture = Fixture::new(&[
         (
             "src/main.tsx",
             format!(
-                "export function App() {{ return <button>{}</button>; }}\n",
-                "visible ".repeat(9000)
+                "export function App() {{ return <button>{{/*{}*/}}Open</button>; }}\n",
+                "\u{0001}".repeat(12_000)
             ),
         ),
         ("src/small.ts", "export const answer = 42;\n".into()),
@@ -1319,7 +1320,7 @@ fn sampled_irreducible_source_defers_with_fitting_candidate_continuation() {
         end_line: None,
         location_status: "known".into(),
         message: "Review button label".into(),
-        evidence_excerpt: Some("<button>visible</button>".into()),
+        evidence_excerpt: Some("<button>Open</button>".into()),
         evidence_digest: "small-a11y-evidence".into(),
         source_mapping: json!({"domain":"a11y"}),
     }];
@@ -1342,6 +1343,23 @@ fn sampled_irreducible_source_defers_with_fitting_candidate_continuation() {
             .unwrap()
             .freeze(Some(b"irreducible-candidate-lens-fixture-key"))
             .unwrap();
+        for (provider_id, path) in [
+            ("reasoning.a11y", "src/main.tsx"),
+            ("reasoning.ai-slop", "src/small.ts"),
+        ] {
+            let provider = plan
+                .providers()
+                .iter()
+                .find(|provider| provider.id == provider_id)
+                .unwrap();
+            assert!(
+                provider.configuration["coverage"]["reviewSet"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&json!(path)),
+                "source must be selected before physical refinement"
+            );
+        }
         let result =
             pending_lens_work_with_candidates(&fixture.0, &plan, &inventory, Some(&candidates));
         if mode == "exhaustive" {
@@ -1365,6 +1383,17 @@ fn sampled_irreducible_source_defers_with_fitting_candidate_continuation() {
             .iter()
             .find(|item| item.provider_id == "reasoning.ai-slop")
             .unwrap();
+        assert!(
+            source.request.packet["excerpts"][0]["content"]
+                .as_str()
+                .unwrap()
+                .contains('\u{0001}'),
+            "escaped source must survive materialization"
+        );
+        assert_eq!(
+            source.request.packet["excerptCoverage"]["omittedPaths"],
+            json!([])
+        );
         assert_eq!(source.request.packet["candidateContext"], json!([]));
         assert_eq!(
             candidate.request.packet["candidateContext"],
@@ -1433,7 +1462,7 @@ fn candidate_partition_fixture() -> (
     Vec<ScannerCandidate>,
 ) {
     let paths = (0..169)
-        .map(|index| format!("src/data/record-{index:03}.rs"))
+        .map(|index| format!("src/schema/record-{index:03}.rs"))
         .collect::<Vec<_>>();
     let files = paths
         .iter()
@@ -1675,8 +1704,10 @@ fn fitting_candidate_context_keeps_original_inline_ownership_and_packet_identity
 
 #[test]
 fn ordinary_source_overflow_refines_full_context_before_detaching_candidates() {
+    // Each file fits bounded selection; JSON escaping makes combined source
+    // exceed physical capacity while whole-line refinement can still fit.
     let paths = (0..4)
-        .map(|index| format!("src/data/transaction-{index}.rs"))
+        .map(|index| format!("src/schema/transaction-{index}.rs"))
         .collect::<Vec<_>>();
     let files = paths
         .iter()
@@ -1685,10 +1716,10 @@ fn ordinary_source_overflow_refines_full_context_before_detaching_candidates() {
             (
                 path.as_str(),
                 format!(
-                    "pub fn transaction_{index}() {{ let data = \"{}\"; }}\n",
-                    "source".repeat(8)
+                    "pub fn transaction_{index}() {{ /*{}*/ }}\n",
+                    "\u{0001}".repeat(500)
                 )
-                .repeat(600),
+                .repeat(6),
             )
         })
         .collect::<Vec<_>>();
@@ -1711,6 +1742,11 @@ fn ordinary_source_overflow_refines_full_context_before_detaching_candidates() {
         ..Default::default()
     }];
     let provider = &plan.providers()[0];
+    assert_eq!(
+        provider.configuration["coverage"]["reviewSet"],
+        json!(paths),
+        "all source must be selected before physical refinement"
+    );
     let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
     let source = excerpts::SourceReader::new(&fixture.0).unwrap();
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
