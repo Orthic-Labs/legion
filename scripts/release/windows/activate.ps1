@@ -7,17 +7,15 @@ $ErrorActionPreference = 'Stop'
 $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid Legion version' }
 $currentPath = Join-Path $rootPath 'current'
-$versionPath = Join-Path $rootPath ('versions\' + $Version)
 $payloadPath = Join-Path $rootPath ('.next-version-' + $Version)
-$backupPath = Join-Path $rootPath ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
-$versionBackupPath = Join-Path $rootPath ('.previous-version-' + [Guid]::NewGuid().ToString('N'))
-$legacyCodexSnapshotRoot = Join-Path $rootPath ('.rollback-codex-' + [Guid]::NewGuid().ToString('N'))
-$stagePath = Join-Path $rootPath ('.next-current-' + [Guid]::NewGuid().ToString('N'))
+$backupPath = Join-Path $rootPath 'current.previous'
+$savedPreviousPath = Join-Path $rootPath '.next-previous'
+$legacyCodexSnapshotRoot = Join-Path $rootPath '.rollback-codex'
 $eventLog = if ($env:LEGION_INSTALL_EVENT_LOG) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_EVENT_LOG) } else { Join-Path $rootPath 'install-events.jsonl' }
 if ($env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS -match '^\d+$') {
   $ChildTimeoutSeconds = [Math]::Max(1, [Math]::Min(600, [int]$env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS))
 }
-foreach ($path in @($currentPath, $versionPath, $payloadPath, $backupPath, $versionBackupPath, $legacyCodexSnapshotRoot, $stagePath)) {
+foreach ($path in @($currentPath, $payloadPath, $backupPath, $savedPreviousPath, $legacyCodexSnapshotRoot)) {
   if (-not [IO.Path]::GetFullPath($path).StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Activation path escaped install root' }
 }
 if (-not [IO.Path]::IsPathRooted($eventLog)) { throw 'Activation event log must be absolute' }
@@ -39,6 +37,78 @@ function Get-BinaryHash([string]$Path) {
   $hasher = [Security.Cryptography.SHA256]::Create()
   try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
   finally { $hasher.Dispose(); $stream.Dispose() }
+}
+function Remove-InstallTree([string]$Path) {
+  $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+  if ($null -eq $item) { return }
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    # Delete only the junction, never its target (legacy current points into versions).
+    [IO.Directory]::Delete($Path)
+  } else { Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop }
+}
+function Get-PayloadDigests([string]$Path, [bool]$AllowRootLink = $false) {
+  if (-not $AllowRootLink -and ((Get-Item -LiteralPath $Path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Payload root is a reparse point: $Path" }
+  $digests = [System.Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
+  foreach ($item in Get-ChildItem -LiteralPath $Path -Recurse -Force) {
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Payload contains a reparse point: $($item.FullName)" }
+    if (-not $item.PSIsContainer) { $digests[$item.FullName.Substring($Path.TrimEnd('\').Length + 1)] = Get-BinaryHash $item.FullName }
+  }
+  return ,$digests
+}
+function Save-CurrentPayload([string]$Current, [string]$Backup) {
+  $owned = Get-OwnedPayload $Current (Split-Path -Parent $Current) $true
+  $item = Get-Item -LiteralPath $Current -Force
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    try {
+      Copy-Item -LiteralPath $owned.root -Destination $Backup -Recurse
+      # Check copied bytes without executing from the backup path.
+      Assert-PayloadDigests $Backup $owned.digests
+      Remove-InstallTree $Current
+    } catch { Remove-InstallTree $Backup; throw }
+  } else { Move-Item -LiteralPath $Current -Destination $Backup }
+}
+function Assert-PayloadDigests([string]$Path, $Digests) {
+  $actual = Get-PayloadDigests $Path
+  if ($actual.Count -ne $Digests.Count) { throw 'Activated payload file count changed' }
+  foreach ($relative in $Digests.Keys) {
+    if (-not $actual.ContainsKey($relative) -or $actual[$relative] -ne $Digests[$relative]) { throw "Activated payload hash mismatch: $relative" }
+  }
+}
+function Assert-RealAncestors([string]$Path) {
+  $cursor = [IO.Path]::GetFullPath($Path)
+  while ($cursor) {
+    $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+    if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Install ancestor is not a real directory: $cursor" }
+    $cursor = [IO.Path]::GetDirectoryName($cursor)
+  }
+}
+function Get-OwnedPayload([string]$Path, [string]$ProductRoot, [bool]$AllowLegacyJunction = $false) {
+  Assert-RealAncestors (Split-Path -Parent $Path)
+  $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+  $payloadRoot = $Path
+  $legacyTarget = $null
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    $targets = @($item.Target)
+    if (-not $AllowLegacyJunction -or $item.LinkType -ne 'Junction' -or $targets.Count -ne 1) { throw "Unsupported prior payload link: $Path" }
+    $payloadRoot = [IO.Path]::GetFullPath([string]$targets[0]).TrimEnd('\')
+    $versionsRoot = Join-Path $ProductRoot 'versions'
+    if ((Split-Path -Parent $payloadRoot) -ine $versionsRoot -or (Split-Path -Leaf $payloadRoot) -notmatch '^\d+\.\d+\.\d+$') { throw "Prior current junction is outside owned version layout: $Path" }
+    Assert-RealAncestors $payloadRoot
+    $legacyTarget = $payloadRoot
+  }
+  $digests = Get-PayloadDigests $payloadRoot
+  $release = Get-Content -LiteralPath (Join-Path $payloadRoot 'share\legion\release.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+  $releaseVersion = [string]$release.releaseVersion
+  $plugin = Get-Content -LiteralPath (Join-Path $payloadRoot 'plugin\.claude-plugin\plugin.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+  if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$' -or $release.runtime.platform -ne 'windows' -or
+      $plugin.name -cne 'legion' -or $plugin.version -cne $releaseVersion -or
+      ($legacyTarget -and (Split-Path -Leaf $legacyTarget) -cne $releaseVersion)) { throw "Prior payload lacks owned Windows release identity: $Path" }
+  $declaredHash = ([string]$release.runtime.sha256).ToLowerInvariant() -replace '^sha256:', ''
+  if ($declaredHash -notmatch '^[a-f0-9]{64}$' -or $declaredHash -ne (Get-BinaryHash (Join-Path $payloadRoot 'bin\legion.exe')).ToLowerInvariant()) { throw "Prior payload runtime digest is invalid: $Path" }
+  return [pscustomobject]@{ root=$payloadRoot; legacyTarget=$legacyTarget; release=$release; digests=$digests; version=$releaseVersion; runtimeHash=$declaredHash }
+}
+function Assert-NoRecoveryRoot([string]$Path) {
+  if ($null -ne (Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue)) { throw "Preserving unfinished or unowned recovery root: $Path" }
 }
 function Get-CanonicalByteArrayDigest([byte[]]$Bytes) {
   $canonicalBytes = ConvertTo-Json -InputObject ([int[]]$Bytes) -Compress
@@ -176,7 +246,7 @@ function Restore-LegacyCodexProjection($Snapshot) {
     Copy-Item -LiteralPath $Snapshot.savedLedger -Destination $Snapshot.ledger
   }
 }
-function Sync-PackagedLocalCacheMirrors([string]$VersionPath, [System.Collections.Generic.List[object]]$Transactions) {
+function Sync-PackagedLocalCacheMirrors([string]$CurrentPath, [System.Collections.Generic.List[object]]$Transactions) {
   $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
   $packagesRoot = if ($env:LEGION_INSTALL_PACKAGES_ROOT) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_PACKAGES_ROOT) } else { Join-Path $localAppData 'Packages' }
   if (-not (Test-Path -LiteralPath $packagesRoot -PathType Container)) { return }
@@ -185,17 +255,24 @@ function Sync-PackagedLocalCacheMirrors([string]$VersionPath, [System.Collection
     if (-not (Test-Path -LiteralPath $mirrorProductRoot -PathType Container)) { continue }
     $mirrorCurrent = Join-Path $mirrorProductRoot 'current'
     $stagePath = Join-Path $mirrorProductRoot ('.next-current-' + [Guid]::NewGuid().ToString('N'))
-    $backupPath = Join-Path $mirrorProductRoot ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
-    $transaction = [pscustomobject]@{current=$mirrorCurrent;stage=$stagePath;backup=$backupPath;backupCreated=$false;replacementCreated=$false}
+    $backupPath = Join-Path $mirrorProductRoot 'current.previous'
+    $savedPrevious = Join-Path $mirrorProductRoot '.next-previous'
+    $transaction = [pscustomobject]@{current=$mirrorCurrent;stage=$stagePath;backup=$backupPath;savedPrevious=$savedPrevious;previousSaved=$false;backupCreated=$false;replacementCreated=$false}
     $Transactions.Add($transaction) | Out-Null
     try {
       Write-InstallEvent 'localcache-mirror' 'started' $mirrorCurrent
-      Copy-Item -LiteralPath $VersionPath -Destination $stagePath -Recurse
-      $sourceHash = Get-BinaryHash (Join-Path $VersionPath 'bin\legion.exe')
-      $stageHash = Get-BinaryHash (Join-Path $stagePath 'bin\legion.exe')
-      if ($sourceHash -ne $stageHash) { throw "Packaged LocalCache mirror stage hash mismatch: $stageHash != $sourceHash" }
+      Assert-RealAncestors $mirrorProductRoot
+      Assert-NoRecoveryRoot $savedPrevious
+      $priorMirror = if (Test-Path -LiteralPath $mirrorCurrent) { Get-OwnedPayload $mirrorCurrent $mirrorProductRoot $true } else { $null }
+      if (Test-Path -LiteralPath $backupPath) { $null = Get-OwnedPayload $backupPath $mirrorProductRoot }
+      Copy-Item -LiteralPath $CurrentPath -Destination $stagePath -Recurse
+      Assert-PayloadDigests $stagePath (Get-PayloadDigests $CurrentPath)
+      if (Test-Path -LiteralPath $backupPath) {
+        Move-Item -LiteralPath $backupPath -Destination $savedPrevious
+        $transaction.previousSaved = $true
+      }
       if (Test-Path -LiteralPath $mirrorCurrent) {
-        Move-Item -LiteralPath $mirrorCurrent -Destination $backupPath
+        Save-CurrentPayload $mirrorCurrent $backupPath
         $transaction.backupCreated = $true
       }
       Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
@@ -211,19 +288,25 @@ function Sync-PackagedLocalCacheMirrors([string]$VersionPath, [System.Collection
 function Restore-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
   for ($index = $Transactions.Count - 1; $index -ge 0; $index--) {
     $transaction = $Transactions[$index]
-    if ($transaction.replacementCreated) { Remove-Item -LiteralPath $transaction.current -Recurse -Force -ErrorAction SilentlyContinue }
-    Remove-Item -LiteralPath $transaction.stage -Recurse -Force -ErrorAction SilentlyContinue
-    if ($transaction.backupCreated -and (Test-Path -LiteralPath $transaction.backup)) {
-      Move-Item -LiteralPath $transaction.backup -Destination $transaction.current -ErrorAction SilentlyContinue
+    if ($transaction.replacementCreated) { Remove-InstallTree $transaction.current }
+    Remove-InstallTree $transaction.stage
+    if ($transaction.backupCreated) {
+      if (-not (Test-Path -LiteralPath $transaction.backup)) { throw 'Packaged LocalCache prior payload disappeared during rollback' }
+      Move-Item -LiteralPath $transaction.backup -Destination $transaction.current -ErrorAction Stop
+    }
+    if ($transaction.previousSaved) {
+      Move-Item -LiteralPath $transaction.savedPrevious -Destination $transaction.backup -ErrorAction Stop
     }
   }
 }
 function Commit-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
   foreach ($transaction in $Transactions) {
-    Remove-Item -LiteralPath $transaction.stage,$transaction.backup -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-InstallTree $transaction.stage
+    Remove-InstallTree $transaction.savedPrevious
   }
 }
 function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
+  if ([IO.Path]::GetFileName($FilePath) -ieq 'legion.exe' -and [IO.Path]::GetFullPath($FilePath) -ine (Join-Path $currentPath 'bin\legion.exe')) { throw "$Stage attempted to execute Legion outside stable current" }
   if ($Arguments | Where-Object { $_ -match '"' }) { throw "$Stage argument contains unsupported quote" }
   $argumentLine = ($Arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
   $startInfo = [Diagnostics.ProcessStartInfo]::new()
@@ -236,7 +319,7 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
   $process = [Diagnostics.Process]::new()
   $process.StartInfo = $startInfo
   try {
-    Write-InstallEvent $Stage 'started' "timeout=${ChildTimeoutSeconds}s"
+    Write-InstallEvent $Stage 'started' "executable=$FilePath; timeout=${ChildTimeoutSeconds}s"
     if (-not $process.Start()) { throw "$Stage failed to start" }
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
@@ -265,83 +348,111 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
     $process.Dispose()
   }
 }
+$lockHasher = [Security.Cryptography.SHA256]::Create()
+try { $lockKey = [BitConverter]::ToString($lockHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($rootPath.ToLowerInvariant()))).Replace('-', '') }
+finally { $lockHasher.Dispose() }
+$activationMutex = [Threading.Mutex]::new($false, ('Local\OrthicLabs.Legion.Activation.' + $lockKey))
+$lockAcquired = $false
+try {
+  try { $lockAcquired = $activationMutex.WaitOne(30000) }
+  catch [Threading.AbandonedMutexException] { $lockAcquired = $true }
+  if (-not $lockAcquired) { throw 'Another Legion activation holds this install root (30s timeout)' }
+  Write-InstallEvent 'activation-lock' 'complete' 'exclusive install-root lock acquired'
 if (-not (Test-Path -LiteralPath (Join-Path $payloadPath 'bin\legion.exe') -PathType Leaf)) { throw 'Staged Legion executable missing' }
 $hadCurrent = $null -ne (Get-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue)
-$hadVersion = $null -ne (Get-Item -LiteralPath $versionPath -Force -ErrorAction SilentlyContinue)
 $priorSupportsNativeMarketplace = $false
 $priorRuntimeVersion = $null
 $priorRuntimeHash = $null
-$priorRuntimeBinary = Join-Path $currentPath 'bin\legion.exe'
-if ($hadCurrent) {
-  if (Test-Path -LiteralPath $priorRuntimeBinary -PathType Leaf) {
-    try { $priorRuntimeHash = Get-BinaryHash $priorRuntimeBinary } catch { $priorRuntimeHash = $null }
-    try { $priorRuntimeVersion = ([string](Invoke-Bounded 'prior-current-identity' $priorRuntimeBinary @('--version'))).Trim() } catch { $priorRuntimeVersion = $null }
-  }
-  $priorReleasePath = Join-Path $currentPath 'share\legion\release.json'
-  try {
-    if (Test-Path -LiteralPath $priorReleasePath -PathType Leaf) {
-      $priorRelease = Get-Content -LiteralPath $priorReleasePath -Raw | ConvertFrom-Json -ErrorAction Stop
-      $priorSupportsNativeMarketplace = $null -ne $priorRelease.nativeMarketplaces
-    }
-  } catch { $priorSupportsNativeMarketplace = $false }
-}
+$priorPayload = $null
 $currentBackupCreated = $false
-$versionBackupCreated = $false
+$previousSaved = $false
 $currentReplaced = $false
-$versionReplaced = $false
 $mirrorTransactions = [System.Collections.Generic.List[object]]::new()
 $legacyCodexSnapshot = $null
 $codexDisabledIntent = $null
+$clientRegistrationAttempted = $false
+$candidateValidated = $false
+$receiptMutationAttempted = $false
+$payloadOwned = $false
+$activationReceiptPath = Join-Path $rootPath 'activation.json'
+$priorActivationReceipt = if (Test-Path -LiteralPath $activationReceiptPath -PathType Leaf) { [IO.File]::ReadAllBytes($activationReceiptPath) } else { $null }
 Write-InstallEvent 'activation' 'started' "version=$Version"
 try {
+  Assert-RealAncestors $rootPath
+  # Treat staging as data only; ownership & runtime digest precede cleanup or execution.
+  $stagedPayload = Get-OwnedPayload $payloadPath $rootPath
+  if ($stagedPayload.version -cne $Version) { throw 'Staged payload declares an unexpected Windows release identity' }
+  $payloadDigests = $stagedPayload.digests
+  $payloadOwned = $true
+  if ($env:LEGION_INSTALL_TEST_MODE -eq 'staged-validation-failure') { throw 'Forced staged payload validation failure' }
+  Assert-NoRecoveryRoot $savedPreviousPath
+  Assert-NoRecoveryRoot $legacyCodexSnapshotRoot
+  if ($hadCurrent) {
+    $priorPayload = Get-OwnedPayload $currentPath $rootPath $true
+    $priorRuntimeVersion = $priorPayload.version
+    $priorRuntimeHash = $priorPayload.runtimeHash
+    $priorSupportsNativeMarketplace = $null -ne $priorPayload.release.nativeMarketplaces
+  }
+  if (Test-Path -LiteralPath $backupPath) { $null = Get-OwnedPayload $backupPath $rootPath }
   $hostHome = if ($env:USERPROFILE) { [IO.Path]::GetFullPath($env:USERPROFILE) } else { [Environment]::GetFolderPath('UserProfile') }
   $stateRoot = if ($env:LEGION_STATE_ROOT) { [IO.Path]::GetFullPath($env:LEGION_STATE_ROOT) } else { Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Legion' }
   $codexDisabledIntent = Get-CodexDisabledIntent $hostHome
   $priorCodexProjection = Get-LegacyCodexProjection $stateRoot $hostHome $rootPath
   $legacyCodexSnapshot = Save-LegacyCodexProjection $priorCodexProjection $legacyCodexSnapshotRoot
-  # Build and validate a clean current candidate before moving prior current.
-  Copy-Item -LiteralPath $payloadPath -Destination $stagePath -Recurse
-  $stagedLegion = Join-Path $stagePath 'bin\legion.exe'
-  if ($env:LEGION_INSTALL_TEST_MODE -eq 'staged-validation-failure') { throw 'Forced staged payload validation failure' }
-  $stagedVersion = ([string](Invoke-Bounded 'staged-version' $stagedLegion @('--version'))).Trim()
-  if ($stagedVersion -ne $Version) { throw "Staged payload returned version $stagedVersion" }
-
-  # Fresh staging no longer creates versions through Inno's file entries.
-  New-Item -ItemType Directory -Path (Split-Path -Parent $versionPath) -Force | Out-Null
-  if ($hadCurrent) { Move-Item -LiteralPath $currentPath -Destination $backupPath; $currentBackupCreated = $true }
-  if ($hadVersion) { Move-Item -LiteralPath $versionPath -Destination $versionBackupPath; $versionBackupCreated = $true }
-  Move-Item -LiteralPath $payloadPath -Destination $versionPath
-  $versionReplaced = $true
-  Move-Item -LiteralPath $stagePath -Destination $currentPath
+  if (Test-Path -LiteralPath $backupPath) {
+    Move-Item -LiteralPath $backupPath -Destination $savedPreviousPath
+    $previousSaved = $true
+  }
+  if ($hadCurrent) {
+    # Materialize legacy junctions so rollback restores a real current folder.
+    Save-CurrentPayload $currentPath $backupPath
+    $currentBackupCreated = $true
+  }
+  Move-Item -LiteralPath $payloadPath -Destination $currentPath
   $currentReplaced = $true
+  Assert-PayloadDigests $currentPath $payloadDigests
   $legion = Join-Path $currentPath 'bin\legion.exe'
   $reportedVersion = ([string](Invoke-Bounded 'activation-version' $legion @('--version'))).Trim()
   if ($reportedVersion -ne $Version) { throw "Activation verification returned version $reportedVersion" }
+  $candidateValidated = $true
   if ($env:LEGION_INSTALL_TEST_MODE -eq 'refresh-failure') { throw 'Forced client refresh failure' }
   if ($env:LEGION_INSTALL_TEST_MODE -eq 'stalled-child') {
     Invoke-Bounded 'client-refresh' "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 30') | Out-Null
   } else {
+    $clientRegistrationAttempted = $true
     $refreshJson = Invoke-Bounded 'client-refresh' $legion @('--json','setup','repair','--confirm')
     try { $refresh = $refreshJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client refresh returned invalid JSON' }
     if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
   }
-  Sync-PackagedLocalCacheMirrors $versionPath $mirrorTransactions
-  $versionHash = Get-BinaryHash (Join-Path $versionPath 'bin\legion.exe')
-  $currentHash = Get-BinaryHash $legion
-  if ($currentHash -ne $versionHash) { throw "Activation hash mismatch: $currentHash != $versionHash" }
-  [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
+  Sync-PackagedLocalCacheMirrors $currentPath $mirrorTransactions
+  Assert-PayloadDigests $currentPath $payloadDigests
+  # Retire only the validated target consumed by this migration, never its siblings.
+  if ($priorPayload -and $priorPayload.legacyTarget) {
+    Assert-PayloadDigests $priorPayload.legacyTarget $priorPayload.digests
+    Remove-InstallTree $priorPayload.legacyTarget
+    $versionsRoot = Split-Path -Parent $priorPayload.legacyTarget
+    if (@(Get-ChildItem -LiteralPath $versionsRoot -Force).Count -eq 0) { [IO.Directory]::Delete($versionsRoot) }
+  }
+  # Set the rollback obligation before any write can truncate prior evidence.
+  $receiptMutationAttempted = $true
+  [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$currentPath;previous=$(if ($hadCurrent) { $backupPath } else { $null });refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
   Write-InstallEvent 'activation' 'complete' "version=$Version"
-  Commit-PackagedLocalCacheMirrors $mirrorTransactions
-  Remove-Item -LiteralPath $backupPath,$versionBackupPath,$legacyCodexSnapshotRoot -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $payloadPath -Recurse -Force -ErrorAction SilentlyContinue
+  # Activation is committed; cleanup failures must not attempt a partial rollback.
+  foreach ($cleanup in @($savedPreviousPath,$legacyCodexSnapshotRoot)) {
+    try { Remove-InstallTree $cleanup } catch { Write-InstallEvent 'cleanup' 'failed' ([string]$_.Exception.Message) }
+  }
+  try { Commit-PackagedLocalCacheMirrors $mirrorTransactions }
+  catch { Write-InstallEvent 'cleanup' 'failed' ([string]$_.Exception.Message) }
 } catch {
   $activationError = ($_ | Out-String).Trim()
   $rollbackIssues = [System.Collections.Generic.List[string]]::new()
-  Restore-PackagedLocalCacheMirrors $mirrorTransactions
+  try { Restore-PackagedLocalCacheMirrors $mirrorTransactions }
+  catch { $rollbackIssues.Add("restore packaged mirrors: $(($_ | Out-String).Trim())") | Out-Null }
   $candidateCleanupFailed = $false
-  if (-not $priorSupportsNativeMarketplace -and $currentReplaced) {
+  if (-not $priorSupportsNativeMarketplace -and $clientRegistrationAttempted -and $candidateValidated -and $currentReplaced) {
     try {
       $candidateLegion = Join-Path $currentPath 'bin\legion.exe'
+      Assert-PayloadDigests $currentPath $payloadDigests
       $removeJson = Invoke-Bounded 'rollback-client-remove' $candidateLegion @('--json','setup','remove','--confirm')
       try { $remove = $removeJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client removal returned invalid JSON' }
       if ($remove.status -ne 'complete') { throw "Client removal status=$($remove.status)" }
@@ -358,24 +469,20 @@ try {
   }
   if ($currentReplaced) {
     try {
-      Remove-Item -LiteralPath $currentPath -Recurse -Force -ErrorAction Stop
+      Remove-InstallTree $currentPath
       if (Test-Path -LiteralPath $currentPath) { throw 'Candidate current still exists after removal' }
     } catch { $rollbackIssues.Add("remove candidate current: $(($_ | Out-String).Trim())") | Out-Null }
   }
-  if ($versionReplaced) {
-    try {
-      Remove-Item -LiteralPath $versionPath -Recurse -Force -ErrorAction Stop
-      if (Test-Path -LiteralPath $versionPath) { throw 'Candidate version still exists after removal' }
-    } catch { $rollbackIssues.Add("remove candidate version: $(($_ | Out-String).Trim())") | Out-Null }
-  }
-  foreach ($temporaryPath in @($stagePath,$payloadPath)) {
-    try { if (Test-Path -LiteralPath $temporaryPath) { Remove-Item -LiteralPath $temporaryPath -Recurse -Force -ErrorAction Stop } }
+  foreach ($temporaryPath in @($payloadPath)) {
+    try { if ($payloadOwned) { Remove-InstallTree $temporaryPath } }
     catch { $rollbackIssues.Add("remove temporary payload: $(($_ | Out-String).Trim())") | Out-Null }
   }
-  if ($rollbackIssues.Count -eq 0 -and $currentBackupCreated -and (Test-Path -LiteralPath $backupPath)) {
+  $currentRestored = (-not $currentReplaced -and -not $currentBackupCreated) -or (-not $hadCurrent -and -not (Test-Path -LiteralPath $currentPath))
+  if ($currentBackupCreated -and -not (Test-Path -LiteralPath $currentPath) -and (Test-Path -LiteralPath $backupPath)) {
     try {
       if (Test-Path -LiteralPath $currentPath) { throw 'Candidate current still occupies restore destination' }
       Move-Item -LiteralPath $backupPath -Destination $currentPath -ErrorAction Stop
+      Assert-PayloadDigests $currentPath $priorPayload.digests
       $restoredBinary = Join-Path $currentPath 'bin\legion.exe'
       if (-not (Test-Path -LiteralPath $restoredBinary -PathType Leaf)) { throw 'Restored current executable missing' }
       if ($priorRuntimeVersion -and $priorRuntimeHash) {
@@ -386,24 +493,26 @@ try {
       } elseif ($hadCurrent) {
         throw 'Prior current identity could not be captured before activation'
       }
+      $currentRestored = $true
     } catch { $rollbackIssues.Add("restore prior current identity: $(($_ | Out-String).Trim())") | Out-Null }
   }
-  if ($rollbackIssues.Count -eq 0 -and $versionBackupCreated -and (Test-Path -LiteralPath $versionBackupPath)) {
-    try {
-      if (Test-Path -LiteralPath $versionPath) { throw 'Candidate version still occupies restore destination' }
-      Move-Item -LiteralPath $versionBackupPath -Destination $versionPath -ErrorAction Stop
-      if (-not (Test-Path -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -PathType Leaf)) { throw 'Restored version executable missing' }
-    } catch { $rollbackIssues.Add("restore prior version: $(($_ | Out-String).Trim())") | Out-Null }
+  if ($currentBackupCreated -and -not $currentRestored -and $rollbackIssues.Count -eq 0) {
+    $rollbackIssues.Add('Prior current payload could not be restored from current.previous') | Out-Null
   }
-  if ($rollbackIssues.Count -eq 0 -and $legacyCodexSnapshot) {
+  if ($previousSaved -and -not (Test-Path -LiteralPath $backupPath)) {
+    try {
+      Move-Item -LiteralPath $savedPreviousPath -Destination $backupPath -ErrorAction Stop
+    } catch { $rollbackIssues.Add("restore previous backup: $(($_ | Out-String).Trim())") | Out-Null }
+  }
+  if ($currentRestored -and $legacyCodexSnapshot) {
     try { Restore-LegacyCodexProjection $legacyCodexSnapshot }
     catch { $rollbackIssues.Add("restore prior owned Codex projection: $(($_ | Out-String).Trim())") | Out-Null }
   }
-  if ($rollbackIssues.Count -eq 0 -and $currentReplaced) {
+  if ($currentRestored -and $currentReplaced) {
     try { Restore-CodexDisabledIntent $codexDisabledIntent }
     catch { $rollbackIssues.Add("restore prior Codex disabled choice: $(($_ | Out-String).Trim())") | Out-Null }
   }
-  if ($rollbackIssues.Count -eq 0 -and $hadCurrent -and $currentReplaced -and (Test-Path -LiteralPath (Join-Path $currentPath 'bin\legion.exe') -PathType Leaf)) {
+  if ($currentRestored -and $hadCurrent -and $currentReplaced -and (Test-Path -LiteralPath (Join-Path $currentPath 'bin\legion.exe') -PathType Leaf)) {
     try {
       $restoredLegion = Join-Path $currentPath 'bin\legion.exe'
       $repairJson = Invoke-Bounded 'rollback-client-refresh' $restoredLegion @('--json','setup','repair','--confirm')
@@ -413,10 +522,22 @@ try {
       $rollbackIssues.Add("restore prior native registrations: $(($_ | Out-String).Trim())") | Out-Null
     }
   }
-  if (-not $currentReplaced -and -not $versionReplaced) { Remove-Item -LiteralPath $legacyCodexSnapshotRoot -Recurse -Force -ErrorAction SilentlyContinue }
+  if ($receiptMutationAttempted -and $currentRestored) {
+    try {
+      if ($null -ne $priorActivationReceipt) { [IO.File]::WriteAllBytes($activationReceiptPath, $priorActivationReceipt) }
+      elseif (Test-Path -LiteralPath $activationReceiptPath) { Remove-Item -LiteralPath $activationReceiptPath -Force }
+    } catch { $rollbackIssues.Add("restore prior activation receipt: $(($_ | Out-String).Trim())") | Out-Null }
+  }
+  if ($rollbackIssues.Count -eq 0) {
+    if ($legacyCodexSnapshot) { Remove-InstallTree $legacyCodexSnapshotRoot }
+  }
   Write-InstallEvent 'activation' 'failed' $activationError
   $rollbackDetail = if ($rollbackIssues.Count) { 'rollback issues: ' + ($rollbackIssues -join '; ') } elseif ($hadCurrent) { 'previous current and native registrations restored' } else { 'new current and native registrations removed' }
   Write-InstallEvent 'rollback' $(if ($rollbackIssues.Count) { 'failed' } else { 'complete' }) $rollbackDetail
   if ($rollbackIssues.Count) { throw "Activation failed: $activationError; $rollbackDetail" }
   throw
+}
+} finally {
+  if ($lockAcquired) { $activationMutex.ReleaseMutex() }
+  $activationMutex.Dispose()
 }

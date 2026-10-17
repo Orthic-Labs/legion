@@ -122,9 +122,17 @@ fi
 # surface check in the list above was the only step not already in this gate.
 
 # Assemble the exact CI candidate and smoke the installed native CLI.
+export CARGO_INCREMENTAL=1
 (cd engine && cargo build --locked --bins)
-cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
+ci_target_root="$(cargo metadata --locked --no-deps --format-version 1 --manifest-path engine/Cargo.toml | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).target_directory.replace(/\\/g, "/")));')"
+ci_binary_root="${ci_target_root}${CARGO_BUILD_TARGET:+/${CARGO_BUILD_TARGET}}/debug"
+ci_xtask="${ci_binary_root}/xtask"
+if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
+  ci_xtask="${ci_xtask}.exe"
+fi
+test -f "$ci_xtask"
+"$ci_xtask" assemble-native-release --profile debug --bin-dir "$ci_binary_root" --out "${RUNNER_TEMP}/legion-install" --force
+"$ci_xtask" native-installed-smoke "${RUNNER_TEMP}/legion-install"
 
 # Real-repository affordability gate against a pinned public Ember checkout.
 # The helper retains cold/warm plan-only cache checks, then runs one full
@@ -243,13 +251,15 @@ fi
 # Unsigned Windows development installer (formerly windows-development.yml);
 # the managed ci.yml uploads dist/local-windows/installer/* as dev-windows-<sha>.
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
-  pwsh -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -BuildOnly
+  pwsh -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 \
+    -BuildOnly -PreassembledRoot "${RUNNER_TEMP}/legion-install" -XtaskBinary "$ci_xtask"
 fi
 
 # Unsigned macOS development installer (formerly macos-development.yml): the
 # same headless installer app the release ships, wrapped around the payload
 # assembled above. The managed ci.yml zips it as dev-mac-unsigned-<sha>.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  python3 scripts/release/macos/test-fixed-install.py --output-root "$RUNNER_TEMP/legion-fixed-install"
   dev_app="dist/dev-macos/Legion Installer.app"
   mkdir -p "$dev_app/Contents/MacOS" "$dev_app/Contents/Resources"
   swiftc -parse-as-library scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$dev_app/Contents/MacOS/Legion Installer"

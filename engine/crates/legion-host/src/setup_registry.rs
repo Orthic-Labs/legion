@@ -171,8 +171,8 @@ pub fn client_supports_live_qualification(client_id: &str) -> bool {
 /// Resolve an executable's stable installed product root. A production
 /// executable is valid only as `<product-root>/current/bin/legion` (or the
 /// Windows `.exe` form) and never from a repository, build, distribution, or
-/// dependency tree. The returned root intentionally excludes the lexical `current`
-/// junction so callers can report stable product identity separately from
+/// dependency tree. The returned root intentionally excludes the fixed `current`
+/// directory so callers can report stable product identity separately from
 /// resolved release identity.
 pub fn stable_install_root(executable: impl AsRef<Path>) -> Result<PathBuf, SetupError> {
     let executable = executable.as_ref();
@@ -1129,7 +1129,7 @@ pub struct ClientProjectionInput {
     pub source_root: PathBuf,
     pub target_root: PathBuf,
     pub state_root: PathBuf,
-    /// `installed` binds to the immutable stable `current` release; callers
+    /// `installed` binds to the active stable `current` release; callers
     /// using repository assets must opt into `development` explicitly.
     #[serde(default = "default_projection_origin")]
     pub origin: String,
@@ -2270,9 +2270,9 @@ fn validate_installed_projection(input: &ClientProjectionInput) -> Result<(), Se
         Some(&lexical_current_root),
     )?;
 
-    // `current` is an intentionally atomically-swapped junction/symlink. Keep
+    // `current` is the fixed active directory. Keep
     // its lexical identity for status while validating its resolved target
-    // independently as an immutable active release root.
+    // independently as the active release root.
     let executable = fs::canonicalize(lexical_executable).map_err(|_| {
         err(
             SetupErrorCode::PathEscapeRefused,
@@ -3694,8 +3694,8 @@ struct ProjectionLinkScan {
 }
 
 /// Roots a Legion-created link may point into: the release plugin root, and
-/// the whole Legion install root (the stable `current` root and the versioned
-/// roots beside it) when the projection is bound to an installed product.
+/// the whole Legion install root (the active `current` root and fixed
+/// `current.previous` backup) when the projection is bound to an installed product.
 fn projection_owned_roots(input: &ClientProjectionInput) -> Vec<PathBuf> {
     let mut roots = vec![lexical_normalize(&input.source_root)];
     if let Some(install_root) = &input.install_root {
@@ -6138,14 +6138,14 @@ mod tests {
         assert!(again.removed.is_empty());
     }
 
-    /// `old` leaves the catalog; its previous content survives in a versioned
-    /// install root beside `current`.
-    fn retired_version_skill(input: &ClientProjectionInput) -> PathBuf {
+    /// `old` leaves the catalog; its previous content survives in
+    /// `current.previous` beside `current`.
+    fn retired_previous_skill(input: &ClientProjectionInput) -> PathBuf {
         let kept = input
             .install_root
             .as_ref()
             .unwrap()
-            .join("versions/0.3.22/plugin/skills/old");
+            .join("current.previous/plugin/skills/old");
         fs::create_dir_all(&kept).unwrap();
         fs::write(kept.join("SKILL.md"), b"# old").unwrap();
         fs::remove_dir_all(input.source_root.join("skills/old")).unwrap();
@@ -6159,9 +6159,9 @@ mod tests {
     fn retired_link_that_still_resolves_is_unlinked_not_followed() {
         let (_root, input) = upgrade_fixture("projection-upgrade-live-retired-link");
 
-        // `old` leaves the catalog but its content still exists inside a
-        // versioned install root, and the link keeps resolving to it.
-        let kept = retired_version_skill(&input);
+        // `old` leaves the catalog but its content still exists inside
+        // `current.previous`, and the link keeps resolving to it.
+        let kept = retired_previous_skill(&input);
         let link = input.target_root.join("skills/old");
         remove_projection_link(&link).unwrap();
         assert!(link_projection_root(&kept, &link).unwrap());
@@ -6185,7 +6185,7 @@ mod tests {
     #[test]
     fn remove_unlinks_retired_links_without_deleting_through_them() {
         let (_root, input) = upgrade_fixture("projection-remove-retired-link");
-        let kept = retired_version_skill(&input);
+        let kept = retired_previous_skill(&input);
         let link = input.target_root.join("skills/old");
         remove_projection_link(&link).unwrap();
         assert!(link_projection_root(&kept, &link).unwrap());

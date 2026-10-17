@@ -59,51 +59,66 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
     guard !version.isEmpty, !version.contains("/") else { throw InstallerError.invalidVersion }
     let home = fileManager.homeDirectoryForCurrentUser
     let root = home.appendingPathComponent("Library/Application Support/Orthic Labs/Legion", isDirectory: true)
-    let versions = root.appendingPathComponent("versions", isDirectory: true)
-    let final = versions.appendingPathComponent(version, isDirectory: true)
-    let temporary = versions.appendingPathComponent(".install-\(version)-\(UUID().uuidString)", isDirectory: true)
-    let versionBackup = versions.appendingPathComponent(".previous-\(version)-\(UUID().uuidString)", isDirectory: true)
     let current = root.appendingPathComponent("current")
-    let currentBackup = root.appendingPathComponent(".previous-current-\(UUID().uuidString)")
+    let previous = root.appendingPathComponent("current.previous", isDirectory: true)
+    // Staging is never an executable installation root. Both activation &
+    // rollback execute exclusively through the real, fixed current directory.
+    let temporary = root.appendingPathComponent(".install-\(UUID().uuidString)", isDirectory: true)
+    let candidate = temporary.appendingPathComponent("candidate", isDirectory: true)
+    let priorCopy = temporary.appendingPathComponent("prior", isDirectory: true)
+    let displacedCurrent = temporary.appendingPathComponent("displaced-current")
+    let displacedPrevious = temporary.appendingPathComponent("displaced-previous")
+    try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+    guard try root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+      throw InstallerError.transactionFailed("installation root must be a real directory")
+    }
+    let lock = open(root.appendingPathComponent(".install.lock").path, O_CREAT | O_RDWR | O_NOFOLLOW, 0o600)
+    guard lock >= 0 else { throw InstallerError.transactionFailed("cannot open installation lock") }
+    defer { close(lock) }
+    guard flock(lock, LOCK_EX | LOCK_NB) == 0 else {
+      throw InstallerError.transactionFailed("another installation is already running")
+    }
+    let priorRoot = try installedPayloadRoot(current: current, root: root)
+    let priorManifest = try priorRoot.map { try payloadManifest(at: $0) }
+    let expectedManifest = try payloadManifest(at: payload)
+    if itemExists(previous) { _ = try payloadManifest(at: previous) }
     let priorCurrentSupportsMarketplace: Bool = {
       let metadataURL = current.appendingPathComponent("share/legion/release.json")
       guard let data = try? Data(contentsOf: metadataURL),
             let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
       return value["nativeMarketplaces"] != nil
     }()
-    try fileManager.createDirectory(at: versions, withIntermediateDirectories: true)
-    var candidateVersionInstalled = false
     var candidateCurrentInstalled = false
-    var priorVersionBackedUp = false
-    var priorCurrentBackedUp = false
+    var candidateRegistrationAttempted = false
+    var priorCurrentDetached = false
+    var priorCopyPublished = false
+    var previousDisplaced = false
     var legacyCodexSnapshot: LegacyCodexSnapshot?
     var codexDisabledIntent: CodexDisabledIntent?
-    let replacement = root.appendingPathComponent(".current-\(UUID().uuidString)")
     do {
+      try fileManager.createDirectory(at: temporary, withIntermediateDirectories: false)
       codexDisabledIntent = try captureCodexDisabledIntent(home: home)
-      legacyCodexSnapshot = try captureLegacyCodexProjection(home: home, installRoot: root)
-      // Development installers can carry a newer candidate with the same version.
-      // Keep the installed generation until setup migration and status both pass.
-      try fileManager.copyItem(at: payload, to: temporary)
-      // Preserve the stable pointer before moving a same-version directory;
-      // otherwise current briefly becomes a dangling symlink and cannot be
-      // recovered if candidate validation fails.
-      let hasCurrent = fileManager.fileExists(atPath: current.path)
-        || (try? fileManager.destinationOfSymbolicLink(atPath: current.path)) != nil
-      if hasCurrent {
-        try fileManager.moveItem(at: current, to: currentBackup)
-        priorCurrentBackedUp = true
+      legacyCodexSnapshot = try captureLegacyCodexProjection(home: home, installRoot: root, stagingRoot: temporary)
+      try fileManager.copyItem(at: payload, to: candidate)
+      try requirePayload(at: candidate, matching: expectedManifest)
+      if let priorRoot, let priorManifest {
+        // Copy the resolved legacy payload, never its current symlink. Keep
+        // historical versions untouched; unknown files are not migration debris.
+        try fileManager.copyItem(at: priorRoot, to: priorCopy)
+        try requirePayload(at: priorCopy, matching: priorManifest)
+        try requirePayload(at: priorRoot, matching: priorManifest)
+        if itemExists(previous) {
+          try fileManager.moveItem(at: previous, to: displacedPrevious)
+          previousDisplaced = true
+        }
+        try fileManager.moveItem(at: priorCopy, to: previous)
+        priorCopyPublished = true
+        try fileManager.moveItem(at: current, to: displacedCurrent)
+        priorCurrentDetached = true
       }
-      if fileManager.fileExists(atPath: final.path) {
-        try fileManager.moveItem(at: final, to: versionBackup)
-        priorVersionBackedUp = true
-      }
-      try fileManager.moveItem(at: temporary, to: final)
-      candidateVersionInstalled = true
-
-      try fileManager.createSymbolicLink(at: replacement, withDestinationURL: URL(fileURLWithPath: "versions/\(version)", relativeTo: root))
-      try fileManager.moveItem(at: replacement, to: current)
+      try fileManager.moveItem(at: candidate, to: current)
       candidateCurrentInstalled = true
+      try requirePayload(at: current, matching: expectedManifest)
 
       let localBin = home.appendingPathComponent(".local/bin", isDirectory: true)
       try fileManager.createDirectory(at: localBin, withIntermediateDirectories: true)
@@ -116,18 +131,17 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
         try fileManager.moveItem(at: replacementLink, to: link)
       }
       let binary = current.appendingPathComponent("bin/legion")
+      candidateRegistrationAttempted = true
       try runInstalledStep(binary: binary, arguments: ["setup", "repair", "--confirm"], label: "setup repair")
       try runInstalledStep(binary: binary, arguments: ["setup", "status"], label: "setup status")
       try runInstalledStep(binary: binary, arguments: ["doctor"], label: "doctor")
+      try requirePayload(at: current, matching: expectedManifest)
 
-      if priorCurrentBackedUp { try? fileManager.removeItem(at: currentBackup) }
-      if priorVersionBackedUp { try? fileManager.removeItem(at: versionBackup) }
-      if let snapshot = legacyCodexSnapshot { try? fileManager.removeItem(at: snapshot.savedRoot.deletingLastPathComponent()) }
+      try? fileManager.removeItem(at: temporary)
     } catch {
       let installError = error
       var rollbackErrors: [String] = []
-      try? fileManager.removeItem(at: replacement)
-      if !priorCurrentSupportsMarketplace, candidateCurrentInstalled {
+      if !priorCurrentSupportsMarketplace, candidateRegistrationAttempted {
         do {
           try runInstalledStep(binary: current.appendingPathComponent("bin/legion"), arguments: ["setup", "remove", "--confirm"], label: "rollback setup remove")
         } catch {
@@ -137,26 +151,35 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
       // Keep candidate current & payload intact when native cleanup could not
       // be proven; its local marketplace source must remain available for retry.
       if rollbackErrors.contains(where: { $0.hasPrefix("remove candidate native registrations:") }) {
+        if legacyCodexSnapshot == nil { try? fileManager.removeItem(at: temporary) }
         throw InstallerError.transactionFailed("\(installError.localizedDescription) Rollback incomplete: \(rollbackErrors.joined(separator: "; "))")
       }
       if candidateCurrentInstalled {
         do { try fileManager.removeItem(at: current) }
         catch { rollbackErrors.append("remove candidate current: \(error.localizedDescription)") }
       }
-      if candidateVersionInstalled {
-        do { try fileManager.removeItem(at: final) }
-        catch { rollbackErrors.append("remove candidate version: \(error.localizedDescription)") }
+      if rollbackErrors.isEmpty, priorCurrentDetached, let priorManifest {
+        do {
+          // Recreate the prior real payload at current before restoring any
+          // registrations. Never run a binary from current.previous or staging.
+          let restored = temporary.appendingPathComponent("restored-current", isDirectory: true)
+          try requirePayload(at: previous, matching: priorManifest)
+          try fileManager.copyItem(at: previous, to: restored)
+          try requirePayload(at: restored, matching: priorManifest)
+          try fileManager.moveItem(at: restored, to: current)
+          try requirePayload(at: current, matching: priorManifest)
+        } catch { rollbackErrors.append("restore prior current: \(error.localizedDescription)") }
+      } else if !priorCurrentDetached {
+        // Nothing ran or changed at current. Undo only backup rotation.
+        if priorCopyPublished {
+          do { try fileManager.removeItem(at: previous) }
+          catch { rollbackErrors.append("remove unactivated prior copy: \(error.localizedDescription)") }
+        }
+        if rollbackErrors.isEmpty, previousDisplaced {
+          do { try fileManager.moveItem(at: displacedPrevious, to: previous) }
+          catch { rollbackErrors.append("restore prior backup: \(error.localizedDescription)") }
+        }
       }
-      if priorVersionBackedUp {
-        do { try fileManager.moveItem(at: versionBackup, to: final) }
-        catch { rollbackErrors.append("restore prior version: \(error.localizedDescription)") }
-      }
-      if priorCurrentBackedUp {
-        do { try fileManager.moveItem(at: currentBackup, to: current) }
-        catch { rollbackErrors.append("restore prior current: \(error.localizedDescription)") }
-      }
-      try? fileManager.removeItem(at: temporary)
-
       if rollbackErrors.isEmpty, candidateCurrentInstalled, let snapshot = legacyCodexSnapshot {
         do { try restoreLegacyCodexProjection(snapshot) }
         catch { rollbackErrors.append("restore prior owned Codex projection: \(error.localizedDescription)") }
@@ -165,22 +188,79 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
         do { try restoreCodexDisabledIntent(intent) }
         catch { rollbackErrors.append("restore prior Codex disabled choice: \(error.localizedDescription)") }
       }
-      if rollbackErrors.isEmpty, priorCurrentBackedUp, fileManager.fileExists(atPath: current.path) {
+      if rollbackErrors.isEmpty, priorCurrentDetached, fileManager.fileExists(atPath: current.path) {
         do {
           try runInstalledStep(binary: current.appendingPathComponent("bin/legion"), arguments: ["setup", "repair", "--confirm"], label: "rollback setup repair")
         } catch {
           rollbackErrors.append("restore native client registrations: \(error.localizedDescription)")
         }
       }
-      if rollbackErrors.isEmpty, !candidateCurrentInstalled, let snapshot = legacyCodexSnapshot {
-        try? fileManager.removeItem(at: snapshot.savedRoot.deletingLastPathComponent())
-      }
+      if rollbackErrors.isEmpty { try? fileManager.removeItem(at: temporary) }
       if rollbackErrors.isEmpty { throw installError }
       throw InstallerError.transactionFailed("\(installError.localizedDescription) Rollback issues: \(rollbackErrors.joined(separator: "; "))")
     }
   }
 
-  private func captureLegacyCodexProjection(home: URL, installRoot: URL) throws -> LegacyCodexSnapshot? {
+  private func itemExists(_ path: URL) -> Bool {
+    fileManager.fileExists(atPath: path.path)
+      || (try? fileManager.destinationOfSymbolicLink(atPath: path.path)) != nil
+  }
+
+  private func installedPayloadRoot(current: URL, root: URL) throws -> URL? {
+    guard itemExists(current) else { return nil }
+    guard try current.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true else { return current }
+    let destination = try fileManager.destinationOfSymbolicLink(atPath: current.path)
+    let legacy = URL(fileURLWithPath: destination, relativeTo: root).standardizedFileURL
+    let versions = root.appendingPathComponent("versions", isDirectory: true).standardizedFileURL
+    guard legacy.deletingLastPathComponent().path == versions.path,
+          legacy.resolvingSymlinksInPath().path == legacy.path else {
+      throw InstallerError.transactionFailed("current points outside an owned legacy version directory; preserving it")
+    }
+    return legacy
+  }
+
+  // Include directories, bytes & modes so same-version replacements, truncated
+  // copies, unexpected files & unsafe links cannot silently pass activation.
+  private func payloadManifest(at root: URL) throws -> [String: String] {
+    var manifest: [String: String] = [:]
+    func visit(_ path: URL, relative: String) throws {
+      let attributes = try fileManager.attributesOfItem(atPath: path.path)
+      let kind = attributes[.type] as? FileAttributeType
+      let mode = (attributes[.posixPermissions] as? NSNumber)?.uint16Value ?? 0
+      if kind == .typeDirectory {
+        manifest[relative] = "directory:\(mode)"
+        for child in try fileManager.contentsOfDirectory(at: path, includingPropertiesForKeys: nil) {
+          try visit(child, relative: relative.isEmpty ? child.lastPathComponent : "\(relative)/\(child.lastPathComponent)")
+        }
+      } else if kind == .typeRegular {
+        let digest = SHA256.hash(data: try Data(contentsOf: path, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
+        manifest[relative] = "file:\(mode):\(digest)"
+      } else {
+        throw InstallerError.transactionFailed("payload contains an unsupported file or symbolic link: \(path.path)")
+      }
+    }
+    try visit(root, relative: "")
+    for directory in ["", "bin", "plugin", "share"] {
+      guard manifest[directory]?.hasPrefix("directory:") == true else {
+        throw InstallerError.transactionFailed("payload is missing directory \(directory)")
+      }
+    }
+    for executable in ["legion", "legion-hook", "legion-mcp"] {
+      guard manifest["bin/\(executable)"]?.hasPrefix("file:") == true,
+            fileManager.isExecutableFile(atPath: root.appendingPathComponent("bin/\(executable)").path) else {
+        throw InstallerError.transactionFailed("payload is missing executable bin/\(executable)")
+      }
+    }
+    return manifest
+  }
+
+  private func requirePayload(at root: URL, matching manifest: [String: String]) throws {
+    guard try payloadManifest(at: root) == manifest else {
+      throw InstallerError.transactionFailed("payload changed or copy did not verify: \(root.path)")
+    }
+  }
+
+  private func captureLegacyCodexProjection(home: URL, installRoot: URL, stagingRoot: URL) throws -> LegacyCodexSnapshot? {
     let environment = ProcessInfo.processInfo.environment
     let stateRoot: URL
     if let configured = environment["LEGION_STATE_ROOT"], !configured.isEmpty {
@@ -215,7 +295,7 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
       throw InstallerError.transactionFailed("verified Codex ownership ledger has modified or unsupported content; preserving prior projection")
     }
 
-    let backupRoot = installRoot.appendingPathComponent(".rollback-codex-\(UUID().uuidString)", isDirectory: true)
+    let backupRoot = stagingRoot.appendingPathComponent("codex-snapshot", isDirectory: true)
     let savedRoot = backupRoot.appendingPathComponent("codex-plugin", isDirectory: true)
     let savedLedger = backupRoot.appendingPathComponent("codex-projection-ledger.json")
     let ledgerBytes = try Data(contentsOf: ledger)

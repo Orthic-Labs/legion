@@ -198,6 +198,77 @@ fn source_state(runner: CommandRunner, root: &Path) -> ReleaseResult<SourceState
     Ok(SourceState { revision, dirty })
 }
 
+fn preassembled_input(
+    input: &Path,
+    build_only: bool,
+    env: &HashMap<String, String>,
+    source: &SourceState,
+    xtask_binary: &Path,
+) -> ReleaseResult<PathBuf> {
+    if !build_only || env.get("GITHUB_ACTIONS").map(String::as_str) != Some("true") {
+        return Err(fail(
+            "preassembled input requires hosted CI build-only packaging",
+        ));
+    }
+    if source.dirty || env.get("GITHUB_SHA").map(String::as_str) != Some(source.revision.as_str()) {
+        return Err(fail(
+            "preassembled input requires a clean checkout at GITHUB_SHA",
+        ));
+    }
+    let runner_temp = env
+        .get("RUNNER_TEMP")
+        .ok_or_else(|| fail("RUNNER_TEMP is required"))?;
+    let expected = Path::new(runner_temp)
+        .join("legion-install")
+        .canonicalize()
+        .map_err(|e| fail(format!("CI payload is unavailable: {e}")))?;
+    let metadata = fs::symlink_metadata(input).map_err(|e| fail(e.to_string()))?;
+    if metadata.is_symlink() || !metadata.is_dir() {
+        return Err(fail("preassembled root must be a real directory"));
+    }
+    let input = input.canonicalize().map_err(|e| fail(e.to_string()))?;
+    if input != expected {
+        return Err(fail("preassembled root must be RUNNER_TEMP/legion-install"));
+    }
+    assert_file(xtask_binary, "CI xtask executable")?;
+    let binary_root = xtask_binary
+        .parent()
+        .ok_or_else(|| fail("CI xtask has no parent"))?;
+    if binary_root.file_name().and_then(|name| name.to_str()) != Some("debug") {
+        return Err(fail("CI xtask must be the already-built dev executable"));
+    }
+    for name in ["legion.exe", "legion-hook.exe", "legion-mcp.exe"] {
+        let assembled = assert_file(&input.join("bin").join(name), "CI payload binary")?;
+        let built = assert_file(&binary_root.join(name), "CI dev binary")?;
+        if sha256_file(&assembled)? != sha256_file(&built)? {
+            return Err(fail(format!(
+                "preassembled {name} differs from the CI dev build"
+            )));
+        }
+    }
+    let manifest_path = assert_file(
+        &input.join("share/legion/release.json"),
+        "CI release metadata",
+    )?;
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(manifest_path).map_err(|e| fail(e.to_string()))?)
+            .map_err(|e| fail(e.to_string()))?;
+    let runtime_sha = sha256_file(&input.join("bin/legion.exe"))?;
+    let provenance = format!("local-build://windows-{ARCHITECTURE}/{runtime_sha}");
+    if manifest
+        .pointer("/runtime/provenance")
+        .and_then(Value::as_str)
+        != Some(provenance.as_str())
+    {
+        return Err(fail(
+            "preassembled input lacks matching local Windows build provenance",
+        ));
+    }
+    // Existing finalization also checks Windows identity, runtime & marketplace
+    // digests, required files & the complete payload's safe tree before ISCC.
+    Ok(crate::windows_release_support::strip_verbatim(input))
+}
+
 fn run_labeled(
     runner: CommandRunner,
     command: &str,
@@ -213,6 +284,184 @@ fn run_labeled(
         )));
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::process_boundary::CommandResult;
+
+    struct CiFixture {
+        root: PathBuf,
+        input: PathBuf,
+        xtask: PathBuf,
+        env: HashMap<String, String>,
+        source: SourceState,
+    }
+
+    impl CiFixture {
+        fn new() -> Self {
+            let scratch = std::env::var_os("RUNNER_TEMP")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    PathBuf::from(if cfg!(windows) {
+                        r"D:\scratch"
+                    } else {
+                        "/Volumes/D/scratch"
+                    })
+                });
+            let root = scratch.join(format!(
+                "legion-preassembled-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            let input = root.join("runner/legion-install");
+            let binary_root = root.join("debug");
+            for path in [
+                input.join("bin"),
+                input.join("share/legion"),
+                binary_root.clone(),
+                root.join("release"),
+            ] {
+                fs::create_dir_all(path).unwrap();
+            }
+            let xtask = binary_root.join("xtask.exe");
+            fs::write(&xtask, b"xtask").unwrap();
+            for name in ["legion.exe", "legion-hook.exe", "legion-mcp.exe"] {
+                fs::write(binary_root.join(name), name).unwrap();
+                fs::write(input.join("bin").join(name), name).unwrap();
+            }
+            let digest = sha256_file(&input.join("bin/legion.exe")).unwrap();
+            fs::write(
+                input.join("share/legion/release.json"),
+                json!({
+                    "releaseVersion": "1.2.3",
+                    "runtime": { "platform": "windows", "architecture": "x86_64", "sha256": digest,
+                        "provenance": format!("local-build://windows-x86_64/{digest}") }
+                })
+                .to_string(),
+            )
+            .unwrap();
+            fs::write(
+                root.join("release/version.json"),
+                r#"{"schemaVersion":1,"kind":"legion-release-version","version":"1.2.3"}"#,
+            )
+            .unwrap();
+            fs::write(root.join(".rightkit-local-development.json"), r#"{"schemaVersion":1,"repository":"Orthic-Labs/legion","platform":"win32","purpose":"unsigned-installer"}"#).unwrap();
+            let source = SourceState {
+                revision: "a".repeat(40),
+                dirty: false,
+            };
+            let env = HashMap::from([
+                ("GITHUB_ACTIONS".into(), "true".into()),
+                ("GITHUB_SHA".into(), source.revision.clone()),
+                (
+                    "RUNNER_TEMP".into(),
+                    root.join("runner").to_string_lossy().into_owned(),
+                ),
+                (
+                    "LOCALAPPDATA".into(),
+                    root.join("local").to_string_lossy().into_owned(),
+                ),
+            ]);
+            Self {
+                root,
+                input,
+                xtask,
+                env,
+                source,
+            }
+        }
+    }
+
+    impl Drop for CiFixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn preassembled_packaging_never_invokes_build_or_assembly() {
+        let fixture = CiFixture::new();
+        let runner = |command: &str, args: &[String], _: &CommandOptions| {
+            assert_eq!(command, "git", "preassembled packaging invoked {command}");
+            CommandResult {
+                status: Some(0),
+                stdout: Some(if args[0] == "rev-parse" {
+                    fixture.source.revision.clone()
+                } else {
+                    String::new()
+                }),
+                ..Default::default()
+            }
+        };
+        let error = run_local_windows_development(RunLocalWindowsDevelopmentOptions {
+            build_only: true,
+            preassembled_root: Some(&fixture.input),
+            is_windows_host: true,
+            runner: &runner,
+            env: &fixture.env,
+            repository_root: &fixture.root,
+            xtask_binary: &fixture.xtask,
+            inno_template: "",
+            activation_script: &fixture.root.join("activate.ps1"),
+            where_exe: &|| None,
+        })
+        .unwrap_err();
+        assert!(
+            error.contains("Inno Setup 6 compiler is missing"),
+            "{error}"
+        );
+        assert!(fixture.input.join("bin/legion.exe").is_file());
+    }
+
+    #[test]
+    fn preassembled_input_rejects_source_path_provenance_and_binary_mismatch() {
+        let mut fixture = CiFixture::new();
+        let validate = |fixture: &CiFixture, input: &Path, build_only| {
+            preassembled_input(
+                input,
+                build_only,
+                &fixture.env,
+                &fixture.source,
+                &fixture.xtask,
+            )
+        };
+        assert!(validate(&fixture, &fixture.input, true).is_ok());
+        assert!(validate(&fixture, &fixture.input, false).is_err());
+        fixture.env.insert("GITHUB_ACTIONS".into(), "false".into());
+        assert!(validate(&fixture, &fixture.input, true).is_err());
+        fixture.env.insert("GITHUB_ACTIONS".into(), "true".into());
+        fixture.source.dirty = true;
+        assert!(validate(&fixture, &fixture.input, true).is_err());
+        fixture.source.dirty = false;
+        fixture.env.insert("GITHUB_SHA".into(), "b".repeat(40));
+        assert!(validate(&fixture, &fixture.input, true).is_err());
+        fixture
+            .env
+            .insert("GITHUB_SHA".into(), fixture.source.revision.clone());
+        assert!(validate(&fixture, &fixture.root, true).is_err());
+        let manifest = fixture.input.join("share/legion/release.json");
+        let original = fs::read(&manifest).unwrap();
+        fs::write(
+            &manifest,
+            r#"{"runtime":{"provenance":"local-build://macos-x86_64/wrong"}}"#,
+        )
+        .unwrap();
+        assert!(validate(&fixture, &fixture.input, true).is_err());
+        fs::write(manifest, original).unwrap();
+        for name in ["legion.exe", "legion-hook.exe", "legion-mcp.exe"] {
+            fs::write(fixture.input.join("bin").join(name), "tampered").unwrap();
+            assert!(
+                validate(&fixture, &fixture.input, true).is_err(),
+                "accepted altered {name}"
+            );
+            fs::write(fixture.input.join("bin").join(name), name).unwrap();
+        }
+    }
 }
 
 fn run_json_labeled(
@@ -243,6 +492,7 @@ fn phase<T>(name: &str, action: impl FnOnce() -> ReleaseResult<T>) -> ReleaseRes
 
 pub struct RunLocalWindowsDevelopmentOptions<'a> {
     pub build_only: bool,
+    pub preassembled_root: Option<&'a Path>,
     pub is_windows_host: bool,
     pub runner: CommandRunner<'a>,
     pub env: &'a HashMap<String, String>,
@@ -271,11 +521,21 @@ pub fn run_local_windows_development(
     let source = source_state(options.runner, root)?;
 
     let output_root = root.join("dist").join("local-windows");
-    let assembly_root = root
+    let local_assembly_root = root
         .join("dist")
         .join("native")
         .join(format!("windows-{ARCHITECTURE}"))
         .join(format!("legion-{release_version}"));
+    let assembly_root = match options.preassembled_root {
+        Some(input) => preassembled_input(
+            input,
+            options.build_only,
+            options.env,
+            &source,
+            options.xtask_binary,
+        )?,
+        None => local_assembly_root,
+    };
     let installer_root = assert_below(
         &output_root,
         &output_root.join("installer"),
@@ -291,97 +551,93 @@ pub fn run_local_windows_development(
     }
     fs::create_dir_all(&installer_root).map_err(|e| fail(e.to_string()))?;
 
-    // Managed native release build via the workspace's `rightkit.cmd` wrapper.
-    phase("native-release-build", || {
-        let comspec = options
-            .env
-            .get("ComSpec")
-            .cloned()
-            .unwrap_or_else(|| "cmd.exe".to_string());
-        let build_options = CommandOptions {
-            cwd: Some(root.to_path_buf()),
-            env: Some(options.env.clone()),
-        };
-        let hosted_ci = options.env.get("GITHUB_ACTIONS").map(String::as_str) == Some("true");
-        let command = if hosted_ci { "cargo" } else { &comspec };
-        let mut arguments: Vec<String> = if hosted_ci {
-            vec![]
-        } else {
-            vec![
-                "/d".into(),
-                "/s".into(),
-                "/c".into(),
-                "rightkit.cmd".into(),
-                "cargo".into(),
-            ]
-        };
-        let profile = options
-            .env
-            .get("RIGHTKIT_CARGO_PROFILE")
-            .map(String::as_str)
-            .unwrap_or("release");
-        arguments.extend(
-            [
-                "build",
-                "--manifest-path",
-                "engine/Cargo.toml",
-                "--locked",
-                "--profile",
-                profile,
-                "-p",
-                "legion",
-                "-p",
-                "legion-hook",
-                "-p",
-                "legion-mcp",
-                "--target",
-                TARGET,
-            ]
-            .map(String::from),
-        );
-        run_labeled(
-            options.runner,
-            command,
-            &arguments,
-            &build_options,
-            "managed native release build",
-        )?;
-        Ok(())
-    })?;
+    if options.preassembled_root.is_none() {
+        // Managed native dev build via the workspace's `rightkit.cmd` wrapper.
+        phase("native-dev-build", || {
+            let comspec = options
+                .env
+                .get("ComSpec")
+                .cloned()
+                .unwrap_or_else(|| "cmd.exe".to_string());
+            let mut build_env = options.env.clone();
+            build_env.insert("RIGHTKIT_BUILD_MODE".into(), "dev".into());
+            build_env.insert("RIGHTKIT_CARGO_PROFILE".into(), "dev".into());
+            build_env.insert("CARGO_INCREMENTAL".into(), "1".into());
+            let build_options = CommandOptions {
+                cwd: Some(root.to_path_buf()),
+                env: Some(build_env),
+            };
+            let hosted_ci = options.env.get("GITHUB_ACTIONS").map(String::as_str) == Some("true");
+            let command = if hosted_ci { "cargo" } else { &comspec };
+            let mut arguments: Vec<String> = if hosted_ci {
+                vec![]
+            } else {
+                vec![
+                    "/d".into(),
+                    "/s".into(),
+                    "/c".into(),
+                    "rightkit.cmd".into(),
+                    "cargo".into(),
+                ]
+            };
+            arguments.extend(
+                [
+                    "build",
+                    "--manifest-path",
+                    "engine/Cargo.toml",
+                    "--locked",
+                    "--profile",
+                    "dev",
+                    "-p",
+                    "legion",
+                    "-p",
+                    "legion-hook",
+                    "-p",
+                    "legion-mcp",
+                    "--target",
+                    TARGET,
+                ]
+                .map(String::from),
+            );
+            run_labeled(
+                options.runner,
+                command,
+                &arguments,
+                &build_options,
+                "managed native dev build",
+            )?;
+            Ok(())
+        })?;
 
-    // Native assembly, now via the built xtask binary's own subcommand.
-    phase("native-assembly", || {
-        let assembly_options = CommandOptions {
-            cwd: Some(root.to_path_buf()),
-            env: Some(options.env.clone()),
-        };
-        run_labeled(
-            options.runner,
-            &options.xtask_binary.to_string_lossy(),
-            &[
-                "assemble-native-release".into(),
-                "--profile".into(),
-                options
-                    .env
-                    .get("RIGHTKIT_CARGO_PROFILE")
-                    .map(String::as_str)
-                    .unwrap_or("release")
-                    .into(),
-                "--platform".into(),
-                "windows".into(),
-                "--architecture".into(),
-                ARCHITECTURE.into(),
-                "--target".into(),
-                TARGET.into(),
-                "--out".into(),
-                assembly_root.to_string_lossy().to_string(),
-                "--force".into(),
-            ],
-            &assembly_options,
-            "native assembly",
-        )?;
-        Ok(())
-    })?;
+        // Native assembly, now via the built xtask binary's own subcommand.
+        phase("native-assembly", || {
+            let assembly_options = CommandOptions {
+                cwd: Some(root.to_path_buf()),
+                env: Some(options.env.clone()),
+            };
+            run_labeled(
+                options.runner,
+                &options.xtask_binary.to_string_lossy(),
+                &[
+                    "assemble-native-release".into(),
+                    "--profile".into(),
+                    "debug".into(),
+                    "--platform".into(),
+                    "windows".into(),
+                    "--architecture".into(),
+                    ARCHITECTURE.into(),
+                    "--target".into(),
+                    TARGET.into(),
+                    "--out".into(),
+                    assembly_root.to_string_lossy().to_string(),
+                    "--force".into(),
+                ],
+                &assembly_options,
+                "native assembly",
+            )?;
+            Ok(())
+        })?;
+    }
 
     let inno = resolve_inno_compiler(options.env, options.where_exe)?;
     let installer = phase("unsigned-installer", || {

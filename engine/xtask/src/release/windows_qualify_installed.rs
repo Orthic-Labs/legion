@@ -1,6 +1,6 @@
 //! Rust port of `scripts/release/windows/qualify-installed.mjs`: runs a
 //! finalized Windows installer through its qualification stages
-//! (install, version, same-version-upgrade, plugin-root transport,
+//! (install, version, same-version-upgrade, legacy junction migration, plugin-root transport,
 //! staged-validation-failure, mirror-sync-failure, forced-refresh-failure,
 //! stalled-child, repair, status, doctor, uninstall) in an isolated
 //! `LOCALAPPDATA`/`USERPROFILE`, and writes either `qualification.json` or,
@@ -665,6 +665,137 @@ mod native_client_qualification_tests {
     }
 }
 
+fn assert_real_install_directory(path: &Path) -> ReleaseResult<()> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|e| fail(format!("installed directory {}: {e}", path.display())))?;
+    #[cfg(windows)]
+    let is_reparse = {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0
+    };
+    #[cfg(not(windows))]
+    let is_reparse = metadata.file_type().is_symlink();
+    if !metadata.is_dir() || is_reparse {
+        return Err(fail(format!(
+            "installed payload must be a real directory: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+fn assert_fixed_payload_layout(root: &Path) -> ReleaseResult<()> {
+    assert_real_install_directory(&root.join("current"))?;
+    let release_text = fs::read_to_string(root.join("current/share/legion/release.json"))
+        .map_err(|e| fail(e.to_string()))?;
+    let release: Value = serde_json::from_str(release_text.trim_start_matches('\u{feff}'))
+        .map_err(|e| fail(e.to_string()))?;
+    let release_version = release
+        .get("releaseVersion")
+        .and_then(Value::as_str)
+        .ok_or_else(|| fail("current payload lacks release version"))?;
+    if root
+        .join(format!(".next-version-{release_version}"))
+        .exists()
+    {
+        return Err(fail("fixed installation retained its staged payload"));
+    }
+    for entry in fs::read_dir(root).map_err(|e| fail(e.to_string()))? {
+        let entry = entry.map_err(|e| fail(e.to_string()))?;
+        let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+        if name == ".next-previous" || name == ".rollback-codex" {
+            return Err(fail(format!(
+                "fixed installation retained its transaction storage: {name}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn assert_fixed_activation_receipt(root: &Path, has_previous: bool) -> ReleaseResult<()> {
+    let text = fs::read_to_string(root.join("activation.json"))
+        .map_err(|e| fail(format!("activation receipt could not be read: {e}")))?;
+    let receipt: Value = serde_json::from_str(text.trim_start_matches('\u{feff}'))
+        .map_err(|e| fail(format!("activation receipt is invalid: {e}")))?;
+    let matches = |field: &str, expected: &Path| {
+        receipt.get(field).and_then(Value::as_str).map(|value| {
+            value.replace('/', "\\").to_ascii_lowercase()
+                == expected
+                    .to_string_lossy()
+                    .replace('/', "\\")
+                    .to_ascii_lowercase()
+        }) == Some(true)
+    };
+    if receipt.get("state").and_then(Value::as_str) != Some("activated")
+        || !matches("current", &root.join("current"))
+        || !matches("target", &root.join("current"))
+        || (has_previous && !matches("previous", &root.join("current.previous")))
+        || (!has_previous && !receipt.get("previous").map(Value::is_null).unwrap_or(false))
+    {
+        return Err(fail(
+            "activation receipt does not bind fixed current/previous paths",
+        ));
+    }
+    Ok(())
+}
+
+fn assert_stable_runtime_events(events_path: &Path, executable: &Path) -> ReleaseResult<()> {
+    let text = fs::read_to_string(events_path)
+        .map_err(|e| fail(format!("activation events could not be read: {e}")))?;
+    let mut observed_runtime = false;
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        let event: Value = serde_json::from_str(line.trim_start_matches('\u{feff}'))
+            .map_err(|e| fail(format!("activation event is invalid: {e}")))?;
+        if event.get("status").and_then(Value::as_str) != Some("started") {
+            continue;
+        }
+        let detail = event.get("detail").and_then(Value::as_str).unwrap_or("");
+        if let Some(path) = detail.strip_prefix("executable=") {
+            let path = path.split("; timeout=").next().unwrap_or(path);
+            if Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.eq_ignore_ascii_case("legion.exe"))
+                == Some(true)
+            {
+                observed_runtime = true;
+                if !path.eq_ignore_ascii_case(&executable.to_string_lossy()) {
+                    return Err(fail(format!(
+                        "activation executed Legion outside fixed current: {path}"
+                    )));
+                }
+            }
+        }
+    }
+    if !observed_runtime {
+        return Err(fail(
+            "activation did not record fixed-current runtime execution",
+        ));
+    }
+    Ok(())
+}
+
+fn assert_no_new_runtime_events(events_path: &Path, before: &str) -> ReleaseResult<()> {
+    let after = fs::read_to_string(events_path).map_err(|e| fail(e.to_string()))?;
+    let added = after
+        .strip_prefix(before)
+        .ok_or_else(|| fail("activation rejection replaced prior event evidence"))?;
+    for line in added.lines().filter(|line| !line.trim().is_empty()) {
+        let event: Value = serde_json::from_str(line.trim_start_matches('\u{feff}'))
+            .map_err(|e| fail(e.to_string()))?;
+        if event.get("status").and_then(Value::as_str) == Some("started")
+            && event
+                .get("detail")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .starts_with("executable=")
+        {
+            return Err(fail("rejected prior state triggered runtime execution"));
+        }
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn qualify_inner(
     runner: CommandRunner,
@@ -685,7 +816,7 @@ fn qualify_inner(
         .join("Orthic Labs")
         .join("Legion")
         .join("current");
-    fs::create_dir_all(&mirror_current).map_err(|e| {
+    fs::create_dir_all(mirror_current.parent().unwrap()).map_err(|e| {
         fail(format!(
             "could not create isolated LocalCache mirror fixture: {e}"
         ))
@@ -807,7 +938,7 @@ fn qualify_inner(
             )));
         }
 
-        step("version", &mut || {
+        let installed_version = step("version", &mut || {
             execute(
                 runner,
                 &executable,
@@ -816,6 +947,9 @@ fn qualify_inner(
                 "installed legion --version",
             )
         })?;
+        if installed_version.stdout != version {
+            return Err(fail("installed current reported an unexpected version"));
+        }
         let mirror_executable = mirror_current.join("bin").join("legion.exe");
         if !mirror_executable.is_file() {
             return Err(fail(format!(
@@ -824,24 +958,170 @@ fn qualify_inner(
             )));
         }
 
-        // Seed the exact stale directory shape observed in a real same-version
-        // upgrade. The next installer run must replace the owned version tree,
-        // rather than merging into it.
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, false)?;
+        if install_root.join("versions").exists()
+            || mirror_current.parent().unwrap().join("versions").exists()
+        {
+            return Err(fail("fresh installation created generation storage"));
+        }
+
+        // Hold the real Inno mutex in another process while invoking setup.
+        // A rejected installer must leave payload, receipt & staging untouched.
+        let installed_sha256 = sha256_file(&executable)?;
+        let installed_receipt =
+            fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?;
+        let lock_probe = workspace.join("probe-installer-lock.ps1");
+        fs::write(
+            &lock_probe,
+            r#"param([string]$Installer, [string]$InstallRoot)
+$ErrorActionPreference = 'Stop'
+$mutex = [Threading.Mutex]::new($false, 'Local\OrthicLabs.Legion.Setup')
+try {
+  if (-not $mutex.WaitOne(0)) { throw 'Could not acquire installer qualification mutex' }
+  & $Installer '/VERYSILENT' '/SUPPRESSMSGBOXES' '/NORESTART' ('/DIR=' + $InstallRoot)
+  if ($LASTEXITCODE -eq 0) { throw 'Concurrent installer falsely succeeded' }
+  Write-Output ('blockedInstallerExit=' + $LASTEXITCODE)
+} finally { $mutex.ReleaseMutex(); $mutex.Dispose() }
+"#,
+        )
+        .map_err(|e| fail(e.to_string()))?;
+        let events_before_lock =
+            fs::read_to_string(&activation_events).map_err(|e| fail(e.to_string()))?;
+        step("concurrent-installer-rejection", &mut || {
+            execute(
+                runner,
+                Path::new("powershell.exe"),
+                &[
+                    "-NoProfile".into(),
+                    "-NonInteractive".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    lock_probe.to_string_lossy().to_string(),
+                    "-Installer".into(),
+                    installer.to_string_lossy().to_string(),
+                    "-InstallRoot".into(),
+                    install_root.to_string_lossy().to_string(),
+                ],
+                &workspace_opts,
+                "concurrent installer rejection",
+            )
+        })?;
+        assert_no_new_runtime_events(&activation_events, &events_before_lock)?;
+        if sha256_file(&executable)? != installed_sha256
+            || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
+                != installed_receipt
+            || install_root
+                .join(format!(".next-version-{version}"))
+                .exists()
+        {
+            return Err(fail("concurrent installer changed prior installation"));
+        }
+
+        for (stage, name) in [
+            (
+                "unowned-stage-rejection",
+                format!(".next-version-{version}"),
+            ),
+            ("unowned-recovery-rejection", ".next-previous".to_string()),
+            ("unowned-snapshot-rejection", ".rollback-codex".to_string()),
+            ("unowned-previous-rejection", "current.previous".to_string()),
+        ] {
+            let foreign_root = install_root.join(name);
+            fs::create_dir_all(&foreign_root).map_err(|e| fail(e.to_string()))?;
+            fs::write(foreign_root.join("foreign.txt"), "preserve unowned state")
+                .map_err(|e| fail(e.to_string()))?;
+            let prior_events =
+                fs::read_to_string(&activation_events).map_err(|e| fail(e.to_string()))?;
+            step(stage, &mut || {
+                execute_expected_failure(
+                    runner,
+                    installer,
+                    &[
+                        "/VERYSILENT".into(),
+                        "/SUPPRESSMSGBOXES".into(),
+                        "/NORESTART".into(),
+                        format!("/DIR={}", install_root.display()),
+                    ],
+                    &workspace_opts,
+                    stage,
+                )
+            })?;
+            assert_no_new_runtime_events(&activation_events, &prior_events)?;
+            if fs::read_to_string(foreign_root.join("foreign.txt"))
+                .map_err(|e| fail(e.to_string()))?
+                != "preserve unowned state"
+                || sha256_file(&executable)? != installed_sha256
+                || fs::read(install_root.join("activation.json"))
+                    .map_err(|e| fail(e.to_string()))?
+                    != installed_receipt
+            {
+                return Err(fail(format!("{stage} changed foreign or installed state")));
+            }
+            fs::remove_dir_all(foreign_root).map_err(|e| fail(e.to_string()))?;
+        }
+
+        let foreign_current = workspace.join("foreign-current-target");
+        fs::rename(install_root.join("current"), &foreign_current)
+            .map_err(|e| fail(e.to_string()))?;
+        step("foreign-junction-fixture", &mut || {
+            execute(
+                runner,
+                Path::new("cmd.exe"),
+                &[
+                    "/D".into(),
+                    "/C".into(),
+                    "mklink".into(),
+                    "/J".into(),
+                    install_root.join("current").to_string_lossy().to_string(),
+                    foreign_current.to_string_lossy().to_string(),
+                ],
+                &workspace_opts,
+                "foreign current junction fixture",
+            )
+        })?;
+        let foreign_events =
+            fs::read_to_string(&activation_events).map_err(|e| fail(e.to_string()))?;
+        step("foreign-junction-rejection", &mut || {
+            execute_expected_failure(
+                runner,
+                installer,
+                &[
+                    "/VERYSILENT".into(),
+                    "/SUPPRESSMSGBOXES".into(),
+                    "/NORESTART".into(),
+                    format!("/DIR={}", install_root.display()),
+                ],
+                &workspace_opts,
+                "foreign current junction rejection",
+            )
+        })?;
+        assert_no_new_runtime_events(&activation_events, &foreign_events)?;
+        if sha256_file(&foreign_current.join("bin/legion.exe"))? != installed_sha256
+            || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
+                != installed_receipt
+        {
+            return Err(fail(
+                "foreign junction rejection changed foreign payload or receipt",
+            ));
+        }
+        fs::remove_dir(install_root.join("current")).map_err(|e| fail(e.to_string()))?;
+        fs::rename(&foreign_current, install_root.join("current"))
+            .map_err(|e| fail(e.to_string()))?;
+        assert_fixed_payload_layout(&install_root)?;
+
+        // Same-version reinstall must replace current completely while keeping
+        // its old bytes only in the fixed, nonrunning current.previous sibling.
         let stale_dir = install_root
-            .join("versions")
-            .join(version)
+            .join("current")
             .join("plugin")
             .join("skills")
             .join("alchemist")
             .join("scripts");
         let stale_file = stale_dir.join("obsolete-upgrade-marker.txt");
-        let version_executable = install_root
-            .join("versions")
-            .join(version)
-            .join("bin")
-            .join("legion.exe");
         let pre_upgrade_current_sha256 = sha256_file(&executable)?;
-        let pre_upgrade_version_sha256 = sha256_file(&version_executable)?;
         let pre_upgrade_mirror_sha256 = sha256_file(&mirror_executable)?;
         fs::create_dir_all(&stale_dir)
             .map_err(|e| fail(format!("could not seed stale upgrade entry: {e}")))?;
@@ -872,7 +1152,6 @@ fn qualify_inner(
             )
         })?;
         if sha256_file(&executable)? != pre_upgrade_current_sha256
-            || sha256_file(&version_executable)? != pre_upgrade_version_sha256
             || sha256_file(&mirror_executable)? != pre_upgrade_mirror_sha256
         {
             return Err(fail(
@@ -881,9 +1160,12 @@ fn qualify_inner(
         }
         if !stale_dir.exists() || !stale_file.exists() {
             return Err(fail(
-                "staged payload validation failure did not preserve prior version tree",
+                "staged payload validation failure did not preserve prior current tree",
             ));
         }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, false)?;
         let mut mirror_failure_env = environment.clone();
         mirror_failure_env.insert(
             "LEGION_INSTALL_TEST_MODE".to_string(),
@@ -909,7 +1191,6 @@ fn qualify_inner(
             )
         })?;
         if sha256_file(&executable)? != pre_upgrade_current_sha256
-            || sha256_file(&version_executable)? != pre_upgrade_version_sha256
             || sha256_file(&mirror_executable)? != pre_upgrade_mirror_sha256
         {
             return Err(fail(
@@ -918,9 +1199,12 @@ fn qualify_inner(
         }
         if !stale_dir.exists() || !stale_file.exists() {
             return Err(fail(
-                "packaged LocalCache mirror failure did not preserve prior version tree",
+                "packaged LocalCache mirror failure did not preserve prior current tree",
             ));
         }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, false)?;
         let upgrade_run = step("same-version-upgrade", &mut || {
             execute(
                 runner,
@@ -937,15 +1221,121 @@ fn qualify_inner(
             )
         })?;
         let _ = upgrade_run;
-        let current_stale_dir = install_root
-            .join("current")
+        let previous_stale_file = install_root
+            .join("current.previous")
             .join("plugin")
             .join("skills")
             .join("alchemist")
-            .join("scripts");
-        if stale_dir.exists() || stale_file.exists() || current_stale_dir.exists() {
+            .join("scripts")
+            .join("obsolete-upgrade-marker.txt");
+        if stale_dir.exists() || stale_file.exists() || !previous_stale_file.is_file() {
             return Err(fail(
-                "same-version upgrade retained obsolete payload entries",
+                "same-version upgrade did not isolate obsolete entries in current.previous",
+            ));
+        }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, true)?;
+        assert_real_install_directory(&install_root.join("current.previous"))?;
+        assert_real_install_directory(&mirror_current.parent().unwrap().join("current.previous"))?;
+        if sha256_file(&install_root.join("current.previous/bin/legion.exe"))?
+            != pre_upgrade_current_sha256
+            || sha256_file(
+                &mirror_current
+                    .parent()
+                    .unwrap()
+                    .join("current.previous/bin/legion.exe"),
+            )? != pre_upgrade_mirror_sha256
+        {
+            return Err(fail(
+                "same-version upgrade did not retain prior current & LocalCache executable bytes",
+            ));
+        }
+
+        // Reproduce the historical junction layout using the same installed
+        // bytes. Its target must be retired only after real current succeeds.
+        let legacy_target = install_root.join("versions").join(version);
+        fs::create_dir_all(legacy_target.parent().unwrap())
+            .map_err(|e| fail(format!("could not create legacy generation fixture: {e}")))?;
+        fs::rename(install_root.join("current"), &legacy_target)
+            .map_err(|e| fail(format!("could not seed legacy generation fixture: {e}")))?;
+        let legacy_marker = "legacy-current-marker.txt";
+        fs::write(legacy_target.join(legacy_marker), "prior junction payload")
+            .map_err(|e| fail(format!("could not seed legacy payload marker: {e}")))?;
+        step("legacy-junction-fixture", &mut || {
+            execute(
+                runner,
+                Path::new("cmd.exe"),
+                &[
+                    "/D".into(),
+                    "/C".into(),
+                    "mklink".into(),
+                    "/J".into(),
+                    install_root.join("current").to_string_lossy().to_string(),
+                    legacy_target.to_string_lossy().to_string(),
+                ],
+                &workspace_opts,
+                "legacy current junction fixture",
+            )
+        })?;
+        let obsolete_backup = install_root.join(".previous-current-legacy-fixture");
+        fs::create_dir_all(&obsolete_backup).map_err(|e| fail(e.to_string()))?;
+        fs::write(obsolete_backup.join("marker.txt"), "obsolete backup")
+            .map_err(|e| fail(e.to_string()))?;
+        let foreign_history = install_root.join("versions").join("foreign-history");
+        fs::create_dir_all(&foreign_history).map_err(|e| fail(e.to_string()))?;
+        fs::write(
+            foreign_history.join("marker.txt"),
+            "preserve foreign history",
+        )
+        .map_err(|e| fail(e.to_string()))?;
+        let mirror_foreign_history = mirror_current
+            .parent()
+            .unwrap()
+            .join(".previous-current-foreign-history");
+        fs::create_dir_all(&mirror_foreign_history).map_err(|e| fail(e.to_string()))?;
+        fs::write(
+            mirror_foreign_history.join("marker.txt"),
+            "preserve mirror history",
+        )
+        .map_err(|e| fail(e.to_string()))?;
+        step("legacy-layout-upgrade", &mut || {
+            execute(
+                runner,
+                installer,
+                &[
+                    "/VERYSILENT".into(),
+                    "/SUPPRESSMSGBOXES".into(),
+                    "/NORESTART".into(),
+                    format!("/DIR={}", install_root.display()),
+                    format!("/LOG={}", install_log.display()),
+                ],
+                &workspace_opts,
+                "legacy junction migration",
+            )
+        })?;
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_activation_receipt(&install_root, true)?;
+        assert_real_install_directory(&install_root.join("current.previous"))?;
+        if legacy_target.exists()
+            || !foreign_history.join("marker.txt").is_file()
+            || !obsolete_backup.join("marker.txt").is_file()
+            || !mirror_foreign_history.join("marker.txt").is_file()
+        {
+            return Err(fail(
+                "legacy migration did not retire only its owned target",
+            ));
+        }
+        if !install_root
+            .join("current.previous")
+            .join(legacy_marker)
+            .is_file()
+            || install_root.join("current").join(legacy_marker).exists()
+            || sha256_file(&install_root.join("current.previous/bin/legion.exe"))?
+                != pre_upgrade_current_sha256
+        {
+            return Err(fail(
+                "legacy junction migration did not retain a real prior payload",
             ));
         }
         let plugin_root_transport = step("plugin-root-transport", &mut || {
@@ -958,6 +1348,10 @@ fn qualify_inner(
         let native_marketplace_payload =
             validate_installed_native_marketplaces(&install_root.join("current"))?;
         let activated_sha256 = sha256_file(&executable)?;
+        let previous_executable = install_root.join("current.previous/bin/legion.exe");
+        let previous_sha256 = sha256_file(&previous_executable)?;
+        let prior_receipt =
+            fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?;
 
         let mut forced_env = environment.clone();
         forced_env.insert(
@@ -983,11 +1377,108 @@ fn qualify_inner(
                 "forced client refresh failure",
             )
         })?;
-        if sha256_file(&executable)? != activated_sha256 {
+        if sha256_file(&executable)? != activated_sha256
+            || sha256_file(&previous_executable)? != previous_sha256
+            || !install_root
+                .join("current.previous")
+                .join(legacy_marker)
+                .is_file()
+            || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
+                != prior_receipt
+        {
             return Err(fail(
-                "forced client refresh failure did not restore previous activation",
+                "forced client refresh failure did not restore current, previous payload & receipt",
             ));
         }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, true)?;
+
+        let mirror_before_receipt_failure = sha256_file(&mirror_executable)?;
+        let mirror_previous_executable = mirror_current
+            .parent()
+            .unwrap()
+            .join("current.previous/bin/legion.exe");
+        let mirror_previous_before_receipt_failure = sha256_file(&mirror_previous_executable)?;
+        // Fault injection stays in qualification. Dot-source the exact activation
+        // source compiled with this xtask; no QA switch ships in the installer.
+        let receipt_activation_source = workspace.join("receipt-activation.ps1");
+        fs::write(
+            &receipt_activation_source,
+            include_str!("../../../../scripts/release/windows/activate.ps1"),
+        )
+        .map_err(|e| fail(e.to_string()))?;
+        let receipt_activation_source_sha256 = sha256_file(&receipt_activation_source)?;
+        let receipt_fault_wrapper = workspace.join("probe-partial-receipt-write.ps1");
+        let receipt_fault_proof = workspace.join("partial-receipt-write-observed.txt");
+        fs::write(&receipt_fault_wrapper, r#"param([string]$ActivationScript, [string]$InstallRoot, [string]$Version, [string]$ProofPath)
+$ErrorActionPreference = 'Stop'
+$receiptToFail = [IO.Path]::GetFullPath((Join-Path $InstallRoot 'activation.json'))
+$stage = Join-Path $InstallRoot ('.next-version-' + $Version)
+if (Test-Path -LiteralPath $stage) { throw 'Receipt probe stage already exists' }
+Copy-Item -LiteralPath (Join-Path $InstallRoot 'current') -Destination $stage -Recurse
+function Set-Content {
+  [CmdletBinding()]
+  param([Parameter(ValueFromPipeline=$true)]$Value, [string]$LiteralPath, [string]$Encoding)
+  process {
+    if ([IO.Path]::GetFullPath($LiteralPath) -ieq $receiptToFail) {
+      [IO.File]::WriteAllText($LiteralPath, '{')
+      if ([IO.File]::ReadAllText($LiteralPath) -cne '{') { throw 'Partial receipt write was not observed' }
+      [IO.File]::WriteAllText($ProofPath, 'partial activation receipt observed')
+      throw 'Injected Set-Content failure after partial activation receipt write'
+    }
+    Microsoft.PowerShell.Management\Set-Content @PSBoundParameters
+  }
+}
+. $ActivationScript -InstallRoot $InstallRoot -Version $Version
+throw 'Receipt fault did not interrupt activation'
+"#).map_err(|e| fail(e.to_string()))?;
+        step("receipt-write-failure", &mut || {
+            execute_expected_failure(
+                runner,
+                Path::new("powershell.exe"),
+                &[
+                    "-NoProfile".into(),
+                    "-NonInteractive".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    receipt_fault_wrapper.to_string_lossy().to_string(),
+                    "-ActivationScript".into(),
+                    receipt_activation_source.to_string_lossy().to_string(),
+                    "-InstallRoot".into(),
+                    install_root.to_string_lossy().to_string(),
+                    "-Version".into(),
+                    version.to_string(),
+                    "-ProofPath".into(),
+                    receipt_fault_proof.to_string_lossy().to_string(),
+                ],
+                &workspace_opts,
+                "partial activation receipt write failure",
+            )
+        })?;
+        let partial_write_observed = fs::read_to_string(&receipt_fault_proof)
+            .map(|proof| proof == "partial activation receipt observed")
+            .unwrap_or(false);
+        if !partial_write_observed
+            || sha256_file(&executable)? != activated_sha256
+            || sha256_file(&previous_executable)? != previous_sha256
+            || sha256_file(&mirror_executable)? != mirror_before_receipt_failure
+            || sha256_file(&mirror_previous_executable)? != mirror_previous_before_receipt_failure
+            || !install_root
+                .join("current.previous")
+                .join(legacy_marker)
+                .is_file()
+            || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
+                != prior_receipt
+        {
+            return Err(fail(
+                "partial receipt write failure did not restore exact prior receipt & payloads",
+            ));
+        }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, true)?;
 
         let mut stalled_env = environment.clone();
         stalled_env.insert(
@@ -1017,11 +1508,23 @@ fn qualify_inner(
                 "stalled installer child",
             )
         })?;
-        if sha256_file(&executable)? != activated_sha256 {
+        if sha256_file(&executable)? != activated_sha256
+            || sha256_file(&previous_executable)? != previous_sha256
+            || !install_root
+                .join("current.previous")
+                .join(legacy_marker)
+                .is_file()
+            || fs::read(install_root.join("activation.json")).map_err(|e| fail(e.to_string()))?
+                != prior_receipt
+        {
             return Err(fail(
-                "stalled installer child did not restore previous activation",
+                "stalled installer child did not restore current, previous payload & receipt",
             ));
         }
+        assert_fixed_payload_layout(&install_root)?;
+        assert_fixed_payload_layout(mirror_current.parent().unwrap())?;
+        assert_fixed_activation_receipt(&install_root, true)?;
+        assert_stable_runtime_events(&activation_events, &executable)?;
 
         let repair_run = step("repair", &mut || {
             execute(
@@ -1124,11 +1627,20 @@ fn qualify_inner(
             "commands": {
                 "install": commands_stage("install"),
                 "version": commands_stage("version"),
+                "concurrentInstallerRejection": commands_stage("concurrent-installer-rejection"),
+                "unownedStageRejection": commands_stage("unowned-stage-rejection"),
+                "unownedRecoveryRejection": commands_stage("unowned-recovery-rejection"),
+                "unownedSnapshotRejection": commands_stage("unowned-snapshot-rejection"),
+                "unownedPreviousRejection": commands_stage("unowned-previous-rejection"),
+                "foreignJunctionRejection": commands_stage("foreign-junction-rejection"),
                 "stagedValidationFailure": commands_stage("staged-validation-failure"),
                 "mirrorSyncFailure": commands_stage("mirror-sync-failure"),
                 "sameVersionUpgrade": commands_stage("same-version-upgrade"),
+                "legacyJunctionFixture": commands_stage("legacy-junction-fixture"),
+                "legacyLayoutUpgrade": commands_stage("legacy-layout-upgrade"),
                 "pluginRootTransport": commands_stage("plugin-root-transport"),
                 "forcedRefreshFailure": commands_stage("forced-refresh-failure"),
+                "receiptWriteFailure": commands_stage("receipt-write-failure"),
                 "stalledChild": commands_stage("stalled-child"),
                 "repair": commands_stage("repair"),
                 "status": commands_stage("status"),
@@ -1143,9 +1655,18 @@ fn qualify_inner(
                 "stagedValidationRollbackVerified": true,
                 "mirrorSyncRollbackVerified": true,
                 "sameVersionUpgradeClean": true,
+                "fixedCurrentLayoutVerified": true,
+                "concurrentInstallerRejected": true,
+                "foreignStatePreserved": true,
+                "foreignJunctionRejectedBeforeExecution": true,
+                "fixedPreviousPayloadVerified": true,
+                "legacyJunctionMigrationVerified": true,
+                "stableRuntimeExecutionVerified": true,
                 "nativeMarketplacePayload": native_marketplace_payload,
                 "pluginRootTransport": plugin_root_transport.stdout,
                 "rollbackVerified": true,
+                "partialReceiptWriteRollbackVerified": true,
+                "partialReceiptWriteActivationSourceSha256": receipt_activation_source_sha256,
                 "stalledChildBounded": true,
             },
         });

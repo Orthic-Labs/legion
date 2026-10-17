@@ -271,7 +271,7 @@ impl InstalledRelease {
         })
     }
 
-    /// Resolve immutable version root reached through lexical stable `current`.
+    /// Resolve the active install root at stable `current`.
     pub fn resolved_install_root(&self) -> Result<PathBuf, ReleaseBindingError> {
         let product_root = self.origin_evidence().install_root.ok_or_else(|| {
             ReleaseBindingError::InvalidManifest {
@@ -470,8 +470,7 @@ pub fn stable_product_root() -> Option<PathBuf> {
     Some(data_root.join("Orthic Labs").join("Legion"))
 }
 
-/// Return stable lexical `current` tree below product root. It may be a
-/// junction/symlink to an immutable, verified release generation.
+/// Return the fixed active `current` directory below the product root.
 pub fn stable_current_root() -> Option<PathBuf> {
     stable_product_root().map(|root| root.join("current"))
 }
@@ -484,8 +483,7 @@ pub fn is_stable_current_executable(path: &Path) -> bool {
 }
 
 /// Return stable product root for one lexical executable path. This preserves
-/// the user-facing `current` path even when that directory is a Windows
-/// junction to an immutable versioned generation.
+/// the user-facing `current` path independently of release identity.
 pub fn stable_install_root(path: impl AsRef<Path>) -> Option<PathBuf> {
     let product_root = stable_product_root()?;
     let current_root = product_root.join("current");
@@ -494,7 +492,7 @@ pub fn stable_install_root(path: impl AsRef<Path>) -> Option<PathBuf> {
 
 /// Resolve an outer launcher symlink only when it reaches this product's
 /// stable executable. The evidence remains lexical `current/bin/legion`, so
-/// a launcher cannot redirect binding into an arbitrary immutable generation;
+/// a launcher cannot redirect binding into a backup or staged release;
 /// only an exact resolved executable is admitted. This also keeps launcher
 /// compatibility covered by native CI whenever this binding changes.
 fn stable_current_executable_path(path: &Path, current_root: &Path) -> Option<PathBuf> {
@@ -1680,6 +1678,10 @@ mod tests {
         fs::create_dir_all(outside.parent().expect("outside bin")).expect("directories");
         fs::write(&executable, b"legion").expect("executable");
         fs::write(&outside, b"foreign").expect("foreign executable");
+        assert!(fs::symlink_metadata(&current)
+            .expect("current directory")
+            .is_dir());
+        assert!(is_stable_current_executable_at(&executable, &current));
         assert!(!is_stable_current_executable_at(&outside, &current));
         let linked = root.join("linked/bin/legion.exe");
         fs::create_dir_all(linked.parent().expect("linked bin")).expect("linked directories");
@@ -1796,7 +1798,7 @@ pub mod right_release_config {
             "localAppDataSubdir": ["Orthic Labs", "Legion"],
             "installRootSubdir": "Orthic Labs/Legion",
             "stableCurrentName": "current",
-            "previousCurrentName": ".current-previous",
+            "previousCurrentName": "current.previous",
             "nextCurrentName": ".current-next",
             "integrationJournalName": "integration-journal.json",
             "executablePath": "bin/legion.exe",

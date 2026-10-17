@@ -79,7 +79,7 @@ impl WindowsInstallContract {
     pub const LOCAL_APP_DATA_SUBDIR: [&'static str; 2] = ["Orthic Labs", "Legion"];
     pub const INSTALL_ROOT_SUBDIR: &'static str = "Orthic Labs/Legion";
     pub const STABLE_CURRENT_NAME: &'static str = "current";
-    pub const PREVIOUS_CURRENT_NAME: &'static str = ".current-previous";
+    pub const PREVIOUS_CURRENT_NAME: &'static str = "current.previous";
     pub const NEXT_CURRENT_NAME: &'static str = ".current-next";
     pub const INTEGRATION_JOURNAL_NAME: &'static str = "integration-journal.json";
     pub const EXECUTABLE_PATH: &'static str = "bin/legion.exe";

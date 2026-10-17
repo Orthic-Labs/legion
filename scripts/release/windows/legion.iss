@@ -11,6 +11,8 @@ AppName=Legion
 AppVersion={#ProductVersion}
 AppPublisher=Orthic Labs
 DefaultDirName={localappdata}\Orthic Labs\Legion
+UsePreviousAppDir=no
+SetupMutex=Local\OrthicLabs.Legion.Setup
 DefaultGroupName=Legion
 DisableProgramGroupPage=yes
 ; Legion installs without a wizard. Every page is disabled so no command
@@ -34,7 +36,8 @@ Uninstallable=yes
 [Files]
 Source: "@@ACTIVATION_SCRIPT@@"; DestDir: "{tmp}"; Flags: deleteafterinstall
 ; Stage into a fresh root.  Same-version installs must not merge into the
-; existing version tree: removed payload entries would otherwise survive.
+; existing current tree: removed payload entries would otherwise survive.
+; This directory is nonrunning staging only; activation moves it to current.
 Source: "{#SourceRoot}\bin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\plugin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\share\*"; DestDir: "{app}\.next-version-{#ProductVersion}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -126,14 +129,11 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
-  { A previous interrupted setup may have left a partial payload stage. It is
-    safe to remove that stage before copying; current remains untouched until
-    activation has validated the new payload. }
+  { Preserve any unfinished or foreign stage rather than merging or deleting it.
+    SetupMutex serializes installers before this check & all payload writes. }
   if DirExists(ExpandConstant('{app}\.next-version-{#ProductVersion}')) then begin
-    if not DelTree(ExpandConstant('{app}\.next-version-{#ProductVersion}'), True, True, True) then begin
-      Result := 'Could not clean staged Legion payload';
-      Exit;
-    end;
+    Result := 'Preserving unfinished Legion payload stage; recovery is required';
+    Exit;
   end;
   { A client keeps `legion serve --stdio` running, and Windows will not replace
     a running executable, so an upgrade aborted with the previous version left

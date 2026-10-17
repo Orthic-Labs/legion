@@ -56,7 +56,7 @@ export const WINDOWS_INSTALL_CONTRACT = Object.freeze({
 	localAppDataSubdir: Object.freeze(["Orthic Labs", "Legion"]),
 	installRootSubdir: "Orthic Labs/Legion",
 	stableCurrentName: "current",
-	previousCurrentName: ".current-previous",
+	previousCurrentName: "current.previous",
 	nextCurrentName: ".current-next",
 	integrationJournalName: "integration-journal.json",
 	executablePath: "bin/legion.exe",
@@ -193,12 +193,12 @@ export default {
 					{
 						name: "unsigned native Legion binaries",
 						cmd: "pnpm",
-						args: ["exec", "rightkit", "cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release-iterate", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "--message-format=json-render-diagnostics"],
+						args: ["exec", "rightkit", "cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "-p", "xtask", "--message-format=json-render-diagnostics"],
 					},
 					{
 						name: "assemble unsigned development payload",
 						cmd: "pnpm",
-						args: ["exec", "rightkit", "cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release-iterate", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "release-iterate", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
+						args: ["exec", "rightkit", "cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "debug", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
 					},
 				],
 				install: {

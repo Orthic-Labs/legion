@@ -156,6 +156,9 @@ enum Commands {
     ReleaseLocalWindowsDevelopment {
         #[arg(long = "build-only")]
         build_only: bool,
+        /// Reuse the exact hosted-CI dev payload without compiling or assembling.
+        #[arg(long = "preassembled-root", requires = "build_only")]
+        preassembled_root: Option<PathBuf>,
     },
     /// Native Rust port of scripts/ci/native-installed-smoke.mjs.
     NativeInstalledSmoke {
@@ -619,7 +622,10 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Commands::ReleaseLocalWindowsDevelopment { build_only } => {
+        Commands::ReleaseLocalWindowsDevelopment {
+            build_only,
+            preassembled_root,
+        } => {
             let repo_root = repo_root();
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             let runner: release::paths::CommandRunner<'_> = &release::paths::spawn_sync;
@@ -654,6 +660,7 @@ fn main() -> ExitCode {
             match release::local_windows_development::run_local_windows_development(
                 release::local_windows_development::RunLocalWindowsDevelopmentOptions {
                     build_only,
+                    preassembled_root: preassembled_root.as_deref(),
                     is_windows_host: std::env::consts::OS == "windows",
                     runner,
                     env: &env,
