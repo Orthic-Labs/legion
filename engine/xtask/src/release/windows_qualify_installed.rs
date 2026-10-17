@@ -186,6 +186,7 @@ pub fn qualify_installed_windows(
         rand_suffix()
     ));
     fs::create_dir_all(&workspace).map_err(|e| fail(e.to_string()))?;
+    let workspace = canonical_qualification_workspace(&workspace)?;
     let result = qualify_inner(
         runner,
         &installer,
@@ -197,6 +198,20 @@ pub fn qualify_installed_windows(
     );
     let _ = fs::remove_dir_all(&workspace);
     result
+}
+
+fn canonical_qualification_workspace(path: &Path) -> ReleaseResult<PathBuf> {
+    // Windows temp_dir() can contain an 8.3 alias (RUNNER~1), while Inno's
+    // PowerShell activation records the long spelling (runneradmin). Resolve
+    // our existing workspace before deriving paths so strict receipt & runtime
+    // assertions retain one spelling; do not relax them to accept other roots.
+    fs::canonicalize(path)
+        .map(crate::windows_release_support::strip_verbatim)
+        .map_err(|e| {
+            fail(format!(
+                "qualification workspace could not be resolved: {e}"
+            ))
+        })
 }
 
 fn rand_suffix() -> u64 {
@@ -1741,6 +1756,75 @@ fn now_iso8601() -> String {
 #[cfg(test)]
 mod windows_qualification_tests {
     use super::*;
+
+    #[test]
+    fn resolved_workspace_preserves_strict_receipt_and_runtime_bindings() {
+        let fixture = std::env::temp_dir().join(format!(
+            "legion-qualification-paths-{}-{}",
+            std::process::id(),
+            rand_suffix()
+        ));
+        fs::create_dir_all(fixture.join("alias-parent")).unwrap();
+        fs::create_dir_all(fixture.join("workspace/current/bin")).unwrap();
+        fs::create_dir_all(fixture.join("workspace/current.previous/bin")).unwrap();
+        // Exercise alternate spelling even when this host has no 8.3 aliases.
+        let input = fixture.join("alias-parent/../workspace");
+        let workspace = canonical_qualification_workspace(&input).unwrap();
+        let current = workspace.join("current");
+        let previous = workspace.join("current.previous");
+        let receipt = workspace.join("activation.json");
+        fs::write(
+            &receipt,
+            json!({
+                "state": "activated", "current": current, "target": current, "previous": null,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(assert_fixed_activation_receipt(&workspace, false).is_ok());
+        assert!(assert_fixed_activation_receipt(&input, false).is_err());
+        fs::write(
+            &receipt,
+            json!({
+                "state": "activated", "current": current, "target": current, "previous": previous,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(assert_fixed_activation_receipt(&workspace, true).is_ok());
+        assert!(assert_fixed_activation_receipt(&workspace, false).is_err());
+        assert!(assert_fixed_activation_receipt(&input, true).is_err());
+        fs::write(
+            &receipt,
+            json!({
+                "state": "activated", "current": previous, "target": current, "previous": previous,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(assert_fixed_activation_receipt(&workspace, true).is_err());
+        fs::write(
+            &receipt,
+            json!({
+                "state": "activated", "current": current, "target": previous, "previous": previous,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(assert_fixed_activation_receipt(&workspace, true).is_err());
+        let events = workspace.join("events.jsonl");
+        let executable = current.join("bin/legion.exe");
+        fs::write(&events, json!({
+            "status": "started", "detail": format!("executable={}; timeout=600s", executable.display()),
+        }).to_string()).unwrap();
+        assert!(assert_stable_runtime_events(&events, &executable).is_ok());
+        fs::write(&events, json!({
+            "status": "started", "detail": format!("executable={}; timeout=600s", previous.join("bin/legion.exe").display()),
+        }).to_string()).unwrap();
+        assert!(assert_stable_runtime_events(&events, &executable).is_err());
+        assert!(canonical_qualification_workspace(&workspace.join("missing")).is_err());
+        fs::remove_dir_all(fixture).unwrap();
+    }
 
     #[test]
     fn windows_environment_replaces_case_insensitively() {
