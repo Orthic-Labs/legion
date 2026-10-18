@@ -645,7 +645,7 @@ fn completes_with_large_compact_control_plan() {
 }
 
 fn rejects_invalid_control_inputs_before_generation() {
-    const RUNTIME_JSON_LIMIT: usize = 16 * 1024 * 1024;
+    const RUNTIME_JSON_LIMIT: usize = 64 * 1024 * 1024;
     let fixture = Fixture::new("clean-eager");
     let path = fixture.run.join("plan.json");
     let original = fs::read(&path).unwrap();
