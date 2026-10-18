@@ -673,14 +673,14 @@ fn rejects_invalid_control_inputs_before_generation() {
     #[cfg(windows)]
     assert_rejected("os error 5");
     #[cfg(not(windows))]
-    assert_rejected("runtime input must be bounded regular JSON file");
+    assert_rejected("is not a regular file");
     fs::remove_dir(&path).unwrap();
     #[cfg(unix)]
     {
         let target = fixture.base.join("valid-plan.json");
         fs::write(&target, &original).unwrap();
         std::os::unix::fs::symlink(&target, &path).unwrap();
-        assert_rejected("runtime input must be bounded regular JSON file");
+        assert_rejected("is or traverses a symlink / reparse point, which is refused");
         fs::remove_file(&path).unwrap();
     }
     fs::write(&path, original).unwrap();
