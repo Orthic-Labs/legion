@@ -164,6 +164,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "modelAction",
         "budget",
         "execution",
+        "repairOfCallId",
     ];
     if receipt.get("schemaVersion").and_then(Value::as_u64) != Some(1)
         || receipt.get("kind").and_then(Value::as_str) != Some("legion-runtime-call")
@@ -185,6 +186,13 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
             != Some(call_id)
     {
         return Err(invalid("runtime call identity/accounting binding invalid"));
+    }
+    if receipt.get("repairOfCallId").is_some_and(|link| {
+        !link
+            .as_str()
+            .is_some_and(|id| !id.trim().is_empty() && id.len() <= 512 && id != call_id)
+    }) {
+        return Err(invalid("runtime schema repair call link invalid"));
     }
     let observation = receipt
         .get("observation")
@@ -210,6 +218,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "physicalRequestBytes",
         "observedModels",
         "modelPolicyViolation",
+        "schemaRejection",
     ];
     if observation
         .keys()
@@ -218,6 +227,29 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         return Err(invalid(
             "runtime call contains unbounded observation fields",
         ));
+    }
+    if observation
+        .get("schemaRejection")
+        .is_some_and(|diagnostic| {
+            !diagnostic.is_null()
+                && !diagnostic.as_object().is_some_and(|fields| {
+                    fields.len() == 2
+                        && fields
+                            .keys()
+                            .all(|key| matches!(key.as_str(), "keyword" | "path"))
+                        && matches!(
+                            diagnostic["keyword"].as_str(),
+                            Some("type" | "enum" | "oneOf" | "required" | "additionalProperties")
+                        )
+                        && diagnostic["path"].as_str().is_some_and(|path| {
+                            path.len() <= 256
+                                && (path.is_empty() || path.starts_with('/'))
+                                && !path.chars().any(char::is_control)
+                        })
+                })
+        })
+    {
+        return Err(invalid("runtime schema rejection diagnostic invalid"));
     }
     if observation.get("observedModels").is_some_and(|models| {
         !models.as_array().is_some_and(|models| {
@@ -6477,6 +6509,63 @@ mod runtime_evidence_tests {
             .is_null());
         receipt["observation"]["invoiceChargeUsd"] = json!("0");
         assert!(mint_runtime_call(&run, &receipt).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn runtime_schema_rejection_and_repair_link_are_bounded_and_authenticated() {
+        let (run, _) = setup();
+        let original = call_fixture(&run);
+        let legacy = mint_runtime_call(&run, &original).unwrap();
+        assert!(verify_runtime_call(&run, &legacy)
+            .unwrap()
+            .get("repairOfCallId")
+            .is_none());
+        assert!(legacy["observation"].get("schemaRejection").is_none());
+        let mut receipt = original.clone();
+        receipt["repairOfCallId"] = json!("prior-failed-call");
+        receipt["observation"]["schemaRejection"] =
+            json!({"keyword":"additionalProperties","path":"/toolRequest"});
+        let minted = mint_runtime_call(&run, &receipt).unwrap();
+        let verified = verify_runtime_call(&run, &minted).unwrap();
+        assert_eq!(verified["repairOfCallId"], "prior-failed-call");
+        assert_eq!(
+            verified["observation"]["schemaRejection"]["path"],
+            "/toolRequest"
+        );
+        for pointer in [
+            "/repairOfCallId",
+            "/observation/schemaRejection/keyword",
+            "/observation/schemaRejection/path",
+        ] {
+            let mut tampered = minted.clone();
+            *tampered.pointer_mut(pointer).unwrap() = json!("changed");
+            assert!(verify_runtime_call(&run, &tampered).is_err());
+        }
+        for diagnostic in [
+            json!({"keyword":"private-error-text","path":""}),
+            json!({"keyword":"type","path":"x".repeat(257)}),
+            json!({"keyword":"type","path":"not-a-pointer"}),
+            json!({"keyword":"type","path":"/secret\ntext"}),
+            json!({"keyword":"type","path":"","raw":"private-rejected-action"}),
+            json!({"keyword":"type"}),
+        ] {
+            let mut invalid = receipt.clone();
+            invalid["observation"]["schemaRejection"] = diagnostic;
+            assert!(mint_runtime_call(&run, &invalid).is_err());
+        }
+        for link in [
+            json!(""),
+            json!("x".repeat(513)),
+            json!(17),
+            original["callId"].clone(),
+        ] {
+            let mut invalid = receipt.clone();
+            invalid["repairOfCallId"] = link;
+            assert!(mint_runtime_call(&run, &invalid).is_err());
+        }
+        receipt["observation"]["schemaRejection"] = Value::Null;
+        verify_runtime_call(&run, &mint_runtime_call(&run, &receipt).unwrap()).unwrap();
         let _ = fs::remove_dir_all(run);
     }
 

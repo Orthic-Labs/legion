@@ -39,6 +39,15 @@ pub enum ModelPolicyViolation {
     UnauthorizedModel,
 }
 
+/// Only host-derived schema vocabulary & trusted-schema paths may reach a
+/// correction prompt. Native error text & rejected actions never do.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaRejection {
+    pub keyword: String,
+    pub path: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Observation {
     pub context_id: String,
@@ -56,6 +65,7 @@ pub struct Observation {
     pub request_bytes: u64,
     pub observed_models: Vec<String>,
     pub model_policy_violation: Option<ModelPolicyViolation>,
+    pub schema_rejection: Option<SchemaRejection>,
 }
 
 fn reader<R: Read + Send + 'static>(mut input: R, cap: usize) -> mpsc::Receiver<(Vec<u8>, bool)> {
@@ -66,7 +76,11 @@ fn reader<R: Read + Send + 'static>(mut input: R, cap: usize) -> mpsc::Receiver<
         let mut truncated = false;
         loop {
             match input.read(&mut buf) {
-                Ok(0) | Err(_) => break,
+                Ok(0) => break,
+                Err(_) => {
+                    truncated = true;
+                    break;
+                }
                 Ok(n) => {
                     let room = cap.saturating_sub(kept.len());
                     kept.extend_from_slice(&buf[..n.min(room)]);
@@ -252,6 +266,7 @@ pub fn invoke(
         request_bytes: 0,
         observed_models: Vec::new(),
         model_policy_violation: None,
+        schema_rejection: None,
     };
     let result = (|| -> Result<(), String> {
         let mut cmd = command(binary, cwd);
@@ -324,13 +339,24 @@ pub fn invoke(
         let (bytes, truncated) = stdout
             .recv_timeout(Duration::from_secs(3))
             .map_err(|_| "native stream did not close")?;
-        let _ = stderr.recv_timeout(Duration::from_secs(2));
+        let stderr_complete = stderr
+            .recv_timeout(Duration::from_secs(2))
+            .is_ok_and(|(_, truncated)| !truncated);
         observation.response_digest = super::digest_bytes(&bytes);
-        let decoded = decode_stream(&bytes, &mut observation, &mut usage);
+        let decoded = decode_stream_with_schema(&bytes, &mut observation, &mut usage, schema);
         let process_failure = exited
             .as_ref()
             .filter(|status| !status.success())
             .map(|status| native_process_failure(status.code()));
+        // A diagnostic decoded before a byte cap, timeout or abnormal exit
+        // cannot authorize another paid call.
+        if !schema_repair_capture_complete(
+            truncated,
+            stderr_complete,
+            exited.as_ref().and_then(|status| status.code()),
+        ) {
+            observation.schema_rejection = None;
+        }
         decoded.map_err(|error| match &process_failure {
             Some(process_failure) => format!("{error}; {process_failure}"),
             None => error,
@@ -360,6 +386,19 @@ pub fn invoke(
     })();
     observation.error = result.err();
     finalize_model_policy(&mut observation, &mut usage, execution);
+    if !observation.sent
+        || observation.context_id.is_empty()
+        || observation.model_policy_violation.is_some()
+        || usage.input_tokens.is_none()
+        || usage.output_tokens.is_none()
+        || usage.cached_input_tokens.is_none()
+        || usage.retry_tokens.is_none()
+        || usage
+            .output_tokens
+            .is_some_and(|tokens| tokens > output_limit)
+    {
+        observation.schema_rejection = None;
+    }
     observation.usage = usage;
     observation
 }
@@ -398,6 +437,25 @@ fn finalize_model_policy(
             .into()
         });
     }
+}
+
+pub(super) fn repair_diagnostic(observation: &Observation) -> Option<&SchemaRejection> {
+    if observation.process_id == 0
+        || !observation.sent
+        || observation.context_id.is_empty()
+        || observation.error.is_none()
+        || observation.reply.is_some()
+        || observation.model_policy_violation.is_some()
+        || observation.observed_models.is_empty()
+        || !observation.usage.failed
+        || observation.usage.input_tokens.is_none()
+        || observation.usage.output_tokens.is_none()
+        || observation.usage.cached_input_tokens.is_none()
+        || observation.usage.retry_tokens.is_none()
+    {
+        return None;
+    }
+    observation.schema_rejection.as_ref()
 }
 
 fn capture_accounting(
@@ -446,6 +504,14 @@ fn native_process_failure(code: Option<i32>) -> String {
     }
 }
 
+fn schema_repair_capture_complete(
+    truncated: bool,
+    stderr_complete: bool,
+    exit_code: Option<i32>,
+) -> bool {
+    !truncated && stderr_complete && exit_code == Some(1)
+}
+
 fn native_terminal_failure(raw: &Value) -> String {
     // Keep protocol categories only: native errors/result bodies can contain
     // arbitrary model output, source, or credentials.
@@ -479,20 +545,99 @@ fn native_terminal_failure(raw: &Value) -> String {
     format!("native result failed/refused; subtype={subtype}; num_turns={turns}; stop_reason={stop_reason}; raw usage retained")
 }
 
+#[cfg(test)]
 fn decode_stream(
     bytes: &[u8],
     observation: &mut Observation,
     usage: &mut UsageReceipt,
 ) -> Result<(), String> {
+    decode_stream_with_schema(bytes, observation, usage, &super::action_schema())
+}
+
+fn decode_stream_with_schema(
+    bytes: &[u8],
+    observation: &mut Observation,
+    usage: &mut UsageReceipt,
+    schema: &Value,
+) -> Result<(), String> {
     let mut parser = claude::StreamParser::new();
     let mut protocol_error = None;
     let mut terminal = None;
+    let mut structured = Vec::new();
+    let mut results = Vec::new();
+    let mut session = None;
+    let mut strict_boundary = false;
+    let mut repair_events_valid = true;
     for line in std::str::from_utf8(&bytes)
         .map_err(|_| "invalid UTF-8 native output")?
         .lines()
         .filter(|line| !line.trim().is_empty())
     {
         let raw: Value = serde_json::from_str(line).map_err(|error| error.to_string())?;
+        repair_events_valid &= schema_repair_event_allowed(&raw);
+        if let Some(model) = raw.pointer("/message/model").and_then(Value::as_str) {
+            if !observation
+                .observed_models
+                .iter()
+                .any(|observed| observed == model)
+            {
+                observation.observed_models.push(model.to_owned());
+            }
+        }
+        if terminal.is_some() {
+            protocol_error = Some("native data after terminal result");
+        }
+        if let Some(id) = raw.get("session_id").and_then(Value::as_str) {
+            if session.as_deref().is_some_and(|prior| prior != id) || id.is_empty() {
+                protocol_error = Some("native session identity changed");
+            }
+            session = Some(id.to_owned());
+        }
+        if raw["type"] == "system" && raw["subtype"] == "init" {
+            strict_boundary = raw["tools"] == json!(["StructuredOutput"])
+                && raw["mcp_servers"] == json!([])
+                && raw["slash_commands"] == json!([]);
+        }
+        if matches!(raw["type"].as_str(), Some("assistant" | "user" | "result"))
+            && raw["session_id"].as_str().is_none()
+        {
+            strict_boundary = false;
+        }
+        if let Some(content) = raw.pointer("/message/content").and_then(Value::as_array) {
+            for item in content {
+                match item["type"].as_str() {
+                    Some("tool_use") => {
+                        if raw["type"] != "assistant" {
+                            strict_boundary = false;
+                        }
+                        if observation.context_id.is_empty() || !results.is_empty() {
+                            protocol_error = Some("native tool use outside initialized call order");
+                        }
+                        structured.push((
+                            item["id"].clone(),
+                            item["name"].clone(),
+                            item["input"].clone(),
+                        ));
+                    }
+                    Some("tool_result") => {
+                        if raw["type"] != "user" {
+                            strict_boundary = false;
+                        }
+                        if structured.len() != 1 || structured[0].0 != item["tool_use_id"] {
+                            protocol_error = Some("native tool result correlation invalid");
+                        }
+                        results.push((
+                            item["tool_use_id"].clone(),
+                            item["is_error"] == true,
+                            item["content"].as_str().is_some_and(|text| {
+                                text.starts_with("Output does not match required schema: ")
+                            }),
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
         if raw.get("type").and_then(Value::as_str) == Some("result") {
             // Retain paid accounting even if later parser/protocol data fails.
             capture_accounting(&raw, line, observation, usage);
@@ -535,12 +680,42 @@ fn decode_stream(
             terminal = Some(raw);
         }
     }
+    if let Some(error) = protocol_error {
+        return Err(error.into());
+    }
     if let Some(raw) = terminal {
         // A valid JSON body cannot prove semantic completion when native
         // terminal metadata explicitly reports exhausting its output cap.
         if raw.get("is_error").and_then(Value::as_bool) == Some(true)
             || raw.get("stop_reason").and_then(Value::as_str) == Some("max_tokens")
         {
+            if strict_boundary
+                && repair_events_valid
+                && !observation.context_id.is_empty()
+                && raw["subtype"] == "error_max_turns"
+                && raw["is_error"] == true
+                && raw["stop_reason"] == "tool_use"
+                && raw["num_turns"] == 2
+                && raw.get("structured_output").is_none()
+                && raw["permission_denials"] == json!([])
+                && raw["safety_stops"] == 0
+                && structured.len() == 1
+                && results.len() == 1
+                && structured[0].1 == "StructuredOutput"
+                && structured[0]
+                    .0
+                    .as_str()
+                    .is_some_and(|id| !id.is_empty() && id.len() <= 256)
+                && structured[0].0 == results[0].0
+                && results[0].1
+                && results[0].2
+                && usage.input_tokens.is_some()
+                && usage.output_tokens.is_some()
+                && usage.cached_input_tokens.is_some()
+                && usage.retry_tokens.is_some()
+            {
+                observation.schema_rejection = schema_rejection(&structured[0].2, schema, "", 0);
+            }
             return Err(native_terminal_failure(&raw));
         }
         observation.reply = raw
@@ -553,10 +728,142 @@ fn decode_stream(
                     .and_then(|text| serde_json::from_str(text).ok())
             });
     }
-    if let Some(error) = protocol_error {
-        return Err(error.into());
-    }
     Ok(())
+}
+
+fn schema_repair_event_allowed(raw: &Value) -> bool {
+    // StreamParser intentionally ignores several native control messages.
+    // That compatibility must not authorize another paid process after an
+    // approval/policy/error exchange. Only qualified passive telemetry passes.
+    if raw["is_error"] == true && raw["type"] != "result" {
+        return false;
+    }
+    if raw.get("error").is_some_and(|error| !error.is_null()) {
+        return false;
+    }
+    if raw.get("errorCode").is_some_and(|error| !error.is_null()) {
+        return false;
+    }
+    match raw["type"].as_str() {
+        Some("system") => matches!(
+            raw["subtype"].as_str(),
+            Some("init" | "ui_invalidate" | "thinking_tokens")
+        ),
+        Some("assistant") => raw
+            .pointer("/message/content")
+            .and_then(Value::as_array)
+            .is_some_and(|content| {
+                content.iter().all(|item| {
+                    matches!(
+                        item["type"].as_str(),
+                        Some("text" | "thinking" | "redacted_thinking" | "tool_use")
+                    )
+                })
+            }),
+        Some("user") => raw
+            .pointer("/message/content")
+            .and_then(Value::as_array)
+            .is_some_and(|content| content.iter().all(|item| item["type"] == "tool_result")),
+        Some("result") => true,
+        Some("rate_limit_event") => {
+            raw.pointer("/rate_limit_info/status")
+                .and_then(Value::as_str)
+                == Some("allowed")
+                && raw
+                    .pointer("/rate_limit_info/errorCode")
+                    .is_none_or(Value::is_null)
+                && raw
+                    .pointer("/rate_limit_info/error")
+                    .is_none_or(Value::is_null)
+        }
+        _ => false,
+    }
+}
+
+fn schema_rejection(
+    value: &Value,
+    schema: &Value,
+    path: &str,
+    depth: usize,
+) -> Option<SchemaRejection> {
+    if depth > 64 || path.len() > 256 || validate_schema(value, schema, depth).is_ok() {
+        return None;
+    }
+    let found = |keyword: &str| {
+        Some(SchemaRejection {
+            keyword: keyword.into(),
+            path: path.into(),
+        })
+    };
+    if let Some(kind) = schema["type"].as_str() {
+        let matches = match kind {
+            "object" => value.is_object(),
+            "array" => value.is_array(),
+            "string" => value.is_string(),
+            "integer" => value.is_i64() || value.is_u64(),
+            "boolean" => value.is_boolean(),
+            "null" => value.is_null(),
+            "number" => value.is_number(),
+            _ => return None,
+        };
+        if !matches {
+            return found("type");
+        }
+    }
+    if schema["enum"]
+        .as_array()
+        .is_some_and(|allowed| !allowed.contains(value))
+    {
+        return found("enum");
+    }
+    if let Some(variants) = schema["oneOf"].as_array() {
+        if variants
+            .iter()
+            .filter(|variant| validate_schema(value, variant, depth + 1).is_ok())
+            .count()
+            != 1
+        {
+            return found("oneOf");
+        }
+    }
+    if let Some(fields) = value.as_object() {
+        if schema["required"].as_array().is_some_and(|required| {
+            required
+                .iter()
+                .any(|key| key.as_str().is_none_or(|key| !fields.contains_key(key)))
+        }) {
+            return found("required");
+        }
+        let properties = schema["properties"].as_object();
+        if schema["additionalProperties"] == false
+            && fields
+                .keys()
+                .any(|key| properties.is_none_or(|properties| !properties.contains_key(key)))
+        {
+            return found("additionalProperties");
+        }
+        // Paths come from trusted schema keys only; unknown model keys never
+        // enter diagnostics. Array positions use a fixed wildcard.
+        if let Some(properties) = properties {
+            for (key, constraint) in properties {
+                if let Some(item) = fields.get(key) {
+                    let child = format!("{path}/{}", key.replace('~', "~0").replace('/', "~1"));
+                    if let Some(error) = schema_rejection(item, constraint, &child, depth + 1) {
+                        return Some(error);
+                    }
+                }
+            }
+        }
+    }
+    if let (Some(items), Some(constraint)) = (value.as_array(), schema.get("items")) {
+        for item in items {
+            if let Some(error) = schema_rejection(item, constraint, &format!("{path}/*"), depth + 1)
+            {
+                return Some(error);
+            }
+        }
+    }
+    None
 }
 
 // Validate the exact small JSON-schema vocabulary used by host action &
@@ -652,7 +959,7 @@ fn creation_time_value(time: Option<SystemTime>) -> Value {
         .unwrap_or(Value::Null)
 }
 pub fn observation_value(observation: &Observation) -> Value {
-    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes,"observedModels":observation.observed_models,"modelPolicyViolation":observation.model_policy_violation})
+    json!({"contextId": observation.context_id, "processId": observation.process_id, "processCreated": observation.process_id > 0, "processCreationTicks": observation.process_created, "processCreationTime":creation_time_value(observation.process_creation_time), "responseDigest": observation.response_digest, "sent": observation.sent, "error": observation.error, "usage": observation.usage, "rawUsage": observation.raw_usage, "reportedApiEquivalentCostUsd": observation.reported_api_cost_usd, "invoiceChargeUsd": null, "physicalRequestDigest": observation.request_digest, "physicalRequestBytes": observation.request_bytes,"observedModels":observation.observed_models,"modelPolicyViolation":observation.model_policy_violation,"schemaRejection":observation.schema_rejection})
 }
 
 // Keep only the decision needed to diagnose another paid turn. Finding bodies
@@ -719,6 +1026,155 @@ pub(super) fn action_diagnostic(observation: &Observation) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rejection_stream() -> Vec<Value> {
+        vec![
+            json!({"type":"system","subtype":"init","session_id":"fresh","model":"claude-sonnet-5-5","tools":["StructuredOutput"],"mcp_servers":[],"slash_commands":[]}),
+            json!({"type":"assistant","session_id":"fresh","message":{"content":[{"type":"tool_use","id":"one","name":"StructuredOutput","input":{"privateRejectedField":"private-rejected-body","toolRequest":{"tool":"audit.list_files","arguments":{}}}}]}}),
+            json!({"type":"user","session_id":"fresh","message":{"content":[{"type":"tool_result","tool_use_id":"one","is_error":true,"content":"Output does not match required schema: private-native-validation-body"}]}}),
+            json!({"type":"result","session_id":"fresh","is_error":true,"subtype":"error_max_turns","num_turns":2,"stop_reason":"tool_use","permission_denials":[],"safety_stops":0,"usage":{"input_tokens":7,"cache_read_input_tokens":0,"cache_creation_input_tokens":2,"output_tokens":3}}),
+        ]
+    }
+    fn decode_fixture(lines: &[Value]) -> Observation {
+        let (mut observation, mut usage) = empty();
+        let stream = lines
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        observation.error = decode_stream(stream.as_bytes(), &mut observation, &mut usage).err();
+        observation.usage = usage;
+        observation
+    }
+    #[test]
+    fn correlated_schema_rejection_retains_only_host_keywords_and_no_action() {
+        let observation = decode_fixture(&rejection_stream());
+        assert_eq!(
+            observation.schema_rejection,
+            Some(SchemaRejection {
+                keyword: "additionalProperties".into(),
+                path: "".into()
+            })
+        );
+        assert!(repair_diagnostic(&observation).is_some());
+        assert!(observation.reply.is_none());
+        assert!(observation.usage.failed);
+        assert_eq!(observation.usage.input_tokens, Some(9));
+        let retained = observation_value(&observation).to_string();
+        for private in [
+            "privateRejectedField",
+            "private-rejected-body",
+            "private-native-validation-body",
+        ] {
+            assert!(!retained.contains(private));
+        }
+        let mut valid = rejection_stream();
+        valid[1]["message"]["content"][0]["input"] = json!({"finalResult":{"complete":true}});
+        valid[2]["message"]["content"][0]["is_error"] = json!(false);
+        valid[3]["is_error"] = json!(false);
+        valid[3]["subtype"] = json!("success");
+        valid[3]["structured_output"] = json!({"finalResult":{"complete":true}});
+        let success = decode_fixture(&valid);
+        assert!(success.error.is_none());
+        assert_eq!(success.reply.unwrap()["finalResult"]["complete"], true);
+        assert!(success.schema_rejection.is_none());
+    }
+    #[test]
+    fn schema_repair_refuses_native_control_faults_but_allows_qualified_telemetry() {
+        for fault in [
+            json!({"type":"control_request","request":{"subtype":"can_use_tool","tool_name":"Bash"}}),
+            json!({"type":"control_response","response":{"subtype":"error","error":"private-policy-error"}}),
+            json!({"type":"can_use_tool","tool_name":"Bash"}),
+            json!({"type":"approval","approved":true}),
+            json!({"type":"policy_error","error":"private-policy-error"}),
+            json!({"type":"system","subtype":"error","message":"private-native-error"}),
+            json!({"type":"rate_limit_event","rate_limit_info":{"status":"rejected","overageStatus":"rejected","errorCode":null}}),
+            json!({"type":"rate_limit_event","rate_limit_info":{"status":"allowed","errorCode":"fault"}}),
+        ] {
+            let mut lines = rejection_stream();
+            lines.insert(3, fault);
+            let observation = decode_fixture(&lines);
+            assert!(observation.schema_rejection.is_none());
+            assert!(observation.reply.is_none());
+            assert_eq!(observation.usage.input_tokens, Some(9));
+        }
+        let mut lines = rejection_stream();
+        for telemetry in [
+            json!({"type":"system","subtype":"ui_invalidate","event":"ui.render"}),
+            json!({"type":"system","subtype":"thinking_tokens","estimated_tokens":50,"estimated_tokens_delta":50}),
+            json!({"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","overageStatus":"rejected","errorCode":null,"isUsingOverage":false}}),
+        ] {
+            lines.insert(3, telemetry);
+        }
+        assert!(decode_fixture(&lines).schema_rejection.is_some());
+    }
+    #[test]
+    fn schema_repair_denies_ambiguous_policy_tool_session_and_unknown_usage() {
+        let original = rejection_stream();
+        let mut cases = Vec::new();
+        for (index, pointer, value) in [
+            (0, "/tools", json!(["StructuredOutput", "Bash"])),
+            (0, "/mcp_servers", json!([{"name":"untrusted"}])),
+            (1, "/message/content/0/name", json!("Bash")),
+            (1, "/session_id", json!("other")),
+            (2, "/message/content/0/tool_use_id", json!("unmatched")),
+            (2, "/message/content/0/content", json!("permission denied")),
+            (2, "/message/content/0/is_error", json!(false)),
+            (3, "/subtype", json!("error_during_execution")),
+            (3, "/stop_reason", json!("max_tokens")),
+            (3, "/permission_denials", json!(["denied"])),
+            (3, "/usage/input_tokens", Value::Null),
+            (3, "/usage/output_tokens", Value::Null),
+            (3, "/usage/cache_read_input_tokens", Value::Null),
+        ] {
+            let mut lines = original.clone();
+            *lines[index].pointer_mut(pointer).unwrap() = value;
+            cases.push(lines);
+        }
+        for index in [0, 1, 2, 3] {
+            let mut lines = original.clone();
+            lines.insert(index, lines[index].clone());
+            cases.push(lines);
+        }
+        let mut valid_input = original.clone();
+        valid_input[1]["message"]["content"][0]["input"] = json!({"finalResult":{}});
+        cases.push(valid_input);
+        let mut reversed = original.clone();
+        reversed.swap(1, 2);
+        cases.push(reversed);
+        for lines in cases {
+            assert!(decode_fixture(&lines).schema_rejection.is_none());
+        }
+        let mut observation = decode_fixture(&original);
+        observation.model_policy_violation = Some(ModelPolicyViolation::UnauthorizedModel);
+        assert!(repair_diagnostic(&observation).is_none());
+        observation.model_policy_violation = None;
+        observation.usage.input_tokens = None;
+        assert!(repair_diagnostic(&observation).is_none());
+        let (mut observation, mut usage) = empty();
+        let stream = original
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\nmalformed";
+        assert!(decode_stream(stream.as_bytes(), &mut observation, &mut usage).is_err());
+        assert!(observation.schema_rejection.is_none());
+        assert!(schema_repair_capture_complete(false, true, Some(1)));
+        for (truncated, stderr_complete, code) in [
+            (true, true, Some(1)),
+            (false, false, Some(1)),
+            (false, true, None),
+            (false, true, Some(0)),
+            (false, true, Some(42)),
+        ] {
+            assert!(!schema_repair_capture_complete(
+                truncated,
+                stderr_complete,
+                code
+            ));
+        }
+    }
     #[test]
     fn paid_action_diagnostic_is_redacted_and_bounded() {
         let (mut observation, _) = empty();
@@ -787,6 +1243,7 @@ mod tests {
                 request_bytes: 0,
                 observed_models: Vec::new(),
                 model_policy_violation: None,
+                schema_rejection: None,
             },
             usage,
         )

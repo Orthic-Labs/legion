@@ -555,6 +555,153 @@ pub(super) struct Controller<'a> {
 fn transport_is_retry(seat: &Value) -> bool {
     seat["attempt"].as_u64().is_some_and(|attempt| attempt > 1)
 }
+
+#[derive(Default)]
+struct SeatCallHistory {
+    calls: u32,
+    repaired: bool,
+}
+impl SeatCallHistory {
+    fn admit(&self, maximum: u32, repair: bool) -> Result<(), AuditError> {
+        if self.calls >= maximum {
+            return Err(AuditError::BoundExceeded(
+                "incomplete:context-call-limit".into(),
+            ));
+        }
+        if repair && self.repaired {
+            return Err(invalid("incomplete:schema-repair-already-used"));
+        }
+        Ok(())
+    }
+}
+
+fn apply_schema_repair_budget(call: &mut BudgetCall, repair_of: Option<&str>) {
+    if repair_of.is_some() {
+        call.reservation_id = None;
+        call.retry = true;
+    }
+}
+
+fn authenticated_call_ids(run: &Path) -> Result<BTreeSet<String>, AuditError> {
+    let entries = match fs::read_dir(run.join("runtime-calls")) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
+        Err(error) => return Err(invalid(error.to_string())),
+    };
+    let mut ids = BTreeSet::new();
+    for (index, entry) in entries.enumerate() {
+        if index >= 4096 {
+            return Err(invalid("runtime call history exceeds bound"));
+        }
+        let path = entry.map_err(|error| invalid(error.to_string()))?.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let receipt = ingest::verify_runtime_call(run, &read_json(&path)?)?;
+        let id = receipt["callId"]
+            .as_str()
+            .ok_or_else(|| invalid("runtime call identity missing"))?;
+        if !ids.insert(id.to_owned()) {
+            return Err(invalid("duplicate runtime call receipt"));
+        }
+    }
+    Ok(ids)
+}
+
+fn enforce_seat_call_receipts(
+    run: &Path,
+    budget_run: &Path,
+    seat_id: &str,
+) -> Result<(), AuditError> {
+    // Reconciliation & diagnostic persistence are separate durable writes.
+    // Known ledger usage alone cannot establish a call's repair linkage after
+    // interruption between them. Require the authenticated diagnostic before
+    // any further admission for this frozen seat.
+    let state = read_json(&budget_run.join(next::STATE_FILE))?;
+    let reservations = state["reservations"]
+        .as_object()
+        .filter(|entries| entries.len() <= 4096)
+        .ok_or_else(|| invalid("native budget reservations missing or unbounded"))?;
+    let mut ids = authenticated_call_ids(run)?;
+    if budget_run != run {
+        ids.extend(authenticated_call_ids(budget_run)?);
+    }
+    let prefix = format!("{seat_id}:");
+    for reservation in reservations.values() {
+        if reservation["transportAuthorized"] != true {
+            continue;
+        }
+        let id = reservation["callId"]
+            .as_str()
+            .ok_or_else(|| invalid("native budget call identity missing"))?;
+        if id.starts_with(&prefix) && !ids.contains(id) {
+            return Err(invalid("incomplete:native-call-receipt-missing"));
+        }
+    }
+    Ok(())
+}
+
+fn seat_call_history(run: &Path, seat_id: &str) -> Result<SeatCallHistory, AuditError> {
+    let mut history = SeatCallHistory::default();
+    let entries = match fs::read_dir(run.join("runtime-calls")) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(history),
+        Err(error) => return Err(invalid(error.to_string())),
+    };
+    let mut ids = BTreeSet::new();
+    let mut rejected_calls = BTreeSet::new();
+    let mut repair_link = None;
+    for (index, entry) in entries.enumerate() {
+        if index >= 4096 {
+            return Err(invalid("runtime call history exceeds bound"));
+        }
+        let path = entry.map_err(|error| invalid(error.to_string()))?.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let receipt = ingest::verify_runtime_call(run, &read_json(&path)?)?;
+        let call_id = receipt["callId"]
+            .as_str()
+            .ok_or_else(|| invalid("runtime call identity missing"))?;
+        if !ids.insert(call_id.to_owned()) {
+            return Err(invalid("duplicate runtime call receipt"));
+        }
+        if receipt["seatId"] == seat_id {
+            history.calls = history
+                .calls
+                .checked_add(1)
+                .ok_or_else(|| invalid("seat call count overflow"))?;
+            if receipt
+                .pointer("/observation/schemaRejection")
+                .is_some_and(|value| !value.is_null())
+                && receipt.get("repairOfCallId").is_none()
+            {
+                rejected_calls.insert(call_id.to_owned());
+            }
+            if let Some(link) = receipt["repairOfCallId"].as_str() {
+                if history.repaired {
+                    return Err(invalid("duplicate schema repair for frozen seat"));
+                }
+                history.repaired = true;
+                repair_link = Some(link.to_owned());
+            }
+        }
+    }
+    if repair_link
+        .as_ref()
+        .is_some_and(|link| !rejected_calls.contains(link))
+    {
+        return Err(invalid(
+            "schema repair lacks authenticated rejected call for frozen seat",
+        ));
+    }
+    Ok(history)
+}
+
+fn repair_prompt(mut prompt: Value, diagnostic: &native::SchemaRejection) -> Value {
+    prompt["schemaRepair"] = json!({"instruction":"Produce one fresh response matching the original schema. Prior attempt was rejected; no rejected action was executed or retained as a result.","validation":diagnostic});
+    prompt
+}
 impl Controller<'_> {
     pub(super) fn call(
         &mut self,
@@ -565,9 +712,59 @@ impl Controller<'_> {
         initial: Option<String>,
         execution: &model::ExecutionSelection,
     ) -> Result<Observation, AuditError> {
+        let (observation, failed_call_id) = self.call_once(
+            seat,
+            prompt.clone(),
+            system,
+            schema,
+            initial,
+            execution,
+            None,
+        )?;
+        if let Some(diagnostic) = native::repair_diagnostic(&observation) {
+            let seat_id = seat["seatId"]
+                .as_str()
+                .ok_or_else(|| invalid("frozen seat ID missing"))?;
+            if !seat_call_history(self.run, seat_id)?.repaired {
+                // A second launch uses the same bounded transport & budget path,
+                // with a fresh reservation. A failed action is never replayed.
+                return self
+                    .call_once(
+                        seat,
+                        repair_prompt(prompt, diagnostic),
+                        system,
+                        schema,
+                        None,
+                        execution,
+                        Some(&failed_call_id),
+                    )
+                    .map(|(observation, _)| observation);
+            }
+        }
+        Ok(observation)
+    }
+
+    fn call_once(
+        &mut self,
+        seat: &Value,
+        prompt: Value,
+        system: &str,
+        schema: &Value,
+        initial: Option<String>,
+        execution: &model::ExecutionSelection,
+        repair_of: Option<&str>,
+    ) -> Result<(Observation, String), AuditError> {
         if let Some(error) = &self.fatal_error {
             return Err(invalid(error.clone()));
         }
+        let seat_id = seat["seatId"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| invalid("frozen seat ID missing"))?;
+        let budget_run = self.options.budget_run.as_deref().unwrap_or(self.run);
+        enforce_seat_call_receipts(self.run, budget_run, seat_id)?;
+        let history = seat_call_history(self.run, seat_id)?;
+        history.admit(self.options.max_calls_per_packet, repair_of.is_some())?;
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
         let model_input_bytes = model_visible_input_bytes(&prompt, system, schema)?;
@@ -584,7 +781,6 @@ impl Controller<'_> {
             self.nonce,
             self.serial
         );
-        let budget_run = self.options.budget_run.as_deref().unwrap_or(self.run);
         if execution.stage != "finding-verification"
             && seat["gatherPolicy"] == "deterministic"
             && !next::native_author_has_verifier_reserve(
@@ -600,7 +796,7 @@ impl Controller<'_> {
                 "budget-exhausted:preserved-fresh-verification-reserve".into(),
             ));
         }
-        let call = BudgetCall {
+        let mut call = BudgetCall {
             reservation_id: if budget_run == self.run {
                 initial
             } else {
@@ -620,6 +816,7 @@ impl Controller<'_> {
                 .ok_or_else(|| invalid("frozen output token cap missing"))?,
             retry: transport_is_retry(seat),
         };
+        apply_schema_repair_budget(&mut call, repair_of);
         let authorization = next::reserve_call(budget_run, &call)?;
         if authorization["authorized"] != true {
             return Err(AuditError::BoundExceeded("budget-exhausted".into()));
@@ -652,7 +849,10 @@ impl Controller<'_> {
             &observation.usage,
             observation.reported_api_cost_usd.as_deref(),
         )?;
-        let receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"execution":execution,"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":native::observation_value(&observation),"modelAction":native::action_diagnostic(&observation),"budget":settled});
+        let mut receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"execution":execution,"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":native::observation_value(&observation),"modelAction":native::action_diagnostic(&observation),"budget":settled});
+        if let Some(failed_call_id) = repair_of {
+            receipt["repairOfCallId"] = json!(failed_call_id);
+        }
         let authenticated = ingest::mint_runtime_call(self.run, &receipt)?;
         persist(
             &self.run.join("runtime-calls"),
@@ -665,7 +865,7 @@ impl Controller<'_> {
         if let Some(error) = &self.fatal_error {
             return Err(invalid(error.clone()));
         }
-        Ok(observation)
+        Ok((observation, call_id))
     }
     fn review(
         &mut self,
@@ -2049,5 +2249,118 @@ mod tests {
         assert!(call.retry);
         assert!(call.reservation_id.is_none());
         assert!(!transport_is_retry(&json!({"attempt":1})));
+    }
+
+    #[test]
+    fn schema_repair_uses_fresh_budget_without_changing_frozen_seat() {
+        let seat = json!({"seatId":"frozen-seat","attempt":1,"outputTokenLimit":1024});
+        let mut call = BudgetCall {
+            reservation_id: Some("initial".into()),
+            call_id: "fresh-repair".into(),
+            tier: "judgment".into(),
+            rendered_request_bytes: 128,
+            model_input_bytes: 64,
+            output_token_limit: 1024,
+            retry: transport_is_retry(&seat),
+        };
+        apply_schema_repair_budget(&mut call, Some("failed-call"));
+        assert!(call.reservation_id.is_none());
+        assert!(call.retry);
+        assert_eq!(call.output_token_limit, 1024);
+        assert_eq!(seat["attempt"], 1);
+        assert!(SeatCallHistory {
+            calls: 1,
+            repaired: false
+        }
+        .admit(2, true)
+        .is_ok());
+        assert!(SeatCallHistory {
+            calls: 2,
+            repaired: false
+        }
+        .admit(2, true)
+        .is_err());
+        assert!(SeatCallHistory {
+            calls: 1,
+            repaired: true
+        }
+        .admit(3, true)
+        .is_err());
+        let original = json!({"request":{"trusted":"original"},"conversation":[]});
+        let repaired = repair_prompt(
+            original.clone(),
+            &native::SchemaRejection {
+                keyword: "additionalProperties".into(),
+                path: "".into(),
+            },
+        );
+        assert_eq!(repaired["request"], original["request"]);
+        assert_eq!(repaired["conversation"], original["conversation"]);
+        assert_eq!(
+            repaired["schemaRepair"]["validation"]["keyword"],
+            "additionalProperties"
+        );
+        let execution = model::verifier(&RuntimeOptions::default()).unwrap();
+        let (_, rendered) =
+            rendered_request(&repaired, SYSTEM, &action_schema(), &execution).unwrap();
+        assert!(rendered["controls"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("max-turns:1")));
+    }
+
+    #[test]
+    fn authenticated_call_history_preserves_cumulative_repair_cap_across_reload() {
+        let fixture = JsonInputFixture::new();
+        let run = &fixture.0;
+        let epoch = ingest::create_epoch(run).unwrap();
+        let snapshot = format!("sha256:{}", "1".repeat(64));
+        let request = format!("sha256:{}", "2".repeat(64));
+        persist(
+            run,
+            "plan.json",
+            &json!({"epoch":{"digest":epoch},"reviewContext":{"snapshotKey":snapshot}}),
+        )
+        .unwrap();
+        let receipt = |id: &str| json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":id,"seatId":"seat","requestDigest":request,"snapshotKey":snapshot,"requestBytes":128,"authorization":{"authorized":true,"callId":id},"observation":{"physicalRequestDigest":request,"physicalRequestBytes":128,"schemaRejection":{"keyword":"additionalProperties","path":""}},"modelAction":{"kind":"unavailable"},"budget":{"status":"reconciled"}});
+        let failed = receipt("failed");
+        let failed = ingest::mint_runtime_call(run, &failed).unwrap();
+        persist(&run.join("runtime-calls"), "failed.json", &failed).unwrap();
+        let before = seat_call_history(run, "seat").unwrap();
+        assert_eq!(before.calls, 1);
+        assert!(!before.repaired);
+        let mut repaired = receipt("repair");
+        repaired["repairOfCallId"] = json!("failed");
+        repaired["observation"]["schemaRejection"] = Value::Null;
+        let repaired = ingest::mint_runtime_call(run, &repaired).unwrap();
+        persist(&run.join("runtime-calls"), "repair.json", &repaired).unwrap();
+        let after_restart = seat_call_history(run, "seat").unwrap();
+        assert_eq!(after_restart.calls, 2);
+        assert!(after_restart.repaired);
+        assert!(after_restart.admit(3, true).is_err());
+        assert!(after_restart.admit(2, false).is_err());
+        // Usage may already be reconciled when interruption prevents the
+        // authenticated repair receipt from reaching disk. The budget's
+        // authorized call must not disappear from restarted seat accounting.
+        fs::remove_file(run.join("runtime-calls/repair.json")).unwrap();
+        persist(run, next::STATE_FILE, &json!({"reservations":{
+            "initial":{"callId":"failed","transportAuthorized":true,"usage":{"inputTokens":9,"outputTokens":3}},
+            "repair":{"callId":"seat:nonce:2","transportAuthorized":true,"usage":{"inputTokens":9,"outputTokens":3}}
+        }})).unwrap();
+        assert!(enforce_seat_call_receipts(run, run, "seat").is_err());
+        let mut completed = receipt("seat:nonce:2");
+        completed["repairOfCallId"] = json!("failed");
+        completed["observation"]["schemaRejection"] = Value::Null;
+        let completed = ingest::mint_runtime_call(run, &completed).unwrap();
+        persist(&run.join("runtime-calls"), "completed.json", &completed).unwrap();
+        assert!(enforce_seat_call_receipts(run, run, "seat").is_ok());
+        let mut forged = completed;
+        forged["repairOfCallId"] = json!("forged-link");
+        persist(&run.join("runtime-calls"), "completed.json", &forged).unwrap();
+        assert!(enforce_seat_call_receipts(run, run, "seat").is_err());
+        let mut tampered = repaired;
+        tampered["repairOfCallId"] = json!("other");
+        persist(&run.join("runtime-calls"), "repair.json", &tampered).unwrap();
+        assert!(seat_call_history(run, "seat").is_err());
     }
 }
