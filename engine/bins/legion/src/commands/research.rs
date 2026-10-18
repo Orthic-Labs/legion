@@ -247,13 +247,21 @@ fn validate_route_input(
     Ok(route)
 }
 
-fn route_unavailable_reason(route: &legion_research::ResearchRoute) -> Option<&'static str> {
+fn route_unavailable_reason(
+    route: &legion_research::ResearchRoute,
+    has_source_records: bool,
+) -> Option<&'static str> {
     if route.operation == "manage-corpus" || route.operation == "generate-artifact" {
         return Some(
             "stateful research operation is not implemented by this host-opened-record command",
         );
     }
-    if route.provider != "local-corpus" {
+    if route.provider == "notebooklm" {
+        return Some("requested provider execution is unavailable; this command consumes host-opened source records only");
+    }
+    if route.provider != "local-corpus"
+        && !(has_source_records && matches!(route.provider.as_str(), "browser" | "domain-default"))
+    {
         return Some("requested provider execution is unavailable; this command consumes host-opened source records only");
     }
     if route.allowed_effects.iter().any(|effect| {
@@ -319,11 +327,19 @@ fn resolve_route(
             args.sensitivity.as_deref(),
         );
     }
-    let route = legion_research::ResearchRoute::host_injected_with(
+    let mut route = legion_research::ResearchRoute::host_injected_with(
         query,
         args.domain.as_deref().unwrap_or("general"),
         args.sensitivity.as_deref().unwrap_or("public"),
     );
+    if route.domain == "medical" {
+        route.subject.issue = Some(query.to_string());
+        route.subject.patient = Some(legion_research::ResearchPatient {
+            kind: "anonymous".into(),
+            history_available: Some(false),
+            ..Default::default()
+        });
+    }
     route
         .validate()
         .map_err(|error| super::CommandError::usage(error.to_string()))?;
@@ -347,7 +363,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         .collect::<std::collections::BTreeSet<_>>()
         .len()
         .max(1);
-    if let Some(reason) = route_unavailable_reason(&route) {
+    if let Some(reason) = route_unavailable_reason(&route, !args.source_records.is_empty()) {
         return terminal_route_unavailable(
             query,
             reason,
@@ -1011,12 +1027,17 @@ mod route_tests {
     fn unsupported_stateful_route_is_marked_unavailable() {
         let mut route = legion_research::ResearchRoute::host_injected("query");
         route.operation = "manage-corpus".into();
-        assert!(route_unavailable_reason(&route).is_some());
+        assert!(route_unavailable_reason(&route, false).is_some());
         route.operation = "discover".into();
         route.allowed_effects.push("create-artifact".into());
-        assert!(route_unavailable_reason(&route).is_some());
+        assert!(route_unavailable_reason(&route, false).is_some());
         route.allowed_effects.pop();
         route.provider = "notebooklm".into();
-        assert!(route_unavailable_reason(&route).is_some());
+        assert!(route_unavailable_reason(&route, true).is_some());
+        route.provider = "browser".into();
+        assert!(route_unavailable_reason(&route, false).is_some());
+        assert!(route_unavailable_reason(&route, true).is_none());
+        route.provider = "domain-default".into();
+        assert!(route_unavailable_reason(&route, true).is_none());
     }
 }

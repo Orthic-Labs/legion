@@ -586,3 +586,386 @@ fn research_independence_without_url_is_self_declared_and_unmet() {
     assert_eq!(allowed["independence"]["selfDeclared"], true);
     assert_eq!(allowed["independence"]["selfDeclaredCounted"], true);
 }
+
+#[test]
+fn medical_convenience_flags_create_anonymous_route_and_report() {
+    let dir = step_dir("medical-convenience");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_legion"));
+    command.args([
+        "research",
+        "--query",
+        "fixture medical query",
+        "--domain",
+        "medical",
+        "--sensitivity",
+        "private",
+    ]);
+    for (index, url) in ["https://alpha.test/source", "https://beta.test/source"]
+        .iter()
+        .enumerate()
+    {
+        let path = dir.join(format!("source-{index}.json"));
+        let record = serde_json::json!({
+            "schema_version": 1,
+            "source_id": format!("medical-source-{index}"),
+            "kind": "web",
+            "provider": format!("fixture-{index}"),
+            "uri": url,
+            "title": "Fixture source",
+            "retrieved_at": "2026-08-25T00:00:00Z",
+            "text": "The source describes general adult dosing evidence for review.",
+            "metadata": {"request_receipt": format!("fixture-request-{index}")}
+        });
+        std::fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+        command.arg("--source-record").arg(path);
+    }
+    let output = command
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(dir);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["report"]["query"], "fixture medical query");
+    assert_eq!(value["route"]["provider"], "local-corpus");
+    assert_eq!(value["route"]["domain"], "medical");
+    assert_eq!(value["route"]["subject"]["query"], "fixture medical query");
+    assert_eq!(value["route"]["subject"]["issue"], "fixture medical query");
+    assert_eq!(value["route"]["subject"]["patient"]["kind"], "anonymous");
+    assert_eq!(
+        value["route"]["subject"]["patient"]["history_available"],
+        false
+    );
+    assert!(value["route"]["subject"]["patient"]
+        .get("history_source")
+        .is_none());
+    assert_eq!(value["evidence"].as_array().unwrap().len(), 2);
+    assert!(!value["claims"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn anonymous_medical_host_records_run_with_frozen_browser_and_domain_default_routes() {
+    let dir = step_dir("medical-host-record-routes");
+    let text = "The source describes general adult dosing evidence for review.";
+    let mut paths = Vec::new();
+    for (index, url) in [
+        "https://alpha.test/source",
+        "https://beta.test/source",
+        "https://gamma.test/source",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let path = dir.join(format!("source-{index}.json"));
+        let record = serde_json::json!({
+            "schema_version": 1,
+            "source_id": format!("medical-source-{index}"),
+            "kind": "web",
+            "provider": "webfetch",
+            "uri": url,
+            "title": "Fixture source",
+            "retrieved_at": "2026-08-25T00:00:00Z",
+            "text": text,
+            "metadata": {"request_receipt": format!("fixture-request-{index}")}
+        });
+        std::fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+        paths.push(path);
+    }
+
+    for provider in ["browser", "domain-default"] {
+        let mut route =
+            ResearchRoute::host_injected_with("fixture medical query", "medical", "public");
+        route.operation = "advise".into();
+        route.methods = vec!["web".into(), "authority".into()];
+        route.provider = provider.into();
+        route.allowed_effects = vec![
+            "search".into(),
+            "fetch".into(),
+            "extract".into(),
+            "synthesize".into(),
+        ];
+        route.subject.issue = Some("fixture medical query".into());
+        route.subject.patient = Some(ResearchPatient {
+            kind: "anonymous".into(),
+            history_available: Some(false),
+            ..ResearchPatient::default()
+        });
+        let route_path = dir.join(format!("{provider}-route.json"));
+        std::fs::write(&route_path, serde_json::to_vec(&route).unwrap()).unwrap();
+        let mut command = Command::new(env!("CARGO_BIN_EXE_legion"));
+        command.args([
+            "research",
+            "--query",
+            "fixture medical query",
+            "--route-json",
+            route_path.to_str().unwrap(),
+            "--provider",
+            "webfetch",
+            "--min-independent-providers",
+            "3",
+        ]);
+        for path in &paths {
+            command.arg("--source-record").arg(path);
+        }
+        let output = command
+            .output()
+            .expect("native Legion research must execute");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["status"], "ok");
+        assert_eq!(value["route"], serde_json::to_value(route).unwrap());
+        assert_eq!(value["route"]["provider"], provider);
+        assert_eq!(value["route"]["allowed_effects"][0], "search");
+        assert_eq!(value["independentProviders"], 3);
+        assert_eq!(value["evidence"].as_array().unwrap().len(), 3);
+        assert!(!value["claims"].as_array().unwrap().is_empty());
+        assert_eq!(value["digestComputedByRoute"], true);
+        assert_eq!(
+            value["digestComputedSourceIds"].as_array().unwrap().len(),
+            3
+        );
+        assert_eq!(
+            value["independence"]["sourceIdentityKeys"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn unsupported_routes_remain_unavailable_without_implicit_rewrite() {
+    let dir = step_dir("unsupported-routes");
+    let mut routes = Vec::new();
+    let mut browser = ResearchRoute::host_injected("fixture query");
+    browser.provider = "browser".into();
+    routes.push(("browser-no-records", browser));
+    let mut notebooklm = ResearchRoute::host_injected("fixture query");
+    notebooklm.provider = "notebooklm".into();
+    routes.push(("notebooklm", notebooklm));
+    let mut stateful = ResearchRoute::host_injected("fixture query");
+    stateful.operation = "manage-corpus".into();
+    routes.push(("stateful", stateful));
+
+    for (name, route) in routes {
+        let route_path = dir.join(format!("{name}.json"));
+        std::fs::write(&route_path, serde_json::to_vec(&route).unwrap()).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+            .args([
+                "research",
+                "--query",
+                "fixture query",
+                "--route-json",
+                route_path.to_str().unwrap(),
+            ])
+            .output()
+            .expect("native Legion research must execute");
+        assert_eq!(output.status.code(), Some(2));
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["status"], "unavailable");
+        assert_eq!(value["route"], serde_json::to_value(route).unwrap());
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn browser_route_without_fetch_grant_is_refused() {
+    let dir = step_dir("browser-fetch-grant");
+    let source_path = dir.join("source.json");
+    let route_path = dir.join("route.json");
+    let source = serde_json::json!({
+        "schema_version": 1,
+        "source_id": "fixture-source",
+        "kind": "web",
+        "provider": "webfetch",
+        "uri": "https://alpha.test/source",
+        "title": "Fixture source",
+        "retrieved_at": "2026-08-25T00:00:00Z",
+        "text": "A source describes a fixture result.",
+        "metadata": {"request_receipt": "fixture-request"}
+    });
+    let mut route = ResearchRoute::host_injected("fixture query");
+    route.provider = "browser".into();
+    route.allowed_effects = vec!["search".into(), "extract".into(), "synthesize".into()];
+    std::fs::write(&source_path, serde_json::to_vec(&source).unwrap()).unwrap();
+    std::fs::write(&route_path, serde_json::to_vec(&route).unwrap()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--query",
+            "fixture query",
+            "--route-json",
+            route_path.to_str().unwrap(),
+            "--min-independent-providers",
+            "1",
+            "--source-record",
+            source_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(dir);
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "unproven");
+    assert!(value["failures"].as_array().unwrap().iter().any(|failure| {
+        failure["reason"] == "effect_denied:fetch_not_route_allowed_or_granted"
+    }));
+}
+
+#[test]
+fn route_json_query_conflict_is_a_usage_error() {
+    let dir = step_dir("route-query-conflict");
+    let path = dir.join("route.json");
+    let route = ResearchRoute::host_injected("different fixture query");
+    std::fs::write(&path, serde_json::to_vec(&route).unwrap()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--query",
+            "fixture query",
+            "--route-json",
+            path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(dir);
+
+    assert_eq!(output.status.code(), Some(4));
+}
+
+#[test]
+fn explicit_personal_medical_routes_still_require_confirmation_receipts() {
+    let dir = step_dir("personal-medical-gates");
+    let source_path = dir.join("source.json");
+    let source = serde_json::json!({
+        "schema_version": 1,
+        "source_id": "fixture-source",
+        "kind": "web",
+        "provider": "webfetch",
+        "uri": "https://alpha.test/source",
+        "title": "Fixture source",
+        "retrieved_at": "2026-08-25T00:00:00Z",
+        "text": "A source describes a fixture result.",
+        "metadata": {"request_receipt": "fixture-request"}
+    });
+    std::fs::write(&source_path, serde_json::to_vec(&source).unwrap()).unwrap();
+
+    for kind in ["self", "other-identified"] {
+        let mut route = ResearchRoute::host_injected_with("fixture query", "medical", "private");
+        route.subject.issue = Some("fixture issue".into());
+        route.subject.patient = Some(ResearchPatient {
+            kind: kind.into(),
+            history_available: Some(true),
+            history_source: Some(legion_research::NullableString::Value(
+                "fixture-source-record".into(),
+            )),
+            ..ResearchPatient::default()
+        });
+        route.human_gates = vec!["confirm-personal-medical-route".into()];
+        route
+            .allowed_effects
+            .extend(["read-sensitive".into(), "load-medical-history".into()]);
+        let route_path = dir.join(format!("{kind}-route.json"));
+        std::fs::write(&route_path, serde_json::to_vec(&route).unwrap()).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+            .args([
+                "research",
+                "--query",
+                "fixture query",
+                "--route-json",
+                route_path.to_str().unwrap(),
+                "--min-independent-providers",
+                "1",
+                "--source-record",
+                source_path.to_str().unwrap(),
+            ])
+            .output()
+            .expect("native Legion research must execute");
+        assert_eq!(output.status.code(), Some(2));
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["status"], "unproven");
+        assert_eq!(value["route"]["subject"]["patient"]["kind"], kind);
+        assert!(value["failures"].as_array().unwrap().iter().any(|failure| {
+            failure["reason"] == "route_gate_denied:approval_receipt_identity_missing"
+        }));
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn invalid_host_record_is_reported_alongside_valid_source_evidence() {
+    let dir = step_dir("invalid-host-record");
+    let good = dir.join("good.json");
+    let invalid = dir.join("invalid.json");
+    let record = serde_json::json!({
+        "schema_version": 1,
+        "source_id": "valid-source",
+        "kind": "web",
+        "provider": "webfetch",
+        "uri": "https://alpha.test/source",
+        "title": "Fixture source",
+        "retrieved_at": "2026-08-25T00:00:00Z",
+        "text": "A source describes an observed fixture result.",
+        "metadata": {"request_receipt": "fixture-request"}
+    });
+    let mut route = ResearchRoute::host_injected_with("fixture query", "medical", "public");
+    route.provider = "domain-default".into();
+    route.operation = "advise".into();
+    route.methods = vec!["web".into(), "authority".into()];
+    route.allowed_effects = vec![
+        "search".into(),
+        "fetch".into(),
+        "extract".into(),
+        "synthesize".into(),
+    ];
+    route.subject.issue = Some("fixture query".into());
+    route.subject.patient = Some(ResearchPatient {
+        kind: "anonymous".into(),
+        history_available: Some(false),
+        ..ResearchPatient::default()
+    });
+    let route_path = dir.join("route.json");
+    std::fs::write(&good, serde_json::to_vec(&record).unwrap()).unwrap();
+    std::fs::write(&invalid, b"not-json").unwrap();
+    std::fs::write(&route_path, serde_json::to_vec(&route).unwrap()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "research",
+            "--query",
+            "fixture query",
+            "--route-json",
+            route_path.to_str().unwrap(),
+            "--min-independent-providers",
+            "1",
+            "--source-record",
+            good.to_str().unwrap(),
+            "--source-record",
+            invalid.to_str().unwrap(),
+        ])
+        .output()
+        .expect("native Legion research must execute");
+    let _ = std::fs::remove_dir_all(dir);
+
+    assert_eq!(output.status.code(), Some(2));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["status"], "partial");
+    assert_eq!(value["evidence"].as_array().unwrap().len(), 1);
+    assert!(value["failures"].as_array().unwrap().iter().any(|failure| {
+        failure["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("invalid source record"))
+    }));
+}
