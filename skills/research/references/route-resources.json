@@ -10,6 +10,12 @@
       {
         "class": "PACKAGE_INTERNAL",
         "path": "references/domains/medical/GUIDE.md"
+      },
+      {
+        "absent": "No project medical engine is configured; personal routes block, anonymous routes use the generic medical GUIDE only.",
+        "class": "PROJECT_OVERLAY",
+        "optional": true,
+        "path": "<project-overlay>/research/medical-route-private.md"
       }
     ]
   },

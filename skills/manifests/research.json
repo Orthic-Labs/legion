@@ -155,7 +155,7 @@
     {
       "path": "references/domains/medical/GUIDE.md",
       "uri": "legion-skill://research/references/domains/medical/GUIDE.md",
-      "digest": "sha256:23d1e3c999d702874df3c34dfcc70dc71efa0ee8ab95edbeb4e6ddb8709bc651"
+      "digest": "sha256:d5917c0648186011bd66e7adfbaf0501143e9e8cfa83b0c2f97ab3bb4dc02d69"
     },
     {
       "path": "references/methods/audience.md",
@@ -215,7 +215,7 @@
     {
       "path": "references/route-resources.json",
       "uri": "legion-skill://research/references/route-resources.json",
-      "digest": "sha256:24c53b042590aa4c3203afe08bd9783ab3120dc365d857241d942782c01c2056"
+      "digest": "sha256:292ed70986d7ec8a71a26d8ebc4d336eb083a3aa589dc711a1ea9941ee58dfee"
     },
     {
       "path": "references/route-schema.json",

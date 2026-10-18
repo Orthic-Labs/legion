@@ -9,7 +9,7 @@ Medical routes require a patient descriptor and issue.
 
 ## Anonymous route
 
-Generic questions set `patient.kind=anonymous`. Do not read `private-history.yaml`, past patient files, or
+Generic questions set `patient.kind=anonymous`. Do not read the project-configured personal history source, past patient files, or
 personal protocol notes. Use current primary medical/regulatory sources and return population-level
 evidence with applicability limits.
 
@@ -22,7 +22,7 @@ rather than infer drugs, doses, labs, diagnoses, or investigations.
 
 Where the consuming project maintains its own medical-research engine, that engine remains
 authoritative for PICO framing, red flags, evidence verification, privacy linting, and
-clinician-review output.
+clinician-review output. The consuming project supplies that engine and history pointer through the medical PROJECT_OVERLAY entry in route-resources.json.
 
 ## Evidence extension
 
