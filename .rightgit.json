@@ -80,6 +80,30 @@
     "script": "ci:regenerate"
   },
   "ciIncremental": true,
+  "workflows": {
+    "linux-audit-artifact": {
+      "kind": "custom",
+      "file": "linux-audit-artifact.yml",
+      "on": { "workflow_dispatch": true },
+      "runsOn": "ubuntu-24.04",
+      "timeoutMinutes": 60,
+      "concurrency": { "group": "legion-linux-audit-artifact", "cancelInProgress": false },
+      "toolchain": { "rust": "1.98.0" },
+      "steps": [
+        {
+          "name": "Build and qualify Linux Audit payload",
+          "shell": "bash",
+          "run": "bash scripts/ci/linux-audit-artifact.sh"
+        }
+      ],
+      "artifact": {
+        "name": "dev-linux-x86_64-{sha}-{run_id}-{run_attempt}",
+        "path": "dist/linux-audit/*",
+        "retentionDays": 7,
+        "ifNoFilesFound": "error"
+      }
+    }
+  },
   "concurrency": {
     "mainPushes": "queue",
     "reason": "Preserve warm native caches & finish one batched qualification before signing its exact artifact."

@@ -16,14 +16,14 @@ importers:
         specifier: 0.3.2
         version: 0.3.2
       '@rightkit/ci':
-        specifier: 0.2.49
-        version: 0.2.49
+        specifier: 0.3.0
+        version: 0.3.0
       '@rightkit/qa-chrome':
         specifier: 0.1.8
         version: 0.1.8
       '@rightkit/release':
-        specifier: 0.2.172
-        version: 0.2.172
+        specifier: 0.3.0
+        version: 0.3.0
 
 packages:
 
@@ -31,8 +31,8 @@ packages:
     resolution: {integrity: sha512-1EHizjm7qz9oiv/M68Ro77iaX5BHUNJP3PcZasQ9b25nUbxS2GvhMMlSCUCk3vJIk4oGSNF80xEYsjr8zme1uA==}
     hasBin: true
 
-  '@rightkit/ci@0.2.49':
-    resolution: {integrity: sha512-Uzjhw3ZeDTagKzSaODFmymXFHsamq4Waw9F4iraQev+xdgp4wopbHlcYICPXjswDL9mptEIBXEG4YOxISmXFpg==}
+  '@rightkit/ci@0.3.0':
+    resolution: {integrity: sha512-3QCp7TjbEPGrJTtOS8nBP5Y0vwfsCOhxapML7p4vK/rlOEM0LWrIMqqjwS8sSKUO7Nr32TcQ53DcKAQC5+JcIw==}
     hasBin: true
 
   '@rightkit/hooks@0.1.2':
@@ -43,8 +43,8 @@ packages:
     resolution: {integrity: sha512-BzT5wD9CColpdlfwamHLlujOZ+yzre1ebWSsfzs//kphzG1jyYcghLZGJiJ3EblmNRJlYixVQ9yj0x8nAzxpvg==}
     hasBin: true
 
-  '@rightkit/release@0.2.172':
-    resolution: {integrity: sha512-nMcl6sAJhVzXbPichd67EoHFE7SSWUJSPAjjVe1uLelvBqzjIkLJRnBz8jmw/D368pmSzv0ri+W+Md/flKqE+A==}
+  '@rightkit/release@0.3.0':
+    resolution: {integrity: sha512-f2MKQYwE/Vec6TGbGZEy9PoC4sg7t6+kKT9YO+pIVx5ri6g9CRCdz4qbHdWURyopxd92nuB+4CG0gd+l8/gr3A==}
     hasBin: true
 
   smol-toml@1.9.1:
@@ -55,13 +55,13 @@ snapshots:
 
   '@rightkit/ax@0.3.2': {}
 
-  '@rightkit/ci@0.2.49': {}
+  '@rightkit/ci@0.3.0': {}
 
   '@rightkit/hooks@0.1.2': {}
 
   '@rightkit/qa-chrome@0.1.8': {}
 
-  '@rightkit/release@0.2.172':
+  '@rightkit/release@0.3.0':
     dependencies:
       smol-toml: 1.9.1
 
