@@ -3697,9 +3697,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-fs"
-version = "0.4.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0ecfbffe572b08d867e40b7e3ed5bf42f8c9812c7d9f876ee0a8895eebe792"
+checksum = "cbcfbcc92a12ccbd38ed67b825d5ca54e925b9b5bc9ab96cce807ca76415ecf0"
 dependencies = [
  "libc 0.2.190",
  "serde",
