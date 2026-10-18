@@ -88,9 +88,9 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     )
     .map_err(|error| CommandError::usage(format!("invalid verify facts artifact: {error}")))?;
     let plan: Value = if plan_path.is_file() {
-        serde_json::from_slice(&std::fs::read(&plan_path).map_err(super::io_error)?).map_err(
-            |error| CommandError::usage(format!("invalid verify plan artifact: {error}")),
-        )?
+        legion_audit::review_runtime::read_plan_json(&plan_path).map_err(|error| {
+            CommandError::usage(format!("invalid verify plan artifact: {error}"))
+        })?
     } else {
         facts.get("plan").cloned().ok_or_else(|| {
             CommandError::usage(format!(
@@ -262,6 +262,10 @@ fn read_runtime_call(path: &Path) -> Result<Value, String> {
     read_bounded_runtime_json(path, MAX_RUNTIME_RECEIPT_BYTES)
 }
 
+fn read_runtime_plan(path: &Path) -> Result<Value, String> {
+    legion_audit::review_runtime::read_plan_json(path).map_err(|error| error.to_string())
+}
+
 fn read_bounded_runtime_json(path: &Path, limit: u64) -> Result<Value, String> {
     let metadata = std::fs::symlink_metadata(path).map_err(|error| error.to_string())?;
     if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > limit {
@@ -366,6 +370,14 @@ fn optional_runtime_json(path: &Path, limit: u64) -> Result<Option<Value>, Strin
     }
 }
 
+fn optional_runtime_plan(path: &Path) -> Result<Option<Value>, String> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => read_runtime_plan(path).map(Some),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 const MAX_RUNTIME_RUN_DEPTH: usize = 64;
 const MAX_RUNTIME_STATE_BYTES: u64 = 16 * 1024 * 1024;
 
@@ -377,14 +389,11 @@ fn runtime_followup_binding(parent: &Path, child: &Path) -> Result<(), String> {
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return Err("runtime follow-up must be a regular nonsymlink directory".into());
     }
-    let parent_plan =
-        read_bounded_runtime_json(&parent.join("plan.json"), MAX_RUNTIME_STATE_BYTES)?;
-    let child_plan = read_bounded_runtime_json(&child.join("plan.json"), MAX_RUNTIME_STATE_BYTES)?;
-    let frozen: legion_audit::AuditPlan = serde_json::from_value(read_bounded_runtime_json(
-        &child.join(followup::FROZEN_PLAN_FILE),
-        MAX_RUNTIME_STATE_BYTES,
-    )?)
-    .map_err(|error| format!("runtime follow-up frozen plan invalid: {error}"))?;
+    let parent_plan = read_runtime_plan(&parent.join("plan.json"))?;
+    let child_plan = read_runtime_plan(&child.join("plan.json"))?;
+    let frozen: legion_audit::AuditPlan =
+        serde_json::from_value(read_runtime_plan(&child.join(followup::FROZEN_PLAN_FILE))?)
+            .map_err(|error| format!("runtime follow-up frozen plan invalid: {error}"))?;
     let (key, epoch) = ingest::load_epoch(child).map_err(|error| error.to_string())?;
     let digest = child_plan
         .pointer("/seal/digest")
@@ -456,11 +465,8 @@ fn runtime_accounting_root(run: &Path) -> Result<PathBuf, String> {
             root = parent;
             continue;
         }
-        let plan = optional_runtime_json(&root.join("plan.json"), MAX_RUNTIME_STATE_BYTES)?;
-        let frozen = optional_runtime_json(
-            &root.join(followup::FROZEN_PLAN_FILE),
-            MAX_RUNTIME_STATE_BYTES,
-        )?;
+        let plan = optional_runtime_plan(&root.join("plan.json"))?;
+        let frozen = optional_runtime_plan(&root.join(followup::FROZEN_PLAN_FILE))?;
         let has_binding = plan.as_ref().is_some_and(|plan| {
             plan.get("followupOf").is_some()
                 || plan.pointer("/nativePlan/plan/bounds/followup").is_some()
@@ -713,7 +719,7 @@ fn reconcile_runtime_accounting(
             None if state["schemaVersion"] == 1
                 && state.get("issuances").and_then(Value::as_u64).unwrap_or(0) == 0 =>
             {
-                continue
+                continue;
             }
             _ => return Err("runtime accounting reservations missing/malformed".into()),
         };
@@ -970,10 +976,10 @@ mod tests {
                 "modelAction":{"kind":"toolRequest","toolRequest":{"tool":"audit.search_code","arguments":{"query":"DO_NOT_PROJECT"}}}})
         }
         fn seal_plan(&self, parent_digest: Option<&str>) -> String {
-            let mut outer =
-                read_bounded_runtime_json(&self.0.join("plan.json"), MAX_RUNTIME_STATE_BYTES)
-                    .unwrap();
-            let mut bounds = json!({});
+            self.seal_plan_with_bounds(parent_digest, json!({}))
+        }
+        fn seal_plan_with_bounds(&self, parent_digest: Option<&str>, mut bounds: Value) -> String {
+            let mut outer = read_runtime_plan(&self.0.join("plan.json")).unwrap();
             if let Some(parent) = parent_digest {
                 bounds["followup"] = json!({"parentPlanDigest":parent});
                 outer["followupOf"] =
@@ -1380,6 +1386,35 @@ mod tests {
     }
 
     #[test]
+    fn runtime_parent_child_and_frozen_plans_admit_large_signed_accounting_only() {
+        let parent = RuntimeFixture::new();
+        let mut child = RuntimeFixture::new();
+        let child_path = parent.0.join("followup");
+        std::fs::rename(&child.0, &child_path).unwrap();
+        child.0 = child_path;
+        let entry = "src/subsystems/repository-accounting/review-context/frozen-source-module.rs";
+        let count = 17 * 1024 * 1024 / (entry.len() + 3) + 1;
+        let bounds = json!({"denominatorPaths":vec![entry; count]});
+        let parent_digest = parent.seal_plan_with_bounds(None, bounds.clone());
+        child.seal_plan_with_bounds(Some(&parent_digest), bounds);
+        for path in [
+            parent.0.join("plan.json"),
+            child.0.join("plan.json"),
+            child.0.join("frozen-plan.json"),
+        ] {
+            assert!(std::fs::metadata(&path).unwrap().len() > 17 * 1024 * 1024);
+            assert!(read_runtime_plan(&path).is_ok());
+            assert!(read_bounded_runtime_json(&path, MAX_RUNTIME_STATE_BYTES).is_err());
+            assert!(read_runtime_call(&path).is_err());
+        }
+        runtime_followup_binding(&parent.0, &child.0).unwrap();
+        assert_eq!(
+            runtime_accounting_root(&child.0).unwrap(),
+            std::fs::canonicalize(&parent.0).unwrap()
+        );
+    }
+
+    #[test]
     fn runtime_followup_authenticates_child_epoch_and_parent_budget_once() {
         let parent = RuntimeFixture::new();
         let mut child = RuntimeFixture::new();
@@ -1432,9 +1467,7 @@ mod tests {
         assert!(errors
             .iter()
             .any(|error| error.contains("missing matching")));
-        let mut frozen =
-            read_bounded_runtime_json(&child.0.join("frozen-plan.json"), MAX_RUNTIME_STATE_BYTES)
-                .unwrap();
+        let mut frozen = read_runtime_plan(&child.0.join("frozen-plan.json")).unwrap();
         frozen["bounds"]["followup"]["parentPlanDigest"] = json!("different-parent");
         std::fs::write(
             child.0.join("frozen-plan.json"),
@@ -1453,6 +1486,7 @@ mod tests {
         let link = fixture.0.join("runtime-calls/link.json");
         std::os::unix::fs::symlink("one.json", &link).unwrap();
         assert!(read_runtime_call(&link).is_err());
+        assert!(read_runtime_plan(&link).is_err());
         let mut errors = Vec::new();
         assert_eq!(runtime_calls(&fixture.0, &mut errors)["status"], "invalid");
         assert!(!errors.is_empty());
