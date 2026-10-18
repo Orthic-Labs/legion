@@ -670,6 +670,9 @@ fn rejects_invalid_control_inputs_before_generation() {
     assert_rejected("runtime input must be bounded regular JSON file");
     fs::remove_file(&path).unwrap();
     fs::create_dir(&path).unwrap();
+    #[cfg(windows)]
+    assert_rejected("os error 5");
+    #[cfg(not(windows))]
     assert_rejected("runtime input must be bounded regular JSON file");
     fs::remove_dir(&path).unwrap();
     #[cfg(unix)]
