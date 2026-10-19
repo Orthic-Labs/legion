@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "protocol": "legion-native-consume-v1",
+  "brokerRevision": "2a6597a7c932b8a636462a08a28ee9a28e7d49c6",
+  "qualification": "Static synthetic vectors; Rust qualification requires successful CI execution.",
+  "digestInput": "UTF-8 compact serialized PreparedEffect only, in Rust declaration order, with explicit null fields; no outer frame, sorted-key canonicalization, BOM or trailing newline.",
+  "digestFormat": "SHA-256 lowercase hexadecimal without prefix",
+  "vectors": [
+    {
+      "name": "build-null-candidate-null-artifact",
+      "input": {
+        "artifact_sha256": null,
+        "provenance_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "native_effect_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "destination": "fixture/build",
+        "endpoint": "native-fixture://build",
+        "candidate": null,
+        "source_oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "native_record_id": "build:golden-α",
+        "operation": "Build",
+        "repository": "/synthetic/legion-golden"
+      },
+      "expectedUtf8Json": "{\"repository\":\"/synthetic/legion-golden\",\"operation\":\"Build\",\"native_record_id\":\"build:golden-α\",\"source_oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"candidate\":null,\"endpoint\":\"native-fixture://build\",\"destination\":\"fixture/build\",\"native_effect_sha256\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"provenance_sha256\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"artifact_sha256\":null}",
+      "expectedSha256": "001f7c0ceaba06cb4b5f7c22b3cc2c3c63ffd89c4f272fe26b1d266478fc3d0a"
+    },
+    {
+      "name": "dequeue-candidate-null-artifact",
+      "input": {
+        "artifact_sha256": null,
+        "provenance_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "native_effect_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+        "destination": "fixture/dequeue",
+        "endpoint": "native-fixture://dequeue",
+        "candidate": "3333333333333333333333333333333333333333333333333333333333333333",
+        "source_oid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "native_record_id": "job:golden-002",
+        "operation": "Dequeue",
+        "repository": "/synthetic/legion-golden"
+      },
+      "expectedUtf8Json": "{\"repository\":\"/synthetic/legion-golden\",\"operation\":\"Dequeue\",\"native_record_id\":\"job:golden-002\",\"source_oid\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"candidate\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"endpoint\":\"native-fixture://dequeue\",\"destination\":\"fixture/dequeue\",\"native_effect_sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"provenance_sha256\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"artifact_sha256\":null}",
+      "expectedSha256": "c29e955334a7db2cfc4061f1ec77fd0b4d3cc3516de2e9970facb7b83daa8867"
+    },
+    {
+      "name": "publish-null-candidate-artifact",
+      "input": {
+        "artifact_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "provenance_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "native_effect_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "destination": "fixture/publish",
+        "endpoint": "native-fixture://publish",
+        "candidate": null,
+        "source_oid": "cccccccccccccccccccccccccccccccccccccccc",
+        "native_record_id": "release:golden-003",
+        "operation": "Publish",
+        "repository": "/synthetic/legion-golden"
+      },
+      "expectedUtf8Json": "{\"repository\":\"/synthetic/legion-golden\",\"operation\":\"Publish\",\"native_record_id\":\"release:golden-003\",\"source_oid\":\"cccccccccccccccccccccccccccccccccccccccc\",\"candidate\":null,\"endpoint\":\"native-fixture://publish\",\"destination\":\"fixture/publish\",\"native_effect_sha256\":\"7777777777777777777777777777777777777777777777777777777777777777\",\"provenance_sha256\":\"8888888888888888888888888888888888888888888888888888888888888888\",\"artifact_sha256\":\"6666666666666666666666666666666666666666666666666666666666666666\"}",
+      "expectedSha256": "d958ff62e0758622f810410774aade50dfb057bc6fbfae947d6aa18852289b96"
+    }
+  ],
+  "rejectedOperations": [
+    "build",
+    "dequeue",
+    "publish",
+    "Push"
+  ]
+}

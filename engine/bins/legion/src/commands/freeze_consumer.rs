@@ -537,6 +537,51 @@ where
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn shared_prepared_effect_golden_bytes_and_enum_spellings() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/native-consume-v1-golden.json"
+        ))
+        .unwrap();
+        assert_eq!(fixture["schemaVersion"], 1);
+        assert_eq!(fixture["protocol"], PROTOCOL);
+        assert_eq!(
+            fixture["brokerRevision"],
+            "2a6597a7c932b8a636462a08a28ee9a28e7d49c6"
+        );
+        let vectors = fixture["vectors"].as_array().unwrap();
+        assert_eq!(vectors.len(), 3);
+        let mut operations = std::collections::BTreeSet::new();
+        for vector in vectors {
+            let name = vector["name"].as_str().unwrap();
+            let effect: PreparedEffect = serde_json::from_value(vector["input"].clone()).unwrap();
+            operations.insert(vector["input"]["operation"].as_str().unwrap());
+            let expected = vector["expectedUtf8Json"].as_str().unwrap().as_bytes();
+            let actual = serde_json::to_vec(&effect).unwrap();
+            assert_eq!(
+                actual.as_slice(),
+                expected,
+                "{name}: exact declaration-order UTF-8 bytes"
+            );
+            assert_eq!(
+                policy::sha256(&actual),
+                vector["expectedSha256"].as_str().unwrap(),
+                "{name}: digest covers PreparedEffect bytes only"
+            );
+            for operation in fixture["rejectedOperations"].as_array().unwrap() {
+                let mut input = vector["input"].clone();
+                input["operation"] = operation.clone();
+                assert!(
+                    serde_json::from_value::<PreparedEffect>(input).is_err(),
+                    "{name}: reject {operation}"
+                );
+            }
+        }
+        assert_eq!(
+            operations,
+            std::collections::BTreeSet::from(["Build", "Dequeue", "Publish"])
+        );
+    }
     fn adapter() -> AdapterConfig {
         AdapterConfig {
             operation: ConsumeOperation::Publish,
