@@ -1118,8 +1118,16 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
     // Allow another 1500 tokens for temporary path/nonce framing differences;
     // final physical-fit assertions below validate the newly frozen recipe.
     let per_call = largest_input.div_ceil(2) + 2500 + 1500 + 1500;
-    let max_calls =
-        (probe_plan.packets.len() as u64 + 1).max(DispatchLimits::default().max_total_seats);
+    // Parent stage receipts & candidate verification already consumed calls.
+    // Every logical follow-up part models an author plus fresh verifier.
+    let parent_calls = read_json(&probe.run.join("next-state.json"))["issuances"]
+        .as_u64()
+        .expect("authenticated parent fixture calls recorded");
+    let max_calls = (probe_plan.packets.len() as u64)
+        .checked_mul(2)
+        .and_then(|calls| calls.checked_add(parent_calls))
+        .unwrap()
+        .max(DispatchLimits::default().max_total_seats);
     let limits = DispatchLimits {
         seat_token_budget: per_call,
         wave_width: 1,

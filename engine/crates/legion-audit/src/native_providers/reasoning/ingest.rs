@@ -560,6 +560,87 @@ pub(super) fn validate_runtime_verification(
             ));
         }
     }
+    if rows.is_empty() {
+        let review = evidence
+            .get("negativeReview")
+            .ok_or_else(|| invalid("empty verification requires authenticated negative review"))?;
+        let original = &review["authorResult"];
+        let original_digest =
+            canonical_digest(original).map_err(|error| invalid(error.to_string()))?;
+        if review["scope"] != "supplied-frozen-packet"
+            || review["authorResultDigest"].as_str() != Some(original_digest.as_str())
+            || original["packetDigest"].as_str() != Some(digest.as_str())
+            || original["complete"] != true
+            || !original["findings"].as_array().is_some_and(Vec::is_empty)
+            || !original["withdrawn"].as_array().is_some_and(Vec::is_empty)
+        {
+            return Err(invalid(
+                "negative review author result/scope binding malformed",
+            ));
+        }
+        let author = actor(&review["author"])?;
+        let verdict = review["verdict"].as_str().unwrap_or("");
+        if !matches!(verdict, "scoped_clean" | "challenged" | "unresolved")
+            || review["reason"]
+                .as_str()
+                .is_none_or(|reason| reason.trim().is_empty())
+        {
+            return Err(invalid("negative review disposition malformed"));
+        }
+        match review.get("reviewer").filter(|value| !value.is_null()) {
+            Some(reviewer) => {
+                let reviewer = actor(reviewer)?;
+                if author.0 == reviewer.0 || author.1 == reviewer.1 {
+                    return Err(invalid(
+                        "negative review requires distinct host-observed process & context",
+                    ));
+                }
+            }
+            None if verdict == "unresolved" => {}
+            None => return Err(invalid("negative conclusion has no independent reviewer")),
+        }
+        if verdict != "unresolved"
+            && (review["anchorsVerified"] != true
+                || review["evidence"].as_array().is_none_or(Vec::is_empty)
+                || review["concreteCase"]
+                    .as_str()
+                    .is_none_or(|case| case.trim().is_empty()))
+        {
+            return Err(invalid(
+                "negative conclusion requires anchored source challenge",
+            ));
+        }
+        if verdict == "scoped_clean" && review["contextComplete"] != true {
+            return Err(invalid(
+                "partial source challenge cannot establish scoped clean claim",
+            ));
+        }
+        if verdict != "unresolved"
+            && review["evidence"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|anchor| {
+                    !request.packet["excerpts"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .any(|excerpt| {
+                            excerpt["path"]
+                                .as_str()
+                                .is_some_and(|path| anchor["path"] == path)
+                        })
+                })
+        {
+            return Err(invalid(
+                "negative review anchor outside supplied frozen packet",
+            ));
+        }
+    } else if evidence.get("negativeReview").is_some() {
+        return Err(invalid(
+            "negative review cannot replace candidate dispositions",
+        ));
+    }
     Ok(())
 }
 
@@ -643,6 +724,25 @@ pub(super) fn verification_projection_gaps(
         .ok_or_else(|| invalid("verification ledger malformed"))?;
     let mut accounted = BTreeSet::new();
     let mut gaps = Vec::new();
+    if rows.is_empty() {
+        let review = proof
+            .get("negativeReview")
+            .ok_or_else(|| invalid("empty verification has no negative review"))?;
+        match review["verdict"].as_str() {
+            Some("scoped_clean")
+                if review["scope"] == "supplied-frozen-packet"
+                    && review["anchorsVerified"] == true
+                    && review["contextComplete"] == true => {}
+            Some("challenged" | "unresolved") => gaps.push(format!(
+                "verification-negative-{}:{provider_id}:{}",
+                review["verdict"].as_str().unwrap(),
+                review["reason"]
+                    .as_str()
+                    .unwrap_or("missing independent conclusion")
+            )),
+            _ => return Err(invalid("negative verification disposition malformed")),
+        }
+    }
     for row in rows {
         let id = row["findingId"]
             .as_str()
@@ -757,6 +857,16 @@ fn verification_result_gaps(
                 .flatten()
             {
                 frozen.check("host verification contradiction", Some(anchor))?;
+            }
+        }
+    }
+    if let Some(review) = proof.and_then(|proof| proof.get("negativeReview")) {
+        if matches!(
+            review["verdict"].as_str(),
+            Some("scoped_clean" | "challenged")
+        ) {
+            for anchor in review["evidence"].as_array().into_iter().flatten() {
+                frozen.check("host negative review", Some(anchor))?;
             }
         }
     }
@@ -6603,6 +6713,124 @@ mod runtime_evidence_tests {
                 "findingId":"finding-one","findingDigest":canonical_digest(&original).unwrap(),"authorFinding":original,
                 "verdict":"unresolved","author":{"contextId":"author","processId":100,"processCreated":true,"responseDigest":"author-response"},
                 "reviewer":null,"reason":"budget exhausted before verifier","evidence":[],"contradictionAnchorsVerified":false}]})
+    }
+
+    fn negative_verification(request: &ReasoningInvocation) -> Value {
+        let original = json!({"complete":true,"packetDigest":canonical_digest(&request.packet).unwrap(),"findings":[],"withdrawn":[]});
+        json!({"schemaVersion":1,"kind":"legion-runtime-verification","requestId":request.request_id,
+            "packetDigest":canonical_digest(&request.packet).unwrap(),"findings":[],"negativeReview":{
+                "scope":"supplied-frozen-packet","contextComplete":true,"authorResultDigest":canonical_digest(&original).unwrap(),"authorResult":original,
+                "author":{"contextId":"author","processId":100,"processCreated":true,"responseDigest":"author-response"},
+                "reviewer":{"contextId":"fresh-reviewer","processId":101,"processCreated":true,"responseDigest":"review-response"},
+                "verdict":"scoped_clean","reason":"challenged exact supplied source path","concreteCase":"bounded input trace",
+                "evidence":[{"path":"source.rs","line":1,"text":"fn safe() {}"}],"anchorsVerified":true}})
+    }
+
+    #[test]
+    fn empty_findings_require_authenticated_scoped_negative_review() {
+        let (run, mut request) = setup();
+        request.packet["excerpts"] = json!([{"path":"source.rs","content":"fn safe() {}"}]);
+        let proof = negative_verification(&request);
+        mint_runtime_verification(&run, &request, &proof).unwrap();
+        let (key, epoch) = load_epoch(&run).unwrap();
+        assert_eq!(
+            runtime_verification(&run, &request, &key, &epoch).unwrap(),
+            Some(proof.clone())
+        );
+        assert!(
+            verification_projection_gaps("reasoning.correctness", Some(&proof), &[], &[])
+                .unwrap()
+                .is_empty()
+        );
+        let mut missing = proof.clone();
+        missing.as_object_mut().unwrap().remove("negativeReview");
+        assert!(validate_runtime_verification(&request, &missing).is_err());
+        assert!(
+            verification_projection_gaps("reasoning.correctness", Some(&missing), &[], &[])
+                .is_err()
+        );
+        for field in [
+            "reviewer",
+            "authorResultDigest",
+            "anchorsVerified",
+            "contextComplete",
+        ] {
+            let mut malformed = proof.clone();
+            malformed["negativeReview"]
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
+            assert!(
+                validate_runtime_verification(&request, &malformed).is_err(),
+                "{field}"
+            );
+        }
+        let mut same = proof.clone();
+        same["negativeReview"]["reviewer"] = same["negativeReview"]["author"].clone();
+        assert!(validate_runtime_verification(&request, &same).is_err());
+        let mut outside = proof.clone();
+        outside["negativeReview"]["evidence"][0]["path"] = json!("outside.rs");
+        assert!(validate_runtime_verification(&request, &outside).is_err());
+        let frozen = FrozenFiles {
+            root: &run,
+            digests: BTreeMap::new(),
+            snapshot: None,
+            source_sides: BTreeMap::new(),
+        };
+        assert!(
+            verification_result_gaps("reasoning.correctness", Some(&proof), &[], &[], &frozen)
+                .is_err()
+        );
+        let source = b"fn safe() {}\n";
+        fs::write(run.join("source.rs"), source).unwrap();
+        let frozen = FrozenFiles {
+            root: &run,
+            digests: BTreeMap::from([(
+                "source.rs".into(),
+                format!("sha256:{}", hex::encode(Sha256::digest(source))),
+            )]),
+            snapshot: None,
+            source_sides: BTreeMap::new(),
+        };
+        assert!(
+            verification_result_gaps("reasoning.correctness", Some(&proof), &[], &[], &frozen)
+                .unwrap()
+                .is_empty()
+        );
+        fs::write(run.join("source.rs"), b"fn changed() {}\n").unwrap();
+        assert!(
+            verification_result_gaps("reasoning.correctness", Some(&proof), &[], &[], &frozen)
+                .is_err()
+        );
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn failed_or_challenged_negative_review_retains_evidence_and_incomplete_gap() {
+        let (run, mut request) = setup();
+        request.packet["excerpts"] = json!([{"path":"source.rs"}]);
+        let mut proof = negative_verification(&request);
+        proof["negativeReview"]["verdict"] = json!("challenged");
+        validate_runtime_verification(&request, &proof).unwrap();
+        let gaps =
+            verification_projection_gaps("reasoning.correctness", Some(&proof), &[], &[]).unwrap();
+        assert!(gaps[0].contains("verification-negative-challenged"));
+        assert!(gaps[0].contains("challenged exact supplied source path"));
+        proof["negativeReview"]["verdict"] = json!("unresolved");
+        proof["negativeReview"]["reviewer"] = Value::Null;
+        proof["negativeReview"]["anchorsVerified"] = json!(false);
+        proof["negativeReview"]["contextComplete"] = json!(false);
+        validate_runtime_verification(&request, &proof).unwrap();
+        assert!(!proof["negativeReview"]["evidence"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        assert!(
+            verification_projection_gaps("reasoning.correctness", Some(&proof), &[], &[]).unwrap()
+                [0]
+            .contains("verification-negative-unresolved")
+        );
+        let _ = fs::remove_dir_all(run);
     }
 
     #[test]

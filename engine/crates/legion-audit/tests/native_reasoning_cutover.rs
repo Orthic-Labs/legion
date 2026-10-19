@@ -22,6 +22,8 @@ use legion_contracts::{
 use serde_json::{json, Value};
 use sha2::Sha256;
 
+mod common;
+
 fn fixture_root() -> &'static std::path::Path {
     static ROOT: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     ROOT.get_or_init(|| {
@@ -133,9 +135,13 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
         "deliveredPacketBytes": canonical_json_bytes(&request.packet).unwrap().len(),
         "complete": true, "truncated": false, "chunks": delivery_chunk_manifest(request).unwrap()
     }));
+    let author_result = json!({"schemaVersion":1,"kind":"legion-lens-result","provider":request.provider_id,
+        "packetDigest":canonical_digest(&request.packet).unwrap(),"planDigest":request.plan_digest,
+        "complete":true,"findings":[],"withdrawn":[],"details":{"fixtureSimulation":true}});
     details.insert("verificationEvidence".into(), json!({
         "schemaVersion": 1, "kind": "legion-runtime-verification", "requestId": request.request_id,
-        "packetDigest": canonical_digest(&request.packet).unwrap(), "findings": []
+        "packetDigest": canonical_digest(&request.packet).unwrap(), "findings": [],
+        "negativeReview":common::negative_review(request,&author_result,fixture_root())
     }));
     match request.provider_id.as_str() {
         "reasoning.architecture" => {

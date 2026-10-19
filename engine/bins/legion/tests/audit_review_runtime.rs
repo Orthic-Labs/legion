@@ -28,6 +28,7 @@ use std::{
 
 const PROVIDER: &str = "reasoning.naming";
 const SOURCE_LINE: &str = "    a - b";
+const SOURCE_SIGNATURE: &str = "pub fn add(a:i32,b:i32)->i32 {";
 // Keep these exact markers inside the executable for the bounded capability
 // probe. This is simulated capability evidence, never Claude qualification.
 const HELP: &str = "SIMULATED Claude: --tools --strict-mcp-config --mcp-config --safe-mode --restricted --disable-slash-commands --no-chrome --no-session-persistence --permission-prompts --json-schema --system-prompt --effort --max-turns CLAUDE_CODE_MAX_OUTPUT_TOKENS";
@@ -146,7 +147,8 @@ fn assert_verifier_source(prompt: &Value) {
     assert!(prompt.get("initialContext").is_none());
     assert!(prompt.get("supplementaryEvidence").is_none());
     let candidates = prompt["candidates"].as_array().unwrap();
-    assert!(!candidates.is_empty());
+    let negative = prompt["negativeReviews"].as_array().unwrap();
+    assert!(!candidates.is_empty() || !negative.is_empty());
     let mut labels = std::collections::BTreeSet::new();
     for candidate in candidates {
         assert!(labels.insert(candidate["candidateId"].as_str().unwrap()));
@@ -171,6 +173,37 @@ fn assert_verifier_source(prompt: &Value) {
         );
         assert!(candidate["sourceIdentity"]["requestId"].is_string());
         assert!(candidate["sourcePacket"].get("conversation").is_none());
+    }
+    for review in negative {
+        assert!(labels.insert(review["reviewId"].as_str().unwrap()));
+        assert_eq!(review["scope"], "supplied-frozen-packet");
+        assert_eq!(review["contextComplete"], true);
+        assert_eq!(review["authorResult"]["complete"], true);
+        assert!(review["authorResult"]["findings"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        assert!(review["sourceIdentity"]["requestId"].is_string());
+        assert_eq!(
+            review["sourceIdentity"]["packetDigest"],
+            review["authorResult"]["packetDigest"]
+        );
+        assert!(review.get("coverageExclusions").is_some());
+        assert!(review.get("projectionOmissions").is_some());
+        assert!(review["sourcePacket"].get("conversation").is_none());
+        assert!(
+            review["sourcePacket"]["excerpts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|excerpt| {
+                    excerpt["path"] == "src/lib.rs"
+                        && excerpt["content"].as_str().is_some_and(|source| {
+                            source.lines().any(|line| line == SOURCE_SIGNATURE)
+                        })
+                }),
+            "zero-claim verifier must receive exact frozen declaration source"
+        );
     }
 }
 
@@ -266,8 +299,11 @@ fn simulate_native(args: &[String]) {
         json!({"contextRequests":[{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}]})
     } else if reviewer {
         assert_verifier_source(&prompt);
+        assert!(cap <= 2500);
         assert_eq!(schema["properties"]["verdicts"]["type"], "array");
-        json!({"verdicts":prompt["candidates"].as_array().unwrap().iter().map(|candidate| json!({"candidateId":candidate["candidateId"],"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})).collect::<Vec<_>>()})
+        assert_eq!(schema["properties"]["negativeReviews"]["type"], "array");
+        json!({"verdicts":prompt["candidates"].as_array().unwrap().iter().map(|candidate| json!({"candidateId":candidate["candidateId"],"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})).collect::<Vec<_>>(),
+            "negativeReviews":prompt["negativeReviews"].as_array().unwrap().iter().map(|review| json!({"reviewId":review["reviewId"],"verdict":"scoped_clean","reason":"Simulation: independently challenged supplied frozen naming declarations & explicit coverage exclusions; conclusion covers this packet only","evidence":[{"path":"src/lib.rs","line":1,"text":SOURCE_SIGNATURE,"sourceSide":"selected"}],"concreteCase":"Simulation: trace supplied add declaration & declared scope; no whole repository or installed behavior assurance"})).collect::<Vec<_>>()})
     } else if tool_round {
         json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}})
     } else {
@@ -632,8 +668,8 @@ fn completes_with_large_compact_control_plan() {
     );
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "clean");
-    assert_eq!(result["calls"], 1);
-    assert_eq!(fixture.calls().len(), 1);
+    assert_eq!(result["calls"], 2);
+    assert_eq!(fixture.calls().len(), 2);
     let restored = read_json(&path);
     assert_eq!(
         legion_contracts::canonical_digest(&restored).unwrap(),
@@ -693,11 +729,11 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
     assert!(output.status.success(), "simulation runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(result["status"], "done");
-    assert_eq!(result["calls"], 2);
-    assert_eq!(result["callAttempts"], 2);
+    assert_eq!(result["calls"], 3);
+    assert_eq!(result["callAttempts"], 3);
     assert_eq!(
         result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-        "0.025"
+        "0.0375"
     );
     assert_eq!(result["budget"]["cost"]["invoiceChargeStatus"], "unknown");
     assert!(result["budget"]["cost"]["invoiceChargeUsd"].is_null());
@@ -711,16 +747,16 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
         .run
         .join(format!("lens-receipts/{PROVIDER}.json"))
         .is_file());
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 3);
     assert!(fixture.calls().iter().any(|call| call["toolRound"] == true));
     let budget = read_json(&fixture.run.join("next-state.json"));
-    assert_eq!(budget["issuances"], 2);
+    assert_eq!(budget["issuances"], 3);
     assert!(budget["terminalStatus"].is_null());
     let per_call = read_json(&fixture.run.join("lens-dispatch.json"))["reasoningBudget"]
         ["perCallTokens"]
         .as_u64()
         .unwrap();
-    assert_eq!(result["budget"]["reservedTokens"], 2 * per_call);
+    assert_eq!(result["budget"]["reservedTokens"], 3 * per_call);
     assert_eq!(
         budget["reservations"]
             .as_object()
@@ -728,7 +764,7 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
             .values()
             .filter(|reservation| reservation["transportAuthorized"] == true)
             .count(),
-        2
+        3
     );
     let mut stages = Vec::new();
     let mut reservation_ids = std::collections::BTreeSet::new();
@@ -747,13 +783,16 @@ fn completes_after_host_tool_round_and_recovers_stale_lock_file() {
         ));
     }
     stages.sort();
-    assert_eq!(stages, ["source-review", "source-review"]);
+    assert_eq!(
+        stages,
+        ["finding-verification", "source-review", "source-review"]
+    );
     assert!(fixture.run.join("report.sarif").is_file());
     assert!(!fixture.repo.join("must-never-execute").exists());
     let (resumed_output, resumed, _) = fixture.run();
     assert!(resumed_output.status.success(), "{resumed}");
     assert_eq!(resumed["calls"], 0);
-    assert_eq!(fixture.calls().len(), 2);
+    assert_eq!(fixture.calls().len(), 3);
 }
 fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     let fixture = Fixture::new("clean-eager");
@@ -761,14 +800,14 @@ fn completes_with_eager_selected_skeleton_source_in_one_author_call() {
     assert!(output.status.success(), "simulation eager runtime:{result}");
     assert_eq!(result["complete"], true);
     assert_eq!(report["status"], "clean");
-    assert_eq!(result["calls"], 1);
-    assert_eq!(result["callAttempts"], 1);
-    assert_eq!(fixture.calls().len(), 1);
+    assert_eq!(result["calls"], 2);
+    assert_eq!(result["callAttempts"], 2);
+    assert_eq!(fixture.calls().len(), 2);
     let receipts: Vec<_> = fs::read_dir(fixture.run.join("runtime-calls"))
         .unwrap()
         .map(|entry| read_json(&entry.unwrap().path()))
         .collect();
-    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts.len(), 2);
     let receipt = legion_audit::native_providers::reasoning::ingest::verify_runtime_call(
         &fixture.run,
         receipts
@@ -988,7 +1027,7 @@ fn live_runtime_lock_excludes_another_controller() {
     );
     assert_eq!(
         fixture.calls().len(),
-        1,
+        2,
         "contender launched a model process"
     );
 }
@@ -1176,12 +1215,16 @@ fn deterministic_context_keeps_mandatory_source_review_without_gatherer() {
     assert!(output.status.success(), "{result}");
     assert_eq!(report["status"], "clean");
     let calls = fixture.calls();
-    assert_eq!(calls.len(), 1);
+    assert_eq!(calls.len(), 2);
     assert_eq!(calls[0]["gatherer"], false);
     assert_eq!(calls[0]["reviewer"], false);
     assert_author_source(&calls[0]["prompt"]);
     assert_eq!(
+        calls.iter().filter(|call| call["reviewer"] == true).count(),
+        1
+    );
+    assert_eq!(
         result["budget"]["cost"]["reportedApiEquivalentCostUsd"],
-        "0.0125"
+        "0.025"
     );
 }

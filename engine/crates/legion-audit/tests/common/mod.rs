@@ -70,22 +70,65 @@ pub fn verify(
             original.get("disproof"),
         ));
     }
-    let proof = json!({
+    let mut proof = json!({
         "schemaVersion": 1,
         "kind": "legion-runtime-verification",
         "requestId": request.request_id,
         "packetDigest": canonical_digest(&request.packet).unwrap(),
         "findings": rows,
     });
-    if !originals.is_empty() || !withdrawn.is_empty() {
-        record_budget_usage(
-            run,
-            request,
-            "fixture-verifier",
-            canonical_json_bytes(&proof).unwrap().len() as u64,
+    if originals.is_empty() && withdrawn.is_empty() {
+        let plan: Value =
+            serde_json::from_slice(&std::fs::read(run.join("plan.json")).unwrap()).unwrap();
+        let root = Path::new(
+            plan["repository"]
+                .as_str()
+                .expect("fixture repository root"),
         );
+        proof["negativeReview"] = negative_review(request, result, root);
+        if matches!(disposition, FindingDisposition::Unresolved) {
+            proof["negativeReview"]["verdict"] = json!("unresolved");
+            proof["negativeReview"]["reason"] =
+                json!("explicit simulated fixture reviewer left negative claim unresolved");
+        }
     }
+    record_budget_usage(
+        run,
+        request,
+        "fixture-verifier",
+        canonical_json_bytes(&proof).unwrap().len() as u64,
+    );
     mint_runtime_verification(run, request, &proof).unwrap();
+}
+
+/// Simulated host observations only: no actual model/process assurance. Source
+/// anchors come from fixture bytes within this exact frozen packet's excerpts.
+pub fn negative_review(request: &ReasoningInvocation, author_result: &Value, root: &Path) -> Value {
+    let anchor = request.packet["excerpts"].as_array().into_iter().flatten().find_map(|excerpt| {
+        let path = excerpt["path"].as_str()?;
+        let bytes = legion_audit::snapshot::FrozenSnapshot::source_for_root(root,path,32*1024*1024)
+            .map(|(bytes,_)| bytes).or_else(|_| std::fs::read(root.join(path)).map_err(|error| legion_audit::AuditError::Invalid(error.to_string()))).ok()?;
+        let source = String::from_utf8(bytes).ok()?;
+        let content = excerpt["content"].as_str()?;
+        let start = excerpt["startLine"].as_u64().unwrap_or(1).max(1);
+        let end = excerpt["endLine"].as_u64().unwrap_or(u64::MAX);
+        source.lines().enumerate().find_map(|(index,text)| {
+            let line = index as u64 + 1;
+            (line >= start && line <= end && !text.trim().is_empty() && content.lines().any(|candidate| candidate == text))
+                .then(|| json!({"path":path,"line":line,"text":text,"sourceSide":excerpt["sourceSide"].as_str().unwrap_or("selected")}))
+        })
+    });
+    let anchored = anchor.is_some();
+    json!({
+        "scope":"supplied-frozen-packet","contextComplete":anchored,
+        "authorResult":author_result,"authorResultDigest":canonical_digest(author_result).unwrap(),
+        "author":{"contextId":format!("simulated-fixture-author:{}",request.request_id),"processId":20000,"processCreated":true,"responseDigest":canonical_digest(author_result).unwrap(),"fixtureSimulation":true},
+        "reviewer":{"contextId":format!("simulated-fixture-negative-reviewer:{}",request.request_id),"processId":20001,"processCreated":true,"responseDigest":canonical_digest(&json!({"requestId":request.request_id,"anchor":anchor,"scope":"supplied-frozen-packet"})).unwrap(),"fixtureSimulation":true},
+        "verdict":if anchored {"scoped_clean"} else {"unresolved"},
+        "reason":if anchored {"explicit simulated independent fixture challenge of supplied packet source, contracts & coverage exclusions only"} else {"fixture packet has no usable frozen source anchor; negative claim unresolved"},
+        "concreteCase":"simulated fixture contract trace over exact supplied source; no execution or whole repository assurance",
+        "evidence":anchor.into_iter().collect::<Vec<_>>(),"anchorsVerified":anchored
+    })
 }
 
 pub fn authenticate(
