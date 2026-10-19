@@ -5,7 +5,7 @@ import argparse
 import json
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import runpy
 
 shared = runpy.run_path(str(Path(__file__).with_name("audit-external-provider-accuracy.py")))
@@ -72,7 +72,10 @@ def binding(root, row, registry, files, git):
                                             "digest": digest(compact([list(pair) for pair in files]))}, "stale scanner implementation")
 
 
-def executable(path, expected):
+def executable(path, expected, live=True):
+    retained = shared["retained_executable"](path, expected)
+    if not live:
+        return retained
     real = shared["canonical_executable"](path, "recorded tool")
     data = real.read_bytes()
     require(os.access(real, os.X_OK) and not data.startswith(b"#!") and digest(data) == expected, "executable identity differs")
@@ -95,7 +98,7 @@ def native(receipt, policy, definition, encoding):
             and version["output"].strip(), "real version evidence missing")
 
 
-def scanner_case(case, provider, positive):
+def scanner_case(case, provider, positive, live=True):
     tool = provider.removeprefix("security.scanner-")
     require(case["caseId"] == f"{tool}-{'planted' if positive else 'clean'}", "scanner control inventory differs")
     if tool == "zizmor":
@@ -107,7 +110,7 @@ def scanner_case(case, provider, positive):
         path, label, version_args = "pod.yaml", "privileged-container|pod.yaml|unresolved", ["version"]
     require(case["source"] == {"path": path, "bytes": source, "digest": digest(source.encode())}, "scanner fixture differs")
     result, policy, receipt = case["actualProviderResult"], case["policy"], case["executionReceipt"]
-    source_root, run_root = Path(policy["root"]), Path(policy["runDirectory"])
+    source_root, run_root = PurePosixPath(policy["root"]), PurePosixPath(policy["runDirectory"])
     require(source_root.is_absolute() and run_root.is_absolute() and source_root.name == "source" and run_root.name == "run"
             and ".." not in source_root.parts + run_root.parts and source_root.parent == run_root.parent
             and policy["provider"] == provider and policy["inventoryDigest"] == case["inventoryDigest"], "scanner fixture roots/binding differ")
@@ -133,9 +136,9 @@ def scanner_case(case, provider, positive):
                     == candidate["evidence"][0]["sourceDigest"] == case["source"]["digest"], "kube file anchor differs")
         actual.append(f"{candidate['ruleId']}|{candidate['path']}|{candidate['line'] if candidate['line'] is not None else 'unresolved'}")
     require(case["expected"] == ([label] if positive else []) and case["actual"] == actual == case["expected"], "scanner actual output differs")
-    tool_path = executable(policy["tool"]["path"], policy["tool"]["digest"])
-    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"])
-    require(wrapper == Path("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(Path(policy["root"]).parent), "scanner host identity differs")
+    tool_path = executable(policy["tool"]["path"], policy["tool"]["digest"], live=live)
+    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"], live=live)
+    require(wrapper == PurePosixPath("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(source_root.parent), "scanner host identity differs")
     identity, probe = case["toolIdentity"], case["toolIdentity"]["version"]["receipt"]
     require(identity["path"] == str(tool_path) and identity["executableDigest"] == policy["tool"]["digest"], "scanner tool identity mismatch")
     native(probe, "legion-additional-real-scanner-benchmark-v1", policy, compact)
@@ -154,7 +157,7 @@ def scanner_case(case, provider, positive):
     profile = f'(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath "{escaped}"))\n(deny file-write* (subpath "{escaped}"))\n'
     profile_hash = digest(profile.encode()).removeprefix("sha256:")
     profile_name = f"audit-{profile_hash}.sb"
-    scan_profile = Path(decisions[1]["args"][1])
+    scan_profile = PurePosixPath(decisions[1]["args"][1])
     require(scan_profile.is_absolute() and ".." not in scan_profile.parts and scan_profile.is_relative_to(run_root)
             and scan_profile.parent.name == "sandbox" and scan_profile.name == profile_name, "scanner profile path differs")
     scan_args = scanner_argv(tool, str(scan_profile.parent.parent / "kube-linter-owned-config"))
@@ -180,7 +183,7 @@ def scanner_case(case, provider, positive):
             and receipt["stdoutBytes"] > 0 and receipt["stdoutArtifact"] == {"digest": receipt["stdoutDigest"], "bytes": receipt["stdoutBytes"]}, "scanner sandbox/output evidence differs")
 
 
-def git_case(case, provider, positive):
+def git_case(case, provider, positive, live=True):
     require(case["caseId"] == provider.replace(".", "-") + ("-positive" if positive else "-absence")
             and case["control"] == ("positive" if positive else "absence"), "Git controls differ")
     source = MARKER if provider == DEBT and positive else ("export const answer = 43;\n" if provider == REPO and positive else CLEAN)
@@ -205,8 +208,9 @@ def git_case(case, provider, positive):
     require(policy["task"] == task and policy["args"] == args and policy["versionArgs"] == ["--version"]
             and policy["sandbox"] == "not-required-by-shipped-read-only-git-contract" and policy["acceptedExitCodes"] == accepted
             and policy["timeoutMs"] == 120000 and policy["stdoutLimit"] == policy["stderrLimit"] == 8388608, "Git policy contract differs")
-    tool = executable(policy["executable"], policy["executableDigest"])
-    require(Path(policy["cwd"]).is_absolute() and Path(policy["cwd"]).name == "source" and not tool.is_relative_to(Path(policy["cwd"]).parent)
+    tool = executable(policy["executable"], policy["executableDigest"], live=live)
+    require(PurePosixPath(policy["cwd"]).is_absolute() and ".." not in PurePosixPath(policy["cwd"]).parts
+            and PurePosixPath(policy["cwd"]).name == "source" and not tool.is_relative_to(PurePosixPath(policy["cwd"]).parent)
             and policy["provider"] == provider and policy["plan"] == case["planDigest"], "Git fixture identity differs")
     require(receipt == details["executionReceipt"] and receipt["providerId"] == provider and receipt["planId"] == case["planDigest"]
             and receipt["cwd"] == policy["cwd"] and receipt["executable"]["canonicalPath"] == policy["executable"]
@@ -231,12 +235,24 @@ def git_case(case, provider, positive):
 def validate(root, directory, providers, registry, files, git=False):
     expected_files = {provider.replace(".", "_") + ".json" for provider in providers}
     require(directory.is_dir() and {path.name for path in directory.iterdir()} == expected_files, "receipt file inventory differs")
-    summaries = []
+    records = []
     for provider in providers:
         path = directory / (provider.replace(".", "_") + ".json")
         require(path.is_file() and not path.is_symlink(), "receipt must be a regular file")
         row = load(path)
-        require(row["provider"] == provider and row["schema"] == ("legion-real-git-provider-accuracy/1" if git else "legion-external-provider-accuracy/1")
+        require(row["provider"] == provider, "receipt filename/provider differs")
+        records.append(row)
+    return validate_records(root, records, registry, files, git=git)
+
+
+def validate_records(root, records, registry, files, git=False, live=True):
+    """Shared semantic checks; live=False retains identities without reading host tools."""
+    require(len({row["provider"] for row in records}) == len(records), "duplicate provider record")
+    summaries = []
+    for row in records:
+        provider = row["provider"]
+        require(provider in ([REPO, DEBT] if git else SCANNERS), "unsupported provider adapter")
+        require(row["schema"] == ("legion-real-git-provider-accuracy/1" if git else "legion-external-provider-accuracy/1")
                 and type(row["modelCalls"]) is int and row["modelCalls"] == 0 and row["status"] == "pass" and row["coverageState"] == "complete", "receipt identity/status differs")
         require(row["executionPath"] == ("native-sdk-frozen-plan-real-git" if git else "native-sdk-frozen-plan-real-external-scanner"), "execution path differs")
         require(row["stage"] == ("fact-output" if provider == REPO else "finding" if git else "candidate"), "output stage differs")
@@ -244,7 +260,7 @@ def validate(root, directory, providers, registry, files, git=False):
         cases = row["cases"]
         require(len(cases) == 2 and all(is_digest(c["planDigest"]) and is_digest(c["inventoryDigest"]) for c in cases), "frozen control inventory differs")
         for case, positive in zip(cases, (True, False)):
-            (git_case if git else scanner_case)(case, provider, positive)
+            (git_case if git else scanner_case)(case, provider, positive, live=live)
         if git:
             require(row["providerVersion"] == registry[provider]["providerVersion"] and row["outputKind"] == ("fact" if provider == REPO else "findings"), "Git output kind differs")
             require(row["scope"] == ("one dirty-path repository status & clean absence" if provider == REPO else "one summary finding & exact marker counts/raw grep; no marker-location accuracy claim"), "Git claim scope differs")
@@ -260,8 +276,9 @@ def validate(root, directory, providers, registry, files, git=False):
             metrics = {"truePositives": tp, "falsePositives": fp, "falseNegatives": fn, "precision": tp / (tp + fp) if tp + fp else 0.0,
                        "recall": tp / (tp + fn) if tp + fn else 0.0, "positiveCases": 1, "cleanCases": 1}
         require(canonical(row["metrics"]) == canonical(metrics), "metrics differ from duplicate-preserving actual output")
-        claimed = row.pop("qualificationDigest")
-        require(claimed == digest(canonical(row) if git else compact(row)), "qualification digest differs")
+        body = dict(row)
+        claimed = body.pop("qualificationDigest")
+        require(claimed == digest(canonical(body) if git else compact(body)), "qualification digest differs")
         summaries.append({"provider": provider, "stage": row["stage"], "qualificationDigest": claimed, "metrics": metrics, "coverageState": "complete"})
     return summaries
 

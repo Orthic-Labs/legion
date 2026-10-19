@@ -817,7 +817,6 @@ fn implementation_binding(root: &Path) -> Value {
     ] {
         bind(root, &root.join(path), &mut files);
     }
-    bind(root, &root.join("src/registry/providers.json"), &mut files);
     files.sort();
     json!({"roots":roots, "fileCount":files.len(), "digest":digest(&serde_json::to_vec(&files).unwrap())})
 }

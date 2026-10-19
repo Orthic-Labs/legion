@@ -6,7 +6,7 @@ import hashlib
 import json
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 PROVIDER = "security.scanner-shellcheck"
@@ -109,19 +109,30 @@ def canonical_executable(value, label):
     return path
 
 
-def check_real_executables(cases):
+def retained_executable(value, expected):
+    """Validate archived macOS identity only; no claim about local binary bytes."""
+    require(isinstance(value, str) and value.startswith("/") and not value.startswith("//"), "retained executable is not absolute")
+    path = PurePosixPath(value)
+    require(str(path) == value and ".." not in path.parts and is_digest(expected), "retained executable identity malformed")
+    return path
+
+
+def check_real_executables(cases, live=True):
     tool_paths, wrapper_paths = set(), set()
     for case in cases:
         policy = case["policy"]
         tool, wrapper = policy["tool"], policy["wrapper"]
-        tool_path = canonical_executable(tool["path"], "ShellCheck")
-        wrapper_path = canonical_executable(wrapper["path"], "sandbox wrapper")
-        require(wrapper_path == Path("/usr/bin/sandbox-exec"), "unexpected native sandbox wrapper")
-        require(os.access(tool_path, os.X_OK), "ShellCheck is not executable")
-        tool_bytes = tool_path.read_bytes()
-        require(not tool_bytes.startswith(b"#!"), "ShellCheck must be a host executable, not a script")
-        require(tool["digest"] == digest(tool_bytes), "ShellCheck executable digest differs")
-        require(wrapper["digest"] == digest(wrapper_path.read_bytes()), "sandbox wrapper digest differs")
+        tool_path = retained_executable(tool["path"], tool["digest"])
+        wrapper_path = retained_executable(wrapper["path"], wrapper["digest"])
+        require(wrapper_path == PurePosixPath("/usr/bin/sandbox-exec"), "unexpected native sandbox wrapper")
+        if live:
+            tool_path = canonical_executable(tool["path"], "ShellCheck")
+            wrapper_path = canonical_executable(wrapper["path"], "sandbox wrapper")
+            require(os.access(tool_path, os.X_OK), "ShellCheck is not executable")
+            tool_bytes = tool_path.read_bytes()
+            require(not tool_bytes.startswith(b"#!"), "ShellCheck must be a host executable, not a script")
+            require(tool["digest"] == digest(tool_bytes), "ShellCheck executable digest differs")
+            require(wrapper["digest"] == digest(wrapper_path.read_bytes()), "sandbox wrapper digest differs")
         tool_paths.add(tool["path"])
         wrapper_paths.add(wrapper["path"])
     require(len(tool_paths) == len(wrapper_paths) == 1, "cases used different tool or wrapper identities")
@@ -133,9 +144,9 @@ def check_decisions(case, expected_root, run_root, tool_path):
     require(policy["provider"] == PROVIDER, "policy provider differs")
     require(policy["root"] == expected_root and policy["runDirectory"] == run_root,
             "policy roots differ from recorded decisions")
-    require(Path(expected_root).is_absolute() and Path(run_root).is_absolute(), "fixture roots must be absolute")
-    require(Path(expected_root).parent == Path(run_root).parent, "fixture roots are not a paired source/run")
-    require(Path(expected_root).name == "source" and Path(run_root).name == "run", "unexpected fixture layout")
+    require(PurePosixPath(expected_root).is_absolute() and PurePosixPath(run_root).is_absolute(), "fixture roots must be absolute")
+    require(PurePosixPath(expected_root).parent == PurePosixPath(run_root).parent, "fixture roots are not a paired source/run")
+    require(PurePosixPath(expected_root).name == "source" and PurePosixPath(run_root).name == "run", "unexpected fixture layout")
     require(policy["scannerArgs"] == TOOL_ARGS and policy["versionArgs"] == ["--version"],
             "scanner or version arguments differ")
     require(policy["inventoryDigest"] == case["inventoryDigest"], "policy inventory digest differs")
@@ -172,8 +183,8 @@ def check_decisions(case, expected_root, run_root, tool_path):
             scan["versionArgs"] == scan_prefix + ["--version"],
             "qualified version arguments differ")
     for row in decisions:
-        profile = Path(row["args"][1])
-        require(profile.is_absolute() and profile.is_relative_to(Path(run_root)),
+        profile = PurePosixPath(row["args"][1])
+        require(profile.is_absolute() and ".." not in profile.parts and profile.is_relative_to(PurePosixPath(run_root)),
                 "sandbox profile escapes fixture run directory")
         escaped = expected_root.replace("\\", "\\\\").replace('"', '\\"')
         expected_profile = (f'(version 1)\n(allow default)\n(deny network*)\n'
@@ -181,7 +192,7 @@ def check_decisions(case, expected_root, run_root, tool_path):
                             f'(deny file-write* (subpath "{escaped}"))\n').encode()
         profile_hash = hashlib.sha256(expected_profile).hexdigest()
         require(profile.name == f"audit-{profile_hash}.sb", "sandbox profile identity differs")
-        require(Path(row["args"][1]).parent.is_relative_to(Path(run_root)),
+        require(PurePosixPath(row["args"][1]).parent.is_relative_to(PurePosixPath(run_root)),
                 "sandbox profile directory escapes fixture")
     require(probe["acceptedExitCodes"] == [0] and scan["acceptedExitCodes"] == [0, 1],
             "accepted exit codes differ")
@@ -254,9 +265,9 @@ def check_case(case, case_id):
     require(actual == candidate_labels, f"{case_id}: reported labels differ from actual native candidates")
 
     policy = case["policy"]
-    parent = Path(policy["root"]).parent
+    parent = PurePosixPath(policy["root"]).parent
     check_decisions(case, policy["root"], policy["runDirectory"], policy["tool"]["path"])
-    require(not Path(policy["tool"]["path"]).is_relative_to(parent), "tool executable lives inside disposable fixture")
+    require(not PurePosixPath(policy["tool"]["path"]).is_relative_to(parent), "tool executable lives inside disposable fixture")
     check_version_probe(case)
 
     receipt = case["executionReceipt"]
@@ -282,6 +293,10 @@ def validate(root, directory):
     require(len(entries) == 1 and entries[0].name == "security_scanner-shellcheck.json" and
             entries[0].is_file() and not entries[0].is_symlink(), "expected exactly one ShellCheck receipt")
     record = json.loads(entries[0].read_bytes())
+    return validate_record(root, record)
+
+
+def validate_record(root, record, live=True):
     require(record["schema"] == "legion-external-provider-accuracy/1" and record["provider"] == PROVIDER,
             "unexpected external provider receipt")
     require(record["stage"] == "candidate" and record["executionPath"] ==
@@ -294,6 +309,7 @@ def validate(root, directory):
     check_binding(root, record["binding"])
     cases = record["cases"]
     require([case["caseId"] for case in cases] == list(CASES), "missing, duplicate, or reordered control cases")
+    check_real_executables(cases, live=live)
     for case, case_id in zip(cases, CASES):
         check_case(case, case_id)
     tp = fp = fn = positive = clean = 0
@@ -314,8 +330,9 @@ def validate(root, directory):
         "positiveCases": positive, "cleanCases": clean,
     }
     require(record["metrics"] == metrics, "metrics do not match duplicate-preserving case output")
-    claimed = record.pop("qualificationDigest")
-    require(claimed == digest(compact(record)), "qualification digest differs")
+    body = dict(record)
+    claimed = body.pop("qualificationDigest")
+    require(claimed == digest(compact(body)), "qualification digest differs")
     return {"provider": PROVIDER, "qualificationEligible": True, "qualificationDigest": claimed,
             "metrics": metrics, "coverageState": "complete", "coverageGaps": []}
 

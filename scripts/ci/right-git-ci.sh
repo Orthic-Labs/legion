@@ -118,17 +118,52 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   )
 fi
 
+audit_qualification_failures=0
+audit_qualification_sequence=0
+audit_cargo_bin="$(command -v cargo)"
+audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
+audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
+audit_tflint_qualification() {
+  audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
+    audit_effects_test --lib scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure -- --nocapture --test-threads=1 &&
+    audit_effects_test --lib scoped_ipc_native_confinement -- --ignored --nocapture --test-threads=1 &&
+    audit_effects_test --lib scoped_ipc_timeout_and_cancel_cleanup_after_reaping -- --ignored --nocapture --test-threads=1 &&
+    audit_cargo_test --test tflint_accuracy real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1
+}
+run_audit_qualification() {
+  audit_qualification_sequence=$((audit_qualification_sequence + 1))
+  local sequence="$audit_qualification_sequence"
+  python3 - "$sequence" "$@" <<'PY'
+import json
+import sys
+print("AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps(
+    {"sequence": int(sys.argv[1]), "argv": sys.argv[2:]},
+    sort_keys=True, separators=(",", ":")))
+PY
+  local status=0
+  if "$@"; then
+    status=0
+  else
+    status=$?
+    audit_qualification_failures=$((audit_qualification_failures + 1))
+    printf '::error::Audit qualification command failed (exit %s): %s\n' "$status" "$*" >&2
+  fi
+  printf 'AUDIT_QUALIFICATION_COMMAND_END %s %s\n' "$sequence" "$status"
+  # Continue independent controls, then refuse delivery below if any failed.
+  return 0
+}
+
 # Measure provider output separately from selection/routing & final adjudication.
 # Run explicitly on both native hosts even when change detection skips workspace
 # tests. Each registered provider must emit a current source/corpus-bound record.
 export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-accuracy"
 mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-(cd engine && cargo test --locked -p legion-audit \
+run_audit_qualification audit_cargo_test \
   --test security_packs --test architecture_input_producer \
   --test code_provider_accuracy --test suite_provider_accuracy \
   --test legacy_file_accuracy --test artifact_provider_accuracy \
-  file_only_provider_accuracy -- --nocapture --test-threads=1)
-python3 scripts/ci/audit-provider-accuracy.py \
+  file_only_provider_accuracy -- --nocapture --test-threads=1
+run_audit_qualification python3 scripts/ci/audit-provider-accuracy.py \
   --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
 unset LEGION_PROVIDER_BENCHMARK_DIR
 
@@ -153,20 +188,6 @@ PY
 # macOS leg because dead-code, duplication and type checks must run inside
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
-audit_qualification_failures=0
-audit_cargo_bin="$(command -v cargo)"
-audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
-run_audit_qualification() {
-  if "$@"; then
-    return 0
-  else
-    local status=$?
-    audit_qualification_failures=$((audit_qualification_failures + 1))
-    printf '::error::Audit qualification command failed (exit %s): %s\n' "$status" "$*" >&2
-  fi
-  # Continue independent controls, then refuse delivery below if any failed.
-  return 0
-}
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3
   # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
@@ -248,7 +269,8 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     "$LEGION_KUBECONFORM_SCHEMA_DIR/pod-v1.json" | shasum -a 256 --check
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
-  run_audit_qualification audit_cargo_test --test bench_recall -- --ignored --nocapture
+  run_audit_qualification audit_cargo_test --test bench_recall \
+    bench_recall_qualification_receipt -- --ignored --exact --nocapture --test-threads=1
   export LEGION_REAL_SCANNER_SCRATCH="${RUNNER_TEMP}/legion-real-scanner-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-external-provider-accuracy"
   mkdir -p "$LEGION_REAL_SCANNER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
@@ -275,8 +297,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-tflint-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test tflint_accuracy \
-    real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1
+  run_audit_qualification audit_tflint_qualification
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-kubeconform-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test kubeconform_accuracy \

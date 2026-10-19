@@ -60,8 +60,8 @@ class RegistrationGateTests(unittest.TestCase):
         self.entry = {"provider": self.provider, "family": "file", "stage": "fact-output", "scope": self.row["scope"],
                       "record": {"path": gate["ARCHIVE"] + "/records/" + self.provider + "/unit.json", "sha256": "", "qualificationDigest": "", "encoding": "canonical-json"},
                       "sourceClosure": {}, "provenance": {"repository": "Orthic-Labs/legion", "runId": 1, "runAttempt": 1, "jobId": 1,
-                          "jobName": "synthetic-checker-unit", "workflow": ".github/workflows/ci.yml", "commit": "a" * 40, "platform": "macos-15",
-                          "command": {"harness": ["synthetic-checker-unit"], "validator": ["python3", "scripts/ci/audit-provider-accuracy.py", "--root", "/synthetic"]},
+                          "jobName": "synthetic-checker-unit", "jobConclusion": "failure", "workflow": ".github/workflows/ci.yml", "commit": "a" * 40, "platform": "macos-15",
+                          "command": {"harness": gate["FILE_HARNESS"], "validator": ["python3", "scripts/ci/audit-provider-accuracy.py", "--root", "/synthetic", "--receipts", "/synthetic/receipts"]},
                           "validator": {}, "log": {"path": gate["ARCHIVE"] + "/logs/unit.log", "sha256": ""}},
                       "provenanceVerification": {"path": gate["ARCHIVE"] + "/verification/unit.json", "sha256": ""}}
         self.write(self.entry["provenance"]["log"]["path"], "synthetic checker unit; not authenticated CI evidence\n")
@@ -91,13 +91,28 @@ class RegistrationGateTests(unittest.TestCase):
         proof["validator"] = {"path": "scripts/ci/audit-provider-accuracy.py", "sha256": closure["scripts/ci/audit-provider-accuracy.py"]}
         self.summary = {self.provider: {key: self.row[key] for key in ("stage", "measurementKind", "coverageState", "qualificationEligible",
                                                                     "qualificationDigest", "metrics", "coverageGaps")}}
+        standard_log = "synthetic checker unit; not authenticated CI evidence\n"
+        standard_log += "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": proof["command"]["harness"]}) + "\n"
+        standard_log += "FILE_PROVIDER_ACCURACY " + json.dumps(self.row) + "\nAUDIT_QUALIFICATION_COMMAND_END 1 0\n"
+        standard_log += "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": proof["command"]["validator"]}) + "\n"
+        standard_log += "FILE_PROVIDER_ACCURACY_SUMMARY " + json.dumps(self.summary) + "\nAUDIT_QUALIFICATION_COMMAND_END 2 0\n"
         if refresh_log:
-            self.write(proof["log"]["path"], "synthetic checker unit; not authenticated CI evidence\nFILE_PROVIDER_ACCURACY "
-                       + json.dumps(self.row) + "\nFILE_PROVIDER_ACCURACY_SUMMARY " + json.dumps(self.summary) + "\n")
+            self.write(proof["log"]["path"], standard_log)
         proof["log"]["sha256"] = gate["digest"]((self.root / proof["log"]["path"]).read_bytes())
+        standard_lines = standard_log.encode().splitlines(keepends=True)
+        checks = []
+        for role, sequence, start, end in (("harness", 1, 2, 4), ("validator", 2, 5, 7)):
+            check = {"role": role, "command": proof["command"][role], "conclusion": "success", "exitCode": 0, "sequence": sequence,
+                     "logStartLine": start, "logEndLine": end, "logSpanSha256": gate["digest"](b"".join(standard_lines[start - 1:end])),
+                     "recordSha256": self.entry["record"]["sha256"]}
+            if role == "validator":
+                check["summaryDigest"] = gate["digest"](gate["encoded"](self.summary))
+            checks.append(check)
         verified = {"schema": gate["VERIFY_VERSION"], "method": "authenticated-github-retrieval", "verified": True,
                     "repository": proof["repository"], "runId": proof["runId"], "runAttempt": proof["runAttempt"], "jobId": proof["jobId"],
-                    "workflow": proof["workflow"], "commit": proof["commit"], "conclusion": "success", "recordSha256": self.entry["record"]["sha256"],
+                    "workflow": proof["workflow"], "commit": proof["commit"], "platform": proof["platform"], "jobConclusion": proof["jobConclusion"],
+                    "qualificationConclusion": "success", "checks": checks, "recordSha256": self.entry["record"]["sha256"],
+                    "validationBasis": "native-family-validator",
                     "provenanceDigest": gate["digest"](gate["encoded"](proof)), "logSha256": proof["log"]["sha256"], "validatorSha256": proof["validator"]["sha256"],
                     "sourceClosureDigest": self.entry["sourceClosure"]["digest"], "summaryDigest": gate["digest"](gate["encoded"](self.summary))}
         self.write_json(self.entry["provenanceVerification"]["path"], verified)
@@ -233,11 +248,104 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["check"](self.root)
 
-    def test_external_registration_explicitly_unsupported(self):
+    def test_unknown_external_registration_explicitly_unsupported(self):
         self.entry["family"] = "scanner"
         self.write_index()
         with self.assertRaises(AssertionError):
             gate["check"](self.root)
+
+    def test_emitted_record_before_failed_terminal_is_rejected(self):
+        path = self.root / self.entry["provenance"]["log"]["path"]
+        path.write_text(path.read_text().replace("COMMAND_END 1 0", "COMMAND_END 1 1"))
+        self.seal(refresh_log=False)
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+
+    def test_cancelled_validator_without_terminal_is_rejected(self):
+        path = self.root / self.entry["provenance"]["log"]["path"]
+        path.write_text(path.read_text().replace("AUDIT_QUALIFICATION_COMMAND_END 2 0\n", ""))
+        self.seal(refresh_log=False)
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+
+    def test_command_marker_must_match_authenticated_command(self):
+        path = self.root / self.entry["provenance"]["log"]["path"]
+        path.write_text(path.read_text().replace('"audit_cargo_test"', '"different-command"'))
+        self.seal(refresh_log=False)
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+
+    def test_successful_retry_cannot_replace_failed_attempt(self):
+        path = self.root / self.entry["provenance"]["log"]["path"]
+        retry = "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 3, "argv": self.entry["provenance"]["command"]["harness"]})
+        path.write_text(path.read_text() + retry + "\nAUDIT_QUALIFICATION_COMMAND_END 3 0\n")
+        self.seal(refresh_log=False)
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+
+    def test_fixed_external_adapters_preserve_stage_and_encoding(self):
+        self.assertEqual(len(gate["ADAPTERS"]), 14)
+        for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
+            entry = {"provider": provider, "family": family, "stage": stage}
+            self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
+            entry["stage"] = "outcome"
+            with self.assertRaises(AssertionError):
+                gate["adapter"](self.root, entry)
+
+    def test_grouped_tflint_requires_all_five_named_tests_to_execute(self):
+        command = ["audit_tflint_qualification"]
+        names = gate["TFLINT_TESTS"]
+        path = self.root / "terminal-checker-unit.log"
+        begin = "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command})
+        results = [f"test tests::{name} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n" for name in names]
+        record = {"sha256": "sha256:" + "a" * 64}
+
+        def observed(parts):
+            path.write_text(begin + "\n" + "".join(parts) + "original checker unit\nAUDIT_QUALIFICATION_COMMAND_END 1 0\n")
+            evidence = len(path.read_text().splitlines()) - 1
+            return gate["terminal_checks"](path, {"command": {"harness": command}}, record, None, evidence, None)
+
+        self.assertEqual(len(observed(results)), 1)
+        for parts in (results[:-1], [text.replace("1 passed", "0 passed") for text in results],
+                      [text.replace("0 ignored", "1 ignored") for text in results],
+                      [text.replace(names[-1], "different_test") for text in results]):
+            with self.subTest(parts=parts), self.assertRaises(AssertionError):
+                observed(parts)
+
+    def test_known_answer_adapter_is_fixed_to_existing_five_outcomes(self):
+        for provider in gate["BENCH"]:
+            entry = {"provider": provider, "family": "bench-known-answer", "stage": "outcome"}
+            self.assertEqual(gate["adapter"](self.root, entry),
+                             ("bench-known-answer", "bench_recall", "canonical-json", "bench_recall_qualification_receipt"))
+            entry["stage"] = "finding"
+            with self.assertRaises(AssertionError):
+                gate["adapter"](self.root, entry)
+
+    def test_failed_known_answer_class_cannot_register_from_emission(self):
+        rows = [{"benchClass": value, "status": "pass", "productionQualification": False}
+                for value in list(gate["BENCH"].values()) + ["drift"]]
+        rows[0]["status"] = "recall-failure"
+        with self.assertRaises(AssertionError):
+            gate["validate_bench_record"](self.root, {"provider": next(iter(gate["BENCH"]))}, {"results": rows}, {})
+
+    def test_shared_offline_adapters_refuse_duplicate_records(self):
+        for script, provider in (("audit-real-provider-accuracy.py", "security.scanner-zizmor"),
+                                 ("audit-extra-provider-accuracy.py", "security.scanner-squawk")):
+            api = gate["helper"](script)
+            with self.subTest(script=script), self.assertRaises(AssertionError):
+                api["validate_records"](self.root, [{"provider": provider}] * 2, {}, [], live=False)
+
+    def test_offline_identity_does_not_claim_installed_binary_bytes(self):
+        api = gate["helper"]("audit-real-provider-accuracy.py")
+        path = "/legion-checker-unit-no-installed-tool/bin/tool"
+        identity = "sha256:" + "a" * 64
+        self.assertEqual(str(api["executable"](path, identity, live=False)), path)
+        with self.assertRaises(AssertionError):
+            api["executable"](path, identity)
+        with self.assertRaises(AssertionError):
+            api["executable"]("/escaped/../tool", identity, live=False)
+        with self.assertRaises(AssertionError):
+            api["executable"](path, "not-a-digest", live=False)
 
     def test_source_closure_cannot_omit_validator(self):
         self.entry["sourceClosure"]["sources"].pop("scripts/ci/audit-provider-accuracy.py")

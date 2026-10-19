@@ -5,7 +5,7 @@ import argparse
 from collections import Counter
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import runpy
 import shutil
@@ -44,8 +44,8 @@ def same(actual, expected, message):
 
 
 def safe_absolute(value):
-    path = Path(value)
-    require(path.is_absolute() and ".." not in path.parts and str(path) == value, "noncanonical retained path")
+    path = PurePosixPath(value)
+    require(path.is_absolute() and not value.startswith("//") and ".." not in path.parts and str(path) == value, "noncanonical retained path")
     return path
 
 
@@ -106,31 +106,40 @@ def bind(root, row, spec, files):
         same(row["expectationSources"], re.findall(r'"(https://[^"\n]+)"', section), "expectation source inventory differs")
 
 
-def runtime_identity(identity, policy, root):
+def runtime_identity(identity, policy, root, live=True):
     runtime = identity["runtime"]
     same(runtime, policy["runtime"], "Brakeman runtime linkage differs")
     gem = safe_absolute(runtime["gemRoot"])
-    require(gem.is_dir() and not gem.is_symlink() and not gem.is_relative_to(root.parent), "Brakeman gem location differs")
-    files = []
-    for path in gem.rglob("*"):
-        require(not path.is_symlink(), "symlink in Brakeman gem binding")
-        if path.is_file():
-            files.append((path.relative_to(gem).as_posix(), digest(path.read_bytes())))
-    files.sort()
-    same(runtime["gemBinding"], {"fileCount": len(files), "digest": digest(compact([list(pair) for pair in files]))}, "Brakeman gem bytes differ")
-    tool = common["shared"]["canonical_executable"](identity["path"], "official Brakeman entrypoint")
-    require(tool == gem / "bin/brakeman" and os.access(tool, os.X_OK) and tool.read_bytes() == ENTRYPOINT.encode()
-            and digest(tool.read_bytes()) == identity["executableDigest"] and (gem / "lib/brakeman/checks/check_sql.rb").is_file(), "Brakeman entrypoint differs")
-    ruby = executable(runtime["ruby"]["path"], runtime["ruby"]["digest"])
-    require(not ruby.is_relative_to(root.parent) and runtime["path"] == os.environ.get("PATH")
-            and shutil.which("ruby", path=runtime["path"]) is not None
-            and Path(shutil.which("ruby", path=runtime["path"])).resolve() == ruby, "Brakeman Ruby resolution differs")
+    require(not gem.is_relative_to(root.parent), "Brakeman gem location differs")
+    require(type(runtime["gemBinding"]["fileCount"]) is int and runtime["gemBinding"]["fileCount"] > 0
+            and is_digest(runtime["gemBinding"]["digest"]), "Brakeman retained gem binding malformed")
+    tool = common["shared"]["retained_executable"](identity["path"], identity["executableDigest"])
+    require(tool == gem / "bin/brakeman" and identity["executableDigest"] == digest(ENTRYPOINT.encode()), "Brakeman official entrypoint differs")
+    ruby = executable(runtime["ruby"]["path"], runtime["ruby"]["digest"], live=live)
+    require(not ruby.is_relative_to(root.parent) and isinstance(runtime["path"], str) and runtime["path"], "Brakeman Ruby identity differs")
+    for part in runtime["path"].split(":"):
+        safe_absolute(part)
+    if live:
+        gem = Path(gem)
+        require(gem.is_dir() and not gem.is_symlink(), "Brakeman gem missing/symlink")
+        files = []
+        for path in gem.rglob("*"):
+            require(not path.is_symlink(), "symlink in Brakeman gem binding")
+            if path.is_file():
+                files.append((path.relative_to(gem).as_posix(), digest(path.read_bytes())))
+        files.sort()
+        same(runtime["gemBinding"], {"fileCount": len(files), "digest": digest(compact([list(pair) for pair in files]))}, "Brakeman gem bytes differ")
+        tool = common["shared"]["canonical_executable"](identity["path"], "official Brakeman entrypoint")
+        require(os.access(tool, os.X_OK) and tool.read_bytes() == ENTRYPOINT.encode()
+                and digest(tool.read_bytes()) == identity["executableDigest"] and (gem / "lib/brakeman/checks/check_sql.rb").is_file(), "Brakeman entrypoint differs")
+        require(runtime["path"] == os.environ.get("PATH") and shutil.which("ruby", path=runtime["path"]) is not None
+                and Path(shutil.which("ruby", path=runtime["path"])).resolve() == ruby, "Brakeman Ruby resolution differs")
     require(runtime["shebangInterpreter"]["path"] == "/usr/bin/env", "Brakeman shebang differs")
-    executable("/usr/bin/env", runtime["shebangInterpreter"]["digest"])
+    executable("/usr/bin/env", runtime["shebangInterpreter"]["digest"], live=live)
     return tool
 
 
-def scanner_case(case, provider, positive):
+def scanner_case(case, provider, positive, live=True):
     tool = provider.removeprefix("security.scanner-")
     path, source = fixture(provider, positive)
     require(case["caseId"] == f"{tool}-{'planted' if positive else 'clean'}", "scanner case inventory differs")
@@ -175,9 +184,9 @@ def scanner_case(case, provider, positive):
     same(labels, case["expected"], "scanner native control differs")
     identity = case["toolIdentity"]
     same(policy["tool"], {"path": identity["path"], "digest": identity["executableDigest"]}, "scanner tool linkage differs")
-    tool_path = runtime_identity(identity, policy, root) if provider == BRAKEMAN else executable(identity["path"], identity["executableDigest"])
-    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"])
-    require(wrapper == Path("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(root.parent), "scanner host tool differs")
+    tool_path = runtime_identity(identity, policy, root, live=live) if provider == BRAKEMAN else executable(identity["path"], identity["executableDigest"], live=live)
+    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"], live=live)
+    require(wrapper == PurePosixPath("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(root.parent), "scanner host tool differs")
     _, profile_name, sandbox_id = profile_contract(root)
     decisions = case["policyDecisions"]
     require(len(decisions) == 2, "scanner admission inventory differs")
@@ -219,7 +228,7 @@ def scanner_case(case, provider, positive):
             and receipt["stdoutArtifact"] == {"digest": receipt["stdoutDigest"], "bytes": receipt["stdoutBytes"]}, "reduced scanner output binding differs")
 
 
-def linter_case(case, provider, positive):
+def linter_case(case, provider, positive, live=True):
     tool, task, path, args, _, _ = LINTERS[provider]
     _, source = fixture(provider, positive)
     require(case["caseId"] == provider.replace(".", "-") + ("-positive" if positive else "-absence")
@@ -230,9 +239,9 @@ def linter_case(case, provider, positive):
     root = safe_absolute(policy["cwd"])
     run = root.parent / "run"
     require(root.name == "source" and root.parent.name == case["caseId"], "linter fixture root differs")
-    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"])
-    tool_path = executable(policy["tool"]["path"], policy["tool"]["digest"])
-    require(wrapper == Path("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(root.parent.parent), "linter host tool differs")
+    wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"], live=live)
+    tool_path = executable(policy["tool"]["path"], policy["tool"]["digest"], live=live)
+    require(wrapper == PurePosixPath("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(root.parent.parent), "linter host tool differs")
     same(case["toolIdentity"], policy["tool"], "linter tool identity differs")
     text, profile_name, sandbox_id = profile_contract(root, writable=True)
     profile = run / "sandbox" / profile_name
@@ -248,7 +257,11 @@ def linter_case(case, provider, positive):
     base = ["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"]
     # Harness env_clear retains only PATH from its parent; HOME is fixture-local.
     # XDG_CONFIG_HOME/child TMPDIR are not inherited by expected_environment.
-    environment = {"PATH": os.environ["PATH"], "HOME": str(root.parent.parent / "home")}
+    retained_path = policy["environment"]["PATH"]
+    require(isinstance(retained_path, str) and retained_path, "linter retained PATH missing")
+    for part in retained_path.split(":"):
+        safe_absolute(part)
+    environment = {"PATH": os.environ["PATH"] if live else retained_path, "HOME": str(root.parent.parent / "home")}
     cache = {"TMPDIR": "tmp", "TEMP": "tmp", "TMP": "tmp", "XDG_CACHE_HOME": "cache/xdg", "CARGO_TARGET_DIR": "cache/cargo-target",
              "npm_config_cache": "cache/npm", "RUFF_CACHE_DIR": "cache/ruff", "MYPY_CACHE_DIR": "cache/mypy", "PYTHONPYCACHEPREFIX": "cache/pycache", "GOCACHE": "cache/go-build"}
     environment.update({name: str(run / relative) for name, relative in cache.items()})
@@ -316,13 +329,25 @@ def linter_case(case, provider, positive):
 def validate(root, directory, providers, registry, files):
     require(directory.is_dir() and not directory.is_symlink() and {path.name for path in directory.iterdir()} == {
         provider.replace(".", "_") + ".json" for provider in providers}, "receipt file inventory differs")
-    summary = []
+    records = []
     for provider in providers:
         path = directory / (provider.replace(".", "_") + ".json")
         require(path.is_file() and not path.is_symlink(), "receipt must be regular nonsymlink file")
         row = load(path)
+        require(row["provider"] == provider, "receipt filename/provider differs")
+        records.append(row)
+    return validate_records(root, records, registry, files)
+
+
+def validate_records(root, records, registry, files, live=True):
+    """Reuse native semantics offline without claiming installed tool/gem bytes."""
+    require(len({row["provider"] for row in records}) == len(records), "duplicate provider record")
+    summary = []
+    for row in records:
+        provider = row["provider"]
+        require(provider in HARNESSES, "unsupported provider adapter")
         legacy = provider in LINTERS
-        require(row["provider"] == provider and row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0
+        require(row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0
                 and row["coverageState"] == "complete" and row["schema"] == ("legion-real-linter-provider-accuracy/1" if legacy else "legion-external-provider-accuracy/1")
                 and row["executionPath"] == ("native-sdk-frozen-plan-real-linter" if legacy else "native-sdk-frozen-plan-real-external-scanner")
                 and row["stage"] == ("finding" if provider == SWIFT else "candidate"), "provider identity/status/stage differs")
@@ -330,7 +355,7 @@ def validate(root, directory, providers, registry, files):
         cases = row["cases"]
         require(len(cases) == 2 and all(is_digest(case["planDigest"]) and is_digest(case["inventoryDigest"]) for case in cases), "frozen control inventory differs")
         for case, positive in zip(cases, (True, False)):
-            (linter_case if legacy else scanner_case)(case, provider, positive)
+            (linter_case if legacy else scanner_case)(case, provider, positive, live=live)
         keys = ("path", "digest") if legacy else ("path", "executableDigest")
         same({key: cases[0]["toolIdentity"][key] for key in keys}, {key: cases[1]["toolIdentity"][key] for key in keys}, "tool identity changed between controls")
         if legacy:
@@ -349,8 +374,9 @@ def validate(root, directory, providers, registry, files):
             metrics = {"truePositives": tp, "falsePositives": fp, "falseNegatives": fn, "precision": tp / (tp + fp) if tp + fp else 0.0,
                        "recall": tp / (tp + fn) if tp + fn else 0.0, "positiveCases": 1, "cleanCases": 1}
         same(row["metrics"], metrics, "metrics differ from native control outputs")
-        claimed = row.pop("qualificationDigest")
-        require(claimed == digest((canonical if legacy else compact)(row)), "qualification digest differs")
+        body = dict(row)
+        claimed = body.pop("qualificationDigest")
+        require(claimed == digest((canonical if legacy else compact)(body)), "qualification digest differs")
         summary.append({"provider": provider, "stage": row["stage"], "coverageState": "complete", "qualificationDigest": claimed, "metrics": metrics})
     return summary
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Orthic-Labs/legion/qualification/provider-accuracy/schema.json",
   "title": "Source-owned provider accuracy registration index",
-  "description": "Offline registration of complete file-only records. External execution records are unsupported. Authentication comes from separately retained maintainer verification after authenticated GitHub retrieval. No record in this index grants production admission or candidate adjudication.",
+  "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters & five known-answer class projections require authenticated successful final Rust assertions. Bench projections remain fixture-level evidence with productionQualification false. No record grants production admission or candidate adjudication.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "entries"],
@@ -23,25 +23,38 @@
       "properties": {
         "path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/digest"},
         "qualificationDigest": {"$ref": "#/$defs/digest"},
-        "encoding": {"const": "canonical-json"}
+        "encoding": {"enum": ["canonical-json", "native-insertion-json"]}
       }
     },
     "argv": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+    "jobConclusion": {"enum": ["success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "startup_failure", "stale"]},
+    "terminalCheck": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "command", "conclusion", "exitCode", "sequence", "logStartLine", "logEndLine", "logSpanSha256", "recordSha256"],
+      "properties": {
+        "role": {"enum": ["harness", "validator"]}, "command": {"$ref": "#/$defs/argv"},
+        "conclusion": {"const": "success"}, "exitCode": {"const": 0},
+        "sequence": {"type": "integer", "minimum": 1}, "logStartLine": {"type": "integer", "minimum": 1}, "logEndLine": {"type": "integer", "minimum": 1},
+        "logSpanSha256": {"$ref": "#/$defs/digest"}, "recordSha256": {"$ref": "#/$defs/digest"}, "summaryDigest": {"$ref": "#/$defs/digest"}
+      },
+      "allOf": [{"if": {"properties": {"role": {"const": "validator"}}}, "then": {"required": ["summaryDigest"]}}]
+    },
     "provenance": {
       "type": "object", "additionalProperties": false,
-      "required": ["repository", "runId", "runAttempt", "jobId", "jobName", "workflow", "commit", "platform", "command", "validator", "log"],
+      "required": ["repository", "runId", "runAttempt", "jobId", "jobName", "jobConclusion", "workflow", "commit", "platform", "command", "validator", "log"],
       "properties": {
         "repository": {"const": "Orthic-Labs/legion"},
         "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
         "jobName": {"type": "string", "minLength": 1, "maxLength": 200},
+        "jobConclusion": {"$ref": "#/$defs/jobConclusion"},
         "workflow": {"const": ".github/workflows/ci.yml"},
         "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "platform": {"enum": ["macos-15", "windows-2025"]},
         "command": {
-          "type": "object", "additionalProperties": false, "required": ["harness", "validator"],
+          "type": "object", "additionalProperties": false, "required": ["harness"],
           "properties": {"harness": {"$ref": "#/$defs/argv"}, "validator": {"$ref": "#/$defs/argv"}}
         },
-        "validator": {"$ref": "#/$defs/reference"}, "log": {"$ref": "#/$defs/reference"}
+        "validator": {"oneOf": [{"$ref": "#/$defs/reference"}, {"type": "null"}]}, "log": {"$ref": "#/$defs/reference"}
       }
     },
     "entry": {
@@ -49,7 +62,7 @@
       "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
       "properties": {
         "provider": {"type": "string", "minLength": 1},
-        "family": {"const": "file"},
+        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer"]},
         "record": {"$ref": "#/$defs/record"},
         "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
         "scope": {"type": "string", "minLength": 1, "maxLength": 1000},
@@ -67,16 +80,19 @@
     "provenanceVerification": {
       "description": "Separate source-owned object populated only by maintainers after authenticated GitHub retrieval; never inferred from CI numbers or produced by this checker.",
       "type": "object", "additionalProperties": false,
-      "required": ["schema", "method", "verified", "repository", "runId", "runAttempt", "jobId", "workflow", "commit", "conclusion", "recordSha256", "provenanceDigest", "logSha256", "validatorSha256", "sourceClosureDigest", "summaryDigest"],
+      "required": ["schema", "method", "verified", "repository", "runId", "runAttempt", "jobId", "workflow", "commit", "platform", "jobConclusion", "qualificationConclusion", "validationBasis", "checks", "recordSha256", "provenanceDigest", "logSha256", "validatorSha256", "sourceClosureDigest", "summaryDigest"],
       "properties": {
-        "schema": {"const": "legion-provider-accuracy-provenance-verification/1"},
+        "schema": {"const": "legion-provider-accuracy-provenance-verification/2"},
         "method": {"const": "authenticated-github-retrieval"}, "verified": {"const": true},
         "repository": {"const": "Orthic-Labs/legion"},
         "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
         "workflow": {"const": ".github/workflows/ci.yml"}, "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "conclusion": {"const": "success"}, "recordSha256": {"$ref": "#/$defs/digest"},
-        "provenanceDigest": {"$ref": "#/$defs/digest"}, "logSha256": {"$ref": "#/$defs/digest"}, "validatorSha256": {"$ref": "#/$defs/digest"},
-        "sourceClosureDigest": {"$ref": "#/$defs/digest"}, "summaryDigest": {"$ref": "#/$defs/digest"}
+        "platform": {"enum": ["macos-15", "windows-2025"]}, "jobConclusion": {"$ref": "#/$defs/jobConclusion"},
+        "qualificationConclusion": {"const": "success"}, "validationBasis": {"enum": ["native-family-validator", "source-owned-harness-success"]},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/terminalCheck"}},
+        "recordSha256": {"$ref": "#/$defs/digest"},
+        "provenanceDigest": {"$ref": "#/$defs/digest"}, "logSha256": {"$ref": "#/$defs/digest"}, "validatorSha256": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
+        "sourceClosureDigest": {"$ref": "#/$defs/digest"}, "summaryDigest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]}
       }
     }
   }
