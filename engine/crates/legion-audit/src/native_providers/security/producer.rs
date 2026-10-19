@@ -293,17 +293,18 @@ fn is_executable(path: &Path) -> bool {
 
 /// Probe through authenticated wrapper's existing `-f profile -- tool` prefix,
 /// or directly when sandboxing was explicitly disabled. kube-linter exposes
-/// a version subcommand rather than a root version flag.
+/// a version subcommand, and kubeconform exposes `-v`; both differ from the
+/// `--version` flag used by the other producer tools.
 fn tool_version_args(tool: &str, wrapped_args: Option<&[String]>) -> Vec<String> {
     let mut args: Vec<String> = wrapped_args
         .into_iter()
         .flat_map(|args| args.iter().take(4).cloned())
         .collect();
     args.push(
-        if tool == "kube-linter" {
-            "version"
-        } else {
-            "--version"
+        match tool {
+            "kube-linter" => "version",
+            "kubeconform" => "-v",
+            _ => "--version",
         }
         .into(),
     );
@@ -1812,10 +1813,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tool_version_probe_uses_kube_linter_subcommand_in_both_routes() {
+    fn tool_version_probe_uses_tool_specific_args_in_both_routes() {
         for (tool, expected) in [
             ("kube-linter", "version"),
-            ("kubeconform", "--version"),
+            ("kubeconform", "-v"),
             ("squawk", "--version"),
             ("zizmor", "--version"),
             ("shellcheck", "--version"),
