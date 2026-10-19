@@ -349,6 +349,12 @@
         }
       }
     },
+    "phpRubySdkEvidence": {
+      "description": "Exact original PHP/Ruby SDK child/enrollment/record bytes; no production admission.",
+      "type": "object", "additionalProperties": false,
+      "required": ["childExecution", "childStdout", "childStderr", "phpRubyEnrollment", "providerRecord"],
+      "properties": {"childExecution": {"$ref": "#/$defs/reference"}, "childStdout": {"$ref": "#/$defs/reference"}, "childStderr": {"$ref": "#/$defs/reference"}, "phpRubyEnrollment": {"$ref": "#/$defs/reference"}, "providerRecord": {"$ref": "#/$defs/reference"}}
+    },
     "pythonSdkEvidence": {
       "description": "Exact original Python SDK child/enrollment/record bytes; no production admission.",
       "type": "object",
@@ -566,6 +572,7 @@
             "code-sdk",
             "code-long-tail",
             "code-python-sdk",
+            "code-php-ruby-sdk",
             "ownership-native",
             "code-jvm-sdk",
             "code-mobile-sdk",
@@ -625,6 +632,9 @@
         },
         "codeSdkEvidence": {
           "$ref": "#/$defs/codeSdkEvidence"
+        },
+        "phpRubySdkEvidence": {
+          "$ref": "#/$defs/phpRubySdkEvidence"
         },
         "pythonSdkEvidence": {
           "$ref": "#/$defs/pythonSdkEvidence"
@@ -716,6 +726,20 @@
               ]
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-php-ruby-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": ["phpRubySdkEvidence"],
+            "properties": {"provider": {"const": "code.php-ruby"}}
+          },
+          "else": {"not": {"required": ["phpRubySdkEvidence"]}}
         },
         {
           "if": {

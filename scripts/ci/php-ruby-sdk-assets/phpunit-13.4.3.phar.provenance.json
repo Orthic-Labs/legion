@@ -1,0 +1,30 @@
+{
+  "bytes": 6712767,
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "CF-RAY": "a4d31279487b2c7b-BOM",
+    "Cache-Control": "max-age=14400",
+    "Connection": "close",
+    "Content-Length": "6712767",
+    "Content-Type": "application/octet-stream",
+    "Date": "Mon, 19 Oct 2026 22:03:20 GMT",
+    "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+    "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=oJkiPOX4RHsN1ibqeAH1aTaIPb8SlfQRhRB4wjtMJpdWYazl7b2alP4PTH5F9DgGuknljZk4XyZnvQpY9tHzwSv%2BxqYHC4wBmoi7LWXC2JHm%2FFhpffSXu8DewsOLJ0NcRZ3IHjU5pNvlVKIYtQ%3D%3D\"}]}",
+    "Server": "cloudflare",
+    "cf-cache-status": "MISS",
+    "content-disposition": "attachment",
+    "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';",
+    "etag": "\"666dbf-65deed83fd755\"",
+    "last-modified": "Fri, 16 Oct 2026 05:57:51 GMT",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "x-xss-protection": "1; mode=block"
+  },
+  "method": "GET",
+  "observedAt": "2026-10-19T22:03:21.653816+00:00",
+  "requestBody": null,
+  "sha256": "f9f8f986f2b6e862187a04619eb01b5960cea77bb39bd1e38d3e396a99eae516",
+  "url": "https://phar.phpunit.de/phpunit-13.4.3.phar"
+}

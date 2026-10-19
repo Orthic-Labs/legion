@@ -191,6 +191,15 @@ provision_jvm_sdk() {
   export LEGION_JVM_SDK_ENROLLMENT_JSON="${output}/enrollment.json"
 }
 
+# Provision source-pinned PHP/Ruby tools against existing observed managed runtimes.
+provision_php_ruby_sdk() {
+  local output="${RUNNER_TEMP}/legion-php-ruby-sdk-tools"
+  python3 -I -S -B scripts/ci/audit-php-ruby-sdk-bootstrap.py \
+    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
+  test -f "$output/exports.sh" || return 1
+  . "$output/exports.sh"
+}
+
 audit_tflint_qualification() {
   audit_effects_test --lib scoped_ipc_ci_storage_requires_private_canonical_owned_root -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
@@ -522,7 +531,7 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3
+  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3 php@8.4
   # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
   # default gem directory because native scanner execution scrubs GEM_HOME.
   export PATH="$(brew --prefix ruby@3.3)/bin:$PATH"
@@ -642,6 +651,17 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
     run_audit_qualification audit_cargo_test --test golangci_accuracy \
       real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
+  # Actual PHP/Ruby SDK controls retain original selected-scope gaps.
+  run_audit_qualification provision_php_ruby_sdk
+  export LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-php-ruby-code-command-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-php-ruby-sdk"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test real_php_ruby_code_command_accuracy \
+    real_php_ruby_code_command_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-php-ruby-code-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH LEGION_PHP_RUBY_SDK_ENROLLMENT_JSON \
+    LEGION_PHP_RUBY_SDK_PHP LEGION_PHP_RUBY_SDK_RUBY LEGION_PHP_RUBY_SDK_BIN_DIR
   # Generic-source controls retain mandatory unsupported-language gaps in every native case.
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-long-tail"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"

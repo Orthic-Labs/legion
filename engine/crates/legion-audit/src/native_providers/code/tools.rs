@@ -39,11 +39,14 @@
 //! | `code.dotnet` | `restore` / `build` / `analyzer` / `test` | Enrolled SDK8, sealed expanded NuGet cache, Roslyn/FSharpLint & retained TRX (requires exact injected SDK authorization) |
 //! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
+//! | | `package` / `type` | Composer validate original lock / PHPStan all selected PHP files |
+//! | | `test` | actual PHPUnit plus assertion report validation & `bundle exec rake test` |
+//! | | `security` | Composer locked audit using an enrolled official package-query snapshot |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //! | `code.c-family` | compiler/lint/analyzer/sanitizer/test | bounded CMake/Clang/clang-tidy/CTest, isolated source/build snapshots |
 //!
-//! Go/Rust/C-family builds & tests & Python configured tools/backends execute project code only through
-//! supplied ExternalProjectTool; Python uses frozen staged inputs & denies writes
+//! Go/Rust/C-family builds & tests, PHP/Ruby tests & Python configured tools/backends execute project code only through
+//! supplied ExternalProjectTool; PHP/Ruby & Python use frozen staged inputs & deny writes
 //! to original audited tree. Explicit package/v1 never installs dependencies. The
 //! installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
 //! caller must supply its own exact policy admission & authenticated sandbox.
@@ -87,6 +90,8 @@ mod javascript_sdk;
 mod mobile_sdk;
 #[path = "native_commands.rs"]
 mod native_commands;
+#[path = "php_ruby_commands.rs"]
+mod php_ruby_commands;
 #[path = "python_commands.rs"]
 mod python_commands;
 #[path = "rubocop.rs"]
@@ -230,6 +235,12 @@ enum Parser {
     Process,
     Syntax,
     Rubocop,
+    ComposerValidate,
+    ComposerAudit,
+    PhpStan,
+    PhpUnit,
+    PhpUnitReport,
+    RubyRake,
     MobileCompiler,
     MobileLint,
     MobileProcess,
@@ -679,7 +690,7 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
-        "code.rust" | "code.go" | "code.python" | "code.dotnet" => &[],
+        "code.rust" | "code.go" | "code.python" | "code.dotnet" | "code.php-ruby" => &[],
         _ => &["test"],
     }
 }
@@ -697,7 +708,10 @@ fn plan_commands(
         "code.javascript" => plan_javascript(root, entries, scratch, &mut plan),
         "code.python" => plan_python(root, entries, selected, scratch, &mut plan),
         "code.go" => plan_go(entries, &mut plan),
-        "code.php-ruby" => rubocop::plan(root, entries, selected, scratch, &mut plan),
+        "code.php-ruby" => {
+            rubocop::plan(root, entries, selected, scratch, &mut plan);
+            php_ruby_commands::plan(root, entries, selected, scratch, &mut plan);
+        }
         "code.mobile" => mobile_sdk::plan(root, entries, selected, scratch, &mut plan),
         _ => {}
     }
@@ -842,7 +856,9 @@ impl<'a> Resolver<'a> {
             return cached.clone();
         }
         let found = command.programs.iter().find_map(|name| {
-            if mobile_sdk::is_mobile(command.parser) {
+            if php_ruby_commands::is_php_ruby(command.parser) {
+                php_ruby_commands::resolve(self.ctx, command, name)
+            } else if mobile_sdk::is_mobile(command.parser) {
                 mobile_sdk::resolve(self.ctx, command, name)
             } else if command.parser == Parser::Rubocop
                 || c_family_native::is_native(command.parser)
@@ -1002,6 +1018,17 @@ async fn run_one(
     timeout_ms: u64,
     cancellation: CancellationToken,
 ) -> RunOutput {
+    // PHPStan/autoload, PHPUnit & Rake execute project code. The public
+    // Disabled override cannot bypass their required authenticated confinement,
+    // including version probes. Refuse before resolution, input inspection or
+    // SDK submission; an unsubmitted command has no execution receipt.
+    if (ctx.provider_id == "code.php-ruby" || php_ruby_commands::is_php_ruby(command.parser))
+        && ctx.sandbox != SandboxPolicy::Required
+    {
+        return RunOutput::failed(Outcome::NotRun(
+            "php-ruby-project-code-requires-authenticated-sandbox".into(),
+        ));
+    }
     if command.parser == Parser::Rubocop && !rubocop::staged_input_valid(command) {
         return RunOutput::failed(Outcome::Failed(
             "tool-failed:ruby-lint:staged-input-changed".into(),
@@ -1117,7 +1144,9 @@ async fn run_one(
     // the same authenticated wrapper. PowerShell uses its profile-free probe.
     let mut version_probe_executable = executable_text.clone();
     let mut version_probe_identity = None;
-    let tool_version_args = if command.parser == Parser::Dotnet {
+    let tool_version_args = if php_ruby_commands::is_php_ruby(command.parser) {
+        php_ruby_commands::version_args(command)
+    } else if command.parser == Parser::Dotnet {
         dotnet_sdk::version_args(command)
     } else if command.parser == Parser::Govulncheck {
         match govulncheck::version_args() {
@@ -1173,12 +1202,16 @@ async fn run_one(
         SandboxPolicy::Required => match legion_effects::authenticate_sandbox(
             &executable_text,
             &command.args,
-            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) {
+            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
+                || c_family_native::is_native(command.parser)
+            {
                 ctx.root.to_str().unwrap_or("")
             } else {
                 &cwd_text
             },
-            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) {
+            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
+                || c_family_native::is_native(command.parser)
+            {
                 legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
             } else {
                 legion_effects::SandboxMode::DenyNetwork
@@ -1249,6 +1282,8 @@ async fn run_one(
     let snapshot = || {
         if javascript_command {
             javascript_sdk::snapshot(ctx, command, &executable)
+        } else if php_ruby_commands::is_php_ruby(command.parser) {
+            php_ruby_commands::snapshot(command)
         } else if ctx.provider_id == "code.python" {
             python_commands::snapshot(command)
         } else if mobile_sdk::is_mobile(command.parser) {
@@ -1270,6 +1305,7 @@ async fn run_one(
         || mobile_sdk::is_mobile(command.parser)
         || c_family_native::is_native(command.parser)
         || ctx.provider_id == "code.python"
+        || php_ruby_commands::is_php_ruby(command.parser)
     {
         match snapshot() {
             Ok(snapshot) => Some(snapshot),
@@ -1331,7 +1367,8 @@ async fn run_one(
     };
     let sandbox_mode = match ctx.sandbox {
         SandboxPolicy::Required
-            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) =>
+            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
+                || c_family_native::is_native(command.parser) =>
         {
             "deny-network-deny-project-write"
         }
@@ -1548,6 +1585,8 @@ async fn run_one(
         javascript_sdk::typescript(ctx, command, bytes, receipt.exit_code).map(|v| v.0)
     } else if javascript_command && command.parser == Parser::Eslint {
         javascript_sdk::eslint(bytes, receipt.exit_code).map(|v| v.0)
+    } else if php_ruby_commands::is_php_ruby(command.parser) {
+        php_ruby_commands::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if mobile_sdk::is_mobile(command.parser) {
         mobile_sdk::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if command.parser == Parser::Govulncheck {
@@ -1643,6 +1682,12 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         },
         Parser::Syntax => parse_syntax(bytes, exit),
         Parser::Rubocop => Err("rubocop-source-binding-required".into()),
+        Parser::ComposerValidate
+        | Parser::ComposerAudit
+        | Parser::PhpStan
+        | Parser::PhpUnit
+        | Parser::PhpUnitReport
+        | Parser::RubyRake => Err("php-ruby-frozen-context-required".into()),
         Parser::MobileCompiler | Parser::MobileLint | Parser::MobileProcess => {
             Err("mobile-source-platform-binding-required".into())
         }
@@ -2073,16 +2118,22 @@ pub async fn run(
         }
     }
 
+    let php_ruby_closure_before =
+        (provider_id == "code.php-ruby").then(|| php_ruby_commands::closure_snapshot(ctx.root));
     let mobile_closure_before =
         (provider_id == "code.mobile").then(|| mobile_sdk::closure_snapshot(ctx.root));
     let started = Instant::now();
     let canonical_root = std::fs::canonicalize(ctx.root).unwrap_or_else(|_| ctx.root.to_path_buf());
     let mut resolver = Resolver::new(ctx);
     let mut accumulators: BTreeMap<&'static str, Accumulator> = BTreeMap::new();
-    let mut diagnostics: Vec<(String, Diag)> = Vec::new();
+    let mut diagnostics: Vec<(String, Diag, bool)> = Vec::new();
 
     for (sequence, command) in plan.commands.iter().enumerate() {
         let accumulator = accumulators.entry(command.tool).or_default();
+        if let Some(Err(reason)) = &php_ruby_closure_before {
+            accumulator.merge(Outcome::Failed(reason.clone()));
+            continue;
+        }
         if let Some(Err(reason)) = &mobile_closure_before {
             accumulator.merge(Outcome::Failed(reason.clone()));
             continue;
@@ -2147,7 +2198,25 @@ pub async fn run(
             } else {
                 command.cwd_rel.clone()
             };
-            diagnostics.push((diagnostic_cwd, diag));
+            diagnostics.push((
+                diagnostic_cwd,
+                diag,
+                command.parser == Parser::ComposerAudit,
+            ));
+        }
+    }
+    if let Some(before) = php_ruby_closure_before {
+        let after = php_ruby_commands::closure_snapshot(ctx.root);
+        evidence.receipts.push(json!({"kind":"php-ruby-native-enrollment-boundary", "before":before.as_ref().ok(),"after":after.as_ref().ok(),"beforeError":before.as_ref().err(),"afterError":after.as_ref().err()}));
+        if before.is_err() || after.is_err() || before.as_ref().ok() != after.as_ref().ok() {
+            for tool in config_tools {
+                accumulators
+                    .entry(*tool)
+                    .or_default()
+                    .merge(Outcome::Failed(
+                        "php-ruby-native-enrollment-boundary-failed".into(),
+                    ));
+            }
         }
     }
     if let Some(before) = mobile_closure_before {
@@ -2226,10 +2295,20 @@ pub async fn run(
     let mut outside = 0usize;
     let mut seen: BTreeSet<(String, String, usize)> = BTreeSet::new();
     let mut findings: Vec<NativeFinding> = Vec::new();
-    for (cwd_rel, diag) in diagnostics {
+    for (cwd_rel, diag, composer_lock_context) in diagnostics {
         let Some(path) =
             repo_relative(ctx.root, &canonical_root, &cwd_rel, &diag.path).filter(|path| {
                 selected.contains(path)
+                    || (composer_lock_context
+                        && path == "composer.lock"
+                        && entries.iter().any(|entry| {
+                            entry.path == "composer.lock"
+                                && entry.digest.as_deref().is_some_and(|digest| {
+                                    std::fs::read(ctx.root.join("composer.lock"))
+                                        .ok()
+                                        .is_some_and(|raw| sha256_text(&raw) == digest)
+                                })
+                        }))
                     || (provider_id == "code.rust"
                         && diag.rule.starts_with("cargo-audit:")
                         && entries.iter().any(|entry| {
@@ -2287,6 +2366,135 @@ pub async fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // This is a no-submission boundary test, not native scanner qualification.
+    // Real SDK/executor objects remain unused; no process output or receipt is
+    // substituted. A regression must not turn Disabled into a direct command.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn php_ruby_disabled_sandbox_refuses_before_any_sdk_effect() {
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+        struct CountAdmission(Arc<AtomicUsize>);
+        impl legion_effects::PolicyAuthorizer for CountAdmission {
+            fn authorize(&self, _: &ExternalToolRequest) -> legion_effects::PolicyDecision {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                legion_effects::PolicyDecision {
+                    allowed: true,
+                    policy_id: "php-ruby-disabled-boundary-control".into(),
+                    policy_version: 1,
+                    policy_digest: sha256_text(b"unused exact boundary control"),
+                    reason: Some("must never be consulted with sandbox Disabled".into()),
+                }
+            }
+        }
+        struct ObservedSdk {
+            inner: legion_effects::EffectExecutor<
+                legion_effects::platform::unix::UnixProcess,
+                legion_effects::ArtifactWriter,
+                CountAdmission,
+            >,
+            submitted: AtomicUsize,
+        }
+        #[async_trait::async_trait]
+        impl ExternalProjectTool for ObservedSdk {
+            async fn execute(
+                &self,
+                request: ExternalToolRequest,
+                cancellation: CancellationToken,
+            ) -> ExecutionReceipt {
+                self.submitted.fetch_add(1, Ordering::SeqCst);
+                self.inner
+                    .execute_with_cancellation(&request, cancellation)
+                    .await
+            }
+        }
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let scratch = AuditScratch::create(root).unwrap();
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let sdk = ObservedSdk {
+            inner: legion_effects::EffectExecutor::new(
+                legion_effects::platform::unix::UnixProcess::new(),
+                legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+                CountAdmission(admitted.clone()),
+            ),
+            submitted: AtomicUsize::new(0),
+        };
+        let search = Vec::<PathBuf>::new();
+        for provider_id in ["code.php-ruby", "code.rust"] {
+            let ctx = ToolContext {
+                root,
+                tool: &sdk,
+                scratch: &scratch,
+                sandbox: SandboxPolicy::Disabled,
+                search_path: Some(&search),
+                plan_digest: "sha256:frozen-php-ruby-plan",
+                inventory_digest: "sha256:frozen-php-ruby-inventory",
+                provider_id,
+                per_tool_timeout_ms: 1_000,
+                total_budget_ms: 5_000,
+                output_limit: 1024,
+            };
+            let mut resolver = Resolver::new(&ctx);
+            let mut parsers = vec![
+                Parser::ComposerValidate,
+                Parser::ComposerAudit,
+                Parser::PhpStan,
+                Parser::PhpUnit,
+                Parser::PhpUnitReport,
+                Parser::RubyRake,
+            ];
+            if provider_id == "code.php-ruby" {
+                // Provider-level invariant also covers existing parse/lint
+                // operations & any future project-command parser.
+                parsers.extend([Parser::Syntax, Parser::Rubocop, Parser::Process]);
+            }
+            for parser in parsers {
+                let command = Planned {
+                    tool: "disabled-control",
+                    programs: &["php"],
+                    local_bin: false,
+                    sibling_of: None,
+                    requires: None,
+                    cwd_rel: String::new(),
+                    args: vec!["--version".into()],
+                    parser,
+                    accepted: &[0],
+                    env: Vec::new(),
+                    diagnostics_on_stderr: false,
+                    source_path: None,
+                    source_digest: None,
+                };
+                let output = run_one(
+                    &ctx,
+                    &mut resolver,
+                    &command,
+                    0,
+                    1_000,
+                    CancellationToken::new(),
+                )
+                .await;
+                assert_eq!(
+                    output.outcome,
+                    Outcome::NotRun("php-ruby-project-code-requires-authenticated-sandbox".into())
+                );
+                assert_eq!(output.outcome.reason(command.tool), "tool-not-run:disabled-control:php-ruby-project-code-requires-authenticated-sandbox");
+                assert!(output.receipt.is_none());
+                assert!(output.diagnostics.is_empty());
+                assert!(output.stdout_digest.is_none());
+            }
+            assert!(resolver.cache.is_empty() && resolver.digests.is_empty());
+        }
+        assert_eq!(sdk.submitted.load(Ordering::SeqCst), 0);
+        assert_eq!(admitted.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            std::fs::read_dir(scratch.artifacts_dir()).unwrap().count(),
+            0
+        );
+        assert_eq!(std::fs::read_dir(scratch.sandbox_dir()).unwrap().count(), 0);
+    }
 
     #[tokio::test]
     async fn owner_admission_denial_retains_effect_evidence_and_unavailable_reason() {

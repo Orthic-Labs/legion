@@ -1,0 +1,23 @@
+{
+  "schema": "legion-php-ruby-fixture-construction/1",
+  "scope": "Constructed fixture inputs, not analyzer output or native execution evidence",
+  "sourceSha256": {
+    "packagist-process-metadata.json": "db11e8fa5d42542a940e54a99e85ccaaeb54a1a04ac4555ea7e91eae1c82287b",
+    "process-6.4.0-composer.json": "7862b4550560ea43d1e35528af040bdf5563af352ebce3b9dbdf273f8d53c16c",
+    "process-6.4.33-composer.json": "7862b4550560ea43d1e35528af040bdf5563af352ebce3b9dbdf273f8d53c16c",
+    "composer-2.10.3/src/Composer/Package/Locker.php": "d05f4a641bd75899d8bd74d51ded55479e4c0f183eb638d8b378738cc0e51088",
+    "packagist-process-advisories-post.json": "20e797fa56d83ba55647bf7616700fade0d35d4bec515d85c88098ed8cce8430"
+  },
+  "composerContentHash": "Composer2.10.3 Locker::getContentHash; sorted relevant manifest keys; JsonFile::encode flags0 compact escaped slash/unicode; MD5",
+  "dependencyClosure": {
+    "composer": [
+      "symfony/process with only platform php dependency"
+    ],
+    "ruby": [
+      "rake13.2.1",
+      "minitest5.25.5"
+    ]
+  },
+  "advisoryScope": "untouched official captured Packagist symfony/process query only; original snapshot/date/provenance retained by SDK enrollment; no full/current feed claim",
+  "manifestConstraint": "^6.4.0; exact genuine affected/unaffected versions remain locked; avoids pinned Composer strict exact-require warning"
+}

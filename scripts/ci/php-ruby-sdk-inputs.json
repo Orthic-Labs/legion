@@ -1,0 +1,543 @@
+{
+  "advisory": {
+    "bytes": 1637,
+    "digest": "sha256:20e797fa56d83ba55647bf7616700fade0d35d4bec515d85c88098ed8cce8430",
+    "endpoint": "https://packagist.org/api/security-advisories/",
+    "file": "scripts/ci/php-ruby-sdk-assets/packagist-process-advisories-post.json",
+    "method": "POST",
+    "packages": [
+      "symfony/process"
+    ],
+    "provenanceFile": "scripts/ci/php-ruby-sdk-assets/packagist-process-advisories-post.json.provenance.json",
+    "requestBody": "packages%5B0%5D=symfony%2Fprocess",
+    "scope": "untouched captured package query only; no current or complete database claim",
+    "snapshotAt": "2026-10-19T22:03:19Z"
+  },
+  "gemRoots": {
+    "bundler": "2.6.9",
+    "minitest": "5.25.5",
+    "rake": "13.2.1",
+    "rubocop": "1.80.2"
+  },
+  "gems": [
+    {
+      "dependencies": [],
+      "fileCount": 7,
+      "filename": "ast-2.4.3.gem",
+      "gemMetadataSha256": "3ba9b48f31121ce7aceebc123bfecb2953c34789bcb840a01559b49054be6366",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/ast-2.4.3.json",
+      "metadataSha256": "82f322c312f61074bdff99e791ce2f1af38503c1f19d72ce814851a0df0eeb95",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/ast/versions/2.4.3.json",
+      "name": "ast",
+      "platform": "ruby",
+      "rubyVersion": ">= 0",
+      "sha256": "954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383",
+      "size": 11776,
+      "url": "https://rubygems.org/downloads/ast-2.4.3.gem",
+      "version": "2.4.3"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 359,
+      "filename": "bundler-2.6.9.gem",
+      "gemMetadataSha256": "3712afae2fe4a438f24c5a04b5b859dfb5c29e4e2138e5c16b945c006fe17dc7",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/bundler-2.6.9.json",
+      "metadataSha256": "f57780f2944afb2a58d78391ff9fc827b07eb08f967013899d5499522295510f",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/bundler/versions/2.6.9.json",
+      "name": "bundler",
+      "platform": "ruby",
+      "rubyVersion": ">= 3.1.0",
+      "sha256": "a25675ffbd055ae1186766cc1e120b4cf62588e88abb59b99c57e22b1c55c9eb",
+      "size": 455168,
+      "url": "https://rubygems.org/downloads/bundler-2.6.9.gem",
+      "version": "2.6.9"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 39,
+      "filename": "json-2.21.2.gem",
+      "gemMetadataSha256": "875ce0815cae91fa12c8e075878d22223b15aac281bc69c2503afa7fb9d06ae8",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/json-2.21.2-ruby.json",
+      "metadataSha256": "944854695552dea48e97acb81e226673402065103a39d9dd2c155bc68b056ca2",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/json/versions/2.21.2.json?platform=ruby",
+      "name": "json",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7",
+      "sha256": "1f1d3b7cf2b3ba1a69beca0bb6db13d5438b80bff3cd54cdaaa620b9b07c1c6a",
+      "size": 112640,
+      "url": "https://rubygems.org/downloads/json-2.21.2.gem",
+      "version": "2.21.2"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 745,
+      "filename": "language_server-protocol-3.17.0.6.gem",
+      "gemMetadataSha256": "d5cad0f0db6243ded655af620bfd29d5f9bf7a1526c17b92a33611c1516f9f67",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/language_server-protocol-3.17.0.6.json",
+      "metadataSha256": "10f32b56847232918fac17a7b61ca9fb6af69dac1d480ed256b190fc0354e779",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/language_server-protocol/versions/3.17.0.6.json",
+      "name": "language_server-protocol",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.5.0",
+      "sha256": "5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0",
+      "size": 121856,
+      "url": "https://rubygems.org/downloads/language_server-protocol-3.17.0.6.gem",
+      "version": "3.17.0.6"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 15,
+      "filename": "lint_roller-1.1.0.gem",
+      "gemMetadataSha256": "350402473c82c132bb910fcf9c278fb13d2966c920e7a158584ee3c1b6c47e0c",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/lint_roller-1.1.0.json",
+      "metadataSha256": "4292e139580a380ba3b3d72904693b45bc7a57a92df8d754a819f13c551abc78",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/lint_roller/versions/1.1.0.json",
+      "name": "lint_roller",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.6.0",
+      "sha256": "2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87",
+      "size": 9728,
+      "url": "https://rubygems.org/downloads/lint_roller-1.1.0.gem",
+      "version": "1.1.0"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 32,
+      "filename": "minitest-5.25.5.gem",
+      "gemMetadataSha256": "16c0f25ab67cf5f4f930b68ecd2d74d111ccc85b162233b557b17f058f5d7664",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/minitest-5.25.5.json",
+      "metadataSha256": "6358372ad9faae71bcde35f711b8bbebdd8549b4556701fdfa5ad9a36b94887c",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/minitest/versions/5.25.5.json",
+      "name": "minitest",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7, < 4.0",
+      "sha256": "391b6c6cb43a4802bfb7c93af1ebe2ac66a210293f4a3fb7db36f2fc7dc2c756",
+      "size": 101376,
+      "url": "https://rubygems.org/downloads/minitest-5.25.5.gem",
+      "version": "5.25.5"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 3,
+      "filename": "parallel-1.28.0.gem",
+      "gemMetadataSha256": "cb261e2c9603f8be637d25b5341a8a5121616c5b90c84bdc73ec5e4857aed66b",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/parallel-1.28.0.json",
+      "metadataSha256": "0850ca3e9732fde6eac98eafa7862e77982cc98f355e2d4c51937aea4a5355e1",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/parallel/versions/1.28.0.json",
+      "name": "parallel",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7",
+      "sha256": "33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970",
+      "size": 11264,
+      "url": "https://rubygems.org/downloads/parallel-1.28.0.gem",
+      "version": "1.28.0"
+    },
+    {
+      "dependencies": [
+        {
+          "name": "ast",
+          "requirements": "~> 2.4.1"
+        },
+        {
+          "name": "racc",
+          "requirements": ">= 0"
+        }
+      ],
+      "fileCount": 80,
+      "filename": "parser-3.3.12.0.gem",
+      "gemMetadataSha256": "cf11f72fad4c88d2ff1b173ddb5185a041e6f980364648bd0fd37fbd0059ac00",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/parser-3.3.12.0.json",
+      "metadataSha256": "dee558485d67eb6d50d986cfa350457721e90b1a1fc7918dbca8edddd04aeb0f",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/parser/versions/3.3.12.0.json",
+      "name": "parser",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.0.0",
+      "sha256": "21a6d7f755d5a24dfbdc6e6b772e4e879a52e7631a88bc5a3a134606052c9828",
+      "size": 911872,
+      "url": "https://rubygems.org/downloads/parser-3.3.12.0.gem",
+      "version": "3.3.12.0"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 150,
+      "filename": "prism-1.9.0.gem",
+      "gemMetadataSha256": "e68bc78e02b2ac16378588b4550e90f635076ecc024ac75e708276c9d47af81a",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/prism-1.9.0.json",
+      "metadataSha256": "54a28e7ca9482baf2e1caf56dfab3b29eb026bdd7df7284d71c6261dd4ec5d90",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/prism/versions/1.9.0.json",
+      "name": "prism",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7.0",
+      "sha256": "7b530c6a9f92c24300014919c9dcbc055bf4cdf51ec30aed099b06cd6674ef85",
+      "size": 650240,
+      "url": "https://rubygems.org/downloads/prism-1.9.0.gem",
+      "version": "1.9.0"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 33,
+      "filename": "racc-1.8.1.gem",
+      "gemMetadataSha256": "648feacb434934a6ba5b297ffd3e074ee664ac8786c87221879d25a1d85314e0",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/racc-1.8.1-ruby.json",
+      "metadataSha256": "389a699dd6b25fb93c93cd5aad099ddd434ac0a5d78c8e8afc1299288bac3ced",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/racc/versions/1.8.1.json?platform=ruby",
+      "name": "racc",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.5",
+      "sha256": "4a7f6929691dbec8b5209a0b373bc2614882b55fc5d2e447a21aaa691303d62f",
+      "size": 65536,
+      "url": "https://rubygems.org/downloads/racc-1.8.1.gem",
+      "version": "1.8.1"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 14,
+      "filename": "rainbow-3.1.1.gem",
+      "gemMetadataSha256": "62778838505f8ca9eec9652ca079977cc84c8783cde33e3c2fc165f2835a0d14",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/rainbow-3.1.1.json",
+      "metadataSha256": "6cb0468df9a48d5cc389d632118ac3c154f14ff3cb2447814ca13b747f5728ea",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/rainbow/versions/3.1.1.json",
+      "name": "rainbow",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.3.0",
+      "sha256": "039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a",
+      "size": 13824,
+      "url": "https://rubygems.org/downloads/rainbow-3.1.1.gem",
+      "version": "3.1.1"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 60,
+      "filename": "rake-13.2.1.gem",
+      "gemMetadataSha256": "63d14c45aaab8b9671de83c10cd91f2eedfcb6ea418d580c462324c272fbef95",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/rake-13.2.1.json",
+      "metadataSha256": "3839ce726f40fe8a3364091d9173556ed1b32c068dc9a160c9e260ccf697e776",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/rake/versions/13.2.1.json",
+      "name": "rake",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.3",
+      "sha256": "46cb38dae65d7d74b6020a4ac9d48afed8eb8149c040eccf0523bec91907059d",
+      "size": 85504,
+      "url": "https://rubygems.org/downloads/rake-13.2.1.gem",
+      "version": "13.2.1"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 87,
+      "filename": "regexp_parser-2.13.1.gem",
+      "gemMetadataSha256": "cfb240679cd1df6b356214299f174927da0c9eb1a97e8f9ca0fe1b2833a1695e",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/regexp_parser-2.13.1.json",
+      "metadataSha256": "759ff5eeba74371874fee804da7dda9abf1cfa0f806604e8a66a95a9f8e17bf1",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/regexp_parser/versions/2.13.1.json",
+      "name": "regexp_parser",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.0.0",
+      "sha256": "5aedb6b7c35688f51e86eef17a15374dfd287c83f4ca644b2c5f3ec50a33b44b",
+      "size": 53760,
+      "url": "https://rubygems.org/downloads/regexp_parser-2.13.1.gem",
+      "version": "2.13.1"
+    },
+    {
+      "dependencies": [
+        {
+          "name": "json",
+          "requirements": "~> 2.3"
+        },
+        {
+          "name": "language_server-protocol",
+          "requirements": "~> 3.17.0.2"
+        },
+        {
+          "name": "lint_roller",
+          "requirements": "~> 1.1.0"
+        },
+        {
+          "name": "parallel",
+          "requirements": "~> 1.10"
+        },
+        {
+          "name": "parser",
+          "requirements": ">= 3.3.0.2"
+        },
+        {
+          "name": "rainbow",
+          "requirements": ">= 2.2.2, < 4.0"
+        },
+        {
+          "name": "regexp_parser",
+          "requirements": ">= 2.9.3, < 3.0"
+        },
+        {
+          "name": "rubocop-ast",
+          "requirements": ">= 1.46.0, < 2.0"
+        },
+        {
+          "name": "ruby-progressbar",
+          "requirements": "~> 1.7"
+        },
+        {
+          "name": "unicode-display_width",
+          "requirements": ">= 2.4.0, < 4.0"
+        }
+      ],
+      "fileCount": 899,
+      "filename": "rubocop-1.80.2.gem",
+      "gemMetadataSha256": "3109796362a3e26120c6646f0fc51b9c84bcbd61964634f4e4d3b4e055ac3dc6",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/rubocop-1.80.2.json",
+      "metadataSha256": "e9f2f8d3777255bc1b094e4e30cba440c00b1b2fc45c0e6fdde6eefaec5f7aef",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/rubocop/versions/1.80.2.json",
+      "name": "rubocop",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7.0",
+      "sha256": "6485f30fefcf5c199db3b91e5e253b1ef43f7e564784e2315255809a3dd9abf4",
+      "size": 716288,
+      "url": "https://rubygems.org/downloads/rubocop-1.80.2.gem",
+      "version": "1.80.2"
+    },
+    {
+      "dependencies": [
+        {
+          "name": "parser",
+          "requirements": ">= 3.3.7.2"
+        },
+        {
+          "name": "prism",
+          "requirements": "~> 1.7"
+        }
+      ],
+      "fileCount": 105,
+      "filename": "rubocop-ast-1.50.0.gem",
+      "gemMetadataSha256": "3fc92ed7e290e8deefbb47af009dcccb68d85d9562fcaeac6c3e633cbdbca172",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/rubocop-ast-1.50.0.json",
+      "metadataSha256": "bf9d0f2ddc826570d321e17876a46296c7447f6e1691bf087d23a3a222a80f31",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/rubocop-ast/versions/1.50.0.json",
+      "name": "rubocop-ast",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.7.0",
+      "sha256": "b9ca88300da0803ee222ad20cdb30494c0a784eed06fdc35d254b06d662788db",
+      "size": 62976,
+      "url": "https://rubygems.org/downloads/rubocop-ast-1.50.0.gem",
+      "version": "1.50.0"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 28,
+      "filename": "ruby-progressbar-1.13.0.gem",
+      "gemMetadataSha256": "146d7ddfe767e9a83ff052c60af401f52ff9bf5892cb1467f35c000ddb353fd4",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/ruby-progressbar-1.13.0.json",
+      "metadataSha256": "e3bfc0c9d5058687802a21a0e4689de2662f35f73feea762e9ef4a3868e527aa",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/ruby-progressbar/versions/1.13.0.json",
+      "name": "ruby-progressbar",
+      "platform": "ruby",
+      "rubyVersion": ">= 0",
+      "sha256": "80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33",
+      "size": 19456,
+      "url": "https://rubygems.org/downloads/ruby-progressbar-1.13.0.gem",
+      "version": "1.13.0"
+    },
+    {
+      "dependencies": [
+        {
+          "name": "unicode-emoji",
+          "requirements": "~> 4.3"
+        }
+      ],
+      "fileCount": 11,
+      "filename": "unicode-display_width-3.3.0.gem",
+      "gemMetadataSha256": "885b86f46ef1ee075058006c59c1cb9e2a8c3f625ae4312d51390a4e0bd1efe3",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/unicode-display_width-3.3.0.json",
+      "metadataSha256": "5d8786d2d2fc80ccc85cd616fa49e2c2534da11d8454a88667434cec4ca6bb5b",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/unicode-display_width/versions/3.3.0.json",
+      "name": "unicode-display_width",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.5.0",
+      "sha256": "4b7aa66a4b11db50f6f7e98411215cd0dd10eaecb665d36eec5bcacb3fa0b613",
+      "size": 18432,
+      "url": "https://rubygems.org/downloads/unicode-display_width-3.3.0.gem",
+      "version": "3.3.0"
+    },
+    {
+      "dependencies": [],
+      "fileCount": 60,
+      "filename": "unicode-emoji-4.3.0.gem",
+      "gemMetadataSha256": "6c4febd2e4dcd612eac7ec6e046a58b23da5ca77af6be6f93ec85e418618044e",
+      "metadataFile": "scripts/ci/php-ruby-sdk-assets/unicode-emoji-4.3.0.json",
+      "metadataSha256": "7514e262ead7630502ca3c6afa610bfc2bbda1c279c38e5ceb490b294eb701f7",
+      "metadataUrl": "https://rubygems.org/api/v2/rubygems/unicode-emoji/versions/4.3.0.json",
+      "name": "unicode-emoji",
+      "platform": "ruby",
+      "rubyVersion": ">= 2.5",
+      "sha256": "11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce",
+      "size": 170496,
+      "url": "https://rubygems.org/downloads/unicode-emoji-4.3.0.gem",
+      "version": "4.3.0"
+    }
+  ],
+  "nativeExtensionGems": [
+    "json",
+    "prism",
+    "racc"
+  ],
+  "phars": [
+    {
+      "filename": "composer-2.10.3.phar",
+      "name": "composer",
+      "officialPinFile": "scripts/ci/php-ruby-sdk-assets/composer-2.10.3.phar.sha256",
+      "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+      "size": 3642137,
+      "url": "https://getcomposer.org/download/2.10.3/composer.phar",
+      "version": "2.10.3"
+    },
+    {
+      "filename": "phpstan-2.3.1.phar",
+      "name": "phpstan",
+      "officialPinFile": "scripts/ci/php-ruby-sdk-assets/phpstan-latest.json",
+      "sha256": "85157dba3d95d77ca603d2b7303aa78a538f9e3b56ccad07dd794c53aa96d1ae",
+      "size": 31218149,
+      "url": "https://github.com/phpstan/phpstan/releases/download/2.3.1/phpstan.phar",
+      "version": "2.3.1"
+    },
+    {
+      "filename": "phpunit-13.4.3.phar",
+      "name": "phpunit",
+      "officialPinFile": "scripts/ci/php-ruby-sdk-assets/phpunit-13.4.3.phar.provenance.json",
+      "sha256": "f9f8f986f2b6e862187a04619eb01b5960cea77bb39bd1e38d3e396a99eae516",
+      "size": 6712767,
+      "url": "https://phar.phpunit.de/phpunit-13.4.3.phar",
+      "version": "13.4.3"
+    }
+  ],
+  "schema": "legion-php-ruby-sdk-inputs/1",
+  "sourceFiles": {
+    "scripts/ci/php-ruby-sdk-assets/ast-2.4.3.json": {
+      "bytes": 1477,
+      "digest": "sha256:82f322c312f61074bdff99e791ce2f1af38503c1f19d72ce814851a0df0eeb95"
+    },
+    "scripts/ci/php-ruby-sdk-assets/bundler-2.6.9.json": {
+      "bytes": 2004,
+      "digest": "sha256:f57780f2944afb2a58d78391ff9fc827b07eb08f967013899d5499522295510f"
+    },
+    "scripts/ci/php-ruby-sdk-assets/composer-2.10.3.phar.sha256": {
+      "bytes": 80,
+      "digest": "sha256:1eb0f2c859011ab4b422a77d3ee4a56f97c83bd20d96299f07bee006409f4822"
+    },
+    "scripts/ci/php-ruby-sdk-assets/composer-2.10.3.phar.sha256.provenance.json": {
+      "bytes": 542,
+      "digest": "sha256:c6204a389afa50cb5eed21b16a5fcd8fc52780d88372bc542a5f9986d607b4f6"
+    },
+    "scripts/ci/php-ruby-sdk-assets/json-2.21.2-ruby.json": {
+      "bytes": 1568,
+      "digest": "sha256:944854695552dea48e97acb81e226673402065103a39d9dd2c155bc68b056ca2"
+    },
+    "scripts/ci/php-ruby-sdk-assets/language_server-protocol-3.17.0.6.json": {
+      "bytes": 1506,
+      "digest": "sha256:10f32b56847232918fac17a7b61ca9fb6af69dac1d480ed256b190fc0354e779"
+    },
+    "scripts/ci/php-ruby-sdk-assets/lint_roller-1.1.0.json": {
+      "bytes": 1440,
+      "digest": "sha256:4292e139580a380ba3b3d72904693b45bc7a57a92df8d754a819f13c551abc78"
+    },
+    "scripts/ci/php-ruby-sdk-assets/minitest-5.25.5.json": {
+      "bytes": 5617,
+      "digest": "sha256:6358372ad9faae71bcde35f711b8bbebdd8549b4556701fdfa5ad9a36b94887c"
+    },
+    "scripts/ci/php-ruby-sdk-assets/packagist-process-advisories-post.json": {
+      "bytes": 1637,
+      "digest": "sha256:20e797fa56d83ba55647bf7616700fade0d35d4bec515d85c88098ed8cce8430"
+    },
+    "scripts/ci/php-ruby-sdk-assets/packagist-process-advisories-post.json.provenance.json": {
+      "bytes": 1145,
+      "digest": "sha256:5ea67e975cc2c09cc703beae93dfc02a368af5611b0e996da7e9eeb24cc54fde"
+    },
+    "scripts/ci/php-ruby-sdk-assets/packagist-process-metadata.json": {
+      "bytes": 272594,
+      "digest": "sha256:db11e8fa5d42542a940e54a99e85ccaaeb54a1a04ac4555ea7e91eae1c82287b"
+    },
+    "scripts/ci/php-ruby-sdk-assets/packagist-process-metadata.json.provenance.json": {
+      "bytes": 1089,
+      "digest": "sha256:10a4274ff40a35b3f30fcf3c204243212d2bb6a06798fb0985039b23426327d5"
+    },
+    "scripts/ci/php-ruby-sdk-assets/parallel-1.28.0.json": {
+      "bytes": 1540,
+      "digest": "sha256:0850ca3e9732fde6eac98eafa7862e77982cc98f355e2d4c51937aea4a5355e1"
+    },
+    "scripts/ci/php-ruby-sdk-assets/parser-3.3.12.0.json": {
+      "bytes": 2015,
+      "digest": "sha256:dee558485d67eb6d50d986cfa350457721e90b1a1fc7918dbca8edddd04aeb0f"
+    },
+    "scripts/ci/php-ruby-sdk-assets/phpstan-latest.json": {
+      "bytes": 7349,
+      "digest": "sha256:08817b4cb067fa4642061352686db4a659c8b7091afedf99e535155dfd9493a4"
+    },
+    "scripts/ci/php-ruby-sdk-assets/phpunit-13.4.3-composer.txt": {
+      "bytes": 5303,
+      "digest": "sha256:c63cdbdc1933bcee64e77d4354eb9221670d58307abd5bc558b10be7c9aab418"
+    },
+    "scripts/ci/php-ruby-sdk-assets/phpunit-13.4.3.phar.provenance.json": {
+      "bytes": 1509,
+      "digest": "sha256:10a8d883c8082f9978a0e36b0f8eaef6476126018585a075d7d7f64804231356"
+    },
+    "scripts/ci/php-ruby-sdk-assets/phpunit-latest.json": {
+      "bytes": 5597,
+      "digest": "sha256:c8695c9e57ba075ad933b0e3f402ff9b74267e4ec28dbe351bb1808ca39a8950"
+    },
+    "scripts/ci/php-ruby-sdk-assets/prism-1.9.0.json": {
+      "bytes": 1262,
+      "digest": "sha256:54a28e7ca9482baf2e1caf56dfab3b29eb026bdd7df7284d71c6261dd4ec5d90"
+    },
+    "scripts/ci/php-ruby-sdk-assets/process-6.4.0-composer.json": {
+      "bytes": 671,
+      "digest": "sha256:7862b4550560ea43d1e35528af040bdf5563af352ebce3b9dbdf273f8d53c16c"
+    },
+    "scripts/ci/php-ruby-sdk-assets/process-6.4.33-composer.json": {
+      "bytes": 671,
+      "digest": "sha256:7862b4550560ea43d1e35528af040bdf5563af352ebce3b9dbdf273f8d53c16c"
+    },
+    "scripts/ci/php-ruby-sdk-assets/racc-1.8.1-ruby.json": {
+      "bytes": 1592,
+      "digest": "sha256:389a699dd6b25fb93c93cd5aad099ddd434ac0a5d78c8e8afc1299288bac3ced"
+    },
+    "scripts/ci/php-ruby-sdk-assets/rainbow-3.1.1.json": {
+      "bytes": 1246,
+      "digest": "sha256:6cb0468df9a48d5cc389d632118ac3c154f14ff3cb2447814ca13b747f5728ea"
+    },
+    "scripts/ci/php-ruby-sdk-assets/rake-13.2.1.json": {
+      "bytes": 2625,
+      "digest": "sha256:3839ce726f40fe8a3364091d9173556ed1b32c068dc9a160c9e260ccf697e776"
+    },
+    "scripts/ci/php-ruby-sdk-assets/regexp_parser-2.13.1.json": {
+      "bytes": 1612,
+      "digest": "sha256:759ff5eeba74371874fee804da7dda9abf1cfa0f806604e8a66a95a9f8e17bf1"
+    },
+    "scripts/ci/php-ruby-sdk-assets/rubocop-1.80.2.json": {
+      "bytes": 2321,
+      "digest": "sha256:e9f2f8d3777255bc1b094e4e30cba440c00b1b2fc45c0e6fdde6eefaec5f7aef"
+    },
+    "scripts/ci/php-ruby-sdk-assets/rubocop-ast-1.50.0.json": {
+      "bytes": 1773,
+      "digest": "sha256:bf9d0f2ddc826570d321e17876a46296c7447f6e1691bf087d23a3a222a80f31"
+    },
+    "scripts/ci/php-ruby-sdk-assets/ruby-progressbar-1.13.0.json": {
+      "bytes": 2471,
+      "digest": "sha256:e3bfc0c9d5058687802a21a0e4689de2662f35f73feea762e9ef4a3868e527aa"
+    },
+    "scripts/ci/php-ruby-sdk-assets/unicode-display_width-3.3.0.json": {
+      "bytes": 1992,
+      "digest": "sha256:5d8786d2d2fc80ccc85cd616fa49e2c2534da11d8454a88667434cec4ca6bb5b"
+    },
+    "scripts/ci/php-ruby-sdk-assets/unicode-emoji-4.3.0.json": {
+      "bytes": 1429,
+      "digest": "sha256:7514e262ead7630502ca3c6afa610bfc2bbda1c279c38e5ceb490b294eb701f7"
+    }
+  },
+  "target": {
+    "machine": "arm64",
+    "minimumMacOS": "15.0",
+    "minimumPHP": "8.4.1",
+    "phpFormula": "php@8.4",
+    "platform": "darwin",
+    "rubyFormula": "ruby@3.3",
+    "rubyMinor": "3.3",
+    "runtimeIdentity": "observed managed Homebrew prefix and native closure; no official runtime archive claim"
+  }
+}

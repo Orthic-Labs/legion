@@ -1,0 +1,31 @@
+{
+  "bytes": 1637,
+  "headers": {
+    "CDN-CachedAt": "10/19/2026 22:03:19",
+    "CDN-EdgeStorageId": "747",
+    "CDN-ProxyVer": "1.71",
+    "CDN-PullZone": "3535225",
+    "CDN-RequestCountryCode": "IN",
+    "CDN-RequestId": "3bd26571b5338f87ae1d291d9b1c282f",
+    "CDN-RequestPullCode": "200",
+    "CDN-RequestPullSuccess": "True",
+    "CDN-RequestTime": "0",
+    "Cache-Control": "max-age=0, must-revalidate, private",
+    "Connection": "close",
+    "Content-Type": "application/json",
+    "Date": "Mon, 19 Oct 2026 22:03:19 GMT",
+    "Expires": "Mon, 19 Oct 2026 22:03:19 GMT",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Server": "BunnyCDN-SG1-747",
+    "Strict-Transport-Security": "max-age=31104000",
+    "Transfer-Encoding": "chunked",
+    "Vary": "Accept-Encoding",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block"
+  },
+  "method": "POST",
+  "observedAt": "2026-10-19T22:03:19.436728+00:00",
+  "requestBody": "packages%5B0%5D=symfony%2Fprocess",
+  "sha256": "20e797fa56d83ba55647bf7616700fade0d35d4bec515d85c88098ed8cce8430",
+  "url": "https://packagist.org/api/security-advisories/"
+}

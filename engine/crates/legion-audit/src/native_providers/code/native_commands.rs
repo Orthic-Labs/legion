@@ -160,30 +160,7 @@ pub(super) fn plan(
                 &["-n"],
             );
         }
-        "code.php-ruby" => {
-            // Composer may activate project plugins even for validate.
-            defer(
-                plan,
-                entries,
-                &["composer.json"],
-                &["composer"],
-                "package",
-                &[
-                    "--no-plugins",
-                    "--no-scripts",
-                    "validate",
-                    "--no-check-publish",
-                ],
-            );
-            defer(
-                plan,
-                entries,
-                &["Gemfile", "Rakefile"],
-                &["bundle"],
-                "test",
-                &["exec", "rake", "test"],
-            );
-        }
+        // PHP/Ruby project operations are staged & admitted by php_ruby_commands.
         "code.long-tail" => {
             defer(
                 plan,
@@ -352,11 +329,6 @@ mod tests {
                 "code.c-family",
                 &["CMakeLists.txt", "Makefile"],
                 &["cmake", "make"],
-            ),
-            (
-                "code.php-ruby",
-                &["composer.json", "Gemfile"],
-                &["composer", "bundle"],
             ),
             (
                 "code.long-tail",

@@ -1,0 +1,33 @@
+{
+  "bytes": 272594,
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "CDN-Cache": "HIT",
+    "CDN-CachedAt": "10/15/2026 21:31:52",
+    "CDN-EdgeStorageId": "989",
+    "CDN-FileServer": "829",
+    "CDN-ProxyVer": "1.71",
+    "CDN-PullZone": "3363232",
+    "CDN-RequestCountryCode": "IN",
+    "CDN-RequestId": "b492810dfc91b0a2082f2e2ba2643633",
+    "CDN-RequestPullCode": "200",
+    "CDN-RequestPullSuccess": "True",
+    "CDN-RequestTime": "0",
+    "CDN-Status": "200",
+    "CDN-StorageServer": "SG-687",
+    "Cache-Control": "public, max-age=900",
+    "Connection": "close",
+    "Content-Length": "272594",
+    "Content-Type": "application/json",
+    "Date": "Mon, 19 Oct 2026 22:03:18 GMT",
+    "ETag": "\"6ad0ad33-428d2\"",
+    "Last-Modified": "Thu, 15 Oct 2026 10:38:43 GMT",
+    "Server": "BunnyCDN-SG1-747",
+    "Vary": "Accept-Encoding"
+  },
+  "method": "GET",
+  "observedAt": "2026-10-19T22:03:19.004680+00:00",
+  "requestBody": null,
+  "sha256": "db11e8fa5d42542a940e54a99e85ccaaeb54a1a04ac4555ea7e91eae1c82287b",
+  "url": "https://repo.packagist.org/p2/symfony/process.json"
+}

@@ -1,0 +1,58 @@
+{
+  "_readme": [
+    "Constructed fixture lock from official source/package metadata; not an observed Composer execution."
+  ],
+  "content-hash": "df57c5b6c3cf6be665c1cc7ee6aee2b3",
+  "packages": [
+    {
+      "name": "symfony/process",
+      "description": "Executes commands in sub-processes",
+      "type": "library",
+      "license": "MIT",
+      "authors": [
+        {
+          "name": "Fabien Potencier",
+          "email": "fabien@symfony.com"
+        },
+        {
+          "name": "Symfony Community",
+          "homepage": "https://symfony.com/contributors"
+        }
+      ],
+      "require": {
+        "php": ">=8.1"
+      },
+      "autoload": {
+        "psr-4": {
+          "Symfony\\Component\\Process\\": ""
+        },
+        "exclude-from-classmap": [
+          "/Tests/"
+        ]
+      },
+      "version": "v6.4.0",
+      "source": {
+        "url": "https://github.com/symfony/process.git",
+        "type": "git",
+        "reference": "191703b1566d97a5425dc969e4350d32b8ef17aa"
+      },
+      "dist": {
+        "url": "https://api.github.com/repos/symfony/process/zipball/191703b1566d97a5425dc969e4350d32b8ef17aa",
+        "type": "zip",
+        "shasum": "",
+        "reference": "191703b1566d97a5425dc969e4350d32b8ef17aa"
+      },
+      "time": "2023-11-17T21:06:49+00:00"
+    }
+  ],
+  "packages-dev": [],
+  "aliases": [],
+  "minimum-stability": "stable",
+  "stability-flags": {},
+  "prefer-stable": false,
+  "prefer-lowest": false,
+  "platform": {
+    "php": ">=8.4.1"
+  },
+  "platform-dev": {}
+}

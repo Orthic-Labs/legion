@@ -1,0 +1,17 @@
+{
+  "bytes": 80,
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "Connection": "close",
+    "Content-Length": "80",
+    "Content-Type": "application/octet-stream",
+    "Date": "Mon, 19 Oct 2026 22:03:19 GMT",
+    "Last-Modified": "Thu, 27 Aug 2026 11:37:29 GMT",
+    "Server": "nginx"
+  },
+  "method": "GET",
+  "observedAt": "2026-10-19T22:03:19.851460+00:00",
+  "requestBody": null,
+  "sha256": "1eb0f2c859011ab4b422a77d3ee4a56f97c83bd20d96299f07bee006409f4822",
+  "url": "https://getcomposer.org/download/2.10.3/composer.phar.sha256sum"
+}
