@@ -209,8 +209,16 @@ def tree(root):
 
 def fixture(root,control):
     name='nonempty-clean' if control in ('missing-database','tampered-database','missing-tool','tampered-tool','changed-source','rejected-admission','absent-sandbox','budget-exhausted') else control
-    p=source_file(root,FIXTURES+'/'+name+'/Cargo.toml').parent
-    return {x.relative_to(p).as_posix():x.read_text() for x in sorted(p.rglob('*')) if x.is_file()}
+    manifest='Cargo.toml.txt' if name=='malformed-lock' else 'Cargo.toml'
+    p=source_file(root,FIXTURES+'/'+name+'/'+manifest).parent
+    files={x.relative_to(p).as_posix():x.read_text() for x in sorted(p.rglob('*')) if x.is_file()}
+    if name=='malformed-lock':
+        # Replay the exact names materialized only in the owned native case scratch.
+        for target in ('Cargo.toml','Cargo.lock'):
+            template=target+'.txt'
+            require(template in files and target not in files,'missing/duplicate malformed-lock template')
+            files[target]=files.pop(template)
+    return files
 
 def commands(policy,enrollment,tools):
     cwd=policy['cwd'];scratch=str(PurePosixPath(policy['profile']['path']).parent.parent)

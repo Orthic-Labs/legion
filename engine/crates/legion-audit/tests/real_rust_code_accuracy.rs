@@ -568,6 +568,19 @@ fn fixture_files(control: &str) -> BTreeMap<String, String> {
         }
     }
     walk(&root, &root, &mut files);
+    if control == "malformed-lock" {
+        // Invalid package data stays inert until this owned scratch fixture is created.
+        for name in ["Cargo.toml", "Cargo.lock"] {
+            let template = format!("{name}.txt");
+            let text = files
+                .remove(&template)
+                .unwrap_or_else(|| panic!("missing malformed-lock template: {template}"));
+            assert!(
+                files.insert(name.to_owned(), text).is_none(),
+                "duplicate malformed-lock fixture: {name}"
+            );
+        }
+    }
     files
 }
 fn snapshot(root: &Path) -> BTreeMap<String, String> {
