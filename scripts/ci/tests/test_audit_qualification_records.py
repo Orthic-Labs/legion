@@ -531,6 +531,8 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(len(gate["ADAPTERS"]), 38)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
+            if provider == "compatibility.core":
+                entry["scope"] = gate["helper"]("validate-compatibility-report-accuracy.py")["SCOPE"]
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
             entry["stage"] = "outcome"
             with self.assertRaises(AssertionError):
