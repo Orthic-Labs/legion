@@ -1,0 +1,6 @@
+# Constructed input lock for this dependency-free package.
+version = 4
+
+[[package]]
+name = "legion_rust_code_fixture"
+version = "0.0.0"

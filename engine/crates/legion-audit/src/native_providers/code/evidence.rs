@@ -102,7 +102,7 @@ pub struct Produced {
     pub expected: u64,
     /// In-language files actually read.
     pub examined: u64,
-    /// Frozen Go module manifests & dependency locks selected for context inspection.
+    /// Frozen Go/Rust manifest, lock & toolchain inputs selected for context inspection.
     pub context_expected: u64,
     pub context_examined: u64,
     pub context_bytes_read: u64,
@@ -840,6 +840,7 @@ fn derive_context(
 
 fn tool_candidates(provider_id: &str, tool: &str) -> &'static [&'static str] {
     match (provider_id, tool) {
+        ("code.rust", "dependency") => &["cargo-audit"],
         ("code.rust", _) => &["cargo"],
         ("code.javascript", "type") => &["tsc"],
         ("code.javascript", "lint") => &["eslint"],
@@ -957,6 +958,9 @@ pub fn produce(
     let mut lines_read = 0u64;
     let mut build_tags: BTreeSet<String> = BTreeSet::new();
     let mut source_accounting = Vec::new();
+    let mut unsafe_candidates = Vec::new();
+    let mut rust_variant_gaps = Vec::new();
+    let unsafe_keyword = Regex::new(r"\bunsafe\b").expect("literal unsafe regex");
 
     for entry in &selected {
         let outcome = match root {
@@ -981,6 +985,20 @@ pub fn produce(
                             .or_else(|| trimmed.strip_prefix("// +build "))
                         {
                             build_tags.insert(tag.trim().to_string());
+                        }
+                    }
+                }
+                if config.id == "rust" {
+                    // Conservative inventory only: comments/strings may match too. No
+                    // compiler or keyword inventory establishes unsafe soundness.
+                    for (line, text) in text.lines().enumerate() {
+                        if unsafe_keyword.is_match(text) {
+                            unsafe_candidates.push(json!({"path":entry.path,"line":line+1}));
+                        }
+                        if text.contains("cfg")
+                            && (text.contains("feature") || text.contains("target_"))
+                        {
+                            rust_variant_gaps.push(json!({"path":entry.path,"line":line+1,"reason":"conditional-feature-or-target-source-unproven"}));
                         }
                     }
                 }
@@ -1012,7 +1030,7 @@ pub fn produce(
             }
         }
     }
-    // Manifest membership alone is not an inspection. Go module/lock & Python package context is
+    // Manifest membership alone is not inspection. Go/Rust/Python context is
     // admitted only after reading the original, frozen digest-bound bytes with
     // the same path, symlink & shared byte limits as language source. Source
     // analysis/facts remain separate from this context inspection.
@@ -1021,7 +1039,7 @@ pub fn produce(
     let mut context_examined = 0u64;
     let mut context_accounting = Vec::new();
     let mut verified_context = Vec::new();
-    if matches!(provider_id, "code.go" | "code.python") {
+    if matches!(provider_id, "code.go" | "code.python" | "code.rust") {
         if provider_id == "code.python" {
             // setup.py already belongs to Python source coverage. Reuse only
             // its actual digest-bound source read; never count it twice.
@@ -1044,6 +1062,10 @@ pub fn produce(
                 file_name(&entry.path),
                 "pyproject.toml" | "setup.cfg" | "requirements.txt" | "Pipfile"
             ),
+            "code.rust" => matches!(
+                file_name(&entry.path),
+                "Cargo.toml" | "Cargo.lock" | "rust-toolchain.toml" | "rust-toolchain"
+            ),
             _ => false,
         }) {
             context_expected += 1;
@@ -1064,10 +1086,38 @@ pub fn produce(
                 Ok(text) => {
                     context_examined += 1;
                     bytes_read += text.len() as u64;
-                    verified_context.push(entry.clone());
+                    let mut valid_context = true;
+                    if provider_id == "code.rust" && file_name(&entry.path) == "Cargo.toml" {
+                        match toml::from_str::<toml::Value>(&text) {
+                            Ok(manifest) => {
+                                let declared_features = manifest
+                                    .get("features")
+                                    .and_then(toml::Value::as_table)
+                                    .is_some_and(|items| !items.is_empty());
+                                let target_dependencies = manifest
+                                    .get("target")
+                                    .and_then(toml::Value::as_table)
+                                    .is_some_and(|items| !items.is_empty());
+                                if declared_features || target_dependencies {
+                                    rust_variant_gaps.push(json!({"path":entry.path,"reason":"declared-feature-or-target-matrix-unproven"}));
+                                }
+                            }
+                            Err(_) => {
+                                valid_context = false;
+                                rust_variant_gaps.push(json!({"path":entry.path,"reason":"manifest-context-unparseable"}));
+                            }
+                        }
+                    }
+                    if valid_context {
+                        verified_context.push(entry.clone());
+                    }
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if provider_id == "code.python" { "package-root-context" } else if file_name(&entry.path) == "go.mod" { "module-context" } else { "dependency-lock-context" },
+                        "analysis": if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
+                            "go.mod" | "Cargo.toml" => "module-context",
+                            "rust-toolchain.toml" | "rust-toolchain" => "toolchain-context",
+                            _ => "dependency-lock-context",
+                        } },
                         "bytes": text.len(), "digest": entry.digest,
                     }));
                 }
@@ -1125,7 +1175,7 @@ pub fn produce(
 
     // Go build tags are only a complete fact when every Go file was read.
     let tags = (examined as usize == selected.len()).then_some(build_tags);
-    let context_entries = if matches!(provider_id, "code.go" | "code.python") {
+    let context_entries = if matches!(provider_id, "code.rust" | "code.go" | "code.python") {
         verified_context.as_slice()
     } else {
         entries
@@ -1173,8 +1223,15 @@ pub fn produce(
             "rules": rule_ids,
         }],
     });
-    if matches!(provider_id, "code.go" | "code.python" | "code.jvm") {
+    if matches!(
+        provider_id,
+        "code.rust" | "code.go" | "code.python" | "code.jvm"
+    ) {
         input["contextAccounting"] = json!(context_accounting);
+    }
+    if provider_id == "code.rust" {
+        input["unsafeKeywordCandidates"] = json!(unsafe_candidates);
+        input["rustVariantGaps"] = json!(rust_variant_gaps);
     }
     if long_tail {
         input["unsupportedLanguageCoverage"] = json!(unsupported_language_coverage(&selected));
@@ -1532,6 +1589,144 @@ mod go_context_tests {
         assert_eq!((made.expected, made.examined), (1, 1));
         assert_eq!((made.context_expected, made.context_examined), (1, 0));
         assert_eq!(made.bytes_read, source.len() as u64);
+        assert_eq!(
+            made.input["contextAccounting"][0]["reason"],
+            "total-size-cap"
+        );
+    }
+}
+
+#[cfg(test)]
+mod rust_context_tests {
+    use super::*;
+    struct Fixture(PathBuf);
+    impl Fixture {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "rust-context-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+        fn file(&self, path: &str, text: &str) -> InventoryEntry {
+            std::fs::write(self.0.join(path), text).unwrap();
+            InventoryEntry {
+                path: path.into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: path.ends_with(".rs"),
+                digest: Some(format!(
+                    "sha256:{}",
+                    hex::encode(Sha256::digest(text.as_bytes()))
+                )),
+            }
+        }
+        fn produce(&self, entries: &[InventoryEntry], limits: &EvidenceLimits) -> Produced {
+            produce("code.rust", &rust::CONFIG, Some(&self.0), entries, limits).unwrap()
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    #[test]
+    fn rust_context_counts_actual_reads_separately_and_preserves_unrelated_gaps() {
+        let f = Fixture::new();
+        let entries = [
+            f.file("Cargo.toml", "[package]\nname='fixture'\nversion='0.0.0'\n"),
+            f.file("Cargo.lock", "version=4\n"),
+            f.file("rust-toolchain.toml", "[toolchain]\nchannel='1.98.0'\n"),
+            f.file("lib.rs", "pub fn answer()->u8{42}\n"),
+            f.file("README.md", "unrelated\n"),
+        ];
+        let made = f.produce(&entries, &EvidenceLimits::default());
+        assert_eq!((made.expected, made.examined), (1, 1));
+        assert_eq!((made.context_expected, made.context_examined), (3, 3));
+        assert_eq!(made.input["facts"][0]["filesRead"], 1);
+        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 3);
+        assert_eq!(made.input["context"]["features"], json!(["Cargo.toml"]));
+        assert_eq!(made.input["context"]["targets"], json!(["Cargo.toml"]));
+        assert!(made.expected + made.context_expected < entries.len() as u64);
+        assert!(made.input["unsafeKeywordCandidates"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+    }
+    #[test]
+    fn rust_context_missing_changed_unreadable_unbound_and_bounds_cannot_earn_credit() {
+        for path in ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml"] {
+            for (control, reason) in [
+                ("changed", "changed-since-inventory"),
+                ("missing", "missing"),
+                ("unreadable", "unreadable"),
+                ("unbound", "context-inventory-digest-missing"),
+                ("file-cap", "file-size-cap"),
+                ("total-cap", "total-size-cap"),
+            ] {
+                let f = Fixture::new();
+                let mut e = f.file(path, "[package]\nname='fixture'\nversion='0.0.0'\n");
+                let mut limits = EvidenceLimits::default();
+                match control {
+                    "changed" => std::fs::write(f.0.join(path), "changed").unwrap(),
+                    "missing" => std::fs::remove_file(f.0.join(path)).unwrap(),
+                    "unreadable" => {
+                        std::fs::remove_file(f.0.join(path)).unwrap();
+                        std::fs::create_dir(f.0.join(path)).unwrap();
+                    }
+                    "unbound" => e.digest = None,
+                    "file-cap" => limits.max_file_bytes = 1,
+                    "total-cap" => limits.max_total_bytes = 1,
+                    _ => unreachable!(),
+                }
+                let made = f.produce(&[e], &limits);
+                assert_eq!(
+                    (made.context_expected, made.context_examined),
+                    (1, 0),
+                    "{path}/{control}"
+                );
+                assert_eq!(made.context_bytes_read, 0);
+                assert_eq!(made.input["contextAccounting"][0]["reason"], reason);
+                assert!(made.input["context"].get("features").is_none());
+            }
+        }
+    }
+    #[test]
+    fn context_only_and_unsafe_keyword_inventory_never_claim_language_soundness() {
+        let f = Fixture::new();
+        let manifest = f.file("Cargo.toml", "[features]\noptional=[]\n");
+        let made = f.produce(&[manifest.clone()], &EvidenceLimits::default());
+        assert_eq!((made.expected, made.examined), (0, 0));
+        assert_eq!((made.context_expected, made.context_examined), (1, 1));
+        assert_eq!(made.input["facts"][0]["filesRead"], 0);
+        let source = f.file(
+            "lib.rs",
+            "pub fn answer(v:&u8)->u8{unsafe{*(v as *const u8)}}\n",
+        );
+        let made = f.produce(&[manifest, source], &EvidenceLimits::default());
+        assert_eq!(made.input["unsafeKeywordCandidates"][0]["path"], "lib.rs");
+        assert!(!made.input["rustVariantGaps"].as_array().unwrap().is_empty());
+        assert!(made
+            .findings
+            .iter()
+            .all(|finding| !finding.rule.contains("unsafe")));
+    }
+    #[test]
+    fn source_and_context_share_byte_cap() {
+        let f = Fixture::new();
+        let source = f.file("lib.rs", "pub fn answer()->u8{42}\n");
+        let manifest = f.file("Cargo.toml", "[package]\nname='fixture'\nversion='0.0.0'\n");
+        let mut limits = EvidenceLimits::default();
+        limits.max_total_bytes = std::fs::metadata(f.0.join("lib.rs")).unwrap().len();
+        let made = f.produce(&[source, manifest], &limits);
+        assert_eq!((made.expected, made.examined), (1, 1));
+        assert_eq!(made.context_examined, 0);
         assert_eq!(
             made.input["contextAccounting"][0]["reason"],
             "total-size-cap"

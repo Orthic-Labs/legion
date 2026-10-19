@@ -1,0 +1,15 @@
+# Constructed pinned fixture input; official crate checksum from crates.io.
+version = 4
+
+[[package]]
+name = "legion_rust_code_fixture"
+version = "0.0.0"
+dependencies = [
+ "smallvec",
+]
+
+[[package]]
+name = "smallvec"
+version = "0.6.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab606a9c5e214920bb66c458cd7be8ef094f813f20fe77a54cc7dbfff220d4b7"

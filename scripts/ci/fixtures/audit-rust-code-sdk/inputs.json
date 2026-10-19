@@ -1,0 +1,134 @@
+{
+  "advisory": {
+    "commit": "999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b",
+    "databasePath": "crates/smallvec/RUSTSEC-2019-0009.md",
+    "path": "engine/crates/legion-audit/tests/fixtures/cargo-audit/RUSTSEC-2019-0009.md",
+    "sha256": "678bd66f3703ac7279a9b9fe4219fbe3903395d8411d899647ee8136d19241c5",
+    "url": "https://raw.githubusercontent.com/RustSec/advisory-db/999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b/crates/smallvec/RUSTSEC-2019-0009.md"
+  },
+  "featureSelection": {
+    "smallvec": {
+      "defaultFeatures": false,
+      "dependencyDevDependencies": false,
+      "features": [
+        "std"
+      ],
+      "optionalSerde": false
+    }
+  },
+  "packages": [
+    {
+      "files": {
+        ".cargo_vcs_info.json": "efbd79f666fba5460500c78223d061c0c61318ae9878b3199d34fd36dbdd99a7",
+        ".gitignore": "f9b1ca6ae27d1c18215265024629a8960c31379f206d9ed20f64e0b2dcf79805",
+        ".travis.yml": "f994d1b20f0991a147e7ef8554bdc221cd53578b5277efcf90b39ab5d59fbdc0",
+        "Cargo.toml": "0ed892f97d8a74ebc77b939604e9c61e945ea03a9ab80bb9e0f784381baee8e5",
+        "Cargo.toml.orig": "42b219a0560baaedd5b81f1a8108b0bee802ecb37c4b600550deed239742214c",
+        "LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "LICENSE-MIT": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9",
+        "README.md": "38eef4ebde6fe6effa12a2dbca3bd69d6446b2935f19a329ac4926f1cb2e5013",
+        "benches/bench.rs": "9dca7122a3dcb2c099e49807e4d3b8f01d9220e2b3db0a54e9901ee74392866f",
+        "lib.rs": "a34604945212fcb95eee841bffc3652636af7b91bbb9f8a710e454ad41224765"
+      },
+      "indexRecord": {
+        "cksum": "c4488ae950c49d403731982257768f48fada354a5203fe81f9bb6f43ca9002be",
+        "deps": [
+          {
+            "default_features": true,
+            "features": [],
+            "kind": "dev",
+            "name": "bincode",
+            "optional": false,
+            "req": "^1.0.1",
+            "target": null
+          },
+          {
+            "default_features": true,
+            "features": [],
+            "kind": "normal",
+            "name": "serde",
+            "optional": true,
+            "req": "^1",
+            "target": null
+          }
+        ],
+        "features": {
+          "default": [
+            "std"
+          ],
+          "may_dangle": [],
+          "specialization": [],
+          "std": [],
+          "union": []
+        },
+        "name": "smallvec",
+        "pubtime": "2019-02-17T23:59:28Z",
+        "vers": "0.6.9",
+        "yanked": true
+      },
+      "indexUrl": "https://index.crates.io/sm/al/smallvec",
+      "name": "smallvec",
+      "sha256": "c4488ae950c49d403731982257768f48fada354a5203fe81f9bb6f43ca9002be",
+      "url": "https://static.crates.io/crates/smallvec/smallvec-0.6.9.crate",
+      "version": "0.6.9"
+    },
+    {
+      "files": {
+        ".cargo_vcs_info.json": "dd99e93e765774813beaf581309ffcb8f37b7fb55ea06d9f0ee2f6de17613c32",
+        ".gitignore": "f9b1ca6ae27d1c18215265024629a8960c31379f206d9ed20f64e0b2dcf79805",
+        ".travis.yml": "f994d1b20f0991a147e7ef8554bdc221cd53578b5277efcf90b39ab5d59fbdc0",
+        "Cargo.toml": "a064123fc22a52158c37be025c3b70d413c4b1ee743e92a2e80ed419e2992d65",
+        "Cargo.toml.orig": "ca9b853148c683cfea71b56199247db73117f14d135d2a6f86d73ad634594881",
+        "LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "LICENSE-MIT": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9",
+        "README.md": "38eef4ebde6fe6effa12a2dbca3bd69d6446b2935f19a329ac4926f1cb2e5013",
+        "benches/bench.rs": "9dca7122a3dcb2c099e49807e4d3b8f01d9220e2b3db0a54e9901ee74392866f",
+        "lib.rs": "4d6998b0b80a85e85cf00bd317a88518067e9e8ba191185418263dec67069c16"
+      },
+      "indexRecord": {
+        "cksum": "ab606a9c5e214920bb66c458cd7be8ef094f813f20fe77a54cc7dbfff220d4b7",
+        "deps": [
+          {
+            "default_features": true,
+            "features": [],
+            "kind": "dev",
+            "name": "bincode",
+            "optional": false,
+            "req": "^1.0.1",
+            "target": null
+          },
+          {
+            "default_features": true,
+            "features": [],
+            "kind": "normal",
+            "name": "serde",
+            "optional": true,
+            "req": "^1",
+            "target": null
+          }
+        ],
+        "features": {
+          "default": [
+            "std"
+          ],
+          "may_dangle": [],
+          "specialization": [],
+          "std": [],
+          "union": []
+        },
+        "name": "smallvec",
+        "pubtime": "2019-06-10T15:43:53Z",
+        "vers": "0.6.10",
+        "yanked": false
+      },
+      "indexUrl": "https://index.crates.io/sm/al/smallvec",
+      "name": "smallvec",
+      "sha256": "ab606a9c5e214920bb66c458cd7be8ef094f813f20fe77a54cc7dbfff220d4b7",
+      "url": "https://static.crates.io/crates/smallvec/smallvec-0.6.10.crate",
+      "version": "0.6.10"
+    }
+  ],
+  "schema": "legion-rust-code-fixture-inputs/1",
+  "scope": "constructed offline SDK fixture inputs; no production, freshness or full RustSec claim",
+  "toolchain": "1.98.0"
+}

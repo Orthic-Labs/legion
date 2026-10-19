@@ -24,6 +24,7 @@
 //! | `code.rust` | `metadata` | `cargo metadata --locked --offline --format-version 1` |
 //! | | `check` | `cargo check --locked --offline --workspace --all-targets --message-format=json` |
 //! | | `lint` | `cargo clippy --locked --offline --workspace --all-targets --message-format=json` (only if `cargo-clippy` is installed) |
+//! | | `test` | `cargo test --locked --offline --workspace --all-targets` (exact SDK authorization required) |
 //! | `code.javascript` | `type` | `<local>/node_modules/.bin/tsc --noEmit -p tsconfig.json --pretty false` |
 //! | | `lint` | `<local>/node_modules/.bin/eslint --no-cache --format json --no-error-on-unmatched-pattern .` |
 //! | `code.python` | `compile` | `python3 -I -B -c <py_compile to scratch> <list> <scratch>` |
@@ -39,7 +40,7 @@
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //!
-//! Go tests & Python configured tools/backends execute project code only through
+//! Go/Rust tests & Python configured tools/backends execute project code only through
 //! supplied ExternalProjectTool; Python uses frozen staged inputs & denies writes
 //! to original audited tree. Explicit package/v1 never installs dependencies. The
 //! installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
@@ -79,6 +80,8 @@ mod native_commands;
 mod python_commands;
 #[path = "rubocop.rs"]
 mod rubocop;
+#[path = "rust_dependency.rs"]
+mod rust_dependency;
 
 /// Findings kept per provider from tool diagnostics; the rest is a counted gap.
 pub const MAX_TOOL_FINDINGS: usize = 200;
@@ -210,6 +213,7 @@ enum Parser {
     Gofmt,
     GoList,
     Govulncheck,
+    RustDependency,
     /// Exit-only project command contract: failure is a gap, never a fabricated finding.
     Process,
     Syntax,
@@ -251,6 +255,8 @@ struct Plan {
     notes: Vec<String>,
     /// Scratch files to remove after the runs.
     cleanup: Vec<PathBuf>,
+    /// Frozen original input maps for dependency runs, keyed by cwd.
+    rust_dependency_bindings: BTreeMap<String, Value>,
     deferred: Vec<Planned>,
 }
 
@@ -302,7 +308,7 @@ fn cap_roots(mut dirs: Vec<String>, tool: &str, notes: &mut Vec<String>) -> Vec<
 fn plan_rust(root: &Path, entries: &[InventoryEntry], plan: &mut Plan) {
     let manifests = dirs_named(entries, &["Cargo.toml"]);
     if manifests.is_empty() {
-        for tool in ["metadata", "check", "lint"] {
+        for tool in ["metadata", "check", "lint", "test"] {
             plan.not_planned.insert(tool, "no-manifest");
         }
         return;
@@ -381,6 +387,19 @@ fn plan_rust(root: &Path, entries: &[InventoryEntry], plan: &mut Plan) {
         lint.requires = Some("cargo-clippy");
         lint.sibling_of = Some("cargo");
         plan.commands.push(lint);
+        let test = command(
+            "test",
+            &[
+                "test",
+                "--locked",
+                "--offline",
+                "--workspace",
+                "--all-targets",
+            ],
+            Parser::Process,
+            &[0],
+        );
+        plan.commands.push(test);
     }
 }
 
@@ -645,7 +664,7 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
-        "code.go" | "code.python" => &[],
+        "code.rust" | "code.go" | "code.python" => &[],
         _ => &["test"],
     }
 }
@@ -670,6 +689,9 @@ fn plan_commands(
     native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
     if provider_id == "code.go" {
         govulncheck::plan(root, entries, scratch, &mut plan);
+    }
+    if provider_id == "code.rust" {
+        rust_dependency::plan(root, entries, scratch, &mut plan);
     }
     plan
 }
@@ -953,6 +975,7 @@ async fn run_one(
     ctx: &ToolContext<'_>,
     resolver: &mut Resolver<'_>,
     command: &Planned,
+    rust_binding: Option<&Value>,
     sequence: usize,
     timeout_ms: u64,
     cancellation: CancellationToken,
@@ -1013,6 +1036,14 @@ async fn run_one(
         if let Ok(value) = std::env::var(name) {
             environment.insert(name.into(), value);
             allowlist.insert(name.into());
+        }
+    }
+    // Apple rustc needs SDK selection for native linking; this is input, not authority.
+    // Qualification binds exact selection/config/SDK bytes independently.
+    if ctx.provider_id == "code.rust" {
+        if let Ok(value) = std::env::var("SDKROOT") {
+            environment.insert("SDKROOT".into(), value);
+            allowlist.insert("SDKROOT".into());
         }
     }
     let fixed: [(&str, &str); 3] = [
@@ -1177,41 +1208,38 @@ async fn run_one(
         version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
-    let native_input_before = if command.parser == Parser::Govulncheck
-        || mobile_sdk::is_mobile(command.parser)
-        || ctx.provider_id == "code.python"
-    {
-        let snapshot = if ctx.provider_id == "code.python" {
-            python_commands::snapshot(command)
-        } else if mobile_sdk::is_mobile(command.parser) {
-            mobile_sdk::snapshot(command)
-        } else {
-            govulncheck::snapshot(command)
-        };
-        match snapshot {
-            Ok(snapshot) => Some(snapshot),
-            Err(reason) => {
-                return RunOutput::failed(Outcome::Failed(format!(
-                    "tool-failed:{}:input-before:{reason}",
-                    command.tool
-                )))
-            }
-        }
-    } else {
-        None
-    };
-    let receipt = ctx.tool.execute(request, cancellation).await;
-    // Recheck even failed/refused executions. Retain actual receipt unchanged;
-    // input snapshots describe closure stability, never authorize execution.
-    let native_input_after = native_input_before.as_ref().map(|_| {
+    let snapshot = || {
         if ctx.provider_id == "code.python" {
             python_commands::snapshot(command)
         } else if mobile_sdk::is_mobile(command.parser) {
             mobile_sdk::snapshot(command)
+        } else if command.parser == Parser::RustDependency {
+            rust_dependency::snapshot(command, rust_binding, &executable)
         } else {
             govulncheck::snapshot(command)
         }
-    });
+    };
+    let native_input_before =
+        if matches!(command.parser, Parser::Govulncheck | Parser::RustDependency)
+            || mobile_sdk::is_mobile(command.parser)
+            || ctx.provider_id == "code.python"
+        {
+            match snapshot() {
+                Ok(snapshot) => Some(snapshot),
+                Err(reason) => {
+                    return RunOutput::failed(Outcome::Failed(format!(
+                        "tool-failed:{}:input-before:{reason}",
+                        command.tool
+                    )))
+                }
+            }
+        } else {
+            None
+        };
+    let receipt = ctx.tool.execute(request, cancellation).await;
+    // Recheck even failed/refused executions. Retain actual receipt unchanged;
+    // input snapshots describe closure stability, never authorize execution.
+    let native_input_after = native_input_before.as_ref().map(|_| snapshot());
     let native_input_error = match (&native_input_before, &native_input_after) {
         (Some(before), Some(Ok(after))) if before != after => {
             Some("input-closure-changed".to_owned())
@@ -1393,6 +1421,8 @@ async fn run_one(
         mobile_sdk::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if command.parser == Parser::Govulncheck {
         govulncheck::parse(bytes, receipt.exit_code, command)
+    } else if command.parser == Parser::RustDependency {
+        rust_dependency::parse(bytes, receipt.exit_code, command, rust_binding)
     } else if command.parser == Parser::Rubocop {
         rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if command.parser == Parser::Mypy {
@@ -1428,6 +1458,15 @@ async fn run_one(
             output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         }
     }
+    if output.outcome == Outcome::Ran
+        && matches!(command.parser, Parser::CargoJson(_))
+        && (receipt.exit_code != Some(0) || !cargo_build_succeeded(bytes))
+    {
+        output.outcome = Outcome::Failed(format!(
+            "tool-failed:{}:cargo-build-incomplete",
+            command.tool
+        ));
+    }
     if output.outcome == Outcome::Ran && output.version.is_empty() {
         output.outcome =
             Outcome::Failed(format!("tool-failed:{}:version-unreadable", command.tool));
@@ -1460,6 +1499,7 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
         Parser::Govulncheck => Err("govulncheck-source-binding-required".into()),
+        Parser::RustDependency => Err("rust-dependency-source-binding-required".into()),
         Parser::Process => match exit {
             Some(0) => Ok(Vec::new()),
             Some(code) => Err(format!("exit-{code}")),
@@ -1499,6 +1539,25 @@ fn parse_syntax(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
         line,
         message: shorten(&text),
     }])
+}
+
+fn cargo_build_succeeded(bytes: &[u8]) -> bool {
+    let mut completion = None;
+    for line in String::from_utf8_lossy(bytes).lines() {
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        if value.get("reason").and_then(Value::as_str) == Some("build-finished") {
+            if completion.is_some() {
+                return false;
+            }
+            completion = value.get("success").and_then(Value::as_bool);
+            if completion.is_none() {
+                return false;
+            }
+        }
+    }
+    completion == Some(true)
 }
 
 fn parse_cargo(bytes: &[u8], clippy: bool) -> Result<Vec<Diag>, String> {
@@ -1903,6 +1962,7 @@ pub async fn run(
             ctx,
             &mut resolver,
             command,
+            plan.rust_dependency_bindings.get(&command.cwd_rel),
             sequence,
             timeout,
             cancellation.clone(),
@@ -2011,8 +2071,17 @@ pub async fn run(
     let mut seen: BTreeSet<(String, String, usize)> = BTreeSet::new();
     let mut findings: Vec<NativeFinding> = Vec::new();
     for (cwd_rel, diag) in diagnostics {
-        let Some(path) = repo_relative(ctx.root, &canonical_root, &cwd_rel, &diag.path)
-            .filter(|path| selected.contains(path))
+        let Some(path) =
+            repo_relative(ctx.root, &canonical_root, &cwd_rel, &diag.path).filter(|path| {
+                selected.contains(path)
+                    || (provider_id == "code.rust"
+                        && diag.rule.starts_with("cargo-audit:")
+                        && entries.iter().any(|entry| {
+                            entry.path == *path
+                                && name_of(path) == "Cargo.lock"
+                                && entry.digest.is_some()
+                        }))
+            })
         else {
             outside += 1;
             continue;
@@ -2202,5 +2271,23 @@ mod tests {
         let vet = parse_go_vet(b"# pkg\n./main.go:12:3: printf format %d\n", Some(1)).unwrap();
         assert_eq!((vet[0].path.as_str(), vet[0].line), ("./main.go", 12));
         assert!(parse_go_vet(b"go: cannot find module\n", Some(1)).is_err());
+    }
+}
+
+#[cfg(test)]
+mod rust_execution_tests {
+    use super::*;
+    #[test]
+    fn failed_or_missing_cargo_completion_never_passes_build_coverage() {
+        assert!(!cargo_build_succeeded(
+            br#"{"reason":"build-finished","success":false}"#
+        ));
+        assert!(!cargo_build_succeeded(br#"{"reason":"build-finished"}"#));
+        assert!(!cargo_build_succeeded(b""));
+        assert!(!cargo_build_succeeded(b"{\"reason\":\"build-finished\",\"success\":true}\n{\"reason\":\"build-finished\",\"success\":true}"));
+        assert!(cargo_build_succeeded(
+            br#"{"reason":"build-finished","success":true}"#
+        ));
+        assert_eq!(policy_tools("code.rust"), &[] as &[&str]);
     }
 }
