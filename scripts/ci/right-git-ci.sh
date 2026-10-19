@@ -225,6 +225,26 @@ CODE_SDK_ENV
   export LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT LEGION_GOVULNCHECK_DB_ARCHIVE \
     LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
 }
+provision_python_code_sdk() {
+  local output="${RUNNER_TEMP}/legion-python-code-sdk-tools"
+  python3 scripts/ci/audit-python-sdk-bootstrap.py \
+    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
+  local values
+  values="$(python3 - "$output/enrollment.json" <<'PYTHON_CODE_SDK_ENV'
+import json
+import sys
+from pathlib import Path
+names = ["LEGION_PYTHON_SDK_ENROLLMENT_JSON", "LEGION_PYTHON_SDK_PYTHON", "LEGION_PYTHON_SDK_BIN_DIR"]
+values = json.loads(Path(sys.argv[1]).read_bytes())["environment"]
+if set(values) != set(names) or any(not isinstance(value, str) or not Path(value).is_absolute() or any(c in value for c in "\0\t\r\n") for value in values.values()):
+    raise SystemExit("Exact Python SDK bootstrap environment missing or malformed")
+print("\t".join(values[name] for name in names))
+PYTHON_CODE_SDK_ENV
+)" || return "$?"
+  IFS=$'\t' read -r LEGION_PYTHON_SDK_ENROLLMENT_JSON LEGION_PYTHON_SDK_PYTHON \
+    LEGION_PYTHON_SDK_BIN_DIR <<< "$values" || return "$?"
+  export LEGION_PYTHON_SDK_ENROLLMENT_JSON LEGION_PYTHON_SDK_PYTHON LEGION_PYTHON_SDK_BIN_DIR
+}
 run_audit_qualification() {
   audit_qualification_sequence=$((audit_qualification_sequence + 1))
   local sequence="$audit_qualification_sequence"
@@ -579,6 +599,17 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     code_long_tail_native_qualification -- --ignored --exact --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-code-long-tail-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  # Pin official Python wheels before network-denied SDK commands & retain original enrollment.
+  run_audit_qualification provision_python_code_sdk
+  export LEGION_PYTHON_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-python-code-command-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-python-sdk"
+  mkdir -p "$LEGION_PYTHON_CODE_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test real_python_code_command_accuracy \
+    real_python_code_command_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-python-code-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_PYTHON_CODE_COMMAND_SCRATCH LEGION_PYTHON_SDK_ENROLLMENT_JSON \
+    LEGION_PYTHON_SDK_PYTHON LEGION_PYTHON_SDK_BIN_DIR
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.

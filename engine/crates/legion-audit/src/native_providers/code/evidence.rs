@@ -1012,7 +1012,7 @@ pub fn produce(
             }
         }
     }
-    // Manifest membership alone is not an inspection. Go module/lock context is
+    // Manifest membership alone is not an inspection. Go module/lock & Python package context is
     // admitted only after reading the original, frozen digest-bound bytes with
     // the same path, symlink & shared byte limits as language source. Source
     // analysis/facts remain separate from this context inspection.
@@ -1021,11 +1021,31 @@ pub fn produce(
     let mut context_examined = 0u64;
     let mut context_accounting = Vec::new();
     let mut verified_context = Vec::new();
-    if provider_id == "code.go" {
-        for entry in entries
-            .iter()
-            .filter(|entry| matches!(file_name(&entry.path), "go.mod" | "go.sum"))
-        {
+    if matches!(provider_id, "code.go" | "code.python") {
+        if provider_id == "code.python" {
+            // setup.py already belongs to Python source coverage. Reuse only
+            // its actual digest-bound source read; never count it twice.
+            verified_context.extend(
+                entries
+                    .iter()
+                    .filter(|entry| {
+                        file_name(&entry.path) == "setup.py"
+                            && entry.digest.is_some()
+                            && source_accounting
+                                .iter()
+                                .any(|row| row["path"] == entry.path && row["status"] == "examined")
+                    })
+                    .cloned(),
+            );
+        }
+        for entry in entries.iter().filter(|entry| match provider_id {
+            "code.go" => matches!(file_name(&entry.path), "go.mod" | "go.sum"),
+            "code.python" => matches!(
+                file_name(&entry.path),
+                "pyproject.toml" | "setup.cfg" | "requirements.txt" | "Pipfile"
+            ),
+            _ => false,
+        }) {
             context_expected += 1;
             let outcome = if entry.digest.is_none() {
                 Err(Skip::Unbound)
@@ -1047,7 +1067,7 @@ pub fn produce(
                     verified_context.push(entry.clone());
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if file_name(&entry.path) == "go.mod" { "module-context" } else { "dependency-lock-context" },
+                        "analysis": if provider_id == "code.python" { "package-root-context" } else if file_name(&entry.path) == "go.mod" { "module-context" } else { "dependency-lock-context" },
                         "bytes": text.len(), "digest": entry.digest,
                     }));
                 }
@@ -1073,7 +1093,7 @@ pub fn produce(
 
     // Go build tags are only a complete fact when every Go file was read.
     let tags = (examined as usize == selected.len()).then_some(build_tags);
-    let context_entries = if provider_id == "code.go" {
+    let context_entries = if matches!(provider_id, "code.go" | "code.python") {
         verified_context.as_slice()
     } else {
         entries
@@ -1117,7 +1137,7 @@ pub fn produce(
             "rules": rule_ids,
         }],
     });
-    if provider_id == "code.go" {
+    if matches!(provider_id, "code.go" | "code.python") {
         input["contextAccounting"] = json!(context_accounting);
     }
     if long_tail {
@@ -1294,6 +1314,50 @@ mod go_context_tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn python_package_context_requires_bound_reads_without_counting_setup_twice() {
+        let fixture = Fixture::new();
+        let entries = [
+            fixture.file(
+                "pyproject.toml",
+                "[project]\nname='fixture'\nversion='0.0.0'\n",
+            ),
+            fixture.file("answer.py", "answer = 42\n"),
+            fixture.file("setup.py", "pass\n"),
+            fixture.file("README.md", "unrelated\n"),
+        ];
+        let made = produce(
+            "code.python",
+            &python::CONFIG,
+            Some(&fixture.0),
+            &entries,
+            &EvidenceLimits::default(),
+        )
+        .unwrap();
+        assert_eq!((made.expected, made.examined), (2, 2));
+        assert_eq!((made.context_expected, made.context_examined), (1, 1));
+        assert_eq!(made.input["context"]["packageRoots"], json!(["."]));
+        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 1);
+        assert!(made.expected + made.context_expected < entries.len() as u64);
+        let mut changed = entries.to_vec();
+        changed[0].digest = None;
+        changed.retain(|entry| entry.path != "setup.py");
+        let missing = produce(
+            "code.python",
+            &python::CONFIG,
+            Some(&fixture.0),
+            &changed,
+            &EvidenceLimits::default(),
+        )
+        .unwrap();
+        assert_eq!((missing.context_expected, missing.context_examined), (1, 0));
+        assert!(missing.input["context"].get("packageRoots").is_none());
+        assert_eq!(
+            missing.input["contextAccounting"][0]["reason"],
+            "context-inventory-digest-missing"
+        );
     }
 
     #[test]

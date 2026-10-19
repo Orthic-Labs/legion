@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "legion_fixture_missing_backend"
+
+[project]
+name = "fixture-pkg"
+version = "1.0.0"
+requires-python = ">=3.14"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fixture_pkg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

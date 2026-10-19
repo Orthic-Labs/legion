@@ -28,6 +28,9 @@
 //! | | `lint` | `<local>/node_modules/.bin/eslint --no-cache --format json --no-error-on-unmatched-pattern .` |
 //! | `code.python` | `compile` | `python3 -I -B -c <py_compile to scratch> <list> <scratch>` |
 //! | | `lint` | `ruff check --no-cache --output-format json .` |
+//! | | `type` | `mypy --no-incremental --cache-dir <scratch> --no-color-output --show-error-codes --no-pretty .` |
+//! | | `test` | `pytest --assert=plain -o cache_dir=<scratch> --basetemp <scratch>` |
+//! | | `package` | `python3 -I -B -m build --wheel --no-isolation --outdir <scratch> <frozen packageRoot>` plus actual wheel validation |
 //! | `code.go` | `module` | `go list -m` (`GOPROXY=off`, `GOTOOLCHAIN=local`) |
 //! | | `vet` | `go vet ./...` |
 //! | | `format` | `gofmt -l .` |
@@ -36,8 +39,10 @@
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //!
-//! Go tests execute project code only through the supplied ExternalProjectTool;
-//! the installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
+//! Go tests & Python configured tools/backends execute project code only through
+//! supplied ExternalProjectTool; Python uses frozen staged inputs & denies writes
+//! to original audited tree. Explicit package/v1 never installs dependencies. The
+//! installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
 //! caller must supply its own exact policy admission & authenticated sandbox.
 //! Other historical build/test contracts remain deferred plans; package installs
 //! & network-dependent audits never become tool passes.
@@ -70,6 +75,8 @@ mod govulncheck;
 mod mobile_sdk;
 #[path = "native_commands.rs"]
 mod native_commands;
+#[path = "python_commands.rs"]
+mod python_commands;
 #[path = "rubocop.rs"]
 mod rubocop;
 
@@ -195,6 +202,8 @@ enum Parser {
     Eslint,
     Ruff,
     PyCompile,
+    Mypy,
+    PythonWheel,
     GoVet,
     Gofmt,
     GoList,
@@ -463,41 +472,48 @@ fn plan_javascript(
     }
 }
 
-const PY_COMPILE_SCRIPT: &str = "\
+const PY_COMPILE_SCRIPT: &str = r#"
 import sys, os, json, py_compile
 lst, out = sys.argv[1], sys.argv[2]
-n = 0
-for i, rel in enumerate(open(lst, encoding='utf-8').read().split('\\n')):
-    if not rel or not os.path.isfile(rel):
-        continue
-    n += 1
+with open(lst, encoding='utf-8') as source:
+    files = json.load(source)
+if not files or files != json.loads(sys.argv[3]) or len(set(files)) != len(files):
+    raise ValueError('invalid frozen compile scope')
+for i, rel in enumerate(files):
+    if not isinstance(rel, str) or not os.path.isfile(rel):
+        raise ValueError('frozen compile source unavailable')
     try:
         py_compile.compile(rel, cfile=os.path.join(out, '%d.pyc' % i), doraise=True)
     except py_compile.PyCompileError as e:
         v = e.exc_value
         msg = getattr(v, 'msg', None) or str(e.msg).strip().splitlines()[-1]
         print(json.dumps({'path': rel, 'line': getattr(v, 'lineno', None) or 1, 'message': str(msg)[:300]}))
-    except Exception as e:
-        print(json.dumps({'path': rel, 'line': 1, 'message': 'compile failed: ' + type(e).__name__}))
-print(json.dumps({'done': n}))
-";
+print(json.dumps({'done': len(files), 'files': files}))
+"#;
 
 fn plan_python(
+    root: &Path,
     entries: &[InventoryEntry],
     selected: &BTreeSet<String>,
     scratch: &AuditScratch,
     plan: &mut Plan,
 ) {
+    let (stage, input_digest) = match python_commands::stage(root, entries, scratch) {
+        Ok(stage) => stage,
+        Err(reason) => {
+            plan.notes.push(reason);
+            for tool in ["compile", "lint", "type", "test", "package"] {
+                plan.not_planned
+                    .insert(tool, "python-frozen-input-incomplete");
+            }
+            return;
+        }
+    };
     if !selected.is_empty() {
         let list = scratch.tmp_dir().join("py-compile-files.txt");
-        let body = selected
-            .iter()
-            .filter(|path| !path.contains('\n'))
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n");
+        let body = serde_json::to_vec(selected).expect("frozen path set serializes");
         let out_dir = scratch.cache_dir().join("py-compile");
-        if std::fs::write(&list, body).is_ok() && std::fs::create_dir_all(&out_dir).is_ok() {
+        if std::fs::write(&list, &body).is_ok() && std::fs::create_dir_all(&out_dir).is_ok() {
             plan.cleanup.push(list.clone());
             plan.commands.push(Planned {
                 tool: "compile",
@@ -505,7 +521,7 @@ fn plan_python(
                 local_bin: false,
                 sibling_of: None,
                 requires: None,
-                cwd_rel: String::new(),
+                cwd_rel: stage.to_string_lossy().into_owned(),
                 args: vec![
                     "-I".into(),
                     "-B".into(),
@@ -513,13 +529,14 @@ fn plan_python(
                     PY_COMPILE_SCRIPT.into(),
                     list.to_string_lossy().into_owned(),
                     out_dir.to_string_lossy().into_owned(),
+                    String::from_utf8(body).expect("frozen path JSON is UTF-8"),
                 ],
                 parser: Parser::PyCompile,
                 accepted: &[0, 1],
-                env: Vec::new(),
+                env: vec![("PYTHONSAFEPATH", "1".into())],
                 diagnostics_on_stderr: false,
                 source_path: None,
-                source_digest: None,
+                source_digest: Some(input_digest.clone()),
             });
         } else {
             plan.not_planned.insert("compile", "scratch-unwritable");
@@ -534,19 +551,25 @@ fn plan_python(
             local_bin: false,
             sibling_of: None,
             requires: None,
-            cwd_rel: String::new(),
+            cwd_rel: stage.to_string_lossy().into_owned(),
             args: ["check", "--no-cache", "--output-format", "json", "."]
                 .iter()
                 .map(|arg| (*arg).to_owned())
                 .collect(),
             parser: Parser::Ruff,
             accepted: &[0, 1],
-            env: Vec::new(),
+            env: vec![("PYTHONSAFEPATH", "1".into())],
             diagnostics_on_stderr: false,
             source_path: None,
-            source_digest: None,
+            source_digest: Some(input_digest.clone()),
         });
     }
+    // Ruff config may exclude frozen sources; JSON findings do not prove checked-file scope.
+    // Preserve this runtime gap even when every sealed known-answer control matches.
+    if plan.commands.iter().any(|command| command.tool == "lint") {
+        plan.notes.push("lint-scope-unproven".into());
+    }
+    python_commands::extend(entries, scratch, &stage, &input_digest, plan);
 }
 
 fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
@@ -620,7 +643,7 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
-        "code.go" => &[],
+        "code.go" | "code.python" => &[],
         _ => &["test"],
     }
 }
@@ -636,7 +659,7 @@ fn plan_commands(
     match provider_id {
         "code.rust" => plan_rust(root, entries, &mut plan),
         "code.javascript" => plan_javascript(root, entries, scratch, &mut plan),
-        "code.python" => plan_python(entries, selected, scratch, &mut plan),
+        "code.python" => plan_python(root, entries, selected, scratch, &mut plan),
         "code.go" => plan_go(entries, &mut plan),
         "code.php-ruby" => rubocop::plan(root, entries, selected, scratch, &mut plan),
         "code.mobile" => mobile_sdk::plan(root, entries, selected, scratch, &mut plan),
@@ -1080,8 +1103,16 @@ async fn run_one(
         SandboxPolicy::Required => match legion_effects::authenticate_sandbox(
             &executable_text,
             &command.args,
-            &cwd_text,
-            legion_effects::SandboxMode::DenyNetwork,
+            if ctx.provider_id == "code.python" {
+                ctx.root.to_str().unwrap_or("")
+            } else {
+                &cwd_text
+            },
+            if ctx.provider_id == "code.python" {
+                legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+            } else {
+                legion_effects::SandboxMode::DenyNetwork
+            },
             &ctx.scratch.sandbox_dir(),
         ) {
             Ok(auth) => {
@@ -1144,30 +1175,36 @@ async fn run_one(
         version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
-    let native_input_before =
-        if command.parser == Parser::Govulncheck || mobile_sdk::is_mobile(command.parser) {
-            let snapshot = if mobile_sdk::is_mobile(command.parser) {
-                mobile_sdk::snapshot(command)
-            } else {
-                govulncheck::snapshot(command)
-            };
-            match snapshot {
-                Ok(snapshot) => Some(snapshot),
-                Err(reason) => {
-                    return RunOutput::failed(Outcome::Failed(format!(
-                        "tool-failed:{}:input-before:{reason}",
-                        command.tool
-                    )))
-                }
-            }
+    let native_input_before = if command.parser == Parser::Govulncheck
+        || mobile_sdk::is_mobile(command.parser)
+        || ctx.provider_id == "code.python"
+    {
+        let snapshot = if ctx.provider_id == "code.python" {
+            python_commands::snapshot(command)
+        } else if mobile_sdk::is_mobile(command.parser) {
+            mobile_sdk::snapshot(command)
         } else {
-            None
+            govulncheck::snapshot(command)
         };
+        match snapshot {
+            Ok(snapshot) => Some(snapshot),
+            Err(reason) => {
+                return RunOutput::failed(Outcome::Failed(format!(
+                    "tool-failed:{}:input-before:{reason}",
+                    command.tool
+                )))
+            }
+        }
+    } else {
+        None
+    };
     let receipt = ctx.tool.execute(request, cancellation).await;
     // Recheck even failed/refused executions. Retain actual receipt unchanged;
     // input snapshots describe closure stability, never authorize execution.
     let native_input_after = native_input_before.as_ref().map(|_| {
-        if mobile_sdk::is_mobile(command.parser) {
+        if ctx.provider_id == "code.python" {
+            python_commands::snapshot(command)
+        } else if mobile_sdk::is_mobile(command.parser) {
             mobile_sdk::snapshot(command)
         } else {
             govulncheck::snapshot(command)
@@ -1216,6 +1253,9 @@ async fn run_one(
         command.cwd_rel.clone()
     };
     let sandbox_mode = match ctx.sandbox {
+        SandboxPolicy::Required if ctx.provider_id == "code.python" => {
+            "deny-network-deny-project-write"
+        }
         SandboxPolicy::Required => "deny-network",
         SandboxPolicy::Disabled => "disabled",
     };
@@ -1353,6 +1393,23 @@ async fn run_one(
         govulncheck::parse(bytes, receipt.exit_code, command)
     } else if command.parser == Parser::Rubocop {
         rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
+    } else if command.parser == Parser::Mypy {
+        if stderr.as_deref().is_none_or(|b| !b.is_empty()) {
+            Err("mypy-stderr-unaccounted".into())
+        } else {
+            python_commands::parse_mypy(bytes, receipt.exit_code)
+        }
+    } else if command.parser == Parser::PythonWheel {
+        python_commands::parse_wheel(bytes, command)
+    } else if command.parser == Parser::PyCompile {
+        let paths = command
+            .args
+            .get(6)
+            .and_then(|data| serde_json::from_str::<BTreeSet<String>>(data).ok());
+        match paths {
+            Some(paths) => parse_py_compile(bytes, &paths),
+            None => Err("compile-scope-unreadable".into()),
+        }
     } else {
         parse(command.parser, bytes, receipt.exit_code)
     };
@@ -1394,8 +1451,9 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::CargoJson(clippy) => parse_cargo(bytes, clippy),
         Parser::Tsc => parse_tsc(bytes, exit),
         Parser::Eslint => parse_eslint(bytes),
-        Parser::Ruff => parse_ruff(bytes),
-        Parser::PyCompile => parse_py_compile(bytes),
+        Parser::Ruff => parse_ruff(bytes, exit),
+        Parser::PyCompile => Err("compile-scope-required".into()),
+        Parser::Mypy | Parser::PythonWheel => Err("python-frozen-context-required".into()),
         Parser::GoVet => parse_go_vet(bytes, exit),
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
@@ -1581,58 +1639,107 @@ fn parse_eslint(bytes: &[u8]) -> Result<Vec<Diag>, String> {
     Ok(out)
 }
 
-fn parse_ruff(bytes: &[u8]) -> Result<Vec<Diag>, String> {
-    let value: Value =
+fn parse_ruff(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
+    let results: Vec<Value> =
         serde_json::from_slice(bytes).map_err(|_| "unparseable-output".to_owned())?;
-    let results = value
-        .as_array()
-        .ok_or_else(|| "unparseable-output".to_owned())?;
+    if !matches!(exit, Some(0 | 1)) || (exit == Some(0)) != results.is_empty() {
+        return Err("ruff-exit-diagnostic-mismatch".into());
+    }
     let mut out = Vec::new();
     for result in results {
-        let Some(file) = result.get("filename").and_then(Value::as_str) else {
-            continue;
+        let file = result
+            .get("filename")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .ok_or("ruff-filename-missing")?;
+        let code = match result.get("code") {
+            Some(Value::Null) => None,
+            Some(Value::String(code)) if !code.is_empty() => Some(code.as_str()),
+            _ => return Err("ruff-code-malformed".into()),
         };
-        let code = result.get("code").and_then(Value::as_str);
+        let location = result.get("location").ok_or("ruff-location-missing")?;
+        let line = location
+            .get("row")
+            .and_then(Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .filter(|n| *n > 0)
+            .ok_or("ruff-location-malformed")?;
+        location
+            .get("column")
+            .and_then(Value::as_u64)
+            .filter(|n| *n > 0)
+            .ok_or("ruff-location-malformed")?;
+        let message = result
+            .get("message")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .ok_or("ruff-message-missing")?;
         out.push(Diag {
-            rule: match code {
-                Some(code) => format!("ruff:{code}"),
-                None => "ruff:syntax-error".to_owned(),
-            },
+            rule: code
+                .map(|code| format!("ruff:{code}"))
+                .unwrap_or_else(|| "ruff:syntax-error".into()),
             severity: if code.is_some() { "warning" } else { "error" },
             path: file.to_owned(),
-            line: line_of(
-                result
-                    .get("location")
-                    .and_then(|location| location.get("row"))
-                    .and_then(Value::as_u64),
-            ),
-            message: shorten(result.get("message").and_then(Value::as_str).unwrap_or("")),
+            line,
+            message: shorten(message),
         });
     }
     Ok(out)
 }
 
-fn parse_py_compile(bytes: &[u8]) -> Result<Vec<Diag>, String> {
-    let text = String::from_utf8_lossy(bytes);
+fn parse_py_compile(bytes: &[u8], expected: &BTreeSet<String>) -> Result<Vec<Diag>, String> {
+    if expected.is_empty() {
+        return Err("compile-scope-empty".into());
+    }
+    let text = std::str::from_utf8(bytes).map_err(|_| "compile-output-encoding")?;
     let mut done = false;
+    let mut seen = BTreeSet::new();
     let mut out = Vec::new();
     for line in text.lines() {
-        let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
-            continue;
-        };
-        if value.get("done").is_some() {
+        if done {
+            return Err("compile-output-after-completion".into());
+        }
+        let value: Value = serde_json::from_str(line).map_err(|_| "compile-output-malformed")?;
+        let object = value.as_object().ok_or("compile-output-malformed")?;
+        if object.contains_key("done") {
+            if object.len() != 2 || value["done"].as_u64() != Some(expected.len() as u64) {
+                return Err("compile-completion-count".into());
+            }
+            let files: Vec<String> = serde_json::from_value(value["files"].clone())
+                .map_err(|_| "compile-completion-scope")?;
+            if files.len() != expected.len()
+                || files.iter().cloned().collect::<BTreeSet<_>>() != *expected
+            {
+                return Err("compile-completion-scope".into());
+            }
             done = true;
             continue;
         }
-        let Some(path) = value.get("path").and_then(Value::as_str) else {
-            continue;
-        };
+        if object.len() != 3 {
+            return Err("compile-diagnostic-malformed".into());
+        }
+        let path = value["path"]
+            .as_str()
+            .filter(|p| expected.contains(*p))
+            .ok_or("compile-diagnostic-path")?;
+        if !seen.insert(path.to_owned()) {
+            return Err("compile-diagnostic-duplicate".into());
+        }
+        let line = value["line"]
+            .as_u64()
+            .and_then(|n| usize::try_from(n).ok())
+            .filter(|n| *n > 0)
+            .ok_or("compile-diagnostic-line")?;
+        let message = value["message"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .ok_or("compile-diagnostic-message")?;
         out.push(Diag {
-            rule: "py-compile:syntax-error".to_owned(),
+            rule: "py-compile:syntax-error".into(),
             severity: "error",
-            path: path.to_owned(),
-            line: line_of(value.get("line").and_then(Value::as_u64)),
-            message: shorten(value.get("message").and_then(Value::as_str).unwrap_or("")),
+            path: path.into(),
+            line,
+            message: shorten(message),
         });
     }
     if done {
@@ -1812,15 +1919,26 @@ pub async fn run(
         if let Some(why) = plan.not_planned.get(command.tool) {
             accumulator.merge(Outcome::NotRun((*why).into()));
         }
-        for diag in output.diagnostics {
+        for mut diag in output.diagnostics {
+            if ctx.provider_id == "code.python" && Path::new(&diag.path).is_absolute() {
+                let Some(relative) = Path::new(&diag.path).strip_prefix(&command.cwd_rel).ok()
+                else {
+                    evidence.gaps.push(format!(
+                        "{provider_id}:python-diagnostic-outside-frozen-stage"
+                    ));
+                    continue;
+                };
+                diag.path = relative.to_string_lossy().into_owned();
+            }
             // Isolated adapters already rebind diagnostics to the original
             // repository-relative source. Their physical scratch cwd is only
             // execution evidence, never the diagnostic path's base.
-            let diagnostic_cwd = if command.source_path.is_some() {
-                String::new()
-            } else {
-                command.cwd_rel.clone()
-            };
+            let diagnostic_cwd =
+                if command.source_path.is_some() || ctx.provider_id == "code.python" {
+                    String::new()
+                } else {
+                    command.cwd_rel.clone()
+                };
             diagnostics.push((diagnostic_cwd, diag));
         }
     }
@@ -1976,6 +2094,29 @@ mod tests {
             retained["executionPolicyIdentity"],
             crate::execution_policy::binding()["executionPolicyIdentity"]
         );
+    }
+
+    #[test]
+    fn python_completion_rejects_truncation_wrong_scope_and_malformed_diagnostics() {
+        let expected = BTreeSet::from(["answer.py".to_owned()]);
+        assert!(
+            parse_py_compile(br#"{"done":1,"files":["answer.py"]}"#, &expected)
+                .unwrap()
+                .is_empty()
+        );
+        for bytes in [
+            br#"{"done":0,"files":[]}"#.as_slice(),
+            br#"{"done":1,"files":["other.py"]}"#,
+            b"garbage\n{\"done\":1,\"files\":[\"answer.py\"]}",
+            br#"{"path":"answer.py"}"#,
+            b"{\"done\":1,\"files\":[\"answer.py\"]}\n{}",
+        ] {
+            assert!(parse_py_compile(bytes, &expected).is_err());
+        }
+        assert!(parse_ruff(b"[]", Some(0)).unwrap().is_empty());
+        assert!(parse_ruff(b"[]", Some(1)).is_err());
+        assert!(parse_ruff(b"[{}]", Some(1)).is_err());
+        assert!(parse_ruff(b"{}", Some(0)).is_err());
     }
 
     #[test]

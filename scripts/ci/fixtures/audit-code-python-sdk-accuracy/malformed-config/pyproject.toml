@@ -1,0 +1,2 @@
+[build-system
+requires = ["hatchling==1.32.4"]
