@@ -93,6 +93,10 @@ JAVASCRIPT_SDK_EVIDENCE = {"enrollment": "enrollment.json", "childExecution": "c
 CODE_SDK_EVIDENCE = {"toolchainTree": "toolchain-tree.json", "childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "govulnEnrollment": "govulncheck-enrollment.json"}
 PYTHON_SDK_EVIDENCE = {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "pythonEnrollment": "python-sdk-enrollment.json", "providerRecord": "code_python.json"}
 ENTRY_KEYS = {"provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"}
+DOTNET_SDK_SELECTOR = "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls"
+DOTNET_SDK_HARNESS = ["audit_cargo_test", "--lib", DOTNET_SDK_SELECTOR, "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
+DOTNET_SDK_EVIDENCE = {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "dotnetEnrollment": "dotnet-sdk-enrollment.json", "providerRecord": "code_dotnet.json"}
+VALIDATORS["dotnet-sdk"] = "scripts/ci/audit-dotnet-sdk-accuracy.py"
 
 
 def generated_session_provenance(relative):
@@ -174,6 +178,9 @@ def plan_for(root, provider):
 
 def adapter(root, entry):
     provider = entry["provider"]
+    if entry["family"] == "dotnet-sdk":
+        require(provider == "code.dotnet" and entry["stage"] == "finding", ".NET SDK provider/stage differs")
+        return "dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", DOTNET_SDK_SELECTOR
     if entry["family"] == "code-jvm-sdk":
         require(provider == "code.jvm" and entry["stage"] == "finding", "JVM SDK provider/stage differs")
         return "code-jvm-sdk", "real_jvm_sdk_accuracy", "canonical-json", "real_jvm_sdk_accuracy"
@@ -211,6 +218,9 @@ def closure_paths(root, entry):
         paths.update(helper("validate-ownership-native-accuracy.py")["source_files"](root))
     elif family == "code-long-tail":
         paths.update(helper("audit-code-long-tail-accuracy.py")["source_files"](root))
+    elif family == "dotnet-sdk":
+        paths.update(helper("audit-dotnet-sdk-accuracy.py")["source_files"](root))
+        paths.add("scripts/ci/tests/test_dotnet_sdk_adapter.py")
     elif family == "code-jvm-sdk":
         paths.update(helper("audit-jvm-sdk-accuracy.py")["source_files"](root))
         paths.add("scripts/ci/tests/test_jvm_sdk_adapter.py")
@@ -386,6 +396,8 @@ def log_evidence(log, row, validated, family, code_artifact=None):
     summary = "C_FAMILY_SDK_ACCURACY_SUMMARY" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_SUMMARY" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_SUMMARY" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_SUMMARY" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY_SUMMARY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY_SUMMARY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY_SUMMARY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION_SUMMARY" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY_SUMMARY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY_SUMMARY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
     emission_separator = "=" if family == "harness-ast-grep" else " "
     summary_separator = "=" if family == "harness-ast-grep" else " "
+    if family == "dotnet-sdk":
+        emission, summary = "DOTNET_CODE_COMMAND_SDK_ACCURACY_ARTIFACT", "DOTNET_CODE_COMMAND_SDK_ACCURACY_SUMMARY"
     for number, line in enumerate(log.read_text(encoding="utf-8").splitlines(), 1):
         for prefix, collection in ((emission + emission_separator, emissions), (summary + summary_separator, summaries)):
             position = line.find(prefix)
@@ -394,7 +406,7 @@ def log_evidence(log, row, validated, family, code_artifact=None):
     originals = emissions if family == "bench-known-answer" else [(number, value) for number, value in emissions
         if value.get("provider", value.get("providerId")) == provider]
     require(len(originals) == 1, "CI log missing/duplicate original record emission")
-    same(originals[0][1], code_artifact if family in ("javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
+    same(originals[0][1], code_artifact if family in ("dotnet-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
     if family in ("harness-scanner", "harness-iac", "bench-known-answer", "harness-quality"):
         return None, originals[0][0], None
     successful = [(number, value) for number, value in summaries if summary_projection(value, family, provider) is not None]
@@ -430,10 +442,10 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
         require(sequence in ends, "qualification command never terminated")
         end, status = ends[sequence]
         require(start < evidence_line < end and status == 0, "qualification command failed/cancelled or evidence outside span")
-        if summary_line is None or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
+        if summary_line is None or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             outcomes = re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span)
-            expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[2]] if command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS) else [command[3]]
+            expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[2]] if command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS) else [command[3]]
             # Node retains & replays one child run of this same named fixture.
             expected_runs = 2 if command[:3] == ["audit_cargo_test", "--test", "node_outdated_accuracy"] else 1
             require(outcomes == [("1", "0", "0")] * (len(expected_tests) * expected_runs), "required harness tests did not execute expected successful count")
@@ -468,6 +480,8 @@ def provenance(root, entry, row, validated):
                       ["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"])
     if family in ("javascript-sdk", "ownership-native", "code-long-tail", "visual", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated"):
         wanted_harness.insert(wanted_harness.index("--nocapture"), "--exact")
+    if family == "dotnet-sdk":
+        wanted_harness = DOTNET_SDK_HARNESS
     same(proof["command"]["harness"], wanted_harness, "CI harness selector differs")
     if harness_only:
         require(proof["validator"] is None, "harness-only proof must not invent independent validator")
@@ -475,6 +489,8 @@ def provenance(root, entry, row, validated):
         require(proof["command"]["validator"][:2] == ["python3", validator], "CI validator command differs")
         options = ["--root", "--receipts"] if family in ("javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-jvm-sdk", "ownership-native", "code-python-sdk", "code-long-tail", "code-sdk", "file", "shellcheck", "visual", "secrets-history", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
         args = proof["command"]["validator"]
+        if family == "dotnet-sdk":
+            options = ["--root", "--receipts"]
         require(len(args) == 2 + 2 * len(options) and args[2::2] == options, "CI validator flags differ")
         if family == "code-c-family-sdk":
             require(Path(args[3]).is_absolute() and args[5] == str(helper("audit-c-family-sdk-registration.py")["receipt_root"](row))
@@ -496,6 +512,10 @@ def provenance(root, entry, row, validated):
                     and args[5] == str(PurePosixPath(row["cases"][0]["fixtureRoot"]).parent.parent)
                     and args[5].endswith("/legion-provider-qualification/code-long-tail"),
                     "long-tail validator original receipt root differs")
+        if family == "dotnet-sdk":
+            require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-dotnet-sdk")
+                    and args[5] == str(PurePosixPath(row["cases"][0]["policyDefinition"]["scratch"]).parents[2]),
+                    ".NET SDK validator native receipt scope differs")
         if family == "code-jvm-sdk":
             require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-jvm-sdk"), "JVM SDK validator original receipt root differs")
         if family == "code-python-sdk":
@@ -516,6 +536,10 @@ def provenance(root, entry, row, validated):
         require(proof["validator"] == {"path": validator, "sha256": digest(relative_file(root, validator).read_bytes())}, "CI validator stale")
     log = reference(root, proof["log"], "logs")
     code_artifact = None
+    if family == "dotnet-sdk":
+        raw = relative_file(root, entry["dotnetSdkEvidence"]["providerRecord"]["path"]).read_bytes()
+        require(digest(raw) == entry["record"]["sha256"], "indexed .NET SDK record is not original artifact bytes")
+        code_artifact = helper("audit-dotnet-sdk-accuracy.py")["artifact_locator"](row, raw)
     if family == "code-jvm-sdk":
         raw = relative_file(root, entry["jvmSdkEvidence"]["code_jvm.json"]["path"]).read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed JVM SDK record is not original artifact bytes")
@@ -560,6 +584,9 @@ def provenance(root, entry, row, validated):
 def record_binding(root, entry, path, row, registry):
     provider = entry["provider"]
     family, _, _, _ = adapter(root, entry)
+    if family == "dotnet-sdk":
+        require(entry["provenance"]["platform"] == "macos-15", ".NET SDK native platform differs")
+        return helper("audit-dotnet-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["dotnetSdkEvidence"]["dotnetEnrollment"]["path"])))
     if family == "code-mobile-sdk":
         require(entry["provenance"]["platform"] == "macos-15", "mobile SDK native platform differs")
         _, evidence = code_mobile_evidence(root, entry, row)
@@ -989,6 +1016,19 @@ def validate_quality_record(root, entry, row, registry, files, api):
 
 
 def controls(row, entry):
+    if entry["family"] == "dotnet-sdk":
+        require(entry["provider"] == row.get("provider") == "code.dotnet"
+                and row.get("schema") == "legion-dotnet-sdk-accuracy/1"
+                and row.get("productionQualification") is False
+                and row.get("claimScope") == entry["scope"] == "known-answer-fixture-cases"
+                and row.get("qualificationEligible") is True and row.get("missingControls") == []
+                and row.get("status") == "observed-known-answer-controls"
+                and row.get("metrics", {}).get("boundedSdkAccuracyQualified") is True
+                and row.get("metrics", {}).get("wholeProviderQualified") is False
+                and row.get("executedScope") == ["restore", "build", "analyzer", "test"]
+                and type(row.get("modelCalls")) is int and row["modelCalls"] == 0,
+                "incomplete/unexecuted .NET SDK controls cannot qualify")
+        return
     if entry["family"] == "code-mobile-sdk":
         require(row["schema"] == "legion-mobile-sdk-controls/2" and row["provider"] == entry["provider"] == "code.mobile"
                 and row["family"] == "code-mobile-sdk" and row["stage"] == entry["stage"] == "finding"
@@ -1250,7 +1290,7 @@ def qualification(entry):
                       "admissionScope": "exact fixture SDK authorizer; production default owner admission denied"})
     if entry["family"] == "code-jvm-sdk":
         value.update({"productionQualification": False, "fixtureScope": entry["scope"], "operationContract": "jvm/v1", "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
-    if entry["family"] in ("code-sdk", "code-python-sdk"):
+    if entry["family"] in ("dotnet-sdk", "code-sdk", "code-python-sdk"):
         value.update({"productionQualification": False, "fixtureScope": "known-answer-fixture-cases",
                       "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
     if entry["family"] == "harness-quality":
@@ -1351,6 +1391,18 @@ def python_sdk_evidence(root, entry, row):
     return {ref["path"] for ref in refs.values()}
 
 
+def dotnet_sdk_evidence(root, entry, row):
+    refs = entry["dotnetSdkEvidence"]
+    keys(refs, DOTNET_SDK_EVIDENCE)
+    directory = f"{ARCHIVE}/records/code.dotnet/evidence/{row['qualificationDigest'].removeprefix('sha256:')}/"
+    paths = {}
+    for key, filename in DOTNET_SDK_EVIDENCE.items():
+        require(refs[key].get("path") == directory + filename, ".NET SDK original retained layout differs")
+        paths[key] = reference(root, refs[key], "records")
+    helper("audit-dotnet-sdk-accuracy.py")["validate_retained"](root, row, paths)
+    return {ref["path"] for ref in refs.values()}
+
+
 def check(root):
     root = Path(root).resolve()
     index = load(relative_file(root, INDEX))
@@ -1362,7 +1414,7 @@ def check(root):
     require(len({row["id"] for row in registry}) == len(registry), "duplicate registry provider")
     specs, entries = {row["id"]: row for row in registry}, {}
     for entry in index["entries"]:
-        keys(entry, ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS | {"codeSdkEvidence"} if entry.get("family") == "code-sdk" else ENTRY_KEYS)
+        keys(entry, ENTRY_KEYS | {"dotnetSdkEvidence"} if entry.get("family") == "dotnet-sdk" else ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS | {"codeSdkEvidence"} if entry.get("family") == "code-sdk" else ENTRY_KEYS)
         require(entry["provider"] in specs and entry["provider"] not in entries, "unexpected/duplicate index provider")
         entries[entry["provider"]] = entry
     retained = {INDEX, SCHEMA}
@@ -1387,12 +1439,14 @@ def check(root):
             retained.update(jvm_sdk_evidence(root, entry, row))
         if entry["family"] == "code-mobile-sdk":
             retained.update(code_mobile_evidence(root, entry, row)[0])
+        if entry["family"] == "dotnet-sdk":
+            retained.update(dotnet_sdk_evidence(root, entry, row))
         if entry["family"] == "code-python-sdk":
             retained.update(python_sdk_evidence(root, entry, row))
         if entry["family"] == "code-sdk":
             retained.update(code_sdk_evidence(root, entry, row))
         controls(row, entry)
-        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
+        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("dotnet-sdk", "javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
         validated = record_binding(root, entry, path, row, specs)
         retained.add(entry["record"]["path"])
         retained.update(provenance(root, entry, row, validated))

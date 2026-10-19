@@ -464,6 +464,7 @@ impl ProviderExecutorAdapter {
                     "contextFilesRead": made.context_examined,
                     "contextBytesRead": made.context_bytes_read,
                     "contextAccounting": made.input.get("contextAccounting"),
+                    "context": made.input.get("context"),
                     "bytesRead": made.bytes_read,
                     "rules": made.rule_ids,
                     "sourceAccounting": made.input.get("sourceAccounting"),

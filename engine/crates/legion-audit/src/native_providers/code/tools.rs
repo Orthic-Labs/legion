@@ -36,6 +36,7 @@
 //! | | `vet` | `go vet ./...` |
 //! | | `format` | `gofmt -l .` |
 //! | | `test` | `go test -count=1 ./...` (requires exact injected SDK authorization) |
+//! | `code.dotnet` | `restore` / `build` / `analyzer` / `test` | Enrolled SDK8, sealed expanded NuGet cache, Roslyn/FSharpLint & retained TRX (requires exact injected SDK authorization) |
 //! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
@@ -73,6 +74,11 @@ use tokio_util::sync::CancellationToken;
 
 #[path = "c_family_native.rs"]
 mod c_family_native;
+#[path = "dotnet_sdk.rs"]
+mod dotnet_sdk;
+#[cfg(test)]
+#[path = "dotnet_sdk_accuracy.rs"]
+mod dotnet_sdk_accuracy;
 #[path = "govulncheck.rs"]
 mod govulncheck;
 #[path = "javascript_sdk.rs"]
@@ -218,6 +224,7 @@ enum Parser {
     Gofmt,
     GoList,
     Govulncheck,
+    Dotnet,
     RustDependency,
     /// Exit-only project command contract: failure is a gap, never a fabricated finding.
     Process,
@@ -672,7 +679,7 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
-        "code.rust" | "code.go" | "code.python" => &[],
+        "code.rust" | "code.go" | "code.python" | "code.dotnet" => &[],
         _ => &["test"],
     }
 }
@@ -1022,6 +1029,19 @@ async fn run_one(
     let Some(executable_digest) = resolver.digest(&executable) else {
         return RunOutput::failed(Outcome::Missing);
     };
+    if command.parser == Parser::Dotnet {
+        if ctx.sandbox != SandboxPolicy::Required {
+            return RunOutput::failed(Outcome::NotRun(
+                "dotnet-requires-authenticated-sandbox".into(),
+            ));
+        }
+        if let Err(reason) = dotnet_sdk::executable_valid(command, &executable) {
+            return RunOutput::failed(Outcome::Failed(format!(
+                "tool-failed:{}:{reason}",
+                command.tool
+            )));
+        }
+    }
     let program = command
         .programs
         .iter()
@@ -1097,7 +1117,9 @@ async fn run_one(
     // the same authenticated wrapper. PowerShell uses its profile-free probe.
     let mut version_probe_executable = executable_text.clone();
     let mut version_probe_identity = None;
-    let tool_version_args = if command.parser == Parser::Govulncheck {
+    let tool_version_args = if command.parser == Parser::Dotnet {
+        dotnet_sdk::version_args(command)
+    } else if command.parser == Parser::Govulncheck {
         match govulncheck::version_args() {
             Ok(args) => args,
             Err(reason) => {
@@ -1231,6 +1253,8 @@ async fn run_one(
             python_commands::snapshot(command)
         } else if mobile_sdk::is_mobile(command.parser) {
             mobile_sdk::snapshot(command)
+        } else if command.parser == Parser::Dotnet {
+            dotnet_sdk::snapshot(command)
         } else if command.parser == Parser::RustDependency {
             rust_dependency::snapshot(command, rust_binding, &executable)
         } else if c_family_native::is_native(command.parser) {
@@ -1239,25 +1263,26 @@ async fn run_one(
             govulncheck::snapshot(command)
         }
     };
-    let native_input_before =
-        if matches!(command.parser, Parser::Govulncheck | Parser::RustDependency)
-            || javascript_command
-            || mobile_sdk::is_mobile(command.parser)
-            || c_family_native::is_native(command.parser)
-            || ctx.provider_id == "code.python"
-        {
-            match snapshot() {
-                Ok(snapshot) => Some(snapshot),
-                Err(reason) => {
-                    return RunOutput::failed(Outcome::Failed(format!(
-                        "tool-failed:{}:input-before:{reason}",
-                        command.tool
-                    )))
-                }
+    let native_input_before = if matches!(
+        command.parser,
+        Parser::Govulncheck | Parser::RustDependency | Parser::Dotnet
+    ) || javascript_command
+        || mobile_sdk::is_mobile(command.parser)
+        || c_family_native::is_native(command.parser)
+        || ctx.provider_id == "code.python"
+    {
+        match snapshot() {
+            Ok(snapshot) => Some(snapshot),
+            Err(reason) => {
+                return RunOutput::failed(Outcome::Failed(format!(
+                    "tool-failed:{}:input-before:{reason}",
+                    command.tool
+                )))
             }
-        } else {
-            None
-        };
+        }
+    } else {
+        None
+    };
     let receipt = ctx.tool.execute(request, cancellation).await;
     // Recheck even failed/refused executions. Retain actual receipt unchanged;
     // input snapshots describe closure stability, never authorize execution.
@@ -1361,6 +1386,12 @@ async fn run_one(
             "unchanged": native_input_error.is_none(),
         });
     }
+    if command.parser == Parser::Dotnet {
+        let result = dotnet_sdk::results(command);
+        summary["dotnetStandardResults"] =
+            json!({"retained":result.as_ref().ok(),"error":result.as_ref().err()});
+        summary["dotnetAnalyzerScope"] = dotnet_sdk::analyzer_scope(command);
+    }
     for (key, value) in summary.as_object().expect("summary object") {
         if classify(command.tool, &receipt) == Some(Outcome::AdmissionUnavailable) {
             retained_receipt
@@ -1447,6 +1478,7 @@ async fn run_one(
     if matches!(
         command.parser,
         Parser::Syntax
+            | Parser::Dotnet
             | Parser::Process
             | Parser::CFamilyProcess
             | Parser::ClangCompiler
@@ -1505,7 +1537,14 @@ async fn run_one(
             }
         }
     }
-    let parsed = if javascript_command && command.parser == Parser::Tsc {
+    let parsed = if command.parser == Parser::Dotnet {
+        dotnet_sdk::parse(
+            command,
+            bytes,
+            stderr.as_deref().unwrap_or_default(),
+            receipt.exit_code,
+        )
+    } else if javascript_command && command.parser == Parser::Tsc {
         javascript_sdk::typescript(ctx, command, bytes, receipt.exit_code).map(|v| v.0)
     } else if javascript_command && command.parser == Parser::Eslint {
         javascript_sdk::eslint(bytes, receipt.exit_code).map(|v| v.0)
@@ -1594,6 +1633,7 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
         Parser::Govulncheck => Err("govulncheck-source-binding-required".into()),
+        Parser::Dotnet => Err("dotnet-context-required".into()),
         Parser::RustDependency => Err("rust-dependency-source-binding-required".into()),
         Parser::ClangCompiler | Parser::ClangTidy => Err("c-family-source-binding-required".into()),
         Parser::CFamilyProcess | Parser::Process => match exit {
@@ -2099,12 +2139,14 @@ pub async fn run(
             // Isolated adapters already rebind diagnostics to the original
             // repository-relative source. Their physical scratch cwd is only
             // execution evidence, never the diagnostic path's base.
-            let diagnostic_cwd =
-                if command.source_path.is_some() || ctx.provider_id == "code.python" {
-                    String::new()
-                } else {
-                    command.cwd_rel.clone()
-                };
+            let diagnostic_cwd = if command.source_path.is_some()
+                || ctx.provider_id == "code.python"
+                || command.parser == Parser::Dotnet
+            {
+                String::new()
+            } else {
+                command.cwd_rel.clone()
+            };
             diagnostics.push((diagnostic_cwd, diag));
         }
     }

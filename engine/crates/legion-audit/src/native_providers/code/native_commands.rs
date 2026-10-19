@@ -1,6 +1,6 @@
 //! Native-family applicability & isolated syntax adapters. Project commands
-//! remain deferred except for offline Go tests submitted through the existing
-//! policy-bound SDK runner. Plans never substitute for actual execution receipts.
+//! use enrolled offline SDK plans where supported, through the existing
+//! policy-bound runner. Plans never substitute for actual execution receipts.
 use super::*;
 
 const MAX_SYNTAX_FILES: usize = 200;
@@ -122,34 +122,7 @@ pub(super) fn plan(
             }
         }
         "code.dotnet" => {
-            // Restore is deliberately not attempted: it can acquire dependencies.
-            plan.not_planned
-                .insert("restore", "policy-no-dependency-install");
-            let dirs = cap_roots(
-                entries
-                    .iter()
-                    .filter(|e| {
-                        [".csproj", ".fsproj", ".vbproj", ".sln"]
-                            .iter()
-                            .any(|suffix| e.path.ends_with(suffix))
-                    })
-                    .map(|e| dir_of(&e.path))
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect(),
-                "dotnet",
-                &mut plan.notes,
-            );
-            for dir in dirs {
-                for tool in ["build", "test"] {
-                    plan.deferred.push(command(
-                        tool,
-                        &["dotnet"],
-                        &dir,
-                        vec![tool.into(), "--no-restore".into(), "--nologo".into()],
-                    ));
-                }
-            }
+            super::dotnet_sdk::plan(root, entries, scratch, plan);
         }
         "code.c-family" => {
             // Both configuration & make -n may execute project code.
@@ -375,7 +348,6 @@ mod tests {
                 &["build.gradle.kts", "pom.xml"],
                 &["gradle", "mvn"],
             ),
-            ("code.dotnet", &["App.csproj"], &["dotnet"]),
             (
                 "code.c-family",
                 &["CMakeLists.txt", "Makefile"],

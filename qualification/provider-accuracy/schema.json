@@ -570,7 +570,8 @@
             "code-jvm-sdk",
             "code-mobile-sdk",
             "code-c-family-sdk",
-            "javascript-sdk"
+            "javascript-sdk",
+            "dotnet-sdk"
           ]
         },
         "record": {
@@ -631,6 +632,9 @@
         },
         "javascriptSdkEvidence": {
           "$ref": "#/$defs/javascriptSdkEvidence"
+        },
+        "dotnetSdkEvidence": {
+          "$ref": "#/$defs/dotnetSdkEvidence"
         }
       },
       "allOf": [
@@ -767,6 +771,35 @@
             "not": {
               "required": [
                 "javascriptSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "dotnet-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "dotnetSdkEvidence"
+            ],
+            "properties": {
+              "provider": {
+                "const": "code.dotnet"
+              },
+              "stage": {
+                "const": "finding"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "dotnetSdkEvidence"
               ]
             }
           }
@@ -913,6 +946,35 @@
           "$ref": "#/$defs/reference"
         },
         "childStderr": {
+          "$ref": "#/$defs/reference"
+        },
+        "providerRecord": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "dotnetSdkEvidence": {
+      "description": "Original native .NET SDK enrollment, child execution, raw logs & record bytes; bounded fixture qualification only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "childExecution",
+        "childStdout",
+        "childStderr",
+        "dotnetEnrollment",
+        "providerRecord"
+      ],
+      "properties": {
+        "childExecution": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStdout": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStderr": {
+          "$ref": "#/$defs/reference"
+        },
+        "dotnetEnrollment": {
           "$ref": "#/$defs/reference"
         },
         "providerRecord": {

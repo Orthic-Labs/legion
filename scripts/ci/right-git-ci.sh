@@ -167,7 +167,14 @@ fi
 audit_qualification_failures=0
 audit_qualification_sequence=0
 audit_cargo_bin="$(command -v cargo)"
-audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
+audit_cargo_test() {
+  if [[ -n "${LEGION_DOTNET_CHILD_OUTPUT:-}" ]]; then
+    (cd engine && python3 "$GITHUB_WORKSPACE/scripts/ci/run-dotnet-sdk-qualification-child.py" \
+      --output-root "$LEGION_DOTNET_CHILD_OUTPUT" -- "$audit_cargo_bin" test --locked -p legion-audit "$@")
+  else
+    (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@")
+  fi
+}
 audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
 # Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
 # A failed native prerequisite stops JVM commands; no network relaxation occurs.
@@ -262,6 +269,10 @@ provision_c_family_sdk() {
     --clang "$llvm_root/bin/clang" --clangxx "$llvm_root/bin/clang++" \
     --clang-tidy "$llvm_root/bin/clang-tidy" --make /usr/bin/make \
     "${roots[@]}" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
+}
+provision_dotnet_code_sdk() {
+  python3 scripts/ci/provision-dotnet-qualification-tools.py \
+    --root "${RUNNER_TEMP}/legion-dotnet-code-sdk-tools"
 }
 provision_python_code_sdk() {
   local output="${RUNNER_TEMP}/legion-python-code-sdk-tools"
@@ -706,6 +717,18 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification python3 scripts/ci/audit-javascript-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH javascript_sdk_enrollment
+  # Acquire pinned SDK/package inputs before native network-denied project execution.
+  run_audit_qualification provision_dotnet_code_sdk
+  export LEGION_DOTNET_ENROLLMENT="${RUNNER_TEMP}/legion-dotnet-code-sdk-tools/enrollment.json"
+  export LEGION_DOTNET_CHILD_OUTPUT="${RUNNER_TEMP}/legion-provider-qualification/code-dotnet-sdk"
+  export LEGION_DOTNET_ACCURACY_OUTPUT="${LEGION_DOTNET_CHILD_OUTPUT}/code_dotnet.json"
+  mkdir -p "$LEGION_DOTNET_CHILD_OUTPUT"
+  run_audit_qualification audit_cargo_test --lib \
+    native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls \
+    -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-dotnet-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_DOTNET_CHILD_OUTPUT"
+  unset LEGION_DOTNET_ENROLLMENT LEGION_DOTNET_CHILD_OUTPUT LEGION_DOTNET_ACCURACY_OUTPUT
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.

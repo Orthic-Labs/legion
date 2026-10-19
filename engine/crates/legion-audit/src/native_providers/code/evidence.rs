@@ -1030,7 +1030,7 @@ pub fn produce(
             }
         }
     }
-    // Manifest membership alone is not inspection. Go/Rust/Python context is
+    // Manifest membership alone is not inspection. SDK context is
     // admitted only after reading the original, frozen digest-bound bytes with
     // the same path, symlink & shared byte limits as language source. Source
     // analysis/facts remain separate from this context inspection.
@@ -1041,7 +1041,7 @@ pub fn produce(
     let mut verified_context = Vec::new();
     if matches!(
         provider_id,
-        "code.c-family" | "code.go" | "code.python" | "code.rust"
+        "code.c-family" | "code.go" | "code.python" | "code.rust" | "code.dotnet"
     ) {
         if provider_id == "code.python" {
             // setup.py already belongs to Python source coverage. Reuse only
@@ -1061,6 +1061,15 @@ pub fn produce(
         }
         for entry in entries.iter().filter(|entry| match provider_id {
             "code.go" => matches!(file_name(&entry.path), "go.mod" | "go.sum"),
+            "code.dotnet" => {
+                let name = file_name(&entry.path);
+                matches!(
+                    name,
+                    "global.json" | ".editorconfig" | "fsharplint.json" | "packages.lock.json"
+                ) || [".csproj", ".fsproj", ".vbproj"]
+                    .iter()
+                    .any(|extension| name.ends_with(extension))
+            }
             "code.c-family" => entry.path == "CMakeLists.txt",
             "code.python" => matches!(
                 file_name(&entry.path),
@@ -1117,7 +1126,7 @@ pub fn produce(
                     }
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
+                        "analysis": if provider_id == "code.dotnet" { "dotnet-sdk-frozen-context" } else if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
                             "go.mod" | "Cargo.toml" => "module-context",
                             "rust-toolchain.toml" | "rust-toolchain" => "toolchain-context",
                             _ => "dependency-lock-context",
@@ -1181,7 +1190,7 @@ pub fn produce(
     let tags = (examined as usize == selected.len()).then_some(build_tags);
     let context_entries = if matches!(
         provider_id,
-        "code.rust" | "code.c-family" | "code.go" | "code.python"
+        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.dotnet"
     ) {
         verified_context.as_slice()
     } else {
@@ -1232,7 +1241,7 @@ pub fn produce(
     });
     if matches!(
         provider_id,
-        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.jvm"
+        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.jvm" | "code.dotnet"
     ) {
         input["contextAccounting"] = json!(context_accounting);
     }
