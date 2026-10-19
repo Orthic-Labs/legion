@@ -58,17 +58,25 @@ overrides it.
    no applicable provider was excluded. Providers with empty denominators or checked conditional
    triggers that did not fire are not omissions. `providers: []`, `lensesRan: []` when lenses were
    required, or `native-provider-composition-partial` is control-plane degradation — never Audit
-   evidence & never “no findings.” Continue with the native runner; if it is
-   unavailable, execute deterministic scanners & applicable lenses directly, record
-   `audit-runner-unavailable`, & keep result incomplete.
+   evidence & never “no findings.” If the native runner is unavailable, record
+   `audit-runner-unavailable`, preserve the frozen provider/lens denominator, & keep
+   the result typed `incomplete`; do not run scanners or lenses through a direct fallback.
    If resident & one-shot paths both genuinely fail or are unavailable, record exact typed
-   degradation & continue applicable providers; do not treat enrollment alone as unavailable.
-4. Project-executing checks need trusted host network-sandbox receipt; without it they are
-   `UNPROVEN`; file-only providers still run.
+   degradation & continue only providers available through native execution; do not treat enrollment
+   alone as unavailable or use direct scanner/lens execution as a bypass.
+4. Native external scanner/check/tool/version/snapshot execution requires native owner admission.
+   Current CLI policy freezes `externalProcesses=owner-admission-required`,
+   `admissionStatus=unavailable`, & `effectiveMode=deny-external`; requests are denied before
+   executable resolution, version probing, or spawn with reason `native-owner-admission-unavailable`.
+   Caller environment, declared ownership argv, & network flags cannot grant admission. Preserve
+   typed denial receipts & gaps; do not bypass them. Project-executing checks also need trusted host
+   network-sandbox receipt; without either prerequisite they are `UNPROVEN`; file-only providers
+   still run. SDK in-process helpers with an explicit trusted owner authorizer are a separate path.
    If the trusted host declares `AUDIT_OWNERSHIP_SCAN_CMD`, provider `governance.capability-ownership`
-   runs it read-only; findings are advisory "duplicates RightKit owner" notes (listed under
-   `advisoryFindings`, never blocking unless the host sets `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`);
-   an unset command is reported as the degradation note `ownership-scan-unavailable`, never clean.
+   retains its full denominator & a typed admission-denied receipt; declaration alone cannot run
+   the command. Findings, when supplied by an admitted run, are advisory "duplicates RightKit owner"
+   notes under `advisoryFindings`; `AUDIT_OWNERSHIP_SCAN_REQUIRED=1` makes coverage required for a
+   clean claim. An unset command remains a typed `ownership-scan-unavailable` gap, never clean.
 5. Read `plan.json` before `facts.json`; every contract-enumerated failure is `UNPROVEN` & keeps
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.

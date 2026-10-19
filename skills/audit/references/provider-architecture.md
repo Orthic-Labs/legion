@@ -78,22 +78,36 @@ only when the trusted host has already established an external network sandbox a
 the frozen denominator. The receipt and skipped checks are recorded in `facts.network_policy`.
 Audit never silently enables network to improve coverage.
 
+Native CLI external process execution has a separate owner-admission prerequisite. The frozen
+policy is `externalProcesses=owner-admission-required`, `admissionStatus=unavailable`, and
+`effectiveMode=deny-external`, with denial reason `native-owner-admission-unavailable`. External
+scanner/check/tool/version/snapshot requests are denied before executable resolution, version
+probing, or spawn; typed effect receipts and provider gaps remain in the result. Environment
+variables, declared ownership argv, and network flags cannot grant admission. The network sandbox
+is an additional requirement for project execution, not an admission mechanism. SDK in-process
+helpers with an explicit trusted owner authorizer are a distinct path; no native admission adapter
+is implied here.
+
 ## Host-declared capability ownership
 
 `governance.capability-ownership` is conditional on a trusted-host declaration, not on repository
 content. The registry marks it with `runner.hostDeclaration`; at planning time the plan freezes
 whether the host declared it and the command digest (`hostDeclaration` in provider configuration).
+Declaration is not native owner admission: current CLI policy denies external execution before
+spawn, records the typed denial receipt and gap, and preserves the provider in the frozen denominator.
 
-- `AUDIT_OWNERSHIP_SCAN_CMD`: JSON argv array (no shell). Run with the frozen root as working
-  directory and a minimal environment. The command must be read-only and print
+- `AUDIT_OWNERSHIP_SCAN_CMD`: JSON argv array (no shell). If admitted, run with the frozen root as
+  working directory and a minimal environment. The command must be read-only and print
   `{"schemaVersion":1,"findings":[{"rule","path","line"?,"message","capability"?,"owner"?}]}`.
-  Legion ships no ownership ruleset; the host owns it.
+  Legion ships no ownership ruleset; the host owns it. The declaration cannot grant native owner
+  admission, so the current native CLI does not execute this command.
 - `line` is optional; absent means a file-level finding (reported at line 1, `lineKnown: false`).
 - Not declared: provider is skipped (`host-declaration-absent`) and the report carries the coverage
   note `ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset`; it never blocks a clean verdict.
 - `AUDIT_OWNERSHIP_SCAN_REQUIRED=1`: host marks the provider required for a clean claim. Otherwise
-  findings are advisory `warning`s listed under `advisoryFindings`, and its gaps become
-  non-blocking `ownership-scan-degraded:*` coverage notes.
+  findings supplied by an admitted run are advisory `warning`s listed under `advisoryFindings`, and
+  its gaps become non-blocking `ownership-scan-degraded:*` coverage notes. Unavailable admission
+  remains a typed denial gap; it is not a clean scan.
 - Declaration drift since planning, spawn failure, timeout, non-zero exit, invalid output, or a
   finding outside the frozen denominator: typed gap, provider `UNPROVEN`.
 

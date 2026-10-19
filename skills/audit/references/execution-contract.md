@@ -31,6 +31,18 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 `legion report <run-dir>/report.json --format md|html|sarif|json [--out <file>]` renders a frozen report;
 `legion fix --plan <sealed-remediation-plan>` validates a remediation plan and applies nothing.
 
+### Native external execution admission
+
+The native CLI freezes `executionPolicy.externalProcesses=owner-admission-required`,
+`admissionStatus=unavailable`, and `effectiveMode=deny-external`. External scanner, check, tool,
+version, and snapshot processes are denied before executable resolution, version probing, or spawn
+with reason `native-owner-admission-unavailable`. Caller environment, declared ownership argv, and
+network flags cannot grant owner admission. Preserve typed denial receipts and coverage gaps; no
+direct scanner or lens fallback may bypass the native runner. The provider/lens denominator remains
+frozen, and unavailable execution keeps the result `incomplete`. SDK in-process helpers using an
+explicit trusted owner authorizer are a separate path; this policy does not claim a native admission
+adapter exists.
+
 ## Coverage modes and quality outcome
 
 `legion audit` implements frozen lens coverage planning with `--coverage auto|exhaustive|risk-sampled`
@@ -240,10 +252,12 @@ complete and every required lens ingested.
 
 ## Network sandbox and runtime capture (step 4 detail)
 
-Project-executing checks and runtime capture require a trusted host network sandbox. The host sets
-`AUDIT_NETWORK_GUARD=active` only after network denial is actually enforced outside the audited
-process. Without that receipt, build/type/lint/test/runtime commands are skipped as `UNPROVEN`;
-file-only providers still run. Supply `--url <running-app-url>` for selected runtime providers,
+Project-executing checks and runtime capture require both native owner admission and a trusted host
+network sandbox. Current native CLI owner admission is unavailable, so external commands are denied
+before spawn and retain a typed denial receipt; network sandbox state cannot grant owner admission.
+The host sets `AUDIT_NETWORK_GUARD=active` only after network denial is actually enforced outside
+the audited process. Without either prerequisite, build/type/lint/test/runtime commands are
+`UNPROVEN`; file-only providers still run. Supply `--url <running-app-url>` for selected runtime providers,
 `--surfaces <targets.json>` for button/card-driven views, `--visual-spec <spec.json>` for explicit
 rendered evidence, or `--visual-baselines <map.json>` for baseline comparison.
 
@@ -257,18 +271,23 @@ target binding and scoped egress, no interaction action runs and each descriptor
 
 ## Capability ownership (host-declared)
 
-If the trusted host sets `AUDIT_OWNERSHIP_SCAN_CMD`, `governance.capability-ownership` runs that
-read-only command and maps its findings (`line` optional; file-level when absent) into the report
-as advisory "duplicates RightKit owner" notes under `advisoryFindings`. When unset it reports the
-non-blocking coverage note `ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset`, never a
-silent not-applicable. See `provider-architecture.md`.
+If the trusted host sets `AUDIT_OWNERSHIP_SCAN_CMD`, `governance.capability-ownership` freezes its
+declaration and full denominator, but native owner admission is still required to execute it.
+Current CLI policy denies the command before spawn and records a typed denial receipt and gap;
+the declaration and argv cannot grant admission. Findings from an admitted run are advisory
+"duplicates RightKit owner" notes under `advisoryFindings`; `AUDIT_OWNERSHIP_SCAN_REQUIRED=1` makes
+coverage required for a clean claim. When unset it reports the typed
+`ownership-scan-unavailable:AUDIT_OWNERSHIP_SCAN_CMD unset` gap, never a silent not-applicable. See
+`provider-architecture.md`.
 
 ## `UNPROVEN` conditions (step 5 detail)
 
 Read `plan.json` before `facts.json`. A stale/missing Blueprint generation, plan-seal or signature
 failure, binding drift, selected-provider omission, unsupported toolchain, absent network-sandbox
 receipt, incomplete runtime/visual matrix, unmeasured rule pack, network-dependent check, or
-unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete.
+unadjudicated security candidate is `UNPROVEN` and keeps the audit incomplete. Native external
+execution denied for unavailable owner admission is also a typed gap and cannot be bypassed by
+caller configuration or direct scanner/lens execution.
 
 ## Finalize and verify (steps 9 and 10 detail)
 
@@ -303,6 +322,9 @@ audit incomplete. An unadjudicated security candidate stays `UNPROVEN` whatever 
 - The native historical adapter restores observed syntax/static checks and typed policy-gap reporting.
   This evidence does not establish full native build or test parity; unimplemented or unverified build/test
   branches remain typed gaps and cannot support a clean claim.
+- Native CLI external execution currently requires owner admission, which is unavailable; caller
+  configuration cannot grant it. Denied external processes retain typed receipts before spawn,
+  while SDK in-process helpers with an explicit trusted owner authorizer remain distinct.
 - Cite real `file:line` or scanner-log evidence for every finding.
 - Redact secret values.
 - Treat size as review trigger, never decomposition proof.
