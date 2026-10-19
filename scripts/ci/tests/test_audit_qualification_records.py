@@ -360,13 +360,20 @@ class RegistrationGateTests(unittest.TestCase):
             gate["controls"]({**row, "coverageState": "complete"}, entry)
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 31)
+        self.assertEqual(len(gate["ADAPTERS"]), 32)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
             entry["stage"] = "outcome"
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
+
+    def test_ownership_adapter_uses_native_sdk_controls(self):
+        entry = {"provider": "governance.capability-ownership", "family": "ownership-native", "stage": "finding"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("ownership-native", "ownership_native_accuracy", "canonical-json", "ownership_native_sdk_known_answers"))
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "stage": "candidate"})
 
     def test_secrets_history_adapter_scope_and_stage_are_fixed(self):
         provider = "secrets.current-history"

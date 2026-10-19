@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import runpy
 
 
 def main():
@@ -55,7 +56,17 @@ def main():
                          for p in [args.test_binary, args.owner_binary, args.fixture_identities]}}
     (output / 'execution.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt))
-    return 0 if result.returncode == 0 else 1
+    if result.returncode != 0:
+        return 1
+    api = runpy.run_path(str(Path(__file__).with_name('validate-ownership-native-accuracy.py')))
+    row = api['parsed']((output / 'controls' / 'governance.capability-ownership.json').read_bytes())
+    # Native harness emission belongs in retained authenticated CI logs too.
+    print((output / 'harness.log').read_text(), end='')
+    summary = api['validate_record'](source_root, row, live=True, retained=output)
+    if api['rejection_controls'](source_root, row) != 10:
+        raise AssertionError('ownership validator rejection controls incomplete')
+    print('OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY ' + json.dumps({'records': [summary], 'modelCalls': 0}, sort_keys=True, separators=(',', ':')))
+    return 0
 
 
 if __name__ == '__main__':

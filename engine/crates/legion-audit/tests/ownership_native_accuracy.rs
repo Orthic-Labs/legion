@@ -241,7 +241,7 @@ async fn run(
         )
         .await
         .unwrap();
-    json!({"control":control,"root":root,"inventory":inventory,"plan":frozen.plan(),"planDigest":frozen.digest(),"result":result})
+    json!({"control":control,"root":root,"inventory":inventory,"plan":frozen.plan(),"planDigest":frozen.digest(),"planSignature":frozen.signature(),"result":result})
 }
 
 #[test]
@@ -387,11 +387,15 @@ fn ownership_native_sdk_known_answers() {
     }
     controls.insert("drift", drift);
     controls.insert("denial", denied);
-    let mut record = json!({"schema":"legion-ownership-native-sdk-controls/1","provider":ID,"productionQualification":false,
-        "qualificationEligible":false,"scope":"constructed actual Scanner controls; source-owned boundary checks; pending full qualification validator",
+    let mut record = json!({"schema":"legion-ownership-native-sdk-controls/2","provider":ID,"stage":"finding","modelCalls":0,"productionQualification":false,
+        "qualificationEligible":true,"wholeProviderQualified":false,"auditCleanClaim":false,"scope":"constructed committed native Scanner known-answer controls; protected trust required",
         "fixtureIdentityManifest":{"path":manifest_path,"digest":legion_audit::native_providers::legacy::common::digest_bytes(&manifest_bytes),"document":manifest},
         "nativeOwner":owner.identity(),"cases":cases,"controls":controls});
-    record["digest"] = json!(legion_audit::digest(&record).unwrap());
+    record["qualificationDigest"] = json!(legion_audit::digest(&record).unwrap());
+    println!(
+        "OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}",
+        serde_json::to_string(&record).unwrap()
+    );
     fs::write(
         output.join("governance.capability-ownership.json"),
         serde_json::to_vec_pretty(&record).unwrap(),
