@@ -2436,8 +2436,12 @@ mod windows_qualification_tests {
         {
             // Junctions require no developer-mode/admin symlink privilege &
             // exercise FILE_ATTRIBUTE_REPARSE_POINT rather than only symlinks.
+            // Rebuild components with native separators: mklink treats embedded
+            // forward slashes from fixture paths as command switches.
+            let link: PathBuf = link.components().collect();
+            let target: PathBuf = target.components().collect();
             let result = Command::new("cmd")
-                .args(["/C", "mklink", "/J"])
+                .args(["/D", "/C", "mklink", "/J"])
                 .arg(link)
                 .arg(target)
                 .output()
