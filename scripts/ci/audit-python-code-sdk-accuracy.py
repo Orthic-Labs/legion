@@ -21,7 +21,7 @@ for _name in ("require", "keys", "encoded", "digest", "is_digest", "same", "pars
     globals()[_name] = _shared[_name]
 RECEIPT_FIELDS = _shared["RECEIPT_FIELDS"]
 SOURCE_ROOTS = ["engine/crates/" + c + "/src" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")] + ["src/registry/rules", "src/registry/controls", FIXTURES]
-SOURCE_FILES = ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", HARNESS, BOOTSTRAP, "scripts/ci/provision-python-qualification-tools.py", "scripts/ci/audit-pip-audit-provider-accuracy.py", "scripts/ci/locks/code-python-sdk-macos-arm64-cp314.json", "scripts/ci/locks/code-python-sdk-macos-arm64-cp314.txt"] + ["engine/crates/" + c + "/Cargo.toml" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")]
+SOURCE_FILES = ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", HARNESS, BOOTSTRAP, "scripts/ci/provision-python-qualification-tools.py", "scripts/ci/audit-pip-audit-provider-accuracy.py", "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.json", "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.txt"] + ["engine/crates/" + c + "/Cargo.toml" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")]
 
 def source_files(root):
     paths = set(SOURCE_FILES)

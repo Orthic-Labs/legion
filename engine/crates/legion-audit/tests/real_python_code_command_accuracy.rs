@@ -159,8 +159,8 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
         "scripts/ci/audit-python-sdk-bootstrap.py",
         "scripts/ci/provision-python-qualification-tools.py",
         "scripts/ci/audit-pip-audit-provider-accuracy.py",
-        "scripts/ci/locks/code-python-sdk-macos-arm64-cp314.json",
-        "scripts/ci/locks/code-python-sdk-macos-arm64-cp314.txt",
+        "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.json",
+        "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.txt",
     ] {
         walk(&root, &root.join(path), &mut sources);
     }
