@@ -204,6 +204,19 @@ mod native {
         }
     }
 
+    fn request_value(request: &ExternalToolRequest) -> Value {
+        json!({"requestId":request.request_id,"providerId":request.provider_id,"planId":request.plan_id,
+            "policyId":request.policy_id,"executable":request.executable,"args":request.args,
+            "versionArgs":request.version_args,"cwd":request.cwd,"expectedDigest":request.expected_digest,
+            "environment":request.environment,"allowlist":request.environment_allowlist,
+            "acceptedExitCodes":request.accepted_exit_codes,"requiresNetworkSandbox":request.requires_network_sandbox,
+            "schemaVersion":request.schema_version,"taskId":request.task_id,"origin":format!("{:?}",request.origin),
+            "shell":request.shell,"skipVersionProbe":request.skip_version_probe,"versionRequirement":request.version_requirement,
+            "sensitiveArgumentIndexes":request.sensitive_argument_indexes,"sensitiveEnvironmentNames":request.sensitive_environment_names,
+            "timeoutMs":request.timeout_ms,"stdoutLimit":request.stdout_limit,"stderrLimit":request.stderr_limit,
+            "sandbox":request.sandbox.as_ref().map(|sandbox| json!({"id":sandbox.id,"network":sandbox.network,"filesystemScope":sandbox.filesystem_scope}))})
+    }
+
     struct RealTool<'a> {
         expected: Vec<ExternalToolRequest>,
         scratch: &'a AuditScratch,
@@ -254,11 +267,7 @@ mod native {
                 }).unwrap_or(Value::Null)
             };
             self.observations.lock().unwrap().push(json!({
-                "request":{"requestId":request.request_id,"providerId":request.provider_id,"planId":request.plan_id,
-                    "policyId":request.policy_id,"executable":request.executable,"args":request.args,
-                    "versionArgs":request.version_args,"cwd":request.cwd,"expectedDigest":request.expected_digest,
-                    "environment":request.environment,"allowlist":request.environment_allowlist,
-                    "acceptedExitCodes":request.accepted_exit_codes,"requiresNetworkSandbox":request.requires_network_sandbox},
+                "request":request_value(&request),
                 "controlRemovedSandboxEvidence":self.absent_sandbox, "originalSandboxId":submitted_sandbox.map(|sandbox| sandbox.id),
                 "executionReceipt":crate::execution_policy::receipt_json(&receipt),
                 "stdout":stream(receipt.stdout.as_ref()),"stderr":stream(receipt.stderr.as_ref())}));
@@ -476,11 +485,32 @@ mod native {
         std::fs::create_dir_all(enrollment_path.parent().unwrap()).unwrap();
         let enrolled = enrollment::capture(&sdk, &swiftlint, &base)
             .expect("complete declared installed native roots required");
-        let enrollment_bytes = serde_json::to_vec(&enrolled).unwrap();
-        std::fs::write(&enrollment_path, &enrollment_bytes).unwrap();
+        let enrollment_bytes =
+            std::fs::read(&enrollment_path).expect("managed filesystem preparation required");
+        assert_eq!(
+            serde_json::from_slice::<Value>(&enrollment_bytes).unwrap(),
+            enrolled,
+            "prepared enrollment differs from independently observed installed native roots"
+        );
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let source_enrollment_path = external_path("LEGION_MOBILE_SOURCE_ENROLLMENT");
+        let source_enrollment_bytes =
+            std::fs::read(&source_enrollment_path).expect("prepared full source closure required");
+        let source_before =
+            enrollment::source_snapshot(&repository).expect("full source closure before matrix");
+        assert_eq!(
+            serde_json::from_slice::<Value>(&source_enrollment_bytes).unwrap(),
+            source_before
+        );
+        let source_enrollment_digest = sha256_text(&source_enrollment_bytes);
         let enrollment_digest = sha256_text(&enrollment_bytes);
         assert_eq!(std::fs::read(&enrollment_path).unwrap(), enrollment_bytes);
-        let before = closure_snapshot(&base)
+        let before = enrollment::descriptor(&base)
             .expect("initial native tree verification")
             .expect("enrollment required");
         let mut cases = Vec::new();
@@ -570,6 +600,7 @@ mod native {
                 total_budget_ms: 900_000,
                 output_limit: 32 * 1024 * 1024,
             };
+            let frozen_binding = snapshot(&planned.commands[0]).unwrap();
             let requests = expected(&context, &planned.commands);
             let tool = RealTool {
                 expected: requests,
@@ -694,7 +725,11 @@ mod native {
             if control == "enrollment-drift" {
                 std::fs::write(&enrollment_path, &enrollment_bytes).unwrap();
             }
-            cases.push(json!({"control":control,"matched":matched,"fixtureSources":fixture,"runs":runs,
+            cases.push(json!({"control":control,"matched":matched,"fixtureRoot":root,"scratchRoot":base.join(control).join("run"),
+                "inputBinding":frozen_binding,
+                "plannedCommands":planned.commands.iter().map(|command| json!({"tool":command.tool,"argv":command.args,
+                    "programs":command.programs,"accepted":command.accepted})).collect::<Vec<_>>(),"plannedRequests":tool.expected.iter().map(request_value).collect::<Vec<_>>(),"planDigest":plan_digest,"inventoryDigest":inventory_digest,
+                "fixtureSources":fixture,"runs":runs,
                 "sdkExecutions":raw,"gaps":planned.notes,
                 "positiveNativeTestCalls":if matches!(control, "nonempty-clean" | "planted") {
                     json!(["AnswerTests.testSwift", "AnswerTests.testObjC", "AnswerTests.testObjCpp"])
@@ -709,7 +744,10 @@ mod native {
                 "cases":cases})).unwrap()).unwrap();
             assert!(matched, "{control}: inspect retained {}", output.display());
         }
-        let after = closure_snapshot(&base)
+        let observed_after = enrollment::capture(&sdk, &swiftlint, &base)
+            .expect("observed complete native closure after matrix");
+        assert_eq!(observed_after, enrolled);
+        let after = enrollment::descriptor(&base)
             .expect("final native tree verification")
             .expect("enrollment retained");
         assert_eq!(
@@ -733,10 +771,33 @@ mod native {
                     })
             })
         });
+        let native_after_path = output.parent().unwrap().join("mobile-native-after.json");
+        let native_after_bytes = serde_json::to_vec(&observed_after).unwrap();
+        assert!(!native_after_path.exists());
+        std::fs::write(&native_after_path, &native_after_bytes).unwrap();
+        let native_after_digest = sha256_text(&native_after_bytes);
+        assert_eq!(
+            std::fs::read(&native_after_path).unwrap(),
+            native_after_bytes
+        );
+        let source_after =
+            enrollment::source_snapshot(&repository).expect("full source closure after matrix");
+        assert_eq!(
+            source_before, source_after,
+            "production/harness/pipeline source changed during native controls"
+        );
+        assert_eq!(
+            sha256_text(&std::fs::read(&source_enrollment_path).unwrap()),
+            source_enrollment_digest
+        );
         let eligible = positive_complete
             && cases.len() == 13
             && cases.iter().all(|case| case["matched"] == true);
-        std::fs::write(&output, serde_json::to_vec_pretty(&json!({"schema":"legion-mobile-sdk-controls/1",
+        let mut record = json!({"schema":"legion-mobile-sdk-controls/2", "family":"code-mobile-sdk",
+            "stage":"finding", "scope":"constructed macOS SwiftPM Swift/Objective-C/Objective-C++ compiler/analyzer/XCTest controls",
+            "retainedRoot":output.parent().unwrap(),"repositoryRoot":repository,"modelCalls":0,
+            "qualificationEligible":eligible,"productionQualification":false,"status":"observed-known-answer-controls",
+            "sourceEnrollment":{"path":source_enrollment_path,"digest":source_enrollment_digest,"before":source_before,"after":source_after},
             "compiledSourceBinding":source_binding(),"provider":"code.mobile",
             "contract":{"extensions":crate::native_providers::code::mobile::CONFIG.extensions,
                 "variants":crate::native_providers::code::mobile::CONFIG.variants,
@@ -745,11 +806,24 @@ mod native {
             "matrixState":"complete","boundedMacosKnownAnswerEligible":eligible,
             "wholePlatformQualified":false,"productionOwnerAdmissionQualified":false,
             "admissionScope":"constructed exact SDK admission; production owner admission remains denied",
-            "nativeEnrollment":{"path":enrollment_path,"digest":enrollment_digest,"before":before,"after":after},
+            "nativeEnrollment":{"path":enrollment_path,"digest":enrollment_digest,"before":before,"after":after,
+                "observedBefore":{"path":enrollment_path,"digest":enrollment_digest},
+                "observedAfter":{"path":native_after_path,"digest":native_after_digest}},
             "boundedScope":"macOS host SwiftPM: Swift + Objective-C + Objective-C++, Foundation + XCTest; SwiftLint & clang analyzer",
             "outsideBoundedMacosScope":["iOS/iPadOS device & simulator", "tvOS/watchOS/visionOS/Catalyst",
                 "Xcode schemes/destinations/test plans", "project-defined flags/frameworks/dependencies"],
-            "cases":cases})).unwrap()).unwrap();
+            "cases":cases});
+        let qualification_digest = sha256_text(&serde_json::to_vec(&record).unwrap());
+        record["qualificationDigest"] = json!(qualification_digest);
+        let record_bytes = serde_json::to_vec(&record).unwrap();
+        std::fs::write(&output, &record_bytes).unwrap();
+        assert_eq!(std::fs::read(&output).unwrap(), record_bytes);
+        println!(
+            "CODE_MOBILE_SDK_ACCURACY_ARTIFACT {}",
+            json!({"provider":"code.mobile", "path":output,
+            "sha256":sha256_text(&record_bytes),"bytes":record_bytes.len(),"qualificationDigest":qualification_digest,
+            "qualificationEligible":eligible,"productionQualification":false})
+        );
         assert!(eligible);
     }
 }

@@ -359,8 +359,34 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["controls"]({**row, "coverageState": "complete"}, entry)
 
+    def test_mobile_native_adapter_requires_dedicated_scope_and_false_production_flags(self):
+        scope = gate["helper"]("audit-mobile-sdk-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider":"code.mobile", "family":"code-mobile-sdk", "stage":"finding", "scope":scope,
+                 "record":{"path":"unit.json", "sha256":"sha256:" + "a" * 64, "qualificationDigest":"sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("code-mobile-sdk", "mobile-sdk-native", "canonical-json", gate["CODE_MOBILE_HARNESS"][2]))
+        row = {"schema":"legion-mobile-sdk-controls/2", "provider":"code.mobile", "family":"code-mobile-sdk",
+               "stage":"finding", "scope":scope, "productionQualification":False, "wholePlatformQualified":False,
+               "productionOwnerAdmissionQualified":False, "qualificationEligible":True, "boundedMacosKnownAnswerEligible":True,
+               "matrixState":"complete", "status":"observed-known-answer-controls", "modelCalls":0}
+        # Identity gate alone is not evidence; record_binding still requires raw native matrix.
+        gate["controls"](row, entry)
+        for flag in ("productionQualification", "wholePlatformQualified", "productionOwnerAdmissionQualified"):
+            self.assertIs(gate["qualification"](entry)[flag], False)
+            with self.subTest(flag=flag), self.assertRaises(AssertionError):
+                gate["controls"]({**row, flag:True}, entry)
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "family":"file"})
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "stage":"candidate"})
+        with self.assertRaises(AssertionError):
+            gate["controls"]({**row, "schema":"legion-mobile-sdk-controls/1"}, entry)
+        schema = json.loads((SOURCE_ROOT / gate["SCHEMA"]).read_text())
+        self.assertIn("code-mobile-sdk", schema["$defs"]["entry"]["properties"]["family"]["enum"])
+        self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
+
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 32)
+        self.assertEqual(len(gate["ADAPTERS"]), 33)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)

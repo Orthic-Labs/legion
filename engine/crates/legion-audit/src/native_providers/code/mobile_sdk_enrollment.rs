@@ -165,7 +165,8 @@ pub(super) fn capture(sdk: &Path, swiftlint: &Path, audited_root: &Path) -> Resu
     }
     Ok(
         json!({"schema":"legion-mobile-native-enrollment/1", "host":{"os":std::env::consts::OS,"arch":std::env::consts::ARCH},
-        "sdkRoot":sdk,"swiftlintExecutable":swiftlint.canonicalize().ok(),"roots":trees,"fileBytes":total,
+        "sdkRoot":sdk,"sdkSettingsRawBytes":std::fs::read(sdk.join("SDKSettings.json")).map_err(|_| "native-sdk-settings-unreadable")?,"swiftlintExecutable":swiftlint.canonicalize().ok(),
+        "swiftlintInvocation":{"path":swiftlint,"canonicalPath":swiftlint.canonicalize().ok(),"linkTarget":std::fs::read_link(swiftlint).ok()},"roots":trees,"fileBytes":total,
         "osRuntimeBoundary":"Apple system dynamic runtime identified by enrolled macOS build; no system-library completeness claim",
         "scope":"installed macOS Xcode toolchain + selected SDK + XCTest/runtime support + SwiftLint"}),
     )
@@ -194,7 +195,7 @@ pub(super) fn descriptor(audited_root: &Path) -> Result<Option<Value>, String> {
         return Err("native-enrollment-platform-mismatch".into());
     }
     Ok(Some(
-        json!({"path":path,"digest":sha256_text(&bytes),"fileBytes":value["fileBytes"],"sdkRoot":value["sdkRoot"],"swiftlintExecutable":value["swiftlintExecutable"],
+        json!({"path":path,"digest":sha256_text(&bytes),"fileBytes":value["fileBytes"],"sdkRoot":value["sdkRoot"],"swiftlintExecutable":value["swiftlintExecutable"],"swiftlintInvocation":value["swiftlintInvocation"],
         "roots":value["roots"].as_object().ok_or("native-enrollment-roots")?.iter().map(|(name, tree)|
             (name.clone(), json!({"root":tree["root"],"digest":tree["digest"],"entries":tree["files"].as_object().map(|files| files.len())}))).collect::<BTreeMap<_, _>>() }),
     ))
@@ -217,7 +218,7 @@ pub(super) fn verify(audited_root: &Path, sdk: &Path) -> Result<Option<Value>, S
         return Err("native-enrollment-sdk-mismatch".into());
     }
     let swiftlint = Path::new(
-        value["swiftlintExecutable"]
+        value["swiftlintInvocation"]["path"]
             .as_str()
             .ok_or("native-enrollment-swiftlint")?,
     );
@@ -225,4 +226,109 @@ pub(super) fn verify(audited_root: &Path, sdk: &Path) -> Result<Option<Value>, S
         return Err("native-enrollment-tree-changed".into());
     }
     Ok(Some(descriptor))
+}
+
+/// Independently read full compiler/executor/registry/pipeline source closure.
+/// Prepared JSON is compared with actual bytes; it supplies no trusted hashes.
+#[cfg(test)]
+pub(super) fn source_snapshot(root: &Path) -> Result<Value, String> {
+    fn visit(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) -> Result<(), String> {
+        let metadata = std::fs::symlink_metadata(path).map_err(|_| "source-enrollment-metadata")?;
+        if metadata.file_type().is_symlink() {
+            return Err("source-enrollment-symlink".into());
+        }
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "source-enrollment-path")?
+            .to_str()
+            .ok_or("source-enrollment-utf8")?;
+        if metadata.is_dir() {
+            for entry in std::fs::read_dir(path).map_err(|_| "source-enrollment-directory")? {
+                visit(
+                    root,
+                    &entry.map_err(|_| "source-enrollment-directory")?.path(),
+                    files,
+                )?;
+            }
+        } else if metadata.is_file() {
+            let generated = Regex::new(r"^engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json$").expect("source exclusion");
+            if !generated.is_match(relative) {
+                if files.len() >= MAX_NODES {
+                    return Err("source-enrollment-node-budget".into());
+                }
+                let raw = std::fs::read(path).map_err(|_| "source-enrollment-read")?;
+                let source_digest = if relative == "src/registry/providers.json" {
+                    let mut value: Value =
+                        serde_json::from_slice(&raw).map_err(|_| "source-registry-malformed")?;
+                    for provider in value["providers"]
+                        .as_array_mut()
+                        .ok_or("source-registry-providers")?
+                    {
+                        let benchmark = provider["benchmark"]
+                            .as_object_mut()
+                            .ok_or("source-registry-benchmark")?;
+                        for name in ["status", "qualificationDigest", "qualification"] {
+                            benchmark.remove(name);
+                        }
+                    }
+                    sha256_text(
+                        &serde_json::to_vec(&value).map_err(|_| "source-registry-serialization")?,
+                    )
+                } else {
+                    sha256_text(&raw)
+                };
+                files.insert(relative.into(), source_digest);
+            }
+        } else {
+            return Err("source-enrollment-special-file".into());
+        }
+        Ok(())
+    }
+    let mut files = BTreeMap::new();
+    for name in [
+        "legion-audit",
+        "legion-effects",
+        "legion-provider-sdk",
+        "legion-contracts",
+        "legion-rules",
+    ] {
+        visit(
+            root,
+            &root.join(format!("engine/crates/{name}/src")),
+            &mut files,
+        )?;
+        visit(
+            root,
+            &root.join(format!("engine/crates/{name}/Cargo.toml")),
+            &mut files,
+        )?;
+    }
+    for name in [
+        "src/registry/rules",
+        "src/registry/controls",
+        "engine/Cargo.toml",
+        "engine/Cargo.lock",
+        "engine/rust-toolchain.toml",
+        "scripts/ci/audit-mobile-native-enrollment.py",
+        "scripts/ci/audit-mobile-sdk-accuracy.py",
+        "scripts/ci/tests/test_audit_mobile_sdk_accuracy.py",
+        "scripts/ci/audit-qualification-records.py",
+        "scripts/ci/tests/test_audit_qualification_records.py",
+        "scripts/ci/tests/test_python_code_sdk_adapter.py",
+        "qualification/provider-accuracy/schema.json",
+        "bench/provider-accuracy-plan.json",
+        "src/registry/providers.json",
+        ".github/workflows/ci.yml",
+        "scripts/ci/right-git-ci.sh",
+        ".rightgit.json",
+        "package.json",
+        "pnpm-lock.yaml",
+    ] {
+        visit(root, &root.join(name), &mut files)?;
+    }
+    Ok(
+        json!({"schema":"legion-mobile-source-enrollment/1", "root":root,
+        "registryRawDigest":sha256_text(&std::fs::read(root.join("src/registry/providers.json")).map_err(|_| "source-registry-read")?),
+        "digest":sha256_text(&serde_json::to_vec(&files).map_err(|_| "source-enrollment-serialization")?), "files":files}),
+    )
 }

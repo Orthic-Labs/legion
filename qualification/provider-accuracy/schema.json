@@ -57,6 +57,12 @@
         "validator": {"oneOf": [{"$ref": "#/$defs/reference"}, {"type": "null"}]}, "log": {"$ref": "#/$defs/reference"}
       }
     },
+    "codeMobileEvidence": {
+      "description": "Original full observed native before/after & source preparation bytes for bounded macOS Swift/Objective-C/Objective-C++ SDK controls; no production owner admission or whole-platform qualification.",
+      "type": "object", "additionalProperties": false,
+      "required": ["nativeBefore", "nativeAfter", "sourceEnrollment"],
+      "properties": {"nativeBefore": {"$ref": "#/$defs/reference"}, "nativeAfter": {"$ref": "#/$defs/reference"}, "sourceEnrollment": {"$ref": "#/$defs/reference"}}
+    },
     "codeSdkEvidence": {
       "description": "Exact original code SDK proof metadata; full provider contract & authenticated CI remain mandatory.",
       "type": "object", "additionalProperties": false,
@@ -84,7 +90,7 @@
       "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
       "properties": {
         "provider": {"type": "string", "minLength": 1},
-        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk", "code-long-tail", "code-python-sdk", "ownership-native", "code-jvm-sdk"]},
+        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk", "code-long-tail", "code-python-sdk", "ownership-native", "code-jvm-sdk", "code-mobile-sdk"]},
         "record": {"$ref": "#/$defs/record"},
         "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
         "scope": {"type": "string", "minLength": 1, "maxLength": 1000},
@@ -97,11 +103,14 @@
         },
         "provenance": {"$ref": "#/$defs/provenance"},
         "provenanceVerification": {"$ref": "#/$defs/reference"},
+        "codeMobileEvidence": {"$ref": "#/$defs/codeMobileEvidence"},
         "codeSdkEvidence": {"$ref": "#/$defs/codeSdkEvidence"},
         "pythonSdkEvidence": {"$ref": "#/$defs/pythonSdkEvidence"},
         "jvmSdkEvidence": {"$ref": "#/$defs/jvmSdkEvidence"}
       },
-      "allOf": [{"if": {"properties": {"family": {"const": "code-sdk"}}},
+      "allOf": [{"if": {"properties": {"family": {"const": "code-mobile-sdk"}}},
+                 "then": {"required": ["codeMobileEvidence"]}, "else": {"not": {"required": ["codeMobileEvidence"]}}},
+                {"if": {"properties": {"family": {"const": "code-sdk"}}},
                  "then": {"required": ["codeSdkEvidence"]}, "else": {"not": {"required": ["codeSdkEvidence"]}}},
                 {"if": {"properties": {"family": {"const": "code-python-sdk"}}},
                  "then": {"required": ["pythonSdkEvidence"], "properties": {"provider": {"const": "code.python"}}}, "else": {"not": {"required": ["pythonSdkEvidence"]}}},

@@ -644,6 +644,21 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   unset LEGION_PYTHON_CODE_COMMAND_SCRATCH LEGION_PYTHON_SDK_ENROLLMENT_JSON \
     LEGION_PYTHON_SDK_PYTHON LEGION_PYTHON_SDK_BIN_DIR
+  # Full installed input observations are independently rehashed by native harness.
+  export LEGION_MOBILE_SDK_SCRATCH="${RUNNER_TEMP}/legion-mobile-sdk-fixtures"
+  export LEGION_MOBILE_SDK_OUTPUT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/code_mobile.json"
+  export LEGION_MOBILE_SDK_ENROLLMENT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/mobile-native-enrollment.json"
+  export LEGION_MOBILE_SOURCE_ENROLLMENT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/mobile-source-enrollment.json"
+  mkdir -p "$LEGION_MOBILE_SDK_SCRATCH"
+  run_audit_qualification python3 -m unittest discover -s scripts/ci/tests -p test_audit_mobile_sdk_accuracy.py
+  run_audit_qualification python3 scripts/ci/audit-mobile-native-enrollment.py \
+    --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
+  run_audit_qualification audit_cargo_test --lib \
+    native_providers::code::tools::mobile_sdk::tests::native::native_mobile_sdk_controls \
+    -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-mobile-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
+  unset LEGION_MOBILE_SDK_SCRATCH LEGION_MOBILE_SDK_OUTPUT LEGION_MOBILE_SDK_ENROLLMENT LEGION_MOBILE_SOURCE_ENROLLMENT
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.
