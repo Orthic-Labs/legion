@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod apple_skill_integrity;
 mod audit_bench;
+mod audit_capsule;
+mod audit_security_controls;
 mod checks;
 mod generators;
 mod native_cli_gate;
@@ -204,6 +206,13 @@ enum Command {
         #[arg(long)]
         diagnostic: bool,
     },
+    /// Observe completed security pipeline controls without executing models or issuing qualification.
+    AuditSecurityControls {
+        #[arg(long)]
+        corpus: std::path::PathBuf,
+        #[arg(long)]
+        runs_root: std::path::PathBuf,
+    },
     /// Score an installed `legion audit` against the planted-case fixtures in `evals/audit-bench/`.
     /// Deterministic audit baseline; optionally run the installed host's controlled reviewer.
     /// `--repeats N` repeats the run (1..=10); `--aa` adds identical twin arms for an A/A band.
@@ -214,6 +223,14 @@ enum Command {
         /// Fixture name (`<name>.bundle`); repeatable. Default: every bundle.
         #[arg(long = "fixture")]
         fixtures: Vec<String>,
+        /// Exact semantic capsule id; repeatable. Requires explicit model pins & capsule budgets.
+        #[arg(long = "capsule")]
+        capsules: Vec<String>,
+        /// Separate opt-in allowance for semantic capsule model calls.
+        #[arg(long = "capsule-token-budget")]
+        capsule_token_budget: Option<u64>,
+        #[arg(long = "capsule-case-token-budget")]
+        capsule_case_token_budget: Option<u64>,
         /// Case id to run; repeatable. Selected cases alone form scoring denominators.
         #[arg(long = "case")]
         cases: Vec<String>,
@@ -340,9 +357,27 @@ fn main() -> ExitCode {
         Command::NativeCliCaptureRust { diagnostic } => {
             generators::native_cli_rust_characterization::run(&root, diagnostic)
         }
+        Command::AuditSecurityControls { corpus, runs_root } => {
+            match audit_security_controls::run(&corpus, &runs_root) {
+                Ok(observations) => {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&observations).expect("JSON observations")
+                    );
+                    observations["status"] == "observed-controls-unadjudicated"
+                }
+                Err(error) => {
+                    eprintln!("audit-security-controls: {error}");
+                    false
+                }
+            }
+        }
         Command::AuditBench {
             legion,
             fixtures,
+            capsules,
+            capsule_token_budget,
+            capsule_case_token_budget,
             cases,
             repeat,
             token_budget,
@@ -359,6 +394,9 @@ fn main() -> ExitCode {
             audit_bench::Options {
                 legion,
                 fixtures,
+                capsules,
+                capsule_token_budget,
+                capsule_case_token_budget,
                 cases,
                 repeat,
                 token_budget,

@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "legion-audit-security-controls/1"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "control": {
+            "enum": [
+              "adjudication-survivor",
+              "adjudication-dismissal",
+              "variant-positive",
+              "variant-absence"
+            ]
+          },
+          "run": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceFiles": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          },
+          "candidate": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "provider",
+              "rule",
+              "path",
+              "line"
+            ]
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "present": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "location",
+                  "present"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "negativeChallenges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "rationale"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "control",
+          "run",
+          "sourceFiles",
+          "candidate",
+          "variant",
+          "negativeChallenges"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "cases"
+  ]
+}

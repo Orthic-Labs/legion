@@ -1,0 +1,116 @@
+{
+  "schema": "legion-audit-security-controls/1",
+  "cases": [
+    {
+      "id": "adjudication-survivor",
+      "control": "adjudication-survivor",
+      "run": "positive",
+      "sourceFiles": {
+        ".semgrep.yml": "sha256:fe1e951168386ab4814746bde347104b70e79cb7013fe45295e27e0e0db2e62c",
+        "literal.py": "sha256:625bdfb54b79191dbb55e6a7e5b9c9cabd5f0a4d3d136b12b8cdf8a79fb169f2",
+        "seed.py": "sha256:2bf08a055e38360456dffdf8a6d7318f47a768c330881321be89ebede2298dcc",
+        "variant.py": "sha256:04f48c511f51a9f192caf59652adeb31d0a60af245a03c3671c2a661d95cf5ae"
+      },
+      "candidate": {
+        "provider": "security.opengrep",
+        "rule": "qualification-command-shell",
+        "path": "seed.py",
+        "line": 4
+      },
+      "variant": null,
+      "negativeChallenges": [
+        {
+          "path": "literal.py",
+          "line": 3,
+          "rationale": "Constant command has no attacker-controlled data or expansion; broad scanner rule still emits an actual candidate."
+        }
+      ]
+    },
+    {
+      "id": "adjudication-dismissal",
+      "control": "adjudication-dismissal",
+      "run": "positive",
+      "sourceFiles": {
+        ".semgrep.yml": "sha256:fe1e951168386ab4814746bde347104b70e79cb7013fe45295e27e0e0db2e62c",
+        "literal.py": "sha256:625bdfb54b79191dbb55e6a7e5b9c9cabd5f0a4d3d136b12b8cdf8a79fb169f2",
+        "seed.py": "sha256:2bf08a055e38360456dffdf8a6d7318f47a768c330881321be89ebede2298dcc",
+        "variant.py": "sha256:04f48c511f51a9f192caf59652adeb31d0a60af245a03c3671c2a661d95cf5ae"
+      },
+      "candidate": {
+        "provider": "security.opengrep",
+        "rule": "qualification-command-shell",
+        "path": "literal.py",
+        "line": 3
+      },
+      "variant": null,
+      "negativeChallenges": [
+        {
+          "path": "literal.py",
+          "line": 3,
+          "rationale": "Constant command has no attacker-controlled data or expansion; broad scanner rule still emits an actual candidate."
+        }
+      ]
+    },
+    {
+      "id": "variant-positive",
+      "control": "variant-positive",
+      "run": "positive",
+      "sourceFiles": {
+        ".semgrep.yml": "sha256:fe1e951168386ab4814746bde347104b70e79cb7013fe45295e27e0e0db2e62c",
+        "literal.py": "sha256:625bdfb54b79191dbb55e6a7e5b9c9cabd5f0a4d3d136b12b8cdf8a79fb169f2",
+        "seed.py": "sha256:2bf08a055e38360456dffdf8a6d7318f47a768c330881321be89ebede2298dcc",
+        "variant.py": "sha256:04f48c511f51a9f192caf59652adeb31d0a60af245a03c3671c2a661d95cf5ae"
+      },
+      "candidate": {
+        "provider": "security.opengrep",
+        "rule": "qualification-command-shell",
+        "path": "seed.py",
+        "line": 4
+      },
+      "variant": {
+        "location": "variant.py:5",
+        "present": true
+      },
+      "negativeChallenges": [
+        {
+          "path": "literal.py",
+          "line": 3,
+          "rationale": "Constant command has no attacker-controlled data or expansion; broad scanner rule still emits an actual candidate."
+        }
+      ]
+    },
+    {
+      "id": "variant-absence",
+      "control": "variant-absence",
+      "run": "absence",
+      "sourceFiles": {
+        ".semgrep.yml": "sha256:fe1e951168386ab4814746bde347104b70e79cb7013fe45295e27e0e0db2e62c",
+        "literal.py": "sha256:625bdfb54b79191dbb55e6a7e5b9c9cabd5f0a4d3d136b12b8cdf8a79fb169f2",
+        "seed.py": "sha256:2bf08a055e38360456dffdf8a6d7318f47a768c330881321be89ebede2298dcc",
+        "variant.py": "sha256:d7eddf203ddebc97a771e92daaeaaf8145e33dac9d6345e82576245ac3e68edc"
+      },
+      "candidate": {
+        "provider": "security.opengrep",
+        "rule": "qualification-command-shell",
+        "path": "seed.py",
+        "line": 4
+      },
+      "variant": {
+        "location": "variant.py:5",
+        "present": false
+      },
+      "negativeChallenges": [
+        {
+          "path": "literal.py",
+          "line": 3,
+          "rationale": "Constant command has no attacker-controlled data or expansion; broad scanner rule still emits an actual candidate."
+        },
+        {
+          "path": "variant.py",
+          "line": 5,
+          "rationale": "Explicit argv + constant strings + shell disabled; sibling source must be examined before absence can be judged."
+        }
+      ]
+    }
+  ]
+}

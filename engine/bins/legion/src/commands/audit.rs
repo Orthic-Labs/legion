@@ -361,6 +361,42 @@ mod continuation_staging_tests {
     }
 
     #[test]
+    fn security_output_accepts_missing_external_descendants_without_creating_them() {
+        let fixture = Fixture::new();
+        let root = fixture.0.join("execution");
+        std::fs::create_dir(&root).unwrap();
+        let output = fixture.0.join("new").join("run");
+        assert_eq!(native_security_output_path(&root, &output).unwrap(), output);
+        assert!(!fixture.0.join("new").exists());
+        for unsafe_output in [
+            root.clone(),
+            root.join("nested"),
+            fixture.0.clone(),
+            fixture.0.join("new/../run"),
+        ] {
+            assert!(native_security_output_path(&root, &unsafe_output).is_err());
+        }
+        let file = fixture.0.join("file");
+        std::fs::write(&file, b"unchanged").unwrap();
+        assert!(native_security_output_path(&root, &file).is_err());
+        assert_eq!(std::fs::read(file).unwrap(), b"unchanged");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn security_output_rejects_symlink_ancestors_before_canonicalization() {
+        let fixture = Fixture::new();
+        let root = fixture.0.join("execution");
+        let target = fixture.0.join("target");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&target).unwrap();
+        let alias = fixture.0.join("alias");
+        std::os::unix::fs::symlink(&target, &alias).unwrap();
+        assert!(native_security_output_path(&root, &alias.join("run")).is_err());
+        assert!(!target.join("run").exists());
+    }
+
+    #[test]
     fn rejects_overlapping_traversal_and_existing_unbound_output() {
         let fixture = Fixture::new();
         let parent = fixture.0.join("parent");
@@ -784,6 +820,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 &root,
                 args.rightkit_trust.as_deref(),
                 inventory_filter.as_ref(),
+                args.out.as_deref(),
             )?;
             (Arc::new(application), notices, Some(scratch), true)
         }
@@ -4220,7 +4257,7 @@ pub(super) fn audit_application_for(
     if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
         return super::native_application_for(repository_id);
     }
-    native_registry_application(root, None, only_paths)
+    native_registry_application(root, None, only_paths, None)
         .map(|(application, _, _scratch)| Arc::new(application))
 }
 
@@ -4400,10 +4437,74 @@ fn rightkit_trust_route_is_supported(
     !direct && !native_rule_manifest && !native_application_configured
 }
 
+// Match existing continuation/trust path boundaries without creating output.
+// `root` is frozen execution source, not the original projection/source root.
+fn native_security_output_path(
+    root: &std::path::Path,
+    requested: &std::path::Path,
+) -> Result<PathBuf, CommandError> {
+    let raw_windows_parent = cfg!(windows)
+        && requested
+            .as_os_str()
+            .to_string_lossy()
+            .split(['/', '\\'])
+            .any(|part| part == "..");
+    if requested.as_os_str().is_empty()
+        || raw_windows_parent
+        || requested
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return Err(CommandError::usage(
+            "Audit output requires a directory path without parent traversal",
+        ));
+    }
+    let absolute = if requested.is_absolute() {
+        requested.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(super::io_error)?
+            .join(requested)
+    };
+    let absolute = lexical_normalize(&absolute);
+    let mut existing = None;
+    for ancestor in absolute.ancestors() {
+        match std::fs::symlink_metadata(ancestor) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink()
+                    || is_reparse_point(&metadata)
+                    || !metadata.is_dir()
+                {
+                    return Err(CommandError::usage("Audit output components must be directories without symlinks or reparse points"));
+                }
+                existing.get_or_insert(ancestor);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(super::io_error(error)),
+        }
+    }
+    let existing = existing.ok_or_else(|| CommandError::usage("Audit output parent missing"))?;
+    let output = std::fs::canonicalize(existing)
+        .map_err(super::io_error)?
+        .join(
+            absolute
+                .strip_prefix(existing)
+                .map_err(|error| CommandError::integrity(error.to_string()))?,
+        );
+    let root = std::fs::canonicalize(root).map_err(super::io_error)?;
+    if output.starts_with(&root) || root.starts_with(&output) {
+        return Err(CommandError::usage(
+            "Audit output & frozen execution source must be separate directories",
+        ));
+    }
+    Ok(output)
+}
+
 fn native_registry_application(
     root: &std::path::Path,
     rightkit_trust: Option<&std::path::Path>,
     only_paths: Option<&std::collections::BTreeSet<String>>,
+    run_dir: Option<&std::path::Path>,
 ) -> Result<
     (
         legion_application::NativeApplication,
@@ -4412,6 +4513,9 @@ fn native_registry_application(
     ),
     CommandError,
 > {
+    let run_dir = run_dir
+        .map(|path| native_security_output_path(root, path))
+        .transpose()?;
     // The command must execute the frozen native provider composition. Do not
     // silently replace it with a one-rule project scan when the release
     // registry is absent: that would make a successful command look like a
@@ -4452,6 +4556,9 @@ fn native_registry_application(
     let mut registry = legion_audit::NativeProviderRegistry::new(root.to_path_buf())
         .with_scratch(scratch.clone())
         .with_external_project_tool(external_tool);
+    if let Some(run_dir) = run_dir {
+        registry.security = registry.security.with_run_dir(run_dir);
+    }
     if root.join(".legion-audit-snapshot").is_file() {
         let manifest = root
             .parent()

@@ -679,6 +679,32 @@ pub fn mint_runtime_verification(
     Ok(json!({"path":path,"requestId":request.request_id}))
 }
 
+/// Read-only admission of existing host delivery & independent verification.
+/// The supplied invocation must be exactly the persisted native packet; this
+/// accessor never issues receipts, changes trust or exposes epoch key material.
+pub fn authenticated_runtime_evidence(
+    run_dir: &Path,
+    request: &ReasoningInvocation,
+) -> Result<Value, AuditError> {
+    request.validate().map_err(invalid)?;
+    let saved: PendingLensWork = serde_json::from_value(read_json(
+        &run_dir
+            .join(LENS_PACKET_DIR)
+            .join(request.packet_file_name()),
+    )?)
+    .map_err(|error| invalid(error.to_string()))?;
+    if saved.provider_id != request.provider_id || saved.request != *request {
+        return Err(invalid(
+            "runtime evidence invocation differs from persisted packet",
+        ));
+    }
+    let (key, epoch) = load_epoch(run_dir)?;
+    Ok(json!({
+        "delivery": runtime_delivery(run_dir, request, &key, &epoch)?,
+        "verification": runtime_verification(run_dir, request, &key, &epoch)?,
+    }))
+}
+
 fn runtime_verification(
     run_dir: &Path,
     request: &ReasoningInvocation,

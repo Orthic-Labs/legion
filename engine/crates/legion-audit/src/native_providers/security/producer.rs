@@ -646,7 +646,9 @@ impl<'a> Run<'a> {
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
-        if matches!(tool.as_str(), "brakeman" | "kube-linter" | "trivy") {
+        if matches!(tool.as_str(), "brakeman" | "kube-linter" | "trivy")
+            || self.provider.id == "security.opengrep"
+        {
             self.retain_scanner_diagnostic(&receipt)?;
         }
         if let Some(namespace) = ipc_namespace.as_mut() {
@@ -2251,6 +2253,102 @@ fn requirements_packages(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Deterministic retention test only; these constructed bytes/receipt never
+    // count as native execution or semantic qualification evidence.
+    #[test]
+    fn scanner_diagnostic_preserves_sdk_receipt_and_binary_streams_after_scratch_drop() {
+        let outer = Scratch::create(None).unwrap();
+        let project = outer.path.join("project");
+        let retained = outer.path.join("retained");
+        fs::create_dir(&project).unwrap();
+        fs::create_dir(&retained).unwrap();
+        let producer = ArtifactProducer::new(&project).with_run_dir(&retained);
+        let provider = AuditProvider {
+            id: "security.opengrep".into(),
+            version: "1".into(),
+            role: "candidate-generator".into(),
+            phase: "security".into(),
+            lens_ids: vec![],
+            dependencies: vec![],
+            kind: crate::plan::ProviderKind::TypedExternalProjectTool,
+            configuration: BTreeMap::new(),
+            bounds: BTreeMap::new(),
+            clean_claim: "unproven".into(),
+            benchmark_status: "unqualified".into(),
+            benchmark_required_for_clean_claim: true,
+            qualification_digest: None,
+            required: true,
+        };
+        let inventory = InventoryEnvelope {
+            schema_version: 1,
+            repository_id: project.to_string_lossy().into_owned(),
+            generation: "fixture-generation".into(),
+            entries: vec![],
+            digest: digest(b"fixture-inventory"),
+        };
+        let run = Run {
+            producer: &producer,
+            provider: &provider,
+            inventory: &inventory,
+            scratch: Scratch::create(Some(&retained)).unwrap(),
+            denied_receipts: RefCell::new(Vec::new()),
+        };
+        let stdout_bytes = [0xff, 0x00, b'X'];
+        let stderr_bytes = b"actual fixture failure\n";
+        let writer = legion_effects::ArtifactWriter::new(&run.scratch.path);
+        let stdout = writer.write_immutable("stdout.bin", &stdout_bytes).unwrap();
+        let stderr = writer.write_immutable("stderr.bin", stderr_bytes).unwrap();
+        let request = ExternalToolRequest {
+            request_id: "retention-fixture".into(),
+            provider_id: provider.id.clone(),
+            plan_id: inventory.digest.clone(),
+            cwd: project.to_string_lossy().into_owned(),
+            ..ExternalToolRequest::default()
+        };
+        let mut receipt =
+            ExecutionReceipt::failure(&request, ExecutionState::Timeout, "fixture-timeout");
+        receipt.process_tree.started = true;
+        receipt.stdout = Some(stdout.clone());
+        receipt.stderr = Some(stderr.clone());
+        let original = crate::execution_policy::receipt_json(&receipt);
+        run.retain_scanner_diagnostic(&receipt).unwrap();
+        // Mutated source bytes cannot be relabelled under an old SDK descriptor.
+        fs::write(run.scratch.path.join("stdout.bin"), b"different").unwrap();
+        assert_eq!(
+            run.retain_scanner_diagnostic(&receipt).unwrap_err(),
+            "scanner-diagnostic-retention-invalid"
+        );
+        let scratch = run.scratch.path.clone();
+        drop(run);
+        assert!(!scratch.exists());
+        let files = fs::read_dir(retained.join("native-diagnostics"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(files.len(), 1);
+        let raw = fs::read(&files[0]).unwrap();
+        let diagnostic: Value = serde_json::from_slice(&raw).unwrap();
+        assert_eq!(diagnostic["receipt"], original);
+        assert_eq!(diagnostic["receipt"]["complete"], false);
+        assert_eq!(diagnostic["receipt"]["state"], "timeout");
+        assert_eq!(diagnostic["receipt"]["processTree"]["reaped"], false);
+        assert_eq!(diagnostic["stdout"]["rawBytes"], json!(stdout_bytes));
+        assert!(diagnostic["stdout"]["raw"].is_null());
+        assert_eq!(diagnostic["stdout"]["originalPath"], stdout.path);
+        assert_eq!(diagnostic["stdout"]["digest"], stdout.digest);
+        assert_eq!(diagnostic["stderr"]["rawBytes"], json!(stderr_bytes));
+        assert_eq!(diagnostic["stderr"]["originalPath"], stderr.path);
+        assert_eq!(diagnostic["stderr"]["digest"], stderr.digest);
+        assert_eq!(
+            files[0].file_name().unwrap().to_string_lossy(),
+            format!(
+                "{}-{}.json",
+                provider.id,
+                digest(&raw).trim_start_matches("sha256:")
+            )
+        );
+    }
 
     #[test]
     fn iac_dispositions_observe_frozen_bytes_and_fail_closed_on_drift_or_missing_source() {

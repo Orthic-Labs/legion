@@ -1,0 +1,6 @@
+rules:
+  - id: qualification-command-shell
+    languages: [python]
+    message: Candidate requiring independent shell-command adjudication
+    severity: WARNING
+    pattern: subprocess.call($COMMAND, shell=True)

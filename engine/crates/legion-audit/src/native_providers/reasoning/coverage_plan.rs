@@ -469,7 +469,7 @@ pub fn gather_facts(
 /// Estimated excerpt bytes for one file in `mode` (a labelled estimate; the
 /// dispatch plan later measures the real packets).
 pub fn estimate_bytes(mode: ExcerptMode, size: u64) -> u64 {
-    match mode {
+    match super::excerpts::effective_excerpt_mode(mode, size) {
         ExcerptMode::Raw => size,
         ExcerptMode::Skeleton => size / 4 + 200,
         ExcerptMode::Regions => size.min(size / 4 + 6144),
@@ -1532,6 +1532,27 @@ mod tests {
             mode,
             ..CoverageRequest::default()
         }
+    }
+
+    #[test]
+    fn small_skeleton_estimates_charge_raw_before_tight_budget_selection() {
+        for size in [0, 4095, 4096] {
+            assert_eq!(estimate_bytes(ExcerptMode::Skeleton, size), size);
+        }
+        assert_eq!(estimate_bytes(ExcerptMode::Skeleton, 4097), 4097 / 4 + 200);
+        let paths = vec!["small.rs".to_owned()];
+        let facts = facts_for(&paths, 4096);
+        let refused =
+            select_for_bundle(&lens_plan::BUNDLE_M1, 4095, &[], &[], &["small.rs"], &facts);
+        assert!(refused.chosen.is_empty());
+        let admitted =
+            select_for_bundle(&lens_plan::BUNDLE_M1, 4096, &[], &[], &["small.rs"], &facts);
+        assert_eq!(admitted.chosen.len(), 1);
+        assert_eq!(admitted.estimated_bytes, 4096);
+        let mandatory =
+            select_for_bundle(&lens_plan::BUNDLE_M1, 1, &["small.rs"], &[], &[], &facts);
+        assert_eq!(mandatory.chosen.len(), 1);
+        assert_eq!(mandatory.estimated_bytes, 4096); // Mandatory coverage never shrinks.
     }
 
     #[test]

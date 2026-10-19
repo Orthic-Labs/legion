@@ -4,7 +4,8 @@
 //! anchored) for `security`/`schema`/`correctness`/`performance`/`minimize`
 //! plus `doc-drift`/`architecture`/`ai-slop`; SKELETON excerpts
 //! (signatures, type/struct/fn/class declarations, imports, no bodies) for
-//! `naming`/`dead-file`.
+//! `naming`/`dead-file`. A requested skeleton of an original file no larger
+//! than 4 KiB carries Raw content instead, preserving bounded bodies & contracts.
 //!
 //! Dependency-free by design: no `tree-sitter` (a new crate dependency is
 //! out of scope for this packet — see the Cargo.toml patch in the report).
@@ -25,6 +26,19 @@ use crate::{
 /// this is split across consecutive chunks on line boundaries (never
 /// truncated), and the chunks may land in consecutive packet parts.
 pub const MAX_BYTES_PER_FILE: usize = 32 * 1024;
+
+/// Whole original-file ceiling for replacing a requested Skeleton with Raw.
+/// Resolve before redaction, hunk selection or chunking; small chunks of a
+/// larger file never opt into this policy. Coverage estimates use the same rule.
+pub(super) const SMALL_FILE_RAW_BYTES: u64 = 4096;
+
+pub(super) fn effective_excerpt_mode(mode: ExcerptMode, original_bytes: u64) -> ExcerptMode {
+    if mode == ExcerptMode::Skeleton && original_bytes <= SMALL_FILE_RAW_BYTES {
+        ExcerptMode::Raw
+    } else {
+        mode
+    }
+}
 
 /// Ceiling on the sum of all excerpt bytes carried by one packet part. When
 /// the denominator needs more, `partition_excerpts` continues into the next
@@ -1083,13 +1097,17 @@ fn prepare_validated_bytes(
     if bytes.contains(&0) {
         return Err("binary");
     }
+    let requested_mode = mode;
+    let mode = effective_excerpt_mode(requested_mode, bytes.len() as u64);
     let text = String::from_utf8(bytes).map_err(|_| "non-utf8")?;
     let language = language_for(path);
     let lines = redact_lines(&text);
     if lines.iter().any(|line| line.text.len() > MAX_LINE_BYTES) {
         return Err("line-over-limit");
     }
-    let hunks = hunks.filter(|hunks| !hunks.is_empty() && mode == ExcerptMode::Raw);
+    // Requested Skeleton already covers the whole file. Promotion preserves
+    // that scope instead of silently restricting its newly Raw content to hunks.
+    let hunks = hunks.filter(|hunks| !hunks.is_empty() && requested_mode == ExcerptMode::Raw);
     let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
     match hunks {
         None => ranges = chunk_ranges_budgeted(&lines, chunk_cap),
@@ -1813,7 +1831,7 @@ mod tests {
         write(
             dir.path(),
             "src/y.rs",
-            "use std::fmt;\n\npub fn compute(x: i32) -> i32 {\n    let y = x + 1;\n    y * 2\n}\n",
+            &format!("use std::fmt;\n\npub fn compute(x: i32) -> i32 {{\n    let y = x + 1;\n    y * 2\n}}\n{}", "\n".repeat(SMALL_FILE_RAW_BYTES as usize)),
         );
         let excerpt = build_excerpt(dir.path(), "src/y.rs", ExcerptMode::Skeleton).unwrap();
         assert_eq!(excerpt.mode, ExcerptMode::Skeleton);
@@ -1829,10 +1847,27 @@ mod tests {
         write(
             dir.path(),
             "a.ts",
-            "export function f(x: number) {\n  return x + 1;\n}\n",
+            &format!(
+                "export function f(x: number) {{\n  return x + 1;\n}}\n{}",
+                "\n".repeat(SMALL_FILE_RAW_BYTES as usize)
+            ),
         );
-        write(dir.path(), "b.swift", "func f() {\n  let y = 1\n}\n");
-        write(dir.path(), "c.py", "def f():\n    return 1\n");
+        write(
+            dir.path(),
+            "b.swift",
+            &format!(
+                "func f() {{\n  let y = 1\n}}\n{}",
+                "\n".repeat(SMALL_FILE_RAW_BYTES as usize)
+            ),
+        );
+        write(
+            dir.path(),
+            "c.py",
+            &format!(
+                "def f():\n    return 1\n{}",
+                "\n".repeat(SMALL_FILE_RAW_BYTES as usize)
+            ),
+        );
         for (path, keep, drop) in [
             ("a.ts", "export function f(x: number) {", "return x + 1;"),
             ("b.swift", "func f() {", "let y = 1"),
@@ -1842,6 +1877,226 @@ mod tests {
             assert!(excerpt.content.contains(keep), "{path} missing {keep}");
             assert!(!excerpt.content.contains(drop), "{path} kept body {drop}");
         }
+    }
+
+    #[test]
+    fn small_file_mode_uses_original_whole_bytes_before_chunking() {
+        for size in [4095, 4096, 4097] {
+            let mut bytes = b"pub fn boundary() {\n    body();\n}\n".to_vec();
+            bytes.resize(size, b' ');
+            let chunks = prepare_validated_bytes(
+                "boundary.rs",
+                ExcerptMode::Skeleton,
+                None,
+                None,
+                64,
+                bytes,
+                SnapshotSide::Selected,
+            )
+            .unwrap();
+            assert!(chunks.len() > 1);
+            let expected = if size <= SMALL_FILE_RAW_BYTES as usize {
+                ExcerptMode::Raw
+            } else {
+                ExcerptMode::Skeleton
+            };
+            assert!(chunks.iter().all(|chunk| chunk.mode == expected));
+            assert!(chunks.iter().all(|chunk| chunk.source_side == "selected"));
+        }
+        assert_eq!(
+            effective_excerpt_mode(ExcerptMode::Regions, 1),
+            ExcerptMode::Regions
+        );
+        assert_eq!(
+            effective_excerpt_mode(ExcerptMode::Raw, 4097),
+            ExcerptMode::Raw
+        );
+        // Shrinking a large original via redaction must not trigger promotion.
+        let mut bytes = b"password = <<EOT\n".to_vec();
+        bytes.extend(std::iter::repeat_n(b'x', 4096));
+        bytes.extend_from_slice(b"\nEOT\n");
+        let chunks = prepare_validated_bytes(
+            "secret.py",
+            ExcerptMode::Skeleton,
+            None,
+            None,
+            64,
+            bytes,
+            SnapshotSide::Selected,
+        )
+        .unwrap();
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.mode == ExcerptMode::Skeleton));
+        assert!(chunks.iter().any(|chunk| chunk.redacted));
+    }
+
+    #[test]
+    fn small_skeleton_preserves_whole_scope_base_identity_and_source_drift_refusal() {
+        let text = "body();\n".repeat(100);
+        let chunks = prepare_validated_bytes(
+            "base.rs",
+            ExcerptMode::Skeleton,
+            Some(&[(80, 80)]),
+            None,
+            64,
+            text.as_bytes().to_vec(),
+            SnapshotSide::Base,
+        )
+        .unwrap();
+        assert_eq!(chunks.first().unwrap().start_line, 1);
+        assert_eq!(chunks.last().unwrap().end_line, 100);
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.mode == ExcerptMode::Raw && chunk.source_side == "base"));
+        assert_eq!(
+            chunks
+                .iter()
+                .map(|chunk| chunk.content.as_str())
+                .collect::<String>(),
+            text
+        );
+        assert_eq!(
+            chunks.first().unwrap().anchors[0],
+            format!("base.rs:1-{}", chunks.first().unwrap().end_line)
+        );
+        let fixture = crate::snapshot::tests::Fixture::new();
+        let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
+        let root = &snapshot.manifest.execution_root;
+        let source = SourceReader::new(root).unwrap();
+        let chunks =
+            prepare_file_with_source(&source, "file.rs", ExcerptMode::Skeleton, None, None, 64)
+                .unwrap();
+        assert!(chunks.iter().all(|chunk| chunk.mode == ExcerptMode::Raw));
+        let file = root.join("file.rs");
+        writable(&file);
+        fs::write(file, b"fake\n").unwrap();
+        assert!(prepare_file_with_source(
+            &source,
+            "file.rs",
+            ExcerptMode::Skeleton,
+            None,
+            None,
+            64
+        )
+        .is_err());
+        assert!(matches!(
+            source.revalidate(),
+            Err(AuditError::SourceDrift(_))
+        ));
+    }
+
+    #[test]
+    fn small_source_controls_deliver_contract_caller_and_body_spans() {
+        // Real corpus bytes exercise all four naming/dead-file cases. Expectations
+        // remain test input only; production mode selection knows file size alone.
+        let corpus: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../../../../../../evals/audit-bench/capsules/core.json"
+        ))
+        .unwrap();
+        let dir = ScratchDir::new();
+        let mut cases = 0;
+        for capsule in corpus["capsules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|capsule| ["naming", "dead-file"].contains(&capsule["lens"].as_str().unwrap()))
+        {
+            for case in capsule["cases"].as_array().unwrap() {
+                cases += 1;
+                for (path, value) in case["files"].as_object().unwrap() {
+                    let source = value.as_str().unwrap();
+                    assert!(source.len() <= SMALL_FILE_RAW_BYTES as usize);
+                    write(dir.path(), path, source);
+                    let excerpt = build_excerpt(dir.path(), path, ExcerptMode::Skeleton).unwrap();
+                    assert_eq!(excerpt.mode, ExcerptMode::Raw);
+                    assert_eq!(excerpt.content, source);
+                    assert!(!excerpt.redacted && !excerpt.truncated);
+                    for span in case["requiredEvidence"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .filter(|span| span["path"] == path.as_str())
+                    {
+                        let range = span["lineRange"].as_array().unwrap();
+                        for line in range[0].as_u64().unwrap()..=range[1].as_u64().unwrap() {
+                            assert_eq!(
+                                excerpt.content.lines().nth(line as usize - 1),
+                                source.lines().nth(line as usize - 1)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(cases, 4);
+    }
+
+    #[test]
+    fn promoted_raw_cost_matches_delivery_under_tight_partition_limits() {
+        let dir = ScratchDir::new();
+        let text = "    body();\n".repeat(250);
+        write(dir.path(), "small.rs", &text);
+        let skeleton = ReviewItem {
+            path: "small.rs".into(),
+            mode: ExcerptMode::Skeleton,
+        };
+        let raw = ReviewItem {
+            path: "small.rs".into(),
+            mode: ExcerptMode::Raw,
+        };
+        let hunks = ChangedHunks::new();
+        let flags = FlaggedRegions::new();
+        assert_eq!(
+            review_item_cost(dir.path(), &skeleton, &hunks, &flags, 3),
+            review_item_cost(dir.path(), &raw, &hunks, &flags, 3)
+        );
+        let budget = PartBudget {
+            cap_bytes: 1200,
+            listing_copies: 3,
+        };
+        let partition = partition_review_set_budgeted(
+            dir.path(),
+            &[skeleton],
+            &AliasMap::new(),
+            128,
+            &hunks,
+            &flags,
+            Some(budget),
+        );
+        assert!(partition.required_parts > 1);
+        assert!(partition.unscheduled_paths.is_empty());
+        assert!(partition.parts.iter().all(|part| part.omitted.is_empty()
+            && part
+                .excerpts
+                .iter()
+                .all(|excerpt| excerpt.mode == ExcerptMode::Raw)
+            && part
+                .excerpts
+                .iter()
+                .map(|excerpt| budget.chunk_cost(excerpt))
+                .sum::<usize>()
+                <= budget.cap_bytes));
+        assert_eq!(
+            partition
+                .parts
+                .iter()
+                .flat_map(|part| &part.excerpts)
+                .map(|excerpt| excerpt.content.as_str())
+                .collect::<String>(),
+            text
+        );
+        let bounded = partition_review_set_budgeted(
+            dir.path(),
+            &[raw],
+            &AliasMap::new(),
+            1,
+            &hunks,
+            &flags,
+            Some(budget),
+        );
+        assert_eq!(bounded.parts.len(), 1);
+        assert_eq!(bounded.unscheduled_paths, vec!["small.rs"]);
     }
 
     #[test]
@@ -1950,7 +2205,7 @@ mod tests {
     }
 
     #[test]
-    fn skeleton_excerpts_are_redacted_too() {
+    fn promoted_skeleton_excerpts_are_redacted_too() {
         let dir = ScratchDir::new();
         let fake_key = ["sk", "live", "abcdefghijklmnopqrstuvwxyz"].join("_");
         write(
@@ -1959,6 +2214,7 @@ mod tests {
             &format!("pub const API_KEY: &str = \"{fake_key}\";\npub fn f() {{}}\n"),
         );
         let excerpt = build_excerpt(dir.path(), "src/k.rs", ExcerptMode::Skeleton).unwrap();
+        assert_eq!(excerpt.mode, ExcerptMode::Raw);
         assert!(excerpt.redacted);
         assert!(!excerpt.content.contains(fake_key.as_str()));
     }

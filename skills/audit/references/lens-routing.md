@@ -56,6 +56,9 @@ needs, and the report schema from `SKILL.md`. The native runner redacts secrets 
 security lens receives scanner summaries and safe excerpts, never raw `.env` or key material.
 
 **Excerpt compression:** use skeleton excerpts for `naming` & `dead-file` surveys.
+Whole original files up to 4 KiB use RAW excerpts instead, preserving complete small contracts &
+implementation bodies. Charge their full redacted size against ordinary packet budgets; larger
+files retain skeleton mode regardless of chunk size.
 Keep RAW, secret-redacted excerpts for `architecture`, `ai-slop`, `doc-drift`, `security`,
 `schema`/contract-drift, `correctness`, `performance`, & `minimize`: semantic review needs
 implementation bodies & exact citations. Never skeletonize these lanes (`minimize`/ponytail judges

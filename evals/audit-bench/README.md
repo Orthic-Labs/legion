@@ -203,3 +203,62 @@ to installed app or installer payloads.
 - Semantic recall & localization are expectation-based proxies; they do not replace human review.
 - The deterministic CI gate covers only the named `audit-behavior` sample; it does not establish
   performance on all planted cases or on held-out controls.
+
+## Explicit semantic capsule bridge
+
+`--capsule <exact-id>` selects constructed capsule pairs from `capsules/core.json`,
+`conditional.json` & optional `security.json`. Corpus/provider populations, unique identities,
+paths, literal evidence spans & exact case bytes are validated before execution. Capsule mode
+cannot combine bundle `--fixture`/`--case` filters. Counts derive from selected corpus bytes.
+
+Example (requires caller-approved model, installed executables & a separate qualification allowance):
+
+```sh
+legion-dev audit-bench --legion /absolute/installed/legion \
+  --capsule core-doc-drift-retries --with-lenses \
+  --claude /absolute/installed/claude --model APPROVED_MODEL \
+  --capsule-token-budget 20000 --capsule-case-token-budget 10000 \
+  --work-dir /absolute/external/scratch --json
+```
+
+Capsule mode requires both explicit budgets plus `--with-lenses`, `--claude` & `--model`;
+ordinary bundle defaults do not authorize capsule model calls. It never borrows any other Audit
+allowance. Each case gets a fresh isolated scratch directory containing only its exact source
+files. Git plumbing creates a synthetic root commit & detached HEAD, without branch refs,
+cloning, checkout or worktrees. This is constructed source, not historical repository evidence.
+Scoring expectations, forbidden claims & narrative contract metadata remain outside audited source;
+only source files can deliver actual contracts to reviewers. Their intentional metadata exclusion
+is reported separately from authenticated required source delivery.
+
+Runner invokes installed `legion audit <source> --type repo --only <providerId> --coverage exhaustive
+--run-token-budget <case-reservation> --out <case-run>`, then installed `audit run-reasoning`
+with pinned Claude/model, `--strict-no-retry --max-calls-per-packet 1`. Existing owned-child bounds
+limit Audit/runtime commands to ten minutes & fixture Git commands to thirty seconds. Outputs,
+command exits, executable hashes, source/corpus/case digests, sealed plan/snapshot/invocation
+identity & original diagnostics remain under explicit external scratch. Evidence is always retained;
+`--keep` is unnecessary in capsule mode.
+
+Source snapshots must match exact case bytes & provider selection before any generation. Completion
+requires authenticated ingest, actual host-delivered literal contract/caller/behavior spans, original
+author findings, withdrawals/final findings & fresh verifier dispositions. Runtime calls & usage
+are authenticated through existing owner validators. Unknown usage burns its reservation & halts
+later model cases; failure, budget exhaustion & unstarted cases remain in planned denominators.
+Provider dependencies, inapplicability, missing delivery & incomplete runtime stay explicit failures.
+
+`observations.json` keeps raw precursor reports/candidates & original author diagnostics separate
+from authenticated provider outcomes, final findings, positive verifier ledgers
+(`upheld`/`contradicted`/`unresolved`) & negative reviews (`scoped_clean`/`challenged`/`unresolved`).
+Expected claims, observed claims, severity, literal source & verifier evidence remain side by side.
+Location overlap, severity matches, misses, extras & zero-final-finding controls are mechanical
+observations. Semantic claim correctness, forbidden-claim assessment & semantic invariant sufficiency
+remain **unadjudicated**; a location hit or upheld finding never becomes expected-claim equivalence.
+Scoped negative review never establishes whole-Audit cleanliness.
+
+Bridge success reports completed execution only. Neither deterministic unit tests nor native/model
+execution automatically qualifies providers, promotes registry metadata or certifies model quality.
+Legacy security adjudication & variant-analysis require separate lifecycle controls outside ordinary
+capsule mode. No model calls run during compilation, parsing or unit tests.
+
+Synthetic Git semantics follow official [commit-tree](https://git-scm.com/docs/git-commit-tree)
+& [update-ref](https://git-scm.com/docs/git-update-ref) documentation: a parentless commit binds
+source tree; `update-ref --no-deref HEAD` replaces HEAD directly without creating a branch ref.

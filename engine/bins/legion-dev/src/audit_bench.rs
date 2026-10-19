@@ -28,6 +28,17 @@ fn run_bounded(
     stdout: Stdio,
     timeout: Duration,
 ) -> Result<ExitStatus, String> {
+    run_bounded_with_stderr(command, args, cwd, stdout, Stdio::null(), timeout)
+}
+
+pub(super) fn run_bounded_with_stderr(
+    command: &Path,
+    args: &[String],
+    cwd: &Path,
+    stdout: Stdio,
+    stderr: Stdio,
+    timeout: Duration,
+) -> Result<ExitStatus, String> {
     let mut owned = OwnedCommand::new(command.as_os_str());
     owned
         .command_mut()
@@ -35,7 +46,7 @@ fn run_bounded(
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(stdout)
-        .stderr(Stdio::null());
+        .stderr(stderr);
     let mut child = owned
         .spawn()
         .map_err(|error| format!("cannot start {}: {error}", command.display()))?;
@@ -981,6 +992,9 @@ pub fn aa_band(a: &[f64], b: &[f64]) -> Option<AaBand> {
 pub struct Options {
     pub legion: PathBuf,
     pub fixtures: Vec<String>,
+    pub capsules: Vec<String>,
+    pub capsule_token_budget: Option<u64>,
+    pub capsule_case_token_budget: Option<u64>,
     pub cases: Vec<String>,
     pub repeat: u32,
     pub token_budget: u64,
@@ -995,7 +1009,7 @@ pub struct Options {
 }
 
 #[derive(Debug, Clone)]
-struct TokenBudget {
+pub(super) struct TokenBudget {
     limit: u64,
     case_limit: u64,
     remaining: u64,
@@ -1008,7 +1022,7 @@ struct TokenBudget {
 }
 
 impl TokenBudget {
-    fn new(limit: u64, case_limit: u64) -> Self {
+    pub(super) fn new(limit: u64, case_limit: u64) -> Self {
         Self {
             limit,
             case_limit,
@@ -1022,7 +1036,7 @@ impl TokenBudget {
         }
     }
 
-    fn reserve_case(&mut self) -> Option<u64> {
+    pub(super) fn reserve_case(&mut self) -> Option<u64> {
         if self.remaining == 0 || self.halted {
             return None;
         }
@@ -1033,7 +1047,7 @@ impl TokenBudget {
     }
 
     /// Unknown usage burns reservation; measured unused tokens return to shared budget.
-    fn settle_case(&mut self, allocation: u64, actual: Option<u64>) -> u64 {
+    pub(super) fn settle_case(&mut self, allocation: u64, actual: Option<u64>) -> u64 {
         let Some(actual) = actual else {
             self.unknown_cases = self.unknown_cases.saturating_add(1);
             self.halted = true;
@@ -1053,7 +1067,7 @@ impl TokenBudget {
         actual
     }
 
-    fn to_json(&self) -> Value {
+    pub(super) fn to_json(&self) -> Value {
         json!({
             "limitTokens": self.limit,
             "perCaseLimitTokens": self.case_limit,
@@ -1165,7 +1179,7 @@ fn load_cases(dir: &Path, fixture: &str) -> Result<CaseFile, String> {
     Ok(file)
 }
 
-fn runtime_usage(run: &Path, runtime: &Value) -> Value {
+pub(super) fn runtime_usage(run: &Path, runtime: &Value) -> Value {
     let Some(mut calls) = runtime.get("calls").and_then(Value::as_u64) else {
         return json!({"status":"unknown","reason":"runtime call count is missing or malformed","callCount":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}});
     };
@@ -1953,6 +1967,12 @@ pub fn run(root: &Path, mut opts: Options) -> bool {
 }
 
 fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
+    if !opts.capsules.is_empty() {
+        return crate::audit_capsule::run(root, opts);
+    }
+    if opts.capsule_token_budget.is_some() || opts.capsule_case_token_budget.is_some() {
+        return Err("capsule budgets require explicit --capsule selection".into());
+    }
     let bench = root.join("evals").join("audit-bench");
     let fixtures = if opts.fixtures.is_empty() {
         discover_fixtures(&bench.join("fixtures"))?

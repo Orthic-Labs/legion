@@ -58,6 +58,14 @@ impl SecurityProviderExecutor {
         self
     }
 
+    /// Retain self-produced native diagnostics only inside an explicit run root.
+    pub fn with_run_dir(mut self, path: impl Into<std::path::PathBuf>) -> Self {
+        if let Some(producer) = self.producer.take() {
+            self.producer = Some(producer.with_run_dir(path));
+        }
+        self
+    }
+
     pub fn with_snapshot_manifest(mut self, path: impl Into<std::path::PathBuf>) -> Self {
         if let Some(producer) = self.producer.take() {
             self.producer = Some(producer.with_snapshot_manifest(path));
