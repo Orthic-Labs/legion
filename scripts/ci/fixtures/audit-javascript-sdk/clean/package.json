@@ -1,0 +1,1 @@
+{"name":"legion-js-sdk-fixture","version":"1.0.0","private":true,"type":"module","packageManager":"pnpm@11.24.0","scripts":{"build":"tsc --project tsconfig.build.json --outDir \"$LEGION_AUDIT_JS_OUTPUT\" --listEmittedFiles --pretty false --noCheck --sourceMap --inlineSources","test":"node --test --test-reporter=tap test.mjs"}}

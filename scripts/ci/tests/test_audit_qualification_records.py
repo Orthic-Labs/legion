@@ -2,7 +2,7 @@
 
 import copy
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import runpy
 import tempfile
 import unittest
@@ -386,7 +386,75 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 33)
+        self.assertEqual(len(gate["ADAPTERS"]), 34)
+
+    def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
+        api = gate["helper"]("audit-javascript-sdk-accuracy.py")
+        entry = {"provider": "code.javascript", "family": "javascript-sdk", "stage": "finding",
+                 "scope": api["FAMILY_SCOPE"], "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64,
+                                                        "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["ADAPTERS"][entry["provider"]],
+                         ("javascript-sdk", "real_javascript_sdk_accuracy", "finding", "canonical-json", "real_javascript_sdk_accuracy"))
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("javascript-sdk", "real_javascript_sdk_accuracy", "canonical-json", "real_javascript_sdk_accuracy"))
+        row = {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": entry["provider"],
+               "claimScope": entry["scope"], "productionQualification": False, "qualificationEligible": True,
+               "requiredContract": copy.deepcopy(api["CONTRACT"]), "executedScope": list(api["TASKS"]), "modelCalls": 0,
+               "metrics": {"cases": len(api["CONTROLS"]), "matched": len(api["CONTROLS"]), "mismatched": 0,
+                           "wholeProviderQualified": False, "boundedSdkAccuracyQualified": True}}
+        gate["controls"](row, entry)
+        for field, value in (("family", "file"), ("provider", "code.python"), ("stage", "candidate")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, {**entry, field: value})
+        for field, value in (("claimScope", "full language clean"), ("productionQualification", True),
+                             ("qualificationEligible", False), ("executedScope", ["type", "lint"]), ("modelCalls", 1)):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["controls"]({**row, field: value}, entry)
+        narrowed = copy.deepcopy(row)
+        narrowed["requiredContract"]["extensions"].remove("tsx")
+        with self.assertRaises(AssertionError):
+            gate["controls"](narrowed, entry)
+        expanded = copy.deepcopy(row)
+        expanded["metrics"]["wholeProviderQualified"] = True
+        with self.assertRaises(AssertionError):
+            gate["controls"](expanded, entry)
+        qualified = gate["qualification"](entry)
+        self.assertIs(qualified["productionQualification"], False)
+        self.assertIs(qualified["wholeProviderQualified"], False)
+        self.assertEqual(qualified["fixtureScope"], api["FAMILY_SCOPE"])
+        self.assertEqual(qualified["validationBasis"], "native-family-validator")
+
+    def test_javascript_sdk_substance_and_tsc_protocol_negatives(self):
+        # Parser-only adversarial bytes never stand in for real SDK controls.
+        api = gate["helper"]("audit-javascript-sdk-accuracy.py")
+        self.assertTrue({"build-noop", "test-noop", "test-empty", "test-unmet-plan"} <= set(api["CONTROLS"]))
+        cwd = PurePosixPath("/frozen/project")
+        listed = "/frozen/project/answer.ts\n"
+        self.assertEqual(api["strict_tsc"](listed, cwd, {"answer.ts"}, 0), {"answer.ts"})
+        for suffix in ("unrecognized diagnostic\n", "/frozen/project/answer.ts(1,x): error TS2322: malformed\n"):
+            with self.subTest(suffix=suffix), self.assertRaises(AssertionError):
+                api["strict_tsc"](listed + suffix, cwd, {"answer.ts"}, 0)
+        with self.assertRaises(AssertionError):
+            api["planned_assertions"](api["TEST_PREAMBLE"])
+        with self.assertRaises(AssertionError):
+            api["assertion_module"]("import test from 'node:test';\nexport function answer() { return 42; }\n")
+
+    def test_javascript_sdk_retained_evidence_and_source_closure_are_fixed(self):
+        api = gate["helper"]("audit-javascript-sdk-accuracy.py")
+        entry = {"provider": "code.javascript", "family": "javascript-sdk", "stage": "finding"}
+        paths = gate["closure_paths"](SOURCE_ROOT, entry)
+        for path in (api["HARNESS"], api["HELPER"], api["INPUTS"], api["SELF"],
+                     "engine/crates/legion-audit/src/native_providers/code/javascript_sdk.rs",
+                     api["FIXTURES"] + "/clean/package.json", api["FIXTURES"] + "/clean/answer_tsx.tsx"):
+            self.assertIn(path, paths)
+        schema = json.loads((SOURCE_ROOT / gate["SCHEMA"]).read_text())
+        self.assertIn("javascript-sdk", schema["$defs"]["entry"]["properties"]["family"]["enum"])
+        self.assertEqual(set(schema["$defs"]["javascriptSdkEvidence"]["required"]), set(gate["JAVASCRIPT_SDK_EVIDENCE"]))
+        with self.assertRaises(AssertionError):
+            api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
+
+    def test_fixed_external_adapters_preserve_stage_and_encoding(self):
+        self.assertEqual(len(gate["ADAPTERS"]), 32)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)

@@ -5,136 +5,919 @@
   "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters, five known-answer class projections, & two fixed constructed build/lint SDK adapters require authenticated successful final Rust assertions. Bench & build/lint records remain fixture-level evidence with productionQualification false. Semgrep SDK controls qualify only two packaged Python rule fixtures with productionQualification false. Bounded code SDK records require original tool/context controls, exact retained artifact locators & authenticated CI; unexecuted providers remain ineligible. No record grants production admission or candidate adjudication.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "entries"],
+  "required": [
+    "schema",
+    "entries"
+  ],
   "properties": {
-    "schema": {"const": "legion-provider-accuracy-index/1"},
-    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+    "schema": {
+      "const": "legion-provider-accuracy-index/1"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
   },
   "$defs": {
-    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "path": {"type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\:])[^/]+(?:/[^/]+)*$"},
-    "reference": {
-      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
-      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/digest"}}
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
     },
-    "record": {
-      "type": "object", "additionalProperties": false,
-      "required": ["path", "sha256", "qualificationDigest", "encoding"],
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\:])[^/]+(?:/[^/]+)*$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
       "properties": {
-        "path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/digest"},
-        "qualificationDigest": {"$ref": "#/$defs/digest"},
-        "encoding": {"enum": ["canonical-json", "native-insertion-json"]}
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        }
       }
     },
-    "argv": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
-    "jobConclusion": {"enum": ["success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "startup_failure", "stale"]},
-    "terminalCheck": {
-      "type": "object", "additionalProperties": false,
-      "required": ["role", "command", "conclusion", "exitCode", "sequence", "logStartLine", "logEndLine", "logSpanSha256", "recordSha256"],
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "qualificationDigest",
+        "encoding"
+      ],
       "properties": {
-        "role": {"enum": ["harness", "validator"]}, "command": {"$ref": "#/$defs/argv"},
-        "conclusion": {"const": "success"}, "exitCode": {"const": 0},
-        "sequence": {"type": "integer", "minimum": 1}, "logStartLine": {"type": "integer", "minimum": 1}, "logEndLine": {"type": "integer", "minimum": 1},
-        "logSpanSha256": {"$ref": "#/$defs/digest"}, "recordSha256": {"$ref": "#/$defs/digest"}, "summaryDigest": {"$ref": "#/$defs/digest"}
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "qualificationDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "encoding": {
+          "enum": [
+            "canonical-json",
+            "native-insertion-json"
+          ]
+        }
+      }
+    },
+    "argv": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    },
+    "jobConclusion": {
+      "enum": [
+        "success",
+        "failure",
+        "cancelled",
+        "skipped",
+        "timed_out",
+        "action_required",
+        "neutral",
+        "startup_failure",
+        "stale"
+      ]
+    },
+    "terminalCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "command",
+        "conclusion",
+        "exitCode",
+        "sequence",
+        "logStartLine",
+        "logEndLine",
+        "logSpanSha256",
+        "recordSha256"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "harness",
+            "validator"
+          ]
+        },
+        "command": {
+          "$ref": "#/$defs/argv"
+        },
+        "conclusion": {
+          "const": "success"
+        },
+        "exitCode": {
+          "const": 0
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "logStartLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "logEndLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "logSpanSha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "recordSha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "summaryDigest": {
+          "$ref": "#/$defs/digest"
+        }
       },
-      "allOf": [{"if": {"properties": {"role": {"const": "validator"}}}, "then": {"required": ["summaryDigest"]}}]
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "const": "validator"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "summaryDigest"
+            ]
+          }
+        }
+      ]
     },
     "provenance": {
-      "type": "object", "additionalProperties": false,
-      "required": ["repository", "runId", "runAttempt", "jobId", "jobName", "jobConclusion", "workflow", "commit", "platform", "command", "validator", "log"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "runId",
+        "runAttempt",
+        "jobId",
+        "jobName",
+        "jobConclusion",
+        "workflow",
+        "commit",
+        "platform",
+        "command",
+        "validator",
+        "log"
+      ],
       "properties": {
-        "repository": {"const": "Orthic-Labs/legion"},
-        "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
-        "jobName": {"type": "string", "minLength": 1, "maxLength": 200},
-        "jobConclusion": {"$ref": "#/$defs/jobConclusion"},
-        "workflow": {"const": ".github/workflows/ci.yml"},
-        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "platform": {"enum": ["macos-15", "windows-2025"]},
-        "command": {
-          "type": "object", "additionalProperties": false, "required": ["harness"],
-          "properties": {"harness": {"$ref": "#/$defs/argv"}, "validator": {"$ref": "#/$defs/argv"}}
+        "repository": {
+          "const": "Orthic-Labs/legion"
         },
-        "validator": {"oneOf": [{"$ref": "#/$defs/reference"}, {"type": "null"}]}, "log": {"$ref": "#/$defs/reference"}
+        "runId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "jobId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "jobName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "jobConclusion": {
+          "$ref": "#/$defs/jobConclusion"
+        },
+        "workflow": {
+          "const": ".github/workflows/ci.yml"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "platform": {
+          "enum": [
+            "macos-15",
+            "windows-2025"
+          ]
+        },
+        "command": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "harness"
+          ],
+          "properties": {
+            "harness": {
+              "$ref": "#/$defs/argv"
+            },
+            "validator": {
+              "$ref": "#/$defs/argv"
+            }
+          }
+        },
+        "validator": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "log": {
+          "$ref": "#/$defs/reference"
+        }
       }
     },
     "codeMobileEvidence": {
       "description": "Original full observed native before/after & source preparation bytes for bounded macOS Swift/Objective-C/Objective-C++ SDK controls; no production owner admission or whole-platform qualification.",
-      "type": "object", "additionalProperties": false,
-      "required": ["nativeBefore", "nativeAfter", "sourceEnrollment"],
-      "properties": {"nativeBefore": {"$ref": "#/$defs/reference"}, "nativeAfter": {"$ref": "#/$defs/reference"}, "sourceEnrollment": {"$ref": "#/$defs/reference"}}
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nativeBefore",
+        "nativeAfter",
+        "sourceEnrollment"
+      ],
+      "properties": {
+        "nativeBefore": {
+          "$ref": "#/$defs/reference"
+        },
+        "nativeAfter": {
+          "$ref": "#/$defs/reference"
+        },
+        "sourceEnrollment": {
+          "$ref": "#/$defs/reference"
+        }
+      }
     },
     "codeSdkEvidence": {
       "description": "Exact original code SDK proof metadata; full provider contract & authenticated CI remain mandatory.",
-      "type": "object", "additionalProperties": false,
-      "required": ["toolchainTree", "childExecution", "childStdout", "childStderr", "govulnEnrollment", "providerRecords"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolchainTree",
+        "childExecution",
+        "childStdout",
+        "childStderr",
+        "govulnEnrollment",
+        "providerRecords"
+      ],
       "properties": {
-        "toolchainTree": {"$ref": "#/$defs/reference"}, "childExecution": {"$ref": "#/$defs/reference"},
-        "childStdout": {"$ref": "#/$defs/reference"}, "childStderr": {"$ref": "#/$defs/reference"},
-        "govulnEnrollment": {"$ref": "#/$defs/reference"},
+        "toolchainTree": {
+          "$ref": "#/$defs/reference"
+        },
+        "childExecution": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStdout": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStderr": {
+          "$ref": "#/$defs/reference"
+        },
+        "govulnEnrollment": {
+          "$ref": "#/$defs/reference"
+        },
         "providerRecords": {
-          "type": "object", "additionalProperties": false,
-          "required": ["code.c-family", "code.dotnet", "code.go", "code.javascript", "code.jvm", "code.long-tail", "code.mobile", "code.php-ruby", "code.python", "code.rust"],
-          "properties": {"code.c-family": {"$ref": "#/$defs/reference"}, "code.dotnet": {"$ref": "#/$defs/reference"}, "code.go": {"$ref": "#/$defs/reference"}, "code.javascript": {"$ref": "#/$defs/reference"}, "code.jvm": {"$ref": "#/$defs/reference"}, "code.long-tail": {"$ref": "#/$defs/reference"}, "code.mobile": {"$ref": "#/$defs/reference"}, "code.php-ruby": {"$ref": "#/$defs/reference"}, "code.python": {"$ref": "#/$defs/reference"}, "code.rust": {"$ref": "#/$defs/reference"}}
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code.c-family",
+            "code.dotnet",
+            "code.go",
+            "code.javascript",
+            "code.jvm",
+            "code.long-tail",
+            "code.mobile",
+            "code.php-ruby",
+            "code.python",
+            "code.rust"
+          ],
+          "properties": {
+            "code.c-family": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.dotnet": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.go": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.javascript": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.jvm": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.long-tail": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.mobile": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.php-ruby": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.python": {
+              "$ref": "#/$defs/reference"
+            },
+            "code.rust": {
+              "$ref": "#/$defs/reference"
+            }
+          }
         }
       }
     },
     "pythonSdkEvidence": {
       "description": "Exact original Python SDK child/enrollment/record bytes; no production admission.",
-      "type": "object", "additionalProperties": false,
-      "required": ["childExecution", "childStdout", "childStderr", "pythonEnrollment", "providerRecord"],
-      "properties": {"childExecution": {"$ref": "#/$defs/reference"}, "childStdout": {"$ref": "#/$defs/reference"}, "childStderr": {"$ref": "#/$defs/reference"}, "pythonEnrollment": {"$ref": "#/$defs/reference"}, "providerRecord": {"$ref": "#/$defs/reference"}}
-    },
-    "jvmSdkEvidence": {"description": "Exact original JVM/v1 enrollment, native confinement & all 15 child streams; authenticated CI remains mandatory.", "type": "object", "additionalProperties": false, "required": ["code_jvm.json", "enrollment.json", "confinement.json", "positive/child.stdout.log", "positive/child.stderr.log", "nonempty-clean/child.stdout.log", "nonempty-clean/child.stderr.log", "compile-error/child.stdout.log", "compile-error/child.stderr.log", "test-failure/child.stdout.log", "test-failure/child.stderr.log", "no-op-test/child.stdout.log", "no-op-test/child.stderr.log", "missing-dependency/child.stdout.log", "missing-dependency/child.stderr.log", "wrapper-drift/child.stdout.log", "wrapper-drift/child.stderr.log", "source-drift/child.stdout.log", "source-drift/child.stderr.log", "dependency-drift/child.stdout.log", "dependency-drift/child.stderr.log", "enrollment-drift/child.stdout.log", "enrollment-drift/child.stderr.log", "unsupported-variant/child.stdout.log", "unsupported-variant/child.stderr.log", "missing-tool/child.stdout.log", "missing-tool/child.stderr.log", "rejected-admission/child.stdout.log", "rejected-admission/child.stderr.log", "absent-sandbox/child.stdout.log", "absent-sandbox/child.stderr.log", "request-mutation/child.stdout.log", "request-mutation/child.stderr.log"], "properties": {"code_jvm.json": {"$ref": "#/$defs/reference"}, "enrollment.json": {"$ref": "#/$defs/reference"}, "confinement.json": {"$ref": "#/$defs/reference"}, "positive/child.stdout.log": {"$ref": "#/$defs/reference"}, "positive/child.stderr.log": {"$ref": "#/$defs/reference"}, "nonempty-clean/child.stdout.log": {"$ref": "#/$defs/reference"}, "nonempty-clean/child.stderr.log": {"$ref": "#/$defs/reference"}, "compile-error/child.stdout.log": {"$ref": "#/$defs/reference"}, "compile-error/child.stderr.log": {"$ref": "#/$defs/reference"}, "test-failure/child.stdout.log": {"$ref": "#/$defs/reference"}, "test-failure/child.stderr.log": {"$ref": "#/$defs/reference"}, "no-op-test/child.stdout.log": {"$ref": "#/$defs/reference"}, "no-op-test/child.stderr.log": {"$ref": "#/$defs/reference"}, "missing-dependency/child.stdout.log": {"$ref": "#/$defs/reference"}, "missing-dependency/child.stderr.log": {"$ref": "#/$defs/reference"}, "wrapper-drift/child.stdout.log": {"$ref": "#/$defs/reference"}, "wrapper-drift/child.stderr.log": {"$ref": "#/$defs/reference"}, "source-drift/child.stdout.log": {"$ref": "#/$defs/reference"}, "source-drift/child.stderr.log": {"$ref": "#/$defs/reference"}, "dependency-drift/child.stdout.log": {"$ref": "#/$defs/reference"}, "dependency-drift/child.stderr.log": {"$ref": "#/$defs/reference"}, "enrollment-drift/child.stdout.log": {"$ref": "#/$defs/reference"}, "enrollment-drift/child.stderr.log": {"$ref": "#/$defs/reference"}, "unsupported-variant/child.stdout.log": {"$ref": "#/$defs/reference"}, "unsupported-variant/child.stderr.log": {"$ref": "#/$defs/reference"}, "missing-tool/child.stdout.log": {"$ref": "#/$defs/reference"}, "missing-tool/child.stderr.log": {"$ref": "#/$defs/reference"}, "rejected-admission/child.stdout.log": {"$ref": "#/$defs/reference"}, "rejected-admission/child.stderr.log": {"$ref": "#/$defs/reference"}, "absent-sandbox/child.stdout.log": {"$ref": "#/$defs/reference"}, "absent-sandbox/child.stderr.log": {"$ref": "#/$defs/reference"}, "request-mutation/child.stdout.log": {"$ref": "#/$defs/reference"}, "request-mutation/child.stderr.log": {"$ref": "#/$defs/reference"}}},
-    "entry": {
-      "type": "object", "additionalProperties": false,
-      "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "childExecution",
+        "childStdout",
+        "childStderr",
+        "pythonEnrollment",
+        "providerRecord"
+      ],
       "properties": {
-        "provider": {"type": "string", "minLength": 1},
-        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk", "code-long-tail", "code-python-sdk", "ownership-native", "code-jvm-sdk", "code-mobile-sdk"]},
-        "record": {"$ref": "#/$defs/record"},
-        "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
-        "scope": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "childExecution": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStdout": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStderr": {
+          "$ref": "#/$defs/reference"
+        },
+        "pythonEnrollment": {
+          "$ref": "#/$defs/reference"
+        },
+        "providerRecord": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "jvmSdkEvidence": {
+      "description": "Exact original JVM/v1 enrollment, native confinement & all 15 child streams; authenticated CI remains mandatory.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code_jvm.json",
+        "enrollment.json",
+        "confinement.json",
+        "positive/child.stdout.log",
+        "positive/child.stderr.log",
+        "nonempty-clean/child.stdout.log",
+        "nonempty-clean/child.stderr.log",
+        "compile-error/child.stdout.log",
+        "compile-error/child.stderr.log",
+        "test-failure/child.stdout.log",
+        "test-failure/child.stderr.log",
+        "no-op-test/child.stdout.log",
+        "no-op-test/child.stderr.log",
+        "missing-dependency/child.stdout.log",
+        "missing-dependency/child.stderr.log",
+        "wrapper-drift/child.stdout.log",
+        "wrapper-drift/child.stderr.log",
+        "source-drift/child.stdout.log",
+        "source-drift/child.stderr.log",
+        "dependency-drift/child.stdout.log",
+        "dependency-drift/child.stderr.log",
+        "enrollment-drift/child.stdout.log",
+        "enrollment-drift/child.stderr.log",
+        "unsupported-variant/child.stdout.log",
+        "unsupported-variant/child.stderr.log",
+        "missing-tool/child.stdout.log",
+        "missing-tool/child.stderr.log",
+        "rejected-admission/child.stdout.log",
+        "rejected-admission/child.stderr.log",
+        "absent-sandbox/child.stdout.log",
+        "absent-sandbox/child.stderr.log",
+        "request-mutation/child.stdout.log",
+        "request-mutation/child.stderr.log"
+      ],
+      "properties": {
+        "code_jvm.json": {
+          "$ref": "#/$defs/reference"
+        },
+        "enrollment.json": {
+          "$ref": "#/$defs/reference"
+        },
+        "confinement.json": {
+          "$ref": "#/$defs/reference"
+        },
+        "positive/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "positive/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "nonempty-clean/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "nonempty-clean/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "compile-error/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "compile-error/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "test-failure/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "test-failure/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "no-op-test/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "no-op-test/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "missing-dependency/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "missing-dependency/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "wrapper-drift/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "wrapper-drift/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "source-drift/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "source-drift/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "dependency-drift/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "dependency-drift/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "enrollment-drift/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "enrollment-drift/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "unsupported-variant/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "unsupported-variant/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "missing-tool/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "missing-tool/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "rejected-admission/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "rejected-admission/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "absent-sandbox/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "absent-sandbox/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "request-mutation/child.stdout.log": {
+          "$ref": "#/$defs/reference"
+        },
+        "request-mutation/child.stderr.log": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "family",
+        "record",
+        "stage",
+        "scope",
+        "sourceClosure",
+        "provenance",
+        "provenanceVerification"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "enum": [
+            "file",
+            "shellcheck",
+            "scanner",
+            "git",
+            "extra-scanner",
+            "linter",
+            "harness-scanner",
+            "harness-iac",
+            "bench-known-answer",
+            "harness-quality",
+            "harness-ast-grep",
+            "harness-machete",
+            "license-checker",
+            "cargo-deny",
+            "cargo-audit-sdk",
+            "visual",
+            "opengrep-artifact",
+            "osv-artifact",
+            "cargo-geiger",
+            "secrets-history",
+            "pip-audit",
+            "semgrep-sdk",
+            "harness-rust-outdated",
+            "node-outdated",
+            "code-sdk",
+            "code-long-tail",
+            "code-python-sdk",
+            "ownership-native",
+            "code-jvm-sdk",
+            "code-mobile-sdk",
+            "code-c-family-sdk",
+            "javascript-sdk"
+          ]
+        },
+        "record": {
+          "$ref": "#/$defs/record"
+        },
+        "stage": {
+          "enum": [
+            "candidate",
+            "finding",
+            "fact-output",
+            "outcome"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
         "sourceClosure": {
-          "type": "object", "additionalProperties": false, "required": ["sources", "digest"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sources",
+            "digest"
+          ],
           "properties": {
-            "sources": {"type": "object", "propertyNames": {"$ref": "#/$defs/path"}, "additionalProperties": {"$ref": "#/$defs/digest"}},
-            "digest": {"$ref": "#/$defs/digest"}
+            "sources": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/path"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/digest"
+              }
+            },
+            "digest": {
+              "$ref": "#/$defs/digest"
+            }
           }
         },
-        "provenance": {"$ref": "#/$defs/provenance"},
-        "provenanceVerification": {"$ref": "#/$defs/reference"},
-        "codeMobileEvidence": {"$ref": "#/$defs/codeMobileEvidence"},
-        "codeSdkEvidence": {"$ref": "#/$defs/codeSdkEvidence"},
-        "pythonSdkEvidence": {"$ref": "#/$defs/pythonSdkEvidence"},
-        "jvmSdkEvidence": {"$ref": "#/$defs/jvmSdkEvidence"}
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "provenanceVerification": {
+          "$ref": "#/$defs/reference"
+        },
+        "codeMobileEvidence": {
+          "$ref": "#/$defs/codeMobileEvidence"
+        },
+        "codeSdkEvidence": {
+          "$ref": "#/$defs/codeSdkEvidence"
+        },
+        "pythonSdkEvidence": {
+          "$ref": "#/$defs/pythonSdkEvidence"
+        },
+        "jvmSdkEvidence": {
+          "$ref": "#/$defs/jvmSdkEvidence"
+        },
+        "javascriptSdkEvidence": {
+          "$ref": "#/$defs/javascriptSdkEvidence"
+        }
       },
-      "allOf": [{"if": {"properties": {"family": {"const": "code-mobile-sdk"}}},
-                 "then": {"required": ["codeMobileEvidence"]}, "else": {"not": {"required": ["codeMobileEvidence"]}}},
-{"if": {"properties": {"family": {"const": "code-c-family-sdk"}}},
-                 "then": {"properties": {"provider": {"const": "code.c-family"}, "stage": {"const": "finding"}, "scope": {"const": "source-bound CMake/Clang C-family operations/v1 known-answer SDK fixtures"}}}},
-                {"if": {"properties": {"family": {"const": "code-sdk"}}},
-                 "then": {"required": ["codeSdkEvidence"]}, "else": {"not": {"required": ["codeSdkEvidence"]}}},
-                {"if": {"properties": {"family": {"const": "code-python-sdk"}}},
-                 "then": {"required": ["pythonSdkEvidence"], "properties": {"provider": {"const": "code.python"}}}, "else": {"not": {"required": ["pythonSdkEvidence"]}}},
-                {"if": {"properties": {"family": {"const": "code-jvm-sdk"}}},
-                 "then": {"required": ["jvmSdkEvidence"], "properties": {"provider": {"const": "code.jvm"}}}, "else": {"not": {"required": ["jvmSdkEvidence"]}}}]
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-mobile-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "codeMobileEvidence"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "codeMobileEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-c-family-sdk"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provider": {
+                "const": "code.c-family"
+              },
+              "stage": {
+                "const": "finding"
+              },
+              "scope": {
+                "const": "source-bound CMake/Clang C-family operations/v1 known-answer SDK fixtures"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "codeSdkEvidence"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "codeSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-python-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "pythonSdkEvidence"
+            ],
+            "properties": {
+              "provider": {
+                "const": "code.python"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "pythonSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-jvm-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "jvmSdkEvidence"
+            ],
+            "properties": {
+              "provider": {
+                "const": "code.jvm"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "jvmSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "javascript-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "javascriptSdkEvidence"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "javascriptSdkEvidence"
+              ]
+            }
+          }
+        }
+      ]
     },
     "provenanceVerification": {
       "description": "Separate source-owned object populated only by maintainers after authenticated GitHub retrieval; never inferred from CI numbers or produced by this checker.",
-      "type": "object", "additionalProperties": false,
-      "required": ["schema", "method", "verified", "repository", "runId", "runAttempt", "jobId", "workflow", "commit", "platform", "jobConclusion", "qualificationConclusion", "validationBasis", "checks", "recordSha256", "provenanceDigest", "logSha256", "validatorSha256", "sourceClosureDigest", "summaryDigest"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "method",
+        "verified",
+        "repository",
+        "runId",
+        "runAttempt",
+        "jobId",
+        "workflow",
+        "commit",
+        "platform",
+        "jobConclusion",
+        "qualificationConclusion",
+        "validationBasis",
+        "checks",
+        "recordSha256",
+        "provenanceDigest",
+        "logSha256",
+        "validatorSha256",
+        "sourceClosureDigest",
+        "summaryDigest"
+      ],
       "properties": {
-        "schema": {"const": "legion-provider-accuracy-provenance-verification/2"},
-        "method": {"const": "authenticated-github-retrieval"}, "verified": {"const": true},
-        "repository": {"const": "Orthic-Labs/legion"},
-        "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
-        "workflow": {"const": ".github/workflows/ci.yml"}, "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "platform": {"enum": ["macos-15", "windows-2025"]}, "jobConclusion": {"$ref": "#/$defs/jobConclusion"},
-        "qualificationConclusion": {"const": "success"}, "validationBasis": {"enum": ["native-family-validator", "source-owned-harness-success"]},
-        "checks": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/terminalCheck"}},
-        "recordSha256": {"$ref": "#/$defs/digest"},
-        "provenanceDigest": {"$ref": "#/$defs/digest"}, "logSha256": {"$ref": "#/$defs/digest"}, "validatorSha256": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]},
-        "sourceClosureDigest": {"$ref": "#/$defs/digest"}, "summaryDigest": {"oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]}
+        "schema": {
+          "const": "legion-provider-accuracy-provenance-verification/2"
+        },
+        "method": {
+          "const": "authenticated-github-retrieval"
+        },
+        "verified": {
+          "const": true
+        },
+        "repository": {
+          "const": "Orthic-Labs/legion"
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "jobId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workflow": {
+          "const": ".github/workflows/ci.yml"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "platform": {
+          "enum": [
+            "macos-15",
+            "windows-2025"
+          ]
+        },
+        "jobConclusion": {
+          "$ref": "#/$defs/jobConclusion"
+        },
+        "qualificationConclusion": {
+          "const": "success"
+        },
+        "validationBasis": {
+          "enum": [
+            "native-family-validator",
+            "source-owned-harness-success"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/terminalCheck"
+          }
+        },
+        "recordSha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "provenanceDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "logSha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "validatorSha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceClosureDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "summaryDigest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "javascriptSdkEvidence": {
+      "description": "Original bounded JavaScript SDK artifacts; no production admission or whole-language clean claim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enrollment",
+        "childExecution",
+        "childStdout",
+        "childStderr",
+        "providerRecord"
+      ],
+      "properties": {
+        "enrollment": {
+          "$ref": "#/$defs/reference"
+        },
+        "childExecution": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStdout": {
+          "$ref": "#/$defs/reference"
+        },
+        "childStderr": {
+          "$ref": "#/$defs/reference"
+        },
+        "providerRecord": {
+          "$ref": "#/$defs/reference"
+        }
       }
     }
   }

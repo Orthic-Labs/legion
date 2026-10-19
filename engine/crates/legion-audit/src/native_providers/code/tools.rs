@@ -75,6 +75,8 @@ use tokio_util::sync::CancellationToken;
 mod c_family_native;
 #[path = "govulncheck.rs"]
 mod govulncheck;
+#[path = "javascript_sdk.rs"]
+mod javascript_sdk;
 #[path = "mobile_sdk.rs"]
 mod mobile_sdk;
 #[path = "native_commands.rs"]
@@ -699,6 +701,9 @@ fn plan_commands(
     if provider_id == "code.rust" {
         rust_dependency::plan(root, entries, scratch, &mut plan);
     }
+    if provider_id == "code.javascript" {
+        javascript_sdk::plan(root, entries, selected, scratch, &mut plan);
+    }
     plan
 }
 
@@ -902,6 +907,7 @@ struct RunOutput {
     executable_digest: String,
     stdout_digest: Option<String>,
     diagnostics: Vec<Diag>,
+    covered: BTreeSet<String>,
 }
 
 impl RunOutput {
@@ -914,6 +920,7 @@ impl RunOutput {
             executable_digest: String::new(),
             stdout_digest: None,
             diagnostics: Vec::new(),
+            covered: BTreeSet::new(),
         }
     }
 }
@@ -1216,8 +1223,11 @@ async fn run_one(
         version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
+    let javascript_command = ctx.provider_id == "code.javascript";
     let snapshot = || {
-        if ctx.provider_id == "code.python" {
+        if javascript_command {
+            javascript_sdk::snapshot(ctx, command, &executable)
+        } else if ctx.provider_id == "code.python" {
             python_commands::snapshot(command)
         } else if mobile_sdk::is_mobile(command.parser) {
             mobile_sdk::snapshot(command)
@@ -1231,6 +1241,7 @@ async fn run_one(
     };
     let native_input_before =
         if matches!(command.parser, Parser::Govulncheck | Parser::RustDependency)
+            || javascript_command
             || mobile_sdk::is_mobile(command.parser)
             || c_family_native::is_native(command.parser)
             || ctx.provider_id == "code.python"
@@ -1395,6 +1406,19 @@ async fn run_one(
         output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         return output;
     }
+    if javascript_command
+        && command.programs.contains(&"pnpm")
+        && native_input_before
+            .as_ref()
+            .and_then(|v| v["packageManagerVersion"].as_str())
+            != Some(output.version.as_str())
+    {
+        output.outcome = Outcome::Failed(format!(
+            "tool-failed:{}:declared-pnpm-version-mismatch",
+            command.tool
+        ));
+        return output;
+    }
     if let Some(identity) = &version_probe_identity {
         let unchanged = [
             ("inspectorPath", "inspectorDigest"),
@@ -1452,7 +1476,40 @@ async fn run_one(
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
     };
-    let parsed = if mobile_sdk::is_mobile(command.parser) {
+    if javascript_command && matches!(command.parser, Parser::Tsc | Parser::Eslint) {
+        match javascript_sdk::covered(ctx, command, bytes, receipt.exit_code) {
+            Ok(covered) => output.covered = covered,
+            Err(reason) => {
+                output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
+                return output;
+            }
+        }
+    }
+    if javascript_command && ["build", "test"].contains(&command.tool) {
+        match javascript_sdk::operation(
+            ctx,
+            command,
+            bytes,
+            stderr.as_deref().unwrap_or_default(),
+            receipt.exit_code,
+        ) {
+            Ok((proof, covered)) => {
+                output.covered = covered;
+                if let Some(retained) = output.receipt.as_mut() {
+                    retained["nativeOperationObservation"] = proof;
+                }
+            }
+            Err(reason) => {
+                output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
+                return output;
+            }
+        }
+    }
+    let parsed = if javascript_command && command.parser == Parser::Tsc {
+        javascript_sdk::typescript(ctx, command, bytes, receipt.exit_code).map(|v| v.0)
+    } else if javascript_command && command.parser == Parser::Eslint {
+        javascript_sdk::eslint(bytes, receipt.exit_code).map(|v| v.0)
+    } else if mobile_sdk::is_mobile(command.parser) {
         mobile_sdk::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if command.parser == Parser::Govulncheck {
         govulncheck::parse(bytes, receipt.exit_code, command)
@@ -1904,6 +1961,7 @@ struct Accumulator {
     executable_digest: String,
     stdout_digests: Vec<String>,
     runs: Vec<Value>,
+    covered: BTreeSet<String>,
 }
 
 impl Accumulator {
@@ -2022,6 +2080,7 @@ pub async fn run(
         if let Some(digest) = &output.stdout_digest {
             accumulator.stdout_digests.push(digest.clone());
         }
+        accumulator.covered.extend(output.covered.clone());
         accumulator.merge(output.outcome.clone());
         if let Some(why) = plan.not_planned.get(command.tool) {
             accumulator.merge(Outcome::NotRun((*why).into()));
@@ -2071,7 +2130,20 @@ pub async fn run(
         let _ = std::fs::remove_file(path);
     }
 
-    for (tool, accumulator) in accumulators {
+    for (tool, mut accumulator) in accumulators {
+        if provider_id == "code.javascript" && ["type", "lint"].contains(&tool) {
+            let missing: Vec<_> = selected.difference(&accumulator.covered).cloned().collect();
+            if !missing.is_empty() {
+                accumulator.merge(Outcome::Failed(format!(
+                    "tool-failed:{tool}:source-scope-incomplete:{}",
+                    missing.len()
+                )));
+                evidence.gaps.push(format!(
+                    "{provider_id}:{tool}:source-scope-incomplete:{}",
+                    missing.join(",")
+                ));
+            }
+        }
         let outcome = accumulator.outcome.clone().unwrap_or(Outcome::Missing);
         let ran = outcome == Outcome::Ran;
         let status = match outcome {
@@ -2102,7 +2174,7 @@ pub async fn run(
                 "status": status,
                 "identity": identity,
                 "artifactDigest": artifact_digest,
-                "scope": {"runs": accumulator.runs, "offline": true},
+                "scope": if provider_id == "code.javascript" {json!({"runs": accumulator.runs, "offline": true, "observedSourcePaths": accumulator.covered})} else {json!({"runs": accumulator.runs, "offline": true})},
             }),
         );
         evidence.outcomes.insert(tool, outcome);

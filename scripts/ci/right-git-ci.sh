@@ -693,6 +693,19 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification python3 scripts/ci/audit-mobile-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
   unset LEGION_MOBILE_SDK_SCRATCH LEGION_MOBILE_SDK_OUTPUT LEGION_MOBILE_SDK_ENROLLMENT LEGION_MOBILE_SOURCE_ENROLLMENT
+  # Archive-only official JS tooling enrollment; no project install or scripts.
+  javascript_sdk_enrollment="$(python3 scripts/ci/audit-javascript-sdk-bootstrap.py \
+    --repository-root "$GITHUB_WORKSPACE" \
+    --output-root "$RUNNER_TEMP/legion-js-sdk-tools" --node "$(command -v node)")"
+  export LEGION_JS_SDK_ENROLLMENT="$javascript_sdk_enrollment"
+  export LEGION_JS_SDK_SCRATCH="$RUNNER_TEMP/legion-js-sdk-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="$RUNNER_TEMP/legion-provider-qualification/javascript-sdk"
+  mkdir -p "$LEGION_JS_SDK_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test real_javascript_sdk_accuracy \
+    real_javascript_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-javascript-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH javascript_sdk_enrollment
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.
