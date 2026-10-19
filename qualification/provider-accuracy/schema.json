@@ -574,6 +574,7 @@
             "code-python-sdk",
             "code-php-ruby-sdk",
             "ownership-native",
+            "compatibility-report",
             "code-jvm-sdk",
             "code-mobile-sdk",
             "code-c-family-sdk",
@@ -663,6 +664,28 @@
         }
       },
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "compatibility-report"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provider": {
+                "const": "compatibility.core"
+              },
+              "stage": {
+                "const": "fact-output"
+              },
+              "scope": {
+                "const": "native Audit report v1/v2 v1-core preservation; excludes v2-only fields/extensions"
+              }
+            }
+          }
+        },
         {
           "if": {
             "properties": {

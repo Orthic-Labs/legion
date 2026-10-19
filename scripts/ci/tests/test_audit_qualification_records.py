@@ -122,6 +122,47 @@ class RegistrationGateTests(unittest.TestCase):
         self.write_json("src/registry/providers.json", {"providers": [self.spec]})
         self.write_index()
 
+    def test_compatibility_report_adapter_retains_protocol_only_scope(self):
+        scope = gate["helper"]("validate-compatibility-report-accuracy.py")["SCOPE"]
+        entry = {"provider": "compatibility.core", "family": "compatibility-report", "stage": "fact-output", "scope": scope,
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("compatibility-report", "compatibility_report_accuracy", "canonical-json", "compatibility_report_native_known_answers"))
+        fields = gate["qualification"](entry)
+        for key in ("productionQualification", "wholeProviderQualified", "auditCleanClaim", "certificationClaim"):
+            self.assertIs(fields[key], False)
+        for field, wrong in (("stage", "finding"), ("family", "file"), ("scope", "all compatibility")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, {**entry, field: wrong})
+        row = {"schema": "legion-compatibility-report-accuracy/1", "provider": "compatibility.core", "stage": "fact-output",
+               "scope": scope, "qualificationEligible": True, "productionQualification": False,
+               "wholeProviderQualified": False, "auditCleanClaim": False}
+        gate["controls"](row, entry)
+        for field, wrong in (("productionQualification", True), ("wholeProviderQualified", True), ("auditCleanClaim", True),
+                             ("stage", "finding"), ("scope", "full v2 round trip")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["controls"]({**row, field: wrong}, entry)
+        schema = json.loads((SOURCE_ROOT / gate["SCHEMA"]).read_text())
+        self.assertIn("compatibility-report", schema["$defs"]["entry"]["properties"]["family"]["enum"])
+
+    def test_compatibility_report_terminal_span_requires_named_native_test(self):
+        command = ["audit_compatibility_report_qualification"]
+        validator = ["python3", "scripts/ci/validate-compatibility-report-accuracy.py", "--root", "/synthetic", "--record", "/synthetic/record.json"]
+        proof = {"command": {"harness": command, "validator": validator}}
+        begin = lambda sequence, argv: "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": sequence, "argv": argv}) + "\n"
+        log = self.root / "span.log"
+        text = begin(1, command) + "test compatibility_report_native_known_answers ... ok\nRECORD\n"
+        text += "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\nAUDIT_QUALIFICATION_COMMAND_END 1 0\n"
+        text += begin(2, validator) + "SUMMARY\nAUDIT_QUALIFICATION_COMMAND_END 2 0\n"
+        log.write_text(text)
+        record = {"sha256": "sha256:" + "a" * 64}
+        self.assertEqual(len(gate["terminal_checks"](log, proof, record, "summary", 3, 7)), 2)
+        for original, replacement in (("1 passed; 0 failed", "0 passed; 1 failed"),
+                                      ("compatibility_report_native_known_answers", "unrelated_test")):
+            log.write_text(text.replace(original, replacement))
+            with self.subTest(original=original), self.assertRaises(AssertionError):
+                gate["terminal_checks"](log, proof, record, "summary", 3, 7)
+
     def test_node_outdated_adapter_scope_and_stage_are_fixed(self):
         provider = "legacy.stack.node-outdated"
         scope = gate["helper"]("audit-node-outdated-accuracy.py")["FAMILY_SCOPE"]
@@ -386,7 +427,7 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 35)
+        self.assertEqual(len(gate["ADAPTERS"]), 36)
 
     def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
         api = gate["helper"]("audit-javascript-sdk-accuracy.py")
@@ -454,7 +495,7 @@ class RegistrationGateTests(unittest.TestCase):
             api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 35)
+        self.assertEqual(len(gate["ADAPTERS"]), 36)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)

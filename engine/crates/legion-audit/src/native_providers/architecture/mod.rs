@@ -12,6 +12,7 @@ pub mod evidence;
 pub mod framework;
 pub mod frontend;
 pub mod producer;
+pub mod report_compatibility;
 pub mod requirements;
 pub mod test_quality;
 
@@ -20,7 +21,7 @@ pub use common::Analysis;
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::ProviderResult;
 use serde_json::Value;
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 /// Inputs are supplied as frozen provider configuration (`input`) so the
 /// executor remains process-free and deterministic.  `with_input` is useful
@@ -31,6 +32,7 @@ pub struct ProviderExecutorAdapter {
     inputs: BTreeMap<String, Value>,
     now: Option<String>,
     producer: producer::ProducerCache,
+    report_observation: Option<Arc<report_compatibility::NativeReportObservation>>,
 }
 
 pub type NativeAuditProviderExecutor = ProviderExecutorAdapter;
@@ -52,6 +54,16 @@ impl ProviderExecutorAdapter {
 
     pub fn with_input(mut self, provider: impl Into<String>, input: Value) -> Self {
         self.inputs.insert(provider.into(), input);
+        self
+    }
+
+    /// Opaque native report-protocol observation; caller JSON cannot mint this.
+    /// Generic runtime compatibility remains unproven.
+    pub fn with_report_compatibility(
+        mut self,
+        observation: report_compatibility::NativeReportObservation,
+    ) -> Self {
+        self.report_observation = Some(Arc::new(observation));
         self
     }
 
@@ -80,6 +92,38 @@ impl ProviderExecutorAdapter {
             .cloned()
             .unwrap_or_else(|| serde_json::json!({"op":"always"}));
         let denominator = inventory.denominator_entries(&selector)?;
+        if provider.id == "compatibility.core" && !input_supplied {
+            if let Some((observation, root)) =
+                self.report_observation.as_ref().zip(self.root.as_ref())
+            {
+                let analysis = observation.analyze(root, provider, inventory);
+                let paths = denominator
+                    .entries
+                    .iter()
+                    .map(|entry| entry.path.clone())
+                    .collect::<Vec<_>>();
+                return common::provider_result(
+                    &provider.id,
+                    provider.required,
+                    provider
+                        .configuration
+                        .get("denominatorDigest")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&denominator.digest)
+                        .to_owned(),
+                    provider
+                        .configuration
+                        .get("denominatorCount")
+                        .and_then(Value::as_u64)
+                        .map_or(denominator.entries.len(), |v| v as usize),
+                    &analysis,
+                    serde_json::json!({}),
+                    vec![],
+                    &paths,
+                )
+                .map_err(AuditError::Provider);
+            }
+        }
         let mut facts = None;
         let mut unavailable = None;
         let input = if input_supplied {

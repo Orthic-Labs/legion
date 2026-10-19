@@ -67,6 +67,7 @@ fi
 
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
@@ -175,6 +176,14 @@ audit_cargo_test() {
   else
     (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@")
   fi
+}
+# Build admission belongs to managed CI. Runner consumes only this exact prebuilt target.
+audit_compatibility_report_qualification() {
+  local metadata="${RUNNER_TEMP}/legion-compatibility-report-build.jsonl"
+  local output="${RUNNER_TEMP}/legion-provider-qualification/compatibility-report"
+  (cd engine && "$audit_cargo_bin" test --locked -p legion-audit --test compatibility_report_accuracy \
+    --no-run --message-format=json > "$metadata") &&
+    python3 scripts/ci/audit-compatibility-report-accuracy.py --build-messages "$metadata" --output "$output"
 }
 audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
 # Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
@@ -340,6 +349,13 @@ run_audit_qualification audit_cargo_test \
 run_audit_qualification python3 scripts/ci/audit-provider-accuracy.py \
   --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
 unset LEGION_PROVIDER_BENCHMARK_DIR
+
+# Package-owned report producer -> v1/v2 reader/render; v1-core semantics only.
+# Runtime compatibility & production admission remain unavailable.
+run_audit_qualification audit_compatibility_report_qualification
+run_audit_qualification python3 scripts/ci/validate-compatibility-report-accuracy.py \
+  --root "$GITHUB_WORKSPACE" \
+  --record "${RUNNER_TEMP}/legion-provider-qualification/compatibility-report/controls/compatibility.core.json"
 
 # Existing explicit visual provider: real pinned shared Chrome & retained PNGs.
 # This is separate from file-only controls; no model or system Chrome fallback.
