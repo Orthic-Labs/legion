@@ -3,8 +3,8 @@
 
 use legion_audit::{
     execute, native_providers::availability::unavailable_reason, AuditPlan, AuditProvider,
-    FilesystemInventorySource, InventoryEnvelope, InventorySource, NativeProviderRegistry,
-    ProviderExecutor, ProviderKind,
+    FilesystemInventorySource, FrozenPlan, InventoryEnvelope, InventorySource,
+    NativeProviderRegistry, ProviderExecutor, ProviderKind,
 };
 use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
@@ -341,9 +341,8 @@ fn file_only_provider_accuracy_architecture() {
             &["engine/crates/legion-audit/tests/architecture_input_producer.rs"],
         );
     }
-    // Compatibility needs bound producer/consumer evidence; framework analyzers
-    // need evidence receipts. Their unavailable/not-applicable tests below do
-    // not qualify finding accuracy & emit no accuracy records.
+    // Compatibility & backend retain their evidence gaps. Frontend/data native
+    // source verifiers below qualify outcomes separately from finding accuracy.
 }
 
 #[test]
@@ -416,6 +415,222 @@ fn file_only_provider_accuracy_framework_backend_keeps_unknown_auth() {
         })
     );
     fs::remove_dir_all(root).unwrap();
+}
+
+fn framework_plan(root: &Path, id: &str, inventory: &InventoryEnvelope) -> FrozenPlan {
+    let registry: Value = serde_json::from_str(
+        &fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../src/registry/providers.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let spec: ProviderSpec = serde_json::from_value(
+        registry["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
+    AuditPlan::compile_with_root(Some(root), inventory, &[spec])
+        .unwrap()
+        .freeze(Some(b"architecture-framework-source-fixture-key"))
+        .unwrap()
+}
+
+#[test]
+fn file_only_provider_accuracy_framework_source_verifiers() {
+    for (id, path, body, manifest) in [
+        (
+            "framework.frontend",
+            "src/App.tsx",
+            "export function App() { return <main>Hello</main>; }\n",
+            Some("{\"name\":\"web\",\"dependencies\":{\"react\":\"18.3.1\"}}\n"),
+        ),
+        (
+            "framework.data",
+            "schema.prisma",
+            "model User {\n  id Int @id\n}\n",
+            None,
+        ),
+    ] {
+        let mut outcomes = Vec::new();
+        for change in [
+            "valid",
+            "drift",
+            "missing-digest",
+            "forged-native-json",
+            "wrong-binding",
+            "item-cap",
+        ] {
+            let root = fixture_root(&format!("{id}-{change}"));
+            if let Some(manifest) = manifest {
+                write(&root, "package.json", manifest);
+            }
+            write(&root, path, body);
+            if change == "item-cap" {
+                // Match 2,001 source observations: cap must expose an omitted
+                // tail, even when that tail lacks a frozen content digest.
+                for index in 0..2_000 {
+                    let extra = if id == "framework.frontend" {
+                        format!("src/extra-{index:04}.tsx")
+                    } else {
+                        format!("schema-extra-{index:04}.prisma")
+                    };
+                    write(&root, &extra, body);
+                }
+            }
+            let mut inv = inventory(&root);
+            if matches!(change, "missing-digest" | "item-cap") {
+                let mut entries = inv.entries.clone();
+                let missing_path = if change == "item-cap" && id == "framework.frontend" {
+                    "src/extra-1999.tsx"
+                } else {
+                    path
+                };
+                entries
+                    .iter_mut()
+                    .find(|entry| entry.path == missing_path)
+                    .unwrap()
+                    .digest = None;
+                inv = InventoryEnvelope::new(&inv.repository_id, &inv.generation, entries).unwrap();
+            }
+            let plan = framework_plan(&root, id, &inv);
+            let mut registry = NativeProviderRegistry::new(&root);
+            if change == "drift" {
+                write(&root, path, &format!("{body}// changed after freeze\n"));
+            }
+            if change == "forged-native-json" {
+                let observed = execute(&plan, &inv, &registry).unwrap();
+                let original = &observed.results[0].result;
+                assert!(original.complete, "{id}: {original:?}");
+                let mut copied_input = original.details["nativeInput"].clone();
+                copied_input["nativeSourceEvidence"] =
+                    original.details["nativeSourceEvidence"].clone();
+                copied_input["producer"]["kind"] = json!("native-frozen-source");
+                // Public analyzers & with_input stay on tool-artifact evidence.
+                let public = if id == "framework.data" {
+                    legion_audit::native_providers::architecture::data::analyze(&copied_input)
+                        .unwrap()
+                } else {
+                    legion_audit::native_providers::architecture::framework::analyze_frontend(
+                        &copied_input,
+                    )
+                    .unwrap()
+                };
+                assert!(!public.complete, "native JSON must not be a capability");
+                registry.architecture = registry.architecture.with_input(id, copied_input);
+            }
+            let result = if change == "wrong-binding" {
+                // Adversarial dispatch starts from the real frozen provider;
+                // changed scope identity must not admit native source evidence.
+                let mut changed = plan.provider(id).unwrap().clone();
+                changed.configuration.insert(
+                    "denominatorDigest".into(),
+                    json!(format!("sha256:{}", "0".repeat(64))),
+                );
+                registry.execute(&changed, &inv).unwrap()
+            } else {
+                execute(&plan, &inv, &registry)
+                    .unwrap()
+                    .results
+                    .remove(0)
+                    .result
+            };
+            assert!(result.applicable, "{id}/{change}");
+            assert!(result.findings.is_empty(), "{id}/{change}");
+            assert!(unavailable_reason(&result).is_none(), "{id}/{change}");
+            let accepted = result.complete && result.coverage_gaps.is_empty();
+            assert_eq!(accepted, change == "valid", "{id}/{change}: {result:?}");
+            if accepted {
+                assert_eq!(result.status, ProviderStatus::Complete);
+                let coverage = result.coverage.as_ref().unwrap();
+                assert_eq!(coverage.expected, inv.entries.len() as u64);
+                assert_eq!(coverage.examined, coverage.expected);
+                assert!(coverage.complete());
+                let source = &result.details["nativeSourceEvidence"];
+                assert_eq!(source["kind"], "native-frozen-source");
+                assert_eq!(source["claim"], "source-bytes-observed");
+                assert_eq!(source["repositoryRevision"], inv.generation);
+                assert_eq!(source["inventoryDigest"], inv.digest);
+                assert_eq!(
+                    source["denominatorDigest"],
+                    plan.provider(id).unwrap().configuration["denominatorDigest"]
+                );
+                assert!(source.get("storageReceipt").is_none());
+                assert!(source.get("toolReceipt").is_none());
+            } else {
+                assert!(!result.coverage_gaps.is_empty());
+            }
+            let expected_gap = if id == "framework.frontend" {
+                "framework-evidence-gap"
+            } else {
+                "model-evidence-gap"
+            };
+            let mut expected_gaps: Vec<String> = match change {
+                "valid" => Vec::new(),
+                "drift" => vec![
+                    if id == "framework.frontend" {
+                        "denominator-gap"
+                    } else {
+                        "model-evidence-gap"
+                    }
+                    .to_owned(),
+                    format!("producer-skipped:{path}:drift"),
+                ],
+                "item-cap" => vec![if id == "framework.frontend" {
+                    "producer-frontend-component-cap:react:2000"
+                } else {
+                    "producer-data-model-cap:2000"
+                }
+                .to_owned()],
+                _ => vec![expected_gap.to_owned()],
+            };
+            let mut actual_gaps = result.coverage_gaps.clone();
+            expected_gaps.sort();
+            actual_gaps.sort();
+            outcomes.push(accuracy_receipt::OutcomeObservation {
+                id: format!("{id}-{change}"),
+                expected: if change == "valid" {
+                    "accepted"
+                } else {
+                    "unproven"
+                }
+                .into(),
+                actual: if accepted {
+                    "accepted"
+                } else if matches!(
+                    result.status,
+                    ProviderStatus::Failed | ProviderStatus::Cancelled
+                ) {
+                    "rejected"
+                } else {
+                    "unproven"
+                }
+                .into(),
+                expected_gaps,
+                actual_gaps,
+            });
+            println!(
+                "FRAMEWORK_VERIFIER_OBSERVATION {}",
+                json!({
+                    "provider": id, "caseId": format!("{id}-{change}"),
+                    "expectedAccepted": change == "valid", "actualAccepted": accepted,
+                    "complete": result.complete, "gaps": result.coverage_gaps,
+                })
+            );
+            fs::remove_dir_all(root).unwrap();
+        }
+        accuracy_receipt::emit_outcomes(
+            id,
+            &outcomes,
+            &["engine/crates/legion-audit/tests/architecture_input_producer.rs"],
+        );
+    }
 }
 
 const RUST_BODY: &str = "pub fn value() -> u32 {\n    let a = 1;\n    let b = 2;\n    a + b\n}\n";

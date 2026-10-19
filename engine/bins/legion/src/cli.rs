@@ -1898,6 +1898,53 @@ mod audit_continuation_cli_tests {
             assert!(Cli::try_parse_from(arguments).is_err());
         }
     }
+
+    #[test]
+    fn reasoning_run_call_limit_defaults_and_enforces_bounds() {
+        let cli = Cli::try_parse_from(["legion", "audit", "run-reasoning", "--run", "/frozen/run"])
+            .unwrap();
+        let Some(Command::Audit(args)) = cli.command else {
+            panic!("expected audit command")
+        };
+        let Some(AuditSubcommand::RunReasoning(args)) = args.command else {
+            panic!("expected reasoning runtime command")
+        };
+        assert_eq!(args.max_calls_per_packet, 12);
+        assert!(!args.strict_no_retry);
+
+        let cli = Cli::try_parse_from([
+            "legion",
+            "audit",
+            "run-reasoning",
+            "--run",
+            "/frozen/run",
+            "--max-calls-per-packet",
+            "1",
+            "--strict-no-retry",
+        ])
+        .unwrap();
+        let Some(Command::Audit(args)) = cli.command else {
+            panic!("expected audit command")
+        };
+        let Some(AuditSubcommand::RunReasoning(args)) = args.command else {
+            panic!("expected reasoning runtime command")
+        };
+        assert_eq!(args.max_calls_per_packet, 1);
+        assert!(args.strict_no_retry);
+
+        for value in ["0", "13"] {
+            assert!(Cli::try_parse_from([
+                "legion",
+                "audit",
+                "run-reasoning",
+                "--run",
+                "/frozen/run",
+                "--max-calls-per-packet",
+                value,
+            ])
+            .is_err());
+        }
+    }
 }
 
 #[cfg(test)]

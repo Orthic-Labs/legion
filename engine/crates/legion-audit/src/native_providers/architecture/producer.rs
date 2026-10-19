@@ -15,12 +15,14 @@
 //! - Every denominator path is either read (`filesRead`) or becomes a
 //!   `producer-skipped:<path>:<reason>` coverage gap (size, byte, file-count
 //!   caps, unreadable, or content drift against the inventory digest).
-//! - Static derivation cannot mint evidence receipts. Providers whose
-//!   analyzers require bound evidence (framework routes/models/components,
-//!   verified requirements) therefore report the analyzer's own evidence gaps,
-//!   and `compatibility.core` stays unavailable with a specific reason.
+//! - Native frontend/data evidence proves selected source bytes were observed;
+//!   it is not an immutable-storage, tool-execution or verification receipt.
+//!   Backend auth, verified requirements & compatibility keep their own gaps.
 
-use super::common::{gap, Analysis};
+use super::{
+    common::{gap, Analysis},
+    evidence::{source_reference, SourceObservation},
+};
 use crate::InventoryEntry;
 use regex::Regex;
 use serde_json::{json, Value};
@@ -301,6 +303,7 @@ struct ModTree {
 #[derive(Debug, Default)]
 pub struct Facts {
     pub files_read: u64,
+    pub(super) sources: BTreeMap<String, SourceObservation>,
     gaps: Vec<String>,
     edges: EdgeSet,
     cycles: Vec<Value>,
@@ -411,17 +414,17 @@ impl Ctx<'_> {
     }
 }
 
-/// Reads one denominator file within the caps. `Ok(None)` means the file was
+/// Reads one denominator file within the caps. An absent text means the file was
 /// examined but has no analyzable text (symlink or non-UTF-8).
 fn load(
     root: &Path,
     entry: &InventoryEntry,
     budget: &mut u64,
-) -> Result<Option<String>, &'static str> {
+) -> Result<(Option<String>, Option<SourceObservation>), &'static str> {
     let full = root.join(&entry.path);
     let meta = std::fs::symlink_metadata(&full).map_err(|_| "unreadable")?;
     if meta.file_type().is_symlink() {
-        return Ok(None);
+        return Ok((None, None));
     }
     if meta.len() > MAX_FILE_BYTES {
         return Err("oversize");
@@ -437,7 +440,8 @@ fn load(
             return Err("drift");
         }
     }
-    Ok(String::from_utf8(bytes).ok())
+    let observation = SourceObservation::from_bytes(&entry.path, &bytes);
+    Ok((String::from_utf8(bytes).ok(), Some(observation)))
 }
 
 pub fn scan(root: &Path, entries: &[InventoryEntry]) -> Facts {
@@ -451,8 +455,11 @@ pub fn scan(root: &Path, entries: &[InventoryEntry]) -> Facts {
             continue;
         }
         match load(root, entry, &mut budget) {
-            Ok(text) => {
+            Ok((text, observation)) => {
                 facts.files_read += 1;
+                if let Some(observation) = observation {
+                    facts.sources.insert(entry.path.clone(), observation);
+                }
                 if let Some(text) = text {
                     if retain(&entry.path) {
                         texts.insert(entry.path.clone(), text);
@@ -1509,7 +1516,6 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
                             && exts.iter().any(|ext| path.ends_with(ext))
                             && suffix.is_none_or(|s| path.ends_with(s))
                     })
-                    .take(MAX_ITEMS)
                     .cloned()
                     .collect()
             };
@@ -1580,9 +1586,16 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
         }
     }
     for (name, components) in frontend {
+        if components.len() > MAX_ITEMS {
+            facts.gaps.push(format!(
+                "producer-frontend-component-cap:{name}:{MAX_ITEMS}"
+            ));
+        }
         facts.frontend.push(json!({
             "name": name,
-            "components": components.iter().map(|path| json!({"path": path})).collect::<Vec<_>>(),
+            "components": components.iter().take(MAX_ITEMS).map(|path| json!({
+                "path": path, "evidenceRefs": [source_reference(path)],
+            })).collect::<Vec<_>>(),
         }));
     }
     for (name, dirs) in backend {
@@ -1650,6 +1663,7 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
         }
         facts.backend.push(json!({"name": name, "routes": routes}));
     }
+    let mut model_overflow = false;
     for path in ctx
         .texts
         .keys()
@@ -1665,9 +1679,20 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
             || name.ends_with(".entity.ts")
             || name.ends_with(".model.ts")
             || name.ends_with(".model.js");
-        if is_model && facts.data_models.len() < MAX_ITEMS {
-            facts.data_models.push(json!({"path": path, "kind": name}));
+        if is_model {
+            if facts.data_models.len() < MAX_ITEMS {
+                facts.data_models.push(json!({
+                    "path": path, "kind": name, "evidenceRefs": [source_reference(path)],
+                }));
+            } else {
+                model_overflow = true;
+            }
         }
+    }
+    if model_overflow {
+        facts
+            .gaps
+            .push(format!("producer-data-model-cap:{MAX_ITEMS}"));
     }
 }
 
@@ -1830,10 +1855,18 @@ pub fn reconcile(facts: &Facts, provider: &str, analysis: &mut Analysis) {
             analysis.status = "unproven".into();
         }
     }
+    let mut producer_incomplete = false;
     for kind in &facts.gaps {
+        if (kind.starts_with("producer-frontend-component-cap:")
+            && provider != "framework.frontend")
+            || (kind.starts_with("producer-data-model-cap:") && provider != "framework.data")
+        {
+            continue;
+        }
         analysis.coverage_gaps.push(gap(kind));
+        producer_incomplete = true;
     }
-    if !facts.gaps.is_empty() {
+    if producer_incomplete {
         analysis.complete = false;
         if analysis.status == "pass" || analysis.status == "measured" {
             analysis.status = "unproven".into();

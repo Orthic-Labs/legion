@@ -124,6 +124,26 @@
       "measurementKind": "finding"
     },
     {
+      "provider": "framework.data",
+      "testTarget": "architecture_input_producer",
+      "stage": "outcome",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "verification-outcome"
+    },
+    {
+      "provider": "framework.frontend",
+      "testTarget": "architecture_input_producer",
+      "stage": "outcome",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "verification-outcome"
+    },
+    {
       "provider": "governance.policy",
       "testTarget": "artifact_provider_accuracy",
       "stage": "finding",
@@ -212,6 +232,16 @@
         "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
       ],
       "measurementKind": "finding"
+    },
+    {
+      "provider": "legacy.quality.tool-coverage",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "fact-output",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "fact-output"
     },
     {
       "provider": "legacy.react.hooks-config",

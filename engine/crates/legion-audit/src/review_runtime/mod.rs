@@ -52,6 +52,9 @@ pub struct RuntimeOptions {
     pub reasoning_effort: Option<String>,
     pub budget_run: Option<PathBuf>,
     pub max_calls_per_packet: u32,
+    /// One generation per source seat & one fresh verifier, with no retries.
+    /// Authenticated call receipts preserve this policy across restarts.
+    pub strict_no_retry: bool,
     pub call_timeout_seconds: u64,
 }
 impl Default for RuntimeOptions {
@@ -62,6 +65,7 @@ impl Default for RuntimeOptions {
             reasoning_effort: None,
             budget_run: None,
             max_calls_per_packet: 12,
+            strict_no_retry: false,
             call_timeout_seconds: 180,
         }
     }
@@ -608,6 +612,97 @@ fn authenticated_call_ids(run: &Path) -> Result<BTreeSet<String>, AuditError> {
     Ok(ids)
 }
 
+fn authenticated_calls(run: &Path) -> Result<Vec<Value>, AuditError> {
+    let entries = match fs::read_dir(run.join("runtime-calls")) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(invalid(error.to_string())),
+    };
+    let mut receipts = Vec::new();
+    let mut ids = BTreeSet::new();
+    for (index, entry) in entries.enumerate() {
+        if index >= 4096 {
+            return Err(invalid("runtime call history exceeds bound"));
+        }
+        let path = entry.map_err(|error| invalid(error.to_string()))?.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let receipt = ingest::verify_runtime_call(run, &read_json(&path)?)?;
+        let id = receipt["callId"]
+            .as_str()
+            .ok_or_else(|| invalid("runtime call identity missing"))?;
+        if !ids.insert(id.to_owned()) {
+            return Err(invalid("duplicate runtime call receipt"));
+        }
+        receipts.push(receipt);
+    }
+    Ok(receipts)
+}
+
+fn enforce_strict_policy(run: &Path, enabled: bool) -> Result<(), AuditError> {
+    if !enabled
+        && authenticated_calls(run)?
+            .iter()
+            .any(|receipt| receipt["strictNoRetry"] == true)
+    {
+        return Err(invalid(
+            "incomplete:strict-no-retry:policy-cannot-be-disabled",
+        ));
+    }
+    Ok(())
+}
+
+fn strict_stage_history(
+    run: &Path,
+    seat_id: &str,
+    stage: &str,
+) -> Result<SeatCallHistory, AuditError> {
+    let mut history = SeatCallHistory::default();
+    for receipt in authenticated_calls(run)? {
+        let prior_stage = receipt
+            .pointer("/execution/stage")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("incomplete:strict-no-retry:prior-stage-missing"))?;
+        // Verification is one run-wide fresh process, even if resumed pending
+        // packets select a different author seat as its transport template.
+        if prior_stage == stage && (stage == "finding-verification" || receipt["seatId"] == seat_id)
+        {
+            history.calls = history
+                .calls
+                .checked_add(1)
+                .ok_or_else(|| invalid("stage call count overflow"))?;
+        }
+    }
+    Ok(history)
+}
+
+fn admit_strict_call(
+    history: &SeatCallHistory,
+    seat: &Value,
+    stage: &str,
+    maximum: u32,
+    repair: bool,
+) -> Result<(), AuditError> {
+    if repair || transport_is_retry(seat) || stage == "evidence-gathering" {
+        return Err(invalid(
+            "incomplete:strict-no-retry:additional-generation-prohibited",
+        ));
+    }
+    // The generic cap still applies, scoped to this execution stage in strict
+    // mode so an author's first call cannot consume its fresh verifier slot.
+    history.admit(maximum.min(1), false)
+}
+
+fn require_context_continuation(options: &RuntimeOptions) -> Result<(), AuditError> {
+    if options.strict_no_retry {
+        return Err(invalid(
+            "incomplete:strict-no-retry:context-continuation-prohibited",
+        ));
+    }
+    Ok(())
+}
+
 fn enforce_seat_call_receipts(
     run: &Path,
     budget_run: &Path,
@@ -721,7 +816,9 @@ impl Controller<'_> {
             execution,
             None,
         )?;
-        if let Some(diagnostic) = native::repair_diagnostic(&observation) {
+        if let Some(diagnostic) =
+            native::repair_diagnostic(&observation).filter(|_| !self.options.strict_no_retry)
+        {
             let seat_id = seat["seatId"]
                 .as_str()
                 .ok_or_else(|| invalid("frozen seat ID missing"))?;
@@ -763,8 +860,23 @@ impl Controller<'_> {
             .ok_or_else(|| invalid("frozen seat ID missing"))?;
         let budget_run = self.options.budget_run.as_deref().unwrap_or(self.run);
         enforce_seat_call_receipts(self.run, budget_run, seat_id)?;
-        let history = seat_call_history(self.run, seat_id)?;
-        history.admit(self.options.max_calls_per_packet, repair_of.is_some())?;
+        enforce_strict_policy(self.run, self.options.strict_no_retry)?;
+        if budget_run != self.run {
+            enforce_strict_policy(budget_run, self.options.strict_no_retry)?;
+        }
+        if self.options.strict_no_retry {
+            let history = strict_stage_history(self.run, seat_id, execution.stage)?;
+            admit_strict_call(
+                &history,
+                seat,
+                execution.stage,
+                self.options.max_calls_per_packet,
+                repair_of.is_some(),
+            )?;
+        } else {
+            let history = seat_call_history(self.run, seat_id)?;
+            history.admit(self.options.max_calls_per_packet, repair_of.is_some())?;
+        }
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
         let model_input_bytes = model_visible_input_bytes(&prompt, system, schema)?;
@@ -824,6 +936,23 @@ impl Controller<'_> {
         let reservation = authorization["reservationId"]
             .as_str()
             .ok_or_else(|| invalid("budget authorization omitted reservation ID"))?;
+        let request_digest = digest(&rendered)?;
+        let receipt_name = format!(
+            "{}.json",
+            digest_bytes(call_id.as_bytes()).trim_start_matches("sha256:")
+        );
+        let mut receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"execution":execution,"requestDigest":request_digest,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":{"physicalRequestDigest":request_digest,"physicalRequestBytes":bytes,"sent":false,"processCreated":false,"error":"generation admitted; observation pending","usage":null,"reportedApiEquivalentCostUsd":null,"invoiceChargeUsd":null},"modelAction":{"kind":"unavailable"},"budget":authorization["budget"]});
+        if self.options.strict_no_retry {
+            // Persist authenticated policy before launching. This records an
+            // admission, never completed generation or known usage. Interrupted
+            // unknown ledger usage still fails native accounting closed.
+            receipt["strictNoRetry"] = json!(true);
+            persist(
+                &self.run.join("runtime-calls"),
+                &receipt_name,
+                &ingest::mint_runtime_call(self.run, &receipt)?,
+            )?;
+        }
         let mut observation = native::invoke(
             &self.binary,
             &self.cwd,
@@ -843,23 +972,22 @@ impl Controller<'_> {
             self.physical_calls += 1;
         }
         observation.request_bytes = bytes;
-        observation.request_digest = digest(&rendered)?;
+        observation.request_digest = request_digest;
         let settled = next::reconcile_native_usage(
             budget_run,
             &observation.usage,
             observation.reported_api_cost_usd.as_deref(),
         )?;
-        let mut receipt = json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":call_id,"seatId":seat["seatId"],"execution":execution,"requestDigest":digest(&rendered)?,"snapshotKey":self.snapshot.manifest.key,"requestBytes":bytes,"requestAccounting":request_accounting,"initialContext":prompt.get("initialContext"),"authorization":authorization,"observation":native::observation_value(&observation),"modelAction":native::action_diagnostic(&observation),"budget":settled});
+        receipt["observation"] = native::observation_value(&observation);
+        receipt["modelAction"] = native::action_diagnostic(&observation);
+        receipt["budget"] = settled;
         if let Some(failed_call_id) = repair_of {
             receipt["repairOfCallId"] = json!(failed_call_id);
         }
         let authenticated = ingest::mint_runtime_call(self.run, &receipt)?;
         persist(
             &self.run.join("runtime-calls"),
-            &format!(
-                "{}.json",
-                digest_bytes(call_id.as_bytes()).trim_start_matches("sha256:")
-            ),
+            &receipt_name,
             &authenticated,
         )?;
         if let Some(error) = &self.fatal_error {
@@ -923,6 +1051,7 @@ impl Controller<'_> {
                     tool_request: Some(tool),
                     ..
                 } => {
+                    require_context_continuation(self.options)?;
                     let response = self.tools.call(tool);
                     prompt["conversation"]
                         .as_array_mut()
@@ -1073,6 +1202,14 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     let run = fs::canonicalize(run_dir).map_err(|error| invalid(error.to_string()))?;
     let _guard = lock(&run)?;
     model::enforce_prior_receipts(&run)?;
+    enforce_strict_policy(&run, options.strict_no_retry)?;
+    if let Some(budget_run) = options
+        .budget_run
+        .as_deref()
+        .filter(|parent| *parent != run.as_path())
+    {
+        enforce_strict_policy(budget_run, options.strict_no_retry)?;
+    }
     next::enforce_native_accounting(options.budget_run.as_deref().unwrap_or(&run))?;
     let plan = read_plan_json(&run.join("plan.json"))?;
     let snapshot = prepared_snapshot(&run, &plan)?;
@@ -2362,5 +2499,96 @@ mod tests {
         tampered["repairOfCallId"] = json!("other");
         persist(&run.join("runtime-calls"), "repair.json", &tampered).unwrap();
         assert!(seat_call_history(run, "seat").is_err());
+    }
+
+    #[test]
+    fn strict_mode_authenticates_sticky_policy_and_separates_fresh_verifier_on_resume() {
+        let fixture = JsonInputFixture::new();
+        let run = &fixture.0;
+        let epoch = ingest::create_epoch(run).unwrap();
+        let snapshot = format!("sha256:{}", "1".repeat(64));
+        let request = format!("sha256:{}", "2".repeat(64));
+        persist(
+            run,
+            "plan.json",
+            &json!({"epoch":{"digest":epoch},"reviewContext":{"snapshotKey":snapshot}}),
+        )
+        .unwrap();
+        let receipt = |id: &str, execution: model::ExecutionSelection| {
+            json!({"schemaVersion":1,"kind":"legion-runtime-call","callId":id,
+                "seatId":"seat","execution":execution,"strictNoRetry":true,
+                "requestDigest":request,"snapshotKey":snapshot,"requestBytes":128,
+                "authorization":{"authorized":true,"callId":id},
+                "observation":{"physicalRequestDigest":request,"physicalRequestBytes":128,
+                    "sent":false,"processCreated":false,"error":"generation admitted; observation pending",
+                    "usage":null,"reportedApiEquivalentCostUsd":null,"invoiceChargeUsd":null},
+                "modelAction":{"kind":"unavailable"},"budget":{"status":"reconciled"}})
+        };
+        let options = RuntimeOptions {
+            strict_no_retry: true,
+            max_calls_per_packet: 1,
+            ..Default::default()
+        };
+        let seat = json!({"seatId":"seat","attempt":1});
+        let author = receipt(
+            "seat:author:1",
+            model::author(["reasoning.security"], &options).unwrap(),
+        );
+        let author = ingest::mint_runtime_call(run, &author).unwrap();
+        persist(&run.join("runtime-calls"), "author.json", &author).unwrap();
+        let admitted = ingest::verify_runtime_call(run, &author).unwrap();
+        assert!(admitted["observation"]["usage"].is_null());
+        assert_eq!(admitted["observation"]["processCreated"], false);
+        assert_eq!(admitted["observation"]["sent"], false);
+        assert!(enforce_strict_policy(run, false).is_err());
+        assert!(enforce_strict_policy(run, true).is_ok());
+        let prior_author = strict_stage_history(run, "seat", "source-review").unwrap();
+        assert!(admit_strict_call(&prior_author, &seat, "source-review", 1, false).is_err());
+        let fresh_verifier = strict_stage_history(run, "seat", "finding-verification").unwrap();
+        assert!(
+            admit_strict_call(&fresh_verifier, &seat, "finding-verification", 1, false).is_ok()
+        );
+        // Generic cumulative cap remains unchanged outside strict mode.
+        assert!(seat_call_history(run, "seat")
+            .unwrap()
+            .admit(1, false)
+            .is_err());
+
+        let verifier = receipt("seat:verifier:1", model::verifier(&options).unwrap());
+        let verifier = ingest::mint_runtime_call(run, &verifier).unwrap();
+        persist(&run.join("runtime-calls"), "verifier.json", &verifier).unwrap();
+        let after_restart =
+            strict_stage_history(run, "different-seat", "finding-verification").unwrap();
+        assert!(
+            admit_strict_call(&after_restart, &seat, "finding-verification", 1, false).is_err()
+        );
+        let mut tampered = author.clone();
+        tampered["message"]["evidence"]["strictNoRetry"] = json!(false);
+        assert!(ingest::verify_runtime_call(run, &tampered).is_err());
+        let mut tampered_stage = author;
+        tampered_stage["message"]["evidence"]["execution"]["stage"] = json!("finding-verification");
+        assert!(ingest::verify_runtime_call(run, &tampered_stage).is_err());
+        let mut invalid_policy = verifier["message"]["evidence"].clone();
+        invalid_policy["strictNoRetry"] = json!("true");
+        assert!(ingest::mint_runtime_call(run, &invalid_policy).is_err());
+        invalid_policy["strictNoRetry"] = json!(true);
+        invalid_policy.as_object_mut().unwrap().remove("execution");
+        assert!(ingest::mint_runtime_call(run, &invalid_policy).is_err());
+    }
+
+    #[test]
+    fn strict_mode_denies_repairs_context_gathering_and_reissued_leases() {
+        let history = SeatCallHistory::default();
+        let seat = json!({"seatId":"seat","attempt":1});
+        assert!(admit_strict_call(&history, &seat, "source-review", 12, true).is_err());
+        assert!(admit_strict_call(&history, &seat, "evidence-gathering", 12, false).is_err());
+        let reissued = json!({"seatId":"seat","attempt":2});
+        assert!(admit_strict_call(&history, &reissued, "source-review", 12, false).is_err());
+        assert!(require_context_continuation(&RuntimeOptions {
+            strict_no_retry: true,
+            ..Default::default()
+        })
+        .is_err());
+        assert!(require_context_continuation(&RuntimeOptions::default()).is_ok());
     }
 }

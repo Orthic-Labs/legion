@@ -5,14 +5,38 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, fs, path::Path};
 
+#[derive(Debug)]
 pub struct CaseObservation {
     pub id: String,
     pub expected: Vec<String>,
     pub actual: Vec<String>,
 }
 
+#[derive(Debug)]
+pub struct OutcomeObservation {
+    pub id: String,
+    pub expected: String,
+    pub actual: String,
+    pub expected_gaps: Vec<String>,
+    pub actual_gaps: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct FactObservation {
+    pub id: String,
+    /// Explicit control role: `positive` or `absence`.
+    pub control: String,
+    pub expected: Value,
+    pub actual: Value,
+}
+
 fn digest(bytes: &[u8]) -> String {
-    format!("sha256:{:x}", Sha256::digest(bytes))
+    let hash = Sha256::digest(bytes);
+    let hex = hash
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("sha256:{hex}")
 }
 
 // The workspace enables serde_json/preserve_order. Sort recursively instead
@@ -34,6 +58,22 @@ fn canonical_bytes(value: &Value) -> Vec<u8> {
         }
     }
     serde_json::to_vec(&ordered(value)).unwrap()
+}
+
+fn normalize_fact(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => {
+            let mut keys: Vec<_> = object.keys().collect();
+            keys.sort();
+            let mut sorted = serde_json::Map::new();
+            for key in keys {
+                sorted.insert(key.clone(), normalize_fact(&object[key]));
+            }
+            Value::Object(sorted)
+        }
+        Value::Array(array) => Value::Array(array.iter().map(normalize_fact).collect()),
+        _ => value.clone(),
+    }
 }
 
 fn bound_file(root: &Path, path: &Path) -> Value {
@@ -60,62 +100,9 @@ fn bind_tree(root: &Path, path: &Path, out: &mut Vec<Value>) {
     }
 }
 
-/// Emit one measured, corpus-scoped record; no registry promotion occurs here.
-pub fn emit(provider_id: &str, stage: &str, cases: &[CaseObservation], fixture_paths: &[&str]) {
-    emit_inner(provider_id, stage, cases, fixture_paths, &[]);
-}
-
-/// Accuracy of observed native output cannot discharge missing tool/host coverage.
-pub fn emit_partial(
-    provider_id: &str,
-    stage: &str,
-    cases: &[CaseObservation],
-    fixture_paths: &[&str],
-    gaps: &[String],
-) {
-    assert!(
-        !gaps.is_empty(),
-        "partial evidence must name missing coverage"
-    );
-    emit_inner(provider_id, stage, cases, fixture_paths, gaps);
-}
-
-fn emit_inner(
-    provider_id: &str,
-    stage: &str,
-    cases: &[CaseObservation],
-    fixture_paths: &[&str],
-    gaps: &[String],
-) {
-    assert!(matches!(stage, "candidate" | "finding"));
-    assert!(
-        cases.iter().any(|case| !case.expected.is_empty()),
-        "positive control required"
-    );
-    assert!(
-        cases.iter().any(|case| case.expected.is_empty()),
-        "clean control required"
-    );
-    let mut ids = BTreeSet::new();
-    let (mut tp, mut fp, mut fn_) = (0, 0, 0);
-    let records: Vec<Value> = cases
-        .iter()
-        .map(|case| {
-            assert!(ids.insert(&case.id), "duplicate case identity");
-            let expected: BTreeSet<_> = case.expected.iter().cloned().collect();
-            let actual: BTreeSet<_> = case.actual.iter().cloned().collect();
-            assert_eq!(expected.len(), case.expected.len(), "duplicate expectation");
-            // Duplicated emissions are false positives, not silently deduplicated away.
-            let matched = expected.intersection(&actual).count();
-            let extra = actual.difference(&expected).count() + case.actual.len() - actual.len();
-            let missed = expected.difference(&actual).count();
-            tp += matched;
-            fp += extra;
-            fn_ += missed;
-            json!({"caseId":case.id,"expected":expected,"actual":case.actual,
-            "truePositives":matched,"falsePositives":extra,"falseNegatives":missed})
-        })
-        .collect();
+/// Bind the shipped provider specification, implementation, and named corpus
+/// once for each receipt kind.
+fn source_binding(provider_id: &str, fixture_paths: &[&str]) -> (Value, Value) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let registry: Value =
         serde_json::from_slice(&fs::read(root.join("src/registry/providers.json")).unwrap())
@@ -161,6 +148,264 @@ fn emit_inner(
         .map(|path| bound_file(&root, &root.join(path)))
         .collect();
     fixtures.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+    let binding = json!({
+        "providerSpecDigest":digest(&canonical_bytes(&spec)),
+        "implementationDigest":digest(&canonical_bytes(&json!(implementation))),
+        "implementationFileCount":implementation.len(),
+        "implementationRoots":implementation_roots,
+        "fixtures":fixtures
+    });
+    (spec["providerVersion"].clone(), binding)
+}
+
+/// Emit one measured, corpus-scoped record; no registry promotion occurs here.
+pub fn emit(provider_id: &str, stage: &str, cases: &[CaseObservation], fixture_paths: &[&str]) {
+    emit_inner(provider_id, stage, cases, fixture_paths, &[]);
+}
+
+/// Accuracy of observed native output cannot discharge missing tool/host coverage.
+pub fn emit_partial(
+    provider_id: &str,
+    stage: &str,
+    cases: &[CaseObservation],
+    fixture_paths: &[&str],
+    gaps: &[String],
+) {
+    assert!(
+        !gaps.is_empty(),
+        "partial evidence must name missing coverage"
+    );
+    emit_inner(provider_id, stage, cases, fixture_paths, gaps);
+}
+
+/// Emit measured verifier outcomes. An expected rejection is a successful
+/// control when the native path returns the same outcome and gaps.
+pub fn emit_outcomes(provider_id: &str, cases: &[OutcomeObservation], fixture_paths: &[&str]) {
+    assert!(
+        cases.iter().any(|case| case.expected == "accepted"),
+        "accepted outcome control required"
+    );
+    assert!(
+        cases
+            .iter()
+            .any(|case| matches!(case.expected.as_str(), "unproven" | "rejected")),
+        "unproven or rejected outcome control required"
+    );
+    let mut ids = BTreeSet::new();
+    let mut matched = 0;
+    let outcome_cases: Vec<Value> = cases
+        .iter()
+        .map(|case| {
+            assert!(ids.insert(&case.id), "duplicate outcome case identity");
+            assert!(
+                matches!(case.expected.as_str(), "accepted" | "unproven" | "rejected")
+                    && matches!(case.actual.as_str(), "accepted" | "unproven" | "rejected"),
+                "unknown verifier outcome"
+            );
+            for (label, gaps) in [
+                ("expected", &case.expected_gaps),
+                ("actual", &case.actual_gaps),
+            ] {
+                let unique: BTreeSet<_> = gaps.iter().collect();
+                assert_eq!(unique.len(), gaps.len(), "duplicate {label} outcome gap");
+            }
+            let mut expected_gaps = case.expected_gaps.clone();
+            expected_gaps.sort();
+            let mut actual_gaps = case.actual_gaps.clone();
+            actual_gaps.sort();
+            let case_matched = case.expected == case.actual && expected_gaps == actual_gaps;
+            if case_matched {
+                matched += 1;
+            }
+            json!({
+                "caseId":case.id,
+                "expected":case.expected,
+                "actual":case.actual,
+                "expectedGaps":expected_gaps,
+                "actualGaps":actual_gaps,
+                "matched":case_matched
+            })
+        })
+        .collect();
+    let mismatched = cases.len() - matched;
+    let passed = mismatched == 0;
+    let (provider_version, binding) = source_binding(provider_id, fixture_paths);
+    let mut result = json!({
+        "schema":"legion-file-provider-accuracy/1",
+        "provider":provider_id,
+        "providerVersion":provider_version,
+        "stage":"outcome",
+        "scope":"constructed verifier acceptance & rejection controls; not a population accuracy estimate",
+        "executionPath":"native-sdk-frozen-plan-file-only",
+        "modelCalls":0,
+        "coverageState":"complete",
+        "measurementKind":"verification-outcome",
+        "measurementStatus":if passed {"pass"} else {"fail"},
+        "requiredDependencies":{
+            "productionDispatch":"exercised",
+            "acceptanceControl":"exercised",
+            "rejectionControl":"exercised",
+            "scope":"named verifier cases; no claim about untested outcomes",
+            "externalExecution":"not-required"
+        },
+        "qualificationEligible":passed,
+        "coverageGaps":[],
+        "binding":binding,
+        "outcomeCases":outcome_cases,
+        "metrics":{"cases":cases.len(),"matched":matched,"mismatched":mismatched},
+        "status":if passed {"pass"} else {"fail"}
+    });
+    result["qualificationDigest"] = json!(digest(&canonical_bytes(&result)));
+    if let Some(dir) = std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR") {
+        let dir = Path::new(&dir);
+        fs::create_dir_all(dir).unwrap();
+        let name = provider_id.replace('.', "_");
+        fs::write(
+            dir.join(format!("{name}.json")),
+            serde_json::to_vec_pretty(&result).unwrap(),
+        )
+        .unwrap();
+    }
+    println!(
+        "FILE_PROVIDER_ACCURACY {}",
+        serde_json::to_string(&result).unwrap()
+    );
+    assert_eq!(mismatched, 0, "{provider_id}: verifier outcome mismatch");
+}
+
+/// Emit exact native fact output on named positive and absence controls.
+pub fn emit_facts(provider_id: &str, cases: &[FactObservation], fixture_paths: &[&str]) {
+    let mut ids = BTreeSet::new();
+    let mut controls = BTreeSet::new();
+    let mut matched = 0;
+    let fact_cases: Vec<Value> = cases
+        .iter()
+        .map(|case| {
+            assert!(ids.insert(&case.id), "duplicate fact case identity");
+            assert!(
+                matches!(case.control.as_str(), "positive" | "absence"),
+                "unknown fact control kind"
+            );
+            controls.insert(case.control.as_str());
+            let expected = normalize_fact(&case.expected);
+            let actual = normalize_fact(&case.actual);
+            let case_matched = expected == actual;
+            if case_matched {
+                matched += 1;
+            }
+            json!({
+                "caseId":case.id,
+                "controlKind":case.control,
+                "expected":expected,
+                "actual":actual,
+                "matched":case_matched
+            })
+        })
+        .collect();
+    assert!(
+        controls.contains("positive"),
+        "positive fact control required"
+    );
+    assert!(
+        controls.contains("absence"),
+        "zero-count/absence control required"
+    );
+    let positive = cases
+        .iter()
+        .find(|case| case.control == "positive")
+        .expect("positive fact control required");
+    let absence = cases
+        .iter()
+        .find(|case| case.control == "absence")
+        .expect("absence fact control required");
+    assert_ne!(
+        normalize_fact(&positive.expected),
+        normalize_fact(&absence.expected),
+        "positive & absence fact controls must contrast"
+    );
+    let mismatched = cases.len() - matched;
+    let passed = mismatched == 0;
+    let (provider_version, binding) = source_binding(provider_id, fixture_paths);
+    let mut result = json!({
+        "schema":"legion-file-provider-accuracy/1",
+        "provider":provider_id,
+        "providerVersion":provider_version,
+        "stage":"fact-output",
+        "scope":"exact native fact output on named constructed controls; not a population accuracy estimate",
+        "executionPath":"native-sdk-frozen-plan-file-only",
+        "modelCalls":0,
+        "coverageState":"complete",
+        "measurementKind":"fact-output",
+        "measurementStatus":if passed {"pass"} else {"fail"},
+        "requiredDependencies":{
+            "productionDispatch":"exercised",
+            "positiveControl":"exercised",
+            "absenceControl":"exercised",
+            "scope":"named native facts; exact full object equality",
+            "externalExecution":"not-required"
+        },
+        "qualificationEligible":passed,
+        "coverageGaps":[],
+        "binding":binding,
+        "factCases":fact_cases,
+        "metrics":{"cases":cases.len(),"matched":matched,"mismatched":mismatched},
+        "status":if passed {"pass"} else {"fail"}
+    });
+    result["qualificationDigest"] = json!(digest(&canonical_bytes(&result)));
+    if let Some(dir) = std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR") {
+        let dir = Path::new(&dir);
+        fs::create_dir_all(dir).unwrap();
+        let name = provider_id.replace('.', "_");
+        fs::write(
+            dir.join(format!("{name}.json")),
+            serde_json::to_vec_pretty(&result).unwrap(),
+        )
+        .unwrap();
+    }
+    println!(
+        "FILE_PROVIDER_ACCURACY {}",
+        serde_json::to_string(&result).unwrap()
+    );
+    assert_eq!(mismatched, 0, "{provider_id}: native fact-output mismatch");
+}
+
+fn emit_inner(
+    provider_id: &str,
+    stage: &str,
+    cases: &[CaseObservation],
+    fixture_paths: &[&str],
+    gaps: &[String],
+) {
+    assert!(matches!(stage, "candidate" | "finding"));
+    assert!(
+        cases.iter().any(|case| !case.expected.is_empty()),
+        "positive control required"
+    );
+    assert!(
+        cases.iter().any(|case| case.expected.is_empty()),
+        "clean control required"
+    );
+    let mut ids = BTreeSet::new();
+    let (mut tp, mut fp, mut fn_) = (0, 0, 0);
+    let records: Vec<Value> = cases
+        .iter()
+        .map(|case| {
+            assert!(ids.insert(&case.id), "duplicate case identity");
+            let expected: BTreeSet<_> = case.expected.iter().cloned().collect();
+            let actual: BTreeSet<_> = case.actual.iter().cloned().collect();
+            assert_eq!(expected.len(), case.expected.len(), "duplicate expectation");
+            // Duplicated emissions are false positives, not silently deduplicated away.
+            let matched = expected.intersection(&actual).count();
+            let extra = actual.difference(&expected).count() + case.actual.len() - actual.len();
+            let missed = expected.difference(&actual).count();
+            tp += matched;
+            fp += extra;
+            fn_ += missed;
+            json!({"caseId":case.id,"expected":expected,"actual":case.actual,
+            "truePositives":matched,"falsePositives":extra,"falseNegatives":missed})
+        })
+        .collect();
+    let (provider_version, binding) = source_binding(provider_id, fixture_paths);
     let passed = fp == 0 && fn_ == 0;
     // These two providers own artifact ingestion/policy-record validation, not
     // the accuracy or certification of the upstream artifact's producer.
@@ -170,7 +415,7 @@ fn emit_inner(
     };
     let mut result = json!({
         "schema":"legion-file-provider-accuracy/1", "provider":provider_id,
-        "providerVersion":spec["providerVersion"], "stage":stage,
+        "providerVersion":provider_version, "stage":stage,
         "scope":"constructed planted & clean controls; not a population accuracy estimate",
         "executionPath":"native-sdk-frozen-plan-file-only", "modelCalls":0,
         "coverageState":if gaps.is_empty() {"complete"} else {"partial"},
@@ -180,10 +425,7 @@ fn emit_inner(
             "scope":"named corpus; no claim about untested rules",
             "externalExecution":if gaps.is_empty() {"not-required"} else {"missing"}},
         "qualificationEligible":passed && gaps.is_empty(),"coverageGaps":gaps,
-        "binding":{"providerSpecDigest":digest(&canonical_bytes(&spec)),
-            "implementationDigest":digest(&canonical_bytes(&json!(implementation))),
-            "implementationFileCount":implementation.len(),
-            "implementationRoots":implementation_roots,"fixtures":fixtures},
+        "binding":binding,
         "cases":records,
         "metrics":{"truePositives":tp,"falsePositives":fp,"falseNegatives":fn_,
             "precision":if tp+fp>0 {tp as f64/(tp+fp) as f64} else {0.0},

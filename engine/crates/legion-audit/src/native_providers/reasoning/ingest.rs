@@ -165,6 +165,7 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
         "budget",
         "execution",
         "repairOfCallId",
+        "strictNoRetry",
     ];
     if receipt.get("schemaVersion").and_then(Value::as_u64) != Some(1)
         || receipt.get("kind").and_then(Value::as_str) != Some("legion-runtime-call")
@@ -194,12 +195,22 @@ fn runtime_call_message(run_dir: &Path, receipt: &Value, epoch: &str) -> Result<
     }) {
         return Err(invalid("runtime schema repair call link invalid"));
     }
+    if receipt
+        .get("strictNoRetry")
+        .is_some_and(|enabled| enabled.as_bool().is_none())
+    {
+        return Err(invalid("runtime strict no-retry policy must be boolean"));
+    }
     let observation = receipt
         .get("observation")
         .and_then(Value::as_object)
         .ok_or_else(|| invalid("runtime call observation missing"))?;
     if let Some(execution) = receipt.get("execution") {
         crate::review_runtime::validate_execution_metadata(execution)?;
+    } else if receipt.get("strictNoRetry") == Some(&json!(true)) {
+        return Err(invalid(
+            "strict runtime call requires execution stage metadata",
+        ));
     }
     let observation_fields = [
         "contextId",

@@ -151,10 +151,18 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks
+  brew install gitleaks shellcheck
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
   (cd engine && cargo test --locked -p legion-audit --test bench_recall -- --ignored --nocapture)
+  export LEGION_REAL_SCANNER_SCRATCH="${RUNNER_TEMP}/legion-real-scanner-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-external-provider-accuracy"
+  mkdir -p "$LEGION_REAL_SCANNER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test external_scanner_accuracy \
+    real_scanner_accuracy_shellcheck -- --ignored --nocapture --test-threads=1)
+  python3 scripts/ci/audit-external-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR
 fi
 
 # Apple bundle integrity (formerly apple-skills.yml): the workspace test run

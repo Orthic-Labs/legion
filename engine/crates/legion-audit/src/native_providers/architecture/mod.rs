@@ -116,6 +116,29 @@ impl ProviderExecutorAdapter {
             unavailable = Some(format!("input-not-produced:{}", provider.id));
             serde_json::json!({})
         };
+        // This typed capability exists only for self-sourced frontend/data.
+        // A JSON input (including copied native diagnostics) cannot acquire it.
+        let native_source = if matches!(
+            provider.id.as_str(),
+            "framework.frontend" | "framework.data"
+        ) && !input_supplied
+            && unavailable.is_none()
+        {
+            self.root
+                .as_deref()
+                .zip(facts.as_ref())
+                .map(|(root, facts)| {
+                    evidence::NativeSourceEvidence::new(
+                        root,
+                        inventory,
+                        &denominator,
+                        provider,
+                        &facts.sources,
+                    )
+                })
+        } else {
+            None
+        };
         let original_input = input.clone();
         let mut input_object = input.clone();
         if let Value::Object(object) = &mut input_object {
@@ -135,8 +158,10 @@ impl ProviderExecutorAdapter {
             "compatibility.core" => compatibility::analyze(&input_object),
             "docs.contract" => docs::analyze(&input_object),
             "framework.backend" => framework::analyze_backend(&input_object),
-            "framework.data" => data::analyze(&input_object),
-            "framework.frontend" => framework::analyze_frontend(&input_object),
+            "framework.data" => data::analyze_with_source(&input_object, native_source.as_ref()),
+            "framework.frontend" => {
+                framework::analyze_frontend_with_source(&input_object, native_source.as_ref())
+            }
             "requirements.traceability" => requirements::analyze(&input_object),
             "test-quality.core" => test_quality::analyze(&input_object),
             other => {
@@ -180,6 +205,11 @@ impl ProviderExecutorAdapter {
             &paths,
         )
         .map_err(AuditError::Provider)?;
+        if let Some(source) = native_source {
+            result
+                .details
+                .insert("nativeSourceEvidence".into(), source.summary());
+        }
         if let Some(reason) = unavailable {
             super::availability::mark_unavailable(&mut result, &reason);
         }

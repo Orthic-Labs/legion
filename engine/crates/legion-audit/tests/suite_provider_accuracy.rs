@@ -136,7 +136,11 @@ fn finding_labels(result: &ProviderResult) -> Vec<String> {
 /// Build expected IDs only from the planted rule identity, never provider output.
 fn expected_finding(rule: &str, path: &str, line: usize) -> String {
     let identity = format!("{rule}\0{path}\0{line}");
-    let id = format!("sha256:{:x}", Sha256::digest(identity.as_bytes()));
+    let hex: String = Sha256::digest(identity.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    let id = format!("sha256:{hex}");
     format!("{id}|{path}:{line}")
 }
 

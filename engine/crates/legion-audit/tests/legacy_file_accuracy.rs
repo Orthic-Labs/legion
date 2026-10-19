@@ -10,7 +10,7 @@ use legion_audit::{
     execute, AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
 use legion_contracts::ProviderSpec;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
     fs,
@@ -54,7 +54,7 @@ fn shipped_spec(id: &str) -> ProviderSpec {
     spec
 }
 
-fn run_case(id: &str, case: &str, files: &[(&str, &str)]) -> (String, Vec<String>) {
+fn run_case(id: &str, case: &str, files: &[(&str, &str)]) -> (String, Value) {
     let root = root(case);
     for (path, text) in files {
         write(&root, path, text);
@@ -125,7 +125,9 @@ fn run_case(id: &str, case: &str, files: &[(&str, &str)]) -> (String, Vec<String
                     evidence["line"].as_u64().unwrap()
                 )
             })
-            .collect()
+            .map(Value::String)
+            .collect::<Vec<_>>()
+            .into()
     } else if stage == "finding" {
         result
             .findings
@@ -141,24 +143,28 @@ fn run_case(id: &str, case: &str, files: &[(&str, &str)]) -> (String, Vec<String
                     evidence["line"].as_u64().unwrap()
                 )
             })
-            .collect()
+            .map(Value::String)
+            .collect::<Vec<_>>()
+            .into()
     } else {
+        assert!(
+            result.findings.is_empty(),
+            "{id}/{case} fact control has findings"
+        );
+        assert!(
+            result.details["candidates"].as_array().unwrap().is_empty(),
+            "{id}/{case} fact control has candidates"
+        );
         let coverage = &result.details["toolCoverage"];
-        let mut facts = coverage["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|path| format!("file|{}", path.as_str().unwrap()))
-            .collect::<Vec<_>>();
-        facts.push(format!(
-            "manifestCount|{}",
-            coverage["manifestCount"].as_u64().unwrap()
-        ));
-        facts.push(format!(
-            "sourceCount|{}",
-            coverage["sourceCount"].as_u64().unwrap()
-        ));
-        facts
+        let paths = coverage["files"].as_array().unwrap();
+        let normalized: Vec<_> = paths.iter().map(|path| path.as_str().unwrap()).collect();
+        let unique: std::collections::BTreeSet<_> = normalized.iter().copied().collect();
+        assert_eq!(
+            normalized,
+            unique.iter().copied().collect::<Vec<_>>(),
+            "{id}/{case} coverage files must be normalized and sorted"
+        );
+        coverage.clone()
     };
     fs::remove_dir_all(root).unwrap();
     (stage, actual)
@@ -176,7 +182,12 @@ fn observe(
         CaseObservation {
             id: case.into(),
             expected: expected.iter().map(|item| (*item).into()).collect(),
-            actual,
+            actual: actual
+                .as_array()
+                .expect("candidate/finding projection")
+                .iter()
+                .map(|item| item.as_str().expect("string projection").to_owned())
+                .collect(),
         },
     )
 }
@@ -437,23 +448,35 @@ fn file_only_provider_accuracy_legacy_tool_coverage_facts() {
             ("src/lib.rs", "pub fn value() {}\n"),
         ],
     );
-    assert_eq!(
-        mixed,
-        [
-            "file|Cargo.toml",
-            "file|src/lib.rs",
-            "manifestCount|1",
-            "sourceCount|1"
-        ]
-    );
-
     let (_, docs_only) = run_case(
         "legacy.quality.tool-coverage",
         "tool-coverage-docs-only",
         &[("README.md", "# Fixture\n")],
     );
-    assert_eq!(
-        docs_only,
-        ["file|README.md", "manifestCount|0", "sourceCount|0"]
+    accuracy_receipt::emit_facts(
+        "legacy.quality.tool-coverage",
+        &[
+            accuracy_receipt::FactObservation {
+                id: "tool-coverage-cargo-manifest-and-source".into(),
+                control: "positive".into(),
+                expected: json!({
+                    "files": ["Cargo.toml", "src/lib.rs"],
+                    "manifestCount": 1,
+                    "sourceCount": 1
+                }),
+                actual: mixed,
+            },
+            accuracy_receipt::FactObservation {
+                id: "tool-coverage-docs-only-zero-counts".into(),
+                control: "absence".into(),
+                expected: json!({
+                    "files": ["README.md"],
+                    "manifestCount": 0,
+                    "sourceCount": 0
+                }),
+                actual: docs_only,
+            },
+        ],
+        &["engine/crates/legion-audit/tests/legacy_file_accuracy.rs"],
     );
 }

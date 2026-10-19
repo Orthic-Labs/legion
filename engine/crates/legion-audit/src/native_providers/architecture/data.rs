@@ -6,6 +6,13 @@ use serde_json::Value;
 
 /// Port of `frameworks/data/index.mjs::analyzeData`.
 pub fn analyze(input: &Value) -> Result<Analysis, String> {
+    analyze_with_source(input, None)
+}
+
+pub(super) fn analyze_with_source(
+    input: &Value,
+    source: Option<&evidence::NativeSourceEvidence<'_>>,
+) -> Result<Analysis, String> {
     let object = object_input(input)?;
     let models = object
         .get("artifacts")
@@ -26,7 +33,11 @@ pub fn analyze(input: &Value) -> Result<Analysis, String> {
                 model
                     .get("path")
                     .is_some_and(|value| super::common::truthy(Some(value)))
-                    && evidence::validate_refs(model.get("evidenceRefs"), &authority).is_empty()
+                    && match source {
+                        Some(source) => source.validate_observation(model).is_empty(),
+                        None => evidence::validate_refs(model.get("evidenceRefs"), &authority)
+                            .is_empty(),
+                    }
             })
         })
         .count();

@@ -126,6 +126,7 @@ impl Controller<'_> {
                 .ok_or_else(|| invalid("shared-seat reply missing"))?;
             let parsed = action(reply.clone())?;
             if let Some(request) = parsed.tool_request {
+                super::require_context_continuation(self.options)?;
                 let response = self.tools.call(request);
                 prompt["conversation"]
                     .as_array_mut()

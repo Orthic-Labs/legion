@@ -90,6 +90,15 @@ pub fn analyze_frontend_framework(
     input: &Value,
     authority: &Value,
 ) -> Result<Analysis, String> {
+    analyze_frontend_framework_with_source(name, input, authority, None)
+}
+
+fn analyze_frontend_framework_with_source(
+    name: &str,
+    input: &Value,
+    authority: &Value,
+    source: Option<&super::evidence::NativeSourceEvidence<'_>>,
+) -> Result<Analysis, String> {
     let object = object_input(input)?;
     if !FRONTEND.contains(&name) {
         let mut result = Analysis::new(
@@ -117,7 +126,10 @@ pub fn analyze_frontend_framework(
             if row
                 .get("path")
                 .is_some_and(|value| super::common::truthy(Some(value)))
-                && validate_refs(row.get("evidenceRefs"), authority).is_empty()
+                && match source {
+                    Some(source) => source.validate_observation(row).is_empty(),
+                    None => validate_refs(row.get("evidenceRefs"), authority).is_empty(),
+                }
             {
                 qualified.push(item.clone());
             }
@@ -186,6 +198,13 @@ pub fn analyze_backend(input: &Value) -> Result<Analysis, String> {
     Ok(output)
 }
 pub fn analyze_frontend(input: &Value) -> Result<Analysis, String> {
+    analyze_frontend_with_source(input, None)
+}
+
+pub(super) fn analyze_frontend_with_source(
+    input: &Value,
+    source: Option<&super::evidence::NativeSourceEvidence<'_>>,
+) -> Result<Analysis, String> {
     let object = object_input(input)?;
     let records = object
         .get("artifacts")
@@ -203,7 +222,7 @@ pub fn analyze_frontend(input: &Value) -> Result<Analysis, String> {
     let mut complete = 0;
     for record in &records {
         let name = record.get("name").and_then(Value::as_str).unwrap_or("");
-        let result = analyze_frontend_framework(name, record, &authority)?;
+        let result = analyze_frontend_framework_with_source(name, record, &authority, source)?;
         if result.complete {
             complete += 1;
         }

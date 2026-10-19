@@ -20,6 +20,13 @@ pub struct RunReasoningArgs {
     /// Pin native reasoning effort; unsupported hosts stop before generation.
     #[arg(long, value_parser = ["low", "medium", "high"])]
     pub reasoning_effort: Option<String>,
+    /// Maximum native reviewer calls for each packet, including repairs.
+    #[arg(long, default_value_t = 12, value_parser = clap::value_parser!(u32).range(1..=12))]
+    pub max_calls_per_packet: u32,
+    /// Generate once per source seat & once for fresh verification; never retry,
+    /// repair, or request further context. Remains required after a strict call.
+    #[arg(long)]
+    pub strict_no_retry: bool,
 }
 
 /// Produces JSON result, always reconciles report.json/report.sarif, & runs
@@ -37,6 +44,8 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
         claude: args.claude,
         model: args.model,
         reasoning_effort: args.reasoning_effort,
+        max_calls_per_packet: args.max_calls_per_packet,
+        strict_no_retry: args.strict_no_retry,
         ..Default::default()
     };
     let run = std::fs::canonicalize(&args.run)
