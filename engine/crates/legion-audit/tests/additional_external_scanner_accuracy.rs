@@ -539,6 +539,14 @@ fn case(scanner: Scanner, planted: bool) -> Value {
     assert_eq!(entry.provider, id);
     assert!(!entry.skipped);
     let result = &entry.result;
+    // Preserve actual evidence even if an early coverage/receipt assertion
+    // prevents qualification records from being emitted for both controls.
+    eprintln!(
+        "REAL_SCANNER_CASE_DIAGNOSTIC={}",
+        json!({"caseId": case_id, "actualProviderResult": result,
+            "policy": policy.definition(), "policyDecisions": *policy.decisions.lock().unwrap(),
+            "version": version})
+    );
     assert!(result.applicable && result.details.get("availability").is_none());
     assert!(
         result.findings.is_empty(),

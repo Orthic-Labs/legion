@@ -235,6 +235,22 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
     let values = match values {
         Some(Value::Array(values)) => values,
         Some(Value::Null) if tool == "golangci-lint" => &empty,
+        // kube-linter v0.8.3 pkg/run/run.go leaves Reports nil when no
+        // diagnostics exist. Its JSON formatter therefore emits null, with
+        // an explicit Passed summary & populated enabled-check list.
+        Some(Value::Null)
+            if tool == "kube-linter"
+                && output
+                    .pointer("/Summary/ChecksStatus")
+                    .and_then(Value::as_str)
+                    == Some("Passed")
+                && output
+                    .get("Checks")
+                    .and_then(Value::as_array)
+                    .is_some_and(|checks| !checks.is_empty()) =>
+        {
+            &empty
+        }
         _ => {
             let raw_digest = digest_json(output);
             let id = digest_json(&json!([tool, base, "invalid-schema", raw_digest]));
@@ -555,6 +571,41 @@ mod tests {
             .gaps
             .iter()
             .any(|g| g["kind"] == "scanner-typecheck-failed"));
+    }
+
+    #[test]
+    fn kube_linter_nil_reports_require_passed_summary_and_enabled_checks() {
+        // Documented upstream zero-diagnostic Result; normalization alone
+        // grants no execution or coverage claim without producer receipts.
+        let clean = json!({
+            "Checks":[{"Name":"privileged-container"}],
+            "Reports":null,
+            "Summary":{"ChecksStatus":"Passed","KubeLinterVersion":"0.8.3"}
+        });
+        let report = normalize("kube-linter", &clean, Path::new("/repo"), "");
+        assert!(report.candidates.is_empty());
+        assert!(report.gaps.is_empty());
+        assert!(report.ledger.is_empty());
+
+        for invalid in [
+            json!({"Reports":null}),
+            json!({"Reports":null,"Checks":[],"Summary":{"ChecksStatus":"Passed"}}),
+            json!({"Reports":null,"Checks":[{}],"Summary":{"ChecksStatus":"Failed"}}),
+            json!({"Reports":null,"Checks":[{}],"Summary":{"ChecksStatus":"Unknown"}}),
+            json!({"Checks":[{}],"Summary":{"ChecksStatus":"Passed"}}),
+            json!({"Reports":{},"Checks":[{}],"Summary":{"ChecksStatus":"Passed"}}),
+        ] {
+            let report = normalize("kube-linter", &invalid, Path::new("/repo"), "");
+            assert_eq!(report.candidates.len(), 1, "{invalid}");
+            assert_eq!(report.ledger.len(), 1, "{invalid}");
+            assert!(
+                report
+                    .gaps
+                    .iter()
+                    .any(|gap| gap["kind"] == "scanner-output-schema-invalid"),
+                "{invalid}"
+            );
+        }
     }
 
     #[test]
