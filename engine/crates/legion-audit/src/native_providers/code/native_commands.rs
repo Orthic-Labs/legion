@@ -1,6 +1,6 @@
 //! Native-family applicability & isolated syntax adapters. Project commands
-//! remain behind the runner's existing no-project-code policy. Keeping their
-//! exact argv separate from receipts makes missing historical execution visible.
+//! remain deferred except for offline Go tests submitted through the existing
+//! policy-bound SDK runner. Plans never substitute for actual execution receipts.
 use super::*;
 
 const MAX_SYNTAX_FILES: usize = 200;
@@ -61,14 +61,34 @@ pub(super) fn plan(
     plan: &mut Plan,
 ) {
     match provider {
-        "code.go" => defer(
-            plan,
-            entries,
-            &["go.mod"],
-            &["go"],
-            "test",
-            &["test", "./..."],
-        ),
+        "code.go" => {
+            let dirs = cap_roots(
+                dirs_named(entries, &["go.mod"]).into_iter().collect(),
+                "go",
+                &mut plan.notes,
+            );
+            if dirs.is_empty() {
+                plan.not_planned.insert("test", "no-manifest");
+            }
+            for dir in dirs {
+                let mut test = command(
+                    "test",
+                    &["go"],
+                    &dir,
+                    vec!["test".into(), "-count=1".into(), "./...".into()],
+                );
+                test.parser = Parser::Process;
+                test.accepted = &[0];
+                test.sibling_of = Some("go");
+                test.env = vec![
+                    ("GOPROXY", "off".into()),
+                    ("GOSUMDB", "off".into()),
+                    ("GOTOOLCHAIN", "local".into()),
+                    ("GOENV", "off".into()),
+                ];
+                plan.commands.push(test);
+            }
+        }
         "code.mobile" => {
             defer(
                 plan,
@@ -378,10 +398,9 @@ mod tests {
     }
 
     #[test]
-    fn native_manifest_contracts_never_enter_executable_plan() {
+    fn other_native_manifest_contracts_remain_deferred() {
         let (root, scratch) = fixture();
         let cases: &[(&str, &[&str], &[&str])] = &[
-            ("code.go", &["go.mod"], &["go"]),
             ("code.mobile", &["Package.swift"], &["swift"]),
             (
                 "code.jvm",
@@ -434,6 +453,50 @@ mod tests {
                 .iter()
                 .all(|item| !item.args.iter().any(|arg| arg == "--disable-sandbox")));
         }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn offline_go_tests_enter_sdk_plan_without_accepting_failing_exit() {
+        let (root, scratch) = fixture();
+        let entries = vec![entry("go.mod"), entry("src/a.go")];
+        let mut planned = Plan::default();
+        plan(
+            "code.go",
+            &root,
+            &entries,
+            &BTreeSet::new(),
+            &scratch,
+            &mut planned,
+        );
+        assert!(planned.deferred.is_empty());
+        assert_eq!(planned.commands.len(), 1);
+        let command = &planned.commands[0];
+        assert_eq!(command.tool, "test");
+        assert_eq!(command.programs, &["go"]);
+        assert_eq!(command.args, ["test", "-count=1", "./..."]);
+        assert_eq!(command.accepted, &[0]);
+        assert_eq!(command.parser, Parser::Process);
+        assert_eq!(
+            command.env,
+            vec![
+                ("GOPROXY", "off".into()),
+                ("GOSUMDB", "off".into()),
+                ("GOTOOLCHAIN", "local".into()),
+                ("GOENV", "off".into())
+            ]
+        );
+        let mut absent = Plan::default();
+        plan(
+            "code.go",
+            &root,
+            &[],
+            &BTreeSet::new(),
+            &scratch,
+            &mut absent,
+        );
+        assert!(absent.commands.is_empty());
+        assert_eq!(absent.not_planned.get("test"), Some(&"no-manifest"));
         std::fs::remove_dir_all(root).unwrap();
     }
 

@@ -236,7 +236,7 @@
           "cpu": 1,
           "memoryMb": 256,
           "io": 1,
-          "projectExecution": 0,
+          "projectExecution": 1,
           "browser": 0,
           "nativeSurface": 0,
           "virtualMachine": 0,

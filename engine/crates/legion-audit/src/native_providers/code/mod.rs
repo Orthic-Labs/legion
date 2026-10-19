@@ -97,7 +97,9 @@ impl ProviderExecutorAdapter {
     }
 
     /// Plan-bound async path: self-sourced providers additionally run their
-    /// read-only verification tools through `tool` (see [`tools`]). Scratch,
+    /// verification tools through `tool` (see [`tools`]), including Go tests
+    /// when that exact request receives SDK policy admission. This adapter grants
+    /// no admission; installed owner-admission denial remains unchanged. Scratch,
     /// caches and artifacts live in `scratch`, which must be the same
     /// `AuditScratch` the tool's artifact sink is rooted at. Host-injected
     /// input is analyzed exactly as on the synchronous path.

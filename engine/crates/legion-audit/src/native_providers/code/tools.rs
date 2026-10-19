@@ -1,4 +1,4 @@
-//! Real, read-only tool runs for the `code.*` providers.
+//! Policy-bound tool runs for the `code.*` providers.
 //!
 //! The self-sourced evidence in [`super::evidence`] only *discovers* the
 //! compilers, linters and type checkers a provider names. This module runs the
@@ -31,15 +31,16 @@
 //! | `code.go` | `module` | `go list -m` (`GOPROXY=off`, `GOTOOLCHAIN=local`) |
 //! | | `vet` | `go vet ./...` |
 //! | | `format` | `gofmt -l .` |
+//! | | `test` | `go test -count=1 ./...` (requires exact injected SDK authorization) |
 //! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
 //!
-//! Never run: test suites (`test` is always the typed gap
-//! `tool-not-run:test:policy-no-project-code-execution`), package-manager
-//! scripts and builds, installs, network-dependent audits.
-//! Applicable historical build/test contracts are recorded separately as
-//! deferred commands; they never become executed receipts or tool passes.
+//! Go tests execute project code only through the supplied ExternalProjectTool;
+//! the installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
+//! caller must supply its own exact policy admission & authenticated sandbox.
+//! Other historical build/test contracts remain deferred plans; package installs
+//! & network-dependent audits never become tool passes.
 
 use super::evidence::NativeFinding;
 use crate::{
@@ -70,7 +71,7 @@ mod rubocop;
 
 /// Findings kept per provider from tool diagnostics; the rest is a counted gap.
 pub const MAX_TOOL_FINDINGS: usize = 200;
-/// Reason attached to every analyzer tool that would execute project tests.
+/// Reason attached to project command contracts without an SDK execution route.
 pub const POLICY_NO_PROJECT_CODE: &str = "policy-no-project-code-execution";
 const MAX_ROOTS: usize = 6;
 const MAX_MANIFEST_BYTES: u64 = 512 * 1024;
@@ -193,6 +194,8 @@ enum Parser {
     GoVet,
     Gofmt,
     GoList,
+    /// Exit-only project command contract: failure is a gap, never a fabricated finding.
+    Process,
     Syntax,
     Rubocop,
 }
@@ -570,7 +573,9 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
             // project default (vendor directories keep working).
             env: vec![
                 ("GOPROXY", "off".to_owned()),
+                ("GOSUMDB", "off".to_owned()),
                 ("GOTOOLCHAIN", "local".to_owned()),
+                ("GOENV", "off".to_owned()),
             ],
             diagnostics_on_stderr: stderr,
             source_path: None,
@@ -607,6 +612,7 @@ fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
+        "code.go" => &[],
         _ => &["test"],
     }
 }
@@ -993,9 +999,33 @@ async fn run_one(
 
     let executable_text = executable.to_string_lossy().into_owned();
     let cwd_text = cwd.to_string_lossy().into_owned();
-    // Windows PowerShell has no --version switch. Its fixed, profile-free
-    // probe is also valid for pwsh & never evaluates repository content.
-    let tool_version_args = if command.tool == "powershell-syntax" {
+    // Go uses its version subcommand; gofmt has no version flag, so its
+    // exact sibling Go binary reads the original gofmt build info through
+    // the same authenticated wrapper. PowerShell uses its profile-free probe.
+    let mut version_probe_executable = executable_text.clone();
+    let mut version_probe_identity = None;
+    let tool_version_args = if command.parser == Parser::Gofmt {
+        if ctx.sandbox != SandboxPolicy::Required {
+            return RunOutput::failed(Outcome::NotRun(
+                "gofmt-build-info-probe-requires-authenticated-sandbox".into(),
+            ));
+        }
+        let Some(inspector) = executable.parent().and_then(|dir| in_dir(dir, "go")) else {
+            return RunOutput::failed(Outcome::NotRun("gofmt-build-info-inspector-missing".into()));
+        };
+        let Some(inspector_digest) = resolver.digest(&inspector) else {
+            return RunOutput::failed(Outcome::NotRun(
+                "gofmt-build-info-inspector-unreadable".into(),
+            ));
+        };
+        version_probe_executable = inspector.to_string_lossy().into_owned();
+        version_probe_identity = Some(json!({"kind":"go-binary-build-info",
+            "inspectorPath":inspector,"inspectorDigest":inspector_digest,
+            "targetPath":executable,"targetDigest":executable_digest}));
+        vec!["version".into(), executable_text.clone()]
+    } else if command.programs.contains(&"go") {
+        vec!["version".into()]
+    } else if command.tool == "powershell-syntax" {
         vec![
             "-NoLogo".into(),
             "-NoProfile".into(),
@@ -1026,7 +1056,8 @@ async fn run_one(
             Ok(auth) => {
                 // Probe the real tool's version through the same wrapper
                 // prefix (`-f profile -- tool`).
-                let mut probe: Vec<String> = auth.wrapped_args.iter().take(4).cloned().collect();
+                let mut probe: Vec<String> = auth.wrapped_args.iter().take(3).cloned().collect();
+                probe.push(version_probe_executable.clone());
                 probe.extend(tool_version_args.iter().cloned());
                 (
                     auth.wrapped_executable,
@@ -1122,10 +1153,12 @@ async fn run_one(
     let program_label = argv[0].clone();
     let mut retained_receipt = crate::execution_policy::receipt_json(&receipt);
     let summary = json!({
+        "sdkReceipt": retained_receipt.clone(),
         "tool": command.tool,
         "program": program_label,
         "sourcePath": command.source_path,
         "sourceDigest": command.source_digest,
+        "versionProbeIdentity": version_probe_identity,
         "version": output.version,
         "argv": argv,
         "cwd": cwd_label,
@@ -1162,7 +1195,34 @@ async fn run_one(
         output.outcome = outcome;
         return output;
     }
-    if command.parser == Parser::Syntax && (stdout.is_none() || stderr.is_none()) {
+    if let Some(identity) = &version_probe_identity {
+        let unchanged = [
+            ("inspectorPath", "inspectorDigest"),
+            ("targetPath", "targetDigest"),
+        ]
+        .iter()
+        .all(|(path, expected)| {
+            identity[*path]
+                .as_str()
+                .and_then(|path| std::fs::read(path).ok())
+                .is_some_and(|bytes| {
+                    identity[*expected]
+                        .as_str()
+                        .is_some_and(|expected| sha256_text(&bytes) == expected)
+                })
+        });
+        let expected_prefix = format!("{}: go", executable_text);
+        if !unchanged || !output.version.starts_with(&expected_prefix) {
+            output.outcome = Outcome::Failed(format!(
+                "tool-failed:{}:unbound-build-info-probe",
+                command.tool
+            ));
+            return output;
+        }
+    }
+    if matches!(command.parser, Parser::Syntax | Parser::Process)
+        && (stdout.is_none() || stderr.is_none())
+    {
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
     }
@@ -1231,6 +1291,11 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::GoVet => parse_go_vet(bytes, exit),
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
+        Parser::Process => match exit {
+            Some(0) => Ok(Vec::new()),
+            Some(code) => Err(format!("exit-{code}")),
+            None => Err("process-missing-exit-code".into()),
+        },
         Parser::Syntax => parse_syntax(bytes, exit),
         Parser::Rubocop => Err("rubocop-source-binding-required".into()),
     }
@@ -1534,7 +1599,7 @@ impl Accumulator {
     }
 }
 
-/// Run every read-only verification command this provider's analyzer wants
+/// Submit every planned verification command this provider's analyzer wants
 /// receipts for and project the results. `entries` is the frozen denominator;
 /// `selected` the in-language paths whose findings are admissible.
 pub async fn run(
@@ -1572,7 +1637,9 @@ pub async fn run(
 
     // Tools that are never run, by policy or because nothing applies.
     for tool in config_tools {
-        if policy_tools(provider_id).contains(tool) {
+        if policy_tools(provider_id).contains(tool)
+            && !plan.commands.iter().any(|command| command.tool == *tool)
+        {
             evidence
                 .outcomes
                 .insert(*tool, Outcome::NotRun(POLICY_NO_PROJECT_CODE.into()));
@@ -1773,6 +1840,15 @@ mod tests {
             retained["executionPolicyIdentity"],
             crate::execution_policy::binding()["executionPolicyIdentity"]
         );
+    }
+
+    #[test]
+    fn process_completion_never_converts_test_failure_to_a_clean_pass() {
+        assert!(parse(Parser::Process, b"ok example 0.001s", Some(0))
+            .unwrap()
+            .is_empty());
+        assert!(parse(Parser::Process, b"FAIL example", Some(1)).is_err());
+        assert!(parse(Parser::Process, b"", None).is_err());
     }
 
     #[test]
