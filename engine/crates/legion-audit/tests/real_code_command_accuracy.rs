@@ -359,7 +359,8 @@ impl ScopedPolicy {
     }
     fn source_stage(&self) -> PathBuf {
         self.scratch
-            .cache_dir()
+            .root()
+            .join("cache")
             .join("govulncheck")
             .join(digest(b"").trim_start_matches("sha256:"))
     }
