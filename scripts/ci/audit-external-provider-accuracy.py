@@ -56,6 +56,13 @@ def require(condition, message):
         raise AssertionError(message)
 
 
+def generated_session_provenance(relative):
+    return re.fullmatch(
+        r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json",
+        relative,
+    ) is not None
+
+
 def bound_file(root, path):
     require(not path.is_symlink(), f"symlink in source binding: {path}")
     require(path.is_file(), f"missing bound file: {path}")
@@ -87,6 +94,8 @@ def check_binding(root, binding):
         for path in base.rglob("*"):
             require(not path.is_symlink(), f"symlink in implementation binding: {path}")
             if path.is_file():
+                if generated_session_provenance(path.relative_to(root).as_posix()):
+                    continue
                 files.append(bound_file(root, path))
     for relative in IMPL_FILES:
         files.append(bound_file(root, root / relative))
