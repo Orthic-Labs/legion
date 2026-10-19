@@ -66,6 +66,14 @@ artifact, & Oracle examines any independent review or verification of others' wo
 limited to locked or explicit work; attaching a role never opens one.
 Dispatch transports assignments; it neither selects authority nor grants it.
 
+For a known failure, select Debugger & establish root cause before permanent repair
+(`skills/debugger/references/manual.md`). Select Architect when that investigation exposes
+architecture work. Attach Sage for explicit requests, repeated failed repairs, or unresolved
+material choices under `src/roster/sage.md`; do not merge these capabilities or require Sage
+for every routine repair. A loaded skill, route trace, or invocation receipt proves neither
+method completion nor authority participation. Claim pre-effect enforcement only at a host
+boundary that actually intercepts that effect with authenticated context.
+
 Resolve role registration & model compatibility against effective host configuration before launch.
 If a host forbids inherited models, provide an explicit compatible model through its native launch
 argument. Keep roster tiers vendor-neutral; never silently downgrade required judgment or skip

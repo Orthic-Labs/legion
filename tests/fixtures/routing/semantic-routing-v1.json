@@ -198,6 +198,42 @@
       "forbiddenSelections": ["sage"]
     },
     {
+      "id": "known-failure-debugger-first",
+      "concerns": ["authority-independence", "diagnosis-first"],
+      "prompt": "A known production failure needs a permanent repair; investigate its root cause before changing code.",
+      "source": "semantic",
+      "expectedCapabilities": ["debugger"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "diagnose", "decide", "produce"],
+      "effects": ["source-read", "process-exec", "repository-write"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["sage"]
+    },
+    {
+      "id": "repeated-failed-repair-debugger-sage",
+      "concerns": ["authority-independence", "diagnosis-first", "repeated-failed-repair"],
+      "prompt": "Three repairs based on the same diagnosis have failed; investigate the cause and reassess the approach.",
+      "source": "semantic",
+      "expectedCapabilities": ["debugger"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "diagnose", "decide", "produce"],
+      "effects": ["source-read", "process-exec", "repository-write"],
+      "attachedAuthorities": ["sage"],
+      "forbiddenSelections": []
+    },
+    {
+      "id": "explicit-sage",
+      "concerns": ["explicit-only", "authority-independence"],
+      "prompt": "/sage adjudicate this unresolved material ownership decision",
+      "source": "explicit",
+      "expectedCapabilities": [],
+      "expectedEntrypoints": ["sage"],
+      "operations": ["decide"],
+      "effects": ["source-read"],
+      "attachedAuthorities": ["sage"],
+      "forbiddenSelections": []
+    },
+    {
       "id": "unresolved-acceptance-sage",
       "concerns": ["authority-independence"],
       "prompt": "Diagnosis is complete, but two owners define mutually incompatible acceptance criteria.",

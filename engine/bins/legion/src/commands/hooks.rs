@@ -114,6 +114,7 @@ fn status_value(home: &Path, client: Option<&str>) -> Value {
         "schemaVersion": 1,
         "kind": "legion-hooks-status",
         "registered": registered,
+        "registrationMeaning": "host configuration references only; not proof of enforcement",
         "hosts": hosts,
     })
 }
@@ -142,6 +143,57 @@ fn row(host: &str, sources: Vec<Value>) -> Value {
         "host": host,
         "registered": !sources.is_empty(),
         "sources": sources,
+    })
+}
+
+/// Inspect projected commands only. File presence and trust records cannot
+/// establish that a host trusted or delivered an event.
+fn projected_legion_events(config: &Value) -> Option<Vec<String>> {
+    fn contains_hook(value: &Value) -> bool {
+        match value {
+            Value::Object(fields) => {
+                fields
+                    .get("command")
+                    .and_then(Value::as_str)
+                    .is_some_and(|command| command.contains("legion-hook"))
+                    || fields.values().any(contains_hook)
+            }
+            Value::Array(values) => values.iter().any(contains_hook),
+            _ => false,
+        }
+    }
+    Some(
+        config
+            .get("hooks")?
+            .as_object()?
+            .iter()
+            .filter(|(_, handlers)| contains_hook(handlers))
+            .map(|(event, _)| event.clone())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+    )
+}
+
+fn enforcement_facts(
+    supported_events: Option<&[&str]>,
+    projected_events: Option<Vec<String>>,
+    pre_effect_supported: Option<bool>,
+    scope: &str,
+) -> Value {
+    json!({
+        "supportedEvents": supported_events,
+        "supportedEventsScope": "shipped host projection; not all parser-accepted events",
+        "projectedEvents": projected_events,
+        "projectedEventsScope": "inspected hook files only",
+        "preEffectInterception": {
+            "supported": pre_effect_supported,
+            "observed": "unknown",
+        },
+        "hostTrust": "unknown",
+        "eventDelivery": "unknown",
+        "activeRoleAuthentication": "unavailable",
+        "scope": scope,
     })
 }
 
@@ -175,8 +227,10 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
         .filter(|path| path.is_absolute())
         .unwrap_or_else(|| home.join(".claude"));
     let settings = claude_config.join("settings.json");
-    if read_json(&settings)
-        .and_then(|value| value.get("hooks").cloned())
+    let claude_settings = read_json(&settings);
+    if claude_settings
+        .as_ref()
+        .and_then(|value| value.get("hooks"))
         .is_some_and(|hooks| hooks.to_string().contains("legion"))
     {
         claude.push(json!({"scope": "user-settings", "path": settings}));
@@ -187,7 +241,7 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
         .join("hooks")
         .join("hooks.json");
     if plugin_hooks.is_file() {
-        claude.push(json!({"scope": "skills-dir-plugin", "path": plugin_hooks}));
+        claude.push(json!({"scope": "skills-dir-plugin", "path": &plugin_hooks}));
     }
     let installed = claude_config.join("plugins/installed_plugins.json");
     if read_json(&installed).is_some_and(|value| {
@@ -277,17 +331,66 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
 
     let mut devin = Vec::new();
     let devin_config = devin_config_root(home).join("config.json");
-    if read_json(&devin_config)
-        .and_then(|value| value.get("hooks").cloned())
+    let devin_settings = read_json(&devin_config);
+    if devin_settings
+        .as_ref()
+        .and_then(|value| value.get("hooks"))
         .is_some_and(|hooks| hooks.to_string().contains("legion-hook"))
     {
         devin.push(json!({"scope": "user-config", "path": devin_config}));
     }
 
+    let claude_projections = [claude_settings, read_json(&plugin_hooks)]
+        .iter()
+        .filter_map(|config| config.as_ref().and_then(projected_legion_events))
+        .collect::<Vec<_>>();
+    let claude_events = (!claude_projections.is_empty()).then(|| {
+        claude_projections
+            .into_iter()
+            .flatten()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    });
+    let mut claude_row = row("claude-code", claude);
+    claude_row["enforcement"] = enforcement_facts(
+        Some(&[
+            "SessionStart",
+            "SubagentStart",
+            "SubagentStop",
+            "UserPromptSubmit",
+            "PostCompact",
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "Stop",
+        ]),
+        claude_events,
+        Some(true),
+        "Legion's Claude hook projection supports matched pre-tool events; registration does not prove host trust or delivery",
+    );
+    let codex_events = codex_hooks
+        .as_ref()
+        .and_then(|path| read_json(path))
+        .as_ref()
+        .and_then(projected_legion_events);
+    let codex_enforcement = enforcement_facts(
+        Some(&["UserPromptSubmit", "Stop"]),
+        codex_events,
+        Some(false),
+        "Legion's Codex projection covers prompt submission and stop only; no pre-effect interception",
+    );
+    let mut devin_row = row("devin", devin);
+    devin_row["enforcement"] = enforcement_facts(
+        None,
+        devin_settings.as_ref().and_then(projected_legion_events),
+        None,
+        "Configured Legion handlers only; host event support is unverified",
+    );
     vec![
-        row("claude-code", claude),
-        json!({"host":"codex","registered":codex_registered,"sources":codex_sources}),
-        row("devin", devin),
+        claude_row,
+        json!({"host":"codex","registered":codex_registered,"sources":codex_sources,"enforcement":codex_enforcement}),
+        devin_row,
     ]
 }
 
@@ -424,6 +527,17 @@ mod tests {
             hosts.iter().find(|row| row["host"] == "devin").unwrap()["registered"],
             true
         );
+        let devin = hosts.iter().find(|row| row["host"] == "devin").unwrap();
+        assert_eq!(
+            devin["enforcement"]["projectedEvents"],
+            json!(["PreToolUse"])
+        );
+        assert_eq!(devin["enforcement"]["supportedEvents"], Value::Null);
+        assert_eq!(
+            devin["enforcement"]["preEffectInterception"]["supported"],
+            Value::Null
+        );
+        assert_eq!(devin["enforcement"]["eventDelivery"], "unknown");
         assert_eq!(
             hosts.iter().find(|row| row["host"] == "codex").unwrap()["registered"],
             false
@@ -450,7 +564,11 @@ mod tests {
             r#"{"name":"legion","extensions":{"com.openai":{"hooks":"./hooks/codex-hooks.json"}}}"#,
         )
         .unwrap();
-        std::fs::write(plugin.join("hooks/codex-hooks.json"), "{}\n").unwrap();
+        std::fs::write(
+            plugin.join("hooks/codex-hooks.json"),
+            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"legion-hook --host codex --event UserPromptSubmit"}]}],"Stop":[{"hooks":[{"command":"legion-hook --host codex --event Stop"}]}]}}"#,
+        )
+        .unwrap();
         std::fs::write(
             codex.join("config.toml"),
             "[plugins.\"legion@legion-installed\"]\nenabled = true\n",
@@ -469,6 +587,24 @@ mod tests {
         let selected_hooks = PathBuf::from(source["hooksPath"].as_str().unwrap());
         assert_eq!(selected_hooks, plugin.join("hooks/codex-hooks.json"));
         assert_eq!(source["trustState"], "not-recorded");
+        assert_eq!(
+            row["enforcement"]["supportedEvents"],
+            json!(["UserPromptSubmit", "Stop"])
+        );
+        assert_eq!(
+            row["enforcement"]["projectedEvents"],
+            json!(["Stop", "UserPromptSubmit"])
+        );
+        assert_eq!(
+            row["enforcement"]["preEffectInterception"]["supported"],
+            false
+        );
+        assert_eq!(
+            row["enforcement"]["activeRoleAuthentication"],
+            "unavailable"
+        );
+        assert_eq!(row["enforcement"]["hostTrust"], "unknown");
+        assert_eq!(row["enforcement"]["eventDelivery"], "unknown");
 
         let hash = format!("sha256:{}", "a".repeat(64));
         std::fs::write(
@@ -485,6 +621,11 @@ mod tests {
         assert_eq!(row["registered"], false);
         assert_eq!(row["sources"][0]["pluginEnabled"], false);
         assert_eq!(row["sources"][0]["trustState"], "recorded");
+        assert_eq!(row["enforcement"]["hostTrust"], "unknown");
+        assert_eq!(
+            row["enforcement"]["preEffectInterception"]["observed"],
+            "unknown"
+        );
 
         let stale = codex.join("plugins/cache/legion-installed/legion/0.9.0");
         std::fs::create_dir_all(stale.join(".codex-plugin")).unwrap();
@@ -500,6 +641,42 @@ mod tests {
         assert_eq!(row["registered"], false);
         assert_eq!(row["sources"][0]["cacheLookup"], "ambiguous");
         assert_eq!(row["sources"][0]["hooksPath"], Value::Null);
+        let _ = std::fs::remove_dir_all(home);
+    }
+
+    #[test]
+    fn hook_projection_facts_do_not_promote_registration_to_protection() {
+        let home = temp_home("hook-boundaries");
+        for host in hook_registrations_with_codex_home(&home, &home.join(".codex")) {
+            assert_eq!(
+                host["enforcement"]["activeRoleAuthentication"],
+                "unavailable"
+            );
+            assert_eq!(host["enforcement"]["hostTrust"], "unknown");
+            assert_eq!(host["enforcement"]["eventDelivery"], "unknown");
+            assert_eq!(
+                host["enforcement"]["preEffectInterception"]["observed"],
+                "unknown"
+            );
+            if host["host"] == "claude-code" {
+                assert_eq!(
+                    host["enforcement"]["preEffectInterception"]["supported"],
+                    true
+                );
+                assert!(host["enforcement"]["supportedEvents"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&json!("PreToolUse")));
+            }
+        }
+        assert_eq!(projected_legion_events(&json!({})), None);
+        assert_eq!(
+            projected_legion_events(&json!({"hooks": {
+                "PreToolUse": [{"hooks": [{"command": "unrelated-hook"}]}],
+                "Stop": [{"hooks": [{"command": "legion-hook"}]}]
+            }})),
+            Some(vec!["Stop".into()]),
+        );
         let _ = std::fs::remove_dir_all(home);
     }
 

@@ -216,6 +216,33 @@ pub struct M1CapabilityStatus {
     pub scoped_requirements: Vec<M1ScopedRequirementStatus>,
 }
 
+/// Describes the evidence produced by M1 without broadening receipt semantics.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct M1ExecutionBoundary {
+    pub availability_scope: &'static str,
+    pub invocation_operations: [&'static str; 2],
+    pub receipt_completion_scope: &'static str,
+    pub does_not_prove: [&'static str; 4],
+}
+
+impl M1ExecutionBoundary {
+    fn native() -> Self {
+        Self {
+            availability_scope: "catalog and declared host requirement probes",
+            invocation_operations: ["capability-body-load", "arcane-policy-evaluation"],
+            receipt_completion_scope:
+                "selected capability body loaded and supplied policy context allowed",
+            does_not_prove: [
+                "diagnosis",
+                "capability-method-completion",
+                "independent-sage-review",
+                "later-host-effect-enforcement",
+            ],
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct M1Status {
@@ -233,6 +260,7 @@ pub struct M1Status {
     pub degraded_count: usize,
     pub host_requirements: Vec<M1HostRequirementStatus>,
     pub capabilities: Vec<M1CapabilityStatus>,
+    pub execution_boundary: M1ExecutionBoundary,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -444,6 +472,7 @@ impl M1Application {
             degraded_count,
             host_requirements,
             capabilities,
+            execution_boundary: M1ExecutionBoundary::native(),
         };
         self.verify_installed_binding()?;
         Ok(status)
@@ -2767,6 +2796,50 @@ mod m1_tests {
             .invocation_receipt
             .artifacts
             .contains_key("policyReceiptSha256"));
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn m1_status_and_invocation_expose_bounded_receipt_meaning() {
+        let root = temp_root();
+        let app = M1Application::from_inputs(inputs(&root, true)).expect("application");
+        let status = app.status().expect("status");
+        let result = app.invoke(request()).expect("invocation");
+        assert_eq!(status.execution_boundary, result.status.execution_boundary);
+        let serialized = serde_json::to_value(&result.status).expect("serialized status");
+        assert_eq!(
+            serialized["executionBoundary"]["invocationOperations"],
+            serde_json::json!(["capability-body-load", "arcane-policy-evaluation"]),
+        );
+        assert_eq!(
+            serialized["executionBoundary"]["doesNotProve"],
+            serde_json::json!([
+                "diagnosis",
+                "capability-method-completion",
+                "independent-sage-review",
+                "later-host-effect-enforcement"
+            ]),
+        );
+        assert_eq!(
+            serialized["executionBoundary"]["receiptCompletionScope"],
+            "selected capability body loaded and supplied policy context allowed",
+        );
+        // Completion remains the existing body/policy receipt outcome. The
+        // additive status must not insert broader evidence into that receipt.
+        assert!(result.invocation_receipt.complete);
+        assert_eq!(result.invocation_receipt.artifacts.len(), 3);
+        assert_eq!(
+            result.invocation_receipt.artifacts["capabilityBodySha256"],
+            result.capability.body_sha256,
+        );
+        assert_eq!(
+            result.invocation_receipt.artifacts["policyReceiptSha256"],
+            result.policy_receipt.digest().expect("policy digest"),
+        );
+        result
+            .invocation_receipt
+            .validate()
+            .expect("unchanged typed receipt");
         fs::remove_dir_all(root).expect("cleanup");
     }
 
