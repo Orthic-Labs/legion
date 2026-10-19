@@ -70,6 +70,7 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_rec
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
+python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
 python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
 
 checks=(
@@ -841,6 +842,24 @@ PY_PIN
   run_audit_qualification audit_cargo_test --test real_quality_command_accuracy \
     real_quality_command_accuracy -- --ignored --exact --nocapture --test-threads=1
   unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_QUALITY_COMMAND_SCRATCH
+  # Real attested test qualification requires separately provisioned native owner pins.
+  # Never replace absent trust/admission with a local fake broker or signing key.
+  if [[ -n "${LEGION_ATTESTED_RUNS_ENROLLMENT:-}" ]]; then
+    export LEGION_QUALITY_TEST_EVIDENCE="${RUNNER_TEMP}/legion-provider-qualification/quality-test-native"
+    if python3 scripts/ci/provision-quality-test-native.py --root "$GITHUB_WORKSPACE"; then
+      run_audit_qualification audit_cargo_test --test real_quality_test_accuracy \
+        real_quality_test_accuracy -- --ignored --exact --nocapture --test-threads=1
+      run_audit_qualification python3 scripts/ci/audit-quality-test-accuracy.py \
+        "$LEGION_QUALITY_TEST_EVIDENCE/legacy_quality_test.json" \
+        --repository-root "$GITHUB_WORKSPACE" --evidence-root "$LEGION_QUALITY_TEST_EVIDENCE" --mutation-checks
+    else
+      audit_qualification_failures=$((audit_qualification_failures + 1))
+      printf '::error::Native test qualification owner prerequisites refused.\n' >&2
+    fi
+    unset LEGION_QUALITY_TEST_EVIDENCE
+  else
+    printf 'QUALITY_TEST_NATIVE_UNAVAILABLE managed-test-trust-not-configured; production-owner-admission-unavailable\n'
+  fi
   # Constructed pip-audit SDK controls use shared hash-locked Python enrollment.
   run_audit_qualification provision_python_qualification_tool pip-audit
   export LEGION_PIP_AUDIT_SCRATCH="$RUNNER_TEMP/legion-pip-audit-work"

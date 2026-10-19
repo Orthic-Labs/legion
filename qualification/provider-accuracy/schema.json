@@ -572,7 +572,8 @@
             "code-c-family-sdk",
             "javascript-sdk",
             "dotnet-sdk",
-            "code-rust-sdk"
+            "code-rust-sdk",
+            "quality-test-native"
           ]
         },
         "record": {
@@ -639,6 +640,16 @@
         },
         "rustSdkEvidence": {
           "$ref": "#/$defs/rustSdkEvidence"
+        },
+        "qualityTestEvidence": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/path"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/reference"
+          },
+          "minProperties": 1
         }
       },
       "allOf": [
@@ -830,6 +841,32 @@
             "not": {
               "required": [
                 "rustSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "quality-test-native"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "qualityTestEvidence"
+            ],
+            "properties": {
+              "provider": {
+                "const": "legacy.quality.test"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "qualityTestEvidence"
               ]
             }
           }
