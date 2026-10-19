@@ -10,17 +10,18 @@
 //! test. Coverage is never faked and a skip is never silent.
 
 use std::{
-    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use legion_audit::{
-    native_providers::legacy_checks::spec, AuditPlan, AuditProvider, FrozenPlan, InventoryEntry,
-    InventoryEnvelope, NativeProviderRegistry, ProviderExecutor, ProviderKind,
+    AuditPlan, AuditProvider, FrozenPlan, InventoryEntry, InventoryEnvelope,
+    NativeProviderRegistry, ProviderExecutor,
 };
+use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
 
 const MANIFEST: &str = include_str!("fixtures/bench/manifest.json");
@@ -42,97 +43,87 @@ fn provider_for_class(class: &str) -> Option<&'static str> {
     }
 }
 
-fn registry_lens_ids(id: &str) -> Vec<String> {
-    let raw = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../src/registry/providers.json"
-    ))
-    .expect("packaged provider registry");
-    let registry: Value = serde_json::from_str(&raw).expect("registry JSON");
-    registry["providers"]
+/// Read the shipped definition verbatim, including its selector, execution
+/// bounds, role and denominator. Qualification metadata is retained as input,
+/// never treated as evidence that this run passed.
+fn shipped_spec(id: &str) -> ProviderSpec {
+    let registry: Value =
+        serde_json::from_str(include_str!("../../../../src/registry/providers.json"))
+            .expect("packaged provider registry");
+    let definition = registry["providers"]
         .as_array()
-        .and_then(|items| {
-            items
-                .iter()
-                .find(|item| item["id"].as_str() == Some(id))
-                .map(|item| {
-                    item["lensIds"]
-                        .as_array()
-                        .map(|lenses| {
-                            lenses
-                                .iter()
-                                .filter_map(|lens| lens.as_str().map(ToOwned::to_owned))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                })
-        })
-        .unwrap_or_default()
+        .expect("packaged providers")
+        .iter()
+        .find(|item| item["id"].as_str() == Some(id))
+        .unwrap_or_else(|| panic!("missing shipped provider {id}"));
+    serde_json::from_value(definition.clone()).expect("shipped ProviderSpec")
 }
 
-/// A frozen plan for one legacy-check provider. The external-tool route is
-/// only taken by the plan-bound async executor (`execute_async`); the plain
-/// synchronous `execute` path never launches a process, so a bench built on
-/// it can only ever report tool-missing.
-fn bench_plan(inventory: &InventoryEnvelope, provider_id: &str) -> FrozenPlan {
-    let contract =
-        spec(provider_id).unwrap_or_else(|| panic!("legacy provider {provider_id} must be frozen"));
-    let definition = json!({
-        "schemaVersion": 2,
-        "id": provider_id,
-        "providerVersion": "2.0.0",
-        "family": "legacy",
-        "role": contract.role,
-        "phase": contract.phase,
-        "lensIds": ["security"],
-        "dependsOn": [],
-        "consumes": ["repository-inventory"],
-        "produces": ["provider-result"],
-        "selector": {"op": "always"},
-        "denominatorKind": "repository-inventory",
-        "runner": {"kind": "legacy-check", "check": contract.check},
-        "hostCapabilities": [],
-        "execution": {},
-        "reasoning": {},
-        "benchmark": {"status": "unproven", "requiredForCleanClaim": false},
-        "cleanClaim": "evidence-only",
-        "controlIds": [],
-        "scopes": [],
-        "selectable": true
-    });
-    AuditPlan::compile(
-        inventory,
-        &[serde_json::from_value(definition).expect("bench provider definition")],
-    )
-    .expect("bench plan compiles")
-    .freeze(Some(b"bench-recall-key"))
-    .expect("bench plan freezes")
+fn bench_plan(inventory: &InventoryEnvelope, spec: &ProviderSpec) -> FrozenPlan {
+    AuditPlan::compile(inventory, std::slice::from_ref(spec))
+        .expect("shipped provider plan compiles")
+        .freeze(Some(b"bench-recall-key"))
+        .expect("bench plan freezes")
 }
 
-fn provider(id: &str, selector: Value) -> AuditProvider {
-    let contract = spec(id).unwrap_or_else(|| panic!("legacy provider {id} must be frozen"));
-    AuditProvider {
-        id: id.into(),
-        version: "2.0.0".into(),
-        role: contract.role.into(),
-        phase: contract.phase.into(),
-        lens_ids: registry_lens_ids(id),
-        dependencies: Vec::new(),
-        kind: ProviderKind::TypedExternalProjectTool,
-        configuration: BTreeMap::from([
-            ("selector".into(), selector),
-            (
-                "runner".into(),
-                json!({"kind":"legacy-check","check":contract.check}),
-            ),
-        ]),
-        bounds: BTreeMap::new(),
-        clean_claim: "evidence-only".into(),
-        benchmark_status: "unproven".into(),
-        benchmark_required_for_clean_claim: false,
-        qualification_digest: None,
-        required: false,
-    }
+fn digest(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+/// Exclude benchmark metadata from the implementation binding: changing a
+/// prior qualification cannot manufacture a new measurement or form a cycle.
+fn implementation_binding(spec: &ProviderSpec) -> Value {
+    let mut definition = serde_json::to_value(spec).expect("serialize shipped spec");
+    definition.as_object_mut().unwrap().remove("benchmark");
+    json!({
+        "providerDefinition": definition,
+        "providerDefinitionDigest": legion_contracts::canonical_digest(&definition).unwrap(),
+        "sourceBindings": source_bindings(),
+        "sourceBindingsDigest": legion_contracts::canonical_digest(source_bindings()).unwrap()
+    })
+}
+
+/// Bind the entire in-workspace production crate closure, registry resources,
+/// dependency lock and this harness. Benchmark metadata is sanitized wherever
+/// provider definitions are bound, preventing qualification circularity.
+fn source_bindings() -> &'static Value {
+    static BINDINGS: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
+    BINDINGS.get_or_init(|| {
+        fn collect(root: &Path, path: &Path, bindings: &mut std::collections::BTreeMap<String, String>) {
+            if path.is_dir() {
+                for entry in fs::read_dir(path).expect("implementation source directory") {
+                    collect(root, &entry.expect("implementation source entry").path(), bindings);
+                }
+            } else if path.is_file() {
+                let relative = path.strip_prefix(root).expect("workspace-relative source")
+                    .to_string_lossy().replace('\\', "/");
+                let bytes = fs::read(path).expect("implementation source bytes");
+                let bound_digest = if relative == "src/registry/providers.json" {
+                    let mut registry: Value = serde_json::from_slice(&bytes).expect("provider registry");
+                    for provider in registry["providers"].as_array_mut().expect("provider list") {
+                        provider.as_object_mut().expect("provider definition").remove("benchmark");
+                    }
+                    legion_contracts::canonical_digest(&registry).expect("sanitized provider registry digest")
+                } else { digest(&bytes) };
+                bindings.insert(relative, bound_digest);
+            }
+        }
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        let mut bindings = std::collections::BTreeMap::new();
+        for entry in fs::read_dir(root.join("engine/crates")).expect("workspace production crates") {
+            let crate_root = entry.expect("workspace crate").path();
+            if crate_root.is_dir() {
+                collect(&root, &crate_root.join("src"), &mut bindings);
+                collect(&root, &crate_root.join("Cargo.toml"), &mut bindings);
+            }
+        }
+        for path in ["engine/Cargo.toml", "engine/Cargo.lock", "src/registry",
+            "engine/crates/legion-audit/tests/bench_recall.rs"] {
+            collect(&root, &root.join(path), &mut bindings);
+        }
+        json!({"kind":"workspace-production-source-closure", "files":bindings,
+            "sanitized": {"src/registry/providers.json":"remove providers[*].benchmark before canonical digest"}})
+    })
 }
 
 fn temp_root(tag: &str) -> PathBuf {
@@ -201,6 +192,38 @@ fn inventory(paths: &[String]) -> InventoryEnvelope {
 /// Production CLI denies external tools until native owner admission exists.
 /// This harness proves provider behavior, not deployment admission. No reimplemented
 /// detector logic — findings come only from the real subprocess + parser.
+/// Pass-through observer: retain the exact file-backed report before the
+/// production provider removes its report directory. Execution and parsing
+/// still belong to the real adapter and EffectExecutor.
+struct RecordingTool {
+    inner: std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    report: std::sync::Arc<std::sync::Mutex<Option<Vec<u8>>>>,
+}
+
+#[async_trait::async_trait]
+impl legion_provider_sdk::ExternalProjectTool for RecordingTool {
+    async fn execute(
+        &self,
+        request: legion_provider_sdk::ExternalToolRequest,
+        cancellation: CancellationToken,
+    ) -> legion_provider_sdk::ExecutionReceipt {
+        let report_dir = request
+            .args
+            .windows(2)
+            .find(|args| args[0] == "--output")
+            .map(|args| PathBuf::from(&args[1]));
+        let receipt = self.inner.execute(request, cancellation).await;
+        if let Some(dir) = report_dir {
+            let report = ["jscpd-report.json", "_jscpd/jscpd-report.json"]
+                .iter()
+                .find_map(|name| fs::read(dir.join(name)).ok())
+                .filter(|bytes| bytes.len() <= 8 * 1024 * 1024);
+            *self.report.lock().expect("bench report recorder") = report;
+        }
+        receipt
+    }
+}
+
 fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {
         decision: legion_effects::PolicyDecision {
@@ -223,19 +246,6 @@ fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::Ex
     std::sync::Arc::new(
         legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects),
     )
-}
-
-fn selector_for(provider_id: &str) -> Value {
-    match provider_id {
-        "legacy.security.secrets" => json!({"op": "always"}),
-        "legacy.security.node-dependencies" => {
-            json!({"op": "anyPath", "patterns": ["**/package.json"]})
-        }
-        "legacy.quality.dead-code" => json!({"op": "anyPath", "patterns": ["**/package.json"]}),
-        "legacy.quality.duplication" => json!({"op": "sourceFilesAtLeast", "count": 1}),
-        "legacy.quality.types" => json!({"op": "anyExtension", "extensions": ["ts", "tsx", "py"]}),
-        other => panic!("no selector mapping for provider {other}"),
-    }
 }
 
 struct BenchEntry {
@@ -272,104 +282,417 @@ fn fixture_dir_of(entry_file: &str) -> String {
 
 enum ClassOutcome {
     Uncovered,
-    ToolMissing(String),
+    NotQualified(String),
     Recall {
         positive_hit: bool,
         negative_clean: bool,
     },
 }
 
-fn run_class(class: &str) -> ClassOutcome {
+struct ClassRun {
+    outcome: ClassOutcome,
+    cases: Vec<Value>,
+}
+
+/// A positive must identify the planted subject, not merely emit something.
+/// These are source-bound expectations, not the stale manifest line hints.
+/// Aggregate count findings with fallback anchors cannot satisfy this contract.
+fn expected_detection(class: &str) -> Value {
+    match class {
+        "secret" => json!({"rule": "aws-access-token", "path": "app.js", "lines": [7, 8]}),
+        "dependency_cve" => {
+            json!({"rule": "legacy.deps_cve.audit", "path": "package.json", "lines": [6, 7]})
+        }
+        "dead_code" => {
+            json!({"rule": "legacy.dead_code.knip", "path": "legacy-discount.js", "lines": [1, 7]})
+        }
+        "duplication" => {
+            json!({"rule": "legacy.duplication.jscpd", "path": "app.js", "lines": [3, 58]})
+        }
+        "type_error" => json!({"rule": "legacy.types.tsc", "path": "app.ts", "lines": [4, 4]}),
+        _ => panic!("no expected detection for {class}"),
+    }
+}
+
+fn matches_detection(row: &Value, expected: &Value, root: &Path) -> bool {
+    let rule = row
+        .get("ruleId")
+        .or_else(|| row.get("rule"))
+        .and_then(Value::as_str);
+    let file = row
+        .get("path")
+        .or_else(|| row.get("file"))
+        .and_then(Value::as_str);
+    let line = row.get("line").and_then(Value::as_u64);
+    let (Some(file), Some(line)) = (file, line) else {
+        return false;
+    };
+    let path = Path::new(file);
+    let relative = if path.is_absolute() {
+        path.strip_prefix(root).ok().and_then(Path::to_str)
+    } else {
+        Some(file.strip_prefix("./").unwrap_or(file))
+    };
+    // Production summary findings explicitly say only that a tool reported N
+    // findings. Their path/line is a fallback, not a reported defect location.
+    let aggregate = row
+        .get("message")
+        .and_then(Value::as_str)
+        .is_some_and(|message| message.contains(" reported ") && message.ends_with(" finding(s)"));
+    !aggregate
+        && rule == expected["rule"].as_str()
+        && relative == expected["path"].as_str()
+        && line >= expected["lines"][0].as_u64().unwrap()
+        && line <= expected["lines"][1].as_u64().unwrap()
+}
+
+/// Classifier controls below exercise this function with synthetic inputs;
+/// only run_class can produce execution evidence or a measured case record.
+fn classify_case(
+    result: &ProviderResult,
+    provider: &AuditProvider,
+    expected: &Value,
+    planted: bool,
+    root: &Path,
+    artifacts: &Value,
+) -> Result<bool, String> {
+    if result.provider.as_str() != provider.id
+        || !result.applicable
+        || !matches!(result.status, ProviderStatus::Ok | ProviderStatus::Complete)
+        || !result.complete
+        || !result.coverage_gaps.is_empty()
+        || !result.degradation.is_empty()
+    {
+        return Err(
+            "provider result is not applicable, successful, complete and undegraded".into(),
+        );
+    }
+    let coverage = result
+        .coverage
+        .as_ref()
+        .ok_or("missing explicit coverage")?;
+    if coverage.expected == 0
+        || coverage.examined != coverage.expected
+        || !coverage.gaps.is_empty()
+        || provider
+            .configuration
+            .get("denominatorCount")
+            .and_then(Value::as_u64)
+            != Some(coverage.expected)
+        || provider
+            .configuration
+            .get("denominatorDigest")
+            .and_then(Value::as_str)
+            != Some(coverage.denominator_digest.as_str())
+    {
+        return Err("coverage does not exactly reconcile to the frozen denominator".into());
+    }
+    let receipt = result
+        .details
+        .get("executionReceipt")
+        .ok_or("missing execution receipt")?;
+    if receipt["complete"] != true
+        || receipt["state"] != "completed"
+        || receipt
+            .pointer("/executable/version/qualified")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || receipt
+            .pointer("/processTree/started")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || receipt
+            .pointer("/processTree/reaped")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || !receipt
+            .get("gaps")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty)
+    {
+        return Err("tool execution receipt is not qualified and complete".into());
+    }
+    let candidates = result
+        .details
+        .get("candidates")
+        .and_then(Value::as_array)
+        .ok_or("missing explicit candidate list")?;
+    let emitted = result.findings.len() + candidates.len();
+    if !planted {
+        let reported_count = result
+            .details
+            .get("findingsCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        return Ok(emitted == 0 && reported_count == 0);
+    }
+    let candidate_match = candidates
+        .iter()
+        .any(|row| matches_detection(row, expected, root));
+    let finding_match = result.findings.iter().any(|finding| {
+        result
+            .details
+            .get("findingEvidence")
+            .and_then(|rows| rows.get(finding.id.as_str()))
+            .is_some_and(|row| matches_detection(row, expected, root))
+    });
+    // Summary rules prove the provider parsed a detection, while the retained
+    // tool report identifies the planted subject at case precision. Never use
+    // the summary's fallback path/line as a reported defect locus.
+    let expected_rule = expected["rule"].as_str();
+    let rule_match = candidates
+        .iter()
+        .any(|row| row.get("ruleId").and_then(Value::as_str) == expected_rule)
+        || result.findings.iter().any(|finding| {
+            result
+                .details
+                .get("findingEvidence")
+                .and_then(|rows| rows.get(finding.id.as_str()))
+                .and_then(|row| row.get("ruleId"))
+                .and_then(Value::as_str)
+                == expected_rule
+        });
+    Ok(candidate_match
+        || finding_match
+        || (rule_match && raw_case_match(expected, artifacts, root)))
+}
+
+fn artifact_bytes(artifacts: &Value, name: &str) -> Option<Vec<u8>> {
+    let artifact = &artifacts[name];
+    if artifact["state"] != "retained" {
+        return None;
+    }
+    hex::decode(artifact["bytesHex"].as_str()?).ok()
+}
+
+fn fixture_path_matches(path: &str, expected: &str, root: &Path) -> bool {
+    let path = Path::new(path);
+    let relative = if path.is_absolute() {
+        path.strip_prefix(root).ok()
+    } else {
+        Some(path.strip_prefix(".").unwrap_or(path))
+    };
+    relative == Some(Path::new(expected))
+}
+
+/// Known-answer matching, not a second detector: only inspect the real tool's
+/// reported advisory/unused-file/clone/diagnostic for the isolated fixture.
+fn raw_case_match(expected: &Value, artifacts: &Value, root: &Path) -> bool {
+    let rule = expected["rule"].as_str().unwrap();
+    if rule == "legacy.types.tsc" {
+        return ["stdout", "stderr"]
+            .iter()
+            .filter_map(|name| artifact_bytes(artifacts, name))
+            .any(|bytes| {
+                String::from_utf8_lossy(&bytes).lines().any(|line| {
+                    line.split_once("(4,").is_some_and(|(path, diagnostic)| {
+                        fixture_path_matches(path.trim(), "app.ts", root)
+                            && diagnostic.contains("error TS2322:")
+                    })
+                })
+            });
+    }
+    let stream = if rule == "legacy.duplication.jscpd" {
+        "report"
+    } else {
+        "stdout"
+    };
+    let Some(bytes) = artifact_bytes(artifacts, stream) else {
+        return false;
+    };
+    let Ok(report) = serde_json::from_slice::<Value>(&bytes) else {
+        return false;
+    };
+    match rule {
+        "legacy.deps_cve.audit" => ["lodash", "minimist"].iter().any(|name| {
+            report
+                .get("vulnerabilities")
+                .and_then(|rows| rows.get(*name))
+                .is_some_and(|row| {
+                    row["name"].as_str() == Some(*name)
+                        && row
+                            .get("via")
+                            .and_then(Value::as_array)
+                            .is_some_and(|via| !via.is_empty())
+                })
+        }),
+        "legacy.dead_code.knip" => {
+            report
+                .get("files")
+                .and_then(Value::as_array)
+                .is_some_and(|files| {
+                    files
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .any(|file| fixture_path_matches(file, "legacy-discount.js", root))
+                })
+        }
+        "legacy.duplication.jscpd" => report
+            .get("duplicates")
+            .and_then(Value::as_array)
+            .is_some_and(|rows| {
+                rows.iter().any(|row| {
+                    ["firstFile", "secondFile"].iter().all(|side| {
+                        row[*side]["name"]
+                            .as_str()
+                            .is_some_and(|file| fixture_path_matches(file, "app.js", root))
+                            && row[*side]["start"].as_u64().is_some_and(|line| line > 0)
+                            && row[*side]["end"].as_u64().is_some_and(|line| line > 0)
+                    })
+                })
+            }),
+        _ => false,
+    }
+}
+
+/// Retain exact artifact bytes while the fixture-owned sink still exists.
+/// A missing/deleted report remains an explicit evidence deficit, never
+/// reconstructed from parser counts or a fabricated locator.
+fn retained_artifacts(root: &Path, result: &ProviderResult, report: Option<&[u8]>) -> Value {
+    let mut artifacts = serde_json::Map::new();
+    for name in ["stdout", "stderr", "report"] {
+        let reference = result
+            .details
+            .get("executionReceipt")
+            .and_then(|r| r.get(name));
+        let retained = reference.and_then(|r| {
+            let path = r.get("path")?.as_str()?;
+            let bytes = if name == "report" {
+                report?.to_vec()
+            } else {
+                fs::read(root.join(path)).ok()?
+            };
+            if r["digest"].as_str() != Some(digest(&bytes).as_str())
+                || r["bytes"].as_u64() != Some(bytes.len() as u64)
+            {
+                return None;
+            }
+            Some(json!({"reference": r, "state": "retained", "bytesHex": hex::encode(bytes)}))
+        });
+        artifacts.insert(
+            name.into(),
+            retained.unwrap_or_else(|| {
+                json!({
+                    "reference": reference, "state": "not-retained"
+                })
+            }),
+        );
+    }
+    Value::Object(artifacts)
+}
+
+fn run_class(class: &str) -> ClassRun {
     if class == "drift" {
         return run_drift_class();
     }
     let Some(provider_id) = provider_for_class(class) else {
-        return ClassOutcome::Uncovered;
+        return ClassRun {
+            outcome: ClassOutcome::Uncovered,
+            cases: Vec::new(),
+        };
     };
-    let entries = manifest_entries();
-    let positive = entries
+    let spec = shipped_spec(provider_id);
+    let expected = expected_detection(class);
+    let mut cases = Vec::new();
+    let mut reasons = Vec::new();
+    let mut positive_hit = true;
+    let mut negative_clean = true;
+    let mut positive_count = 0;
+    let mut negative_count = 0;
+    // Include every manifest control, notably AU20-010, not just the first.
+    for entry in manifest_entries()
         .iter()
-        .find(|e| e.class == class && e.planted)
-        .unwrap_or_else(|| panic!("bench manifest missing positive entry for class {class}"));
-    let negative = entries
-        .iter()
-        .find(|e| e.class == class && !e.planted)
-        .unwrap_or_else(|| panic!("bench manifest missing negative entry for class {class}"));
-
-    let selector = selector_for(provider_id);
-    let mut tool_missing_reason = None;
-    let mut positive_hit = false;
-    let mut negative_clean = false;
-
-    for (entry, want_hit) in [(positive, true), (negative, false)] {
+        .filter(|entry| entry.class == class)
+    {
         let root = temp_root(&entry.id);
-        let paths = stage_fixture(&root, &fixture_dir_of(&entry.file));
+        let mut paths = stage_fixture(&root, &fixture_dir_of(&entry.file));
+        paths.sort();
+        let fixtures: Vec<_> = paths.iter().map(|path| json!({
+            "path": path, "digest": digest(&fs::read(root.join(path)).expect("fixture bytes"))
+        })).collect();
         let inv = inventory(&paths);
+        let report = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let tool = RecordingTool {
+            inner: real_external_tool(&root),
+            report: report.clone(),
+        };
         let registry = NativeProviderRegistry::new(&root)
-            .with_external_project_tool(real_external_tool(&root));
-        let plan = bench_plan(&inv, provider_id);
-        let result = tokio::runtime::Runtime::new()
+            .with_external_project_tool(std::sync::Arc::new(tool));
+        let plan = bench_plan(&inv, &spec);
+        let provider = &plan.plan().providers[0];
+        let execution = tokio::runtime::Runtime::new()
             .expect("tokio runtime")
-            .block_on(registry.execute_async(
-                &plan,
-                &provider(provider_id, selector.clone()),
-                &inv,
-                CancellationToken::new(),
-            ))
-            .expect("typed provider result (never a raw panic)");
-
-        let missing = result
-            .coverage_gaps
-            .iter()
-            .any(|gap| gap.contains("external-project-tool-capability-unavailable"))
-            || result
-                .details
-                .get("executionReceipt")
-                .and_then(|r| r.get("executable"))
-                .and_then(|e| e.get("version"))
-                .and_then(|v| v.get("qualified"))
-                .and_then(Value::as_bool)
-                == Some(false);
-
-        if missing {
-            tool_missing_reason = Some(format!(
-                "provider {provider_id} could not run: {:?}",
-                result.coverage_gaps
-            ));
-            let _ = fs::remove_dir_all(&root);
-            continue;
+            .block_on(registry.execute_async(&plan, provider, &inv, CancellationToken::new()));
+        let (result_value, artifacts, classification) = match execution {
+            Ok(result) => {
+                let report = report.lock().expect("bench report recorder");
+                let artifacts = retained_artifacts(&root, &result, report.as_deref());
+                let classification = classify_case(
+                    &result,
+                    provider,
+                    &expected,
+                    entry.planted,
+                    &root,
+                    &artifacts,
+                );
+                (
+                    serde_json::to_value(&result).expect("result JSON"),
+                    artifacts,
+                    classification,
+                )
+            }
+            Err(error) => (
+                Value::Null,
+                Value::Null,
+                Err(format!("provider execution error: {error}")),
+            ),
+        };
+        if let Err(reason) = &classification {
+            reasons.push(format!("{}: {reason}", entry.id));
         }
-
-        // Candidate-generator providers (e.g. secrets) report detections as
-        // `candidates` pending adjudication, not as findings. A detection is
-        // either; a negative control must produce neither.
-        let candidates_hit = result
-            .details
-            .get("candidates")
-            .and_then(Value::as_array)
-            .is_some_and(|candidates| !candidates.is_empty());
-        let hit = !result.findings.is_empty() || candidates_hit;
-        if want_hit {
-            positive_hit = hit;
+        if entry.planted {
+            positive_count += 1;
+            positive_hit &= classification == Ok(true);
         } else {
-            negative_clean = !hit;
+            negative_count += 1;
+            negative_clean &= classification == Ok(true);
         }
-        let _ = fs::remove_dir_all(&root);
+        cases.push(json!({
+            "caseId": entry.id, "planted": entry.planted, "fixture": entry.file,
+            "manifestDigest": digest(MANIFEST.as_bytes()), "fixtureFiles": fixtures,
+            "fixtureFilesDigest": legion_contracts::canonical_digest(&fixtures).unwrap(),
+            "implementationBinding": implementation_binding(&spec),
+            "shippedProviderSpec": spec, "frozenPlan": plan.plan(),
+            "expectedDetection": expected, "providerResult": result_value,
+            "locatorPrecision": if class == "secret" { "reported-locus" } else { "isolated-fixture-case" },
+            "retainedArtifacts": artifacts,
+            "classification": match classification {
+                Ok(passed) => json!({"eligible":true,"passed":passed}),
+                Err(reason) => json!({"eligible":false,"passed":false,"reason":reason})
+            }
+        }));
+        fs::remove_dir_all(&root).expect("remove staged fixture");
     }
-
-    if let Some(reason) = tool_missing_reason {
-        return ClassOutcome::ToolMissing(reason);
+    if positive_count == 0 || negative_count == 0 {
+        reasons.push("class requires both planted and negative-control fixtures".into());
     }
-    ClassOutcome::Recall {
-        positive_hit,
-        negative_clean,
+    ClassRun {
+        outcome: if reasons.is_empty() {
+            ClassOutcome::Recall {
+                positive_hit,
+                negative_clean,
+            }
+        } else {
+            ClassOutcome::NotQualified(reasons.join("; "))
+        },
+        cases,
     }
 }
 
 /// The historical AU20 comparator is deliberately limited to one claim
 /// shape. It is benchmark evidence only; production doc-drift remains the
 /// reasoning provider `reasoning.doc-drift`.
-fn run_drift_class() -> ClassOutcome {
+fn run_drift_class() -> ClassRun {
     let entries = manifest_entries();
     let positive = entries
         .iter()
@@ -382,6 +705,7 @@ fn run_drift_class() -> ClassOutcome {
 
     let mut positive_hit = false;
     let mut negative_clean = false;
+    let mut cases = Vec::new();
     for (entry, want_hit) in [(positive, true), (negative, false)] {
         let doc_file = entry
             .doc_file
@@ -398,7 +722,18 @@ fn run_drift_class() -> ClassOutcome {
             .unwrap_or_else(|e| panic!("read drift doc fixture {doc_path:?}: {e}"));
         let code = fs::read_to_string(&code_path)
             .unwrap_or_else(|e| panic!("read drift code fixture {code_path:?}: {e}"));
+        let doc_claim =
+            first_retry_claim(&doc).expect("drift fixture must contain supported claim");
+        let code_value =
+            first_max_retries(&code).expect("drift fixture must contain supported assignment");
         let hit = scan_retry_claim_drift(&doc, &code).is_some();
+        cases.push(json!({"caseId":entry.id,"planted":entry.planted,
+            "kind":"bench-local-retry-comparator-case", "productionQualification":false,
+            "codePath":entry.file,"codeDigest":digest(code.as_bytes()),
+            "docPath":doc_file,"docDigest":digest(doc.as_bytes()),
+            "manifestDigest":digest(MANIFEST.as_bytes()),
+            "comparatorSourceDigest":digest(include_bytes!("bench_recall.rs")),
+            "docClaim":doc_claim,"codeValue":code_value,"mismatch":hit}));
         if want_hit {
             positive_hit = hit;
         } else {
@@ -406,9 +741,12 @@ fn run_drift_class() -> ClassOutcome {
         }
         let _ = fs::remove_dir_all(&root);
     }
-    ClassOutcome::Recall {
-        positive_hit,
-        negative_clean,
+    ClassRun {
+        outcome: ClassOutcome::Recall {
+            positive_hit,
+            negative_clean,
+        },
+        cases,
     }
 }
 
@@ -521,6 +859,216 @@ fn skip_js_whitespace(source: &str, mut cursor: usize) -> usize {
 }
 
 #[cfg(test)]
+mod classifier_controls {
+    use super::*;
+
+    // Deliberately synthetic: these controls test rejection logic and never
+    // enter a measured record or assert a provider/tool executed.
+    fn synthetic_control() -> (AuditProvider, ProviderResult) {
+        let inv = inventory(&["app.js".into()]);
+        let plan = bench_plan(&inv, &shipped_spec("legacy.security.secrets"));
+        let provider = plan.plan().providers[0].clone();
+        let result = serde_json::from_value(json!({
+            "schema_version":1,"provider":provider.id,"applicable":true,"required":false,
+            "status":"complete","complete":true,
+            "coverage":{
+                "denominator_digest":provider.configuration["denominatorDigest"],
+                "expected":provider.configuration["denominatorCount"],
+                "examined":provider.configuration["denominatorCount"],"gaps":[]
+            },
+            "findings":[],"coverage_gaps":[],"degradation":[],
+            "details":{
+                "candidates":[{"rule":"aws-access-token","file":"app.js","line":7}],
+                "executionReceipt":{"complete":true,"state":"completed","gaps":[],
+                    "executable":{"version":{"qualified":true}},
+                    "processTree":{"started":true,"reaped":true}}
+            }
+        }))
+        .expect("synthetic classifier control");
+        (provider, result)
+    }
+
+    fn classify(
+        result: &ProviderResult,
+        provider: &AuditProvider,
+        planted: bool,
+    ) -> Result<bool, String> {
+        classify_case(
+            result,
+            provider,
+            &expected_detection("secret"),
+            planted,
+            Path::new("/fixture"),
+            &Value::Null,
+        )
+    }
+
+    #[test]
+    fn rejects_failed_partial_cancelled_inapplicable_and_incomplete_results() {
+        let (provider, control) = synthetic_control();
+        for status in [
+            ProviderStatus::Failed,
+            ProviderStatus::Partial,
+            ProviderStatus::Cancelled,
+        ] {
+            let mut result = control.clone();
+            result.status = status;
+            assert!(classify(&result, &provider, true).is_err());
+            assert!(classify(&result, &provider, false).is_err());
+        }
+        for field in ["applicable", "complete"] {
+            let mut value = serde_json::to_value(&control).unwrap();
+            value[field] = json!(false);
+            let result = serde_json::from_value(value).unwrap();
+            assert!(classify(&result, &provider, false).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_missing_empty_mismatched_and_gapped_coverage() {
+        let (provider, control) = synthetic_control();
+        for coverage in [
+            Value::Null,
+            json!({"denominator_digest":"wrong","expected":1,"examined":1,"gaps":[]}),
+            json!({"denominator_digest":provider.configuration["denominatorDigest"],"expected":0,"examined":0,"gaps":[]}),
+            json!({"denominator_digest":provider.configuration["denominatorDigest"],"expected":1,"examined":0,"gaps":[]}),
+            json!({"denominator_digest":provider.configuration["denominatorDigest"],"expected":1,"examined":2,"gaps":[]}),
+            json!({"denominator_digest":provider.configuration["denominatorDigest"],"expected":1,"examined":1,"gaps":["partial"]}),
+        ] {
+            let mut value = serde_json::to_value(&control).unwrap();
+            value["coverage"] = coverage;
+            let result = serde_json::from_value(value).unwrap();
+            assert!(classify(&result, &provider, false).is_err());
+        }
+        for field in ["coverage_gaps", "degradation"] {
+            let mut value = serde_json::to_value(&control).unwrap();
+            value[field] = json!(["unproven"]);
+            assert!(classify(&serde_json::from_value(value).unwrap(), &provider, false).is_err());
+        }
+    }
+
+    #[test]
+    fn empty_emissions_only_pass_a_complete_negative_control() {
+        let (provider, mut result) = synthetic_control();
+        result.details.insert("candidates".into(), json!([]));
+        assert_eq!(classify(&result, &provider, true), Ok(false));
+        assert_eq!(classify(&result, &provider, false), Ok(true));
+        result.details.insert("findingsCount".into(), json!(1));
+        assert_eq!(classify(&result, &provider, false), Ok(false));
+        result.status = ProviderStatus::Failed;
+        assert!(classify(&result, &provider, false).is_err());
+    }
+
+    #[test]
+    fn unrelated_or_aggregate_emissions_never_satisfy_planted_expectation() {
+        let (provider, mut result) = synthetic_control();
+        for row in [
+            json!({"rule":"other-rule","file":"app.js","line":7}),
+            json!({"rule":"aws-access-token","file":"other.js","line":7}),
+            json!({"rule":"aws-access-token","file":"app.js","line":1}),
+            json!({"rule":"aws-access-token","file":"app.js","line":7,"message":"secrets reported 1 finding(s)"}),
+            json!({"rule":"aws-access-token","file":"../app.js","line":7}),
+        ] {
+            result.details.insert("candidates".into(), json!([row]));
+            assert_eq!(classify(&result, &provider, true), Ok(false));
+            assert_eq!(classify(&result, &provider, false), Ok(false));
+        }
+    }
+
+    #[test]
+    fn rejects_missing_unqualified_or_incomplete_execution_receipts() {
+        let (provider, control) = synthetic_control();
+        for pointer in [
+            "/complete",
+            "/executable/version/qualified",
+            "/processTree/started",
+            "/processTree/reaped",
+        ] {
+            let mut result = control.clone();
+            *result
+                .details
+                .get_mut("executionReceipt")
+                .unwrap()
+                .pointer_mut(pointer)
+                .unwrap() = json!(false);
+            assert!(classify(&result, &provider, false).is_err());
+        }
+        let mut result = control;
+        result.details.remove("executionReceipt");
+        assert!(classify(&result, &provider, false).is_err());
+    }
+
+    #[test]
+    fn raw_case_controls_require_expected_reported_subject() {
+        fn artifacts(name: &str, bytes: &[u8]) -> Value {
+            json!({(name):{"state":"retained","bytesHex":hex::encode(bytes)}})
+        }
+        let root = Path::new("/fixture");
+        for (class, name, matching, unrelated) in [
+            (
+                "dependency_cve",
+                "stdout",
+                json!({"vulnerabilities":{"lodash":{"name":"lodash","via":[{"title":"advisory"}]}}}),
+                json!({"vulnerabilities":{"other":{"name":"other","via":[{"title":"advisory"}]}}}),
+            ),
+            (
+                "dead_code",
+                "stdout",
+                json!({"files":["legacy-discount.js"]}),
+                json!({"files":["other.js"]}),
+            ),
+            (
+                "duplication",
+                "report",
+                json!({"duplicates":[{"firstFile":{"name":"app.js","start":3,"end":29},"secondFile":{"name":"app.js","start":32,"end":58}}]}),
+                json!({"duplicates":[{"firstFile":{"name":"other.js","start":3,"end":29},"secondFile":{"name":"other.js","start":32,"end":58}}]}),
+            ),
+        ] {
+            let expected = expected_detection(class);
+            assert!(raw_case_match(
+                &expected,
+                &artifacts(name, &serde_json::to_vec(&matching).unwrap()),
+                root
+            ));
+            assert!(!raw_case_match(
+                &expected,
+                &artifacts(name, &serde_json::to_vec(&unrelated).unwrap()),
+                root
+            ));
+            assert!(!raw_case_match(&expected, &Value::Null, root));
+        }
+        let expected = expected_detection("type_error");
+        assert!(raw_case_match(
+            &expected,
+            &artifacts("stdout", b"app.ts(4,9): error TS2322: string to number"),
+            root
+        ));
+        assert!(!raw_case_match(
+            &expected,
+            &artifacts("stdout", b"other.ts(4,9): error TS2322: string to number"),
+            root
+        ));
+        assert!(!raw_case_match(
+            &expected,
+            &artifacts("stdout", b"app.ts(4,9): error TS9999: unrelated"),
+            root
+        ));
+    }
+
+    #[test]
+    fn shipped_spec_binding_ignores_only_prior_benchmark_metadata() {
+        let spec = shipped_spec("legacy.security.secrets");
+        let binding = implementation_binding(&spec);
+        let mut changed = spec.clone();
+        changed.benchmark = json!({"status":"different-prior-qualification"});
+        assert_eq!(binding, implementation_binding(&changed));
+        changed.selector = json!({"op":"anyExtension","extensions":["ts"]});
+        assert_ne!(binding, implementation_binding(&changed));
+        assert!(binding["providerDefinition"].get("benchmark").is_none());
+    }
+}
+
+#[cfg(test)]
 mod drift_comparator_tests {
     use super::{fixture_relative_path, scan_retry_claim_drift};
 
@@ -618,14 +1166,13 @@ macro_rules! bench_class_test {
         #[test]
         #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the macOS CI bench job with --ignored"]
         fn $name() {
-            match run_class($class) {
+            match run_class($class).outcome {
                 ClassOutcome::Uncovered => panic!(
                     "class '{}' has no benchmark detector; the recall gate cannot claim coverage",
                     $class
                 ),
-                ClassOutcome::ToolMissing(reason) => panic!(
-                    "class '{}' provider could not run because its external tool is \
-                     unavailable: {reason}. Provision the tool in the environment running this gate.",
+                ClassOutcome::NotQualified(reason) => panic!(
+                    "class '{}' provider result is not eligible for qualification: {reason}.",
                     $class
                 ),
                 ClassOutcome::Recall {
@@ -656,7 +1203,7 @@ bench_class_test!(bench_recall_type_error, "type_error");
 
 #[test]
 fn bench_recall_drift() {
-    match run_class("drift") {
+    match run_class("drift").outcome {
         ClassOutcome::Recall {
             positive_hit,
             negative_clean,
@@ -668,13 +1215,15 @@ fn bench_recall_drift() {
             );
         }
         ClassOutcome::Uncovered => panic!("drift comparator was not bound"),
-        ClassOutcome::ToolMissing(reason) => panic!("local drift comparator unavailable: {reason}"),
+        ClassOutcome::NotQualified(reason) => {
+            panic!("local drift comparator unavailable: {reason}")
+        }
     }
 }
 
-/// Emits a qualification receipt shaped like the bench's
-/// `references/audit-provider-benchmarks.schema.json` so the recall gate's
-/// result is machine-readable evidence, not just terminal text.
+/// Emit a narrow known-answer execution record, not the broader precision/
+/// recall qualification schema. No whole-provider or rule-pack qualification
+/// is inferred from these fixture cases or the bench-local drift comparator.
 #[test]
 #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the macOS CI bench job with --ignored"]
 fn bench_recall_qualification_receipt() {
@@ -688,10 +1237,10 @@ fn bench_recall_qualification_receipt() {
     ];
     let mut results = Vec::new();
     for class in classes {
-        let outcome = run_class(class);
-        let (status, detail) = match outcome {
+        let run = run_class(class);
+        let (status, detail) = match run.outcome {
             ClassOutcome::Uncovered => ("uncovered", "no native provider mapped".to_string()),
-            ClassOutcome::ToolMissing(reason) => ("tool-missing", reason),
+            ClassOutcome::NotQualified(reason) => ("not-qualified", reason),
             ClassOutcome::Recall {
                 positive_hit,
                 negative_clean,
@@ -710,27 +1259,47 @@ fn bench_recall_qualification_receipt() {
                 },
             ),
         };
-        results.push(json!({"class": class, "status": status, "detail": detail}));
+        let mut projection = json!({"benchClass": class, "status": status, "detail": detail,
+            "claimScope": if class == "drift" { "bench-local-comparator" } else { "known-answer-fixture-cases" },
+            "productionQualification": false, "cases": run.cases});
+        if class != "drift" {
+            projection["projectionDigest"] =
+                json!(legion_contracts::canonical_digest(&projection).unwrap());
+        }
+        results.push(projection);
     }
-    let receipt = json!({
+    let mut receipt = json!({
         "schemaVersion": 1,
+        "kind": "audit-known-answer-execution-record",
+        "family": "bench-known-answer",
+        "claimScope": "known-answer-fixture-cases",
+        "productionQualification": false,
         "bench": "AU20-planted-findings",
         "gate": "legion-audit::bench_recall",
+        "measuredAtUnixMs": SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock").as_millis(),
         "results": results,
     });
+    receipt["qualificationDigest"] = json!(legion_contracts::canonical_digest(&receipt).unwrap());
+    // One original JSON envelope in harness stdout, before any all-class
+    // assertion. Consumers still require this entire test's terminal success.
+    println!(
+        "\nLEGION_BENCH_KNOWN_ANSWER_RECORD {}",
+        serde_json::to_string(&receipt).unwrap()
+    );
     let out_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target")
         .join("bench-receipts");
-    let _ = fs::create_dir_all(&out_dir);
-    let _ = fs::write(
+    fs::create_dir_all(&out_dir).expect("bench receipt directory");
+    fs::write(
         out_dir.join("bench_recall_receipt.json"),
         serde_json::to_string_pretty(&receipt).unwrap(),
-    );
+    )
+    .expect("write complete bench execution record");
     // The receipt is a gate, not a log: every class must pass.
     let failing = results
         .iter()
         .filter(|row| row["status"] != "pass")
-        .map(|row| format!("{} ({})", row["class"], row["status"]))
+        .map(|row| format!("{} ({})", row["benchClass"], row["status"]))
         .collect::<Vec<_>>();
     assert!(
         failing.is_empty(),
