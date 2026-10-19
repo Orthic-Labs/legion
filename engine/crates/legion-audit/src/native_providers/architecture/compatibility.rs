@@ -1,9 +1,10 @@
 use super::{
     common::{gap, object_input, truthy, Analysis},
-    evidence::validate_refs,
+    evidence::{limit_runtime_evidence, validate_refs},
 };
 use serde_json::Value;
 
+/// Compare supplied values; this does not authenticate either observation.
 pub fn compatibility_finding(value: &Value) -> Result<Value, String> {
     let object = object_input(value)?;
     for key in ["producerVersion", "consumerVersion", "platform", "contract"] {
@@ -21,7 +22,7 @@ pub fn compatibility_finding(value: &Value) -> Result<Value, String> {
         return Err("expected observed compatibility evidence required".into());
     }
     Ok(
-        serde_json::json!({"producerVersion":object["producerVersion"],"consumerVersion":object["consumerVersion"],"platform":object["platform"],"contract":object["contract"],"expected":object["expected"],"observed":object["observed"],"evidenceRefs":object["evidenceRefs"],"status":if object["expected"] == object["observed"] {"compatible"} else {"incompatible"}}),
+        serde_json::json!({"producerVersion":object["producerVersion"],"consumerVersion":object["consumerVersion"],"platform":object["platform"],"contract":object["contract"],"expected":object["expected"],"observed":object["observed"],"evidenceRefs":object["evidenceRefs"],"status":if object["expected"] == object["observed"] {"compatible"} else {"incompatible"},"certificationClaim":false,"comparisonScope":"caller-supplied-values"}),
     )
 }
 
@@ -40,8 +41,8 @@ pub fn analyze(input: &Value) -> Result<Analysis, String> {
         object.get("now").and_then(Value::as_str),
     );
     let mut result = Analysis::new(
-        "pass",
-        true,
+        "unproven",
+        false,
         serde_json::json!({"kind":"compatibility-contracts","expected":records.len(),"examined":0}),
     );
     if records.is_empty() {
@@ -52,15 +53,14 @@ pub fn analyze(input: &Value) -> Result<Analysis, String> {
             .push(gap("compatibility-denominator-unavailable"));
     }
     let mut examined = 0;
-    for record in records {
-        match compatibility_finding(&record) {
+    let mut comparisons = Vec::new();
+    for record in &records {
+        match compatibility_finding(record) {
             Ok(normalized) => {
                 let errors = validate_refs(normalized.get("evidenceRefs"), &authority);
                 if errors.is_empty() {
                     examined += 1;
-                    if normalized["status"] == "incompatible" {
-                        result.findings.push(normalized);
-                    }
+                    comparisons.push(normalized);
                 } else {
                     result.coverage_gaps.push(serde_json::json!({"kind":"compatibility-evidence-invalid","reason":errors.join(",")}));
                 }
@@ -70,13 +70,12 @@ pub fn analyze(input: &Value) -> Result<Analysis, String> {
                 .push(serde_json::json!({"kind":"compatibility-evidence-invalid","reason":error})),
         }
     }
-    result.denominator["examined"] = Value::from(examined);
-    if !result.coverage_gaps.is_empty() {
-        result.status = "unproven".into();
-        result.complete = false;
-    } else if !result.findings.is_empty() {
-        result.status = "fail".into();
-        result.complete = false;
-    }
+    result.extras.insert("protocolValidation".into(), serde_json::json!({
+        "scope":"caller-supplied-values-and-reference-metadata", "expected":records.len(), "examined":examined
+    }));
+    result
+        .extras
+        .insert("comparisons".into(), Value::Array(comparisons));
+    limit_runtime_evidence(&mut result);
     Ok(result)
 }

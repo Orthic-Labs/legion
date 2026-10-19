@@ -1,6 +1,6 @@
 use super::{
     common::{gap, object_input, Analysis},
-    evidence::validate_refs,
+    evidence::{limit_runtime_evidence, validate_refs},
 };
 use serde_json::Value;
 
@@ -36,6 +36,7 @@ pub fn analyze_backend_framework(
             .extras
             .insert("routes".into(), Value::Array(Vec::new()));
         result.coverage_gaps.push(gap("unsupported-framework"));
+        limit_runtime_evidence(&mut result);
         return Ok(result);
     }
     let routes = object
@@ -76,12 +77,16 @@ pub fn analyze_backend_framework(
             "unproven"
         },
         gaps.is_empty(),
-        serde_json::json!({"kind":format!("{name}-routes"),"expected":routes.len(),"examined":qualified}),
+        serde_json::json!({"kind":format!("{name}-routes"),"expected":routes.len(),"examined":0}),
     );
     result
         .extras
         .insert("routes".into(), Value::Array(normalized));
     result.coverage_gaps = gaps;
+    result.extras.insert("protocolValidation".into(), serde_json::json!({
+        "scope":"caller-supplied-values-and-reference-metadata", "expected":routes.len(), "examined":qualified
+    }));
+    limit_runtime_evidence(&mut result);
     Ok(result)
 }
 
@@ -171,6 +176,7 @@ pub fn analyze_backend(input: &Value) -> Result<Analysis, String> {
     let mut gaps = Vec::new();
     let mut expected = 0;
     let mut examined = 0;
+    let mut protocol_examined = 0;
     for record in &records {
         let name = record.get("name").and_then(Value::as_str).unwrap_or("");
         let result = analyze_backend_framework(name, record, &authority)?;
@@ -184,6 +190,12 @@ pub fn analyze_backend(input: &Value) -> Result<Analysis, String> {
             .get("examined")
             .and_then(Value::as_u64)
             .unwrap_or(0) as usize;
+        protocol_examined += result
+            .extras
+            .get("protocolValidation")
+            .and_then(|value| value.get("examined"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as usize;
         gaps.extend(result.coverage_gaps);
     }
     if records.is_empty() {
@@ -195,6 +207,10 @@ pub fn analyze_backend(input: &Value) -> Result<Analysis, String> {
         serde_json::json!({"kind":"backend-framework-routes","expected":expected,"examined":examined}),
     );
     output.coverage_gaps = gaps;
+    output.extras.insert("protocolValidation".into(), serde_json::json!({
+        "scope":"caller-supplied-values-and-reference-metadata", "expected":expected, "examined":protocol_examined
+    }));
+    limit_runtime_evidence(&mut output);
     Ok(output)
 }
 pub fn analyze_frontend(input: &Value) -> Result<Analysis, String> {

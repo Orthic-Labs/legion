@@ -315,6 +315,7 @@ fn expired(value: &str, now: Option<&str>) -> bool {
 }
 
 /// Port of `validateEvidenceRefs` from `evidence-authority.mjs`.
+/// Checks supplied bytes & receipt metadata, not the authenticity of caller JSON.
 pub fn validate_refs(refs: Option<&Value>, authority: &Value) -> Vec<String> {
     let Some(refs) = refs.and_then(Value::as_array) else {
         return vec!["evidence-refs-empty".into()];
@@ -393,6 +394,20 @@ pub fn validate_refs(refs: Option<&Value>, authority: &Value) -> Vec<String> {
         }
     }
     errors
+}
+
+/// Backend/compatibility have no native runtime evidence capability. Neither
+/// receipt-shaped JSON nor a successful protocol comparison can mint one.
+pub(super) fn limit_runtime_evidence(analysis: &mut super::common::Analysis) {
+    analysis.status = "unproven".into();
+    analysis.complete = false;
+    analysis
+        .extras
+        .insert("certificationClaim".into(), Value::Bool(false));
+    let gap = super::common::gap("runtime-evidence-trust-unavailable");
+    if !analysis.coverage_gaps.contains(&gap) {
+        analysis.coverage_gaps.push(gap);
+    }
 }
 
 pub fn authority(

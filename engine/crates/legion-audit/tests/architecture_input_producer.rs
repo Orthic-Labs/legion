@@ -397,12 +397,20 @@ fn file_only_provider_accuracy_framework_backend_keeps_unknown_auth() {
     assert_eq!(route["auth"], "unknown");
     assert_eq!(
         result.coverage_gaps,
-        ["route-evidence-gap", "route-auth-unknown"]
+        [
+            "route-evidence-gap",
+            "route-auth-unknown",
+            "runtime-evidence-trust-unavailable"
+        ]
     );
     let coverage = result.coverage.as_ref().unwrap();
     assert_eq!(coverage.denominator_digest, denominator.digest);
     assert_eq!((coverage.expected, coverage.examined), (2, 2));
     assert_eq!(coverage.gaps, result.coverage_gaps);
+    assert_eq!(
+        result.details["nativeAnalysis"]["certificationClaim"],
+        false
+    );
     // This rejection is raw verifier evidence, never a finding-accuracy record.
     println!(
         "FRAMEWORK_VERIFIER_OBSERVATION {}",
@@ -414,6 +422,108 @@ fn file_only_provider_accuracy_framework_backend_keeps_unknown_auth() {
             "auth": route["auth"],
         })
     );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn caller_receipt_booleans_cannot_certify_backend_or_compatibility() {
+    use legion_audit::native_providers::architecture::{compatibility, evidence, framework};
+    use sha2::{Digest, Sha256};
+
+    let root = fixture_root("caller-runtime-receipt-is-not-authority");
+    write(
+        &root,
+        "package.json",
+        "{\"dependencies\":{\"express\":\"4.21.0\"}}\n",
+    );
+    write(&root, "src/server.js", "app.get('/health', handler);\n");
+    let bytes = "caller supplied observation\n";
+    write(&root, "observation.json", bytes);
+    let binding = json!({"repositoryRevision":"caller-revision","digest":format!("sha256:{}", "1".repeat(64))});
+    let artifacts = json!({"evidenceIndex":{"reported-runtime":{
+        "path":"observation.json",
+        "digest":format!("sha256:{}", hex::encode(Sha256::digest(bytes.as_bytes()))),
+        "binding":binding,
+        "storageReceipt":{"immutable":true},
+        "toolReceipt":{"complete":true,"tool":{"executableDigest":format!("sha256:{}", "2".repeat(64))}}
+    }}});
+    let authority = evidence::authority(
+        Some(&json!({"binding":binding})),
+        Some(&artifacts),
+        Some(&json!(root.to_string_lossy())),
+        None,
+    );
+    // These plausible forged claims satisfy protocol checks, not authentication.
+    assert!(evidence::validate_refs(Some(&json!(["reported-runtime"])), &authority).is_empty());
+    let route = json!({"path":"/health","auth":"required","evidenceRefs":["reported-runtime"]});
+    let direct_backend =
+        framework::analyze_backend_framework("express", &json!({"routes":[route]}), &authority)
+            .unwrap();
+    assert!(!direct_backend.complete);
+    assert_eq!(direct_backend.output()["certificationClaim"], false);
+    let inventory = inventory(&root);
+    for (id, observed) in [
+        ("framework.backend", "ok"),
+        ("compatibility.core", "ok"),
+        ("compatibility.core", "different"),
+    ] {
+        let mut input_artifacts = artifacts.clone();
+        if id == "framework.backend" {
+            input_artifacts["backendFrameworks"] = json!([{"name":"express","routes":[route]}]);
+        } else {
+            input_artifacts["compatibility"] = json!([{"producerVersion":"1","consumerVersion":"1",
+                "platform":"fixture","contract":"response","expected":"ok","observed":observed,
+                "evidenceRefs":["reported-runtime"]}]);
+            let comparison =
+                compatibility::compatibility_finding(&input_artifacts["compatibility"][0]).unwrap();
+            assert_eq!(comparison["certificationClaim"], false);
+            assert_eq!(
+                comparison["status"],
+                if observed == "ok" {
+                    "compatible"
+                } else {
+                    "incompatible"
+                }
+            );
+        }
+        let input = json!({"plan":{"binding":binding},"artifacts":input_artifacts});
+        let plan = framework_plan(&root, id, &inventory);
+        for configuration_input in [false, true] {
+            let mut provider = plan.provider(id).unwrap().clone();
+            let mut registry = NativeProviderRegistry::new(&root);
+            if configuration_input {
+                provider.configuration.insert("input".into(), input.clone());
+            } else {
+                registry.architecture = registry.architecture.with_input(id, input.clone());
+            }
+            let result = registry.execute(&provider, &inventory).unwrap();
+            assert!(result.applicable && !result.complete);
+            assert_eq!(result.status, ProviderStatus::Partial);
+            assert!(
+                result.findings.is_empty(),
+                "caller observations cannot mint authenticated findings"
+            );
+            assert!(result
+                .coverage_gaps
+                .iter()
+                .any(|gap| gap == "runtime-evidence-trust-unavailable"));
+            let analysis = &result.details["nativeAnalysis"];
+            assert_eq!(analysis["certificationClaim"], false);
+            assert_eq!(analysis["denominator"]["examined"], 0);
+            assert_eq!(analysis["protocolValidation"]["examined"], 1);
+            if id == "compatibility.core" {
+                assert_eq!(
+                    analysis["comparisons"][0]["status"],
+                    if observed == "ok" {
+                        "compatible"
+                    } else {
+                        "incompatible"
+                    }
+                );
+                assert_eq!(analysis["comparisons"][0]["certificationClaim"], false);
+            }
+        }
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
