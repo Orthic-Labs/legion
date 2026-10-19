@@ -1,0 +1,1224 @@
+{
+  "schema": "legion-code-long-tail-controls/1",
+  "historicalExtensions": [
+    "astro",
+    "bash",
+    "bat",
+    "cjs",
+    "cts",
+    "css",
+    "cxx",
+    "dart",
+    "erl",
+    "ex",
+    "exs",
+    "gql",
+    "graphql",
+    "hrl",
+    "html",
+    "kts",
+    "mjs",
+    "mts",
+    "nsh",
+    "nsi",
+    "ps1",
+    "psm1",
+    "rb",
+    "sh",
+    "sql",
+    "svelte",
+    "vbs",
+    "vue",
+    "zsh"
+  ],
+  "claimedExtensions": [
+    "c",
+    "cc",
+    "cpp",
+    "cxx",
+    "h",
+    "hpp",
+    "cs",
+    "fs",
+    "vb",
+    "go",
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "cjs",
+    "mjs",
+    "cts",
+    "mts",
+    "java",
+    "kt",
+    "kts",
+    "scala",
+    "swift",
+    "m",
+    "mm",
+    "php",
+    "rb",
+    "py",
+    "rs"
+  ],
+  "thresholds": {
+    "oversizedLines": 1500,
+    "duplicateWindow": 6,
+    "duplicateMinChars": 120
+  },
+  "cases": [
+    {
+      "caseId": "debt-positive",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "// TODO remove shim\n# FIXME retry\n-- HACK compatibility\n/* XXX review */\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 2,
+          "message": "FIXME marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 3,
+          "message": "HACK marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 4,
+          "message": "XXX marker left in source"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "nonempty-clean",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "value = \"TODO\"\n# todo lowercase\n# NOTTODO TODOISH\nexit 0\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "oversized-1500",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "blank-lines",
+            "lines": 1500
+          }
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "oversized-1501",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "blank-lines",
+            "lines": 1501
+          }
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "oversized-file",
+          "path": "worker.sh",
+          "line": 1,
+          "message": "file has 1501 lines (limit 1500)"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-120-boundary",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "duplicate-block",
+          "path": "b.sh",
+          "line": 1,
+          "message": "6-line block duplicates a.sh:1"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-below-120",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 19,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 19,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-below-six",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 24,
+            "lines": 5,
+            "repeats": 1,
+            "indent": false
+          }
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 24,
+            "lines": 5,
+            "repeats": 1,
+            "indent": false
+          }
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-normalization",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": true
+          }
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "duplicate-block",
+          "path": "b.sh",
+          "line": 1,
+          "message": "6-line block duplicates a.sh:1"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-same-file",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 2,
+            "indent": false
+          }
+        }
+      ],
+      "selected": [
+        "a.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "duplicate-block",
+          "path": "a.sh",
+          "line": 7,
+          "message": "6-line block duplicates a.sh:1"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "selection-historical",
+      "files": [
+        {
+          "path": "historical.astro",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.bash",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.bat",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.cjs",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.cts",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.css",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.cxx",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.dart",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.erl",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.ex",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.exs",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.gql",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.graphql",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.hrl",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.html",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.kts",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.mjs",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.mts",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.nsh",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.nsi",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.ps1",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.psm1",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.rb",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.sh",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.sql",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.svelte",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.vbs",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.vue",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        },
+        {
+          "path": "historical.zsh",
+          "sourceFile": false,
+          "text": "# TODO historical\n"
+        }
+      ],
+      "selected": [
+        "historical.astro",
+        "historical.bash",
+        "historical.bat",
+        "historical.css",
+        "historical.dart",
+        "historical.erl",
+        "historical.ex",
+        "historical.exs",
+        "historical.gql",
+        "historical.graphql",
+        "historical.hrl",
+        "historical.html",
+        "historical.nsh",
+        "historical.nsi",
+        "historical.ps1",
+        "historical.psm1",
+        "historical.sh",
+        "historical.sql",
+        "historical.svelte",
+        "historical.vbs",
+        "historical.vue",
+        "historical.zsh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.astro",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.bash",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.bat",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.css",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.dart",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.erl",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.ex",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.exs",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.gql",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.graphql",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.hrl",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.html",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.nsh",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.nsi",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.ps1",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.psm1",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.sh",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.sql",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.svelte",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.vbs",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.vue",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.zsh",
+          "line": 1,
+          "message": "TODO marker left in source"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:selection-narrower-than-denominator:22of29"
+      ],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "selection-unknown-noextension",
+      "files": [
+        {
+          "path": "worker.mystery",
+          "sourceFile": true,
+          "text": "# TODO unknown\n"
+        },
+        {
+          "path": "entrypoint",
+          "sourceFile": true,
+          "text": "# TODO noextension\n"
+        },
+        {
+          "path": "ignored.mystery",
+          "sourceFile": false,
+          "text": "# TODO non-source\n"
+        },
+        {
+          "path": "README.md",
+          "sourceFile": false,
+          "text": "# TODO document\n"
+        }
+      ],
+      "selected": [
+        "entrypoint",
+        "worker.mystery"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "debt-marker",
+          "path": "entrypoint",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.mystery",
+          "line": 1,
+          "message": "TODO marker left in source"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:selection-narrower-than-denominator:2of4"
+      ],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "selection-owned-elsewhere",
+      "files": [
+        {
+          "path": "owned.c",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cc",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cpp",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cxx",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.h",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.hpp",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cs",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.fs",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.vb",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.go",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.js",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.jsx",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.ts",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.tsx",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cjs",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.mjs",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.cts",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.mts",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.java",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.kt",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.kts",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.scala",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.swift",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.m",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.mm",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.php",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.rb",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.py",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        },
+        {
+          "path": "owned.rs",
+          "sourceFile": true,
+          "text": "// TODO owned\n"
+        }
+      ],
+      "selected": [],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "missing",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "# TODO original\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "worker.sh": "missing"
+      },
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "delete",
+      "injected": false
+    },
+    {
+      "caseId": "drift",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "# TODO original\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "worker.sh": "changed-since-inventory"
+      },
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "drift",
+      "injected": false
+    },
+    {
+      "caseId": "symlink",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "# TODO original\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "worker.sh": "symlink"
+      },
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "symlink",
+      "injected": false
+    },
+    {
+      "caseId": "symlink-parent",
+      "files": [
+        {
+          "path": "directory/worker.sh",
+          "sourceFile": false,
+          "text": "# TODO original\n"
+        }
+      ],
+      "selected": [
+        "directory/worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "directory/worker.sh": "symlink"
+      },
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "symlink-parent",
+      "injected": false
+    },
+    {
+      "caseId": "not-utf8",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "rawBytes": [
+            255,
+            254,
+            0
+          ]
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "worker.sh": "not-utf8"
+      },
+      "extraGaps": [],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "file-byte-cap",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "exit 0\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "worker.sh": "file-size-cap"
+      },
+      "extraGaps": [],
+      "limits": {
+        "maxFileBytes": 6
+      },
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "total-byte-cap",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "text": "exit 0\n"
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "text": "exit 1\n"
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "b.sh": "total-size-cap"
+      },
+      "extraGaps": [],
+      "limits": {
+        "maxTotalBytes": 7
+      },
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "findings-cap",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "# TODO first\n# TODO second\n# TODO third\n# TODO fourth\n# TODO fifth\n"
+        }
+      ],
+      "selected": [
+        "worker.sh"
+      ],
+      "expectedFindings": [
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 2,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "worker.sh",
+          "line": 3,
+          "message": "TODO marker left in source"
+        }
+      ],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:findings-truncated:2"
+      ],
+      "limits": {
+        "maxFindings": 3
+      },
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "duplicate-window-cap",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "recipe": {
+            "kind": "digits",
+            "width": 20,
+            "lines": 6,
+            "repeats": 1,
+            "indent": false
+          }
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:duplicate-detection-truncated"
+      ],
+      "limits": {
+        "maxDuplicateWindows": 0
+      },
+      "mutation": "none",
+      "injected": false
+    },
+    {
+      "caseId": "skip-record-cap",
+      "files": [
+        {
+          "path": "a.sh",
+          "sourceFile": false,
+          "text": "exit 0\n"
+        },
+        {
+          "path": "b.sh",
+          "sourceFile": false,
+          "text": "exit 0\n"
+        },
+        {
+          "path": "c.sh",
+          "sourceFile": false,
+          "text": "exit 0\n"
+        }
+      ],
+      "selected": [
+        "a.sh",
+        "b.sh",
+        "c.sh"
+      ],
+      "expectedFindings": [],
+      "expectedSkips": {
+        "a.sh": "missing",
+        "b.sh": "missing",
+        "c.sh": "missing"
+      },
+      "extraGaps": [
+        "code.long-tail:file-skipped:more-files-skipped:2"
+      ],
+      "limits": {
+        "maxSkipRecords": 1
+      },
+      "mutation": "delete",
+      "injected": false
+    },
+    {
+      "caseId": "injected-no-rules",
+      "files": [
+        {
+          "path": "worker.sh",
+          "sourceFile": false,
+          "text": "# TODO actual ignored\n"
+        }
+      ],
+      "selected": [],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:no-rules-applicable"
+      ],
+      "limits": {},
+      "mutation": "none",
+      "injected": true
+    },
+    {
+      "caseId": "empty-denominator",
+      "files": [],
+      "selected": [],
+      "expectedFindings": [],
+      "expectedSkips": {},
+      "extraGaps": [
+        "code.long-tail:denominator-gap:generic"
+      ],
+      "limits": {},
+      "mutation": "none",
+      "injected": false
+    }
+  ],
+  "unsafePaths": [
+    "../outside.sh",
+    "/outside.sh",
+    "directory/../outside.sh",
+    "./outside.sh",
+    ""
+  ]
+}

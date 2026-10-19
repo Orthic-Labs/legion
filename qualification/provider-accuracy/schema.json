@@ -77,7 +77,7 @@
       "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
       "properties": {
         "provider": {"type": "string", "minLength": 1},
-        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk"]},
+        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk", "code-long-tail"]},
         "record": {"$ref": "#/$defs/record"},
         "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
         "scope": {"type": "string", "minLength": 1, "maxLength": 1000},

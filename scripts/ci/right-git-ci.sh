@@ -572,6 +572,13 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
     run_audit_qualification audit_cargo_test --test golangci_accuracy \
       real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
+  # Generic-source controls retain mandatory unsupported-language gaps in every native case.
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-long-tail"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test code_long_tail_accuracy \
+    code_long_tail_native_qualification -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-code-long-tail-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.

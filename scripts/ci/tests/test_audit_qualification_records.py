@@ -331,8 +331,36 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["adapter"](self.root, {**entry, "stage": "candidate"})
 
+    def test_long_tail_dedicated_adapter_preserves_partial_language_scope(self):
+        provider = "code.long-tail"
+        scope = gate["helper"]("audit-code-long-tail-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": provider, "family": "code-long-tail", "stage": "finding", "scope": scope,
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64,
+                            "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("code-long-tail", "code_long_tail_accuracy", "canonical-json", "code_long_tail_native_qualification"))
+        qualified = gate["qualification"](entry)
+        for flag in ("productionQualification", "wholeProviderQualified", "auditCleanClaim",
+                     "compilerCoverageQualified", "languageCoverageQualified"):
+            self.assertIs(qualified[flag], False)
+        self.assertEqual(qualified["fixtureScope"], scope)
+        row = {"schema": "legion-code-long-tail-native-accuracy/1", "provider": provider,
+               "stage": "finding", "scope": scope, "productionQualification": False,
+               "wholeProviderQualified": False, "auditCleanClaim": False, "compilerCoverageQualified": False,
+               "languageCoverageQualified": False, "qualificationEligible": True,
+               "coverageState": "scoped-controls-complete", "status": "pass", "modelCalls": 0}
+        gate["controls"](row, entry)
+        for flag in ("productionQualification", "wholeProviderQualified", "auditCleanClaim",
+                     "compilerCoverageQualified", "languageCoverageQualified"):
+            with self.subTest(flag=flag), self.assertRaises(AssertionError):
+                gate["controls"]({**row, flag: True}, entry)
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "family": "file"})
+        with self.assertRaises(AssertionError):
+            gate["controls"]({**row, "coverageState": "complete"}, entry)
+
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 30)
+        self.assertEqual(len(gate["ADAPTERS"]), 31)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
