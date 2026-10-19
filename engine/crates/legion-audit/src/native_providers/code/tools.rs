@@ -66,6 +66,8 @@ use tokio_util::sync::CancellationToken;
 
 #[path = "govulncheck.rs"]
 mod govulncheck;
+#[path = "mobile_sdk.rs"]
+mod mobile_sdk;
 #[path = "native_commands.rs"]
 mod native_commands;
 #[path = "rubocop.rs"]
@@ -201,6 +203,9 @@ enum Parser {
     Process,
     Syntax,
     Rubocop,
+    MobileCompiler,
+    MobileLint,
+    MobileProcess,
 }
 
 struct Planned {
@@ -634,6 +639,7 @@ fn plan_commands(
         "code.python" => plan_python(entries, selected, scratch, &mut plan),
         "code.go" => plan_go(entries, &mut plan),
         "code.php-ruby" => rubocop::plan(root, entries, selected, scratch, &mut plan),
+        "code.mobile" => mobile_sdk::plan(root, entries, selected, scratch, &mut plan),
         _ => {}
     }
     native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
@@ -771,7 +777,9 @@ impl<'a> Resolver<'a> {
             return cached.clone();
         }
         let found = command.programs.iter().find_map(|name| {
-            if command.parser == Parser::Rubocop {
+            if mobile_sdk::is_mobile(command.parser) {
+                mobile_sdk::resolve(self.ctx, command, name)
+            } else if command.parser == Parser::Rubocop {
                 rubocop::search_dirs(self.ctx)
                     .iter()
                     .find_map(|dir| in_dir(dir, name))
@@ -928,6 +936,14 @@ async fn run_one(
         return RunOutput::failed(Outcome::Failed(
             "tool-failed:ruby-lint:staged-input-changed".into(),
         ));
+    }
+    if mobile_sdk::is_mobile(command.parser) {
+        if let Err(reason) = mobile_sdk::snapshot(command) {
+            return RunOutput::failed(Outcome::Failed(format!(
+                "tool-failed:{}:input-before:{reason}",
+                command.tool
+            )));
+        }
     }
     let cwd = if command.cwd_rel.is_empty() {
         ctx.root.to_path_buf()
@@ -1097,6 +1113,10 @@ async fn run_one(
             ),
         },
     };
+    let native_tool_identity = mobile_sdk::is_mobile(command.parser).then(|| json!({
+        "path": executable, "digest": executable_digest,
+        "identityScope": "native executable; installed SDK/runtime enrollment recorded in nativeInputSnapshots",
+    }));
     let launch_digest = resolver.digest(Path::new(&launch_executable));
 
     let request = ExternalToolRequest {
@@ -1124,24 +1144,35 @@ async fn run_one(
         version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
-    let native_input_before = if command.parser == Parser::Govulncheck {
-        match govulncheck::snapshot(command) {
-            Ok(snapshot) => Some(snapshot),
-            Err(reason) => {
-                return RunOutput::failed(Outcome::Failed(format!(
-                    "tool-failed:vulnerability:input-before:{reason}"
-                )))
+    let native_input_before =
+        if command.parser == Parser::Govulncheck || mobile_sdk::is_mobile(command.parser) {
+            let snapshot = if mobile_sdk::is_mobile(command.parser) {
+                mobile_sdk::snapshot(command)
+            } else {
+                govulncheck::snapshot(command)
+            };
+            match snapshot {
+                Ok(snapshot) => Some(snapshot),
+                Err(reason) => {
+                    return RunOutput::failed(Outcome::Failed(format!(
+                        "tool-failed:{}:input-before:{reason}",
+                        command.tool
+                    )))
+                }
             }
-        }
-    } else {
-        None
-    };
+        } else {
+            None
+        };
     let receipt = ctx.tool.execute(request, cancellation).await;
     // Recheck even failed/refused executions. Retain actual receipt unchanged;
     // input snapshots describe closure stability, never authorize execution.
-    let native_input_after = native_input_before
-        .as_ref()
-        .map(|_| govulncheck::snapshot(command));
+    let native_input_after = native_input_before.as_ref().map(|_| {
+        if mobile_sdk::is_mobile(command.parser) {
+            mobile_sdk::snapshot(command)
+        } else {
+            govulncheck::snapshot(command)
+        }
+    });
     let native_input_error = match (&native_input_before, &native_input_after) {
         (Some(before), Some(Ok(after))) if before != after => {
             Some("input-closure-changed".to_owned())
@@ -1198,6 +1229,7 @@ async fn run_one(
         "sourcePath": command.source_path,
         "sourceDigest": command.source_digest,
         "versionProbeIdentity": version_probe_identity,
+        "nativeToolIdentity": native_tool_identity,
         "version": output.version,
         "argv": argv,
         "cwd": cwd_label,
@@ -1242,8 +1274,23 @@ async fn run_one(
         output.outcome = outcome;
         return output;
     }
+    if let Some(identity) = &native_tool_identity {
+        if identity["path"]
+            .as_str()
+            .and_then(|path| std::fs::read(path).ok())
+            .map(|bytes| sha256_text(&bytes))
+            .as_deref()
+            != identity["digest"].as_str()
+        {
+            output.outcome = Outcome::Failed(format!(
+                "tool-failed:{}:native-executable-changed",
+                command.tool
+            ));
+            return output;
+        }
+    }
     if let Some(reason) = native_input_error {
-        output.outcome = Outcome::Failed(format!("tool-failed:vulnerability:{reason}"));
+        output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         return output;
     }
     if let Some(identity) = &version_probe_identity {
@@ -1271,8 +1318,14 @@ async fn run_one(
             return output;
         }
     }
-    if matches!(command.parser, Parser::Syntax | Parser::Process)
-        && (stdout.is_none() || stderr.is_none())
+    if matches!(
+        command.parser,
+        Parser::Syntax
+            | Parser::Process
+            | Parser::MobileCompiler
+            | Parser::MobileLint
+            | Parser::MobileProcess
+    ) && (stdout.is_none() || stderr.is_none())
     {
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
@@ -1294,7 +1347,9 @@ async fn run_one(
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
     };
-    let parsed = if command.parser == Parser::Govulncheck {
+    let parsed = if mobile_sdk::is_mobile(command.parser) {
+        mobile_sdk::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
+    } else if command.parser == Parser::Govulncheck {
         govulncheck::parse(bytes, receipt.exit_code, command)
     } else if command.parser == Parser::Rubocop {
         rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
@@ -1352,6 +1407,9 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         },
         Parser::Syntax => parse_syntax(bytes, exit),
         Parser::Rubocop => Err("rubocop-source-binding-required".into()),
+        Parser::MobileCompiler | Parser::MobileLint | Parser::MobileProcess => {
+            Err("mobile-source-platform-binding-required".into())
+        }
     }
 }
 
@@ -1704,6 +1762,8 @@ pub async fn run(
         }
     }
 
+    let mobile_closure_before =
+        (provider_id == "code.mobile").then(|| mobile_sdk::closure_snapshot(ctx.root));
     let started = Instant::now();
     let canonical_root = std::fs::canonicalize(ctx.root).unwrap_or_else(|_| ctx.root.to_path_buf());
     let mut resolver = Resolver::new(ctx);
@@ -1712,6 +1772,10 @@ pub async fn run(
 
     for (sequence, command) in plan.commands.iter().enumerate() {
         let accumulator = accumulators.entry(command.tool).or_default();
+        if let Some(Err(reason)) = &mobile_closure_before {
+            accumulator.merge(Outcome::Failed(reason.clone()));
+            continue;
+        }
         let elapsed = started.elapsed().as_millis() as u64;
         let remaining = ctx.total_budget_ms.saturating_sub(elapsed);
         if remaining == 0 {
@@ -1758,6 +1822,24 @@ pub async fn run(
                 command.cwd_rel.clone()
             };
             diagnostics.push((diagnostic_cwd, diag));
+        }
+    }
+    if let Some(before) = mobile_closure_before {
+        let after = mobile_sdk::closure_snapshot(ctx.root);
+        evidence
+            .receipts
+            .push(json!({"kind":"mobile-native-enrollment-boundary",
+            "before":before.as_ref().ok(),"after":after.as_ref().ok(),
+            "beforeError":before.as_ref().err(),"afterError":after.as_ref().err()}));
+        if before.is_err() || after.is_err() || before.as_ref().ok() != after.as_ref().ok() {
+            for tool in config_tools {
+                accumulators
+                    .entry(*tool)
+                    .or_default()
+                    .merge(Outcome::Failed(
+                        "mobile-native-enrollment-boundary-failed".into(),
+                    ));
+            }
         }
     }
     for path in &plan.cleanup {

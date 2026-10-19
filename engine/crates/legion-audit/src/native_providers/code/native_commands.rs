@@ -89,37 +89,6 @@ pub(super) fn plan(
                 plan.commands.push(test);
             }
         }
-        "code.mobile" => {
-            defer(
-                plan,
-                entries,
-                &["Package.swift"],
-                &["swift"],
-                "compiler",
-                &["build", "--skip-update"],
-            );
-            defer(
-                plan,
-                entries,
-                &["Package.swift"],
-                &["swift"],
-                "test",
-                &["test", "--skip-update"],
-            );
-            if dirs_named(entries, &["Package.swift"]).is_empty() {
-                let files: Vec<String> = selected
-                    .iter()
-                    .filter(|path| path.ends_with(".swift"))
-                    .cloned()
-                    .collect();
-                if !files.is_empty() {
-                    let mut args = vec!["-typecheck".into()];
-                    args.extend(files);
-                    plan.deferred
-                        .push(command("compiler", &["swiftc"], "", args));
-                }
-            }
-        }
         "code.jvm" => {
             for (tool, args) in [
                 (
@@ -401,7 +370,6 @@ mod tests {
     fn other_native_manifest_contracts_remain_deferred() {
         let (root, scratch) = fixture();
         let cases: &[(&str, &[&str], &[&str])] = &[
-            ("code.mobile", &["Package.swift"], &["swift"]),
             (
                 "code.jvm",
                 &["build.gradle.kts", "pom.xml"],
