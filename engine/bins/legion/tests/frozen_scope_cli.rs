@@ -147,10 +147,208 @@ printf '{{"type":"result","is_error":false,"session_id":"session-%s","modelUsage
         )
     }
 
+    fn install_native_consumer(
+        base: &Path,
+        protected: &Path,
+        trace: &Path,
+        baseline: &str,
+        changed: &str,
+    ) -> (PathBuf, String) {
+        // CI-only native stand-in. Record/source map is compiled into pinned
+        // bytes, never read from caller argv, mutable config, HOME or trace.
+        let source = base.join("native-consumer.c");
+        fs::write(&source, r#"
+#include <CommonCrypto/CommonDigest.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+static int field(const char *json, const char *key, char *out, size_t cap) {
+  char needle[128]; snprintf(needle, sizeof needle, "\"%s\":", key);
+  const char *p = strstr(json, needle); if (!p) return 0;
+  p += strlen(needle); while (*p == ' ') ++p; if (*p++ != '"') return 0;
+  const char *end = strchr(p, '"'); if (!end || (size_t)(end-p) >= cap) return 0;
+  memcpy(out, p, end-p); out[end-p] = 0; return 1;
+}
+int main(int argc, char **argv) {
+  char input[32768], prep[128], txn[128], record[128], effect[8192], expected[65], got[128], cwd[1024];
+  if (getuid() == 0 || argc != 2 || strcmp(argv[1], "legion-native-consume-v1") ||
+      !getcwd(cwd,sizeof cwd) || strcmp(cwd,"/") || !getenv("HOME") ||
+      !getenv("PATH") || strcmp(getenv("PATH"),"/usr/bin:/bin") || getenv("GIT_CONFIG_COUNT")) return 8;
+  if (!fgets(input,sizeof input,stdin) || !field(input,"preparation_nonce",prep,sizeof prep) ||
+      !field(input,"native_record_id",record,sizeof record)) return 9;
+  if (strcmp(record,"baseline") && strcmp(record,"changed") && strcmp(record,"lost") && strcmp(record,"replay")) return 10;
+  const char *source = !strcmp(record,"changed") ? CHANGED_OID : BASELINE_OID;
+  snprintf(effect,sizeof effect,"{\"repository\":\"fixture-consumer-repository\",\"operation\":\"Build\",\"native_record_id\":\"%s\",\"source_oid\":\"%s\",\"candidate\":null,\"endpoint\":\"fixture-owner\",\"destination\":\"fixture-build\",\"native_effect_sha256\":\"%064d\",\"provenance_sha256\":\"%064d\",\"artifact_sha256\":null}",record,source,1,2);
+  unsigned char hash[CC_SHA256_DIGEST_LENGTH]; CC_SHA256(effect,(CC_LONG)strlen(effect),hash);
+  for (int i=0;i<CC_SHA256_DIGEST_LENGTH;i++) snprintf(expected+2*i,3,"%02x",hash[i]);
+  printf("{\"phase\":\"prepared\",\"protocol\":\"legion-native-consume-v1\",\"preparation_nonce\":\"%s\",\"effect\":%s}\n",prep,effect); fflush(stdout);
+  if (!fgets(input,sizeof input,stdin)) return 11;
+  if (!field(input,"transaction_nonce",txn,sizeof txn) || !field(input,"prepared_sha256",got,sizeof got) ||
+      strcmp(got,expected) || !strcmp(txn,prep)) return 12;
+  FILE *trace = fopen(EFFECT_TRACE,"a"); if (!trace) return 13;
+  fprintf(trace,"%s\n",record); if (fclose(trace)) return 14;
+  if (!strcmp(record,"lost")) return 15;
+  printf("{\"phase\":\"complete\",\"protocol\":\"legion-native-consume-v1\",\"transaction_nonce\":\"%s\",\"prepared_sha256\":\"%s\"}\n",!strcmp(record,"replay") ? prep : txn,expected);
+  return 0;
+}
+"#).unwrap();
+        let compiled = base.join("native-consumer");
+        let mut cc = Command::new("/usr/bin/cc");
+        cc.arg(&source)
+            .arg("-o")
+            .arg(&compiled)
+            .arg(format!(
+                "-DBASELINE_OID={}",
+                serde_json::to_string(baseline).unwrap()
+            ))
+            .arg(format!(
+                "-DCHANGED_OID={}",
+                serde_json::to_string(changed).unwrap()
+            ))
+            .arg(format!(
+                "-DEFFECT_TRACE={}",
+                serde_json::to_string(trace.to_str().unwrap()).unwrap()
+            ));
+        successful(cc);
+        let installed = protected.join("native-consumer");
+        sudo(&[
+            "/bin/cp",
+            compiled.to_str().unwrap(),
+            installed.to_str().unwrap(),
+        ]);
+        sudo(&["/bin/chmod", "755", installed.to_str().unwrap()]);
+        let digest = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(fs::read(&installed).unwrap()))
+        );
+        (installed, digest)
+    }
+
+    #[test]
+    fn native_consumer_commits_only_authorized_source_and_holds_uncertain_effects() {
+        if std::env::var("GITHUB_ACTIONS").as_deref() != Ok("true") {
+            eprintln!("NOT RUN native consumer proof: disposable macOS GitHub runner required");
+            return;
+        }
+        let run = std::env::var("GITHUB_RUN_ID").unwrap();
+        assert!(!run.is_empty() && run.len() <= 20 && run.bytes().all(|b| b.is_ascii_digit()));
+        let prefix = format!("consume-ci-{run}-{}", std::process::id());
+        let base = PathBuf::from("/private/tmp").join(format!("legion-{prefix}"));
+        fs::create_dir(&base).unwrap();
+        let root = base.join("repo");
+        fs::create_dir(&root).unwrap();
+        git(&root, &["init", "--initial-branch=main"]);
+        let baseline = commit(&root, "threshold=1\n");
+        let changed = commit(&root, "threshold=2\n");
+        let scratch = base.join("scratch");
+        fs::create_dir(&scratch).unwrap();
+        let trace = base.join("effects");
+        fs::write(&trace, "").unwrap();
+        let review_trace = base.join("reviews");
+        fs::write(&review_trace, "").unwrap();
+        let protected = PathBuf::from("/Library/Application Support/Orthic Labs/Legion")
+            .join(format!("authority-ci-fixture-{prefix}"));
+        let (reviewer_path, reviewer_digest) = install_reviewer(&base, &protected, &review_trace);
+        let (native_path, native_digest) =
+            install_native_consumer(&base, &protected, &trace, &baseline, &changed);
+        let hooks = protected.join("hooks");
+        let delivery = protected.join("delivery");
+        for path in [&hooks, &delivery] {
+            sudo(&["/bin/mkdir", path.to_str().unwrap()]);
+        }
+        let mut identity = Command::new("/usr/bin/id");
+        identity.arg("-u");
+        let uid: u32 = String::from_utf8(successful(identity).stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert_ne!(uid, 0);
+        let home = PathBuf::from(std::env::var_os("HOME").unwrap())
+            .canonicalize()
+            .unwrap();
+        let reviewer = |provider: &str, model: &str| {
+            json!({"provider":provider,"model":model,
+            "executable":reviewer_path,"executable_sha256":reviewer_digest,
+            "run_as_user":uid.to_string(),"home":home,"timeout_seconds":15})
+        };
+        let template = json!({"schema":1,"id":"unused","repository":"fixture-consumer-repository",
+            "root":root,"baseline_source":baseline,"selectors":[{"kind":"path","path":"frozen.txt"}],
+            "remote_url":"https://example.invalid/fixture.git","remote_ref":"refs/heads/main",
+            "scratch_root":scratch,"delivery_root":delivery,"push_hooks":hooks,
+            "allowed_operations":["Build","Push"],"max_review_launches":3,
+            "sage":reviewer("claude","fixture-sage"),"fable":reviewer("claude","claude-fable-5-1"),
+            "astra":reviewer("codex","gpt-6-astra"),"native_adapters":[{"operation":"Build",
+                "executable":{"path":native_path,"sha256":native_digest},"dependencies":[],
+                "uid":uid,"home":home,"endpoint":"fixture-owner","destination":"fixture-build","timeout_seconds":15}]});
+        for mode in ["lost", "replay"] {
+            let id = format!("{prefix}-{mode}");
+            let mut enrollment = template.clone();
+            enrollment["id"] = json!(id);
+            assert_eq!(ok("admin-enroll", &enrollment)["status"], "enrolled");
+            let consume = |record: &str| json!({"op":"consume","id":id,"operation":"Build","native_record_id":record});
+            let status = json!({"op":"status","id":id});
+            let before = ok("broker", &status);
+            let result = ok("broker", &consume("baseline"));
+            assert_eq!(result["status"], "consumed");
+            assert_eq!(result["source"], baseline);
+            assert_eq!(result["revision"], before["revision"]);
+            assert_eq!(ok("broker", &status)["pendingConsume"], Value::Null);
+            let effects = fs::read_to_string(&trace).unwrap();
+            denied("broker", &consume("changed"), "native_consumer_denied");
+            assert_eq!(fs::read_to_string(&trace).unwrap(), effects);
+            assert_eq!(ok("broker", &status)["pendingConsume"], Value::Null);
+            denied("broker", &consume(mode), "native_consumer_held");
+            let held = ok("broker", &status);
+            assert_eq!(held["pendingConsume"]["prepared"]["native_record_id"], mode);
+            denied("broker", &consume("baseline"), "reconciliation");
+            denied(
+                "broker",
+                &json!({"op":"check","id":id,"operation":"Build","source":baseline}),
+                "reconciliation",
+            );
+            denied(
+                "broker",
+                &json!({"op":"push","id":id,"source":baseline}),
+                "reconciliation",
+            );
+            assert_eq!(
+                ok("broker", &status)["pendingConsume"],
+                held["pendingConsume"]
+            );
+        }
+        let id = format!("{prefix}-noadapter");
+        let mut enrollment = template.clone();
+        enrollment["id"] = json!(id);
+        enrollment["native_adapters"] = json!([]);
+        ok("admin-enroll", &enrollment);
+        denied(
+            "broker",
+            &json!({"op":"consume","id":id,"operation":"Build","native_record_id":"baseline"}),
+            "native_consumer_not_enrolled",
+        );
+        let id = format!("{prefix}-revoked");
+        let mut enrollment = template;
+        enrollment["id"] = json!(id);
+        ok("admin-enroll", &enrollment);
+        ok("broker", &json!({"op":"revoke","id":id}));
+        let effects = fs::read_to_string(&trace).unwrap();
+        denied(
+            "broker",
+            &json!({"op":"consume","id":id,"operation":"Build","native_record_id":"baseline"}),
+            "revoked",
+        );
+        assert_eq!(fs::read_to_string(&trace).unwrap(), effects);
+        assert!(fs::read_to_string(&review_trace).unwrap().is_empty());
+    }
+
     #[test]
     fn protected_broker_binds_reviews_to_exact_git_objects_and_revokes_monotonically() {
         if std::env::var("GITHUB_ACTIONS").as_deref() != Ok("true") {
-            eprintln!("NOT RUN native privileged proof: requires disposable macOS GitHub Actions runner; no local sudo invoked");
+            eprintln!(
+                "NOT RUN native privileged proof: requires disposable macOS GitHub Actions runner; no local sudo invoked"
+            );
             return;
         }
         let run = std::env::var("GITHUB_RUN_ID").expect("GitHub run identity");

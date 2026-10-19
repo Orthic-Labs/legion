@@ -94,6 +94,64 @@ promise, TTL-only freshness proof or cached crosshost approval.
 
 ## Shared consumers & coverage boundary
 
+`consume` accepts only enrolled freeze `id`, typed `operation` (`Build`, `Dequeue`
+or `Publish`) & `native_record_id`. It cannot select an executable, argv,
+environment, source, artifact relationship, destination, candidate or approval.
+Protected enrollment selects at most one fixed native adapter per operation,
+pins executable SHA-256 & runtime/config dependency inventory, nonroot UID/HOME,
+exact endpoint/destination & bounded transaction deadline. Missing enrollment
+returns `native_consumer_not_enrolled`. Existing enrollments default to no adapters.
+
+Adapter executable & declared dependencies require canonical literal paths with
+root-owned ancestry, no symlinks or other-user write access & matching byte
+digests. Executable must have native ELF/Mach-O format; scripts are rejected.
+HOME belongs to enrolled nonroot UID, resists other writers & has root-owned
+ancestry. Child uses fixed `sudo`/`env -i`, cwd `/`, scrubbed environment & private
+stdin/stdout pipes. Enrollment administrator must inventory complete runtime &
+configuration custody; adapter must never load user plugins, scripts or mutable
+HOME configuration as executable authority. OS runtime remains trusted. No
+automatic transitive dependency discovery or sandbox claim exists.
+
+Private pipe uses `legion-native-consume-v1` JSON lines:
+
+1. Broker sends `prepare` with operation, native record ID & fresh
+   `preparation_nonce`. Native owner resolves authoritative record, locks its
+   transaction & prepares exact immutable source/effect/provenance. It performs
+   no required effect during preparation.
+2. Adapter returns `prepared`, echoing protocol/preparation nonce & typed `effect`:
+   repository, operation, native record ID, immutable `source_oid`, optional
+   native-resolved candidate, endpoint/destination, `native_effect_sha256`,
+   `provenance_sha256` & optional `artifact_sha256` (required for publication).
+   Digests use 64 lowercase hex digits; enrolled file pins use `sha256:` prefix.
+3. Broker independently snapshots actual Git bytes, evaluates current protected
+   freeze/reviews & fsyncs typed `pendingConsume` journal. Lock order is native
+   owner transaction first, then freeze lock; preflight releases freeze lock
+   before preparation. Final authority state is re-read under freeze lock, which
+   stays held through commit/completion. Broker then sends `commit` with fresh
+   `transaction_nonce` revealed only at commit & SHA-256 of broker's compact
+   serialized `PreparedEffect` struct (fields in order listed above).
+4. Adapter checks exact prepared digest & commits that same locked effect. Only
+   after actual effect finishes does it return `complete`, echoing protocol,
+   transaction nonce & prepared digest, close pipes & exit successfully. An old
+   or prequeued completion cannot predict fresh transaction nonce.
+
+Every frame is capped at 32 KiB; total transaction deadline includes native
+pinning, preparation & completion. Failed child is terminated through managed
+process-tree cleanup. Any failure after durable journal, including lost commit
+or completion, preserves reconciliation hold. Pending consume blocks subsequent
+prepare, review, check, push & consume; status exposes exact pending record.
+Protected reconciliation has no client clear/retry route. Successful consume
+clears journal without advancing baseline/revision. `check` still grants no lease.
+
+Build/dequeue adapters run at actual native start, never merely queue admission;
+queue admission cannot authorize future dequeue. Nonroot native owner starts
+build itself; broker never runs nested root builds. Publication adapter resolves
+exact immutable artifact bytes & authenticates source/qualification provenance
+inside its owner transaction before preparation, retains custody through commit
+& performs actual publication. Caller-supplied commit/digest fields cannot replace
+owner verification. There is no general runner, portable token, daemon or new
+transport service.
+
 Legion owns authority policy, host review capture & this broker. RightKit owns
 shared managed push/publication integration; RustRight owns build admission.
 Consumers must use current broker state at actual effect boundary. A publication
@@ -101,8 +159,10 @@ consumer additionally verifies exact built artifact bytes against existing
 RightKit source/qualification provenance inside its managed delivery transaction.
 Neither a successful `check` nor a claimed commit field implements that step.
 
-This implementation provides broker-mediated Git push. It does not claim universal
-Git enforcement, a completed publication adapter, installed build/dequeue gates,
+This implementation provides broker-mediated Git push & native consumer transaction
+substrate. No real RightKit/RustRight owner adapters or native consumer deployment
+are supplied yet; this is not complete build/publication enforcement. It does not
+claim universal Git enforcement, a completed publication adapter, installed build/dequeue gates,
 automatic human-prompt capture, or hooks covering arbitrary Python/editor/SSH
 mutations. Local hooks can be bypassed; universal push enforcement also requires
 remote required checks without agent-accessible bypass. Shared consumer deployment
@@ -117,12 +177,13 @@ legion authority freeze admin-enroll < owner-controlled-enrollment.json
 legion authority freeze broker < request.json
 ```
 
-Requests: `status`, `prepare`, `review`, `check`, `push`, `revoke`. Each names enrolled
+Requests: `status`, `prepare`, `review`, `check`, `push`, `consume`, `revoke`. Each names enrolled
 `id`; consumers pin that id in protected host configuration. `prepare` takes
 `base_source`, `patch`, `missed_review_reason`; `review` takes `candidate`; `check`
 takes `source`, optional `candidate` & typed `operation`; `push` takes `source` &
 optional `candidate`. There is no caller-selected store, reviewer, provider, shell
 or approval import route. Do not expose administrative enrollment to agent RPC.
+`consume` takes `operation` & `native_record_id` only, alongside enrollment `id`.
 
 ## Qualification
 
@@ -134,6 +195,14 @@ CI-only macOS integration exercises actual broker CLI, protected state & launche
 fixture transports, including successful exact push, changed-source denial,
 unchanged delivery without new reviews & revocation. Fixture metadata is transport
 test evidence, not proof of a live provider or installed mandatory-set pilot.
+New CI-only native consumer source cases remain unexecuted & unqualified. Fixture
+compiles fixed record/source mapping into pinned native bytes to exercise actual
+private pipes, privilege drop, commit digest,
+successful effect, changed-source denial, revocation, lost completion,
+replayed completion & persistent reconciliation hold. Fixture effect is trace
+append, not a product build or publication. Pure tests cover strict request/frame
+parsing, typed operation enrollment, exact source/destination/artifact binding &
+durable authorization before commit.
 
 Pilot acceptance: zero accepted forged/stale/changed candidates; zero model calls
 for unchanged closure; no ordinary-repository freeze; three reserved launches per

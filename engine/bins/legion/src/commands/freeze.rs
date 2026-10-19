@@ -2,6 +2,7 @@
 //! root-controlled launcher/SSH forced command; never grant sudo for `admin`.
 //! Root enrollment is authority. Hashes & client JSON merely identify candidates.
 use super::{
+    freeze_consumer::{self, AdapterConfig, ConsumeOperation, PendingConsume},
     freeze_git::{self, GitRepository, Selector, Snapshot},
     freeze_review::{self, CapturedReview, ReviewerConfig},
     freeze_store::ProtectedStore,
@@ -45,6 +46,8 @@ struct Enrollment {
     sage: ReviewerConfig,
     fable: ReviewerConfig,
     astra: ReviewerConfig,
+    #[serde(default)]
+    native_adapters: Vec<AdapterConfig>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -58,6 +61,8 @@ struct State {
     prepare_attempts: u32,
     candidates: BTreeMap<String, Candidate>,
     pending_push: Option<String>,
+    #[serde(default)]
+    pending_consume: Option<PendingConsume>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -106,6 +111,11 @@ enum Request {
         source: String,
         candidate: Option<String>,
     },
+    Consume {
+        id: String,
+        operation: ConsumeOperation,
+        native_record_id: String,
+    },
     /// Denial-only operation is exposed to ordinary clients, unlike re-enrollment.
     Revoke {
         id: String,
@@ -136,9 +146,9 @@ pub fn run(argv: &[String]) -> super::CommandResult {
             return Ok(json!({"__raw": concat!(
             "Usage: legion authority freeze broker < request.json\n",
             "       legion authority freeze admin-enroll < protected-config.json\n",
-            "broker: status, prepare, review, check, push, revoke (bounded JSON stdin).\n",
+            "broker: status, prepare, review, check, push, consume, revoke (bounded JSON stdin).\n",
             "Native broker requires Unix root protection. Windows clients use authenticated SSH.\n",
-            "No imported approvals, signing service or automatic ownership-policy activation.\n")}))
+            "No imported approvals, signing service or automatic ownership-policy activation.\n")}));
         }
         Some("admin-enroll") if argv.len() == 1 => read_json::<Enrollment>().and_then(enroll),
         Some("broker") if argv.len() == 1 => read_json::<Request>().and_then(dispatch),
@@ -191,6 +201,7 @@ fn validate_config(c: &Enrollment) -> Result<(), String> {
         .as_bytes(),
     )?;
     freeze_git::canonical_selectors(&c.selectors)?;
+    freeze_consumer::validate_enrollment(&c.native_adapters, &c.allowed_operations)?;
     for p in [&c.root, &c.scratch_root, &c.delivery_root, &c.push_hooks] {
         if !p.is_absolute() || p.canonicalize().map_err(|e| e.to_string())? != *p {
             return Err("enrolled paths must be canonical & absolute".into());
@@ -219,6 +230,7 @@ fn enroll(c: Enrollment) -> Result<Value, String> {
         prepare_attempts: 0,
         candidates: BTreeMap::new(),
         pending_push: None,
+        pending_consume: None,
     };
     // create_new refuses replacement of existing enrollment/revocation tombstone.
     let _store = ProtectedStore::create_enrollment(&c.id, &c, &state)?;
@@ -255,12 +267,17 @@ fn dispatch(r: Request) -> Result<Value, String> {
             source,
             candidate,
         } => check_or_push(&id, &source, candidate.as_deref(), Operation::Push, true),
+        Request::Consume {
+            id,
+            operation,
+            native_record_id,
+        } => consume(&id, operation, &native_record_id),
         Request::Status { id } => {
             let (s, _) = open(&id)?;
             let _lock = s.lock()?;
             let state: State = s.load_state()?;
             Ok(
-                json!({"id":id,"revision":state.revision,"sequence":state.sequence,"revoked":state.revoked,"reservedReviewLaunches":state.review_launches,"prepareAttempts":state.prepare_attempts,"pendingPush":state.pending_push,"candidates":state.candidates.keys().collect::<Vec<_>>()}),
+                json!({"id":id,"revision":state.revision,"sequence":state.sequence,"revoked":state.revoked,"reservedReviewLaunches":state.review_launches,"prepareAttempts":state.prepare_attempts,"pendingPush":state.pending_push,"pendingConsume":state.pending_consume,"candidates":state.candidates.keys().collect::<Vec<_>>()}),
             )
         }
         Request::Revoke { id } => {
@@ -289,7 +306,7 @@ fn prepare(id: &str, base: &str, patch: String, reason: String) -> Result<Value,
     let (s, c) = open(id)?;
     let _lock = s.lock()?;
     let mut state: State = s.load_state()?;
-    if state.revoked || state.pending_push.is_some() {
+    if state.revoked || state.pending_push.is_some() || state.pending_consume.is_some() {
         return Err("freeze revoked or delivery requires reconciliation".into());
     }
     // Charge preparation before scratch effects, including unsuccessful patches.
@@ -389,7 +406,7 @@ fn review(id: &str, key: &str) -> Result<Value, String> {
     let (revision, packet) = {
         let _lock = s.lock()?;
         let mut state: State = s.load_state()?;
-        if state.revoked || state.pending_push.is_some() {
+        if state.revoked || state.pending_push.is_some() || state.pending_consume.is_some() {
             return Err("freeze revoked or delivery requires reconciliation".into());
         }
         if state
@@ -470,7 +487,11 @@ fn finish_reviews(
 ) -> Result<Value, String> {
     let _lock = s.lock()?;
     let mut state: State = s.load_state()?;
-    if state.revoked || state.revision != revision {
+    if state.revoked
+        || state.revision != revision
+        || state.pending_push.is_some()
+        || state.pending_consume.is_some()
+    {
         return Err("review superseded by current revocation/revision".into());
     }
     let n = next(state.sequence)?;
@@ -629,9 +650,9 @@ fn check_or_push(
     let (s, c) = open(id)?;
     let _lock = s.lock()?;
     let mut state: State = s.load_state()?;
-    if state.pending_push.is_some() {
+    if state.pending_push.is_some() || state.pending_consume.is_some() {
         return Err(
-            "previous push requires protected reconciliation; automatic retry denied".into(),
+            "previous effect requires protected reconciliation; automatic retry denied".into(),
         );
     }
     if !c.allowed_operations.contains(&operation) {
@@ -695,6 +716,107 @@ fn check_or_push(
     )
 }
 
+fn consume(id: &str, operation: ConsumeOperation, record: &str) -> Result<Value, String> {
+    let (store, config) = open(id)?;
+    // Preflight only. Never wait for native owner's record transaction while
+    // holding freeze lock: universal order is native owner, then freeze state.
+    {
+        let _lock = store.lock()?;
+        let state: State = store.load_state()?;
+        consume_ready(&state)?;
+    }
+    let operation_policy = Operation::from(operation);
+    if !config.allowed_operations.contains(&operation_policy) {
+        return Err("native_consumer_denied: operation outside enrolled authority".into());
+    }
+    let adapter = config
+        .native_adapters
+        .iter()
+        .find(|a| a.operation == operation)
+        .ok_or("native_consumer_not_enrolled: no protected adapter for operation")?;
+    let mut transaction = None;
+    let completed =
+        freeze_consumer::consume(adapter, record, |prepared, nonce, digest, deadline| {
+            freeze_consumer::ensure_before(deadline)?;
+            // Adapter now holds its native owner transaction & immutable prepared
+            // inputs. Re-read current authority only after acquiring final lock.
+            let lock = store.lock()?;
+            let mut state: State = store.load_state()?;
+            freeze_consumer::ensure_before(deadline)?;
+            consume_ready(&state)?;
+            if prepared.repository != config.repository {
+                return Err(
+                    "native_consumer_denied: native record belongs to another repository".into(),
+                );
+            }
+            // Native owner resolved source under its own transaction; independently
+            // read real immutable Git bytes rather than trusting any supplied closure.
+            let git = GitRepository::open_with_binary_before(
+                &config.root,
+                Path::new("/usr/bin/git"),
+                deadline,
+            )?;
+            let snapshot = git.snapshot(&prepared.source_oid, &config.selectors)?;
+            freeze_consumer::ensure_before(deadline)?;
+            let key = prepared.candidate.as_deref();
+            let candidate = key
+                .map(|k| state.candidates.get(k).ok_or("unknown native candidate"))
+                .transpose()?;
+            let request = effect(
+                &config,
+                &state,
+                candidate,
+                snapshot.closure_digest,
+                operation_policy,
+            );
+            policy::evaluate(
+                &request,
+                Some(&Source {
+                    store: &store,
+                    config: &config,
+                    candidate: key,
+                }),
+            )
+            .map_err(|e| format!("native_consumer_denied: {e:?}"))?;
+            freeze_consumer::ensure_before(deadline)?;
+            state.pending_consume = Some(PendingConsume {
+                transaction_nonce: nonce.into(),
+                prepared_sha256: digest.into(),
+                freeze_revision: state.revision,
+                prepared: prepared.clone(),
+            });
+            state.sequence = next(state.sequence)?;
+            // Atomic replacement + fsync precedes private-pipe commit. Any later
+            // failure keeps this journal, including pipe loss before commit receipt.
+            store.write_state(&state)?;
+            let revision = state.revision;
+            transaction = Some((lock, state));
+            freeze_consumer::ensure_before(deadline)?;
+            Ok(revision)
+        })?;
+    let (_lock, mut state) =
+        transaction.ok_or("native transaction completed without authorization")?;
+    state.pending_consume = None;
+    state.sequence = next(state.sequence)?;
+    store.write_state(&state)?;
+    // Builds/publications do not redefine frozen baseline or invalidate reviews.
+    Ok(
+        json!({"status":"consumed","id":id,"operation":operation,"nativeRecordId":record,
+        "source":completed.prepared.source_oid,"preparedSha256":completed.prepared_sha256,
+        "revision":state.revision,"sequence":state.sequence,"deliveryLease":false}),
+    )
+}
+
+fn consume_ready(state: &State) -> Result<(), String> {
+    if state.revoked || state.pending_push.is_some() || state.pending_consume.is_some() {
+        return Err(
+            "native_consumer_held: revoked or pending effect requires protected reconciliation"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -705,10 +827,55 @@ mod tests {
         )
         .is_err());
         assert!(serde_json::from_value::<Request>(json!({"op":"check","id":"x","source":"x","candidate":null,"operation":"Push","approved":true})).is_err());
+        assert!(serde_json::from_value::<Request>(
+            json!({"op":"consume","id":"x","operation":"Build","native_record_id":"record"})
+        )
+        .is_ok());
+        for field in [
+            "source",
+            "executable",
+            "args",
+            "env",
+            "destination",
+            "approved",
+            "candidate",
+        ] {
+            let mut request =
+                json!({"op":"consume","id":"x","operation":"Build","native_record_id":"record"});
+            request[field] = json!("caller-controlled");
+            assert!(serde_json::from_value::<Request>(request).is_err());
+        }
+        assert!(serde_json::from_value::<Request>(
+            json!({"op":"consume","id":"x","operation":"Push","native_record_id":"record"})
+        )
+        .is_err());
     }
     #[test]
     fn revision_never_wraps() {
         assert!(next(u64::MAX).is_err());
         assert_eq!(next(1).unwrap(), 2);
+    }
+    #[test]
+    fn legacy_state_defaults_empty_and_pending_native_effect_holds_authority() {
+        let mut state: State = serde_json::from_value(json!({
+            "revision":1,"sequence":1,"revoked":false,
+            "baseline":{"source_oid":"1".repeat(40),"tree_oid":"2".repeat(40),
+                "closure_digest":"3".repeat(64),"definition_digest":"4".repeat(64)},
+            "review_launches":0,"prepare_attempts":0,"candidates":{},"pending_push":null
+        }))
+        .unwrap();
+        assert!(state.pending_consume.is_none());
+        assert!(consume_ready(&state).is_ok());
+        state.pending_consume = Some(serde_json::from_value(json!({
+            "transaction_nonce":"5".repeat(64),"prepared_sha256":"6".repeat(64),"freeze_revision":1,
+            "prepared":{"repository":"repo","operation":"Build","native_record_id":"record",
+                "source_oid":"1".repeat(40),"candidate":null,"endpoint":"owner","destination":"build",
+                "native_effect_sha256":"7".repeat(64),"provenance_sha256":"8".repeat(64),"artifact_sha256":null}
+        })).unwrap());
+        assert!(consume_ready(&state).is_err());
+        let restored: State = serde_json::from_slice(&serde_json::to_vec(&state).unwrap()).unwrap();
+        assert!(restored.pending_consume.is_some());
+        assert_eq!(restored.baseline.source_oid, state.baseline.source_oid);
+        assert_eq!(restored.revision, 1);
     }
 }

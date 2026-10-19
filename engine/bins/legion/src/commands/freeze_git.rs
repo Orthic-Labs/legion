@@ -114,6 +114,16 @@ pub struct GitRepository {
     binary: PathBuf,
     object_directory: Option<PathBuf>,
     primary_objects: PathBuf,
+    /// Native consume supplies one absolute budget for open + every blob read.
+    absolute_deadline: Option<Instant>,
+}
+
+fn command_deadline(absolute: Option<Instant>, now: Instant) -> Result<Instant, String> {
+    let deadline = absolute.map_or(now + GIT_TIMEOUT, |end| end.min(now + GIT_TIMEOUT));
+    if deadline <= now {
+        return Err("Git shared authorization deadline exhausted".into());
+    }
+    Ok(deadline)
 }
 
 fn full_oid(value: &str) -> bool {
@@ -152,7 +162,7 @@ fn receive<T>(
     stream: &str,
 ) -> Result<T, String> {
     rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
-        .map_err(|_| format!("Git {stream} did not complete within 30 seconds"))?
+        .map_err(|_| format!("Git {stream} did not complete before operation deadline"))?
         .map_err(|e| format!("Git {stream}: {e}"))
 }
 
@@ -167,6 +177,23 @@ impl GitRepository {
     }
 
     pub fn open_with_binary(path: &Path, binary: &Path) -> Result<Self, String> {
+        Self::open_with_deadline(path, binary, None)
+    }
+
+    pub fn open_with_binary_before(
+        path: &Path,
+        binary: &Path,
+        deadline: Instant,
+    ) -> Result<Self, String> {
+        Self::open_with_deadline(path, binary, Some(deadline))
+    }
+
+    fn open_with_deadline(
+        path: &Path,
+        binary: &Path,
+        absolute_deadline: Option<Instant>,
+    ) -> Result<Self, String> {
+        command_deadline(absolute_deadline, Instant::now())?;
         if !binary.is_absolute() || !binary.is_file() {
             return Err("Git binary must be pinned absolute file".into());
         }
@@ -177,6 +204,7 @@ impl GitRepository {
             binary,
             object_directory: None,
             primary_objects: PathBuf::new(),
+            absolute_deadline,
         };
         let top = repo.git(&["rev-parse", "--show-toplevel"])?;
         let top = line(&top)?;
@@ -196,7 +224,12 @@ impl GitRepository {
         repo.primary_objects = Path::new(line(&objects)?)
             .canonicalize()
             .map_err(|e| e.to_string())?;
+        repo.ensure_remaining()?;
         Ok(repo)
+    }
+
+    fn ensure_remaining(&self) -> Result<(), String> {
+        command_deadline(self.absolute_deadline, Instant::now()).map(|_| ())
     }
 
     /// Use an existing, root-owned scratch object store; inherit primary objects
@@ -234,6 +267,7 @@ impl GitRepository {
         input: Option<&[u8]>,
         index: Option<&Path>,
     ) -> Result<Vec<u8>, String> {
+        let deadline = command_deadline(self.absolute_deadline, Instant::now())?;
         let allowed = match args {
             ["rev-parse", "--show-toplevel"]
             | ["rev-parse", "--path-format=absolute", "--git-path", "objects"] => true,
@@ -326,7 +360,9 @@ impl GitRepository {
             })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let deadline = Instant::now() + GIT_TIMEOUT;
+        if Instant::now() >= deadline {
+            return Err("Git authorization deadline exhausted before spawn".into());
+        }
         let mut child = owned
             .spawn()
             .map_err(|e| format!("Git data spawn failed: {e}"))?;
@@ -352,7 +388,7 @@ impl GitRepository {
         let status = child
             .wait_timeout(deadline.saturating_duration_since(Instant::now()))
             .map_err(|e| format!("Git wait failed: {e}"))?
-            .ok_or("Git data operation timed out after 30 seconds")?;
+            .ok_or("Git data operation timed out before bounded deadline")?;
         let out = receive(stdout, deadline, "stdout")?;
         let err = receive(stderr, deadline, "stderr")?;
         if let Some(writer) = writer {
@@ -365,6 +401,7 @@ impl GitRepository {
                 String::from_utf8_lossy(&err).trim()
             ));
         }
+        self.ensure_remaining()?;
         Ok(out)
     }
 
@@ -396,6 +433,7 @@ impl GitRepository {
         }
         let listing = self.git(&["ls-tree", "-r", "-t", "-z", "--full-tree", &tree])?;
         let entries = parse_listing(&listing)?;
+        self.ensure_remaining()?;
         Ok((source, tree, entries))
     }
 
@@ -415,6 +453,7 @@ impl GitRepository {
             frame(&mut hash, selector.path().as_bytes());
         }
         for (path, entry) in &entries {
+            self.ensure_remaining()?;
             if !selectors.iter().any(|s| s.selects(path)) {
                 continue;
             }
@@ -426,6 +465,7 @@ impl GitRepository {
                 frame(&mut hash, &self.git(&["cat-file", "blob", &entry.oid])?);
             }
         }
+        self.ensure_remaining()?;
         Ok(Snapshot {
             source_oid: source,
             tree_oid: tree,
@@ -447,6 +487,7 @@ impl GitRepository {
         let mut result = Vec::new();
         let mut total = 0usize;
         for (path, entry) in entries {
+            self.ensure_remaining()?;
             if entry.kind != "blob" || !selectors.iter().any(|s| s.selects(&path)) {
                 continue;
             }
@@ -471,6 +512,7 @@ impl GitRepository {
                 content,
             });
         }
+        self.ensure_remaining()?;
         Ok(result)
     }
 }
@@ -624,6 +666,35 @@ pub fn outgoing_tips(updates: &[PushUpdate]) -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn git_operations_share_absolute_budget_without_renewing_per_blob() {
+        let start = Instant::now();
+        let end = start + Duration::from_secs(1);
+        assert_eq!(command_deadline(Some(end), start).unwrap(), end);
+        assert_eq!(
+            command_deadline(Some(end), start + Duration::from_millis(900)).unwrap(),
+            end
+        );
+        assert!(command_deadline(Some(end), end).is_err());
+        assert!(command_deadline(Some(end), end + Duration::from_secs(1)).is_err());
+        assert_eq!(command_deadline(None, start).unwrap(), start + GIT_TIMEOUT);
+        assert_eq!(
+            command_deadline(Some(start + GIT_TIMEOUT * 2), start).unwrap(),
+            start + GIT_TIMEOUT
+        );
+    }
+    #[test]
+    fn expired_open_is_rejected_before_paths_or_git_can_be_accessed() {
+        let expired = Instant::now() - Duration::from_secs(1);
+        let result = GitRepository::open_with_binary_before(
+            Path::new("/nonexistent-legion-deadline-repository"),
+            Path::new("/nonexistent-legion-deadline-git"),
+            expired,
+        );
+        assert!(
+            matches!(result, Err(error) if error.contains("shared authorization deadline exhausted"))
+        );
+    }
     #[test]
     fn canonical_paths_and_definitions() {
         for p in [

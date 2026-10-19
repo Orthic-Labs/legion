@@ -13,6 +13,7 @@ pub mod doctor;
 pub mod explain;
 pub mod fix;
 pub mod freeze;
+mod freeze_consumer;
 mod freeze_delivery;
 mod freeze_git;
 mod freeze_review;
