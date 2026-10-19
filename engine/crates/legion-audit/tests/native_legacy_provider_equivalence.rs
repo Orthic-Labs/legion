@@ -865,6 +865,59 @@ fn assert_python_input_refused(
     assert!(result.findings.is_empty());
 }
 
+// This mixed source fixture has no frozen source digests. Preserve all five
+// selected paths: SAST must refuse before a tool or parser attempt.
+fn assert_sast_source_input_refused(
+    result: &legion_contracts::ProviderResult,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+) {
+    let denominator = inventory
+        .denominator_entries(&provider.configuration["selector"])
+        .unwrap();
+    assert_eq!(
+        denominator
+            .entries
+            .iter()
+            .map(|entry| entry.path.as_str())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "src/main.rs",
+            "src/main.swift",
+            "src/App.tsx",
+            "src-tauri/frontend.ts",
+            "src-tauri/backend.rs",
+        ])
+    );
+    assert!(denominator
+        .entries
+        .iter()
+        .all(|entry| entry.digest.is_none()));
+    assert!(result.applicable && !result.complete);
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!(coverage.expected, 5);
+    assert_eq!(coverage.examined, 0);
+    assert_eq!(coverage.denominator_digest, denominator.digest);
+    assert_eq!(
+        coverage.denominator_digest,
+        provider.configuration["denominatorDigest"]
+            .as_str()
+            .unwrap()
+    );
+    let reason = "semgrep-selected-source-changed";
+    assert!(coverage.gaps.iter().any(|gap| gap == reason));
+    assert!(result.coverage_gaps.iter().any(|gap| gap == reason));
+    let receipt = &result.details["executionReceipt"];
+    assert_eq!(receipt["state"], "failed");
+    assert_eq!(receipt["processTree"]["started"], false);
+    assert_eq!(receipt["parser"]["attempted"], false);
+    assert_eq!(receipt["parser"]["succeeded"], false);
+    assert_eq!(receipt["parser"]["error"], reason);
+    assert!(result.findings.is_empty());
+}
+
+// Success assertions apply only after input prerequisites admit FakeTool.
+// Python/SAST preflight refusals & node-outdated incompleteness stay explicit.
 #[test]
 fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external_providers() {
     let records = node_registry();
@@ -956,6 +1009,18 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             assert_python_input_refused(&result, provider);
             continue;
         }
+        if id == "legacy.security.sast" {
+            let result = runtime
+                .block_on(registry.execute_async(
+                    &plan,
+                    provider,
+                    &inventory,
+                    CancellationToken::new(),
+                ))
+                .unwrap();
+            assert_sast_source_input_refused(&result, provider, &inventory);
+            continue;
+        }
         if id == "legacy.stack.node-outdated" {
             let result = runtime
                 .block_on(registry.execute_async(
@@ -1004,9 +1069,9 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} receipt process authority"
         );
     }
-    // Managed tests need enrolled trust; mixed Python input is unsupported.
-    // Neither prerequisite refusal can be a successful FakeTool run.
-    assert_eq!(checked, 19);
+    // Managed tests need enrolled trust; Python/SAST inputs fail preflight.
+    // None of these prerequisite refusals can be a successful FakeTool run.
+    assert_eq!(checked, 18);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -1060,6 +1125,8 @@ const TEXT_PERMISSIVE_IDS: &[&str] = &[
     "legacy.quality.debt-markers",
 ];
 
+// Invalid-output/timeout assertions apply to launched FakeTool controls;
+// Python/SAST retain distinct no-launch prerequisite assertions.
 #[test]
 fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_provider() {
     let records = node_registry();
@@ -1099,6 +1166,23 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
                     ))
                     .unwrap();
                 assert_python_input_refused(&result, provider);
+            }
+            continue;
+        }
+        if id == "legacy.security.sast" {
+            let provider = plan.provider(id).unwrap();
+            // Both registries are refused before invalid output or timeout
+            // can be exercised; these are source-prerequisite controls only.
+            for registry in [&invalid_registry, &failed_registry] {
+                let result = runtime
+                    .block_on(registry.execute_async(
+                        &plan,
+                        provider,
+                        &inventory,
+                        CancellationToken::new(),
+                    ))
+                    .unwrap();
+                assert_sast_source_input_refused(&result, provider, &inventory);
             }
             continue;
         }
@@ -1160,8 +1244,8 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
             "{id} failed denominator"
         );
     }
-    // Managed-test & unsupported Python input refusals happen before launch;
+    // Managed-test & Python/SAST input refusals happen before launch;
     // timeout results here must correspond to a tool that was called.
-    assert_eq!(checked, 19);
+    assert_eq!(checked, 18);
     fs::remove_dir_all(root).unwrap();
 }
