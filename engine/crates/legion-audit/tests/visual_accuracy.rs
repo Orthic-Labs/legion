@@ -20,6 +20,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
+    future::Future,
     io::{Read, Write},
     net::TcpListener,
     path::{Path, PathBuf},
@@ -28,7 +29,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 const ID: &str = "legacy.visual.core";
@@ -42,6 +43,55 @@ const HEIGHT: u32 = 48;
 const READY: &str = "document.readyState === 'complete'";
 const OBSERVE: &str = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; })()";
 const LABEL: &str = "visual.regression|viewport|shots/viewport.png|artifact";
+const OPERATION_TIMEOUT: Duration = Duration::from_secs(20);
+const LAUNCH_TIMEOUT: Duration = Duration::from_secs(60);
+const CAPTURE_TIMEOUT: Duration = Duration::from_secs(180);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(20);
+const CANCEL_TIMEOUT: Duration = Duration::from_secs(10);
+
+fn lifecycle(stage: &str, state: &str, detail: Value) {
+    eprintln!(
+        "REAL_VISUAL_LIFECYCLE {}",
+        json!({"stage": stage, "state": state, "detail": detail})
+    );
+}
+
+/// Owner request deadlines do not cover every composite page await. Bound the
+/// caller too, preserving the exact operation that returned an error or stalled.
+async fn bounded<T, E: std::fmt::Display>(
+    stage: &str,
+    limit: Duration,
+    operation: impl Future<Output = Result<T, E>>,
+) -> Result<T, String> {
+    lifecycle(stage, "begin", json!({"timeoutMs": limit.as_millis()}));
+    let result = match tokio::time::timeout(limit, operation).await {
+        Ok(Ok(value)) => {
+            lifecycle(stage, "pass", json!({}));
+            return Ok(value);
+        }
+        Ok(Err(error)) => format!("{stage}: {error}"),
+        Err(_) => format!("{stage}: deadline exceeded after {} ms", limit.as_millis()),
+    };
+    lifecycle(stage, "fail", json!({"error": result}));
+    Err(result)
+}
+
+async fn stop_browser(session: &BrowserSession, cancel: bool) -> Result<(), String> {
+    let (stage, limit) = if cancel {
+        ("browser.cancel", CANCEL_TIMEOUT)
+    } else {
+        ("browser.shutdown", SHUTDOWN_TIMEOUT)
+    };
+    bounded(stage, limit, async {
+        if cancel {
+            session.cancel().await;
+        } else {
+            session.shutdown().await;
+        }
+        Ok::<(), String>(())
+    })
+    .await
+}
 
 fn digest(bytes: &[u8]) -> String {
     format!(
@@ -191,7 +241,13 @@ impl Server {
                     .unwrap();
                 let mut header = vec![];
                 let mut byte = [0u8; 1];
+                let deadline = Instant::now() + Duration::from_secs(2);
                 while header.len() < 8192 && !header.ends_with(b"\r\n\r\n") {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    if remaining.is_zero() || done.load(Ordering::Acquire) {
+                        break;
+                    }
+                    stream.set_read_timeout(Some(remaining)).unwrap();
                     match stream.read(&mut byte) {
                         Ok(1) => header.push(byte[0]),
                         _ => break,
@@ -243,18 +299,40 @@ impl Drop for Server {
 
 async fn capture(
     session: &BrowserSession,
-    server: &Server,
+    origin: &str,
     root: &Path,
     name: &str,
     planted: bool,
 ) -> Value {
-    let url = format!("{}/{name}/index.html", server.origin);
-    let page = session.new_page(&url).await.unwrap();
-    page.set_viewport(WIDTH, HEIGHT, 1.0).await.unwrap();
-    page.wait_eval(READY, Duration::from_secs(10))
-        .await
-        .unwrap();
-    let observed = page.eval(OBSERVE).await.unwrap();
+    let url = format!("{origin}/{name}/index.html");
+    let page = bounded(
+        &format!("{name}.new-page"),
+        OPERATION_TIMEOUT,
+        session.new_page(&url),
+    )
+    .await
+    .unwrap();
+    bounded(
+        &format!("{name}.viewport"),
+        OPERATION_TIMEOUT,
+        page.set_viewport(WIDTH, HEIGHT, 1.0),
+    )
+    .await
+    .unwrap();
+    bounded(
+        &format!("{name}.ready"),
+        OPERATION_TIMEOUT,
+        page.wait_eval(READY, Duration::from_secs(10)),
+    )
+    .await
+    .unwrap();
+    let observed = bounded(
+        &format!("{name}.observe"),
+        OPERATION_TIMEOUT,
+        page.eval(OBSERVE),
+    )
+    .await
+    .unwrap();
     assert_eq!(observed["ready"], "complete");
     assert_eq!(
         observed["background"],
@@ -278,7 +356,13 @@ async fn capture(
         .unwrap()
         .iter()
         .any(|brand| brand["brand"] == "Chromium" && brand["version"] == CHROME_VERSION));
-    let png = page.screenshot().await.unwrap();
+    let png = bounded(
+        &format!("{name}.screenshot"),
+        OPERATION_TIMEOUT,
+        page.screenshot(),
+    )
+    .await
+    .unwrap();
     // Independent byte decode verifies actual capture before native comparison.
     let decoded = image::load_from_memory_with_format(&png, image::ImageFormat::Png)
         .unwrap()
@@ -544,31 +628,108 @@ fn real_browser_accuracy_visual_regression() {
     let events = Arc::new(Mutex::new(vec![]));
     let log = events.clone();
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let (baseline, clean, planted, session_id, profile_removed) = runtime.block_on(async {
-        let session = BrowserSession::launch(LaunchOptions {
-            chrome_path: Some(chrome.clone()),
-            headless: true,
-            allow_system_chrome: false,
-            use_system_chrome_only: false,
-            profile: ProfileSpec::Temporary,
-            viewport: (WIDTH, HEIGHT),
-            admission: Some(admission),
-            network,
-            on_event: Some(Arc::new(move |event| {
-                log.lock().unwrap().push(event.to_json())
-            })),
-            ..LaunchOptions::default()
-        })
-        .await
-        .unwrap();
+    let captured = runtime.block_on(async {
+        let session = Arc::new(
+            bounded(
+                "browser.launch",
+                LAUNCH_TIMEOUT,
+                BrowserSession::launch(LaunchOptions {
+                    chrome_path: Some(chrome.clone()),
+                    headless: true,
+                    allow_system_chrome: false,
+                    use_system_chrome_only: false,
+                    profile: ProfileSpec::Temporary,
+                    viewport: (WIDTH, HEIGHT),
+                    launch_timeout: Duration::from_secs(30),
+                    request_timeout: Duration::from_secs(10),
+                    admission: Some(admission),
+                    network,
+                    on_event: Some(Arc::new(move |event| {
+                        let event = event.to_json();
+                        lifecycle("browser.event", "observed", event.clone());
+                        log.lock().unwrap().push(event)
+                    })),
+                    ..LaunchOptions::default()
+                }),
+            )
+            .await?,
+        );
         let profile = session.profile_dir().to_path_buf();
         let session_id = session.id().to_owned();
-        let baseline = capture(&session, &server, &root.join("baseline"), "baseline", false).await;
-        let clean = capture(&session, &server, &root.join("clean"), "clean", false).await;
-        let planted = capture(&session, &server, &root.join("planted"), "planted", true).await;
-        session.shutdown().await;
-        (baseline, clean, planted, session_id, !profile.exists())
+        let capture_session = session.clone();
+        let capture_root = root.clone();
+        let origin = server.origin.clone();
+        // Keep session ownership outside this task: assertion panics & timed-out
+        // operations must still reach explicit shared-owner cleanup.
+        let mut task = tokio::spawn(async move {
+            let baseline = capture(
+                &capture_session,
+                &origin,
+                &capture_root.join("baseline"),
+                "baseline",
+                false,
+            )
+            .await;
+            let clean = capture(
+                &capture_session,
+                &origin,
+                &capture_root.join("clean"),
+                "clean",
+                false,
+            )
+            .await;
+            let planted = capture(
+                &capture_session,
+                &origin,
+                &capture_root.join("planted"),
+                "planted",
+                true,
+            )
+            .await;
+            (baseline, clean, planted)
+        });
+        let captures = match tokio::time::timeout(CAPTURE_TIMEOUT, &mut task).await {
+            Ok(Ok(values)) => Ok(values),
+            Ok(Err(error)) => Err(format!("capture task: {error}")),
+            Err(_) => {
+                task.abort();
+                let _ = task.await;
+                Err("capture task: overall deadline exceeded".to_string())
+            }
+        };
+        let stopped = stop_browser(&session, captures.is_err()).await;
+        if stopped.is_err() {
+            // Cancellation is containment only. A failed graceful shutdown still
+            // fails this harness even if a later cancel happens to return.
+            let _ = stop_browser(&session, true).await;
+        }
+        drop(session);
+        let profile_removed = !profile.exists();
+        let terminal = json!({"sessionId":session_id,"captureComplete":captures.is_ok(),
+            "captureError":captures.as_ref().err(),"stopComplete":stopped.is_ok(),
+            "stopError":stopped.as_ref().err(),"profileRemoved":profile_removed});
+        lifecycle(
+            "browser.terminal",
+            if captures.is_ok() && stopped.is_ok() && profile_removed {
+                "pass"
+            } else {
+                "fail"
+            },
+            terminal.clone(),
+        );
+        fs::write(
+            output.join("visual-lifecycle.json"),
+            serde_json::to_vec_pretty(&terminal).unwrap(),
+        )
+        .unwrap();
+        stopped?;
+        let (baseline, clean, planted) = captures?;
+        Ok::<_, String>((baseline, clean, planted, session_id, profile_removed))
     });
+    // Owner cleanup can spawn blocking OS waits. Runtime Drop must not turn a
+    // failed cleanup into an unlimited wait that suppresses later CI controls.
+    runtime.shutdown_timeout(Duration::from_secs(5));
+    let (baseline, clean, planted, session_id, profile_removed) = captured.unwrap();
     assert!(profile_removed, "temporary browser profile must be removed");
     let events = events.lock().unwrap().clone();
     for kind in ["start", "stop"] {
