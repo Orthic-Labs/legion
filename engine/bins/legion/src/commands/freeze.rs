@@ -55,6 +55,7 @@ struct State {
     revoked: bool,
     baseline: Snapshot,
     review_launches: u32,
+    prepare_attempts: u32,
     candidates: BTreeMap<String, Candidate>,
     pending_push: Option<String>,
 }
@@ -215,6 +216,7 @@ fn enroll(c: Enrollment) -> Result<Value, String> {
         revoked: false,
         baseline,
         review_launches: 0,
+        prepare_attempts: 0,
         candidates: BTreeMap::new(),
         pending_push: None,
     };
@@ -258,7 +260,7 @@ fn dispatch(r: Request) -> Result<Value, String> {
             let _lock = s.lock()?;
             let state: State = s.load_state()?;
             Ok(
-                json!({"id":id,"revision":state.revision,"sequence":state.sequence,"revoked":state.revoked,"reservedReviewLaunches":state.review_launches,"pendingPush":state.pending_push,"candidates":state.candidates.keys().collect::<Vec<_>>()}),
+                json!({"id":id,"revision":state.revision,"sequence":state.sequence,"revoked":state.revoked,"reservedReviewLaunches":state.review_launches,"prepareAttempts":state.prepare_attempts,"pendingPush":state.pending_push,"candidates":state.candidates.keys().collect::<Vec<_>>()}),
             )
         }
         Request::Revoke { id } => {
@@ -290,6 +292,14 @@ fn prepare(id: &str, base: &str, patch: String, reason: String) -> Result<Value,
     if state.revoked || state.pending_push.is_some() {
         return Err("freeze revoked or delivery requires reconciliation".into());
     }
+    // Charge preparation before scratch effects, including unsuccessful patches.
+    // Invalid candidates cannot accumulate unbounded protected scratch storage.
+    if state.prepare_attempts >= 32 {
+        return Err("candidate preparation ceiling reached".into());
+    }
+    state.prepare_attempts += 1;
+    state.sequence = next(state.sequence)?;
+    s.write_state(&state)?;
     let git = repo(&c)?;
     let base_snapshot = git.snapshot(base, &c.selectors)?;
     if base_snapshot.closure_digest != state.baseline.closure_digest {

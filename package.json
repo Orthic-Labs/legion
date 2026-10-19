@@ -59,6 +59,7 @@
     "MANIFEST.package.json",
     "README.md",
     "docs/CHANGELOG.md",
+    "docs/architecture/frozen-scope-broker.md",
     "LICENSE",
     "docs/THIRD_PARTY_NOTICES.md",
     "package.json"

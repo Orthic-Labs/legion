@@ -57,7 +57,8 @@ privileged storage is unsupported. Do not share HMAC keys or cached grants.
 6. Both named reviewers must agree with this exact candidate. Revised patch,
    result, explanation, baseline or freeze revision needs a new candidate. Attempts
    do not reset after transport failure. At most 30 reserved launches per enrollment
-   & 32 candidates are permitted; enrollment may impose a smaller launch ceiling.
+   & 32 preparation attempts (including failures) are permitted; enrollment may
+   impose a smaller launch ceiling.
 
 Model identities & authority differ: Sage is enrolled necessity authority;
 Fable/Astra are independently launched reviewers. Caller-provided persona strings
@@ -137,4 +138,7 @@ test evidence, not proof of a live provider or installed mandatory-set pilot.
 Pilot acceptance: zero accepted forged/stale/changed candidates; zero model calls
 for unchanged closure; no ordinary-repository freeze; three reserved launches per
 new candidate; no calls after exhausted ceiling; every failed required observation
-holds delivery. Record actual gate latency & live-provider installation separately.
+holds delivery. Before expanding deployment, run ten unchanged checks on each
+participating host: every check must complete within ten seconds, with zero model
+launches. This budget excludes model review & external network delivery. Record
+actual gate latency & live-provider installation separately.

@@ -417,4 +417,4 @@ mod platform {
         }
     }
 }
-pub use platform::{ProtectedStore, StoreLock};
+pub use platform::ProtectedStore;

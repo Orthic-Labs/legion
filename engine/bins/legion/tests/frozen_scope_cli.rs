@@ -224,6 +224,13 @@ printf '{{"type":"result","is_error":false,"session_id":"session-%s","modelUsage
         assert_eq!(ok("broker", &status_request)["reservedReviewLaunches"], 0);
         denied(
             "broker",
+            &json!({"op":"prepare","id":id,"base_source":baseline,
+            "patch":"invalid patch","missed_review_reason":"Invalid preparation is still charged"}),
+            "failed:",
+        );
+        assert_eq!(ok("broker", &status_request)["prepareAttempts"], 1);
+        denied(
+            "broker",
             &json!({"op":"approve","id":id,"decision":"agree"}),
             "unknown variant",
         );
@@ -238,6 +245,7 @@ printf '{{"type":"result","is_error":false,"session_id":"session-%s","modelUsage
             "patch":patch,"missed_review_reason":"Fixture threshold needs amendment"}),
         );
         assert_eq!(prepared["status"], "prepared");
+        assert_eq!(ok("broker", &status_request)["prepareAttempts"], 2);
         let candidate = prepared["candidate"].as_str().unwrap();
         assert_eq!(
             fs::read_to_string(root.join("frozen.txt")).unwrap(),
@@ -271,6 +279,11 @@ printf '{{"type":"result","is_error":false,"session_id":"session-%s","modelUsage
             .lines()
             .map(str::to_owned)
             .collect();
+        denied(
+            "broker",
+            &json!({"op":"review","id":id,"candidate":candidate}),
+            "budget exhausted",
+        );
         calls.sort();
         assert_eq!(calls, ["claude-fable-5-1", "fixture-sage", "gpt-6-astra"]);
         assert_eq!(
