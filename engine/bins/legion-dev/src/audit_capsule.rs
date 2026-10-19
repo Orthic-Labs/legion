@@ -1,5 +1,5 @@
 //! Explicit, constructed semantic capsules. Location proxies never adjudicate claims.
-use crate::audit_bench::{self, Options, TokenBudget};
+use crate::audit_bench::{self, Options};
 use legion_audit::native_providers::reasoning::{ingest, PendingLensWork, ReasoningInvocation};
 use legion_audit::snapshot::{FrozenSnapshot, SnapshotSide};
 use legion_contracts::canonical_digest;
@@ -32,6 +32,104 @@ const PROVIDERS: &[&str] = &[
     "security",
 ];
 const MAX_JSON: usize = 2 * 1024 * 1024;
+const CAPSULE_CALL_TOKENS: u64 = 10_000;
+const CAPSULE_OUTPUT_TOKENS: u64 = 2_500;
+const CAPSULE_MIN_CASE_TOKENS: u64 = CAPSULE_CALL_TOKENS * 2;
+
+// Qualification has its own allowance. Authenticated actual usage is evidence,
+// never credit for another model call, including failed or unstarted calls.
+struct CapsuleBudget {
+    limit: u64,
+    case_limit: u64,
+    remaining: u64,
+    reserved: u64,
+    known_actual: u64,
+    actual_overflow: bool,
+    unknown_cases: u64,
+    overrun: u64,
+    halt_reason: Option<String>,
+}
+impl CapsuleBudget {
+    fn new(limit: u64, case_limit: u64) -> Result<Self, String> {
+        if case_limit < CAPSULE_MIN_CASE_TOKENS || case_limit > limit {
+            return Err("capsule case allowance must fund full author/verifier calls within separate total allowance".into());
+        }
+        Ok(Self {
+            limit,
+            case_limit,
+            remaining: limit,
+            reserved: 0,
+            known_actual: 0,
+            actual_overflow: false,
+            unknown_cases: 0,
+            overrun: 0,
+            halt_reason: None,
+        })
+    }
+    fn halt(&mut self, reason: &str) -> String {
+        self.halt_reason.get_or_insert_with(|| reason.into());
+        reason.into()
+    }
+    fn case_allowance(&self) -> Option<u64> {
+        let allowance = self.remaining.min(self.case_limit);
+        (self.halt_reason.is_none() && allowance >= CAPSULE_MIN_CASE_TOKENS).then_some(allowance)
+    }
+    fn reserve_calls(&mut self, calls: u64) -> Result<u64, String> {
+        let Some(tokens) = calls.checked_mul(CAPSULE_CALL_TOKENS) else {
+            return Err(self.halt("capsule-reservation-overflow"));
+        };
+        if calls < 2 || self.case_allowance().is_none_or(|cap| tokens > cap) {
+            return Err(
+                "capsule planned calls exceed available separate qualification allowance".into(),
+            );
+        }
+        let Some(reserved) = self.reserved.checked_add(tokens) else {
+            return Err(self.halt("capsule-reservation-overflow"));
+        };
+        self.remaining -= tokens;
+        self.reserved = reserved;
+        Ok(tokens)
+    }
+    fn settle_case(&mut self, reservation: u64, actual: Option<u64>) -> Result<(), String> {
+        let Some(actual) = actual else {
+            self.unknown_cases = self.unknown_cases.saturating_add(1);
+            return Err(self.halt("runtime-usage-unknown"));
+        };
+        let Some(known_actual) = self.known_actual.checked_add(actual) else {
+            self.actual_overflow = true;
+            return Err(self.halt("capsule-actual-usage-overflow"));
+        };
+        self.known_actual = known_actual;
+        if actual > reservation {
+            let Some(overrun) = self.overrun.checked_add(actual - reservation) else {
+                self.actual_overflow = true;
+                return Err(self.halt("capsule-actual-usage-overflow"));
+            };
+            self.overrun = overrun;
+            return Err(self.halt("actual-usage-exceeded-case-reservation"));
+        }
+        // No refund, even for zero actual usage or fewer executed calls.
+        Ok(())
+    }
+    fn to_json(&self) -> Value {
+        json!({
+            "allowanceScope":"separate-capsule-qualification-only",
+            "limitTokens":self.limit,"perCaseLimitTokens":self.case_limit,
+            "perCallReservationTokens":CAPSULE_CALL_TOKENS,
+            "outputTokenCeiling":CAPSULE_OUTPUT_TOKENS,"waveWidth":1,
+            "remainingTokens":self.remaining,
+            "cumulativeCaseReservationsTokens":self.reserved,
+            "reservedCalls":self.reserved / CAPSULE_CALL_TOKENS,
+            "actualTokens":if self.unknown_cases == 0 && !self.actual_overflow {Some(self.known_actual)} else {None},
+            "knownActualTokens":self.known_actual,"unknownUsageCases":self.unknown_cases,
+            "overrunTokens":self.overrun,"halted":self.halt_reason.is_some(),
+            "haltReason":self.halt_reason,
+            "reservationPolicy":"full-fixed-call-reservations-never-refunded-reclaimed-or-reset",
+            "retryPolicy":"strict-no-retry",
+            "unknownUsagePolicy":"retain-full-reservation-and-halt-subsequent-model-cases"
+        })
+    }
+}
 fn digest(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
@@ -870,11 +968,10 @@ fn retained_diagnostics(run: &Path) -> Value {
 }
 // Each case reserves one author call & one fresh-verifier call before generation.
 fn capsule_seat_budget(allocation: u64) -> Result<u64, String> {
-    let seat = 10_000.min(allocation / 2);
-    if seat / 4 == 0 {
-        return Err("capsule case allowance has no author/verifier output capacity".into());
+    if allocation < CAPSULE_MIN_CASE_TOKENS {
+        return Err("capsule case allowance cannot fund full author/verifier reservations".into());
     }
-    Ok(seat)
+    Ok(CAPSULE_CALL_TOKENS)
 }
 fn precursor_args(
     source: &Path,
@@ -902,9 +999,9 @@ fn precursor_args(
         run.to_string_lossy().into_owned(),
     ])
 }
-fn bounded_dispatch(dispatch: &Value, plan_digest: &str, allocation: u64) -> Result<(), String> {
+fn bounded_dispatch(dispatch: &Value, plan_digest: &str, allocation: u64) -> Result<u64, String> {
     let seat = capsule_seat_budget(allocation)?;
-    let output = 4096.min(seat / 4);
+    let output = CAPSULE_OUTPUT_TOKENS;
     let number = |pointer: &str| {
         dispatch
             .pointer(pointer)
@@ -947,8 +1044,8 @@ fn bounded_dispatch(dispatch: &Value, plan_digest: &str, allocation: u64) -> Res
         .checked_mul(seat)
         .ok_or("capsule verifier reserve overflow")?;
     if number("/requiredSeats")? != seats.len() as u64
-        || initial < seats.len() as u64
-        || followup == 0
+        || initial != seats.len() as u64
+        || followup != 1
         || number("/initialCallReservationTokens")? != initial_tokens
         || number("/followupReserveTokens")? != followup_tokens
         || initial_tokens
@@ -959,6 +1056,41 @@ fn bounded_dispatch(dispatch: &Value, plan_digest: &str, allocation: u64) -> Res
             "capsule author/verifier reservations do not fit explicit case allowance".into(),
         );
     }
+    initial
+        .checked_add(followup)
+        .ok_or_else(|| "capsule planned call count overflow".into())
+}
+fn bounded_usage(value: &Value, planned_calls: u64) -> Result<(), String> {
+    let calls = value["authenticatedCalls"]
+        .as_array()
+        .ok_or("capsule authenticated calls missing")?;
+    if calls.len() as u64 > planned_calls {
+        return Err("capsule runtime exceeded reserved call count".into());
+    }
+    for call in calls {
+        let usage = &call["observation"]["usage"];
+        let input = usage["inputTokens"].as_u64().ok_or("unknown input usage")?;
+        let output = usage["outputTokens"]
+            .as_u64()
+            .ok_or("unknown output usage")?;
+        let retry = usage["retryTokens"].as_u64().ok_or("unknown retry usage")?;
+        let cached = usage["cachedInputTokens"]
+            .as_u64()
+            .ok_or("unknown cached input usage")?;
+        // Native input includes cache reads & creation; cached input is a
+        // diagnostic subset, never another charge on top of input.
+        if cached > input
+            || retry != 0
+            || output > CAPSULE_OUTPUT_TOKENS
+            || input
+                .checked_add(output)
+                .is_none_or(|n| n > CAPSULE_CALL_TOKENS)
+        {
+            return Err(
+                "capsule authenticated call exceeded fixed call/output/no-retry bounds".into(),
+            );
+        }
+    }
     Ok(())
 }
 fn attempt(
@@ -968,10 +1100,12 @@ fn attempt(
     parent: &Path,
     allocation: u64,
     pins: &Value,
-) -> (Value, Option<u64>) {
+    budget: &mut CapsuleBudget,
+) -> Value {
     let mut row = json!({"status":"failed","providerId":capsule.provider_id,"capsuleId":capsule.id,"caseId":case.id,"kind":case.kind,"caseDigest":canonical(case).ok(),"contract":capsule.contract,"expected":case.expected,"forbiddenClaims":case.forbidden_claims,"semanticClaimCorrectness":"unadjudicated","modelQualityCertification":false,"CAP-3":"unproven until authenticated requiredEvidence delivery"});
     let mut model_started = false;
     let mut charged = Some(0);
+    let mut reservation = None;
     let run = parent.join("case-run");
     let result = (|| -> Result<(), String> {
         capsule_seat_budget(allocation)?;
@@ -998,7 +1132,7 @@ fn attempt(
             return Err("Audit precursor did not terminate normally".into());
         }
         // Verify case/source/selection seal BEFORE paying for any generation.
-        preflight(case, capsule, &source, &run, allocation)?;
+        let planned_calls = preflight(case, capsule, &source, &run, allocation)?;
         let runtime_args = vec![
             "audit".into(),
             "run-reasoning".into(),
@@ -1012,6 +1146,9 @@ fn attempt(
             "--max-calls-per-packet".into(),
             "1".into(),
         ];
+        // Debit full physical-call plan once, before generation; no actual-use refund.
+        reservation = Some(budget.reserve_calls(planned_calls)?);
+        row["plannedCalls"] = json!(planned_calls);
         model_started = true;
         charged = None;
         row["runtimeCommand"] = command(&opts.legion, &runtime_args, &source, parent, "reasoning")?;
@@ -1020,7 +1157,12 @@ fn attempt(
         match usage(&run, &runtime) {
             Ok(value) => {
                 charged = value["chargedTokens"].as_u64();
+                let bounds = bounded_usage(&value, planned_calls);
                 row["usage"] = value;
+                if let Err(error) = bounds {
+                    budget.halt("runtime-call-exceeded-frozen-bounds");
+                    return Err(error);
+                }
             }
             Err(e) => {
                 row["usage"] = json!({"status":"unknown","reason":e});
@@ -1044,6 +1186,15 @@ fn attempt(
     if let Err(error) = result {
         row["error"] = json!(error);
     }
+    if let Some(tokens) = reservation {
+        if let Err(error) = budget.settle_case(tokens, charged) {
+            row["status"] = json!("failed");
+            row["budgetError"] = json!(error);
+        }
+    }
+    row["reservationTokens"] = json!(reservation.unwrap_or(0));
+    row["reservationPolicy"] =
+        json!("full-fixed-call-reservations-never-refunded-reclaimed-or-reset");
     row["modelRuntimeAttempted"] = json!(model_started);
     row["retainedDiagnostics"] = retained_diagnostics(&run);
     row["run"] = json!(run);
@@ -1059,7 +1210,7 @@ fn attempt(
             row["retentionError"] = json!(error);
         }
     }
-    (row, charged)
+    row
 }
 fn preflight(
     case: &Case,
@@ -1067,9 +1218,9 @@ fn preflight(
     source: &Path,
     run: &Path,
     allocation: u64,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     let (plan, _, _) = ingest::frozen_reasoning_basis(run).map_err(|e| e.to_string())?;
-    bounded_dispatch(
+    let planned_calls = bounded_dispatch(
         &read_json(&run.join(legion_audit::next::DISPATCH_FILE))?,
         plan.digest(),
         allocation,
@@ -1118,7 +1269,7 @@ fn preflight(
         return Err("capsule unavailable/inapplicable or dependencies not satisfied".into());
     }
     required_delivery(case, &requests)?; // structural only here; authentication required after runtime.
-    Ok(())
+    Ok(planned_calls)
 }
 pub(super) fn run(root: &Path, opts: &Options) -> Result<bool, String> {
     if !opts.fixtures.is_empty() || !opts.cases.is_empty() {
@@ -1140,9 +1291,7 @@ pub(super) fn run(root: &Path, opts: &Options) -> Result<bool, String> {
         .capsule_case_token_budget
         .filter(|n| *n > 0)
         .ok_or("explicit positive --capsule-case-token-budget required")?;
-    if per_case > total {
-        return Err("capsule case budget exceeds separate total allowance".into());
-    }
+    let mut budget = CapsuleBudget::new(total, per_case)?;
     let selected: BTreeSet<_> = opts.capsules.iter().cloned().collect();
     if selected.len() != opts.capsules.len() {
         return Err("duplicate capsule selection".into());
@@ -1223,8 +1372,7 @@ pub(super) fn run(root: &Path, opts: &Options) -> Result<bool, String> {
         }
     }
     let population_path = work.join("capsule-plan.json");
-    fs::write(&population_path,serde_json::to_vec_pretty(&json!({"constructed":true,"corpus":corpus_pins,"runtimeIdentity":pins,"population":population,"totalTokens":total,"perCaseTokens":per_case,"semanticClaimCorrectness":"unadjudicated","modelQualityCertification":false})).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
-    let mut budget = TokenBudget::new(total, per_case);
+    fs::write(&population_path,serde_json::to_vec_pretty(&json!({"constructed":true,"corpus":corpus_pins,"runtimeIdentity":pins,"population":population,"totalTokens":total,"perCaseTokens":per_case,"budget":budget.to_json(),"semanticClaimCorrectness":"unadjudicated","modelQualityCertification":false})).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
     let mut outcomes = Vec::new();
     for arm in if opts.aa { vec!["A", "B"] } else { vec!["A"] } {
         for repeat in 1..=opts.repeat {
@@ -1232,13 +1380,9 @@ pub(super) fn run(root: &Path, opts: &Options) -> Result<bool, String> {
                 for case in &capsule.cases {
                     let label = format!("{arm}{repeat}-{}-{}", capsule.id, case.id);
                     let parent = work.join(&label);
-                    let mut row = match budget.reserve_case() {
+                    let mut row = match budget.case_allowance() {
                         Some(allocation) => {
-                            let (mut row, actual) =
-                                attempt(opts, capsule, case, &parent, allocation, &pins);
-                            budget.settle_case(allocation, actual);
-                            row["reservationTokens"] = json!(allocation);
-                            row
+                            attempt(opts, capsule, case, &parent, allocation, &pins, &mut budget)
                         }
                         None => {
                             json!({"status":"unstarted","reason":"qualification-budget-exhausted-or-unknown","providerId":capsule.provider_id,"capsuleId":capsule.id,"caseId":case.id,"kind":case.kind,"expected":case.expected,"forbiddenClaims":case.forbidden_claims,"caseDigest":canonical(case)?,"semanticClaimCorrectness":"unadjudicated","modelQualityCertification":false})
@@ -1300,7 +1444,8 @@ mod tests {
     }
     #[test]
     fn capsule_precursor_pins_width_and_author_verifier_allowance() {
-        for (allocation, seat) in [(20_000, 10_000), (40_000, 10_000), (12_001, 6000)] {
+        for allocation in [20_000, 20_001, 40_000] {
+            let seat = CAPSULE_CALL_TOKENS;
             let args = precursor_args(
                 Path::new("source"),
                 "reasoning.doc-drift",
@@ -1316,7 +1461,7 @@ mod tests {
             assert!(seat * 2 <= allocation);
             assert!(!args.iter().any(|arg| arg == "--allow-oversize-lenses"));
         }
-        for allocation in 0..8 {
+        for allocation in [0, 1, 8, 12_001, 19_999] {
             assert!(precursor_args(
                 Path::new("source"),
                 "reasoning.doc-drift",
@@ -1334,7 +1479,15 @@ mod tests {
             "seats":[{"perCallTokenAllowance":10000,"outputTokenCeiling":2500,"outputTokenLimit":2400}],
             "requiredSeats":1,"requiredInitialCalls":1,"followupReserveCalls":1,
             "initialCallReservationTokens":10000,"followupReserveTokens":10000});
-        assert!(bounded_dispatch(&valid, "plan", 20_000).is_ok());
+        assert_eq!(bounded_dispatch(&valid, "plan", 20_000).unwrap(), 2);
+        assert!(bounded_dispatch(&valid, "plan", 19_999).is_err());
+        let mut larger_allowance = valid.clone();
+        larger_allowance["limits"]["runTokenBudget"] = json!(40_000);
+        larger_allowance["reasoningBudget"]["totalTokens"] = json!(40_000);
+        let mut budget = CapsuleBudget::new(50_000, 40_000).unwrap();
+        let calls = bounded_dispatch(&larger_allowance, "plan", 40_000).unwrap();
+        assert_eq!(budget.reserve_calls(calls).unwrap(), 20_000);
+        assert_eq!(budget.to_json()["remainingTokens"], 30_000);
         let mut overrun = valid.clone();
         overrun["requiredInitialCalls"] = json!(2);
         overrun["initialCallReservationTokens"] = json!(20000);
@@ -1351,6 +1504,9 @@ mod tests {
             ("/seats/0/perCallTokenAllowance", json!(150000)),
             ("/followupReserveCalls", json!(0)),
             ("/requiredInitialCalls", json!(2)),
+            ("/requiredInitialCalls", json!(u64::MAX)),
+            ("/followupReserveCalls", json!(2)),
+            ("/followupReserveCalls", json!(u64::MAX)),
             ("/followupReserveTokens", json!(0)),
             ("/limits/waveWidth", Value::Null),
             ("/seats", json!([])),
@@ -1543,18 +1699,91 @@ mod tests {
         fs::remove_dir_all(parent).unwrap();
     }
     #[test]
+    fn measured_usage_never_refunds_full_planned_call_reservations() {
+        let mut b = CapsuleBudget::new(50_000, 20_000).unwrap();
+        for actual in [Some(100), Some(0)] {
+            let reservation = b.reserve_calls(2).unwrap();
+            assert_eq!(reservation, 20_000);
+            b.settle_case(reservation, actual).unwrap();
+        }
+        let report = b.to_json();
+        assert_eq!(report["remainingTokens"], 10_000);
+        assert_eq!(report["cumulativeCaseReservationsTokens"], 40_000);
+        assert_eq!(report["reservedCalls"], 4);
+        assert_eq!(report["knownActualTokens"], 100);
+        assert!(b.case_allowance().is_none());
+        assert!(b.reserve_calls(2).is_err());
+        assert_eq!(b.to_json()["remainingTokens"], 10_000);
+    }
+    #[test]
     fn unknown_usage_halts_and_unstarted_cases_cannot_reclaim_allowance() {
-        let mut b = TokenBudget::new(100, 60);
-        let reservation = b.reserve_case().unwrap();
-        assert_eq!(reservation, 60);
-        b.settle_case(reservation, None);
-        assert!(b.reserve_case().is_none());
-        assert_eq!(b.to_json()["unknownUsageCases"], 1);
-        assert_eq!(b.to_json()["remainingTokens"], 40);
-        let mut b = TokenBudget::new(100, 60);
-        let r = b.reserve_case().unwrap();
-        b.settle_case(r, Some(80));
-        assert!(b.reserve_case().is_none());
-        assert_eq!(b.to_json()["overrunTokens"], 20);
+        let mut b = CapsuleBudget::new(50_000, 20_000).unwrap();
+        let reservation = b.reserve_calls(2).unwrap();
+        assert!(b.settle_case(reservation, None).is_err());
+        assert!(b.case_allowance().is_none());
+        assert!(b.reserve_calls(2).is_err());
+        let report = b.to_json();
+        assert_eq!(report["unknownUsageCases"], 1);
+        assert_eq!(report["actualTokens"], Value::Null);
+        assert_eq!(report["remainingTokens"], 30_000);
+        assert_eq!(report["cumulativeCaseReservationsTokens"], 20_000);
+    }
+    #[test]
+    fn actual_overrun_is_retained_and_halts_future_admission() {
+        let mut b = CapsuleBudget::new(50_000, 20_000).unwrap();
+        let reservation = b.reserve_calls(2).unwrap();
+        assert!(b.settle_case(reservation, Some(20_001)).is_err());
+        assert!(b.case_allowance().is_none());
+        let report = b.to_json();
+        assert_eq!(report["knownActualTokens"], 20_001);
+        assert_eq!(report["overrunTokens"], 1);
+        assert_eq!(report["remainingTokens"], 30_000);
+    }
+    #[test]
+    fn reservation_and_actual_overflow_fail_closed_without_reclaim() {
+        let mut b = CapsuleBudget::new(u64::MAX, u64::MAX).unwrap();
+        assert!(b.reserve_calls(u64::MAX).is_err());
+        assert!(b.case_allowance().is_none());
+        assert_eq!(b.to_json()["remainingTokens"], u64::MAX);
+        assert_eq!(b.to_json()["cumulativeCaseReservationsTokens"], 0);
+        let mut b = CapsuleBudget::new(50_000, 20_000).unwrap();
+        let reservation = b.reserve_calls(2).unwrap();
+        b.known_actual = u64::MAX;
+        assert!(b.settle_case(reservation, Some(1)).is_err());
+        assert!(b.case_allowance().is_none());
+        assert_eq!(b.to_json()["actualTokens"], Value::Null);
+        assert_eq!(b.to_json()["remainingTokens"], 30_000);
+    }
+    #[test]
+    fn separate_allowance_cannot_partially_fund_author_and_verifier() {
+        for (total, case) in [(0, 0), (50_000, 19_999), (19_999, 20_000), (20_000, 20_001)] {
+            assert!(CapsuleBudget::new(total, case).is_err());
+        }
+        let mut b = CapsuleBudget::new(50_000, 20_000).unwrap();
+        assert!(b.reserve_calls(1).is_err());
+        assert!(b.reserve_calls(3).is_err());
+        assert_eq!(b.to_json()["remainingTokens"], 50_000);
+    }
+    #[test]
+    fn authenticated_usage_cannot_exceed_reserved_calls_or_fixed_call_bounds() {
+        let call = |input: u64, output: u64, retry: u64| {
+            json!({"observation":{"usage":{
+            "inputTokens":input,"outputTokens":output,"retryTokens":retry,"cachedInputTokens":input}}})
+        };
+        let valid = json!({"authenticatedCalls":[call(7_500, 2_500, 0), call(1, 1, 0)]});
+        assert!(bounded_usage(&valid, 2).is_ok());
+        assert!(bounded_usage(&valid, 1).is_err());
+        let mut impossible_cache = valid.clone();
+        impossible_cache["authenticatedCalls"][0]["observation"]["usage"]["cachedInputTokens"] =
+            json!(7_501);
+        assert!(bounded_usage(&impossible_cache, 2).is_err());
+        for call in [
+            call(7_501, 2_500, 0),
+            call(0, 2_501, 0),
+            call(1, 1, 1),
+            call(u64::MAX, 1, 0),
+        ] {
+            assert!(bounded_usage(&json!({"authenticatedCalls":[call]}), 2).is_err());
+        }
     }
 }

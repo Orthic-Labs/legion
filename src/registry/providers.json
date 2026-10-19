@@ -6055,9 +6055,10 @@
         "security-candidates"
       ],
       "selector": {
-        "op": "always"
+        "op": "sourceFilesAtLeast",
+        "count": 1
       },
-      "denominatorKind": "selected-scope",
+      "denominatorKind": "first-party-source-files",
       "runner": {
         "kind": "runtime-script",
         "module": "security.opengrep"

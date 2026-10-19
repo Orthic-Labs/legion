@@ -1021,6 +1021,15 @@ PY_PIN
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_OPENGREP_RECEIPTS" \
     > "$LEGION_OPENGREP_RECEIPTS/validator.log" 2>&1
   cat "$LEGION_OPENGREP_RECEIPTS/validator.log"
+  export LEGION_SECURITY_CONTROLS_SCRATCH="$RUNNER_TEMP/legion-security-controls-scanner-work"
+  export LEGION_SECURITY_CONTROLS_RECEIPTS="$RUNNER_TEMP/legion-provider-qualification/security-controls-scanner"
+  mkdir -p "$LEGION_SECURITY_CONTROLS_SCRATCH" "$LEGION_SECURITY_CONTROLS_RECEIPTS"
+  PATH="${opengrep_tool_dir}:$PATH" run_audit_qualification audit_cargo_test \
+    --test audit_security_controls_scanner_preflight real_security_controls_scanner_population \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_SECURITY_CONTROLS_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_SECURITY_CONTROLS_RECEIPTS/harness.log"
+  unset LEGION_SECURITY_CONTROLS_SCRATCH LEGION_SECURITY_CONTROLS_RECEIPTS
   unset LEGION_OPENGREP_SCRATCH LEGION_OPENGREP_RECEIPTS
   # Official pinned OSV; one advisory offline SDK/artifact fixtures only.
   audit_provision_osv() {
