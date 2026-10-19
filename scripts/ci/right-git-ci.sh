@@ -151,7 +151,21 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck
+  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint
+  # Official native Squawk release; avoid npm/Python wrapper substitutions.
+  squawk_dir="${RUNNER_TEMP}/legion-scanners"
+  mkdir -p "$squawk_dir"
+  case "$(uname -m)" in
+    arm64) squawk_asset=squawk-darwin-arm64; squawk_sha=6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a ;;
+    x86_64) squawk_asset=squawk-darwin-x64; squawk_sha=0369f5cc2beb7e224952d5d30068a92f9e23d65af99d7e7565c9a4fda916c379 ;;
+    *) echo "Unsupported Squawk host architecture" >&2; exit 1 ;;
+  esac
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://github.com/sbdchd/squawk/releases/download/v2.70.0/${squawk_asset}" \
+    --output "$squawk_dir/squawk"
+  printf '%s  %s\n' "$squawk_sha" "$squawk_dir/squawk" | shasum -a 256 --check
+  chmod +x "$squawk_dir/squawk"
+  export PATH="$squawk_dir:$PATH"
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
   (cd engine && cargo test --locked -p legion-audit --test bench_recall -- --ignored --nocapture)
@@ -162,6 +176,30 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     real_scanner_accuracy_shellcheck -- --ignored --nocapture --test-threads=1)
   python3 scripts/ci/audit-external-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-additional-scanner-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test additional_external_scanner_accuracy \
+    real_scanner_accuracy -- --ignored --nocapture --test-threads=1)
+  export LEGION_REAL_GIT_SCRATCH="${RUNNER_TEMP}/legion-real-git-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-git-accuracy"
+  mkdir -p "$LEGION_REAL_GIT_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test legacy_git_accuracy \
+    real_legacy_git_accuracy -- --ignored --nocapture --test-threads=1)
+  python3 scripts/ci/audit-real-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" \
+    --scanner-receipts "${RUNNER_TEMP}/legion-additional-scanner-accuracy" \
+    --git-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-squawk-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test more_external_scanner_accuracy \
+    real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1)
+  export LEGION_REAL_LINTER_SCRATCH="${RUNNER_TEMP}/legion-real-linter-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-linter-accuracy"
+  mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test real_legacy_linter_accuracy \
+    real_legacy_linter_accuracy -- --ignored --nocapture --test-threads=1)
+  unset LEGION_REAL_LINTER_SCRATCH
+  unset LEGION_REAL_GIT_SCRATCH
   unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR
 fi
 
@@ -182,6 +220,16 @@ fi
 test -f "$ci_xtask"
 "$ci_xtask" assemble-native-release --profile debug --bin-dir "$ci_binary_root" --out "${RUNNER_TEMP}/legion-install" --force
 "$ci_xtask" native-installed-smoke "${RUNNER_TEMP}/legion-install"
+
+# Materialize isolated constructed semantic controls & native packets only.
+# No model process, token reservation, reasoning execution or semantic score.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  LEGION_PROVIDER_REGISTRY="${RUNNER_TEMP}/legion-install/share/legion/assets/registry/providers.json" \
+    python3 scripts/ci/audit-capsule-preflight.py \
+      --root "$GITHUB_WORKSPACE" \
+      --legion "${RUNNER_TEMP}/legion-install/bin/legion" \
+      --out "${RUNNER_TEMP}/legion-capsule-preflight"
+fi
 
 # Real-repository affordability gate against a pinned public Ember checkout.
 # The helper retains cold/warm plan-only cache checks, then runs one full

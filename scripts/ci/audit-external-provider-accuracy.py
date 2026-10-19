@@ -66,8 +66,15 @@ def check_binding(root, binding):
     provider_rows = json.loads((root / "src/registry/providers.json").read_bytes())["providers"]
     rows = [row for row in provider_rows if row.get("id") == PROVIDER]
     require(len(rows) == 1, "ShellCheck provider must have exactly one registry specification")
-    spec = dict(rows[0])
-    spec.pop("benchmark", None)
+    # serde_json's preserve_order Map::remove swaps the final key into the
+    # removed slot. Match the actual harness bytes rather than dict.pop order.
+    items = list(rows[0].items())
+    for index, (key, _) in enumerate(items):
+        if key == "benchmark":
+            items[index] = items[-1]
+            items.pop()
+            break
+    spec = dict(items)
     require(binding["providerSpecDigest"] == digest(compact(spec)), "provider spec binding is stale")
     harness = root / HARNESS
     require(binding["harnessPath"] == HARNESS, "unexpected harness path")

@@ -27,6 +27,76 @@ fn checked_text(root: &Path, relative: &str) -> Result<String, String> {
     fs::read_to_string(real).map_err(|_| "input-not-text".into())
 }
 
+/// File anchors settle generator location only. They carry no invented line
+/// & do not satisfy downstream adjudication's source-delivery requirements.
+fn bind_kube_file_anchors(
+    report: &mut scanners::Normalized,
+    tool: &str,
+    root: &Path,
+    paths: &[String],
+    frozen_digests: &BTreeMap<String, Option<String>>,
+    source_digests: &BTreeMap<String, String>,
+) {
+    if !matches!(tool, "kube-linter" | "kubeconform") {
+        return;
+    }
+    for candidate in &mut report.candidates {
+        if candidate["anchorKind"] != "file" {
+            continue;
+        }
+        let raw_digest = candidate["source"]["rawFindingDigest"].clone();
+        let bound = (|| -> Result<String, &'static str> {
+            let path = candidate["path"]
+                .as_str()
+                .ok_or("file-anchor-path-missing")?;
+            if !paths.iter().any(|selected| selected == path) {
+                return Err("file-anchor-outside-run");
+            }
+            let frozen = frozen_digests
+                .get(path)
+                .and_then(Option::as_deref)
+                .filter(|digest| super::super::common::valid_digest(Some(&json!(digest))))
+                .ok_or("file-anchor-frozen-digest-missing-or-invalid")?;
+            if source_digests.get(path).map(String::as_str) != Some(frozen) {
+                return Err("file-anchor-source-digest-mismatch");
+            }
+            let observed = checked_text(root, path).map_err(|_| "file-anchor-source-unreadable")?;
+            if digest(observed.as_bytes()) != frozen {
+                return Err("file-anchor-source-changed");
+            }
+            Ok(frozen.to_owned())
+        })();
+        match bound {
+            Ok(source_digest) => {
+                candidate["anchorStatus"] = json!("scanner-reported");
+                candidate["source"]["sourceDigest"] = json!(source_digest);
+                candidate["source"]["frozenSourceDigest"] = json!(source_digest);
+                candidate["evidence"][0]["sourceDigest"] = json!(source_digest);
+                report.gaps.retain(|gap| {
+                    !(gap["kind"] == "scanner-candidate-anchor-unresolved"
+                        && gap["tool"] == tool
+                        && gap["rawFindingDigest"] == raw_digest)
+                });
+                for row in &mut report.ledger {
+                    if row["candidateId"] == candidate["id"] {
+                        row["disposition"] = json!("candidate");
+                    }
+                }
+            }
+            Err(reason) => {
+                for gap in &mut report.gaps {
+                    if gap["kind"] == "scanner-candidate-anchor-unresolved"
+                        && gap["tool"] == tool
+                        && gap["rawFindingDigest"] == raw_digest
+                    {
+                        gap["reason"] = json!(reason);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn module_root(root: &Path, path: &str, marker: &str) -> Option<String> {
     let mut directory = Path::new(path).parent()?;
     loop {
@@ -186,6 +256,11 @@ impl<'a> Run<'a> {
             return unavailable("scanner-frozen-selector-invalid");
         };
         let files: Vec<String> = denominator.entries.iter().map(|e| e.path.clone()).collect();
+        let frozen_digests = denominator
+            .entries
+            .iter()
+            .map(|entry| (entry.path.clone(), entry.digest.clone()))
+            .collect::<BTreeMap<_, _>>();
         let mut gaps = Vec::new();
         let mut examined = BTreeSet::new();
         let mut selected = Vec::new();
@@ -493,11 +568,19 @@ impl<'a> Run<'a> {
                     continue;
                 }
             };
-            let report = scanners::normalize(
+            let mut report = scanners::normalize(
                 tool,
                 &output,
                 self.root(),
                 if module_scanner { &base } else { "" },
+            );
+            bind_kube_file_anchors(
+                &mut report,
+                tool,
+                self.root(),
+                &paths,
+                &frozen_digests,
+                &source_digests,
             );
             if run.receipt["exitCode"] == 1 && report.candidates.is_empty() {
                 gaps.push(json!({"kind":"scanner-nonzero-without-candidates","tool":tool,"stdoutDigest":digest(&run.stdout)}));
@@ -725,6 +808,128 @@ mod tests {
         assert_eq!(kube_input("name: ordinary\n"), Ok(false));
         assert_eq!(kube_input("apiVersion: v1\nkind: Pod\n"), Ok(true));
         assert!(kube_input("apiVersion: v1\nkind: {{ .Values.kind }}\n").is_err());
+    }
+
+    #[test]
+    fn kube_file_anchor_requires_exact_scanned_frozen_source() {
+        let temp = Scratch::create(None).unwrap();
+        let root = temp.path.join("repo");
+        fs::create_dir_all(&root).unwrap();
+        let text = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: example\n";
+        fs::write(root.join("pod.yaml"), text).unwrap();
+        let frozen = digest(text.as_bytes());
+        for tool in ["kube-linter", "kubeconform"] {
+            for change in [
+                "valid",
+                "outside-run",
+                "missing-digest",
+                "invalid-digest",
+                "wrong-digest",
+                "wrong-observed",
+                "drift",
+                "missing-source",
+                "escape",
+                "missing-path",
+                "missing-message",
+            ] {
+                fs::write(root.join("pod.yaml"), text).unwrap();
+                let mut raw = if tool == "kube-linter" {
+                    json!({"Check":"privileged-container","Object":{"Metadata":{"FilePath":"pod.yaml"}},"Diagnostic":{"Message":"privileged"}})
+                } else {
+                    json!({"filename":"pod.yaml","status":"statusInvalid","msg":"schema mismatch"})
+                };
+                let path_pointer = if tool == "kube-linter" {
+                    "/Object/Metadata/FilePath"
+                } else {
+                    "/filename"
+                };
+                if change == "escape" {
+                    *raw.pointer_mut(path_pointer).unwrap() = json!("../pod.yaml");
+                }
+                if change == "missing-path" {
+                    *raw.pointer_mut(path_pointer).unwrap() = Value::Null;
+                }
+                if change == "missing-message" {
+                    *raw.pointer_mut(if tool == "kube-linter" {
+                        "/Diagnostic/Message"
+                    } else {
+                        "/msg"
+                    })
+                    .unwrap() = Value::Null;
+                }
+                let output = if tool == "kube-linter" {
+                    json!({"Reports":[raw]})
+                } else {
+                    json!({"resources":[raw]})
+                };
+                let mut report = scanners::normalize(tool, &output, &root, "");
+                let original = report.candidates[0].clone();
+                let paths = vec![if change == "outside-run" {
+                    "other.yaml".into()
+                } else {
+                    "pod.yaml".into()
+                }];
+                let mut frozen_digests =
+                    BTreeMap::from([("pod.yaml".into(), Some(frozen.clone()))]);
+                let mut observed = BTreeMap::from([("pod.yaml".into(), frozen.clone())]);
+                match change {
+                    "missing-digest" => {
+                        frozen_digests.insert("pod.yaml".into(), None);
+                    }
+                    "invalid-digest" => {
+                        frozen_digests.insert("pod.yaml".into(), Some("not-a-digest".into()));
+                    }
+                    "wrong-digest" => {
+                        frozen_digests
+                            .insert("pod.yaml".into(), Some(digest(b"other frozen bytes")));
+                    }
+                    "wrong-observed" => {
+                        observed.insert("pod.yaml".into(), digest(b"other observed bytes"));
+                    }
+                    "drift" => fs::write(root.join("pod.yaml"), "kind: Changed\n").unwrap(),
+                    "missing-source" => fs::remove_file(root.join("pod.yaml")).unwrap(),
+                    _ => {}
+                }
+                bind_kube_file_anchors(
+                    &mut report,
+                    tool,
+                    &root,
+                    &paths,
+                    &frozen_digests,
+                    &observed,
+                );
+                let candidate = &report.candidates[0];
+                assert_eq!(candidate["id"], original["id"], "{tool}/{change}");
+                assert_eq!(candidate["source"]["raw"], original["source"]["raw"]);
+                assert_eq!(
+                    candidate["source"]["rawFindingDigest"],
+                    original["source"]["rawFindingDigest"]
+                );
+                assert!(candidate["line"].is_null());
+                assert!(candidate["evidence"][0]["line"].is_null());
+                assert_eq!(candidate["adjudication"], "required");
+                assert_eq!(report.ledger.len(), 1);
+                if change == "valid" {
+                    assert_eq!(candidate["anchorKind"], "file");
+                    assert_eq!(candidate["anchorStatus"], "scanner-reported");
+                    assert_eq!(candidate["source"]["sourceDigest"], frozen);
+                    assert_eq!(candidate["source"]["frozenSourceDigest"], frozen);
+                    assert_eq!(report.ledger[0]["disposition"], "candidate");
+                    assert!(report.gaps.is_empty(), "{tool}: {:?}", report.gaps);
+                } else {
+                    assert_eq!(candidate["anchorStatus"], "unresolved", "{tool}/{change}");
+                    assert!(candidate["source"].get("sourceDigest").is_none());
+                    assert_eq!(report.ledger[0]["disposition"], "retained-unresolved");
+                    assert!(
+                        report
+                            .gaps
+                            .iter()
+                            .any(|gap| gap["kind"] == "scanner-candidate-anchor-unresolved"),
+                        "{tool}/{change}"
+                    );
+                }
+            }
+        }
     }
     #[test]
     fn sql_path_globs_are_literal() {

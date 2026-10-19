@@ -1,0 +1,358 @@
+{
+  "schema": "legion-audit-capsules/1",
+  "constructed": true,
+  "capsules": [
+    {
+      "id": "conditional-minimize-rounding-strategy",
+      "lens": "minimize",
+      "providerId": "reasoning.minimize",
+      "contract": {
+        "invariant": "round_down(total, parts) must preserve Python floor-division semantics; parts == 0 raises ZeroDivisionError and negative parts remain supported.",
+        "supportingFiles": ["contracts/pricing.md", "inventory/checkout.py"],
+        "reachableCallers": ["inventory/checkout.py::quote_total"]
+      },
+      "cases": [
+        {
+          "id": "rounding-strategy-hierarchy",
+          "kind": "planted",
+          "files": {
+            "contracts/pricing.md": "# Pricing contract\n`round_down(total, parts)` returns `total // parts`. Python floor division is intentional for negative values. A zero divisor raises `ZeroDivisionError`.\n",
+            "inventory/checkout.py": "from inventory.pricing import RoundingStrategyFactory\n\ndef quote_total(total, parts):\n    rounder = RoundingStrategyFactory.create(\"floor\")\n    return rounder.round(total, parts)\n",
+            "inventory/pricing.py": "class RoundingStrategy:\n    def round(self, total, parts):\n        raise NotImplementedError\n\n\nclass FloorRoundingStrategy(RoundingStrategy):\n    def round(self, total, parts):\n        return total // parts\n\n\nclass RoundingStrategyFactory:\n    @staticmethod\n    def create(name):\n        if name == \"floor\":\n            return FloorRoundingStrategy()\n        raise ValueError(name)\n"
+          },
+          "expected": [
+            {"path": "inventory/pricing.py", "lineRange": [1, 16], "claim": "A single floor-division operation is wrapped in an abstract strategy, concrete class, and factory despite having one reachable mode.", "severity": "low"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/pricing.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "inventory/checkout.py", "lineRange": [1, 5], "role": "caller"},
+            {"path": "inventory/pricing.py", "lineRange": [1, 16], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["Replace floor division with truncation toward zero.", "Remove the zero-divisor exception behavior.", "Remove support for negative divisors."]
+        },
+        {
+          "id": "rounding-direct-helper",
+          "kind": "clean",
+          "files": {
+            "contracts/pricing.md": "# Pricing contract\n`round_down(total, parts)` returns `total // parts`. Python floor division is intentional for negative values. A zero divisor raises `ZeroDivisionError`.\n",
+            "inventory/checkout.py": "from inventory.pricing import round_down\n\ndef quote_total(total, parts):\n    return round_down(total, parts)\n",
+            "inventory/pricing.py": "def round_down(total, parts):\n    return total // parts\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/pricing.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "inventory/checkout.py", "lineRange": [1, 5], "role": "caller"},
+            {"path": "inventory/pricing.py", "lineRange": [1, 2], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The direct helper changes floor-division semantics.", "The direct helper removes support for zero or negative divisor behavior."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-performance-batched-order-query",
+      "lens": "performance",
+      "providerId": "reasoning.performance",
+      "contract": {
+        "invariant": "OrderDatabase.query(id) returns one total; queryMany(ids) returns one equivalent row per input occurrence in input order. A Map consumer keeps the last total for repeated ids, matching sequential per-id queries.",
+        "supportingFiles": ["contracts/order-database.md", "src/orders.ts", "src/report.ts"],
+        "reachableCallers": ["src/report.ts::buildTotals"]
+      },
+      "cases": [
+        {
+          "id": "orders-query-inside-loop",
+          "kind": "planted",
+          "files": {
+            "contracts/order-database.md": "# Order database contract\n`query(id)` returns that id's `{ total }`. `queryMany(ids)` performs one request and returns one `{ id, total }` row per input occurrence in input order, including repeated ids and zero rows for an empty list. Results for each occurrence are equivalent to querying that id separately. The consumer's `Map` keeps the last row for each repeated id.\n",
+            "src/report.ts": "import { totalsForOrders } from \"./orders\";\nimport type { OrderDatabase } from \"./orders\";\n\nexport async function buildTotals(ids: string[], db: OrderDatabase) {\n  return totalsForOrders(ids, db);\n}\n",
+            "src/orders.ts": "export interface OrderDatabase {\n  query(id: string): Promise<{ total: number }>;\n  queryMany(ids: string[]): Promise<Array<{ id: string; total: number }>>;\n}\n\nexport async function totalsForOrders(ids: string[], db: OrderDatabase) {\n  const totals = new Map<string, number>();\n  for (const id of ids) {\n    const rows = await db.query(id);\n    totals.set(id, rows.total);\n  }\n  return totals;\n}\n"
+          },
+          "expected": [
+            {"path": "src/orders.ts", "lineRange": [7, 10], "claim": "Each order id causes an awaited database request inside the loop, serializing round trips despite an equivalent one-request batch contract.", "severity": "medium"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/order-database.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/report.ts", "lineRange": [1, 5], "role": "caller"},
+            {"path": "src/orders.ts", "lineRange": [7, 13], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The source proves a particular latency or speedup percentage.", "Batching may change returned totals or omit requested ids.", "An external database was executed or measured."]
+        },
+        {
+          "id": "orders-batched-query",
+          "kind": "clean",
+          "files": {
+            "contracts/order-database.md": "# Order database contract\n`query(id)` returns that id's `{ total }`. `queryMany(ids)` performs one request and returns one `{ id, total }` row per input occurrence in input order, including repeated ids and zero rows for an empty list. Results for each occurrence are equivalent to querying that id separately. The consumer's `Map` keeps the last row for each repeated id.\n",
+            "src/report.ts": "import { totalsForOrders } from \"./orders\";\nimport type { OrderDatabase } from \"./orders\";\n\nexport async function buildTotals(ids: string[], db: OrderDatabase) {\n  return totalsForOrders(ids, db);\n}\n",
+            "src/orders.ts": "export interface OrderDatabase {\n  query(id: string): Promise<{ total: number }>;\n  queryMany(ids: string[]): Promise<Array<{ id: string; total: number }>>;\n}\n\nexport async function totalsForOrders(ids: string[], db: OrderDatabase) {\n  const rows = await db.queryMany(ids);\n  return new Map(rows.map((row) => [row.id, row.total]));\n}\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/order-database.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/report.ts", "lineRange": [1, 5], "role": "caller"},
+            {"path": "src/orders.ts", "lineRange": [7, 9], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["Batching changes the contractually equivalent results.", "The implementation has proven measured performance gains."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-a11y-checkout-action",
+      "lens": "a11y",
+      "providerId": "reasoning.a11y",
+      "contract": {
+        "invariant": "Checkout action is operable by keyboard and pointer and exposes accessible name `Place order`.",
+        "supportingFiles": ["contracts/checkout-accessibility.md", "src/Checkout.jsx"],
+        "reachableCallers": ["src/App.jsx::Checkout"]
+      },
+      "cases": [
+        {
+          "id": "checkout-clickable-container",
+          "kind": "planted",
+          "files": {
+            "contracts/checkout-accessibility.md": "# Checkout accessibility contract\nThe order action must be a native keyboard-operable control and expose the accessible name `Place order`. It invokes the same `placeOrder` callback.\n",
+            "src/App.jsx": "import Checkout from \"./Checkout\";\nconst submitOrder = () => Promise.resolve();\nexport function App() { return <Checkout placeOrder={submitOrder} />; }\n",
+            "src/Checkout.jsx": "export default function Checkout({ placeOrder }) {\n  return (\n    <div className=\"place-order\" role=\"button\" tabIndex={0} onClick={placeOrder}>\n      Place order\n    </div>\n  );\n}\n"
+          },
+          "expected": [
+            {"path": "src/Checkout.jsx", "lineRange": [3, 5], "claim": "A clickable div supplies button-like behavior without native button keyboard activation semantics.", "severity": "medium"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/checkout-accessibility.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/App.jsx", "lineRange": [1, 3], "role": "caller"},
+            {"path": "src/Checkout.jsx", "lineRange": [3, 5], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The action has no accessible name.", "The callback is unreachable from the rendered application.", "The source proves screen-reader behavior beyond the stated markup contract."]
+        },
+        {
+          "id": "checkout-native-button",
+          "kind": "clean",
+          "files": {
+            "contracts/checkout-accessibility.md": "# Checkout accessibility contract\nThe order action must be a native keyboard-operable control and expose the accessible name `Place order`. It invokes the same `placeOrder` callback.\n",
+            "src/App.jsx": "import Checkout from \"./Checkout\";\nconst submitOrder = () => Promise.resolve();\nexport function App() { return <Checkout placeOrder={submitOrder} />; }\n",
+            "src/Checkout.jsx": "export default function Checkout({ placeOrder }) {\n  return <button type=\"button\" onClick={placeOrder}>Place order</button>;\n}\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/checkout-accessibility.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/App.jsx", "lineRange": [1, 3], "role": "caller"},
+            {"path": "src/Checkout.jsx", "lineRange": [1, 3], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The clean control changes the action callback or accessible name.", "The action lacks native keyboard activation."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-data-safety-orders-migration",
+      "lens": "data-safety",
+      "providerId": "reasoning.data-safety",
+      "contract": {
+        "invariant": "Deployments retain every existing orders row and its columns; status is added with default `pending`; order history is retained for seven years.",
+        "supportingFiles": ["contracts/order-retention.md", "migrations/001_create_orders.sql", "migrations/002_add_status.sql", "release/deploy-migrations.sh"],
+        "reachableCallers": ["release/deploy-migrations.sh applies migrations in numeric order"]
+      },
+      "cases": [
+        {
+          "id": "orders-table-drop-and-recreate",
+          "kind": "planted",
+          "files": {
+            "contracts/order-retention.md": "# Order data contract\nExisting `orders` rows and columns must survive migrations. Add `status` with default `pending`. Order history retention is seven years.\n",
+            "migrations/001_create_orders.sql": "CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL, total_cents INTEGER NOT NULL);\n",
+            "migrations/002_add_status.sql": "DROP TABLE orders;\nCREATE TABLE orders (id INTEGER PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending');\n",
+            "release/deploy-migrations.sh": "#!/bin/sh\nset -eu\nfor migration in migrations/*.sql; do\n  sqlite3 \"$DATABASE_PATH\" < \"$migration\"\ndone\n"
+          },
+          "expected": [
+            {"path": "migrations/002_add_status.sql", "lineRange": [1, 2], "claim": "The applied migration destroys all existing orders rows and recreates a reduced table, violating preservation and retention contract.", "severity": "high"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/order-retention.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "migrations/001_create_orders.sql", "lineRange": [1, 1], "role": "contract"},
+            {"path": "release/deploy-migrations.sh", "lineRange": [3, 5], "role": "caller"},
+            {"path": "migrations/002_add_status.sql", "lineRange": [1, 2], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["A backup exists or makes the destructive migration safe.", "The migration has been executed against production data.", "The schema is safe because the new table has a primary key."]
+        },
+        {
+          "id": "orders-additive-status-migration",
+          "kind": "clean",
+          "files": {
+            "contracts/order-retention.md": "# Order data contract\nExisting `orders` rows and columns must survive migrations. Add `status` with default `pending`. Order history retention is seven years.\n",
+            "migrations/001_create_orders.sql": "CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL, total_cents INTEGER NOT NULL);\n",
+            "migrations/002_add_status.sql": "ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';\n",
+            "release/deploy-migrations.sh": "#!/bin/sh\nset -eu\nfor migration in migrations/*.sql; do\n  sqlite3 \"$DATABASE_PATH\" < \"$migration\"\ndone\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/order-retention.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "migrations/001_create_orders.sql", "lineRange": [1, 1], "role": "contract"},
+            {"path": "release/deploy-migrations.sh", "lineRange": [3, 5], "role": "caller"},
+            {"path": "migrations/002_add_status.sql", "lineRange": [1, 1], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The migration deletes or recreates existing orders data.", "The migration was executed against a live database."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-resilience-child-process",
+      "lens": "resilience",
+      "providerId": "reasoning.resilience",
+      "contract": {
+        "invariant": "Every child terminal outcome settles exactly once. Spawn errors and any close code other than zero reject with structured failure. The promise waits for Node's child `close` event, which follows termination and stdio closure, then removes only listeners owned by this operation.",
+        "supportingFiles": ["contracts/worker-process.md", "src/jobs.ts", "src/worker.ts"],
+        "reachableCallers": ["src/jobs.ts::runScheduledJob"],
+        "testSeam": "runWorker accepts an injectable spawn function for deterministic child outcomes."
+      },
+      "cases": [
+        {
+          "id": "worker-success-only-terminal-handler",
+          "kind": "planted",
+          "files": {
+            "contracts/worker-process.md": "# Worker process contract\nA child close code of zero resolves. Any other close result rejects with `{ kind: 'child_failure', code }`; a spawn error rejects with `{ kind: 'spawn_failure', message }`. Settle once after `close`, which Node emits after process termination and stdio closure, and remove only listeners owned by this operation. Do not call a nonexistent child `close()` method.\n",
+            "src/jobs.ts": "import { runWorker } from \"./worker\";\nexport async function runScheduledJob(command: string) { return runWorker(command); }\n",
+            "src/worker.ts": "import { spawn } from \"node:child_process\";\n\nexport function runWorker(command: string, spawnChild: typeof spawn = spawn) {\n  const child = spawnChild(command, { stdio: \"ignore\" });\n  return new Promise<void>((resolve, reject) => {\n    child.on(\"error\", () => {});\n    child.on(\"exit\", (code) => {\n      if (code === 0) {\n        child.removeAllListeners();\n        resolve();\n      }\n    });\n  });\n}\n"
+          },
+          "expected": [
+            {"path": "src/worker.ts", "lineRange": [6, 12], "claim": "Only zero exit settles the promise and removes listeners; spawn errors are swallowed and nonzero exits leave the promise pending with listeners attached.", "severity": "high"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/worker-process.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/jobs.ts", "lineRange": [1, 2], "role": "caller"},
+            {"path": "src/worker.ts", "lineRange": [6, 14], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["A child process was launched during evaluation.", "A particular OS termination signal or timeout behavior is established.", "The injectable spawn seam should be removed."]
+        },
+        {
+          "id": "worker-all-terminal-outcomes-settled",
+          "kind": "clean",
+          "files": {
+            "contracts/worker-process.md": "# Worker process contract\nA child close code of zero resolves. Any other close result rejects with `{ kind: 'child_failure', code }`; a spawn error rejects with `{ kind: 'spawn_failure', message }`. Settle once after `close`, which Node emits after process termination and stdio closure, and remove only listeners owned by this operation. Do not call a nonexistent child `close()` method.\n",
+            "src/jobs.ts": "import { runWorker } from \"./worker\";\nexport async function runScheduledJob(command: string) { return runWorker(command); }\n",
+            "src/worker.ts": "import { spawn } from \"node:child_process\";\n\nexport function runWorker(command: string, spawnChild: typeof spawn = spawn) {\n  const child = spawnChild(command, { stdio: \"ignore\" });\n  return new Promise<void>((resolve, reject) => {\n    let spawnError: Error | undefined;\n    let settled = false;\n    const onError = (error: Error) => { spawnError = error; };\n    const onClose = (code: number | null) => {\n      if (settled) return;\n      settled = true;\n      child.removeListener(\"error\", onError);\n      child.removeListener(\"close\", onClose);\n      if (spawnError) reject({ kind: \"spawn_failure\", message: spawnError.message });\n      else if (code === 0) resolve();\n      else reject({ kind: \"child_failure\", code });\n    };\n    child.once(\"error\", onError);\n    child.once(\"close\", onClose);\n  });\n}\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/worker-process.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "src/jobs.ts", "lineRange": [1, 2], "role": "caller"},
+            {"path": "src/worker.ts", "lineRange": [6, 23], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The clean source proves signal handling or timeout policy absent from contract.", "The child process was executed during evaluation."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-platform-parity-workspace",
+      "lens": "platform-parity",
+      "providerId": "reasoning.platform-parity",
+      "contract": {
+        "invariant": "ensureWorkspace creates the configured directory idempotently on Windows, macOS, and Linux before callers write files into it.",
+        "supportingFiles": ["Cargo.toml", ".github/workflows/platforms.yml", "contracts/workspace.md", "src/commands.rs", "src/lib.rs", "src/platform.rs"],
+        "reachableCallers": ["src/commands.rs::prepare_workspace"]
+      },
+      "cases": [
+        {
+          "id": "windows-workspace-creation-skipped",
+          "kind": "planted",
+          "files": {
+            "Cargo.toml": "[package]\nname = \"workspace-paths\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ".github/workflows/platforms.yml": "name: platform checks\non: [push, pull_request]\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: dtolnay/rust-toolchain@stable\n      - run: cargo test --manifest-path Cargo.toml\n",
+            "contracts/workspace.md": "# Workspace contract\n`ensure_workspace` creates its path idempotently on Windows, macOS, and Linux. `prepare_workspace` calls it before writing workspace files.\n",
+            "src/commands.rs": "use crate::platform::ensure_workspace;\nuse std::path::Path;\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n",
+            "src/lib.rs": "pub mod commands;\npub mod platform;\n",
+            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(_path: &Path) -> std::io::Result<()> {\n    Ok(())\n}\n\n#[cfg(any(target_os = \"macos\", target_os = \"linux\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
+          },
+          "expected": [
+            {"path": "src/platform.rs", "lineRange": [4, 6], "claim": "The Windows implementation reports success without creating the directory that the reachable caller immediately writes into.", "severity": "high"}
+          ],
+          "requiredEvidence": [
+            {"path": "contracts/workspace.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": ".github/workflows/platforms.yml", "lineRange": [1, 12], "role": "contract"},
+            {"path": "src/lib.rs", "lineRange": [1, 2], "role": "caller"},
+            {"path": "src/commands.rs", "lineRange": [4, 6], "role": "caller"},
+            {"path": "src/platform.rs", "lineRange": [3, 11], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The code has been executed on Windows.", "macOS or Linux implementation fails the stated creation contract.", "Windows filesystem permissions or path normalization have been tested."]
+        },
+        {
+          "id": "workspace-creation-portable-all-targets",
+          "kind": "clean",
+          "files": {
+            "Cargo.toml": "[package]\nname = \"workspace-paths\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ".github/workflows/platforms.yml": "name: platform checks\non: [push, pull_request]\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: dtolnay/rust-toolchain@stable\n      - run: cargo test --manifest-path Cargo.toml\n",
+            "contracts/workspace.md": "# Workspace contract\n`ensure_workspace` creates its path idempotently on Windows, macOS, and Linux. `prepare_workspace` calls it before writing workspace files.\n",
+            "src/commands.rs": "use crate::platform::ensure_workspace;\nuse std::path::Path;\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n",
+            "src/lib.rs": "pub mod commands;\npub mod platform;\n",
+            "src/platform.rs": "use std::path::Path;\n\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "contracts/workspace.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": ".github/workflows/platforms.yml", "lineRange": [1, 12], "role": "contract"},
+            {"path": "src/lib.rs", "lineRange": [1, 2], "role": "caller"},
+            {"path": "src/commands.rs", "lineRange": [4, 6], "role": "caller"},
+            {"path": "src/platform.rs", "lineRange": [3, 5], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["The clean control has been executed on all three operating systems.", "Directory creation changes files outside the requested path."]
+        }
+      ]
+    },
+    {
+      "id": "conditional-release-sign-before-upload",
+      "lens": "release-readiness",
+      "providerId": "reasoning.release-readiness",
+      "contract": {
+        "invariant": "The exact artifact path is signed and signature-verified before upload; signer and uploader are real local wrappers configured for the release bucket.",
+        "supportingFiles": ["release/contract.md", "release/config.env", "scripts/release.sh", "scripts/sign-artifact.sh", "scripts/verify-artifact.sh", "scripts/upload-artifact.sh"],
+        "reachableCallers": ["release.sh calls each wrapper with the same artifact path"],
+        "execution": "Wrapper implementations are fixture source only and are not executed."
+      },
+      "cases": [
+        {
+          "id": "release-publishes-before-signing",
+          "kind": "planted",
+          "files": {
+            "release/contract.md": "# Release contract\nOnly the exact built artifact may be published, and only after local signing and signature verification succeed. The signature must cover the artifact at the path that is uploaded.\n",
+            "release/config.env": "export RELEASE_BUCKET=legion-release-artifacts\nexport SIGNING_KEY=${RELEASE_SIGNING_KEY:?required}\nexport VERIFY_KEY=${RELEASE_VERIFY_KEY:?required}\n",
+            "scripts/release.sh": "#!/bin/sh\nset -eu\n. release/config.env\nartifact=${1:?artifact path required}\nsh ./scripts/upload-artifact.sh \"$artifact\"\nsh ./scripts/sign-artifact.sh \"$artifact\"\nsh ./scripts/verify-artifact.sh \"$artifact\"\n",
+            "scripts/sign-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\nopenssl dgst -sha256 -sign \"$SIGNING_KEY\" -out \"$artifact.sig\" \"$artifact\"\n",
+            "scripts/verify-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\nopenssl dgst -sha256 -verify \"$VERIFY_KEY\" -signature \"$artifact.sig\" \"$artifact\"\n",
+            "scripts/upload-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\naws s3 cp --only-show-errors \"$artifact\" \"s3://${RELEASE_BUCKET}/$(basename \"$artifact\")\"\naws s3 cp --only-show-errors \"$artifact.sig\" \"s3://${RELEASE_BUCKET}/$(basename \"$artifact.sig\")\"\n"
+          },
+          "expected": [
+            {"path": "scripts/release.sh", "lineRange": [5, 7], "claim": "The exact artifact is uploaded before signing and verification, allowing an unverified artifact to be published.", "severity": "critical"}
+          ],
+          "requiredEvidence": [
+            {"path": "release/contract.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "scripts/release.sh", "lineRange": [1, 4], "role": "caller"},
+            {"path": "scripts/release.sh", "lineRange": [5, 7], "role": "behavior"},
+            {"path": "release/config.env", "lineRange": [1, 3], "role": "behavior"},
+            {"path": "scripts/sign-artifact.sh", "lineRange": [1, 4], "role": "behavior"},
+            {"path": "scripts/verify-artifact.sh", "lineRange": [1, 4], "role": "behavior"},
+            {"path": "scripts/upload-artifact.sh", "lineRange": [1, 5], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["Any release command or external service was executed.", "Signing keys or credentials are present in the fixture.", "Uploading a signature after an artifact retroactively verifies an earlier publication."]
+        },
+        {
+          "id": "release-sign-verify-then-upload",
+          "kind": "clean",
+          "files": {
+            "release/contract.md": "# Release contract\nOnly the exact built artifact may be published, and only after local signing and signature verification succeed. The signature must cover the artifact at the path that is uploaded.\n",
+            "release/config.env": "export RELEASE_BUCKET=legion-release-artifacts\nexport SIGNING_KEY=${RELEASE_SIGNING_KEY:?required}\nexport VERIFY_KEY=${RELEASE_VERIFY_KEY:?required}\n",
+            "scripts/release.sh": "#!/bin/sh\nset -eu\n. release/config.env\nartifact=${1:?artifact path required}\nsh ./scripts/sign-artifact.sh \"$artifact\"\nsh ./scripts/verify-artifact.sh \"$artifact\"\nsh ./scripts/upload-artifact.sh \"$artifact\"\n",
+            "scripts/sign-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\nopenssl dgst -sha256 -sign \"$SIGNING_KEY\" -out \"$artifact.sig\" \"$artifact\"\n",
+            "scripts/verify-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\nopenssl dgst -sha256 -verify \"$VERIFY_KEY\" -signature \"$artifact.sig\" \"$artifact\"\n",
+            "scripts/upload-artifact.sh": "#!/bin/sh\nset -eu\nartifact=${1:?artifact path required}\naws s3 cp --only-show-errors \"$artifact\" \"s3://${RELEASE_BUCKET}/$(basename \"$artifact\")\"\naws s3 cp --only-show-errors \"$artifact.sig\" \"s3://${RELEASE_BUCKET}/$(basename \"$artifact.sig\")\"\n"
+          },
+          "expected": [],
+          "requiredEvidence": [
+            {"path": "release/contract.md", "lineRange": [2, 2], "role": "contract"},
+            {"path": "scripts/release.sh", "lineRange": [1, 4], "role": "caller"},
+            {"path": "scripts/release.sh", "lineRange": [5, 7], "role": "behavior"},
+            {"path": "release/config.env", "lineRange": [1, 3], "role": "behavior"},
+            {"path": "scripts/sign-artifact.sh", "lineRange": [1, 4], "role": "behavior"},
+            {"path": "scripts/verify-artifact.sh", "lineRange": [1, 4], "role": "behavior"},
+            {"path": "scripts/upload-artifact.sh", "lineRange": [1, 5], "role": "behavior"}
+          ],
+          "forbiddenClaims": ["Signing or upload commands were run.", "An artifact was actually published.", "The fixture contains usable signing credentials."]
+        }
+      ]
+    }
+  ]
+}

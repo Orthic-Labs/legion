@@ -1,0 +1,309 @@
+{
+  "schema": "legion-audit-capsules/1",
+  "constructed": true,
+  "capsules": [
+    {
+      "id": "core-doc-drift-retries",
+      "lens": "doc-drift",
+      "providerId": "reasoning.doc-drift",
+      "contract": "Published behavior documentation must match the runtime default. maxRetries counts retries after the initial attempt. src/client.ts is a reachable caller of the retry policy.",
+      "cases": [
+        {
+          "id": "retry-guide-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/retries.md", "lineRange": [1, 4], "role": "contract" },
+            { "path": "src/client.ts", "lineRange": [1, 3], "role": "caller" },
+            { "path": "src/retry_policy.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "docs/retries.md": "# Retry policy\n\nThe default is configured by DEFAULT_MAX_RETRIES.\nEvery request retries up to three times after its first attempt.\n",
+            "src/retry_policy.ts": "export const DEFAULT_MAX_RETRIES = 1;\nexport function retryLimit(configured = DEFAULT_MAX_RETRIES): number {\n  return configured;\n}\n",
+            "src/client.ts": "import { retryLimit } from './retry_policy';\nexport function sendRequest(configured?: number): number {\n  return retryLimit(configured);\n}\n"
+          },
+          "expected": [
+            { "path": "docs/retries.md", "lineRange": [4, 4], "claim": "The guide promises three retries, but reachable runtime default allows one.", "severity": "medium" }
+          ],
+          "forbiddenClaims": ["The runtime default allows three retries.", "A retry occurs after every failed request without a bound."]
+        },
+        {
+          "id": "retry-guide-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/retries.md", "lineRange": [1, 4], "role": "contract" },
+            { "path": "src/client.ts", "lineRange": [1, 3], "role": "caller" },
+            { "path": "src/retry_policy.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "docs/retries.md": "# Retry policy\n\nThe default is configured by DEFAULT_MAX_RETRIES.\nEvery request retries up to one time after its first attempt.\n",
+            "src/retry_policy.ts": "export const DEFAULT_MAX_RETRIES = 1;\nexport function retryLimit(configured = DEFAULT_MAX_RETRIES): number {\n  return configured;\n}\n",
+            "src/client.ts": "import { retryLimit } from './retry_policy';\nexport function sendRequest(configured?: number): number {\n  return retryLimit(configured);\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["The guide contradicts the runtime default.", "The retry limit is unbounded."]
+        }
+      ]
+    },
+    {
+      "id": "core-architecture-domain-ui",
+      "lens": "architecture",
+      "providerId": "reasoning.architecture",
+      "contract": "ADR-12 forbids domain modules from importing presentation/UI code; dependencies flow from UI to domain. src/app/cart.ts reaches the domain calculation.",
+      "cases": [
+        {
+          "id": "domain-price-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/adr/0012-layer-boundaries.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/app/cart.ts", "lineRange": [1, 5], "role": "caller" },
+            { "path": "src/domain/price.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/adr/0012-layer-boundaries.md": "# ADR-12: Layer boundaries\n\nDomain modules contain business calculations and must not import presentation or UI modules. UI may depend on domain types and calculations.\n",
+            "src/domain/price.ts": "import type { PriceCents } from '../ui/priceFormatter';\nexport function priceInCents(cents: PriceCents): PriceCents {\n  return cents;\n}\n",
+            "src/ui/priceFormatter.ts": "import type { PriceCents } from '../domain/money';\nexport type { PriceCents } from '../domain/money';\nexport function formatPrice(cents: PriceCents): string {\n  return `$${(cents / 100).toFixed(2)}`;\n}\n",
+            "src/domain/money.ts": "export type PriceCents = number;\n",
+            "src/app/cart.ts": "import { priceInCents } from '../domain/price';\nimport { formatPrice } from '../ui/priceFormatter';\nexport function cartLine(cents: number): string {\n  return formatPrice(priceInCents(cents));\n}\n"
+          },
+          "expected": [
+            { "path": "src/domain/price.ts", "lineRange": [1, 1], "claim": "Domain price calculation imports presentation code, violating ADR-12 dependency direction.", "severity": "high" }
+          ],
+          "forbiddenClaims": ["The UI import is unreachable.", "ADR-12 allows domain-to-UI imports."]
+        },
+        {
+          "id": "domain-price-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/adr/0012-layer-boundaries.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/app/cart.ts", "lineRange": [1, 5], "role": "caller" },
+            { "path": "src/domain/price.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/adr/0012-layer-boundaries.md": "# ADR-12: Layer boundaries\n\nDomain modules contain business calculations and must not import presentation or UI modules. UI may depend on domain types and calculations.\n",
+            "src/domain/price.ts": "import type { PriceCents } from './money';\nexport function priceInCents(cents: PriceCents): PriceCents {\n  return cents;\n}\n",
+            "src/ui/priceFormatter.ts": "import type { PriceCents } from '../domain/money';\nexport function formatPrice(cents: PriceCents): string {\n  return `$${(cents / 100).toFixed(2)}`;\n}\n",
+            "src/domain/money.ts": "export type PriceCents = number;\n",
+            "src/app/cart.ts": "import { priceInCents } from '../domain/price';\nimport { formatPrice } from '../ui/priceFormatter';\nexport function cartLine(cents: number): string {\n  return formatPrice(priceInCents(cents));\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["The domain imports UI code.", "ADR-12 reverses the dependency direction."]
+        }
+      ]
+    },
+    {
+      "id": "core-correctness-shipping-boundary",
+      "lens": "correctness",
+      "providerId": "reasoning.correctness",
+      "contract": "Shipping is free when subtotal is at least 10000 cents. src/checkout.ts reaches freeShippingCents for checkout totals.",
+      "cases": [
+        {
+          "id": "shipping-boundary-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/shipping-policy.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/checkout.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/shipping.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/shipping-policy.md": "# Shipping policy\n\nA subtotal of 10000 cents or more receives free shipping.\n",
+            "src/shipping.ts": "export function freeShippingCents(subtotalCents: number): number {\n  return subtotalCents > 10000 ? 0 : 599;\n}\n",
+            "src/checkout.ts": "import { freeShippingCents } from './shipping';\nexport function checkoutShipping(subtotalCents: number): number {\n  return freeShippingCents(subtotalCents);\n}\n"
+          },
+          "expected": [
+            { "path": "src/shipping.ts", "lineRange": [2, 2], "claim": "The strict comparison excludes the documented 10000-cent free-shipping boundary.", "severity": "high" }
+          ],
+          "forbiddenClaims": ["A subtotal of exactly 10000 cents receives free shipping.", "The checkout caller does not use this rule."]
+        },
+        {
+          "id": "shipping-boundary-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/shipping-policy.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/checkout.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/shipping.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/shipping-policy.md": "# Shipping policy\n\nA subtotal of 10000 cents or more receives free shipping.\n",
+            "src/shipping.ts": "export function freeShippingCents(subtotalCents: number): number {\n  return subtotalCents >= 10000 ? 0 : 599;\n}\n",
+            "src/checkout.ts": "import { freeShippingCents } from './shipping';\nexport function checkoutShipping(subtotalCents: number): number {\n  return freeShippingCents(subtotalCents);\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["The strict comparison excludes 10000 cents.", "The free-shipping threshold is 10001 cents."]
+        }
+      ]
+    },
+    {
+      "id": "core-ai-slop-comment",
+      "lens": "ai-slop",
+      "providerId": "reasoning.ai-slop",
+      "contract": "Comments must state technical rationale; drafting residue such as the literal phrase 'As an AI language model' is prohibited. src/index.ts reaches this exported helper. Do not infer who authored text.",
+      "cases": [
+        {
+          "id": "comment-residue-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/comment-style.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/normalize.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "docs/comment-style.md": "# Comment style\n\nComments explain technical rationale or non-obvious behavior. Drafting residue such as 'As an AI language model' must not ship. This rule says nothing about authorship.\n",
+            "src/normalize.ts": "// As an AI language model, I normalize account identifiers here.\nexport function normalizeAccount(value: string): string {\n  return value.trim().toLowerCase();\n}\n",
+            "src/index.ts": "import { normalizeAccount } from './normalize';\nexport function accountKey(value: string): string {\n  return normalizeAccount(value);\n}\n"
+          },
+          "expected": [
+            { "path": "src/normalize.ts", "lineRange": [1, 1], "claim": "Reachable source comment contains explicitly prohibited drafting residue.", "severity": "low" }
+          ],
+          "forbiddenClaims": ["An AI authored this comment.", "The normalization behavior is incorrect."]
+        },
+        {
+          "id": "comment-residue-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/comment-style.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/normalize.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "docs/comment-style.md": "# Comment style\n\nComments explain technical rationale or non-obvious behavior. Drafting residue such as 'As an AI language model' must not ship. This rule says nothing about authorship.\n",
+            "src/normalize.ts": "// Trimming and lowercasing makes account keys case-insensitive.\nexport function normalizeAccount(value: string): string {\n  return value.trim().toLowerCase();\n}\n",
+            "src/index.ts": "import { normalizeAccount } from './normalize';\nexport function accountKey(value: string): string {\n  return normalizeAccount(value);\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["An AI authored the clean comment.", "Comments must never explain behavior."]
+        }
+      ]
+    },
+    {
+      "id": "core-naming-boolean-prefix",
+      "lens": "naming",
+      "providerId": "reasoning.naming",
+      "contract": "Functions prefixed is* return booleans. Numeric money values use a quantity name with units. src/checkout.ts is a reachable caller.",
+      "cases": [
+        {
+          "id": "account-balance-name-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/naming.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/checkout.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/account.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/naming.md": "# Naming contract\n\nAn is* function returns boolean. Numeric money values include units in their names, such as balanceCents.\n",
+            "src/account.ts": "export function isAccountEmpty(balanceCents: number): number {\n  return balanceCents;\n}\n",
+            "src/checkout.ts": "import { isAccountEmpty } from './account';\nexport function accountBalance(balanceCents: number): number {\n  return isAccountEmpty(balanceCents);\n}\n"
+          },
+          "expected": [
+            { "path": "src/account.ts", "lineRange": [1, 1], "claim": "isAccountEmpty has an is* predicate name but returns numeric balance cents.", "severity": "medium" }
+          ],
+          "forbiddenClaims": ["isAccountEmpty returns a boolean.", "The caller does not reach this function."]
+        },
+        {
+          "id": "account-balance-name-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/naming.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/checkout.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/account.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/naming.md": "# Naming contract\n\nAn is* function returns boolean. Numeric money values include units in their names, such as balanceCents.\n",
+            "src/account.ts": "export function availableBalanceCents(balanceCents: number): number {\n  return balanceCents;\n}\n",
+            "src/checkout.ts": "import { availableBalanceCents } from './account';\nexport function accountBalance(balanceCents: number): number {\n  return availableBalanceCents(balanceCents);\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["The function name claims to return a boolean.", "availableBalanceCents is unreachable."]
+        }
+      ]
+    },
+    {
+      "id": "core-dead-file-unreferenced-module",
+      "lens": "dead-file",
+      "providerId": "reasoning.dead-file",
+      "contract": "Production modules must be imported from an entrypoint or explicitly registered for discovery. src/index.ts reaches src/formatters/active.ts; files in this capsule are the complete source set.",
+      "cases": [
+        {
+          "id": "module-reachability-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "docs/module-discovery.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/formatters/unused.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/module-discovery.md": "# Module discovery\n\nA production module is live only when reachable from an entrypoint or registered in plugin discovery. This source set has no plugin discovery registration.\n",
+            "src/index.ts": "import { formatTotal } from './formatters/active';\nexport function totalLabel(cents: number): string {\n  return formatTotal(cents);\n}\n",
+            "src/formatters/active.ts": "export function formatTotal(cents: number): string {\n  return `$${(cents / 100).toFixed(2)}`;\n}\n",
+            "src/formatters/unused.ts": "export function formatLegacy(value: string): string {\n  return value.toUpperCase();\n}\n"
+          },
+          "expected": [
+            { "path": "src/formatters/unused.ts", "lineRange": [1, 1], "claim": "Module has no import path from entrypoint and no discovery registration in complete source set.", "severity": "low" }
+          ],
+          "forbiddenClaims": ["src/formatters/active.ts is dead.", "The module is registered for plugin discovery."]
+        },
+        {
+          "id": "module-reachability-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "docs/module-discovery.md", "lineRange": [1, 3], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 4], "role": "caller" },
+            { "path": "src/formatters/active.ts", "lineRange": [1, 3], "role": "behavior" }
+          ],
+          "files": {
+            "docs/module-discovery.md": "# Module discovery\n\nA production module is live only when reachable from an entrypoint or registered in plugin discovery. This source set has no plugin discovery registration.\n",
+            "src/index.ts": "import { formatTotal } from './formatters/active';\nexport function totalLabel(cents: number): string {\n  return formatTotal(cents);\n}\n",
+            "src/formatters/active.ts": "export function formatTotal(cents: number): string {\n  return `$${(cents / 100).toFixed(2)}`;\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["src/formatters/active.ts is dead.", "An unreferenced module exists in the source set."]
+        }
+      ]
+    },
+    {
+      "id": "core-schema-integer-cents",
+      "lens": "schema",
+      "providerId": "reasoning.schema",
+      "contract": "Order schema defines amountCents as an integer. The reachable consumer explicitly rejects non-integer amountCents before numeric comparison. src/index.ts passes producer output to that consumer.",
+      "cases": [
+        {
+          "id": "amount-cents-wire-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            { "path": "contracts/order.schema.json", "lineRange": [1, 7], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 5], "role": "caller" },
+            { "path": "src/producer.ts", "lineRange": [1, 4], "role": "behavior" },
+            { "path": "src/consumer.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "contracts/order.schema.json": "{\n  \"type\": \"object\",\n  \"required\": [\"amountCents\"],\n  \"properties\": {\n    \"amountCents\": { \"type\": \"integer\", \"minimum\": 0 }\n  }\n}\n",
+            "src/producer.ts": "export function orderPayload(amountCents: number): string {\n  if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents < 0) throw new RangeError('amountCents must be a nonnegative integer');\n  return JSON.stringify({ amountCents: String(amountCents) });\n}\n",
+            "src/consumer.ts": "export function isLargeOrder(order: { amountCents: unknown }): boolean {\n  if (typeof order.amountCents !== 'number' || !Number.isInteger(order.amountCents) || order.amountCents < 0) throw new TypeError('amountCents must be a nonnegative integer');\n  return order.amountCents >= 10000;\n}\n",
+            "src/index.ts": "import { orderPayload } from './producer';\nimport { isLargeOrder } from './consumer';\nexport function submit(amountCents: number): boolean {\n  return isLargeOrder(JSON.parse(orderPayload(amountCents)));\n}\n"
+          },
+          "expected": [
+            { "path": "src/producer.ts", "lineRange": [3, 3], "claim": "Producer serializes amountCents as a decimal string against integer schema; reachable consumer rejects that payload.", "severity": "high" }
+          ],
+          "forbiddenClaims": ["amountCents is an integer on the wire.", "The consumer coerces or accepts the decimal string as a valid integer."]
+        },
+        {
+          "id": "amount-cents-wire-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            { "path": "contracts/order.schema.json", "lineRange": [1, 7], "role": "contract" },
+            { "path": "src/index.ts", "lineRange": [1, 5], "role": "caller" },
+            { "path": "src/producer.ts", "lineRange": [1, 4], "role": "behavior" },
+            { "path": "src/consumer.ts", "lineRange": [1, 4], "role": "behavior" }
+          ],
+          "files": {
+            "contracts/order.schema.json": "{\n  \"type\": \"object\",\n  \"required\": [\"amountCents\"],\n  \"properties\": {\n    \"amountCents\": { \"type\": \"integer\", \"minimum\": 0 }\n  }\n}\n",
+            "src/producer.ts": "export function orderPayload(amountCents: number): string {\n  if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents < 0) throw new RangeError('amountCents must be a nonnegative integer');\n  return JSON.stringify({ amountCents });\n}\n",
+            "src/consumer.ts": "export function isLargeOrder(order: { amountCents: unknown }): boolean {\n  if (typeof order.amountCents !== 'number' || !Number.isInteger(order.amountCents) || order.amountCents < 0) throw new TypeError('amountCents must be a nonnegative integer');\n  return order.amountCents >= 10000;\n}\n",
+            "src/index.ts": "import { orderPayload } from './producer';\nimport { isLargeOrder } from './consumer';\nexport function submit(amountCents: number): boolean {\n  return isLargeOrder(JSON.parse(orderPayload(amountCents)));\n}\n"
+          },
+          "expected": [],
+          "forbiddenClaims": ["The producer serializes amountCents as a string.", "The consumer rejects valid integer amountCents values."]
+        }
+      ]
+    }
+  ]
+}

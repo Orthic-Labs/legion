@@ -291,6 +291,25 @@ fn is_executable(path: &Path) -> bool {
     path.is_file()
 }
 
+/// Probe through authenticated wrapper's existing `-f profile -- tool` prefix,
+/// or directly when sandboxing was explicitly disabled. kube-linter exposes
+/// a version subcommand rather than a root version flag.
+fn tool_version_args(tool: &str, wrapped_args: Option<&[String]>) -> Vec<String> {
+    let mut args: Vec<String> = wrapped_args
+        .into_iter()
+        .flat_map(|args| args.iter().take(4).cloned())
+        .collect();
+    args.push(
+        if tool == "kube-linter" {
+            "version"
+        } else {
+            "--version"
+        }
+        .into(),
+    );
+    args
+}
+
 /// Scratch directory outside the audited tree, removed on drop.
 struct Scratch {
     path: PathBuf,
@@ -526,9 +545,7 @@ impl<'a> Run<'a> {
                     Ok(auth) => {
                         // Probe the real tool's version through the same
                         // wrapper prefix (`-f profile -- tool`).
-                        let mut probe: Vec<String> =
-                            auth.wrapped_args.iter().take(4).cloned().collect();
-                        probe.push("--version".into());
+                        let probe = tool_version_args(&tool, Some(&auth.wrapped_args));
                         (
                             auth.wrapped_executable,
                             auth.wrapped_args,
@@ -571,7 +588,7 @@ impl<'a> Run<'a> {
             timeout_ms,
             stdout_limit: self.producer.output_limit,
             stderr_limit: self.producer.output_limit,
-            version_args: version_args.unwrap_or_else(|| vec!["--version".into()]),
+            version_args: version_args.unwrap_or_else(|| tool_version_args(&tool, None)),
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
@@ -1793,6 +1810,46 @@ fn requirements_packages(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tool_version_probe_uses_kube_linter_subcommand_in_both_routes() {
+        for (tool, expected) in [
+            ("kube-linter", "version"),
+            ("kubeconform", "--version"),
+            ("squawk", "--version"),
+            ("zizmor", "--version"),
+            ("shellcheck", "--version"),
+            ("tflint", "--version"),
+            ("brakeman", "--version"),
+            ("golangci-lint", "--version"),
+            ("semgrep", "--version"),
+        ] {
+            assert_eq!(
+                tool_version_args(tool, None),
+                vec![expected.to_owned()],
+                "{tool}"
+            );
+            let wrapped = vec![
+                "-f".into(),
+                "profile".into(),
+                "--".into(),
+                format!("/tools/{tool}"),
+                "scan".into(),
+                "--format=json".into(),
+            ];
+            assert_eq!(
+                tool_version_args(tool, Some(&wrapped)),
+                vec![
+                    "-f".to_owned(),
+                    "profile".into(),
+                    "--".into(),
+                    format!("/tools/{tool}"),
+                    expected.into()
+                ],
+                "{tool}"
+            );
+        }
+    }
 
     #[test]
     fn entropy_filter_rejects_placeholders() {

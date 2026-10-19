@@ -349,6 +349,13 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
             || line.filter(|v| *v > 0).is_none()
             || rule.is_none()
             || message.is_none();
+        // These tools report resources/files, not source lines. Keep their
+        // anchor unresolved until producer binds it to scanned frozen bytes.
+        let file_anchor = (tool == "kube-linter"
+            || (tool == "kubeconform" && text_at(raw, "/status") == Some("statusInvalid")))
+            && path.is_some()
+            && rule.is_some()
+            && message.is_some();
         let rule = rule.unwrap_or_else(|| format!("{tool}.unknown"));
         let message = message.unwrap_or("Scanner record requires source inspection");
         let domain = candidate_domain(tool, &rule);
@@ -360,6 +367,7 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
             "ruleId":rule,"claim":message,"title":message,"path":path,
             "line":line.filter(|v| *v>0),"severityHint":severity.unwrap_or("unknown"),
             "domain":domain,"adjudication":"required",
+            "anchorKind":if file_anchor {"file"} else if line.is_some() {"line"} else {"unknown"},
             "evidence":[{"path":path,"line":line,"rawFindingDigest":raw_digest}],
             "source":{"tool":tool,"ruleId":rule,"rawFindingDigest":raw_digest,"recordOrdinal":ordinal,"raw":raw},
             "anchorStatus":if unresolved {"unresolved"} else {"scanner-reported"},
@@ -547,6 +555,57 @@ mod tests {
             .gaps
             .iter()
             .any(|g| g["kind"] == "scanner-typecheck-failed"));
+    }
+
+    #[test]
+    fn kube_file_anchors_wait_for_source_binding_without_inventing_lines() {
+        for (tool, output) in [
+            (
+                "kubeconform",
+                json!({"resources":[{"filename":"pod.yaml","status":"statusInvalid","msg":"schema mismatch"}]}),
+            ),
+            (
+                "kube-linter",
+                json!({"Reports":[{"Check":"privileged-container","Object":{"Metadata":{"FilePath":"pod.yaml"}},"Diagnostic":{"Message":"privileged"}}]}),
+            ),
+        ] {
+            let report = normalize(tool, &output, Path::new("/repo"), "");
+            assert_eq!(report.candidates.len(), 1);
+            let candidate = &report.candidates[0];
+            assert_eq!(candidate["anchorKind"], "file");
+            assert_eq!(candidate["anchorStatus"], "unresolved");
+            assert!(candidate["line"].is_null());
+            assert!(candidate["evidence"][0]["line"].is_null());
+            assert_eq!(candidate["adjudication"], "required");
+            assert_eq!(report.ledger[0]["disposition"], "retained-unresolved");
+            assert!(report
+                .gaps
+                .iter()
+                .any(|gap| gap["kind"] == "scanner-candidate-anchor-unresolved"));
+        }
+        let shell = normalize(
+            "shellcheck",
+            &json!([{"file":"run.sh","code":2086,"message":"quote"}]),
+            Path::new("/repo"),
+            "",
+        );
+        assert_eq!(shell.candidates[0]["anchorKind"], "unknown");
+        assert_eq!(shell.candidates[0]["anchorStatus"], "unresolved");
+        assert!(shell
+            .gaps
+            .iter()
+            .any(|gap| gap["kind"] == "scanner-candidate-anchor-unresolved"));
+        let error = normalize(
+            "kubeconform",
+            &json!({"resources":[{"filename":"pod.yaml","status":"statusError","msg":"schema unavailable"}]}),
+            Path::new("/repo"),
+            "",
+        );
+        assert_eq!(error.candidates[0]["anchorKind"], "unknown");
+        assert!(error
+            .gaps
+            .iter()
+            .any(|gap| gap["kind"] == "scanner-schema-unavailable-or-error"));
     }
 
     #[test]
