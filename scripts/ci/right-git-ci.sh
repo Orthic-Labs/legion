@@ -126,6 +126,7 @@ audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-
 audit_tflint_qualification() {
   audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure -- --nocapture --test-threads=1 &&
+    audit_effects_test --lib scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_native_confinement -- --ignored --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_timeout_and_cancel_cleanup_after_reaping -- --ignored --nocapture --test-threads=1 &&
     audit_cargo_test --test tflint_accuracy real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1

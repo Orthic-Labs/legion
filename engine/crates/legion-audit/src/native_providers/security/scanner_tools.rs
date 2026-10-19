@@ -532,6 +532,9 @@ impl<'a> Run<'a> {
                 ),
             ];
             if tool == "tflint" {
+                // The producer pins a fresh owned IPC TMPDIR after merging
+                // these values. This empty PATH forbids plugin executables;
+                // bundled Terraform rules communicate only in that namespace.
                 env.push(("PATH", String::new()));
             }
             let accepted: &[i32] = if matches!(

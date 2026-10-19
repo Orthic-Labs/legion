@@ -54,7 +54,8 @@ FILE_HARNESS = ["audit_cargo_test", "--test", "security_packs", "--test", "archi
                 "file_only_provider_accuracy", "--", "--nocapture", "--test-threads=1"]
 BENCH_HARNESS = ["audit_cargo_test", "--test", "bench_recall", "bench_recall_qualification_receipt", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 TFLINT_TESTS = ["scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools",
-                "scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure", "scoped_ipc_native_confinement",
+                "scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure",
+                "scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace", "scoped_ipc_native_confinement",
                 "scoped_ipc_timeout_and_cancel_cleanup_after_reaping", "real_scanner_accuracy_tflint"]
 ENTRY_KEYS = {"provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"}
 

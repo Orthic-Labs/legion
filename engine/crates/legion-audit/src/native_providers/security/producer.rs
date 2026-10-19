@@ -527,6 +527,29 @@ impl<'a> Run<'a> {
         for (name, value) in extra_env {
             environment.insert((*name).to_owned(), value.clone());
         }
+        // The guard is kept across the SDK's version probe, target execution &
+        // child-tree reap. No inherited plugin socket/group override survives.
+        let mut ipc_namespace =
+            if tool == "tflint" && self.producer.sandbox == SandboxPolicy::Required {
+                let namespace = legion_effects::OwnedIpcNamespace::create(cwd)
+                    .map_err(|gap| format!("sandbox-missing:{primary}:{}", gap.as_str()))?;
+                for key in [
+                    "PLUGIN_UNIX_SOCKET_DIR",
+                    "PLUGIN_UNIX_SOCKET_GROUP",
+                    "PLUGIN_MIN_PORT",
+                    "PLUGIN_MAX_PORT",
+                ] {
+                    environment.remove(key);
+                }
+                // Pin last, after caller env merges. Go's CreateTemp uses TMPDIR.
+                environment.insert(
+                    "TMPDIR".into(),
+                    namespace.path().to_string_lossy().into_owned(),
+                );
+                Some(namespace)
+            } else {
+                None
+            };
         let allowlist: BTreeSet<String> = environment.keys().cloned().collect();
 
         let (launch_executable, launch_args, sandbox, version_args, requires_sandbox) = match self
@@ -535,14 +558,25 @@ impl<'a> Run<'a> {
         {
             SandboxPolicy::Disabled => (executable_text.clone(), args.clone(), None, None, false),
             SandboxPolicy::Required => {
-                match legion_effects::authenticate_sandbox(
-                    &executable_text,
-                    &args,
-                    &root_text,
-                    // Source scanners never need to write into their project.
-                    legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
-                    &self.scratch.path.join("sandbox"),
-                ) {
+                let authenticated = if let Some(namespace) = ipc_namespace.as_ref() {
+                    legion_effects::authenticate_tflint_scoped(
+                        &executable_text,
+                        &args,
+                        &root_text,
+                        &self.scratch.path.join("sandbox"),
+                        namespace,
+                    )
+                } else {
+                    legion_effects::authenticate_sandbox(
+                        &executable_text,
+                        &args,
+                        &root_text,
+                        // Source scanners never need to write into their project.
+                        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+                        &self.scratch.path.join("sandbox"),
+                    )
+                };
+                match authenticated {
                     Ok(auth) => {
                         // Probe the real tool's version through the same
                         // wrapper prefix (`-f profile -- tool`).
@@ -561,6 +595,9 @@ impl<'a> Run<'a> {
                     }
                     // No authenticator: leave the receipt absent so the
                     // executor refuses (typed degradation, never unsandboxed).
+                    Err(gap) if ipc_namespace.is_some() => {
+                        return Err(format!("sandbox-missing:{primary}:{}", gap.as_str()));
+                    }
                     Err(_) => (executable_text.clone(), args.clone(), None, None, true),
                 }
             }
@@ -593,6 +630,14 @@ impl<'a> Run<'a> {
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
+        if let Some(namespace) = ipc_namespace.as_mut() {
+            if namespace.retain_if_process_tree_unconfirmed(&receipt) {
+                return Err(format!(
+                    "sandbox-ipc-cleanup-unconfirmed:{primary}:{}",
+                    namespace.path().display()
+                ));
+            }
+        }
         match receipt.state {
             ExecutionState::Completed => {}
             ExecutionState::MissingExecutable => return Err(format!("tool-missing:{primary}")),

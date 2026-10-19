@@ -40,6 +40,9 @@ const EXPECTATION_SOURCES: &[&str] = &[
     "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/plugin/discovery.go",
     "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/cmd/inspect.go",
     "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/cmd/version.go",
+    "https://raw.githubusercontent.com/hashicorp/go-plugin/v1.8.0/server.go",
+    "https://raw.githubusercontent.com/hashicorp/go-plugin/v1.8.0/constants.go",
+    "https://raw.githubusercontent.com/openai/codex/main/codex-rs/sandboxing/src/seatbelt.rs",
     "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/formatter/json.go",
     "https://raw.githubusercontent.com/terraform-linters/tflint-ruleset-terraform/v0.15.0/docs/rules/terraform_unused_declarations.md",
     "https://raw.githubusercontent.com/terraform-linters/tflint-ruleset-terraform/v0.15.0/rules/terraform_unused_declarations.go",
@@ -170,7 +173,10 @@ impl ScopedPolicy {
             "ownedConfigTemplate": {"bytes": owned_config(Path::new("<producer-scratch-under-run>/empty-plugins")), "digest": digest(owned_config(Path::new("<producer-scratch-under-run>/empty-plugins")).as_bytes())}, "versionArgv": ["--version"],
             "requiredVersion": VERSION, "bundledRuleset": "terraform@0.15.0",
             "timeoutMsMaximum": TIMEOUT, "outputBytesMaximum": LIMIT,
-            "sandbox": "native-macos-deny-network-deny-project-write"})
+            "sandbox": "native-macos-deny-ip-scoped-tflint-unix-deny-project-write",
+            "ipc": {"owner": "effective-user", "mode": "0700", "storage": "CI RUNNER_TEMP or /Volumes/D/scratch",
+                "template": "li-<16 hex>/plugin<up to 10 decimal digits>", "environment": "TMPDIR pinned after merges",
+                "overrides": "PLUGIN_UNIX_SOCKET_DIR/GROUP & port overrides forbidden"}})
     }
 
     fn permits(&self, request: &ExternalToolRequest) -> bool {
@@ -263,6 +269,7 @@ impl ScopedPolicy {
             "CGO_ENABLED",
             "GOCACHE",
             "GOLANGCI_LINT_CACHE",
+            "TMPDIR",
         ]
         .into_iter()
         .map(str::to_owned)
@@ -312,6 +319,8 @@ impl ScopedPolicy {
             return false;
         };
         if !profile_path.starts_with(&self.run)
+            || Path::new(&request.args[1]) != profile_path
+            || Path::new(&request.args[1]).is_symlink()
             || !sandbox.network
             || sandbox.filesystem_scope.as_deref() != self.root.to_str()
         {
@@ -322,14 +331,44 @@ impl ScopedPolicy {
             .to_string_lossy()
             .replace('\\', "\\\\")
             .replace('"', "\\\"");
-        let expected = format!("(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"{escaped}\"))\n(deny file-write* (subpath \"{escaped}\"))\n");
+        let mut expected = format!("(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"{escaped}\"))\n(deny file-write* (subpath \"{escaped}\"))\n");
+        if scan {
+            let Some(namespace) = request.environment.get("TMPDIR").map(Path::new) else {
+                return false;
+            };
+            if legion_effects::validate_tflint_ipc_namespace(namespace, &self.root).is_err() {
+                return false;
+            }
+            let namespace = namespace
+                .to_string_lossy()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"");
+            expected.push_str(&format!("(allow network-bind (local unix-socket (subpath \"{namespace}\")))\n(allow network-outbound (remote unix-socket (subpath \"{namespace}\")))\n"));
+        }
         let Ok(profile) = fs::read(profile_path) else {
             return false;
         };
+        let hash = digest(&profile);
+        let expected_name = format!("audit-{}.sb", hash.trim_start_matches("sha256:"));
+        use std::os::unix::fs::MetadataExt;
+        let fixture_owner = fs::metadata(&self.run)
+            .map(|metadata| metadata.uid())
+            .unwrap_or(u32::MAX);
+        let owned_profile = fs::symlink_metadata(&request.args[1]).is_ok_and(|metadata| {
+            metadata.uid() == fixture_owner
+                && metadata.mode() & 0o022 == 0
+                && (!scan || metadata.mode() & 0o7777 == 0o600)
+        });
         profile == expected.as_bytes()
+            && owned_profile
+            && Path::new(&request.args[1])
+                .file_name()
+                .and_then(|name| name.to_str())
+                == Some(expected_name.as_str())
             && sandbox.id
                 == format!(
-                    "sandbox:macos:{}",
+                    "sandbox:macos:{}{}",
+                    if scan { "tflint-ipc:" } else { "" },
                     digest(&profile).trim_start_matches("sha256:")
                 )
     }
@@ -351,7 +390,11 @@ impl PolicyAuthorizer for ScopedPolicy {
             "args": request.args, "versionArgs": request.version_args, "cwd": request.cwd,
             "timeoutMs": request.timeout_ms, "stdoutLimit": request.stdout_limit, "stderrLimit": request.stderr_limit,
             "acceptedExitCodes": request.accepted_exit_codes, "environmentNames": request.environment_allowlist,
-            "requiresNetworkSandbox": request.requires_network_sandbox}));
+            "requiresNetworkSandbox": request.requires_network_sandbox,
+            "ipcNamespace": request.environment.get("TMPDIR"),
+            "profile": request.args.get(1).and_then(|path| fs::read_to_string(path).ok()),
+            "profileDigest": request.args.get(1).and_then(|path| fs::read(path).ok()).map(|bytes| digest(&bytes)),
+            "ipcValidatedAtAdmission": allowed && request.task_id.as_deref() == Some(TOOL)}));
         PolicyDecision {
             allowed,
             policy_id: POLICY.into(),
@@ -570,7 +613,7 @@ fn case(planted: bool) -> Value {
     assert!(receipt["sandbox"]["receiptId"]
         .as_str()
         .unwrap()
-        .starts_with("sandbox:macos:"));
+        .starts_with("sandbox:macos:tflint-ipc:"));
     assert!(receipt["stdoutDigest"]
         .as_str()
         .is_some_and(|value| value.starts_with("sha256:") && value.len() == 71));
@@ -650,6 +693,12 @@ fn case(planted: bool) -> Value {
         .find(|decision| decision["taskId"] == TOOL)
         .unwrap();
     assert_eq!(scan_decision["ownedConfig"]["emptyPluginDirectory"], true);
+    assert_eq!(scan_decision["ipcValidatedAtAdmission"], true);
+    let namespace = Path::new(scan_decision["ipcNamespace"].as_str().unwrap());
+    assert!(
+        !namespace.exists(),
+        "namespace must be removed after native child-tree reap"
+    );
     json!({"caseId": case_id, "source": {"path": TF_PATH, "bytes": source, "digest": source_digest},
         "expected": expected, "actual": actual, "controlMatched": actual == expected,
         "coverageContractMatched": coverage_matched, "complete": result.complete,

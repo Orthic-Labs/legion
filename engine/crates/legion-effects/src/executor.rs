@@ -183,10 +183,9 @@ where
             let version_output = match self.platform.run(version_launch).await {
                 Ok(value) => value,
                 Err(error) => {
-                    return Self::failure_with_policy(
+                    return Self::failure_after_platform_error(
                         request,
-                        error.state(),
-                        error.to_string(),
+                        error,
                         Some(identity),
                         cwd.to_string_lossy().into_owned(),
                         policy,
@@ -227,7 +226,7 @@ where
                 } else {
                     ExecutionState::UnsealedExecutable
                 };
-                return Self::failure_with_policy(
+                let mut receipt = Self::failure_with_policy(
                     request,
                     state,
                     "actual executable version probe is not qualified",
@@ -235,6 +234,20 @@ where
                     cwd.to_string_lossy().into_owned(),
                     policy,
                 );
+                // This probe really started a process. Preserve its lifecycle
+                // so owners of scoped resources cannot mistake failed reaping
+                // for a pre-start denial & remove resources beneath live children.
+                receipt.process_tree = version_output.process_tree;
+                receipt.exit_code = version_output.exit_code;
+                receipt.signal = version_output.signal;
+                receipt.timing = crate::receipt::TimingEvidence {
+                    started_at_ms: version_output.started_at_ms,
+                    completed_at_ms: version_output.completed_at_ms,
+                    duration_ms: version_output
+                        .completed_at_ms
+                        .saturating_sub(version_output.started_at_ms),
+                };
+                return receipt;
             }
             identity
         };
@@ -269,10 +282,9 @@ where
         let output = match self.platform.run(launch).await {
             Ok(value) => value,
             Err(error) => {
-                return Self::failure_with_policy(
+                return Self::failure_after_platform_error(
                     request,
-                    error.state(),
-                    error.to_string(),
+                    error,
                     Some(identity),
                     cwd.to_string_lossy().into_owned(),
                     policy,
@@ -388,6 +400,32 @@ where
             },
             gaps,
         }
+    }
+
+    fn failure_after_platform_error(
+        request: &ExternalToolRequest,
+        error: crate::error::EffectError,
+        identity: Option<ExecutableIdentity>,
+        cwd: String,
+        policy: PolicyEvidence,
+    ) -> ExecutionReceipt {
+        let mut receipt = Self::failure_with_policy(
+            request,
+            error.state(),
+            error.to_string(),
+            identity,
+            cwd,
+            policy,
+        );
+        // Platform errors carry no lifecycle evidence. Even SpawnFailed can
+        // occur after spawn (missing PID/pipes); none proves pre-start or reap.
+        // Leave started=false: it means no observed start, not proven no child.
+        receipt
+            .gaps
+            .push("platform_process_tree_unconfirmed".into());
+        receipt.process_tree.detail =
+            Some("platform returned error; process start, termination & reap unconfirmed".into());
+        receipt
     }
 
     fn failure_with_policy(

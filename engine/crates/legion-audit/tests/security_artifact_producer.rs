@@ -397,7 +397,8 @@ fn missing_tools_yield_typed_gaps_per_provider() {
     for (id, reason) in [
         ("security.opengrep", "tool-missing:opengrep"),
         ("structural.ast-grep", "tool-missing:ast-grep"),
-        ("container.iac", "tool-missing:trivy"),
+        // This fixture has no frozen selector; IaC rejects it before tool discovery.
+        ("container.iac", "iac-frozen-selection-missing"),
         ("dependency.osv", "tool-missing:osv-scanner"),
         ("imported.sarif", "sarif-not-present:imported.sarif"),
     ] {

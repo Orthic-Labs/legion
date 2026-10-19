@@ -70,7 +70,7 @@ class RegistrationGateTests(unittest.TestCase):
     def write(self, relative, text):
         path = self.root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        path.write_text(text, encoding="utf-8", newline="\n")
 
     def write_json(self, relative, value):
         self.write(relative, json.dumps(value, indent=2) + "\n")
@@ -292,7 +292,7 @@ class RegistrationGateTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
 
-    def test_grouped_tflint_requires_all_five_named_tests_to_execute(self):
+    def test_grouped_tflint_requires_all_six_named_tests_to_execute(self):
         command = ["audit_tflint_qualification"]
         names = gate["TFLINT_TESTS"]
         path = self.root / "terminal-checker-unit.log"
