@@ -592,6 +592,7 @@ impl Session<'_> {
             self.ctx,
             &mut self.resolver,
             &command,
+            None,
             self.sequence,
             self.ctx.per_tool_timeout_ms.min(remaining).max(1),
             self.cancellation.clone(),

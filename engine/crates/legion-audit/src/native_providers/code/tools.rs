@@ -2471,6 +2471,7 @@ mod tests {
                     &ctx,
                     &mut resolver,
                     &command,
+                    None,
                     0,
                     1_000,
                     CancellationToken::new(),

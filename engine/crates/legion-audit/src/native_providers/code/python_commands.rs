@@ -6,6 +6,10 @@ const MAX_FILES: usize = 4096;
 const MAX_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_MANIFEST: u64 = 2 * 1024 * 1024;
 
+fn file_name(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
 fn relative(path: &str) -> bool {
     !path.is_empty()
         && Path::new(path)

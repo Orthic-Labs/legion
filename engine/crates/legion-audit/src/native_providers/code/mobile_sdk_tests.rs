@@ -629,6 +629,7 @@ mod native {
                     &context,
                     &mut resolver,
                     command,
+                    None,
                     sequence,
                     120_000,
                     CancellationToken::new(),
