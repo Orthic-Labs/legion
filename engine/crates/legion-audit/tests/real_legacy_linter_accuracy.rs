@@ -1,5 +1,5 @@
 //! Constructed real-tool controls for external legacy linter adapters.
-//! Explicitly ignored: requires actual actionlint, hadolint & native macOS sandbox.
+//! Explicitly ignored: requires actual actionlint, hadolint, SwiftLint & native macOS sandbox.
 #![cfg(target_os = "macos")]
 
 use legion_audit::{
@@ -23,8 +23,10 @@ const SOURCE: &str = "engine/crates/legion-audit/tests/real_legacy_linter_accura
 const POLICY: &str = "legion-real-legacy-linter-qualification-v1";
 const ACTIONLINT: &str = "legacy.security.github-actions-lint";
 const HADOLINT: &str = "legacy.security.docker";
+const SWIFTLINT: &str = "legacy.quality.swift-lint";
 const ACTION_PATH: &str = ".github/workflows/ci.yml";
 const DOCKER_PATH: &str = "Dockerfile";
+const SWIFT_PATH: &str = "Example.swift";
 
 fn digest(bytes: &[u8]) -> String {
     let hex = Sha256::digest(bytes)
@@ -363,6 +365,10 @@ fn fixture_contents(id: &str, positive: bool) -> (&'static str, &'static str) {
         ),
         (HADOLINT, true) => (DOCKER_PATH, "FROM ubuntu:latest\nCMD [\"true\"]\n"),
         (HADOLINT, false) => (DOCKER_PATH, "FROM ubuntu:24.04\nCMD [\"true\"]\n"),
+        // Default type_name examples: https://realm.github.io/SwiftLint/type_name.html
+        // Space before braces avoids opening_brace; plain class avoids static_over_final_class.
+        (SWIFTLINT, true) => (SWIFT_PATH, "class example {}\n"),
+        (SWIFTLINT, false) => (SWIFT_PATH, "class Example {}\n"),
         _ => panic!("unsupported real linter provider {id}"),
     }
 }
@@ -371,6 +377,11 @@ fn expected_args(id: &str) -> (&'static str, &'static str, &'static [&'static st
     match id {
         ACTIONLINT => ("actionlint", "ci_lint", &["-format", "{{json .}}"]),
         HADOLINT => ("hadolint", "docker", &["--format", "json", "Dockerfile"]),
+        SWIFTLINT => (
+            "swiftlint",
+            "swift_lint",
+            &["lint", "--quiet", "--reporter", "json"],
+        ),
         _ => panic!("unsupported real linter provider {id}"),
     }
 }
@@ -477,10 +488,12 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
         result.coverage_gaps
     );
     assert!(result.coverage_gaps.is_empty() && result.degradation.is_empty());
-    assert!(
-        result.findings.is_empty(),
-        "candidate adapters must not adjudicate findings"
-    );
+    if id != SWIFTLINT {
+        assert!(
+            result.findings.is_empty(),
+            "candidate adapters must not adjudicate findings"
+        );
+    }
     let coverage = result.coverage.as_ref().expect("frozen coverage");
     assert_eq!((coverage.expected, coverage.examined), (1, 1));
     assert!(coverage.gaps.is_empty());
@@ -550,7 +563,16 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
     assert_eq!(receipt["processTree"]["started"], true);
     assert_eq!(receipt["processTree"]["terminated"], true);
     assert_eq!(receipt["processTree"]["reaped"], true);
-    assert_eq!(receipt["exitCode"], if positive { 1 } else { 0 });
+    // SwiftLint exits 2 for error diagnostics; other positive controls exit 1.
+    // https://github.com/realm/SwiftLint/blob/main/Source/SwiftLintFramework/LintOrAnalyzeCommand.swift
+    let expected_exit = if !positive {
+        0
+    } else if id == SWIFTLINT {
+        2
+    } else {
+        1
+    };
+    assert_eq!(receipt["exitCode"], expected_exit);
     assert!(receipt["signal"].is_null());
     assert_eq!(receipt["gaps"], json!([]));
 
@@ -574,12 +596,22 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
     if id == HADOLINT && positive {
         assert_eq!(tool_report[0]["code"], "DL3007", "fixture-specific warning");
     }
+    if id == SWIFTLINT && positive {
+        assert_eq!(
+            tool_report[0]["rule_id"], "type_name",
+            "only planted SwiftLint rule"
+        );
+        assert_eq!(tool_report[0]["severity"], "Error");
+        assert_eq!(tool_report[0]["file"], file.to_string_lossy().as_ref());
+        assert_eq!(tool_report[0]["line"], 1);
+    }
     assert_eq!(result.details["findingsCount"], expected_count);
 
-    let rule = if id == ACTIONLINT {
-        "legacy.ci_lint.actionlint"
-    } else {
-        "legacy.docker.hadolint"
+    let rule = match id {
+        ACTIONLINT => "legacy.ci_lint.actionlint",
+        HADOLINT => "legacy.docker.hadolint",
+        SWIFTLINT => "legacy.swift_lint.swiftlint",
+        _ => panic!("unsupported real linter provider {id}"),
     };
     let claim = format!("{} reported 1 finding(s)", check);
     let actual_candidates: Vec<Value> = result.details["candidates"]
@@ -602,7 +634,7 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
             })
         })
         .collect();
-    let expected_candidates = if positive {
+    let expected_candidates = if positive && id != SWIFTLINT {
         let candidate_id = digest(format!("{rule}\0{path}\0{}", 1).as_bytes());
         vec![json!({
             "id": candidate_id,
@@ -620,9 +652,39 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
         Vec::new()
     };
     assert_eq!(actual_candidates, expected_candidates);
-    let expected = json!({"findingsCount":expected_count,"candidates":expected_candidates});
-    let actual =
-        json!({"findingsCount":result.details["findingsCount"],"candidates":actual_candidates});
+    let (expected, actual) = if id == SWIFTLINT {
+        // Production apply_parse_outcome emits one deterministic summary finding,
+        // not one finding per tool row or a candidate awaiting adjudication.
+        let finding_id = digest(format!("{rule}\0{path}\0{}", 1).as_bytes());
+        let expected_findings = if positive {
+            json!([{"id":finding_id,"severity":"medium"}])
+        } else {
+            json!([])
+        };
+        let expected_evidence = if positive {
+            json!({(finding_id.clone()):{"ruleId":rule,"path":path,"line":1,"message":claim}})
+        } else {
+            json!({})
+        };
+        let expected_locations = if positive {
+            json!({(finding_id):[format!("{path}:1")]})
+        } else {
+            json!({})
+        };
+        (
+            json!({"findingsCount":expected_count,"candidates":[],"findings":expected_findings,
+                "findingEvidence":expected_evidence,"findingLocations":expected_locations}),
+            json!({"findingsCount":result.details["findingsCount"],"candidates":actual_candidates,
+                "findings":result.findings,
+                "findingEvidence":result.details.get("findingEvidence").cloned().unwrap_or_else(|| json!({})),
+                "findingLocations":result.details.get("findingLocations").cloned().unwrap_or_else(|| json!({}))}),
+        )
+    } else {
+        (
+            json!({"findingsCount":expected_count,"candidates":expected_candidates}),
+            json!({"findingsCount":result.details["findingsCount"],"candidates":actual_candidates}),
+        )
+    };
     assert_eq!(actual, expected);
 
     let mut fixture_sources = BTreeMap::new();
@@ -653,6 +715,7 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
     );
     json!({
         "caseId":case_id,
+        "outputKind":if id == SWIFTLINT {"findings"} else {"candidates"},
         "control":if positive {"positive"} else {"absence"},
         "fixtureFiles":{(path):source},
         "fixtureSources":fixture_sources,
@@ -679,7 +742,7 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
 }
 
 #[test]
-#[ignore = "explicit real-linter qualification; requires provisioned actionlint, hadolint & native macOS sandbox"]
+#[ignore = "explicit real-linter qualification; requires provisioned actionlint, hadolint, SwiftLint & native macOS sandbox"]
 fn real_legacy_linter_accuracy() {
     if let Some(base) = std::env::var_os("LEGION_REAL_LINTER_CHILD") {
         let base = fs::canonicalize(base).unwrap();
@@ -688,14 +751,15 @@ fn real_legacy_linter_accuracy() {
             base.join("home")
         );
         let mut all_cases = Vec::new();
-        for id in [ACTIONLINT, HADOLINT] {
+        for id in [ACTIONLINT, HADOLINT, SWIFTLINT] {
             all_cases.push(case(&base, id, true));
             all_cases.push(case(&base, id, false));
         }
         let mut counts = BTreeMap::new();
         counts.insert(ACTIONLINT, 2);
         counts.insert(HADOLINT, 2);
-        for id in [ACTIONLINT, HADOLINT] {
+        counts.insert(SWIFTLINT, 2);
+        for id in [ACTIONLINT, HADOLINT, SWIFTLINT] {
             let cases: Vec<_> = all_cases
                 .iter()
                 .filter(|case| {
@@ -725,8 +789,13 @@ fn real_legacy_linter_accuracy() {
                 "modelCalls":0,
                 "executionPath":"native-sdk-frozen-plan-real-linter",
                 "coverageState":"complete",
-                "stage":"candidate",
-                "scope":"one actual tool diagnostic and one clean input; candidates remain unadjudicated",
+                "outputKind":if id == SWIFTLINT {"findings"} else {"candidates"},
+                "stage":if id == SWIFTLINT {"finding"} else {"candidate"},
+                "scope":if id == SWIFTLINT {
+                    "one actual tool diagnostic and one clean input; deterministic summary finding only"
+                } else {
+                    "one actual tool diagnostic and one clean input; candidates remain unadjudicated"
+                },
                 "binding":binding(id, &fixture_sources),
                 "toolVersion":version,
                 "cases":cases,

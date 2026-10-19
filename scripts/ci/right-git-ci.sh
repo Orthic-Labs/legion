@@ -151,7 +151,7 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint
+  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint swiftlint
   # Official native Squawk release; avoid npm/Python wrapper substitutions.
   squawk_dir="${RUNNER_TEMP}/legion-scanners"
   mkdir -p "$squawk_dir"
