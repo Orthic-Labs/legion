@@ -2946,14 +2946,30 @@ fn native_dependency_pinning(
         .map(|entry| entry.path.as_str())
         .collect::<BTreeSet<_>>();
     for (entry, text) in files {
-        let is_package = entry.path.ends_with("package.json");
-        let is_cargo = entry.path.ends_with("Cargo.toml");
-        if (is_package
-            && !paths.contains("package-lock.json")
-            && !paths.contains("pnpm-lock.yaml")
-            && !paths.contains("yarn.lock"))
-            || (is_cargo && !paths.contains("Cargo.lock"))
-        {
+        let lockfiles: &[&str] = match entry.path.rsplit('/').next() {
+            Some("package.json") => &["package-lock.json", "pnpm-lock.yaml", "yarn.lock"],
+            Some("Cargo.toml") => &["Cargo.lock"],
+            _ => continue,
+        };
+        let mut directory = entry.path.rsplit_once('/').map_or("", |(parent, _)| parent);
+        // Only sibling or ancestor locks in the frozen scope can cover a manifest.
+        let has_lockfile = loop {
+            if lockfiles.iter().any(|name| {
+                let lock = if directory.is_empty() {
+                    (*name).to_owned()
+                } else {
+                    format!("{directory}/{name}")
+                };
+                paths.contains(lock.as_str())
+            }) {
+                break true;
+            }
+            if directory.is_empty() {
+                break false;
+            }
+            directory = directory.rsplit_once('/').map_or("", |(parent, _)| parent);
+        };
+        if !has_lockfile {
             push_candidate(
                 output,
                 "security.dependency-unpinned",

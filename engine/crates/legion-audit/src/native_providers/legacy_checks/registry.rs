@@ -214,7 +214,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         phase: "source",
         role: "candidate-generator",
         tool: "grep",
-        selector: SOURCE,
+        selector: r#"{"op":"anyPath","patterns":["package.json","**/package.json","Cargo.toml","**/Cargo.toml","package-lock.json","**/package-lock.json","pnpm-lock.yaml","**/pnpm-lock.yaml","yarn.lock","**/yarn.lock","Cargo.lock","**/Cargo.lock"]}"#,
         command: NATIVE,
     },
     LegacyCheckSpec {

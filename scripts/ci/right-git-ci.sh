@@ -115,6 +115,20 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   )
 fi
 
+# Measure provider output separately from selection/routing & final adjudication.
+# Run explicitly on both native hosts even when change detection skips workspace
+# tests. Each registered provider must emit a current source/corpus-bound record.
+export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-accuracy"
+mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+(cd engine && cargo test --locked -p legion-audit \
+  --test security_packs --test architecture_input_producer \
+  --test code_provider_accuracy --test suite_provider_accuracy \
+  --test legacy_file_accuracy --test artifact_provider_accuracy \
+  file_only_provider_accuracy -- --nocapture --test-threads=1)
+python3 scripts/ci/audit-provider-accuracy.py \
+  --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+unset LEGION_PROVIDER_BENCHMARK_DIR
+
 # Native fixture qualification is intentionally ignored by ordinary unit tests.
 # Both native hosts must execute it after shared RightKit provisions pinned
 # Chrome assets (plus Windows headless shell & sandbox ACLs). Require the exact

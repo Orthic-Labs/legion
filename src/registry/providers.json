@@ -1453,8 +1453,20 @@
         "provider-result"
       ],
       "selector": {
-        "op": "sourceFilesAtLeast",
-        "count": 1
+        "op": "anyExtension",
+        "extensions": [
+          "html",
+          "htm",
+          "jsx",
+          "tsx",
+          "vue",
+          "svelte",
+          "astro",
+          "css",
+          "scss",
+          "sass",
+          "less"
+        ]
       },
       "denominatorKind": "selected-scope",
       "runner": {
@@ -4447,8 +4459,21 @@
         "security-candidates"
       ],
       "selector": {
-        "op": "sourceFilesAtLeast",
-        "count": 1
+        "op": "anyPath",
+        "patterns": [
+          "package.json",
+          "**/package.json",
+          "Cargo.toml",
+          "**/Cargo.toml",
+          "package-lock.json",
+          "**/package-lock.json",
+          "pnpm-lock.yaml",
+          "**/pnpm-lock.yaml",
+          "yarn.lock",
+          "**/yarn.lock",
+          "Cargo.lock",
+          "**/Cargo.lock"
+        ]
       },
       "denominatorKind": "git repository manifests",
       "runner": {

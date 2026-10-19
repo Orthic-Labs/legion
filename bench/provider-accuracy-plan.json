@@ -1,0 +1,357 @@
+{
+  "schema": "legion-file-provider-accuracy-plan/1",
+  "issue": "https://github.com/Orthic-Labs/legion/issues/56",
+  "claim": "Constructed production-path output controls; candidates remain unadjudicated; partial tool coverage cannot qualify whole providers.",
+  "providers": [
+    {
+      "provider": "architecture.core",
+      "testTarget": "architecture_input_producer",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.c-family",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.dotnet",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.go",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.javascript",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.jvm",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.long-tail",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.mobile",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.php-ruby",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.python",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "code.rust",
+      "testTarget": "code_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": false,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "docs.contract",
+      "testTarget": "architecture_input_producer",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "governance.policy",
+      "testTarget": "artifact_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs"
+      ],
+      "measurementKind": "adapter-protocol"
+    },
+    {
+      "provider": "imported.sarif",
+      "testTarget": "artifact_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs"
+      ],
+      "measurementKind": "adapter-protocol"
+    },
+    {
+      "provider": "legacy.accessibility.internal-suite",
+      "testTarget": "suite_provider_accuracy",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/suite_provider_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "legacy.apple.platform",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.architecture.decomposition",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.data.internal-suite",
+      "testTarget": "suite_provider_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/suite_provider_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.framework.major-suite",
+      "testTarget": "suite_provider_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/suite_provider_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.infrastructure.internal-suite",
+      "testTarget": "suite_provider_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/suite_provider_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.quality.negative-space",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "legacy.react.hooks-config",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "legacy.security.binary-pins",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.security.dependency-pinning",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.security.vendored-dependencies",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.tauri.capabilities",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "legacy.tauri.contract-mirror",
+      "testTarget": "legacy_file_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/legacy_file_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "requirements.traceability",
+      "testTarget": "architecture_input_producer",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "finding"
+    },
+    {
+      "provider": "security.agent-skill-mcp",
+      "testTarget": "security_packs",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/security_packs.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "security.agentic-ci",
+      "testTarget": "security_packs",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/security_packs.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "security.credentials",
+      "testTarget": "security_packs",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/security_packs.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "security.insecure-defaults",
+      "testTarget": "security_packs",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/security_packs.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "security.misuse-resistance",
+      "testTarget": "security_packs",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/security_packs.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "security.suppression-changes",
+      "testTarget": "artifact_provider_accuracy",
+      "stage": "candidate",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs"
+      ],
+      "measurementKind": "candidate"
+    },
+    {
+      "provider": "test-quality.core",
+      "testTarget": "architecture_input_producer",
+      "stage": "finding",
+      "qualificationEligible": true,
+      "fixtures": [
+        "engine/crates/legion-audit/tests/architecture_input_producer.rs"
+      ],
+      "measurementKind": "finding"
+    }
+  ]
+}

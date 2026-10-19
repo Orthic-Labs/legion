@@ -8,6 +8,9 @@
 //! Secret-shaped fixtures are assembled at runtime so this source contains no
 //! key-like literal.
 
+#[path = "support/accuracy_receipt.rs"]
+mod accuracy_receipt;
+
 use std::{
     collections::BTreeSet,
     fs,
@@ -526,6 +529,92 @@ const PACK_IDS: [&str; 5] = [
     "security.agentic-ci",
     "security.agent-skill-mcp",
 ];
+
+#[test]
+fn file_only_provider_accuracy_security() {
+    use accuracy_receipt::CaseObservation;
+
+    let packs = [
+        (
+            PACK_IDS[0],
+            credentials_fixture(),
+            vec![token(), opaque(), "R7kQ2mZ9xL4v".to_owned()],
+        ),
+        (
+            PACK_IDS[1],
+            insecure_defaults_fixture(),
+            vec!["dev-secret-do-not-use".to_owned()],
+        ),
+        (PACK_IDS[2], misuse_resistance_fixture(), vec![]),
+        (PACK_IDS[3], agentic_ci_fixture(), vec![]),
+        (PACK_IDS[4], agent_skill_mcp_fixture(), vec![]),
+    ];
+    let labels = |locations: BTreeSet<(String, String, u64)>| -> Vec<String> {
+        locations
+            .into_iter()
+            .map(|(rule, file, line)| format!("{rule}|{file}|{line}"))
+            .collect()
+    };
+    let actual_labels = |result: &ProviderResult| -> Vec<String> {
+        candidates_of(result)
+            .into_iter()
+            .map(|candidate| {
+                let rule = candidate["ruleId"].as_str().unwrap();
+                let file = candidate["evidence"][0]["file"].as_str().unwrap();
+                let line = candidate["evidence"][0]["line"].as_u64().unwrap();
+                format!("{rule}|{file}|{line}")
+            })
+            .collect()
+    };
+
+    for (id, (planted, expected, clean), secrets) in packs {
+        let planted_root = fixture("accuracy-planted");
+        write_all(&planted_root, &planted);
+        let planted_run = run(&planted_root, &[id]);
+        assert_generator_contract(&planted_run, id, planted.len() as u64);
+
+        let clean_root = fixture("accuracy-clean");
+        write_all(&clean_root, &clean);
+        let clean_run = run(&clean_root, &[id]);
+        assert_generator_contract(&clean_run, id, clean.len() as u64);
+
+        for execution in [&planted_run.execution, &clean_run.execution] {
+            let blob = serde_json::to_string(execution).unwrap();
+            for secret in &secrets {
+                assert!(!blob.contains(secret.as_str()), "{id}: secret text leaked");
+            }
+        }
+        if id == "security.credentials" {
+            for candidate in candidates_of(planted_run.result(id)) {
+                assert!(candidate["secretDigest"]
+                    .as_str()
+                    .is_some_and(|digest| digest.starts_with("sha256:")));
+                assert!(candidate["redactedExcerpt"]
+                    .as_str()
+                    .unwrap()
+                    .contains("[REDACTED]"));
+            }
+        }
+
+        accuracy_receipt::emit(
+            id,
+            "candidate",
+            &[
+                CaseObservation {
+                    id: format!("{id}.planted"),
+                    expected: labels(expected_set(&planted, &expected)),
+                    actual: actual_labels(planted_run.result(id)),
+                },
+                CaseObservation {
+                    id: format!("{id}.clean"),
+                    expected: vec![],
+                    actual: actual_labels(clean_run.result(id)),
+                },
+            ],
+            &["engine/crates/legion-audit/tests/security_packs.rs"],
+        );
+    }
+}
 
 #[test]
 fn shipped_registry_declares_the_five_packs_as_candidate_generators() {

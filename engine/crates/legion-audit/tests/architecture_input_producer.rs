@@ -2,10 +2,11 @@
 //! denominator when the host injects none, and keep host input authoritative.
 
 use legion_audit::{
-    native_providers::availability::unavailable_reason, AuditProvider, FilesystemInventorySource,
-    InventoryEnvelope, InventorySource, NativeProviderRegistry, ProviderExecutor, ProviderKind,
+    execute, native_providers::availability::unavailable_reason, AuditPlan, AuditProvider,
+    FilesystemInventorySource, InventoryEnvelope, InventorySource, NativeProviderRegistry,
+    ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{ProviderResult, ProviderStatus};
+use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
@@ -13,6 +14,9 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
+
+#[path = "support/accuracy_receipt.rs"]
+mod accuracy_receipt;
 
 static SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -86,6 +90,332 @@ fn located(result: &ProviderResult) -> Vec<(String, String)> {
             (id, path)
         })
         .collect()
+}
+
+/// Accuracy qualification uses shipped specifications, never `provider()`'s
+/// synthetic configuration or injected analyzer observations.
+fn architecture_accuracy_case(
+    provider_id: &str,
+    case_id: &str,
+    files: &[(&str, &str)],
+    expected: &[&str],
+) -> accuracy_receipt::CaseObservation {
+    let root = fixture_root(case_id);
+    for (path, body) in files {
+        write(&root, path, body);
+    }
+    let raw = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/providers.json"
+    ))
+    .unwrap();
+    let registry: Value = serde_json::from_str(&raw).unwrap();
+    let spec: ProviderSpec = serde_json::from_value(
+        registry["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["id"] == provider_id)
+            .unwrap_or_else(|| panic!("missing shipped specification: {provider_id}"))
+            .clone(),
+    )
+    .unwrap();
+    let inventory = inventory(&root);
+    let mut expected_paths: Vec<&str> = files.iter().map(|(path, _)| *path).collect();
+    expected_paths.sort_unstable();
+    let mut inventoried_paths: Vec<&str> = inventory
+        .entries
+        .iter()
+        .map(|entry| entry.path.as_str())
+        .collect();
+    inventoried_paths.sort_unstable();
+    assert_eq!(inventoried_paths, expected_paths, "{case_id}");
+    let denominator = inventory.denominator_entries(&spec.selector).unwrap();
+    assert_eq!(denominator.entries.len(), files.len(), "{case_id}");
+    let plan = AuditPlan::compile_with_root(Some(&root), &inventory, &[spec])
+        .unwrap()
+        .freeze(Some(b"architecture-accuracy-fixture-key"))
+        .unwrap();
+    assert_eq!(plan.providers().len(), 1, "{case_id}");
+    let planned = plan.provider(provider_id).unwrap();
+    assert_eq!(planned.kind, ProviderKind::RustAlgorithm, "{case_id}");
+    assert!(!planned.configuration.contains_key("input"), "{case_id}");
+    assert_eq!(
+        planned.configuration["denominatorCount"],
+        json!(files.len()),
+        "{case_id}"
+    );
+    assert_eq!(
+        planned.configuration["denominatorDigest"],
+        json!(denominator.digest),
+        "{case_id}"
+    );
+    let execution = execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
+    assert_eq!(execution.plan_digest, plan.digest(), "{case_id}");
+    assert_eq!(execution.inventory_digest, inventory.digest, "{case_id}");
+    assert_eq!(execution.results.len(), 1, "{case_id}");
+    assert!(execution.pending_host.is_empty(), "{case_id}");
+    let entry = &execution.results[0];
+    assert_eq!(entry.provider, provider_id, "{case_id}");
+    assert!(!entry.skipped, "{case_id}");
+    let result = &entry.result;
+    result.validate().unwrap();
+    assert!(result.applicable, "{case_id}");
+    assert!(unavailable_reason(result).is_none(), "{case_id}");
+    assert!(result.coverage_gaps.is_empty(), "{case_id}: {result:?}");
+    assert!(result.degradation.is_empty(), "{case_id}: {result:?}");
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!(coverage.denominator_digest, denominator.digest, "{case_id}");
+    assert_eq!(coverage.expected, files.len() as u64, "{case_id}");
+    assert_eq!(coverage.examined, coverage.expected, "{case_id}");
+    assert!(coverage.gaps.is_empty(), "{case_id}");
+    assert!(coverage.complete(), "{case_id}");
+    let input = &result.details["nativeInput"];
+    assert_eq!(input["producer"]["kind"], "self-sourced", "{case_id}");
+    assert_eq!(
+        input["producer"]["filesRead"],
+        json!(files.len()),
+        "{case_id}"
+    );
+    assert_eq!(
+        result.details["nativeAnalysis"]["denominator"]["examined"],
+        json!(files.len()),
+        "{case_id}"
+    );
+    let mut actual = Vec::new();
+    for finding in &result.findings {
+        let id = finding.id.as_str();
+        let locations = result.details["findingLocations"][id].as_array().unwrap();
+        assert!(!locations.is_empty(), "{case_id}: unlocated finding {id}");
+        for location in locations {
+            actual.push(format!("{id}|{}", location.as_str().unwrap()));
+        }
+    }
+    actual.sort();
+    let mut expected: Vec<String> = expected.iter().map(|label| (*label).to_owned()).collect();
+    expected.sort();
+    assert_eq!(actual, expected, "{provider_id}: {case_id}");
+    if expected.is_empty() {
+        assert!(result.complete, "{case_id}");
+        assert_eq!(result.status, ProviderStatus::Complete, "{case_id}");
+    } else {
+        assert_eq!(result.status, ProviderStatus::Partial, "{case_id}");
+    }
+    fs::remove_dir_all(root).unwrap();
+    accuracy_receipt::CaseObservation {
+        id: case_id.to_owned(),
+        expected,
+        actual,
+    }
+}
+
+#[test]
+fn file_only_provider_accuracy_architecture() {
+    let tested = module("", "", true);
+    let untested = module("", "", false);
+    // Expected identifiers below are fixed fixture labels, not snapshots of
+    // provider output. Every clean case has a nonempty applicable denominator.
+    let cases = [
+        (
+            "architecture.core",
+            architecture_accuracy_case(
+                "architecture.core",
+                "architecture-import-cycle",
+                &[
+                    ("package.json", "{\"name\":\"cycle\"}\n"),
+                    (
+                        "src/a.js",
+                        "import { b } from './b.js';\nexport const a = b;\n",
+                    ),
+                    (
+                        "src/b.js",
+                        "import { a } from './a.js';\nexport const b = a;\n",
+                    ),
+                ],
+                &["architecture.core:cycle:7a343a747091|src/a.js"],
+            ),
+            architecture_accuracy_case(
+                "architecture.core",
+                "architecture-acyclic-imports",
+                &[
+                    ("package.json", "{\"name\":\"acyclic\"}\n"),
+                    (
+                        "src/a.js",
+                        "import { b } from './b.js';\nexport const a = b;\n",
+                    ),
+                    ("src/b.js", "export const b = 3;\n"),
+                ],
+                &[],
+            ),
+        ),
+        (
+            "docs.contract",
+            architecture_accuracy_case(
+                "docs.contract",
+                "docs-missing-citation",
+                &[
+                    (
+                        "README.md",
+                        "# Usage\n\nSee `src/existing.rs` & `src/missing.rs`.\n",
+                    ),
+                    ("src/existing.rs", "pub const VALUE: u32 = 3;\n"),
+                ],
+                &["docs.contract:e73da6403495|README.md"],
+            ),
+            architecture_accuracy_case(
+                "docs.contract",
+                "docs-existing-citation",
+                &[
+                    ("README.md", "# Usage\n\nSee `src/current.rs`.\n"),
+                    ("src/current.rs", "pub const VALUE: u32 = 3;\n"),
+                ],
+                &[],
+            ),
+        ),
+        (
+            "requirements.traceability",
+            architecture_accuracy_case(
+                "requirements.traceability",
+                "requirements-missing-implementation",
+                &[
+                    (
+                        "README.md",
+                        "# Requirements\n\n- REQ-101 persist values\n- REQ-102 add values\n",
+                    ),
+                    ("src/value.rs", "// REQ-102\npub const VALUE: u32 = 3;\n"),
+                    (
+                        "tests/value_test.rs",
+                        "// REQ-102\n#[test]\nfn value() { assert_eq!(1 + 2, 3); }\n",
+                    ),
+                ],
+                &["requirements.traceability:REQ-101|README.md"],
+            ),
+            architecture_accuracy_case(
+                "requirements.traceability",
+                "requirements-source-test-trace",
+                &[
+                    ("README.md", "# Requirements\n\n- REQ-201 add values\n"),
+                    ("src/value.rs", "// REQ-201\npub const VALUE: u32 = 3;\n"),
+                    (
+                        "tests/value_test.rs",
+                        "// REQ-201\n#[test]\nfn value() { assert_eq!(1 + 2, 3); }\n",
+                    ),
+                ],
+                &[],
+            ),
+        ),
+        (
+            "test-quality.core",
+            architecture_accuracy_case(
+                "test-quality.core",
+                "test-quality-missing-test",
+                &[
+                    (
+                        "Cargo.toml",
+                        "[package]\nname = \"missing-test\"\nversion = \"0.1.0\"\n",
+                    ),
+                    ("src/tested.rs", &tested),
+                    ("src/untested.rs", &untested),
+                ],
+                &["test-quality.core:missing:ad59ec1ddbcd|src/untested.rs"],
+            ),
+            architecture_accuracy_case(
+                "test-quality.core",
+                "test-quality-inline-test",
+                &[
+                    (
+                        "Cargo.toml",
+                        "[package]\nname = \"tested\"\nversion = \"0.1.0\"\n",
+                    ),
+                    ("src/good.rs", &tested),
+                ],
+                &[],
+            ),
+        ),
+    ];
+    for (provider_id, planted, clean) in cases {
+        accuracy_receipt::emit(
+            provider_id,
+            "finding",
+            &[planted, clean],
+            &["engine/crates/legion-audit/tests/architecture_input_producer.rs"],
+        );
+    }
+    // Compatibility needs bound producer/consumer evidence; framework analyzers
+    // need evidence receipts. Their unavailable/not-applicable tests below do
+    // not qualify finding accuracy & emit no accuracy records.
+}
+
+#[test]
+fn file_only_provider_accuracy_framework_backend_keeps_unknown_auth() {
+    let root = fixture_root("backend-observed-route-unknown-auth");
+    write(
+        &root,
+        "package.json",
+        "{\"name\":\"backend\",\"dependencies\":{\"express\":\"4.21.0\"}}\n",
+    );
+    write(
+        &root,
+        "src/server.js",
+        "const express = require('express');\nconst app = express();\napp.get('/health', (req, res) => res.send('ok'));\n",
+    );
+    let registry: Value = serde_json::from_str(
+        &fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../src/registry/providers.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let spec: ProviderSpec = serde_json::from_value(
+        registry["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["id"] == "framework.backend")
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
+    let inventory = inventory(&root);
+    let denominator = inventory.denominator_entries(&spec.selector).unwrap();
+    let plan = AuditPlan::compile_with_root(Some(&root), &inventory, &[spec])
+        .unwrap()
+        .freeze(Some(b"architecture-accuracy-fixture-key"))
+        .unwrap();
+    let execution = execute(&plan, &inventory, &NativeProviderRegistry::new(&root)).unwrap();
+    assert_eq!(execution.results.len(), 1);
+    assert!(!execution.results[0].skipped);
+    let result = &execution.results[0].result;
+    assert!(result.applicable);
+    assert!(!result.complete);
+    assert!(unavailable_reason(result).is_none());
+    assert!(result.findings.is_empty());
+    assert_eq!(result.status, ProviderStatus::Partial);
+    let route = &result.details["nativeInput"]["artifacts"]["backendFrameworks"][0]["routes"][0];
+    assert_eq!(route["path"], "/health");
+    assert_eq!(route["file"], "src/server.js");
+    assert_eq!(route["auth"], "unknown");
+    assert_eq!(
+        result.coverage_gaps,
+        ["route-evidence-gap", "route-auth-unknown"]
+    );
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!(coverage.denominator_digest, denominator.digest);
+    assert_eq!((coverage.expected, coverage.examined), (2, 2));
+    assert_eq!(coverage.gaps, result.coverage_gaps);
+    // This rejection is raw verifier evidence, never a finding-accuracy record.
+    println!(
+        "FRAMEWORK_VERIFIER_OBSERVATION {}",
+        json!({
+            "provider": "framework.backend",
+            "caseId": "backend-observed-route-unknown-auth",
+            "complete": result.complete,
+            "gaps": result.coverage_gaps,
+            "auth": route["auth"],
+        })
+    );
+    fs::remove_dir_all(root).unwrap();
 }
 
 const RUST_BODY: &str = "pub fn value() -> u32 {\n    let a = 1;\n    let b = 2;\n    a + b\n}\n";
