@@ -4,6 +4,7 @@ pub mod arcane_port;
 pub mod error;
 pub mod evaluator;
 pub mod explanation;
+pub mod frozen_scope;
 pub mod precedence;
 pub mod wf_port;
 

@@ -74,6 +74,13 @@ artifacts are not merged here.
 
 ## Hook event surface
 
+Explicit reviewed-scope freezes use `legion-policy::frozen_scope` & native
+`legion authority freeze` broker. Protected host enrollment & broker-launched
+reviews supply authority; hashes, caller JSON & hook actor labels do not. Consult
+[broker boundaries](../docs/architecture/frozen-scope-broker.md) before claiming
+installed delivery coverage. Hooks remain early effect feedback, not universal
+mutation interception or publication authorization.
+
 `hooks/hooks.json` currently invokes `legion-hook` for:
 
 | Event | Current registration | Current Guard treatment |

@@ -10,6 +10,9 @@ pub fn run(args: CommonArgs) -> CommandResult {
         .map(|value| value.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     let mut index = 0;
+    if argv.first().map(String::as_str) == Some("freeze") {
+        return super::freeze::run(&argv[1..]);
+    }
     let mut sub = argv.get(index).map(String::as_str);
     if sub == Some("proof") {
         index += 1;

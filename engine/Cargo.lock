@@ -2139,6 +2139,7 @@ dependencies = [
  "legion-runtime",
  "legion-topology",
  "reqwest",
+ "rightkit-child-process",
  "serde",
  "serde_json",
  "sha2 0.11.1",
