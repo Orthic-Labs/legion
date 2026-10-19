@@ -230,6 +230,61 @@ impl ProviderExecutor for SecurityProviderExecutor {
         // configuration observations into frozen selector-path coverage.
         // Host JSON never opts into this conversion.
         let native_iac = produced_artifact && provider.id == "container.iac";
+        let native_secrets = produced_artifact && provider.id == "secrets.current-history";
+        // Only this producer invocation owns actual SDK receipts/raw streams.
+        // Untrusted injected JSON cannot substitute for native history proof.
+        if provider.id == "secrets.current-history" && !native_secrets {
+            gaps.push(json!({"kind":"secret-native-history-proof-required"}));
+        }
+        let secret_reconciled = native_secrets
+            && frozen.as_ref().is_some_and(|(_, count)| {
+                let rows = analysis
+                    .pointer("/sourceCoverage/validatedPaths")
+                    .and_then(Value::as_array);
+                let validated: BTreeSet<&str> = rows
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect();
+                let selected: BTreeSet<&str> = frozen_paths
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                rows.is_some_and(|rows| rows.len() == validated.len())
+                    && validated == selected
+                    && validated.len() as u64 == *count
+                    && analysis
+                        .pointer("/sourceCoverage/currentComplete")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+                    && analysis
+                        .pointer("/sourceCoverage/historyComplete")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+                    && super::history::validate_manifest(&analysis["historyProof"]).is_some_and(
+                        |manifest| {
+                            manifest.inventory_digest == inventory.digest
+                                && manifest.repository_id == inventory.repository_id
+                                && manifest
+                                    .current
+                                    .keys()
+                                    .map(String::as_str)
+                                    .collect::<BTreeSet<_>>()
+                                    == selected
+                                && manifest.current.iter().all(|(path, hash)| {
+                                    inventory.entries.iter().any(|entry| {
+                                        entry.path == *path && entry.digest.as_ref() == Some(hash)
+                                    })
+                                })
+                        },
+                    )
+            });
+        if native_secrets && !secret_reconciled {
+            gaps.push(json!({"kind":"secret-frozen-path-history-reconciliation-invalid"}));
+        }
+
         let mut iac_examined_paths = 0;
         let mut iac_reconciled = false;
         if native_iac {
@@ -305,6 +360,14 @@ impl ProviderExecutor for SecurityProviderExecutor {
             // This count comes only from validated selected paths, never
             // from the infrastructure-resource count. A malformed frozen
             // count is separately gapped & cannot make completion true.
+            (Some((_, count)), true) if native_secrets => (
+                *count,
+                if secret_reconciled {
+                    *count
+                } else {
+                    examined.min(*count)
+                },
+            ),
             (Some((_, count)), true) if native_iac => (*count, iac_examined_paths.min(*count)),
             (Some((_, count)), true) if expected > 0 && unit_reconciled => (*count, *count),
             (Some((_, count)), true) if expected > 0 => (*count, examined.min(*count)),
@@ -315,8 +378,10 @@ impl ProviderExecutor for SecurityProviderExecutor {
         };
         let reconciled = !produced_artifact
             || (native_iac && iac_reconciled)
+            || (native_secrets && secret_reconciled)
             || own_unit
             || (!native_iac
+                && !native_secrets
                 && frozen
                     .as_ref()
                     .is_some_and(|(_, count)| *count == analysis_expected));
@@ -367,6 +432,7 @@ impl ProviderExecutor for SecurityProviderExecutor {
                 .map(Vec::as_slice)
                 .unwrap_or_default(),
             frozen_paths.as_deref(),
+            (native_secrets && secret_reconciled).then_some(&analysis["historyProof"]),
         );
         let findings = located.refs;
         let out_of_scope_count = located.out_of_scope.len();
@@ -533,6 +599,7 @@ fn locate_findings(
     provider: &str,
     findings: &[Value],
     paths: Option<&[String]>,
+    history_proof: Option<&Value>,
 ) -> LocatedFindings {
     let set: Option<BTreeSet<&str>> = paths.map(|paths| paths.iter().map(String::as_str).collect());
     let mut located = LocatedFindings {
@@ -551,7 +618,14 @@ fn locate_findings(
             located.out_of_scope.push(finding.clone());
             continue;
         };
-        if set.as_ref().is_some_and(|set| !set.contains(path.as_str())) {
+        let historical = provider == "secrets.current-history"
+            && finding.get("mode").and_then(Value::as_str) == Some("history")
+            && history_proof.is_some_and(|proof| super::history::live_anchor(finding, proof));
+        if (provider == "secrets.current-history"
+            && finding.get("mode").and_then(Value::as_str) == Some("history")
+            && !historical)
+            || (set.as_ref().is_some_and(|set| !set.contains(path.as_str())) && !historical)
+        {
             located.out_of_scope.push(finding.clone());
             continue;
         }
@@ -572,11 +646,21 @@ fn locate_findings(
                     ))
                 )
             });
+        // Preserve every existing provider ID. Only historical secret findings
+        // need commit identity because deleted/branch paths share current names.
+        let mut identity = format!("{provider}\0{rule}\0{path}\0{line}\0{excerpt}");
+        if historical {
+            identity.push_str("\0history\0");
+            identity.push_str(
+                finding
+                    .get("commit")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            );
+        }
         let id = format!(
             "sha256:{}",
-            hex::encode(Sha256::digest(
-                format!("{provider}\0{rule}\0{path}\0{line}\0{excerpt}").as_bytes()
-            ))
+            hex::encode(Sha256::digest(identity.as_bytes()))
         );
         if located.evidence.contains_key(&id) {
             continue;
@@ -603,6 +687,21 @@ fn locate_findings(
                 "redacted": true,
             }),
         );
+        if historical {
+            let evidence = located
+                .evidence
+                .get_mut(&id)
+                .expect("inserted finding evidence");
+            for field in [
+                "commit",
+                "mode",
+                "blobOid",
+                "blobDigest",
+                "historyManifestDigest",
+            ] {
+                evidence[field] = finding[field].clone();
+            }
+        }
         located
             .locations
             .insert(id.clone(), json!([format!("{path}:{line}")]));
@@ -613,4 +712,33 @@ fn locate_findings(
         );
     }
     located
+}
+
+#[cfg(test)]
+mod history_identity_regression {
+    use super::*;
+
+    #[test]
+    fn ordinary_history_mode_preserves_existing_provider_identity() {
+        let excerpt = format!("sha256:{}", "a".repeat(64));
+        let finding = json!({"ruleId":"DS002","file":"Dockerfile","line":1,"secretDigest":excerpt,"mode":"history"});
+        let located = locate_findings(
+            "container.iac",
+            &[finding],
+            Some(&["Dockerfile".into()]),
+            None,
+        );
+        assert_eq!(located.refs.len(), 1);
+        assert!(located.out_of_scope.is_empty());
+        let expected = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(
+                format!("container.iac\0DS002\0Dockerfile\01\0{excerpt}").as_bytes()
+            ))
+        );
+        assert_eq!(
+            serde_json::to_value(&located.refs[0]).unwrap()["id"],
+            json!(expected)
+        );
+    }
 }

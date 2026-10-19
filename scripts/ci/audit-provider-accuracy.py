@@ -9,6 +9,12 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
+
+
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
 
 
 def canonical(value):
@@ -84,7 +90,7 @@ def validate(root, directory, expected):
         for tree in roots:
             for file in (root / tree).rglob("*"):
                 assert not file.is_symlink(), file
-                if file.is_file():
+                if file.is_file() and not generated_session_provenance(file.relative_to(root).as_posix()):
                     implementation.append(bound_file(root, file))
         for file in ("engine/Cargo.lock", "engine/Cargo.toml", "engine/crates/legion-audit/Cargo.toml",
                      "engine/crates/legion-provider-sdk/Cargo.toml", "engine/crates/legion-contracts/Cargo.toml",

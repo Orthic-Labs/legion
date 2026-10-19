@@ -123,6 +123,7 @@ impl GitRunner {
             args.first().copied(),
             Some(
                 "rev-parse"
+                    | "for-each-ref"
                     | "ls-tree"
                     | "ls-files"
                     | "cat-file"

@@ -216,8 +216,14 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
         env.insert(name.into(), run.join(path).to_string_lossy().into_owned());
         allowed.insert(name.into());
     }
-    env.insert("PYTHONDONTWRITEBYTECODE".into(), "1".into());
-    allowed.insert("PYTHONDONTWRITEBYTECODE".into());
+    for (name, value) in [
+        ("PYTHONDONTWRITEBYTECODE", "1"),
+        ("GIT_CONFIG_NOSYSTEM", "1"),
+        ("PYTHONNOUSERSITE", "1"),
+    ] {
+        env.insert(name.into(), value.into());
+        allowed.insert(name.into());
+    }
     (env, allowed)
 }
 
@@ -601,29 +607,17 @@ fn real_legacy_git_accuracy() {
         assert!(version_output.stderr.is_empty());
         let version = String::from_utf8(version_output.stdout).unwrap();
         assert!(version.starts_with("git version "));
-        // audit_environment deliberately omits GIT_CONFIG_NOSYSTEM. Establish
-        // an empty system config on this host rather than pretending otherwise.
-        let system = Command::new(&tool)
-            .current_dir(&base)
-            .env_clear()
-            .env("PATH", std::env::var_os("PATH").unwrap())
-            .env("HOME", base.join("home"))
-            .args(["config", "--system", "--list"])
-            .output()
-            .unwrap();
-        assert!(
-            system.stdout.is_empty(),
-            "nonempty system Git config invalidates fixture isolation"
+        // Production audit_environment explicitly suppresses host system Git
+        // config; fixture HOME/XDG_CONFIG_HOME isolate user config as well.
+        assert_eq!(
+            expected_environment(&base)
+                .0
+                .get("GIT_CONFIG_NOSYSTEM")
+                .map(String::as_str),
+            Some("1")
         );
-        assert!(
-            system.status.success()
-                || (system.status.code() == Some(128)
-                    && String::from_utf8_lossy(&system.stderr)
-                        .contains("No such file or directory"))
-        );
-        let system_config = json!({"exitCode":system.status.code(), "stdout":"",
-            "stderr":String::from_utf8(system.stderr).unwrap(),
-            "state":if system.status.success() {"empty"} else {"missing"}});
+        let system_config = json!({"state":"disabled-by-child-environment",
+            "environmentName":"GIT_CONFIG_NOSYSTEM", "environmentValue":"1"});
         for id in [REPO, DEBT] {
             let cases = vec![
                 case(&base, &tool, &version, id, true),

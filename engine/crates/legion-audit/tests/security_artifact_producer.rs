@@ -163,7 +163,7 @@ fn native_secret_fallback_keeps_clean_tree_incomplete_without_history() {
 
 #[cfg(unix)]
 #[test]
-fn gitleaks_dir_keeps_findings_without_claiming_history_coverage() {
+fn nongit_stub_cannot_substitute_for_native_history_coverage() {
     use std::os::unix::fs::PermissionsExt;
 
     let root = fixture("secrets-dir");
@@ -182,11 +182,8 @@ fn gitleaks_dir_keeps_findings_without_claiming_history_coverage() {
         .with_sandbox(SandboxPolicy::Disabled);
     let result = run(&root, producer, "secrets.current-history");
 
-    assert_eq!(result.details["producer"]["mode"], "tool");
-    assert_eq!(result.details["producer"]["scope"], "current-tree");
-    assert_eq!(result.details["producer"]["argv"][1], "dir");
-    assert_eq!(analysis(&result)["findings"][0]["ruleId"], "demo.secret");
-    assert_eq!(analysis(&result)["findings"][0]["file"], "src/leak.rs");
+    assert_eq!(result.details["producer"]["mode"], "native-fallback");
+    assert!(analysis(&result)["findings"].as_array().unwrap().is_empty());
     assert_eq!(analysis(&result)["status"], "unproven");
     assert!(!result.complete);
     assert!(analysis(&result)["coverageGaps"]

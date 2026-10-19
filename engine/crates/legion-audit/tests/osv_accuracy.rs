@@ -77,6 +77,44 @@ fn spec() -> (ProviderSpec, Value) {
         .clone();
     (serde_json::from_value(value.clone()).unwrap(), value)
 }
+// Generated host receipts are runtime evidence, never implementation inputs.
+// Match one exact repository-relative directory & lowercase SHA-256 JSON name.
+fn generated_session_provenance(relative: &str) -> bool {
+    relative
+        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|name| {
+            name.len() == 64
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+}
+
+#[test]
+fn source_binding_receipt_exclusion_is_exact() {
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    assert!(generated_session_provenance(&format!(
+        "{prefix}{}.json",
+        "0123456789abcdef".repeat(4)
+    )));
+    for relative in [
+        "engine/crates/legion-audit/src/mod.rs".to_owned(),
+        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("nested/{prefix}{}.json", "a".repeat(64)),
+    ] {
+        assert!(
+            !generated_session_provenance(&relative),
+            "unexpected exclusion: {relative}"
+        );
+    }
+}
+
 fn source_binding(root: &Path) -> BTreeMap<String, String> {
     fn visit(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
         assert!(!path.is_symlink());
@@ -86,13 +124,14 @@ fn source_binding(root: &Path) -> BTreeMap<String, String> {
             }
         } else {
             assert!(path.is_file());
-            files.insert(
-                path.strip_prefix(root)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-                digest(&fs::read(path).unwrap()),
-            );
+            let relative = path
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !generated_session_provenance(&relative) {
+                files.insert(relative, digest(&fs::read(path).unwrap()));
+            }
         }
     }
     let mut files = BTreeMap::new();
@@ -389,7 +428,9 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         .filter(|c| !c.is_whitespace())
         .collect();
     assert!(
-        producer_source.contains(&serde_json::to_string(ARGV).unwrap()),
+        producer_source
+            .replace(",]", "]")
+            .contains(&serde_json::to_string(ARGV).unwrap()),
         "reviewed --all-packages producer prerequisite required"
     );
     let tool = fs::canonicalize(

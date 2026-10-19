@@ -20,6 +20,7 @@ HARNESSES = {SQUAWK: BASE + "more_external_scanner_accuracy.rs", BRAKEMAN: BASE 
              **{provider: BASE + "real_legacy_linter_accuracy.rs" for provider in (ACTION, DOCKER, SWIFT)}}
 SCANNER_SCOPE = "Constructed planted & clean controls; not population accuracy or production admission"
 RETENTION = "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
+BRAKEMAN_RETENTION = "Actual SDK scan receipt & verified raw streams retained before assertions; reduced producer receipt & separate native version receipt retained."
 ENTRYPOINT = '#!/usr/bin/env ruby\n#Adjust path in case called directly and not through gem\n$:.unshift "#{File.expand_path(File.dirname(__FILE__))}/../lib"\n\nEncoding.default_external = \'UTF-8\'\n\nrequire \'brakeman\'\nrequire \'brakeman/commandline\'\n\nBrakeman::Commandline.start\n'
 SUPPORT = {
     "Gemfile": "source 'https://rubygems.org'\ngem 'rails', '8.1.0'\n",
@@ -29,7 +30,7 @@ SUPPORT = {
     "app/models/user.rb": "class User < ActiveRecord::Base\nend\n",
 }
 LINTERS = {
-    ACTION: ("actionlint", "ci_lint", ".github/workflows/ci.yml", ["-format", "{{json .}}"],
+    ACTION: ("actionlint", "ci_lint", ".github/workflows/ci.yml", ["-format", "{{json .}}", "--", "./.github/workflows/ci.yml"],
              "name: CI\non: push\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n        uses: actions/checkout@v4\n",
              "name: CI\non: push\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n"),
     DOCKER: ("hadolint", "docker", "Dockerfile", ["--format", "json", "Dockerfile"],
@@ -160,7 +161,7 @@ def scanner_case(case, provider, positive, live=True):
             and policy["outputBytesMaximum"] == 1048576 and policy["sandbox"] == "native-macos-deny-network-deny-project-write", "scanner policy differs")
     require(case["complete"] is True and case["coverageGaps"] == case["expectedCoverageGaps"] == []
             and case["controlMatched"] is True and case["coverageContractMatched"] is True
-            and case["receiptRetentionLimit"] == RETENTION, "scanner evidence incomplete")
+            and case["receiptRetentionLimit"] == (BRAKEMAN_RETENTION if provider == BRAKEMAN else RETENTION), "scanner evidence incomplete")
     require(result["provider"] == provider and result["applicable"] is True and result["complete"] is True
             and result["findings"] == result["coverage_gaps"] == result["degradation"] == [] and "availability" not in result["details"], "scanner result unavailable")
     coverage = case["coverage"]
@@ -226,7 +227,64 @@ def scanner_case(case, provider, positive, live=True):
     same(probe["sandbox"], receipt["sandbox"], "probe sandbox differs")
     require(is_digest(receipt["stdoutDigest"]) and type(receipt["stdoutBytes"]) is int and receipt["stdoutBytes"] > 0
             and receipt["stdoutArtifact"] == {"digest": receipt["stdoutDigest"], "bytes": receipt["stdoutBytes"]}, "reduced scanner output binding differs")
+    if provider == BRAKEMAN:
+        brakeman_diagnostic(case, policy, decisions, receipt, live)
 
+
+
+def brakeman_diagnostic(case, policy, decisions, reduced, live):
+    rows = case["nativeDiagnostics"]
+    require(len(rows) == 1, "Brakeman actual scan diagnostic inventory differs")
+    retained = rows[0]
+    raw = retained["rawBytes"]
+    require(isinstance(raw, list) and all(type(value) is int and 0 <= value <= 255 for value in raw), "Brakeman diagnostic bytes malformed")
+    data = bytes(raw)
+    require(retained["digest"] == digest(data) and retained["bytes"] == len(data), "Brakeman full diagnostic digest differs")
+    diagnostic = json.loads(data)
+    same(retained["diagnostic"], diagnostic, "Brakeman diagnostic projection differs")
+    path, run = safe_absolute(retained["path"]), safe_absolute(policy["runDirectory"])
+    require(path.parent == run / "native-diagnostics" and path.name == BRAKEMAN + "-" + digest(data).removeprefix("sha256:") + ".json", "Brakeman diagnostic location differs")
+    copy = retained["retainedArtifact"]
+    copied = safe_absolute(copy["path"])
+    require(copied.parent.name == "native-diagnostics" and copied.name == "native-diagnostic-" + digest(data).removeprefix("sha256:") + ".json"
+            and copy["digest"] == digest(data) and copy["bytes"] == len(data) and copy["qualificationEligible"] is False, "Brakeman retained diagnostic differs")
+    if live:
+        require(Path(copied).is_file() and not Path(copied).is_symlink() and Path(copied).read_bytes() == data, "Brakeman retained diagnostic bytes differ")
+    require(diagnostic["schema"] == "legion-native-scanner-diagnostic/1" and diagnostic["provider"] == BRAKEMAN
+            and diagnostic["inventoryDigest"] == case["inventoryDigest"], "Brakeman full diagnostic binding differs")
+    original = safe_absolute(diagnostic["originalArtifactRoot"])
+    require(original.parent == run and original.name.startswith("legion-audit-security-"), "Brakeman original SDK root differs")
+    receipt = diagnostic["receipt"]
+    native(receipt, policy["id"], policy, compact)
+    require(receipt["schemaVersion"] == 1 and receipt["receiptId"] == reduced["receiptId"]
+            and receipt["requestId"] == decisions[1]["requestId"] and receipt["providerId"] == BRAKEMAN
+            and receipt["planId"] == case["inventoryDigest"] and receipt["taskId"] == "brakeman"
+            and receipt["cwd"] == policy["root"] and receipt["exitCode"] == 0 and receipt["signal"] is None
+            and receipt["executable"]["canonicalPath"] == policy["wrapper"]["path"]
+            and receipt["executable"]["digest"] == policy["wrapper"]["digest"]
+            and receipt["command"]["executable"] == decisions[1]["executable"]
+            and receipt["command"]["args"] == decisions[1]["args"], "Brakeman actual SDK request differs")
+    same(receipt["sandbox"], reduced["sandbox"], "Brakeman actual sandbox differs")
+    streams = {}
+    for stream in ("stdout", "stderr"):
+        item, descriptor = diagnostic[stream], receipt[stream]
+        raw = item["rawBytes"]
+        require(isinstance(raw, list) and all(type(value) is int and 0 <= value <= 255 for value in raw), "Brakeman stream bytes malformed")
+        data = bytes(raw)
+        same({key: item[key] for key in ("digest", "bytes", "immutable")},
+             {key: descriptor[key] for key in ("digest", "bytes", "immutable")}, "Brakeman original stream descriptor differs")
+        require(item["originalPath"] == descriptor["path"] and item["immutable"] is True
+                and item["digest"] == digest(data) and item["bytes"] == len(data), "Brakeman original stream bytes differ")
+        stream_path = PurePosixPath(descriptor["path"])
+        require(".." not in stream_path.parts and safe_absolute(item["originalAbsolutePath"]) == (stream_path if stream_path.is_absolute() else original / stream_path)
+                and safe_absolute(item["originalAbsolutePath"]).is_relative_to(original), "Brakeman stream escaped SDK root")
+        text = data.decode("utf-8")
+        require(item["raw"] == text, "Brakeman raw UTF-8 projection differs")
+        streams[stream] = text
+    require(digest(streams["stdout"].encode()) == reduced["stdoutDigest"] and len(streams["stdout"].encode()) == reduced["stdoutBytes"], "Brakeman full/reduced stdout differs")
+    output = json.loads(streams["stdout"])
+    require(isinstance(output["warnings"], list) and output["errors"] == [], "Brakeman actual output incomplete")
+    same(output["warnings"], [candidate["source"]["raw"] for candidate in case["actualProviderResult"]["details"]["candidates"]], "Brakeman actual warning reconciliation differs")
 
 def linter_case(case, provider, positive, live=True):
     tool, task, path, args, _, _ = LINTERS[provider]
@@ -266,8 +324,10 @@ def linter_case(case, provider, positive, live=True):
              "npm_config_cache": "cache/npm", "RUFF_CACHE_DIR": "cache/ruff", "MYPY_CACHE_DIR": "cache/mypy", "PYTHONPYCACHEPREFIX": "cache/pycache", "GOCACHE": "cache/go-build"}
     environment.update({name: str(run / relative) for name, relative in cache.items()})
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONNOUSERSITE"] = "1"
+    environment["GIT_CONFIG_NOSYSTEM"] = "1"
     same(policy["environment"], environment, "linter environment differs")
-    same(policy["environmentAllowlist"], sorted(set(base + list(cache) + ["PYTHONDONTWRITEBYTECODE"])), "linter environment allowlist differs")
+    same(policy["environmentAllowlist"], sorted(set(base + list(cache) + ["PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "GIT_CONFIG_NOSYSTEM"])), "linter environment allowlist differs")
     native(receipt, policy["id"], policy, canonical)
     decisions = case["policyDecisions"]
     require(len(decisions) == 1, "linter admission inventory differs")
@@ -324,11 +384,38 @@ def linter_case(case, provider, positive, live=True):
     same(case["expected"], expected, "linter independent expected output differs")
     same(case["actual"], actual, "linter native actual projection differs")
     same(actual, expected, "linter native control differs")
+    bundle = case["nativeDiagnostic"]
+    raw = bundle["rawBytes"]
+    require(isinstance(raw, list) and all(type(value) is int and 0 <= value <= 255 for value in raw), "linter diagnostic bytes malformed")
+    data = bytes(raw)
+    diagnostic = json.loads(data)
+    same(bundle["diagnostic"], diagnostic, "linter diagnostic projection differs")
+    retained = bundle["retainedArtifact"]
+    path = safe_absolute(retained["path"])
+    require(path.parent.name == "native-diagnostics" and path.name == "native-diagnostic-" + digest(data).removeprefix("sha256:") + ".json"
+            and retained["digest"] == digest(data) and retained["bytes"] == len(data) and retained["qualificationEligible"] is False, "linter retained diagnostic differs")
+    if live:
+        require(Path(path).is_file() and not Path(path).is_symlink() and Path(path).read_bytes() == data, "linter retained diagnostic bytes differ")
+    require(diagnostic["schema"] == "legion-native-linter-diagnostic/1" and diagnostic["caseId"] == case["caseId"]
+            and len(diagnostic["results"]) == 1 and len(diagnostic["execution"]["results"]) == 1, "linter diagnostic result inventory differs")
+    same(diagnostic["policyDecisions"], case["policyDecisions"], "linter diagnostic admissions differ")
+    result = diagnostic["results"][0]
+    require(result["provider"] == provider, "linter diagnostic provider differs")
+    same(result["actualProviderResult"]["details"], details, "linter diagnostic actual details differ")
+    same(result["actualProviderResult"]["findings"], case["nativeFindings"], "linter diagnostic findings differ")
+    for stream, text in (("stdout", case["actualStdout"]), ("stderr", case["actualStderr"])):
+        item = result["streams"][stream]
+        same(item["artifact"], receipt[stream], "linter diagnostic stream receipt differs")
+        require(item["rawBytes"] == list(text.encode()) and item["raw"] == text and item["actualDigest"] == digest(text.encode()), "linter diagnostic raw stream differs")
+
 
 
 def validate(root, directory, providers, registry, files):
-    require(directory.is_dir() and not directory.is_symlink() and {path.name for path in directory.iterdir()} == {
-        provider.replace(".", "_") + ".json" for provider in providers}, "receipt file inventory differs")
+    diagnostic_required = BRAKEMAN in providers or any(provider in LINTERS for provider in providers)
+    expected_names = {provider.replace(".", "_") + ".json" for provider in providers}
+    if diagnostic_required:
+        expected_names.add("native-diagnostics")
+    require(directory.is_dir() and not directory.is_symlink() and {path.name for path in directory.iterdir()} == expected_names, "receipt file inventory differs")
     records = []
     for provider in providers:
         path = directory / (provider.replace(".", "_") + ".json")
@@ -336,7 +423,20 @@ def validate(root, directory, providers, registry, files):
         row = load(path)
         require(row["provider"] == provider, "receipt filename/provider differs")
         records.append(row)
-    return validate_records(root, records, registry, files)
+    summary = validate_records(root, records, registry, files)
+    if diagnostic_required:
+        diagnostics = directory / "native-diagnostics"
+        require(diagnostics.is_dir() and not diagnostics.is_symlink(), "diagnostic directory missing/symlink")
+        expected = set()
+        for row in records:
+            for case in row["cases"]:
+                bundles = case["nativeDiagnostics"] if row["provider"] == BRAKEMAN else [case["nativeDiagnostic"]]
+                for bundle in bundles:
+                    path = Path(bundle["retainedArtifact"]["path"])
+                    require(path.parent == diagnostics.resolve() and path.is_file() and not path.is_symlink(), "diagnostic escaped retained root")
+                    expected.add(path.name)
+        require({path.name for path in diagnostics.iterdir()} == expected and len(expected) == 2 * len(providers), "retained diagnostic inventory differs")
+    return summary
 
 
 def validate_records(root, records, registry, files, live=True):

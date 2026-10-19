@@ -348,7 +348,14 @@ impl<'a> Run<'a> {
                 }
             }
         }
-        let config = self.scratch.path.join(format!("{tool}-owned-config"));
+        // kube-linter's Viper loader discovers supported extensions by config
+        // name; an extensionless owned YAML file is never loaded.
+        let config_name = if tool == "kube-linter" {
+            "kube-linter-owned-config.yaml".to_owned()
+        } else {
+            format!("{tool}-owned-config")
+        };
+        let config = self.scratch.path.join(config_name);
         let plugin_dir = self.scratch.path.join("empty-plugins");
         if fs::create_dir_all(&plugin_dir).is_err() {
             return unavailable("scanner-scratch-unavailable");
@@ -559,6 +566,10 @@ impl<'a> Run<'a> {
                     continue;
                 }
             };
+            // Preserve actual execution identity even if output parsing fails.
+            let run_receipt = self.execution_receipt(&run);
+            receipts.push(json!({"base":base,"paths":paths,"receipt":run_receipt,"ownedConfigDigest":digest(body.as_bytes())}));
+            last_receipt = Some(run_receipt);
             output_bytes = output_bytes.saturating_add(run.stdout.len());
             if output_bytes > self.producer.output_limit {
                 gaps.push(json!({"kind":"scanner-total-output-cap","tool":tool,"paths":paths}));
@@ -592,9 +603,6 @@ impl<'a> Run<'a> {
                 .gaps
                 .iter()
                 .any(|gap| gap["kind"] == "scanner-output-schema-invalid");
-            let run_receipt = self.execution_receipt(&run);
-            receipts.push(json!({"base":base,"paths":paths,"receipt":run_receipt,"ownedConfigDigest":digest(body.as_bytes())}));
-            last_receipt = Some(run_receipt);
             if schema_valid {
                 for path in &paths {
                     if tool == "kubeconform"

@@ -434,6 +434,12 @@ impl AuditPlan {
                         serde_json::json!(denominator_count),
                     ),
                 ]);
+                if spec.id.as_str() == "legacy.security.sast" {
+                    configuration.insert(
+                        "semgrepContract".into(),
+                        crate::native_providers::legacy_checks::semgrep::contract(),
+                    );
+                }
                 let host_declared = host_declaration
                     .as_ref()
                     .and_then(|value| value.get("declared"))

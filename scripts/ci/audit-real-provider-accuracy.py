@@ -104,10 +104,10 @@ def scanner_case(case, provider, positive, live=True):
     if tool == "zizmor":
         ref = "main" if positive else "11bd71901bbe5b1630ceea73d27597364c9af683"
         source = f"name: CI\non: [push]\npermissions:\n  contents: read\njobs:\n  check:\n    name: Check\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@{ref}\n        with:\n          persist-credentials: false\n"
-        path, label, version_args = ".github/workflows/ci.yml", "unpinned-uses|.github/workflows/ci.yml|11", ["--version"]
+        path, labels, version_args = ".github/workflows/ci.yml", ["unpinned-uses|.github/workflows/ci.yml|11"], ["--version"]
     else:
         source = f"apiVersion: v1\nkind: Pod\nmetadata:\n  name: scanner-fixture\nspec:\n  hostNetwork: false\n  hostPID: false\n  hostIPC: false\n  securityContext:\n    runAsNonRoot: true\n  containers:\n    - name: app\n      image: example.invalid/app@sha256:{'a' * 64}\n      securityContext:\n        privileged: {str(positive).lower()}\n        allowPrivilegeEscalation: false\n        readOnlyRootFilesystem: true\n        runAsNonRoot: true\n"
-        path, label, version_args = "pod.yaml", "privileged-container|pod.yaml|unresolved", ["version"]
+        path, labels, version_args = "pod.yaml", ["privilege-escalation-container|pod.yaml|unresolved", "privileged-container|pod.yaml|unresolved"], ["version"]
     require(case["source"] == {"path": path, "bytes": source, "digest": digest(source.encode())}, "scanner fixture differs")
     result, policy, receipt = case["actualProviderResult"], case["policy"], case["executionReceipt"]
     source_root, run_root = PurePosixPath(policy["root"]), PurePosixPath(policy["runDirectory"])
@@ -135,7 +135,7 @@ def scanner_case(case, provider, positive, live=True):
                     and candidate["anchorStatus"] == "scanner-reported" and origin["sourceDigest"] == origin["frozenSourceDigest"]
                     == candidate["evidence"][0]["sourceDigest"] == case["source"]["digest"], "kube file anchor differs")
         actual.append(f"{candidate['ruleId']}|{candidate['path']}|{candidate['line'] if candidate['line'] is not None else 'unresolved'}")
-    require(case["expected"] == ([label] if positive else []) and case["actual"] == actual == case["expected"], "scanner actual output differs")
+    require(case["expected"] == (labels if positive else []) and case["actual"] == actual == case["expected"], "scanner actual output differs")
     tool_path = executable(policy["tool"]["path"], policy["tool"]["digest"], live=live)
     wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"], live=live)
     require(wrapper == PurePosixPath("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(source_root.parent), "scanner host identity differs")
@@ -160,7 +160,7 @@ def scanner_case(case, provider, positive, live=True):
     scan_profile = PurePosixPath(decisions[1]["args"][1])
     require(scan_profile.is_absolute() and ".." not in scan_profile.parts and scan_profile.is_relative_to(run_root)
             and scan_profile.parent.name == "sandbox" and scan_profile.name == profile_name, "scanner profile path differs")
-    scan_args = scanner_argv(tool, str(scan_profile.parent.parent / "kube-linter-owned-config"))
+    scan_args = scanner_argv(tool, str(scan_profile.parent.parent / "kube-linter-owned-config.yaml"))
     for index, decision in enumerate(decisions):
         expected_profile = run_root / "version-sandbox" / profile_name if index == 0 else scan_profile
         prefix = ["-f", str(expected_profile), "--", str(tool_path)]
@@ -228,12 +228,94 @@ def git_case(case, provider, positive, live=True):
             and decisions[0]["versionArgs"] == ["--version"] and decisions[0]["requiresNetworkSandbox"] is False
             and decisions[0]["acceptedExitCodes"] == accepted and decisions[0]["timeoutMs"] == 120000
             and decisions[0]["stdoutLimit"] == decisions[0]["stderrLimit"] == 8388608, "Git decision identity differs")
+    # Child env_clear supplies only retained PATH & fixture HOME; SDK policy
+    # binds every fixed override to the actual admitted request.
+    source_root = PurePosixPath(policy["cwd"])
+    run = source_root.parent / "run"
+    base = ["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"]
+    retained_path = policy["environment"]["PATH"]
+    require(isinstance(retained_path, str) and retained_path, "Git retained PATH missing")
+    for part in retained_path.split(":"):
+        path = PurePosixPath(part)
+        require(path.is_absolute() and ".." not in path.parts, "Git PATH component unsafe")
+    environment = {"PATH": os.environ["PATH"] if live else retained_path,
+                   "HOME": str(source_root.parent.parent / "home")}
+    cache = {"TMPDIR": "tmp", "TEMP": "tmp", "TMP": "tmp", "XDG_CACHE_HOME": "cache/xdg", "CARGO_TARGET_DIR": "cache/cargo-target",
+             "npm_config_cache": "cache/npm", "RUFF_CACHE_DIR": "cache/ruff", "MYPY_CACHE_DIR": "cache/mypy", "PYTHONPYCACHEPREFIX": "cache/pycache", "GOCACHE": "cache/go-build"}
+    environment.update({name: str(run / relative) for name, relative in cache.items()})
+    fixed = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1"}
+    environment.update(fixed)
+    require(policy["environment"] == environment
+            and policy["environmentAllowlist"] == sorted(set(base + list(cache) + list(fixed))), "Git exact child environment differs")
+    require(decisions[0]["environmentNames"] == receipt["environmentNames"] == receipt["command"]["environmentNames"] == sorted(environment)
+            and decisions[0]["environmentDigest"] == digest(canonical(environment)), "Git admitted environment binding differs")
     artifact(receipt["stdout"], stdout)
     artifact(receipt["stderr"], "")
 
 
+
+def validate_native_diagnostics(directory, records):
+    """Private raw artifacts stay distinct from eligible qualification records."""
+    expected = {case["executionReceipt"]["receiptId"]: case
+                for row in records if row["provider"] == "security.scanner-kube-linter"
+                for case in row["cases"]}
+    require(len(expected) == 2, "Kube diagnostic control inventory differs")
+    directory = directory / "native-diagnostics"
+    require(directory.is_dir() and not directory.is_symlink(), "native diagnostic directory missing/linked")
+    paths = list(directory.iterdir())
+    require(len(paths) == len(expected), "native diagnostic artifact inventory differs")
+    seen = set()
+    for path in paths:
+        require(path.is_file() and not path.is_symlink(), "native diagnostic must be regular")
+        data = path.read_bytes()
+        require(len(data) <= 32 * 1048576
+                and path.name == "native-diagnostic-" + digest(data).removeprefix("sha256:") + ".json",
+                "native diagnostic content identity differs")
+        row = load(path)
+        receipt = row["receipt"]
+        identity = receipt["receiptId"]
+        require(identity in expected and identity not in seen, "native diagnostic control missing/duplicated")
+        seen.add(identity)
+        case = expected[identity]
+        require(row["schema"] == "legion-native-scanner-diagnostic/1"
+                and row["provider"] == receipt["providerId"] == case["actualProviderResult"]["provider"]
+                and row["inventoryDigest"] == receipt["planId"] == case["inventoryDigest"],
+                "native diagnostic frozen identity differs")
+        native(receipt, case["policy"]["id"], case["policy"], compact)
+        decision = case["policyDecisions"][1]
+        reduced = case["executionReceipt"]
+        require(receipt["requestId"] == decision["requestId"]
+                and receipt["command"]["args"] == decision["args"]
+                and receipt["cwd"] == decision["cwd"]
+                and receipt["exitCode"] == reduced["exitCode"]
+                and receipt["stdout"]["digest"] == reduced["stdoutDigest"]
+                and receipt["stdout"]["bytes"] == reduced["stdoutBytes"],
+                "native diagnostic actual execution linkage differs")
+        for stream in ("stdout", "stderr"):
+            record, original = row[stream], receipt[stream]
+            require(isinstance(record, dict) and isinstance(original, dict), "native diagnostic stream missing")
+            values = record["rawBytes"]
+            require(isinstance(values, list) and len(values) <= 1048576
+                    and all(type(value) is int and 0 <= value <= 255 for value in values),
+                    "native diagnostic raw byte bounds differ")
+            raw = bytes(values)
+            require(record["originalPath"] == original["path"]
+                    and record["digest"] == original["digest"] == digest(raw)
+                    and type(record["bytes"]) is int and record["bytes"] == original["bytes"] == len(raw)
+                    and record["immutable"] is original["immutable"] is True,
+                    "native diagnostic stream identity differs")
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                text = None
+            require(record["raw"] == text, "native diagnostic text projection differs")
+    require(seen == set(expected), "native diagnostic controls incomplete")
+
+
 def validate(root, directory, providers, registry, files, git=False):
     expected_files = {provider.replace(".", "_") + ".json" for provider in providers}
+    if not git:
+        expected_files.add("native-diagnostics")
     require(directory.is_dir() and {path.name for path in directory.iterdir()} == expected_files, "receipt file inventory differs")
     records = []
     for provider in providers:
@@ -242,7 +324,10 @@ def validate(root, directory, providers, registry, files, git=False):
         row = load(path)
         require(row["provider"] == provider, "receipt filename/provider differs")
         records.append(row)
-    return validate_records(root, records, registry, files, git=git)
+    summaries = validate_records(root, records, registry, files, git=git)
+    if not git:
+        validate_native_diagnostics(directory, records)
+    return summaries
 
 
 def validate_records(root, records, registry, files, git=False, live=True):
@@ -265,8 +350,8 @@ def validate_records(root, records, registry, files, git=False, live=True):
             require(row["providerVersion"] == registry[provider]["providerVersion"] and row["outputKind"] == ("fact" if provider == REPO else "findings"), "Git output kind differs")
             require(row["scope"] == ("one dirty-path repository status & clean absence" if provider == REPO else "one summary finding & exact marker counts/raw grep; no marker-location accuracy claim"), "Git claim scope differs")
             system = row["systemGitConfig"]
-            require(system["stdout"] == "" and ((system["state"] == "empty" and system["exitCode"] == 0) or
-                    (system["state"] == "missing" and system["exitCode"] == 128 and "No such file or directory" in system["stderr"])), "system Git configuration not isolated")
+            require(system == {"state": "disabled-by-child-environment", "environmentName": "GIT_CONFIG_NOSYSTEM", "environmentValue": "1"},
+                    "system Git configuration not disabled by exact child environment")
             metrics = {"cases": 2, "matched": sum(c["expected"] == c["actual"] for c in cases), "mismatched": sum(c["expected"] != c["actual"] for c in cases)}
         else:
             require(row["qualificationEligible"] is True and row["coverageGaps"] == [] and row["scope"] == "Constructed planted & clean controls; not population accuracy or production admission", "scanner qualification/scope differs")

@@ -218,12 +218,22 @@ impl ScopedPolicy {
         let go_bytes = fs::read(&go_binary).expect("read Go binary");
         assert!(!go_bytes.starts_with(b"#!"), "Go binary must be native");
         let go_digest = digest(&go_bytes);
-        let expected_path = format!("{}:/usr/bin:/bin", go_root.join("bin").display());
-        let path = std::env::var("PATH").expect("PATH must select pinned Go first");
-        assert_eq!(
-            path, expected_path,
-            "benchmark requires an exact pinned PATH"
+        // GitHub Actions retains Cargo's managed bin directory ahead of the
+        // provisioned Go toolchain. Bind that exact runner prefix instead of
+        // rejecting it or accepting an arbitrary inherited PATH.
+        let cargo_home = std::env::var_os("CARGO_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cargo")))
+            .expect("managed Cargo home required");
+        let cargo_bin = cargo_home.join("bin");
+        assert!(cargo_bin.is_dir(), "managed Cargo bin directory required");
+        let expected_path = format!(
+            "{}:{}:/usr/bin:/bin",
+            cargo_bin.display(),
+            go_root.join("bin").display()
         );
+        let path = std::env::var("PATH").expect("PATH must select managed Cargo & pinned Go");
+        assert_eq!(path, expected_path, "benchmark requires exact managed PATH");
         let wrapper = fs::canonicalize("/usr/bin/sandbox-exec")
             .expect("native macOS sandbox executable required");
         let wrapper_digest = digest(&fs::read(&wrapper).unwrap());
@@ -375,6 +385,8 @@ impl ScopedPolicy {
             "CGO_ENABLED",
             "GOCACHE",
             "GOLANGCI_LINT_CACHE",
+            "GIT_CONFIG_NOSYSTEM",
+            "PYTHONNOUSERSITE",
         ]
         .into_iter()
         .map(str::to_owned)
@@ -396,6 +408,8 @@ impl ScopedPolicy {
             ("GOSUMDB", "off"),
             ("GOWORK", "off"),
             ("CGO_ENABLED", "0"),
+            ("GIT_CONFIG_NOSYSTEM", "1"),
+            ("PYTHONNOUSERSITE", "1"),
         ] {
             if request.environment.get(key).map(String::as_str) != Some(value) {
                 return false;

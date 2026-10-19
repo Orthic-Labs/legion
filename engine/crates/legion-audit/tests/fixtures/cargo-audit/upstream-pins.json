@@ -1,0 +1,47 @@
+{
+  "toolVersion": "0.22.2",
+  "toolSources": [
+    {
+      "asset": "cargo-audit-aarch64-apple-darwin-v0.22.2.tgz",
+      "url": "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-aarch64-apple-darwin-v0.22.2.tgz",
+      "archiveDigest": "sha256:ec7ca4263769593df4d909be85b94a6b79efa2897be5d2bb8ebd516e823175af",
+      "binaryDigest": "sha256:33fbe81adca1b794f4ffe98574d59b0ebe6fcfdb310976fafed98a094c795111",
+      "member": "cargo-audit-aarch64-apple-darwin-v0.22.2/cargo-audit"
+    },
+    {
+      "asset": "cargo-audit-x86_64-apple-darwin-v0.22.2.tgz",
+      "url": "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-x86_64-apple-darwin-v0.22.2.tgz",
+      "archiveDigest": "sha256:847831323de932155b226ab60ee4a180e13e5d007a019f0d4b7b4d89a6de2ab2",
+      "binaryDigest": "sha256:1a63bb3ab4f99a0220a8e4d8a677692afe5901cb44a949b2473c545a02028326",
+      "member": "cargo-audit-x86_64-apple-darwin-v0.22.2/cargo-audit"
+    }
+  ],
+  "advisory": {
+    "commit": "999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b",
+    "path": "crates/smallvec/RUSTSEC-2019-0009.md",
+    "url": "https://raw.githubusercontent.com/RustSec/advisory-db/999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b/crates/smallvec/RUSTSEC-2019-0009.md",
+    "digest": "sha256:678bd66f3703ac7279a9b9fe4219fbe3903395d8411d899647ee8136d19241c5"
+  },
+  "semanticsSources": [
+    {
+      "path": "commands.rs",
+      "url": "https://raw.githubusercontent.com/rustsec/rustsec/cargo-audit/v0.22.2/cargo-audit/src/commands.rs",
+      "sha256": "817183859240a6d95e167b5e6403c19ff400f8d5274291435c509e9556f262e7"
+    },
+    {
+      "path": "audit.rs",
+      "url": "https://raw.githubusercontent.com/rustsec/rustsec/cargo-audit/v0.22.2/cargo-audit/src/commands/audit.rs",
+      "sha256": "936e766067565408f05565809536293cca6d2110653158cccea18da90646c005"
+    },
+    {
+      "path": "auditor.rs",
+      "url": "https://raw.githubusercontent.com/rustsec/rustsec/cargo-audit/v0.22.2/cargo-audit/src/auditor.rs",
+      "sha256": "b944aaf3c8457567cb3b5f4afb0d9d2534ef37b9cab796486db7609d834e8282"
+    },
+    {
+      "path": "config.rs",
+      "url": "https://raw.githubusercontent.com/rustsec/rustsec/cargo-audit/v0.22.2/cargo-audit/src/config.rs",
+      "sha256": "417af9660ba588df890e8ae2544b008a91d5416962ff844f455d5020908669ac"
+    }
+  ]
+}

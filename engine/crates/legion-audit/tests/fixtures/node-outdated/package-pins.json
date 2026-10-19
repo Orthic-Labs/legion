@@ -1,0 +1,54 @@
+{
+  "schema": "legion-node-outdated-official-fixtures/1",
+  "scope": "unchanged official tiny-invariant tarball files used as installed data; no npm install",
+  "packages": [
+    {
+      "name": "tiny-invariant",
+      "version": "1.3.1",
+      "metadataUrl": "https://registry.npmjs.org/tiny-invariant/1.3.1",
+      "metadataDigest": "sha256:cbe35b409e71832c9a27b388e189b43c935cf8d20f4c1ff2f3927508398e14bc",
+      "tarball": "https://registry.npmjs.org/tiny-invariant/-/tiny-invariant-1.3.1.tgz",
+      "integrity": "sha512-AD5ih2NlSssTCwsMznbvwMZpJ1cbhkGd2uueNxzv2jDlEeZdU04JQfRnggJQ8DrcVBGjAsCKwFBbDlVNtEMlzw==",
+      "archiveDigest": "sha256:7cd3c94696a9d442f4618ec53f4d0df9ef24cd2b47521e2df21ac448d4439982",
+      "files": {
+        "LICENSE": "sha256:b1c501095de70182748cb8e8d97ac5577701a4ef3b755ba30d59fd87b24bdb0f",
+        "dist/tiny-invariant.cjs.js": "sha256:b99584319564d8f89c49a3ea346a204606619fc1ec869c411026a0e19e9478f4",
+        "dist/tiny-invariant.esm.js": "sha256:85b67e5cf9c9368c3f851c3a8398d1ad015a44df04d539f41e4cb585ed80bd12",
+        "src/tiny-invariant.flow.js": "sha256:3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a",
+        "dist/esm/tiny-invariant.js": "sha256:85b67e5cf9c9368c3f851c3a8398d1ad015a44df04d539f41e4cb585ed80bd12",
+        "dist/tiny-invariant.js": "sha256:c5b3f93085b2e7154cec29b6f5ed9c8de07d64921f5c9d5882712882a1c24881",
+        "dist/tiny-invariant.min.js": "sha256:cdf911d95041b35cb203390175ba495255601e98bc909f04060a38dfcbf3544f",
+        "dist/esm/package.json": "sha256:5a065fe7d8eab2a582f428e11c2ea63aaf70607a54f69cfd5c711b5c53d91b32",
+        "package.json": "sha256:b5d0386cb765d49b7c8a9850857c08abad912d67cc8ac6c80639af6db0763864",
+        "README.md": "sha256:729212cb9296d79ed7849c5a51eb840dda40479df1683f85caa7cc2a140bad03",
+        "dist/esm/tiny-invariant.d.ts": "sha256:274739c6c5cc94391cdf4acbbf72c7c6cd13429b48c6582ff9e111749fefa9fc",
+        "dist/tiny-invariant.d.ts": "sha256:274739c6c5cc94391cdf4acbbf72c7c6cd13429b48c6582ff9e111749fefa9fc",
+        "src/tiny-invariant.ts": "sha256:be00d753643d83de059821b40193ab5d164a074d8df757f46e19e71ef5ed3259"
+      }
+    },
+    {
+      "name": "tiny-invariant",
+      "version": "1.3.3",
+      "metadataUrl": "https://registry.npmjs.org/tiny-invariant/1.3.3",
+      "metadataDigest": "sha256:e6ed79191fea8dccdf84fd826e745596dac062081d6f66c54e0ababc3ff2b50a",
+      "tarball": "https://registry.npmjs.org/tiny-invariant/-/tiny-invariant-1.3.3.tgz",
+      "integrity": "sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==",
+      "archiveDigest": "sha256:746a0b1c98dafa3f96769e200a23fd10dacece300b312d111d19bb65c85c3d48",
+      "files": {
+        "LICENSE": "sha256:b1c501095de70182748cb8e8d97ac5577701a4ef3b755ba30d59fd87b24bdb0f",
+        "dist/tiny-invariant.cjs.js": "sha256:b99584319564d8f89c49a3ea346a204606619fc1ec869c411026a0e19e9478f4",
+        "dist/tiny-invariant.esm.js": "sha256:85b67e5cf9c9368c3f851c3a8398d1ad015a44df04d539f41e4cb585ed80bd12",
+        "src/tiny-invariant.flow.js": "sha256:3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a",
+        "dist/esm/tiny-invariant.js": "sha256:85b67e5cf9c9368c3f851c3a8398d1ad015a44df04d539f41e4cb585ed80bd12",
+        "dist/tiny-invariant.js": "sha256:c5b3f93085b2e7154cec29b6f5ed9c8de07d64921f5c9d5882712882a1c24881",
+        "dist/tiny-invariant.min.js": "sha256:cdf911d95041b35cb203390175ba495255601e98bc909f04060a38dfcbf3544f",
+        "dist/esm/package.json": "sha256:5a065fe7d8eab2a582f428e11c2ea63aaf70607a54f69cfd5c711b5c53d91b32",
+        "package.json": "sha256:27d6815b2577f3e7184f5c69af817377a2e6a0390a68acdfd852402f81d8ba2c",
+        "README.md": "sha256:8cb66c55fe17baadd0b7376736f4e06917b6930c720ece64bc0d19c35dc5ebf9",
+        "dist/esm/tiny-invariant.d.ts": "sha256:b8903e4347ba78328892f8c30b45a8a0071e06c7bae0b0a621035fbf36f75bcb",
+        "dist/tiny-invariant.d.ts": "sha256:b8903e4347ba78328892f8c30b45a8a0071e06c7bae0b0a621035fbf36f75bcb",
+        "src/tiny-invariant.ts": "sha256:911035a470f1f122d8e85c256db984e682ec7b4782c8c56a1335e4f666e52446"
+      }
+    }
+  ]
+}

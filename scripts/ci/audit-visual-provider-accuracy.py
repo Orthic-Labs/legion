@@ -27,7 +27,7 @@ FILES = ["engine/Cargo.lock", "engine/Cargo.toml", "engine/crates/legion-audit/C
          "engine/crates/legion-effects/Cargo.toml", "engine/crates/legion-rules/Cargo.toml", SOURCE]
 SCOPE = "Two flat-color constructed controls; explicit sealed PNG comparison only, not UI quality, runtime capture, population accuracy or production admission"
 READY = "document.readyState === 'complete'"
-OBSERVE = "async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; }"
+OBSERVE = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; })()"
 
 
 def require(ok, message):

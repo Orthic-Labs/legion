@@ -5,6 +5,7 @@ pub mod ast_grep;
 pub mod common;
 pub mod container_iac;
 pub mod dependency_osv;
+pub(crate) mod history;
 pub mod imported_sarif;
 pub mod opengrep;
 pub mod packs;

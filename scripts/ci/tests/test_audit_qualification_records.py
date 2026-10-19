@@ -122,6 +122,24 @@ class RegistrationGateTests(unittest.TestCase):
         self.write_json("src/registry/providers.json", {"providers": [self.spec]})
         self.write_index()
 
+    def test_node_outdated_adapter_scope_and_stage_are_fixed(self):
+        provider = "legacy.stack.node-outdated"
+        scope = gate["helper"]("audit-node-outdated-accuracy.py")["FAMILY_SCOPE"]
+        self.assertEqual(gate["ADAPTERS"][provider],
+                         ("node-outdated", "node_outdated_accuracy", "finding", "canonical-json", "real_node_outdated_accuracy"))
+        entry = {"provider":provider,"family":"node-outdated","stage":"finding","scope":scope,
+                 "record":{"path":"synthetic","sha256":"sha256:"+"a"*64,"qualificationDigest":"sha256:"+"b"*64}}
+        self.assertEqual(gate["adapter"](self.root,entry),
+                         ("node-outdated", "node_outdated_accuracy", "canonical-json", "real_node_outdated_accuracy"))
+        self.assertIs(gate["qualification"](entry)["productionQualification"],False)
+        for field, wrong in (("stage","candidate"),("family","file")):
+            with self.subTest(field=field), self.assertRaises(AssertionError): gate["adapter"](self.root,{**entry,field:wrong})
+        row={"schema":"legion-node-outdated-sdk-accuracy/1","provider":provider,"stage":"finding","scope":scope,
+             "productionQualification":False,"qualificationEligible":True,"status":"pass","modelCalls":0}
+        gate["controls"](row,entry)
+        for field,wrong in (("productionQualification",True),("stage","candidate"),("scope","full registry qualification")):
+            with self.subTest(field=field),self.assertRaises(AssertionError):gate["controls"]({**row,field:wrong},entry)
+
     def test_valid_synthetic_metadata_is_checker_unit_only(self):
         before = (self.root / "src/registry/providers.json").read_bytes()
         self.assertEqual(gate["check"](self.root), {"registeredRecords": 1, "legacyBenchRecords": 0, "promotions": 0})
@@ -283,14 +301,243 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["check"](self.root)
 
+    def test_cargo_machete_adapter_preserves_constructed_admission_scope(self):
+        entry = {"provider": "legacy.quality.rust-unused-deps", "family": "harness-machete", "stage": "finding",
+                 "scope": "constructed-native-sdk-fixture", "record": {"path": "unit.json", "sha256": "sha256:" + "a" * 64,
+                 "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("harness-machete", "real_cargo_machete_accuracy", "canonical-json", "real_cargo_machete_accuracy"))
+        qualified = gate["qualification"](entry)
+        self.assertIs(qualified["productionQualification"], False)
+        self.assertIs(qualified["selfProducerQualification"], False)
+        self.assertEqual(qualified["fixtureScope"], entry["scope"])
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "provider": "legacy.quality.other"})
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "stage": "candidate"})
+
+    def test_rust_outdated_adapter_preserves_constructed_admission_scope(self):
+        entry = {"provider": "legacy.stack.rust-outdated", "family": "harness-rust-outdated", "stage": "finding",
+                 "scope": "constructed-native-sdk-fixture", "record": {"path": "unit.json", "sha256": "sha256:" + "a" * 64,
+                 "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("harness-rust-outdated", "real_rust_outdated_accuracy", "canonical-json", "real_rust_outdated_accuracy"))
+        qualified = gate["qualification"](entry)
+        self.assertIs(qualified["productionQualification"], False)
+        self.assertIs(qualified["selfProducerQualification"], False)
+        self.assertEqual(qualified["fixtureScope"], entry["scope"])
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "provider": "legacy.quality.other"})
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "stage": "candidate"})
+
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 20)
+        self.assertEqual(len(gate["ADAPTERS"]), 30)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
             entry["stage"] = "outcome"
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
+
+    def test_secrets_history_adapter_scope_and_stage_are_fixed(self):
+        provider = "secrets.current-history"
+        scope = "known-answer-fixture-cases"
+        expected = ("secrets-history", "security-history-native", "finding", "canonical-json",
+                    "native_providers::security::producer::history_qualification_tests::native_current_history_qualification")
+        self.assertEqual(gate["ADAPTERS"][provider], expected)
+        entry = {"provider": provider, "family": "secrets-history", "stage": "finding", "scope": scope,
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64,
+                            "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("secrets-history", "security-history-native", "canonical-json", expected[4]))
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertIs(value["installedCliAdmission"], False)
+        self.assertEqual(value["fixtureScope"], scope)
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+
+    def test_cargo_audit_adapter_scope_and_stage_are_fixed(self):
+        provider = "legacy.security.rust-advisories"
+        scope = "constructed native SDK + pinned unchanged official RustSec advisory subset; aggregate unadjudicated candidate only"
+        self.assertEqual(gate["ADAPTERS"][provider],
+                         ("cargo-audit-sdk", "cargo_audit_accuracy", "candidate", "canonical-json", "real_cargo_audit_accuracy"))
+        self.assertEqual(gate["helper"]("audit-cargo-audit-provider-accuracy.py")["FAMILY_SCOPE"], scope)
+        entry = {"provider": provider, "family": "cargo-audit-sdk", "stage": "candidate", "scope": scope,
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("cargo-audit-sdk", "cargo_audit_accuracy", "canonical-json", "real_cargo_audit_accuracy"))
+        value = gate["qualification"](entry)
+        for key in ("productionQualification", "selfProducerQualification", "publicHelperQualification"):
+            self.assertIs(value[key], False)
+        self.assertEqual(value["fixtureScope"], scope)
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+        for field, wrong in (("stage", "finding"), ("family", "linter")):
+            changed = {**entry, field: wrong}
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, changed)
+
+        row = {"schema": "legion-cargo-audit-sdk-accuracy/1", "provider": provider, "stage": "candidate", "scope": scope,
+               "productionQualification": False, "selfProducerQualification": False, "publicHelperQualification": False,
+               "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        gate["controls"](row, entry)
+        for field, wrong in (("scope", "unbounded production qualification"), ("stage", "finding"),
+                             ("provider", "legacy.security.rust-policy"), ("productionQualification", True),
+                             ("selfProducerQualification", True), ("publicHelperQualification", True)):
+            changed = {**row, field: wrong}
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["controls"](changed, entry)
+
+    def test_cargo_deny_adapter_preserves_native_candidate_contract(self):
+        entry = {"provider": "legacy.security.rust-policy", "family": "cargo-deny", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("cargo-deny", "cargo_deny_accuracy", "canonical-json", "real_cargo_deny_accuracy"))
+        self.assertEqual(gate["VALIDATORS"]["cargo-deny"], "scripts/ci/audit-cargo-deny-accuracy.py")
+        for invalid in ({**entry, "stage": "finding"}, {**entry, "family": "harness-quality"}):
+            with self.assertRaises(AssertionError):
+                gate["adapter"](self.root, invalid)
+
+    def test_cargo_deny_metadata_retains_subset_and_constructed_admission_scope(self):
+        scope = gate["helper"]("audit-cargo-deny-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": "legacy.security.rust-policy", "family": "cargo-deny", "stage": "candidate", "scope": scope,
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertEqual(value["fixtureScope"], scope)
+        self.assertEqual(value["databaseScope"], "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim")
+        self.assertEqual(value["admissionScope"], "explicit constructed SDK authorizer; no production CLI owner-admission claim")
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+        self.assertNotIn("qualificationEligible", value)
+
+    def test_cargo_deny_record_cannot_claim_production_qualification(self):
+        scope = gate["helper"]("audit-cargo-deny-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": "legacy.security.rust-policy", "family": "cargo-deny", "stage": "candidate", "scope": scope}
+        row = {"schema": "legion-cargo-deny-sdk-accuracy/1", "provider": "legacy.security.rust-policy", "stage": "candidate", "scope": scope,
+               "productionQualification": True, "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_pip_audit_adapter_is_fixed_to_exact_pin_candidate_controls(self):
+        entry = {"provider": "legacy.security.python-dependencies", "family": "pip-audit", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("pip-audit", "pip_audit_accuracy", "canonical-json", "real_pip_audit_accuracy"))
+        self.assertEqual(gate["VALIDATORS"]["pip-audit"], "scripts/ci/audit-pip-audit-provider-accuracy.py")
+        for key, value in (("provider", "legacy.security.other"), ("family", "file"), ("stage", "finding")):
+            with self.subTest(key=key), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, {**entry, key: value})
+
+    def test_pip_audit_metadata_preserves_exact_pin_nonproduction_scope(self):
+        entry = {"provider": "legacy.security.python-dependencies", "family": "pip-audit", "stage": "candidate",
+                 "scope": "exact-listed-online-pins-fixture-controls",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertIs(value["selfProducerQualification"], False)
+        self.assertEqual(value["fixtureScope"], entry["scope"])
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+        self.assertEqual(value["admissionScope"], "explicit constructed SDK authorizer; no production CLI owner-admission claim")
+        self.assertEqual(value["advisoryDatabase"], "mutable online PyPI responses; no immutable database identity claim")
+        self.assertNotIn("qualificationEligible", value)
+
+    def test_pip_audit_controls_reject_expanded_scope_and_qualification_claims(self):
+        entry = {"provider": "legacy.security.python-dependencies", "family": "pip-audit", "stage": "candidate",
+                 "scope": "exact-listed-online-pins-fixture-controls"}
+        row = {"schema": "legion-pip-audit-sdk-accuracy/1", "provider": entry["provider"], "stage": "candidate",
+               "scope": entry["scope"], "productionQualification": False, "selfProducerQualification": False,
+               "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        gate["controls"](row, entry)
+        for key, value in (("scope", "all-python-dependencies"), ("productionQualification", True),
+                           ("selfProducerQualification", True), ("stage", "finding")):
+            with self.subTest(key=key), self.assertRaises(AssertionError):
+                gate["controls"]({**row, key: value}, entry)
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, {**entry, "scope": "all-python-dependencies"})
+
+    def test_new_native_source_closures_exclude_only_generated_receipts(self):
+        cases = (("pip-audit", "legacy.security.python-dependencies", "audit-pip-audit-provider-accuracy.py", "ROOTS", "FILES", "source_files"),
+                 ("semgrep-sdk", "legacy.security.sast", "audit-semgrep-provider-accuracy.py", "TREES", "FILES", "sources"),
+                 ("harness-rust-outdated", "legacy.stack.rust-outdated", "audit-rust-outdated-provider-accuracy.py", "ROOTS", "FILES", "source_files"),
+                 ("node-outdated", "legacy.stack.node-outdated", "audit-node-outdated-accuracy.py", "SOURCE_ROOTS", "SOURCE_FILES", "sources"))
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        receipt = prefix + "a" * 64 + ".json"
+        bound = ("engine/crates/legion-audit/src/mod.rs",
+                 "engine/crates/legion-audit/src/nested/.audit/anything.rs",
+                 prefix + "A" * 64 + ".json")
+        for family, provider, script, roots_key, files_key, function in cases:
+            with self.subTest(family=family):
+                api = gate["helper"](script)
+                for relative in api[roots_key]:
+                    self.write(relative + "/binding-unit", "synthetic source\n")
+                for relative in api[files_key]:
+                    self.write(relative, "synthetic fixed source\n")
+                for relative in bound:
+                    self.write(relative, "before\n")
+                entry = {"provider": provider, "family": family, "stage": gate["ADAPTERS"][provider][2]}
+                for relative in gate["closure_paths"](self.root, entry):
+                    if not (self.root / relative).exists():
+                        self.write(relative, "synthetic gate source\n")
+
+                def snapshots():
+                    validator = api[function](self.root)
+                    registration = {relative: gate["digest"]((self.root / relative).read_bytes())
+                                    for relative in gate["closure_paths"](self.root, entry)}
+                    return validator, registration
+
+                before = snapshots()
+                self.write(receipt, "generated receipt one\n")
+                self.assertEqual(snapshots(), before)
+                self.write(receipt, "generated receipt two\n")
+                self.assertEqual(snapshots(), before)
+                for relative in bound:
+                    self.write(relative, "after\n")
+                    after = snapshots()
+                    self.assertNotEqual(after[0], before[0], relative)
+                    self.assertNotEqual(after[1], before[1], relative)
+                    self.write(relative, "before\n")
+                path = self.root / receipt
+                path.unlink()
+                path.symlink_to(self.root / bound[0])
+                with self.assertRaises(AssertionError):
+                    api[function](self.root)
+                with self.assertRaises(AssertionError):
+                    gate["closure_paths"](self.root, entry)
+                path.unlink()
+
+    def test_new_native_families_require_exact_named_successful_runs(self):
+        cases = (("pip_audit_accuracy", "real_pip_audit_accuracy", 1),
+                 ("semgrep_accuracy", "real_semgrep_accuracy", 1),
+                 ("real_rust_outdated_accuracy", "real_rust_outdated_accuracy", 1),
+                 ("node_outdated_accuracy", "real_node_outdated_accuracy", 2))
+        path = self.root / "new-native-terminal-unit.log"
+        record = {"sha256": "sha256:" + "a" * 64}
+        for harness, name, count in cases:
+            command = ["audit_cargo_test", "--test", harness, name, "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
+            validator = ["python3", "unit-validator.py"]
+            proof = {"command": {"harness": command, "validator": validator}}
+            success = f"test {name} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n"
+
+            def observed(parts):
+                lines = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command})]
+                lines.extend("".join(parts).splitlines())
+                lines.append("original checker unit")
+                original = len(lines)
+                lines.extend(["AUDIT_QUALIFICATION_COMMAND_END 1 0",
+                              "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": validator}),
+                              "validator checker unit"])
+                summary = len(lines)
+                lines.append("AUDIT_QUALIFICATION_COMMAND_END 2 0")
+                path.write_text("\n".join(lines) + "\n")
+                return gate["terminal_checks"](path, proof, record, "sha256:" + "b" * 64, original, summary)
+
+            with self.subTest(harness=harness, case="exact"):
+                self.assertEqual(len(observed([success] * count)), 2)
+            invalid = ([], [success] * (count - 1), [success] * (count + 1),
+                       [success.replace("1 passed", "0 passed")] * count,
+                       [success.replace("0 ignored", "1 ignored")] * count,
+                       [success.replace(name, "different_test")] * count)
+            for parts in invalid:
+                with self.subTest(harness=harness, parts=parts), self.assertRaises(AssertionError):
+                    observed(parts)
 
     def test_grouped_tflint_requires_all_seven_named_tests_to_execute(self):
         command = ["audit_tflint_qualification"]
@@ -321,6 +568,23 @@ class RegistrationGateTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
 
+    def test_license_adapter_is_fixed_to_real_native_candidate_controls(self):
+        entry = {"provider": "legacy.security.js-licenses", "family": "license-checker", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("license-checker", "license_checker_accuracy", "canonical-json", "real_license_checker_accuracy"))
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "stage": "finding"})
+
+    def test_license_controls_cannot_claim_production_admission(self):
+        scope = gate["helper"]("audit-license-provider-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": "legacy.security.js-licenses", "family": "license-checker", "stage": "candidate", "scope": scope}
+        row = {"schema": "legion-license-checker-native-accuracy/1", "provider": entry["provider"], "stage": "candidate",
+               "scope": scope, "productionQualification": False, "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        gate["controls"](row, entry)
+        row["productionQualification"] = True
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
     def test_osv_adapter_is_fixed_to_native_artifact_fixture(self):
         entry = {"provider": "dependency.osv", "family": "osv-artifact", "stage": "finding"}
         self.assertEqual(gate["adapter"](self.root, entry),
@@ -344,6 +608,31 @@ class RegistrationGateTests(unittest.TestCase):
         row = {"schema": "legion-osv-sdk-artifact-accuracy/1", "provider": "dependency.osv", "stage": "finding",
                "scope": entry["scope"], "productionQualification": False, "selfProducerQualification": False,
                "publicHelperQualification": True, "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_semgrep_adapter_is_fixed_to_native_sdk_fixture(self):
+        entry = {"provider": "legacy.security.sast", "family": "semgrep-sdk", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("semgrep-sdk", "semgrep_accuracy", "canonical-json", "real_semgrep_accuracy"))
+        self.assertEqual(gate["VALIDATORS"]["semgrep-sdk"], "scripts/ci/audit-semgrep-provider-accuracy.py")
+        entry["stage"] = "finding"
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, entry)
+
+    def test_semgrep_qualification_preserves_constructed_scope(self):
+        entry = {"provider": "legacy.security.sast", "family": "semgrep-sdk", "stage": "candidate", "scope": "fixed fixture scope",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        qualified = gate["qualification"](entry)
+        self.assertIs(qualified["productionQualification"], False)
+        self.assertEqual(qualified["fixtureScope"], entry["scope"])
+        self.assertEqual(qualified["validationBasis"], "native-family-validator")
+
+    def test_semgrep_record_rejects_production_qualification(self):
+        scope = gate["helper"]("audit-semgrep-provider-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": "legacy.security.sast", "family": "semgrep-sdk", "stage": "candidate", "scope": scope}
+        row = {"schema": "legion-semgrep-provider-accuracy/1", "provider": "legacy.security.sast", "stage": "candidate", "scope": scope,
+               "productionQualification": True, "qualificationEligible": True, "status": "pass", "modelCalls": 0}
         with self.assertRaises(AssertionError):
             gate["controls"](row, entry)
 
@@ -454,6 +743,142 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertIn("scripts/ci/audit-ast-grep-provider-accuracy.py", paths)
         self.assertNotIn("src/registry/providers.json", paths)
 
+    def qualification_closure_inputs(self):
+        entries = [
+            {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate"},
+            {"provider": "dependency.osv", "family": "osv-artifact", "stage": "finding"},
+        ]
+        self.write("engine/crates/legion-audit/tests/fixtures/ast-grep/unit.ts", "synthetic fixture\n")
+        self.write("engine/crates/legion-audit/tests/fixtures/osv/unit.json", "{}\n")
+        # Populate only synthetic closure inputs; these units execute no provider.
+        for entry in entries:
+            for relative in gate["closure_paths"](self.root, entry):
+                if not (self.root / relative).is_file():
+                    self.write(relative, "synthetic closure input\n")
+        ast = gate["helper"]("audit-ast-grep-provider-accuracy.py")
+        osv = gate["helper"]("audit-osv-artifact-accuracy.py")
+        return entries, ast, osv
+
+    def qualification_closure_bindings(self, entries, ast, osv):
+        paths = lambda names: {name: gate["digest"]((self.root / name).read_bytes()) for name in names}
+        return {
+            "ast-validator": paths(ast["source_paths"](self.root)),
+            "osv-validator": osv["source_binding"](self.root),
+            **{entry["provider"] + "-registration": paths(gate["closure_paths"](self.root, entry))
+               for entry in entries},
+        }
+
+    def test_generated_session_receipts_do_not_stale_qualification_closures(self):
+        entries, ast, osv = self.qualification_closure_inputs()
+        receipt = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json"
+        before = self.qualification_closure_bindings(entries, ast, osv)
+        self.write(receipt, '{"runtime":1}\n')
+        self.assertEqual(self.qualification_closure_bindings(entries, ast, osv), before)
+        self.write(receipt, '{"runtime":2}\n')
+        self.assertEqual(self.qualification_closure_bindings(entries, ast, osv), before)
+        for entry in entries:
+            sources = before[entry["provider"] + "-registration"]
+            entry["sourceClosure"] = {"sources": sources, "digest": gate["digest"](gate["encoded"](sources))}
+            gate["source_closure"](self.root, entry)
+
+    def test_qualification_closures_bind_source_and_nonmatching_receipt_paths(self):
+        entries, ast, osv = self.qualification_closure_inputs()
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        protected = [
+            "engine/Cargo.toml",
+            "src/registry/rules/unit.rs",
+            "engine/crates/legion-audit/src/mod.rs",
+            "engine/crates/legion-audit/src/nested/.audit/anything.rs",
+            prefix + "a" * 64 + ".rs",
+            prefix + "A" * 64 + ".json",
+            prefix + "g" * 64 + ".json",
+            prefix + "a" * 63 + ".json",
+            prefix + "nested/" + "a" * 64 + ".json",
+            "engine/crates/legion-audit/src/nested/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json",
+        ]
+        for relative in protected:
+            self.write(relative, "original synthetic input\n")
+        before = self.qualification_closure_bindings(entries, ast, osv)
+        for relative in protected:
+            self.write(relative, "changed synthetic input\n")
+            after = self.qualification_closure_bindings(entries, ast, osv)
+            for role, binding in before.items():
+                with self.subTest(role=role, path=relative):
+                    self.assertIn(relative, binding)
+                    self.assertNotEqual(after[role][relative], binding[relative])
+            for entry in entries:
+                sources = before[entry["provider"] + "-registration"]
+                entry["sourceClosure"] = {"sources": sources, "digest": gate["digest"](gate["encoded"](sources))}
+                with self.subTest(provider=entry["provider"], path=relative), self.assertRaises(AssertionError):
+                    gate["source_closure"](self.root, entry)
+            before = after
+
+    def test_receipt_exclusion_never_hides_symlinks(self):
+        entries, ast, osv = self.qualification_closure_inputs()
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        receipt = self.root / (prefix + "a" * 64 + ".json")
+        receipt.parent.mkdir(parents=True)
+        receipt.symlink_to(self.root / "engine/crates/legion-audit/src/unit.rs")
+        checks = [lambda: ast["source_paths"](self.root), lambda: osv["source_binding"](self.root)]
+        checks += [lambda entry=entry: gate["closure_paths"](self.root, entry) for entry in entries]
+        for check in checks:
+            with self.assertRaises((AssertionError, SystemExit)):
+                check()
+        receipt.unlink()
+        receipt.parent.rmdir()
+        receipt.parent.symlink_to(self.root / "engine/crates/legion-audit/src/nested-evidence", target_is_directory=True)
+        for check in checks:
+            with self.assertRaises((AssertionError, SystemExit)):
+                check()
+
+    def test_file_family_generated_receipts_do_not_stale_implementation_binding(self):
+        receipt = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json"
+        before = gate["check"](self.root)
+        self.write(receipt, '{"runtime":1}\n')
+        self.assertEqual(gate["check"](self.root), before)
+        self.write(receipt, '{"runtime":2}\n')
+        self.assertEqual(gate["check"](self.root), before)
+
+    def test_file_family_retains_source_tests_fixtures_and_nonmatching_json(self):
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        protected = [
+            "engine/Cargo.toml",
+            "src/registry/rules/unit.rs",
+            self.harness,
+            "engine/crates/legion-audit/src/mod.rs",
+            "engine/crates/legion-audit/src/nested/.audit/anything.rs",
+            prefix + "a" * 64 + ".rs",
+            prefix + "A" * 64 + ".json",
+            prefix + "g" * 64 + ".json",
+            prefix + "a" * 63 + ".json",
+            prefix + "nested/" + "a" * 64 + ".json",
+            "engine/crates/legion-audit/tests/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json",
+        ]
+        gate["check"](self.root)
+        for relative in protected:
+            path = self.root / relative
+            original = path.read_bytes() if path.is_file() else None
+            self.write(relative, "changed synthetic implementation/fixture input\n")
+            with self.subTest(path=relative), self.assertRaises(AssertionError):
+                gate["check"](self.root)
+            if original is None:
+                path.unlink()
+            else:
+                path.write_bytes(original)
+        gate["check"](self.root)
+
+    def test_file_family_receipt_exclusion_rejects_file_and_directory_symlinks(self):
+        receipt = self.root / ("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json")
+        receipt.parent.mkdir(parents=True)
+        receipt.symlink_to(self.root / "engine/crates/legion-audit/src/unit.rs")
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+        receipt.unlink()
+        receipt.parent.rmdir()
+        receipt.parent.symlink_to(self.root / "engine/crates/legion-audit/src/nested-evidence", target_is_directory=True)
+        with self.assertRaises(AssertionError):
+            gate["check"](self.root)
+
     def test_failed_known_answer_class_cannot_register_from_emission(self):
         rows = [{"benchClass": value, "status": "pass", "productionQualification": False}
                 for value in list(gate["BENCH"].values()) + ["drift"]]
@@ -499,3 +924,18 @@ class RegistrationGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_cargo_geiger_adapter_requires_constructed_candidate_scope(self):
+        provider = "legacy.security.rust-unsafe"
+        self.assertEqual(gate["ADAPTERS"][provider], ("cargo-geiger", "cargo_geiger_accuracy", "candidate", "canonical-json", "real_cargo_geiger_accuracy"))
+        entry = {"provider":provider, "family":"cargo-geiger", "stage":"candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry)[0], "cargo-geiger")
+        self.assertEqual(gate["VALIDATORS"]["cargo-geiger"], "scripts/ci/audit-cargo-geiger-accuracy.py")
+        for key, bad in [("stage", "finding"), ("family", "file")]:
+            changed = dict(entry); changed[key] = bad
+            with self.assertRaises(AssertionError): gate["adapter"](self.root, changed)
+        entry.update({"scope":"fixture-control", "record":{"path":"fixture.json", "sha256":"sha256:"+"a"*64,"qualificationDigest":"sha256:"+"b"*64}})
+        result = gate["qualification"](entry)
+        self.assertIs(result["productionQualification"], False)
+        self.assertEqual(result["validationBasis"], "native-family-validator")
+        self.assertEqual(result["admissionScope"], "explicit constructed SDK authorizer; no production CLI owner-admission claim")

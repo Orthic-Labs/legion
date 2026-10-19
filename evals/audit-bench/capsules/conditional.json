@@ -41,7 +41,7 @@
           "expected": [],
           "requiredEvidence": [
             {"path": "contracts/pricing.md", "lineRange": [2, 2], "role": "contract"},
-            {"path": "inventory/checkout.py", "lineRange": [1, 5], "role": "caller"},
+            {"path": "inventory/checkout.py", "lineRange": [1, 4], "role": "caller"},
             {"path": "inventory/pricing.py", "lineRange": [1, 2], "role": "behavior"}
           ],
           "forbiddenClaims": ["The direct helper changes floor-division semantics.", "The direct helper removes support for zero or negative divisor behavior."]
@@ -231,7 +231,7 @@
           "requiredEvidence": [
             {"path": "contracts/worker-process.md", "lineRange": [2, 2], "role": "contract"},
             {"path": "src/jobs.ts", "lineRange": [1, 2], "role": "caller"},
-            {"path": "src/worker.ts", "lineRange": [6, 23], "role": "behavior"}
+            {"path": "src/worker.ts", "lineRange": [6, 21], "role": "behavior"}
           ],
           "forbiddenClaims": ["The clean source proves signal handling or timeout policy absent from contract.", "The child process was executed during evaluation."]
         }

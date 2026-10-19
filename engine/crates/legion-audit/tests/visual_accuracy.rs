@@ -40,7 +40,7 @@ const CHROME_ARCHIVE_SHA256: &str =
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 48;
 const READY: &str = "document.readyState === 'complete'";
-const OBSERVE: &str = "async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; }";
+const OBSERVE: &str = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; })()";
 const LABEL: &str = "visual.regression|viewport|shots/viewport.png|artifact";
 
 fn digest(bytes: &[u8]) -> String {

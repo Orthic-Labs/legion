@@ -526,6 +526,34 @@ fn raw_case_match(expected: &Value, artifacts: &Value, root: &Path) -> bool {
                         .filter_map(Value::as_str)
                         .any(|file| fixture_path_matches(file, "legacy-discount.js", root))
                 })
+                || report
+                    .get("issues")
+                    .and_then(Value::as_array)
+                    .is_some_and(|rows| {
+                        rows.iter().any(|row| {
+                            // Knip 6 reports unused files in each file's issue
+                            // categories. Require both the row & unused-file
+                            // item to identify this fixture's planted subject.
+                            row.get("file").and_then(Value::as_str).is_some_and(|file| {
+                                fixture_path_matches(file, "legacy-discount.js", root)
+                            }) && row
+                                .get("files")
+                                .and_then(Value::as_array)
+                                .is_some_and(|files| {
+                                    files.iter().any(|file| {
+                                        file.get("name").and_then(Value::as_str).is_some_and(
+                                            |file| {
+                                                fixture_path_matches(
+                                                    file,
+                                                    "legacy-discount.js",
+                                                    root,
+                                                )
+                                            },
+                                        )
+                                    })
+                                })
+                        })
+                    })
         }
         "legacy.duplication.jscpd" => report
             .get("duplicates")
@@ -1018,6 +1046,12 @@ mod classifier_controls {
                 json!({"files":["other.js"]}),
             ),
             (
+                "dead_code",
+                "stdout",
+                json!({"issues":[{"file":"legacy-discount.js","files":[{"name":"legacy-discount.js"}],"exports":[]}]}),
+                json!({"issues":[{"file":"other.js","files":[{"name":"other.js"}],"exports":[]}]}),
+            ),
+            (
                 "duplication",
                 "report",
                 json!({"duplicates":[{"firstFile":{"name":"app.js","start":3,"end":29},"secondFile":{"name":"app.js","start":32,"end":58}}]}),
@@ -1036,6 +1070,22 @@ mod classifier_controls {
                 root
             ));
             assert!(!raw_case_match(&expected, &Value::Null, root));
+        }
+        let expected = expected_detection("dead_code");
+        for report in [
+            json!({"issues":[]}),
+            json!({"issues":[{"file":"legacy-discount.js","files":[],"exports":[]}]}),
+            json!({"issues":[{"file":"legacy-discount.js","exports":[{"name":"applyLegacyDiscount"}]}]}),
+            json!({"issues":[{"file":"other.js","files":[{"name":"legacy-discount.js"}]}]}),
+            json!({"issues":[{"file":"legacy-discount.js","files":[{"name":"other.js"}]}]}),
+            json!({"issues":[{"file":"legacy-discount.js","files":[{"name":"/outside/legacy-discount.js"}]}]}),
+            json!({"issues":[{"file":"legacy-discount.js","files":[{"name":"../legacy-discount.js"}]}]}),
+        ] {
+            assert!(!raw_case_match(
+                &expected,
+                &artifacts("stdout", &serde_json::to_vec(&report).unwrap()),
+                root
+            ));
         }
         let expected = expected_detection("type_error");
         assert!(raw_case_match(

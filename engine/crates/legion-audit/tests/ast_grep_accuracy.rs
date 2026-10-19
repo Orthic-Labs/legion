@@ -137,6 +137,44 @@ fn provider_spec() -> ProviderSpec {
     .unwrap()
 }
 
+// Generated host receipts are runtime evidence, never implementation inputs.
+// Match one exact repository-relative directory & lowercase SHA-256 JSON name.
+fn generated_session_provenance(relative: &str) -> bool {
+    relative
+        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|name| {
+            name.len() == 64
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+}
+
+#[test]
+fn source_binding_receipt_exclusion_is_exact() {
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    assert!(generated_session_provenance(&format!(
+        "{prefix}{}.json",
+        "0123456789abcdef".repeat(4)
+    )));
+    for relative in [
+        "engine/crates/legion-audit/src/mod.rs".to_owned(),
+        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("nested/{prefix}{}.json", "a".repeat(64)),
+    ] {
+        assert!(
+            !generated_session_provenance(&relative),
+            "unexpected exclusion: {relative}"
+        );
+    }
+}
+
 fn source_binding(root: &Path) -> Value {
     fn walk(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
         assert!(!path.is_symlink(), "source binding refuses symlinks");
@@ -145,13 +183,14 @@ fn source_binding(root: &Path) -> Value {
                 walk(root, &entry.unwrap().path(), files);
             }
         } else {
-            files.insert(
-                path.strip_prefix(root)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-                sha(&fs::read(path).unwrap()),
-            );
+            let relative = path
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !generated_session_provenance(&relative) {
+                files.insert(relative, sha(&fs::read(path).unwrap()));
+            }
         }
     }
     let roots = [
@@ -328,7 +367,6 @@ fn run_case(kind: &str, fixture: &Path, planted: bool) -> Value {
     assert!(receipt.process_tree.started && receipt.process_tree.reaped);
     let stdout = artifact_text(&artifacts_dir, &receipt.stdout);
     let stderr = artifact_text(&artifacts_dir, &receipt.stderr);
-    assert!(stderr.is_empty(), "unexpected actual stderr: {stderr}");
     let version = receipt
         .executable
         .as_ref()
@@ -345,6 +383,34 @@ fn run_case(kind: &str, fixture: &Path, planted: bool) -> Value {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
+    // Pinned ast-grep 0.51.0 reports error-level matches as DiagnosticError:
+    // completed JSON output, exit 1 & this exact non-TTY stderr summary.
+    // Configuration, parse, traversal & other errors must never pass here.
+    for row in &stream {
+        let expected_severity = match row.get("ruleId").and_then(Value::as_str) {
+            Some("no-console-error-leak") => "warning",
+            Some("no-inner-html") => "error",
+            _ => panic!("unexpected raw scanner rule: {row}"),
+        };
+        assert_eq!(
+            row.get("severity").and_then(Value::as_str),
+            Some(expected_severity)
+        );
+    }
+    let error_count = stream
+        .iter()
+        .filter(|row| row.get("severity").and_then(Value::as_str) == Some("error"))
+        .count();
+    let expected_stderr = if error_count == 0 {
+        String::new()
+    } else {
+        format!("Error: {error_count} error(s) found in code.\nHelp: Scan succeeded and found error level diagnostics in the codebase.\n\n")
+    };
+    assert_eq!(
+        receipt.exit_code,
+        Some(if error_count == 0 { 0 } else { 1 })
+    );
+    assert_eq!(stderr, expected_stderr, "unexpected actual stderr");
     let matches = stream
         .into_iter()
         .map(|mut row| {

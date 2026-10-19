@@ -1,0 +1,10 @@
+[advisories]
+db-path = @DATABASE@
+[licenses]
+allow = ["MIT"]
+unused-allowed-license = "allow"
+[bans]
+deny = [{ name = "legion-policy-dep" }]
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

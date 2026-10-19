@@ -1,0 +1,67 @@
+{
+  "packages": [
+    {
+      "package": {
+        "id": {
+          "name": "fixture",
+          "version": "0.0.0",
+          "source": {
+            "Path": "file:///fixture"
+          }
+        },
+        "dependencies": [],
+        "dev_dependencies": [],
+        "build_dependencies": []
+      },
+      "unsafety": {
+        "used": {
+          "functions": {
+            "safe": 1,
+            "unsafe_": 0
+          },
+          "exprs": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "item_impls": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "item_traits": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "methods": {
+            "safe": 0,
+            "unsafe_": 0
+          }
+        },
+        "unused": {
+          "functions": {
+            "safe": 1,
+            "unsafe_": 0
+          },
+          "exprs": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "item_impls": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "item_traits": {
+            "safe": 0,
+            "unsafe_": 0
+          },
+          "methods": {
+            "safe": 0,
+            "unsafe_": 0
+          }
+        },
+        "forbids_unsafe": false
+      }
+    }
+  ],
+  "packages_without_metrics": [],
+  "used_but_not_scanned_files": []
+}

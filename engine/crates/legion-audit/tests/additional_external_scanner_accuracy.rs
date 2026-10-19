@@ -101,12 +101,15 @@ impl Scanner {
         if !planted {
             return vec![];
         }
-        vec![match self {
-            Self::Zizmor => "unpinned-uses|.github/workflows/ci.yml|11",
-            // Label preserves absence of a line; production binds a file anchor.
-            Self::KubeLinter => "privileged-container|pod.yaml|unresolved",
+        match self {
+            Self::Zizmor => vec!["unpinned-uses|.github/workflows/ci.yml|11".into()],
+            // Privileged also triggers pinned privilege-escalation check.
+            // Labels preserve absent lines; production binds file anchors.
+            Self::KubeLinter => vec![
+                "privilege-escalation-container|pod.yaml|unresolved".into(),
+                "privileged-container|pod.yaml|unresolved".into(),
+            ],
         }
-        .into()]
     }
 }
 
@@ -254,7 +257,7 @@ impl ScopedPolicy {
             };
             if !canonical.starts_with(&self.run)
                 || canonical.file_name().and_then(|v| v.to_str())
-                    != Some("kube-linter-owned-config")
+                    != Some("kube-linter-owned-config.yaml")
                 || fs::read(canonical).ok().as_deref() != Some(KUBE_CONFIG.as_bytes())
             {
                 return false;
@@ -403,6 +406,108 @@ fn artifact_json(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Valu
     json!({"path": artifact.path, "digest": artifact.digest, "bytes": artifact.bytes, "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 
+// Diagnostics retain genuine SDK receipts & streams even when native output is
+// unavailable. They never substitute for successful provider evidence.
+fn native_diagnostics(run: &Path, provider: &str, inventory: &str) -> Vec<Value> {
+    let directory = run.join("native-diagnostics");
+    if !directory.exists() {
+        return Vec::new();
+    }
+    assert!(!fs::symlink_metadata(&directory)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    let directory = fs::canonicalize(directory).unwrap();
+    assert_eq!(
+        directory.parent(),
+        Some(fs::canonicalize(run).unwrap().as_path())
+    );
+    let mut paths = fs::read_dir(&directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            let metadata = fs::symlink_metadata(&path).unwrap();
+            assert!(metadata.is_file() && !metadata.file_type().is_symlink());
+            assert!(metadata.len() <= (LIMIT as u64) * 32);
+            let bytes = fs::read(path).unwrap();
+            let output = PathBuf::from(
+                std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR")
+                    .expect("native diagnostic evidence directory required"),
+            );
+            assert!(output.is_absolute());
+            assert!(!fs::symlink_metadata(&output)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            let output = fs::canonicalize(output).unwrap().join("native-diagnostics");
+            fs::create_dir_all(&output).unwrap();
+            assert!(!fs::symlink_metadata(&output)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            let filename = format!(
+                "native-diagnostic-{}.json",
+                digest(&bytes).trim_start_matches("sha256:")
+            );
+            let artifact = legion_effects::ArtifactWriter::new(&output)
+                .write_immutable(&filename, &bytes)
+                .unwrap();
+            let retained = fs::read(output.join(&artifact.path)).unwrap();
+            assert_eq!(retained, bytes);
+            assert_eq!(artifact.digest, digest(&retained));
+            assert_eq!(artifact.bytes, retained.len());
+            assert!(artifact.immutable);
+            eprintln!(
+                "REAL_SCANNER_DIAGNOSTIC_ARTIFACT {}",
+                json!({
+                    "path": output.join(&artifact.path), "digest": artifact.digest,
+                    "bytes": artifact.bytes, "qualificationEligible": false
+                })
+            );
+            let value: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(value["schema"], "legion-native-scanner-diagnostic/1");
+            assert_eq!(value["provider"], provider);
+            assert_eq!(value["inventoryDigest"], inventory);
+            assert_eq!(value["receipt"]["providerId"], provider);
+            assert_eq!(value["receipt"]["planId"], inventory);
+            for stream in ["stdout", "stderr"] {
+                let record = &value[stream];
+                let receipt = &value["receipt"][stream];
+                if record.is_null() {
+                    assert!(receipt.is_null());
+                    continue;
+                }
+                let raw: Vec<u8> = record["rawBytes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|byte| u8::try_from(byte.as_u64().unwrap()).unwrap())
+                    .collect();
+                assert!(raw.len() <= LIMIT);
+                assert_eq!(record["digest"], digest(&raw));
+                assert_eq!(record["bytes"], raw.len());
+                assert_eq!(record["immutable"], true);
+                assert_eq!(record["originalPath"], receipt["path"]);
+                for key in ["digest", "bytes", "immutable"] {
+                    assert_eq!(record[key], receipt[key]);
+                }
+                assert_eq!(
+                    record["raw"],
+                    String::from_utf8(raw)
+                        .ok()
+                        .map(Value::String)
+                        .unwrap_or(Value::Null)
+                );
+            }
+            value
+        })
+        .collect()
+}
+
 fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
     let auth = legion_effects::authenticate_sandbox(
         &policy.tool.to_string_lossy(),
@@ -533,6 +638,18 @@ fn case(scanner: Scanner, planted: bool) -> Value {
             .with_policy_authorizer(policy.clone()),
     );
     let execution = execute(&frozen, &inventory, &registry).unwrap();
+    eprintln!(
+        "REAL_SCANNER_EXECUTION_DIAGNOSTIC {}",
+        json!({"execution": execution})
+    );
+    let diagnostics = native_diagnostics(&run, &id, &inventory.digest);
+    eprintln!("REAL_SCANNER_NATIVE_DIAGNOSTICS {}", json!(diagnostics));
+    if matches!(scanner, Scanner::KubeLinter) {
+        assert!(
+            !diagnostics.is_empty(),
+            "actual scanner diagnostics were not retained"
+        );
+    }
     assert_eq!(execution.planned_providers, vec![id.clone()]);
     assert_eq!(execution.results.len(), 1);
     let entry = &execution.results[0];
@@ -651,7 +768,7 @@ fn case(scanner: Scanner, planted: bool) -> Value {
         "planDigest": frozen.digest(), "inventoryDigest": inventory.digest, "coverage": result.coverage,
         "toolIdentity": {"path": policy.tool, "executableDigest": policy.tool_digest, "version": version},
         "policy": policy.definition(), "policyDecisions": *decisions, "executionReceipt": receipt, "actualProviderResult": result,
-        "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."})
+        "receiptRetentionLimit": "Qualification record retains actual reduced receipt, normalized raw findings & stdout digest. Kube-linter full actual scan receipt & raw streams are separately retained in private native diagnostics before parsing; Zizmor scan retention remains reduced. Separate real native version output & receipt are retained."})
 }
 
 fn implementation_binding(root: &Path) -> Value {

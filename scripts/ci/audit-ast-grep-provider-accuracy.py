@@ -3,7 +3,35 @@
 import hashlib
 import json
 import pathlib
+import re
 import sys
+
+
+SOURCE_ROOTS = ["engine/crates/legion-audit/src", "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src", "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src", "src/registry/rules", "src/registry/controls",
+        "engine/crates/legion-audit/tests/fixtures/ast-grep"]
+
+
+def source_paths(root):
+    paths = set()
+    for relative in SOURCE_ROOTS:
+        base = root / relative
+        require(base.is_dir() and not base.is_symlink(), f"bound root absent or symlink: {relative}")
+        for source in base.rglob("*"):
+            require(not source.is_symlink(), f"symlink in bound source root: {source}")
+            if source.is_file() and not generated_session_provenance(source.relative_to(root).as_posix()):
+                paths.add(source.relative_to(root).as_posix())
+    paths.update(["engine/crates/legion-audit/tests/ast_grep_accuracy.rs",
+        "engine/Cargo.toml", "engine/Cargo.lock", "engine/crates/legion-audit/Cargo.toml",
+        "engine/crates/legion-effects/Cargo.toml", "engine/crates/legion-provider-sdk/Cargo.toml",
+        "engine/crates/legion-contracts/Cargo.toml", "engine/crates/legion-rules/Cargo.toml"])
+    return paths
+
+
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
 
 
 def require(condition, message):
@@ -32,6 +60,21 @@ def candidate_labels(rows, root):
     return sorted(labels)
 
 
+def validate_scan_completion(rows, exit_code, stderr, case_id):
+    # Pinned 0.51.0 DiagnosticError counts error-severity JSON matches after
+    # successful printing. Accept only its exact non-TTY summary, never a
+    # prefix, trimmed text, arbitrary exit 1, or any genuine scanner error.
+    severities = {"no-console-error-leak": "warning", "no-inner-html": "error"}
+    for row in rows:
+        rule = row.get("ruleId")
+        require(rule in severities and row.get("severity") == severities[rule], f"{case_id}: raw rule severity differs from fixed fixture")
+    error_count = sum(row["severity"] == "error" for row in rows)
+    expected_stderr = (f"Error: {error_count} error(s) found in code.\n"
+        "Help: Scan succeeded and found error level diagnostics in the codebase.\n\n") if error_count else ""
+    require(type(exit_code) is int and exit_code == (1 if error_count else 0), f"{case_id}: scanner exit differs from raw diagnostic severities")
+    require(stderr == expected_stderr, f"{case_id}: unexpected scanner stderr output")
+
+
 def validate_record(repository_root, record, live=False):
     root = pathlib.Path(repository_root).resolve()
     require(isinstance(record, dict), "record must be a JSON object")
@@ -51,23 +94,8 @@ def validate_record(repository_root, record, live=False):
         require(recorded_root == root, "live repository root differs from recorded execution root")
     bound = binding.get("files", {})
     require(bound, "source file binding missing")
-    roots = ["engine/crates/legion-audit/src", "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src", "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src", "src/registry/rules", "src/registry/controls",
-        "engine/crates/legion-audit/tests/fixtures/ast-grep"]
-    require(binding.get("roots") == roots, "source binding roots changed")
-    expected_bound = set()
-    for relative in roots:
-        base = root / relative
-        require(base.is_dir() and not base.is_symlink(), f"bound root absent or symlink: {relative}")
-        for source in base.rglob("*"):
-            if source.is_file():
-                require(not source.is_symlink(), f"symlink in bound source root: {source}")
-                expected_bound.add(source.relative_to(root).as_posix())
-    expected_bound.update(["engine/crates/legion-audit/tests/ast_grep_accuracy.rs",
-        "engine/Cargo.toml", "engine/Cargo.lock", "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml", "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml", "engine/crates/legion-rules/Cargo.toml"])
+    require(binding.get("roots") == SOURCE_ROOTS, "source binding roots changed")
+    expected_bound = source_paths(root)
     require(set(bound) == expected_bound, "source binding file closure is incomplete or unexpected")
     required_paths = {"src/registry/rules/ast-grep/structural-core.json", "engine/Cargo.lock", "engine/Cargo.toml", "engine/crates/legion-audit/Cargo.toml", "engine/crates/legion-audit/tests/ast_grep_accuracy.rs"}
     require(required_paths <= set(bound), "fixed harness/spec/fixture source closure incomplete")
@@ -214,7 +242,7 @@ def validate_record(repository_root, record, live=False):
             require(len(raw.encode()) == output.get("bytes"), f"{case_id}: stream byte count mismatch")
             require(sha(raw.encode()) == output.get("digest"), f"{case_id}: raw stream digest mismatch")
             require(output.get("immutable") is True and output.get("path"), f"{case_id}: immutable artifact reference absent")
-        require(stderr.get("raw") == "", f"{case_id}: unexpected stderr output")
+        validate_scan_completion(raw_rows, receipt.get("exitCode"), stderr["raw"], case_id)
         derived = candidate_labels(raw_rows, fixture_root)
         require(derived == literals, f"{case_id}: raw scanner stream does not derive expected observations")
         require(case.get("actual") == derived, f"{case_id}: native observations not derived from raw output")

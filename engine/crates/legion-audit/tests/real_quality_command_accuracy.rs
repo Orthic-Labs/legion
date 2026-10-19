@@ -180,6 +180,10 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
         env.insert(name.into(), run.join(path).to_string_lossy().into_owned());
         allowed.insert(name.into());
     }
+    env.insert("PYTHONNOUSERSITE".into(), "1".into());
+    env.insert("GIT_CONFIG_NOSYSTEM".into(), "1".into());
+    allowed.insert("PYTHONNOUSERSITE".into());
+    allowed.insert("GIT_CONFIG_NOSYSTEM".into());
     env.insert("PYTHONDONTWRITEBYTECODE".into(), "1".into());
     allowed.insert("PYTHONDONTWRITEBYTECODE".into());
     (env, allowed)

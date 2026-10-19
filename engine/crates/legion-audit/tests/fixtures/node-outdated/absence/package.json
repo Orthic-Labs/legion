@@ -1,0 +1,21 @@
+{
+  "name": "legion-node-outdated-absence",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.9.8",
+  "dependencies": {
+    "tiny-invariant": "1.3.3"
+  },
+  "devDependencies": {
+    "tiny-invariant": "1.3.3"
+  },
+  "optionalDependencies": {
+    "tiny-invariant": "1.3.3"
+  },
+  "peerDependencies": {
+    "tiny-invariant": "1.3.3"
+  },
+  "scripts": {
+    "preinstall": "node -e \"throw new Error('PROJECT_SCRIPT_MUST_NOT_RUN')\""
+  }
+}

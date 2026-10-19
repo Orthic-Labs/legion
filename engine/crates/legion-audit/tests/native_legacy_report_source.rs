@@ -149,7 +149,7 @@ fn provider(
         .expect("provider present in frozen plan")
 }
 
-/// cargo-deny streams its `--format json check` diagnostics on stderr, not
+/// cargo-deny streams its `--format json --offline check` diagnostics on stderr, not
 /// stdout. The fake `cargo-deny` here reproduces exactly that: two
 /// `diagnostic` lines (error + warning, matching `cargo_deny`'s parser) on
 /// stderr and unrelated noise on stdout, so a stdout-only read would find
@@ -161,10 +161,12 @@ fn cargo_deny_diagnostics_are_read_from_stderr() {
     write_fake_tool(
         &root,
         "cargo-deny",
-        "#!/bin/sh\necho 'not json, must not be read as the report' >&1\n\
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'cargo-deny fixture'; exit 0; fi\n\
+         echo 'not json, must not be read as the report' >&1\n\
          echo '{\"type\":\"diagnostic\",\"fields\":{\"severity\":\"error\",\"message\":\"duplicate crate\"}}' >&2\n\
          echo '{\"type\":\"diagnostic\",\"fields\":{\"severity\":\"warning\",\"message\":\"license not explicitly allowed\"}}' >&2\n\
-         exit 0\n",
+         echo '{\"type\":\"summary\",\"fields\":{\"advisories\":{\"errors\":0,\"warnings\":0,\"notes\":0,\"helps\":0},\"bans\":{\"errors\":1,\"warnings\":0,\"notes\":0,\"helps\":0},\"licenses\":{\"errors\":0,\"warnings\":1,\"notes\":0,\"helps\":0},\"sources\":{\"errors\":0,\"warnings\":0,\"notes\":0,\"helps\":0}}}' >&2\n\
+         exit 2\n",
     );
     let inventory = inventory();
     let plan = plan_for(

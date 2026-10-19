@@ -1,0 +1,1531 @@
+{
+  "sha": "08543ac0b48ff6eec12c0a1f2478ef9c3259cd4d",
+  "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/08543ac0b48ff6eec12c0a1f2478ef9c3259cd4d",
+  "tree": [
+    {
+      "path": ".dockerignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "64fce898e5926d4389dc47bd8555a1124a4286da",
+      "size": 44,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/64fce898e5926d4389dc47bd8555a1124a4286da"
+    },
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "336e2348854b4221393bcb024e893c7f1d76fb19",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/336e2348854b4221393bcb024e893c7f1d76fb19"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d36e87f20bf91c909a85d9562e6baff4a48f1d42",
+      "size": 231,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d36e87f20bf91c909a85d9562e6baff4a48f1d42"
+    },
+    {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cd12d8fc160612db89a20aeb15ac0f1e571d36bb",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/cd12d8fc160612db89a20aeb15ac0f1e571d36bb"
+    },
+    {
+      "path": ".github/workflows/cache-zigs.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9c2c0037bea8622cb725ebce40b07eb57644bdc",
+      "size": 1145,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d9c2c0037bea8622cb725ebce40b07eb57644bdc"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "528ffcc18388d1c68319bdf4f97440eee5e9d918",
+      "size": 1165,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/528ffcc18388d1c68319bdf4f97440eee5e9d918"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "126059aad00e007b7fe10d3d206daafd3aaa2bc6",
+      "size": 1551,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/126059aad00e007b7fe10d3d206daafd3aaa2bc6"
+    },
+    {
+      "path": ".github/workflows/rust-audit-check.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a1d8ad30c27aa3422b74563e176101f3263c20de",
+      "size": 244,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/a1d8ad30c27aa3422b74563e176101f3263c20de"
+    },
+    {
+      "path": ".github/workflows/rustfmt.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d819d30e1f96928ddf354943e2ecc0dbd5ef6fa",
+      "size": 469,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1d819d30e1f96928ddf354943e2ecc0dbd5ef6fa"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "456bf1eb24757c953abb956340eabee7a231ce0f",
+      "size": 429,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/456bf1eb24757c953abb956340eabee7a231ce0f"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "802cd838c128967570c58191b9c4392570dbf4e3",
+      "size": 8017,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/802cd838c128967570c58191b9c4392570dbf4e3"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a3399a2c3354776fab906dd1d7e49fc1e11834ec",
+      "size": 1697,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/a3399a2c3354776fab906dd1d7e49fc1e11834ec"
+    },
+    {
+      "path": "Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f853ec48e38edc29f1ebd03d750090df08c81c79",
+      "size": 106608,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/f853ec48e38edc29f1ebd03d750090df08c81c79"
+    },
+    {
+      "path": "Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "542671e6352875d3a63bd88fb37f84f2f33a7a6b",
+      "size": 460,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/542671e6352875d3a63bd88fb37f84f2f33a7a6b"
+    },
+    {
+      "path": "Dockerfile",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5598cd341d3a232aa86d87dab09925a7f299ac9c",
+      "size": 609,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/5598cd341d3a232aa86d87dab09925a7f299ac9c"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18ddeafafd06c58af524a2d5e0740e2a946c6df4",
+      "size": 3266,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/18ddeafafd06c58af524a2d5e0740e2a946c6df4"
+    },
+    {
+      "path": "cargo-geiger-serde",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "40eb24bf6efb4668994b977cb78cf7dfbc69e5ba",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/40eb24bf6efb4668994b977cb78cf7dfbc69e5ba"
+    },
+    {
+      "path": "cargo-geiger-serde/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81da6ac645e25660aa2a75e1f2b2f22740948809",
+      "size": 481,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/81da6ac645e25660aa2a75e1f2b2f22740948809"
+    },
+    {
+      "path": "cargo-geiger-serde/LICENSE-APACHE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "size": 11357,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+    },
+    {
+      "path": "cargo-geiger-serde/LICENSE-MIT",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd2fd795dcbf82034afd2222f967c96557d4f4c7",
+      "size": 1065,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/dd2fd795dcbf82034afd2222f967c96557d4f4c7"
+    },
+    {
+      "path": "cargo-geiger-serde/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94caac65e2976aa4963aabfc561692b93dbc34a9",
+      "size": 53,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/94caac65e2976aa4963aabfc561692b93dbc34a9"
+    },
+    {
+      "path": "cargo-geiger-serde/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1a820486dbea7258ab14376cdb08fde271945299",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/1a820486dbea7258ab14376cdb08fde271945299"
+    },
+    {
+      "path": "cargo-geiger-serde/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4dd8ec01fc53aad0a3ceef9d3e7e9cbee22a36dd",
+      "size": 410,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/4dd8ec01fc53aad0a3ceef9d3e7e9cbee22a36dd"
+    },
+    {
+      "path": "cargo-geiger-serde/src/package_id.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4f838dd0010ecfd70239ec378d3e2b3f741c0d43",
+      "size": 418,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/4f838dd0010ecfd70239ec378d3e2b3f741c0d43"
+    },
+    {
+      "path": "cargo-geiger-serde/src/report.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55bd029ea1093955cb40795b6e8b41a304deb1c5",
+      "size": 9443,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/55bd029ea1093955cb40795b6e8b41a304deb1c5"
+    },
+    {
+      "path": "cargo-geiger-serde/src/source.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bfd99a54038deb2ffadc041313e117a83d538bf2",
+      "size": 307,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/bfd99a54038deb2ffadc041313e117a83d538bf2"
+    },
+    {
+      "path": "cargo-geiger",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "42881c6401410c88192625e7cbe899a2ec03b4b2",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/42881c6401410c88192625e7cbe899a2ec03b4b2"
+    },
+    {
+      "path": "cargo-geiger/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0168af6de8fdd54b1f5429459ed28e02d6e7257a",
+      "size": 329,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/0168af6de8fdd54b1f5429459ed28e02d6e7257a"
+    },
+    {
+      "path": "cargo-geiger/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b9c92537b6e8e03151f29aeb5f0cbafad96cd539",
+      "size": 1319,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/b9c92537b6e8e03151f29aeb5f0cbafad96cd539"
+    },
+    {
+      "path": "cargo-geiger/LICENSE-APACHE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "size": 11357,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+    },
+    {
+      "path": "cargo-geiger/LICENSE-MIT",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1defc2efeaf35e7b7222bf0bff568832f33a21c3",
+      "size": 1094,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1defc2efeaf35e7b7222bf0bff568832f33a21c3"
+    },
+    {
+      "path": "cargo-geiger/README.md",
+      "mode": "120000",
+      "type": "blob",
+      "sha": "32d46ee883b58d6a383eed06eb98f33aa6530ded",
+      "size": 12,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/32d46ee883b58d6a383eed06eb98f33aa6530ded"
+    },
+    {
+      "path": "cargo-geiger/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4d929ba8f8e34c0f73d1984618d18ca6745e721c",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/4d929ba8f8e34c0f73d1984618d18ca6745e721c"
+    },
+    {
+      "path": "cargo-geiger/src/args.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4f38a58d956c7db1ceb079a68f8ff72dcab1dd2",
+      "size": 16248,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e4f38a58d956c7db1ceb079a68f8ff72dcab1dd2"
+    },
+    {
+      "path": "cargo-geiger/src/cli.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "52abb33c4fa3ccb2459a0dba6b8d1c645f6ffd83",
+      "size": 5380,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/52abb33c4fa3ccb2459a0dba6b8d1c645f6ffd83"
+    },
+    {
+      "path": "cargo-geiger/src/format.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "afa8fdd387a85420888b0dc6d2e554e4778a748d",
+      "size": 1835,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/afa8fdd387a85420888b0dc6d2e554e4778a748d"
+    },
+    {
+      "path": "cargo-geiger/src/format",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "df8f2b8a31f57652bd7f626e4bdea363edde6f88",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/df8f2b8a31f57652bd7f626e4bdea363edde6f88"
+    },
+    {
+      "path": "cargo-geiger/src/format/display.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "875c4e83f2e8e2f28f94f504e9afb3ae1a6aeebe",
+      "size": 3724,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/875c4e83f2e8e2f28f94f504e9afb3ae1a6aeebe"
+    },
+    {
+      "path": "cargo-geiger/src/format/emoji_symbols.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "53773cf0d2d3209e218e3b046fe5ff0effbec49a",
+      "size": 1559,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/53773cf0d2d3209e218e3b046fe5ff0effbec49a"
+    },
+    {
+      "path": "cargo-geiger/src/format/parse.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6238e52d831b828ee73c50b8c3faee483ceb4cb4",
+      "size": 3399,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/6238e52d831b828ee73c50b8c3faee483ceb4cb4"
+    },
+    {
+      "path": "cargo-geiger/src/format/pattern.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94e88be3a64472a7af3026d606f121a314918e19",
+      "size": 2494,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/94e88be3a64472a7af3026d606f121a314918e19"
+    },
+    {
+      "path": "cargo-geiger/src/format/print_config.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca9196c5265bcffa100219f3d94ac4e30fd33923",
+      "size": 8988,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/ca9196c5265bcffa100219f3d94ac4e30fd33923"
+    },
+    {
+      "path": "cargo-geiger/src/format/table.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9323123596eac14da8883d9a1dcbb3fcdc0bc277",
+      "size": 13084,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/9323123596eac14da8883d9a1dcbb3fcdc0bc277"
+    },
+    {
+      "path": "cargo-geiger/src/format/table",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "dc6140c0df1834a6de530e5c83c4f12da7dcf82d",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/dc6140c0df1834a6de530e5c83c4f12da7dcf82d"
+    },
+    {
+      "path": "cargo-geiger/src/format/table/handle_text_tree_line.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "15f9a4e2b7494af245090397eb43deef927be283",
+      "size": 12473,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/15f9a4e2b7494af245090397eb43deef927be283"
+    },
+    {
+      "path": "cargo-geiger/src/format/table/total_package_counts.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f96583ad188657ed4ea77a2fe7e4290c10504b25",
+      "size": 1184,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/f96583ad188657ed4ea77a2fe7e4290c10504b25"
+    },
+    {
+      "path": "cargo-geiger/src/graph.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e5eeb71ecd1d4ed5bbf0ff4003c67e1571757e69",
+      "size": 8325,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e5eeb71ecd1d4ed5bbf0ff4003c67e1571757e69"
+    },
+    {
+      "path": "cargo-geiger/src/graph",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c3f2b10a4f5b25df3a6ad34f79879adb0652d729",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/c3f2b10a4f5b25df3a6ad34f79879adb0652d729"
+    },
+    {
+      "path": "cargo-geiger/src/graph/extra_deps.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "58b623b54471329aaaa489c6141c73070f429f08",
+      "size": 1733,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/58b623b54471329aaaa489c6141c73070f429f08"
+    },
+    {
+      "path": "cargo-geiger/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad9c418ab17a114f9f1131072f6e7a25e231369b",
+      "size": 1294,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/ad9c418ab17a114f9f1131072f6e7a25e231369b"
+    },
+    {
+      "path": "cargo-geiger/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f807d9859a1207b3f8398878daa0e03747117da0",
+      "size": 3651,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/f807d9859a1207b3f8398878daa0e03747117da0"
+    },
+    {
+      "path": "cargo-geiger/src/mapping.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "97e736effcf17f35923b4fb4528ae61429a56531",
+      "size": 5057,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/97e736effcf17f35923b4fb4528ae61429a56531"
+    },
+    {
+      "path": "cargo-geiger/src/mapping",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60720f32a8919fdda63053d129cae3481ead2b1e",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/60720f32a8919fdda63053d129cae3481ead2b1e"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/geiger.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "653665107746d5cf88a0f266aa2bd4a45bbfd4e9",
+      "size": 4756,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/653665107746d5cf88a0f266aa2bd4a45bbfd4e9"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/krates_mapping.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "983af761280f71c3f97cda11ede18160ac3d284d",
+      "size": 4140,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/983af761280f71c3f97cda11ede18160ac3d284d"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/metadata.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c5a459d37b130e0e96bf438bf259804b97b3be57",
+      "size": 12483,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/c5a459d37b130e0e96bf438bf259804b97b3be57"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/metadata",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "922b77bf0338b96af71af90a64e5f87086cb46c2",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/922b77bf0338b96af71af90a64e5f87086cb46c2"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/metadata/dependency.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23b1e3146f780a8236c346ce1de7274b643f6a6f",
+      "size": 417,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/23b1e3146f780a8236c346ce1de7274b643f6a6f"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/metadata/package.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3db5118d8cc700135fcdbc36eaf38953d2f973a1",
+      "size": 643,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3db5118d8cc700135fcdbc36eaf38953d2f973a1"
+    },
+    {
+      "path": "cargo-geiger/src/mapping/metadata/package_id.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c7134221ed1b0ba5e66c613c9b5caefbbdaa385",
+      "size": 1572,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/2c7134221ed1b0ba5e66c613c9b5caefbbdaa385"
+    },
+    {
+      "path": "cargo-geiger/src/readme.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9eba386e57a990dc944cd93f78b48dbc56634824",
+      "size": 16574,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/9eba386e57a990dc944cd93f78b48dbc56634824"
+    },
+    {
+      "path": "cargo-geiger/src/scan.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0fcfa5c62b984b662b492026052c52d369616ed1",
+      "size": 17590,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/0fcfa5c62b984b662b492026052c52d369616ed1"
+    },
+    {
+      "path": "cargo-geiger/src/scan",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b7d679396efb8f5f328bad3a22616faaed3f9c4d",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/b7d679396efb8f5f328bad3a22616faaed3f9c4d"
+    },
+    {
+      "path": "cargo-geiger/src/scan/default.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "380cf9e5d4ef18461ef6e66f65d4e50161178d71",
+      "size": 6384,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/380cf9e5d4ef18461ef6e66f65d4e50161178d71"
+    },
+    {
+      "path": "cargo-geiger/src/scan/default",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d6ad84587c20e08a344f94da862a5ee53d1751a0",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/d6ad84587c20e08a344f94da862a5ee53d1751a0"
+    },
+    {
+      "path": "cargo-geiger/src/scan/default/table.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1723973533d204cb93ef49864faa21ce854a77f0",
+      "size": 5299,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1723973533d204cb93ef49864faa21ce854a77f0"
+    },
+    {
+      "path": "cargo-geiger/src/scan/find.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8dc107c38c9f15d193cf16aedf86d4b7b6da1a47",
+      "size": 13078,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/8dc107c38c9f15d193cf16aedf86d4b7b6da1a47"
+    },
+    {
+      "path": "cargo-geiger/src/scan/forbid.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "355408a2db96dad2131875decf4f05e7432799c5",
+      "size": 2666,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/355408a2db96dad2131875decf4f05e7432799c5"
+    },
+    {
+      "path": "cargo-geiger/src/scan/forbid",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9660e49d86c54510fb4e591e9e99674d61aaa2c2",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/9660e49d86c54510fb4e591e9e99674d61aaa2c2"
+    },
+    {
+      "path": "cargo-geiger/src/scan/forbid/table.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2f86dad42279b072759ecff700952db4c028baf7",
+      "size": 4914,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/2f86dad42279b072759ecff700952db4c028baf7"
+    },
+    {
+      "path": "cargo-geiger/src/scan/rs_file.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22cfdc0c0777eb3ebf676ba4452bd3810f0b7c4f",
+      "size": 14228,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/22cfdc0c0777eb3ebf676ba4452bd3810f0b7c4f"
+    },
+    {
+      "path": "cargo-geiger/src/scan/rs_file",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e8c81bd9a3f4babeac73e67eb788af2844088114",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/e8c81bd9a3f4babeac73e67eb788af2844088114"
+    },
+    {
+      "path": "cargo-geiger/src/scan/rs_file/custom_executor.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bffbb657d9972e4240263198416f886757cee565",
+      "size": 3949,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/bffbb657d9972e4240263198416f886757cee565"
+    },
+    {
+      "path": "cargo-geiger/src/tree.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "32c852882886c0d1f3abe1acd880e313ab53faa0",
+      "size": 3950,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/32c852882886c0d1f3abe1acd880e313ab53faa0"
+    },
+    {
+      "path": "cargo-geiger/src/tree",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6c89751e4cadf9092809dce534f716bc66eb4854",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/6c89751e4cadf9092809dce534f716bc66eb4854"
+    },
+    {
+      "path": "cargo-geiger/src/tree/traversal.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "343e0c6eae9ceda412631f8b8d16278854180ac1",
+      "size": 1498,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/343e0c6eae9ceda412631f8b8d16278854180ac1"
+    },
+    {
+      "path": "cargo-geiger/src/tree/traversal",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "09c67f47180dc34f252ef5e470ab0440f189ad61",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/09c67f47180dc34f252ef5e470ab0440f189ad61"
+    },
+    {
+      "path": "cargo-geiger/src/tree/traversal/dependency_kind.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f43376b6858c637331fd089cacc78ee4d631f41",
+      "size": 5196,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/7f43376b6858c637331fd089cacc78ee4d631f41"
+    },
+    {
+      "path": "cargo-geiger/src/tree/traversal/dependency_node.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a0314956e17091721e102f991040cfa6002b6e6b",
+      "size": 6757,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/a0314956e17091721e102f991040cfa6002b6e6b"
+    },
+    {
+      "path": "cargo-geiger/tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6ca776e4a300508d07e1f3d45965c55b19965ad6",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/6ca776e4a300508d07e1f3d45965c55b19965ad6"
+    },
+    {
+      "path": "cargo-geiger/tests/context",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b24817151d34c3213a308118767cbdca4a54e90c",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/b24817151d34c3213a308118767cbdca4a54e90c"
+    },
+    {
+      "path": "cargo-geiger/tests/context/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fe54f02c5ffa2651a22e463cf3e7c0eea5889350",
+      "size": 1453,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/fe54f02c5ffa2651a22e463cf3e7c0eea5889350"
+    },
+    {
+      "path": "cargo-geiger/tests/external_package_reports",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2ef667926981c07371f469a1485b91ec6f8a7516",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/2ef667926981c07371f469a1485b91ec6f8a7516"
+    },
+    {
+      "path": "cargo-geiger/tests/external_package_reports/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4e911f1035b665c47a3013272801af7d952ba96",
+      "size": 14829,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/c4e911f1035b665c47a3013272801af7d952ba96"
+    },
+    {
+      "path": "cargo-geiger/tests/integration_test",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e09781c69247809c2108762d5d011e73346a476b",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/e09781c69247809c2108762d5d011e73346a476b"
+    },
+    {
+      "path": "cargo-geiger/tests/integration_test/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46aa725f0f440263ab97c5ab94fab4e4a0ac9513",
+      "size": 1381,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/46aa725f0f440263ab97c5ab94fab4e4a0ac9513"
+    },
+    {
+      "path": "cargo-geiger/tests/integration_tests.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6f146e89e7aa0325217a442a28ecfff28dde81a",
+      "size": 1809,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/b6f146e89e7aa0325217a442a28ecfff28dde81a"
+    },
+    {
+      "path": "cargo-geiger/tests/readme_integration_tests.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79eb72fda197aceeb23ab458205dd010e49f5cab",
+      "size": 1791,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/79eb72fda197aceeb23ab458205dd010e49f5cab"
+    },
+    {
+      "path": "cargo-geiger/tests/report",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "032bd2e369addd509124ecfa2e81e6c465c31ce7",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/032bd2e369addd509124ecfa2e81e6c465c31ce7"
+    },
+    {
+      "path": "cargo-geiger/tests/report/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e977c0b85dcfdf71a4279a156df98d45f6a0e81a",
+      "size": 1654,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e977c0b85dcfdf71a4279a156df98d45f6a0e81a"
+    },
+    {
+      "path": "cargo-geiger/tests/run",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4a556c835f3a2366716fc8135bb90dc4984c5f39",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/4a556c835f3a2366716fc8135bb90dc4984c5f39"
+    },
+    {
+      "path": "cargo-geiger/tests/run/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aea46edce07cd7d96e14dff38a375797caa3fead",
+      "size": 674,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/aea46edce07cd7d96e14dff38a375797caa3fead"
+    },
+    {
+      "path": "cargo-geiger/tests/serialize_integration_tests.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf52dfe0ba641c92c5377df05b3b39b82c88d280",
+      "size": 9776,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/cf52dfe0ba641c92c5377df05b3b39b82c88d280"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8731fc3bb10b9eba02c28ddebcfa75d8ba5c9569",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/8731fc3bb10b9eba02c28ddebcfa75d8ba5c9569"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test1_package_with_no_deps.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6a7d63c8a0e4f07d3cabacb781f9598c507db9ab",
+      "size": 122,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/6a7d63c8a0e4f07d3cabacb781f9598c507db9ab"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test1_package_with_no_deps.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6ede15ca4ab0d8e7a631e3c5493cc34c2b89dcf5",
+      "size": 539,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/6ede15ca4ab0d8e7a631e3c5493cc34c2b89dcf5"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test2_package_with_shallow_deps.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3179b4e9d17861754982281d8f24cb656c9848bd",
+      "size": 214,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3179b4e9d17861754982281d8f24cb656c9848bd"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test2_package_with_shallow_deps.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aef33704b89def91b1334e0d2614c741ea3ea9e8",
+      "size": 722,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/aef33704b89def91b1334e0d2614c741ea3ea9e8"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test3_package_with_nested_deps.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3d2c15cbb9a8cee71f1606240d7179421d7ec1f9",
+      "size": 444,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3d2c15cbb9a8cee71f1606240d7179421d7ec1f9"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test3_package_with_nested_deps.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1f849cbf78e60f97749d4205f566dfa3451461a2",
+      "size": 1069,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1f849cbf78e60f97749d4205f566dfa3451461a2"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test4_workspace_with_top_level_package.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "da11f13a5ece3f082300cd0998e23a38781aba9d",
+      "size": 168,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/da11f13a5ece3f082300cd0998e23a38781aba9d"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test4_workspace_with_top_level_package.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92af0f09a39962e00729a8d51c1243ea7e446e8a",
+      "size": 659,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/92af0f09a39962e00729a8d51c1243ea7e446e8a"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test5_workspace_with_virtual_manifest.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1f4e36f518a14743ebd5329200c2b7d739cdf1c6",
+      "size": 195,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1f4e36f518a14743ebd5329200c2b7d739cdf1c6"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test5_workspace_with_virtual_manifest.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22e0b193bfa037f899a353fb31a4062fd6ac40b3",
+      "size": 123,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/22e0b193bfa037f899a353fb31a4062fd6ac40b3"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test6_cargo_lock_out_of_date.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3d2c15cbb9a8cee71f1606240d7179421d7ec1f9",
+      "size": 444,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3d2c15cbb9a8cee71f1606240d7179421d7ec1f9"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test6_cargo_lock_out_of_date.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "859121e0f6f705b668d3b69272be19a14ae7555d",
+      "size": 1216,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/859121e0f6f705b668d3b69272be19a14ae7555d"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test7_package_with_patched_dep.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3179b4e9d17861754982281d8f24cb656c9848bd",
+      "size": 214,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3179b4e9d17861754982281d8f24cb656c9848bd"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test7_package_with_patched_dep.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d3ae858218135b5801eceb1d3b864f1bc6ac766",
+      "size": 732,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/8d3ae858218135b5801eceb1d3b864f1bc6ac766"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test8_package_with_build_rs_no_deps.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "da11f13a5ece3f082300cd0998e23a38781aba9d",
+      "size": 168,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/da11f13a5ece3f082300cd0998e23a38781aba9d"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test8_package_with_build_rs_no_deps.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cbf794d66c5e72e927c41b917fbc9c99b5e28421",
+      "size": 562,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/cbf794d66c5e72e927c41b917fbc9c99b5e28421"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test9_package_with_git_deps.stderr.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "57db4905a5678e1cfc813b64dbbd5f982fb81c37",
+      "size": 260,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/57db4905a5678e1cfc813b64dbbd5f982fb81c37"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/integration_tests__test9_package_with_git_deps.stdout.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fbc7153cfcdbde9a43783ac3dc8037dd3fdc8d89",
+      "size": 786,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/fbc7153cfcdbde9a43783ac3dc8037dd3fdc8d89"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test1_package_with_no_deps.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1f32cc9c8f8a4b097d0779973edbf678c24ee98b",
+      "size": 616,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1f32cc9c8f8a4b097d0779973edbf678c24ee98b"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test2_package_with_shallow_deps.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4c61b7fb4ee1bafdad7d34a96edda12d129a21e",
+      "size": 802,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/a4c61b7fb4ee1bafdad7d34a96edda12d129a21e"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test3_package_with_nested_deps.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a505f11d191b87e17c795c01dfe7161cbae6e0b2",
+      "size": 1269,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/a505f11d191b87e17c795c01dfe7161cbae6e0b2"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test4_workspace_with_top_level_package.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3242b564a8725805efface1d990c3c5a316522f",
+      "size": 774,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e3242b564a8725805efface1d990c3c5a316522f"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test6_cargo_lock_out_of_date.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6d19e2207de8c08130dd5606d22786b218f9ea5b",
+      "size": 1308,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/6d19e2207de8c08130dd5606d22786b218f9ea5b"
+    },
+    {
+      "path": "cargo-geiger/tests/snapshots/readme_integration_tests__test7_package_with_patched_dep.readme.snap",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c786628575fb3f3e67b28f206421ce3fba000db9",
+      "size": 791,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/c786628575fb3f3e67b28f206421ce3fba000db9"
+    },
+    {
+      "path": "geiger",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5d65f2fd605afecf12eccc95ec378d1eee4767d9",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/5d65f2fd605afecf12eccc95ec378d1eee4767d9"
+    },
+    {
+      "path": "geiger/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "54619810db7284832f009c4d743a0e49d7eea4c8",
+      "size": 327,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/54619810db7284832f009c4d743a0e49d7eea4c8"
+    },
+    {
+      "path": "geiger/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2ff4ed2df86a0bd1c95458d4715c129ce01fd86",
+      "size": 697,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e2ff4ed2df86a0bd1c95458d4715c129ce01fd86"
+    },
+    {
+      "path": "geiger/LICENSE-APACHE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "size": 11357,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+    },
+    {
+      "path": "geiger/LICENSE-MIT",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05b134a88167c013ae80286dab3202feb02a7033",
+      "size": 1055,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/05b134a88167c013ae80286dab3202feb02a7033"
+    },
+    {
+      "path": "geiger/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d063618a5d42e124b9cf1045857cdd90803fdb88",
+      "size": 2160,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d063618a5d42e124b9cf1045857cdd90803fdb88"
+    },
+    {
+      "path": "geiger/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "18c510d356505b97d9cf08e4c017a3b3d2d1befd",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/18c510d356505b97d9cf08e4c017a3b3d2d1befd"
+    },
+    {
+      "path": "geiger/src/find.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0fc41ae232f90baace67e997a59e7c786fe8d504",
+      "size": 7125,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/0fc41ae232f90baace67e997a59e7c786fe8d504"
+    },
+    {
+      "path": "geiger/src/geiger_syn_visitor.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9697f47f27c83aed2300d2e0c3a3415a9d213df9",
+      "size": 3849,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/9697f47f27c83aed2300d2e0c3a3415a9d213df9"
+    },
+    {
+      "path": "geiger/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "87cb2162119fcbe98115d375c234d55c5aefd7ee",
+      "size": 3251,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/87cb2162119fcbe98115d375c234d55c5aefd7ee"
+    },
+    {
+      "path": "matrix.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e244935669dfddfe2e0f034999fa400ceba4f3f",
+      "size": 1029,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/7e244935669dfddfe2e0f034999fa400ceba4f3f"
+    },
+    {
+      "path": "rustfmt.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "df99c69198f5813df5fc3eaa007a2af0e60a7bbd",
+      "size": 15,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/df99c69198f5813df5fc3eaa007a2af0e60a7bbd"
+    },
+    {
+      "path": "test_crates",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2316b7c22c98a71d0bd63a3d1894147a4142dc04",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/2316b7c22c98a71d0bd63a3d1894147a4142dc04"
+    },
+    {
+      "path": "test_crates/support",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "58ea0eeb7c17e195cc047df403f448aca4bd0e60",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/58ea0eeb7c17e195cc047df403f448aca4bd0e60"
+    },
+    {
+      "path": "test_crates/support/num_cpus",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7db978e14b2177cb336e4f0bcf179d87d8df4e66",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/7db978e14b2177cb336e4f0bcf179d87d8df4e66"
+    },
+    {
+      "path": "test_crates/support/num_cpus/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "26972f0c6aa685a5ee639652f4ab1e8a957725e7",
+      "size": 138,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/26972f0c6aa685a5ee639652f4ab1e8a957725e7"
+    },
+    {
+      "path": "test_crates/support/num_cpus/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "98fdf0627627b286598f9f78b1c8ad0dca8e6418",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/98fdf0627627b286598f9f78b1c8ad0dca8e6418"
+    },
+    {
+      "path": "test_crates/support/num_cpus/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "06bc0b12497e2de7efba512816c371c44eb85a52",
+      "size": 69,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/06bc0b12497e2de7efba512816c371c44eb85a52"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "569bf14ac04295a1c32a235e703cbb1b3fd05f33",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/569bf14ac04295a1c32a235e703cbb1b3fd05f33"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "10121874aead0396eb128e53384bd6a9226a6f0c",
+      "size": 158,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/10121874aead0396eb128e53384bd6a9226a6f0c"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07f672efa3200616c88f39384db1483ad1a9aeb5",
+      "size": 97,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/07f672efa3200616c88f39384db1483ad1a9aeb5"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4a59117ef8c8926063b4c88988bb9b0ad5706a53",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/4a59117ef8c8926063b4c88988bb9b0ad5706a53"
+    },
+    {
+      "path": "test_crates/test1_package_with_no_deps/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e04fb4a76c5e5165293f0ed35a8da1570ee5f55d",
+      "size": 205,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e04fb4a76c5e5165293f0ed35a8da1570ee5f55d"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b36aa73b97abf6ac5d6aef9baace6366a64df9d3",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/b36aa73b97abf6ac5d6aef9baace6366a64df9d3"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3d893f5afd2d837232db119989cdcb619aaca7d5",
+      "size": 640,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/3d893f5afd2d837232db119989cdcb619aaca7d5"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2161d49b1a94c648627b977faa7cb17f96f66f44",
+      "size": 195,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/2161d49b1a94c648627b977faa7cb17f96f66f44"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "16ae4c3cc3d977a02f2cad6a23ff17765020627b",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/16ae4c3cc3d977a02f2cad6a23ff17765020627b"
+    },
+    {
+      "path": "test_crates/test2_package_with_shallow_deps/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f1ecabb02ca980b6818cdffa6467299425e73d7",
+      "size": 138,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/7f1ecabb02ca980b6818cdffa6467299425e73d7"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2519d39694edb7e163135ca3e5fb875219f37ac9",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/2519d39694edb7e163135ca3e5fb875219f37ac9"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "89a6cfbc789a79a61811934a94fd17c6ecfe1240",
+      "size": 1851,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/89a6cfbc789a79a61811934a94fd17c6ecfe1240"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fc0b910d8377f1120f58fd4994b57b68839737eb",
+      "size": 294,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/fc0b910d8377f1120f58fd4994b57b68839737eb"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5dcfc13a178173343452478c7cd5886410beb0b9",
+      "size": 155,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/5dcfc13a178173343452478c7cd5886410beb0b9"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "26f2147ef11da770cb74936699f4f47c39400abd",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/26f2147ef11da770cb74936699f4f47c39400abd"
+    },
+    {
+      "path": "test_crates/test3_package_with_nested_deps/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82b365cf34f7862c95e53c443cea76cfc314e639",
+      "size": 201,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/82b365cf34f7862c95e53c443cea76cfc314e639"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bde09436fa3d55caeb4ba917e0c6fdda02839117",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/bde09436fa3d55caeb4ba917e0c6fdda02839117"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d2d4c54d1cff65e54e5d36e938911771d4ba6a6c",
+      "size": 334,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d2d4c54d1cff65e54e5d36e938911771d4ba6a6c"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0ac6e97fde9f485b1ee2a6fbc447f298e4194577",
+      "size": 216,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/0ac6e97fde9f485b1ee2a6fbc447f298e4194577"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "91723eec2e6e46f8f0a19cfd5803de1807d2e809",
+      "size": 59,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/91723eec2e6e46f8f0a19cfd5803de1807d2e809"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/member1",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8985b6422de82092e2afafb74816eef5ba0a8bad",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/8985b6422de82092e2afafb74816eef5ba0a8bad"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/member1/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "549ffb9cd56af201769b6ce2f5a401a9d8601f18",
+      "size": 78,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/549ffb9cd56af201769b6ce2f5a401a9d8601f18"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/member1/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ff672b32b441a28d7f23bd8b326553f16bcf0af6",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/ff672b32b441a28d7f23bd8b326553f16bcf0af6"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/member1/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b92371f8c785def3e1976ca2afbd404bfa3e6b6",
+      "size": 96,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1b92371f8c785def3e1976ca2afbd404bfa3e6b6"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "305157a396c6858705a9cb625bab219053264ee4",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/305157a396c6858705a9cb625bab219053264ee4"
+    },
+    {
+      "path": "test_crates/test4_workspace_with_top_level_package/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e7a11a969c037e00a796aafeff6258501ec15e9a",
+      "size": 45,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e7a11a969c037e00a796aafeff6258501ec15e9a"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6f8133d5450338a36171ca9f1c1ccbaba3d53095",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/6f8133d5450338a36171ca9f1c1ccbaba3d53095"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "254cf73fa283f3fde88c281cec39f2769582d003",
+      "size": 138,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/254cf73fa283f3fde88c281cec39f2769582d003"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4478f8d49ee1b77cbdb386682bc39d58d9e7f3a2",
+      "size": 34,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/4478f8d49ee1b77cbdb386682bc39d58d9e7f3a2"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/member1",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8985b6422de82092e2afafb74816eef5ba0a8bad",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/8985b6422de82092e2afafb74816eef5ba0a8bad"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/member1/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "549ffb9cd56af201769b6ce2f5a401a9d8601f18",
+      "size": 78,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/549ffb9cd56af201769b6ce2f5a401a9d8601f18"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/member1/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ff672b32b441a28d7f23bd8b326553f16bcf0af6",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/ff672b32b441a28d7f23bd8b326553f16bcf0af6"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/member1/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b92371f8c785def3e1976ca2afbd404bfa3e6b6",
+      "size": 96,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/1b92371f8c785def3e1976ca2afbd404bfa3e6b6"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "305157a396c6858705a9cb625bab219053264ee4",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/305157a396c6858705a9cb625bab219053264ee4"
+    },
+    {
+      "path": "test_crates/test5_workspace_with_virtual_manifest/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e7a11a969c037e00a796aafeff6258501ec15e9a",
+      "size": 45,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e7a11a969c037e00a796aafeff6258501ec15e9a"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fb59a5d5a4841b7d41fdd7f3dd7086d9ebc2fdb6",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/fb59a5d5a4841b7d41fdd7f3dd7086d9ebc2fdb6"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94d8f519600e9f88f0e41def9f7931f648136c61",
+      "size": 2780,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/94d8f519600e9f88f0e41def9f7931f648136c61"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3f2bac134c90183bb0d287afd83d62733c01dfe",
+      "size": 185,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/f3f2bac134c90183bb0d287afd83d62733c01dfe"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date/README_DIFFERENT_NAME.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bfed7d418ae89b036074a4a0be6739844ffe0419",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/bfed7d418ae89b036074a4a0be6739844ffe0419"
+    },
+    {
+      "path": "test_crates/test6_cargo_lock_out_of_date/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d7cefe2166c1b351330bc3f8356f42bf76966d8e",
+      "size": 70,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d7cefe2166c1b351330bc3f8356f42bf76966d8e"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6137575907894cfd470a0e519d690765218a0506",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/6137575907894cfd470a0e519d690765218a0506"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a61ec2b1caaf8643711c5d33ba2d0880242b9ff",
+      "size": 374,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/2a61ec2b1caaf8643711c5d33ba2d0880242b9ff"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7acf9254649d0ca21ee26f59052cc7e563af3ac2",
+      "size": 259,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/7acf9254649d0ca21ee26f59052cc7e563af3ac2"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep/README_DIFFERENT_NAME.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bfed7d418ae89b036074a4a0be6739844ffe0419",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/bfed7d418ae89b036074a4a0be6739844ffe0419"
+    },
+    {
+      "path": "test_crates/test7_package_with_patched_dep/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d7cefe2166c1b351330bc3f8356f42bf76966d8e",
+      "size": 70,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d7cefe2166c1b351330bc3f8356f42bf76966d8e"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1ad3c949ae413d5d0b6cecb63ae079c33b9d2bfa",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/1ad3c949ae413d5d0b6cecb63ae079c33b9d2bfa"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ede1253df50ec5b654bd8e6912e3b7c4af9bf39d",
+      "size": 167,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/ede1253df50ec5b654bd8e6912e3b7c4af9bf39d"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "01c150dcde3837f7e9ba46e5edc677cd706d5941",
+      "size": 117,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/01c150dcde3837f7e9ba46e5edc677cd706d5941"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/build.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "71446cfe5aa702d492db6210ce31d9993be96121",
+      "size": 57,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/71446cfe5aa702d492db6210ce31d9993be96121"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cb281fe360e45be6542f6f20f55e9c1b12ac442d",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/cb281fe360e45be6542f6f20f55e9c1b12ac442d"
+    },
+    {
+      "path": "test_crates/test8_package_with_build_rs_no_deps/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ddea3f492d0fb9082db21a2fdcd4f80b2d65bd66",
+      "size": 39,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/ddea3f492d0fb9082db21a2fdcd4f80b2d65bd66"
+    },
+    {
+      "path": "test_crates/test9_package_with_git_deps",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5bb179ecd60d07b30351d9c884e80fb9dc2ece6e",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/5bb179ecd60d07b30351d9c884e80fb9dc2ece6e"
+    },
+    {
+      "path": "test_crates/test9_package_with_git_deps/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d880a0c372e4e1d9a11c77e3c2be88051d565642",
+      "size": 268,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/d880a0c372e4e1d9a11c77e3c2be88051d565642"
+    },
+    {
+      "path": "test_crates/test9_package_with_git_deps/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "test_crates/test9_package_with_git_deps/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cb281fe360e45be6542f6f20f55e9c1b12ac442d",
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/trees/cb281fe360e45be6542f6f20f55e9c1b12ac442d"
+    },
+    {
+      "path": "test_crates/test9_package_with_git_deps/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ddea3f492d0fb9082db21a2fdcd4f80b2d65bd66",
+      "size": 39,
+      "url": "https://api.github.com/repos/geiger-rs/cargo-geiger/git/blobs/ddea3f492d0fb9082db21a2fdcd4f80b2d65bd66"
+    }
+  ],
+  "truncated": false
+}

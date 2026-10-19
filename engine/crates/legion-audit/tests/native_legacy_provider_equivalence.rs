@@ -453,12 +453,29 @@ impl ExternalProjectTool for FakeTool {
         // an object fixture body is an unexpected shape for them.
         let body_for_tool: Option<Vec<u8>> = match &self.body {
             Some(body)
+                if request.task_id.as_deref() == Some("cargo_unsafe")
+                    && serde_json::from_slice::<Value>(body)
+                        .ok()
+                        .is_some_and(|v| v["complete"] == true) =>
+            {
+                Some(include_bytes!("fixtures/legacy_parse/cargo_geiger.json").to_vec())
+            }
+
+            Some(body)
                 if body.first() == Some(&b'{')
                     && ["actionlint", "hadolint", "swiftlint"]
                         .iter()
                         .any(|tool| request.executable.contains(tool)) =>
             {
                 Some(b"[]".to_vec())
+            }
+            Some(body)
+                if request.task_id.as_deref() == Some("cargo_deny")
+                    && serde_json::from_slice::<serde_json::Value>(body)
+                        .is_ok_and(|value| value["complete"] == true) =>
+            {
+                // Model cargo-deny's required all-check completion envelope.
+                Some(br#"{"type":"summary","fields":{"advisories":{"errors":0,"warnings":0,"notes":0,"helps":0},"bans":{"errors":0,"warnings":0,"notes":0,"helps":0},"licenses":{"errors":0,"warnings":0,"notes":0,"helps":0},"sources":{"errors":0,"warnings":0,"notes":0,"helps":0}}}"#.to_vec())
             }
             other => other.clone(),
         };
@@ -857,6 +874,23 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             );
             continue;
         }
+        if id == "legacy.stack.node-outdated" {
+            let result = runtime
+                .block_on(registry.execute_async(
+                    &plan,
+                    provider,
+                    &inventory,
+                    CancellationToken::new(),
+                ))
+                .unwrap();
+            assert!(
+                !result.complete,
+                "standalone fake report lacks installed/registry completion evidence"
+            );
+            assert!(!result.coverage_gaps.is_empty());
+            assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+            continue;
+        }
         checked += 1;
         assert_eq!(
             provider.kind,
@@ -890,12 +924,45 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     }
     // Managed tests have a separate no-trust/no-launch regression in
     // `native_legacy_external_tool`; they cannot be a successful FakeTool run.
-    assert_eq!(checked, 21);
+    assert_eq!(checked, 20);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn cargo_deny_reconciled_summary_with_wrong_exit_stays_unproven() {
+    let records = node_registry();
+    let inventory = inventory();
+    let root = fixture_root();
+    let plan = plan_for(&records, &inventory);
+    // This fixture has a complete summary matching both diagnostic lines,
+    // but its bans error requires bitset exit 2. FakeTool returns exit 0.
+    let registry =
+        NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
+            state: ExecutionState::Completed,
+            body: Some(include_bytes!("fixtures/legacy_parse/cargo_deny.jsonl").to_vec()),
+        }));
+    let result = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(registry.execute_async(
+            &plan,
+            plan.provider("legacy.security.rust-policy").unwrap(),
+            &inventory,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    assert!(!result.complete);
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "cargo-deny-completion-unproven"));
+    assert!(result.findings.is_empty());
+    assert!(result.details["candidates"].as_array().unwrap().is_empty());
+    assert!(result.details["findingsCount"].is_null());
     fs::remove_dir_all(root).unwrap();
 }
 
 /// Checks whose `parsers::dispatch_text` handler is a plain freeform-text line
-/// scan (`legacy_checks::parsers::{build,clippy,tsc,cargo_deny,cargo_machete,
+/// scan (`legacy_checks::parsers::{build,clippy,tsc,cargo_machete,
 /// debt_markers}`) always return `ParseOutcome::ok` — a count of zero for text
 /// containing no matching lines is a legitimate result, not a parse failure,
 /// matching the JS check's own tool-output-shape tolerance (these tools emit
@@ -908,7 +975,6 @@ const TEXT_PERMISSIVE_IDS: &[&str] = &[
     "legacy.quality.build",
     "legacy.quality.lint",
     "legacy.quality.types",
-    "legacy.security.rust-policy",
     "legacy.quality.rust-unused-deps",
     "legacy.quality.debt-markers",
 ];
@@ -940,6 +1006,22 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
         if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" || id == "legacy.quality.test" {
             continue;
         }
+        if id == "legacy.stack.node-outdated" {
+            let provider = plan.provider(id).unwrap();
+            for registry in [&invalid_registry, &failed_registry] {
+                let result = runtime
+                    .block_on(registry.execute_async(
+                        &plan,
+                        provider,
+                        &inventory,
+                        CancellationToken::new(),
+                    ))
+                    .unwrap();
+                assert!(!result.complete && !result.coverage_gaps.is_empty());
+                assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+            }
+            continue;
+        }
         checked += 1;
         let provider = plan.provider(id).unwrap();
         if !TEXT_PERMISSIVE_IDS.contains(&id) {
@@ -957,6 +1039,7 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
                     .coverage_gaps
                     .iter()
                     .any(|gap| gap == "artifact-bytes-unreadable"
+                        || gap == "cargo-deny-completion-unproven"
                         || gap.starts_with("legacy-tool-output-unparseable:")),
                 "{id} invalid gap"
             );
@@ -982,6 +1065,6 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
     }
     // Managed-test no-trust refusal is covered separately; timeout results
     // here must correspond to an external process that actually started.
-    assert_eq!(checked, 21);
+    assert_eq!(checked, 20);
     fs::remove_dir_all(root).unwrap();
 }

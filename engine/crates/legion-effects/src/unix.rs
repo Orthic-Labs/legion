@@ -122,10 +122,10 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
                     .map_err(|error| EffectError::SpawnFailed(error.to_string()))?,
             );
         }
-        if !cleanup.terminated && signal_group(pid, 0).absent {
-            cleanup.terminated = true;
-            cleanup.kill_succeeded = true;
-        }
+        // Darwin may reject group signalling while its exited leader is
+        // still a zombie. Only a fresh ESRCH after wait/reap establishes
+        // that no group member remains; permissions/unknown stay failed.
+        cleanup.confirm_after_reap(|| signal_group(pid, 0));
 
         // A reader can otherwise remain blocked by a surviving pipe holder.
         // Group cleanup above is authoritative; cancellation only releases
@@ -154,7 +154,7 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
                 terminated: cleanup.terminated,
                 hard_killed: cleanup.hard_killed,
                 reaped: status.is_some(),
-                detail: Some(stop_detail(reason)),
+                detail: Some(format!("{}; {}", stop_detail(reason), cleanup.detail())),
             },
             started_at_ms,
             completed_at_ms,
@@ -188,7 +188,10 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
             terminated: cleanup.terminated,
             hard_killed: cleanup.hard_killed,
             reaped: true,
-            detail: Some("normal exit: process-group cleanup completed".into()),
+            detail: Some(format!(
+                "normal exit: process-group cleanup; {}",
+                cleanup.detail()
+            )),
         },
         started_at_ms,
         completed_at_ms,
@@ -200,6 +203,33 @@ struct CleanupResult {
     terminated: bool,
     hard_killed: bool,
     kill_succeeded: bool,
+    term: GroupSignal,
+    hard: Option<GroupSignal>,
+    after_reap: Option<GroupSignal>,
+}
+
+impl CleanupResult {
+    fn confirm_after_reap(&mut self, probe: impl FnOnce() -> GroupSignal) {
+        if self.kill_succeeded {
+            return;
+        }
+        let observed = probe();
+        self.after_reap = Some(observed);
+        if observed.absent {
+            self.terminated = true;
+            self.kill_succeeded = true;
+        }
+    }
+
+    fn detail(&self) -> String {
+        format!(
+            "term_errno={:?}, kill_errno={:?}, post_reap_probe_errno={:?}, post_reap_group_absent={:?}",
+            self.term.errno,
+            self.hard.and_then(|signal| signal.errno),
+            self.after_reap.and_then(|signal| signal.errno),
+            self.after_reap.map(|signal| signal.absent),
+        )
+    }
 }
 
 async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
@@ -209,6 +239,9 @@ async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
             terminated: true,
             hard_killed: false,
             kill_succeeded: true,
+            term,
+            hard: None,
+            after_reap: None,
         };
     }
 
@@ -220,6 +253,9 @@ async fn cleanup_group(pid: u32, grace_ms: u64) -> CleanupResult {
         terminated: term.succeeded,
         hard_killed: true,
         kill_succeeded: term.succeeded && hard.succeeded,
+        term,
+        hard: Some(hard),
+        after_reap: None,
     }
 }
 
@@ -264,6 +300,7 @@ where
 struct GroupSignal {
     succeeded: bool,
     absent: bool,
+    errno: Option<i32>,
 }
 
 fn signal_group(pid: u32, signal: i32) -> GroupSignal {
@@ -271,6 +308,7 @@ fn signal_group(pid: u32, signal: i32) -> GroupSignal {
         return GroupSignal {
             succeeded: false,
             absent: false,
+            errno: Some(libc::EINVAL),
         };
     }
     let result = unsafe { libc::kill(-(pid as i32), signal) };
@@ -278,14 +316,17 @@ fn signal_group(pid: u32, signal: i32) -> GroupSignal {
         return GroupSignal {
             succeeded: true,
             absent: false,
+            errno: None,
         };
     }
     // ESRCH means group members already exited, which is a successful
     // idempotent cleanup outcome.
-    let absent = std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH);
+    let errno = std::io::Error::last_os_error().raw_os_error();
+    let absent = errno == Some(libc::ESRCH);
     GroupSignal {
         succeeded: absent,
         absent,
+        errno,
     }
 }
 
@@ -307,4 +348,60 @@ fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis()
         .min(u64::MAX as u128) as u64
+}
+
+#[cfg(test)]
+mod cleanup_tests {
+    use super::*;
+
+    #[test]
+    fn post_reap_absence_reconciles_failed_escalation_after_successful_term() {
+        let mut cleanup = CleanupResult {
+            terminated: true,
+            hard_killed: true,
+            kill_succeeded: false,
+            term: GroupSignal {
+                succeeded: true,
+                absent: false,
+                errno: None,
+            },
+            hard: Some(GroupSignal {
+                succeeded: false,
+                absent: false,
+                errno: Some(libc::EPERM),
+            }),
+            after_reap: None,
+        };
+        // Neither permission denial nor a still-existing group proves cleanup.
+        for observed in [
+            GroupSignal {
+                succeeded: false,
+                absent: false,
+                errno: Some(libc::EPERM),
+            },
+            GroupSignal {
+                succeeded: true,
+                absent: false,
+                errno: None,
+            },
+            GroupSignal {
+                succeeded: false,
+                absent: false,
+                errno: None,
+            },
+        ] {
+            cleanup.confirm_after_reap(|| observed);
+            assert!(!cleanup.kill_succeeded);
+        }
+        cleanup.confirm_after_reap(|| GroupSignal {
+            succeeded: true,
+            absent: true,
+            errno: Some(libc::ESRCH),
+        });
+        assert!(cleanup.kill_succeeded && cleanup.terminated && cleanup.hard_killed);
+        let detail = cleanup.detail();
+        assert!(detail.contains(&format!("kill_errno=Some({})", libc::EPERM)));
+        assert!(detail.contains("post_reap_group_absent=Some(true)"));
+        cleanup.confirm_after_reap(|| panic!("successful cleanup needs no additional signal"));
+    }
 }

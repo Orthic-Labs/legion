@@ -23,6 +23,11 @@ SOURCE_ROOTS = ["engine/crates/legion-audit/src", "engine/crates/legion-effects/
 SOURCE_FILES = ["engine/Cargo.lock", "engine/Cargo.toml", HARNESS] + [f"engine/crates/{crate}/Cargo.toml" for crate in ["legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules"]]
 
 
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
+
+
 def require(value, message):
     if not value:
         raise AssertionError(message)
@@ -81,6 +86,20 @@ def normalized_vulnerability(raw, package, version):
             "references": raw.get("related", raw.get("aliases", []))[:10], "reachability": "unknown", "evidenceRefs": []}
 
 
+def source_binding(root):
+    sources = {}
+    for relative in SOURCE_ROOTS:
+        directory = root / relative
+        require(directory.is_dir() and not directory.is_symlink(), "source closure root absent/symlink")
+        for path in directory.rglob("*"):
+            require(not path.is_symlink(), "symlink inside source closure")
+            if path.is_file() and not generated_session_provenance(path.relative_to(root).as_posix()):
+                sources[path.relative_to(root).as_posix()] = digest(path.read_bytes())
+    for relative in SOURCE_FILES:
+        sources[relative] = digest(source_file(root, relative).read_bytes())
+    return sources
+
+
 def validate_record(repository_root, record, live=False):
     root = Path(repository_root).resolve()
     require(type(live) is bool and isinstance(record, dict), "record/interface shape differs")
@@ -97,21 +116,12 @@ def validate_record(repository_root, record, live=False):
     require(retained_root.name == "osv" and retained_root.parent.name == "legion-provider-qualification", "retained qualification directory differs")
     if live:
         require(str(original_repo) == str(root), "qualifying source checkout differs")
-    sources = {}
-    for relative in SOURCE_ROOTS:
-        directory = root / relative
-        require(directory.is_dir() and not directory.is_symlink(), "source closure root absent/symlink")
-        for path in directory.rglob("*"):
-            require(not path.is_symlink(), "symlink inside source closure")
-            if path.is_file():
-                sources[path.relative_to(root).as_posix()] = digest(path.read_bytes())
-    for relative in SOURCE_FILES:
-        sources[relative] = digest(source_file(root, relative).read_bytes())
+    sources = source_binding(root)
     same(binding["sources"], sources, "implementation/fixture/manifest closure stale or incomplete")
     require(binding["sourcesDigest"] == digest(encoded(dict(sorted(sources.items())))), "source closure native digest differs")
     require(binding["harnessPath"] == HARNESS and binding["argvSource"] == "engine/crates/legion-audit/src/native_providers/security/producer.rs::dependency_osv" and binding["argv"] == ARGV, "shipped argv/harness binding differs")
     producer = source_file(root, "engine/crates/legion-audit/src/native_providers/security/producer.rs").read_text()
-    require(encoded(ARGV).decode() in "".join(producer.split()), "shipped clean coverage prerequisite absent")
+    require(encoded(ARGV).decode() in "".join(producer.split()).replace(",]", "]"), "shipped clean coverage prerequisite absent")
     specs = parsed(source_file(root, "src/registry/providers.json").read_bytes())["providers"]
     matches = [item for item in specs if item["id"] == ID]
     require(len(matches) == 1, "shipped provider missing/duplicated")

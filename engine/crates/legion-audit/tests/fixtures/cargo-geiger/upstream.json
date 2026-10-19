@@ -1,0 +1,33 @@
+{
+  "baseCommit": "9351799fa7cb46d3371f15aec93929c96e01d6c0",
+  "files": {
+    "upstream/Cargo.lock": "sha256:3f11d51a112555ed76faec9ab9d10cf9ae0f852582e6a3b12773aabf41f583c4",
+    "upstream/cargo-geiger-serde/src/lib.rs": "sha256:49d9f5328851cdaad49ff0925d94cc2208fb9b211b6639e70957354b9e241692",
+    "upstream/cargo-geiger-serde/src/report.rs": "sha256:e82612d5d93512af3f9c1598280938a8ee763e063c2ca87f2e4664a0ec64b38b",
+    "upstream/cargo-geiger/Cargo.toml": "sha256:1a203e4526f69275d094d0db76d1d347c146afacd5ab6ff3c76cd3d1f13fe2e3",
+    "upstream/cargo-geiger/src/args.rs": "sha256:502fb496da4eaf925020046567d8034a4ae87c87bfbb2f2803ac923aa6b1f6ef",
+    "upstream/cargo-geiger/src/cli.rs": "sha256:25df491b273af281f0a03a6146850abf8b2b56785aa443a5a178605f73bf2836",
+    "upstream/cargo-geiger/src/format.rs": "sha256:64d8f62e6d24dcfe7c055645d784516030ccaca5148a78eaacf7a14e7d948eab",
+    "upstream/cargo-geiger/src/main.rs": "sha256:ac93436ee9b194f5813c5ec25d43d5a150874f761e05239413d2693fbcc43772",
+    "upstream/cargo-geiger/src/mapping/geiger.rs": "sha256:b431c92aff89d3e31ebc67ee547a5ce248c7e5c176fd6a8a6a55e3889781ad9d",
+    "upstream/cargo-geiger/src/mapping/metadata.rs": "sha256:113849ea3b93073de95efc00704989b9d1c05834495d33f2b2c70adbf9a759c5",
+    "upstream/cargo-geiger/src/scan.rs": "sha256:0dcc565d833e971f9ca73e5d3c5c43373d287ffdf918956650b2854c43252882",
+    "upstream/cargo-geiger/src/scan/default.rs": "sha256:7b347e842e96e9c83ca2ef6f608e96c82a282e7bff6df59ed1c011e0889b518e",
+    "upstream/cargo-geiger/src/scan/forbid.rs": "sha256:736a0873f8d59c25de5e948ab8f1a170c02c62000d0d045b0aa133916c2005b8",
+    "upstream/cargo-geiger/src/scan/rs_file.rs": "sha256:b8dc416e12ec3c983aac4f5cee3d29ceb9590a70df039aea646c2f5a81233aa7",
+    "upstream/cargo-geiger/src/scan/rs_file/custom_executor.rs": "sha256:b99978515ada74e76e624df753a839dad72b6a55c585d700e2ca55644f291b05",
+    "upstream/geiger/src/geiger_syn_visitor.rs": "sha256:354d1116702f5f2523839276cc36985edce204bd76041b29baf57075ac8cb4a9",
+    "upstream/geiger/src/lib.rs": "sha256:24b6c09dd974d67bf2a1ec605b057e7ae93c6cb4177eaaa91b769a1267054278",
+    "upstream/tag.json": "sha256:689e5fdaaf7002cc49ee76ac8eff336691fc5b628c1d8365e68c3f4396d8b97b",
+    "upstream/tree.json": "sha256:f229347007e0a58f74a844b7d761e94306a39fa94838733917354b32e7f35156"
+  },
+  "qualified": false,
+  "releaseAssets": [],
+  "releaseUrl": "https://github.com/geiger-rs/cargo-geiger/releases/tag/cargo-geiger-0.13.0",
+  "schema": "legion-cargo-geiger-source-inspection/1",
+  "sourceArchiveDigest": "sha256:4fbe170b23e5130aadb2ede5b169d027596dada6ad2aadf6422f50a858ce3e3b",
+  "sourceArchiveUrl": "https://api.github.com/repos/geiger-rs/cargo-geiger/tarball/08543ac0b48ff6eec12c0a1f2478ef9c3259cd4d",
+  "toolExecuted": false,
+  "upstreamCommit": "08543ac0b48ff6eec12c0a1f2478ef9c3259cd4d",
+  "upstreamTag": "cargo-geiger-0.13.0"
+}

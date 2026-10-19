@@ -119,6 +119,8 @@ pub struct ArtifactProducer {
     timeout_ms: u64,
     output_limit: usize,
     authorizer: Option<Arc<dyn legion_effects::PolicyAuthorizer>>,
+    // Private ownership survives Scratch::drop; raw streams never enter public findings.
+    retained_secret_runs: Arc<std::sync::Mutex<Vec<ToolRun>>>,
 }
 
 impl std::fmt::Debug for ArtifactProducer {
@@ -162,6 +164,7 @@ impl ArtifactProducer {
             timeout_ms: 120_000,
             output_limit: 8 * 1024 * 1024,
             authorizer: None,
+            retained_secret_runs: Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
 
@@ -341,11 +344,14 @@ impl Drop for Scratch {
     }
 }
 
+#[derive(Clone)]
 struct ToolRun {
     tool: String,
     version: String,
     executable_digest: String,
     stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    actual_receipt: ExecutionReceipt,
     receipt: Value,
 }
 
@@ -604,10 +610,20 @@ impl<'a> Run<'a> {
         };
 
         let request = ExternalToolRequest {
-            request_id: format!(
-                "security-producer:{}:{}",
-                self.provider.id, self.inventory.digest
-            ),
+            request_id: if self.provider.id == "secrets.current-history" {
+                format!(
+                    "security-producer:{}:{}:{}",
+                    self.provider.id,
+                    self.inventory.digest,
+                    digest_json(&json!({"args":args,"cwd":root_text}))
+                        .trim_start_matches("sha256:")
+                )
+            } else {
+                format!(
+                    "security-producer:{}:{}",
+                    self.provider.id, self.inventory.digest
+                )
+            },
             provider_id: self.provider.id.clone(),
             plan_id: self.inventory.digest.clone(),
             policy_id: POLICY_ID.into(),
@@ -630,6 +646,9 @@ impl<'a> Run<'a> {
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
+        if matches!(tool.as_str(), "brakeman" | "kube-linter" | "trivy") {
+            self.retain_scanner_diagnostic(&receipt)?;
+        }
         if let Some(namespace) = ipc_namespace.as_mut() {
             if namespace.retain_if_process_tree_unconfirmed(&receipt) {
                 return Err(format!(
@@ -638,19 +657,28 @@ impl<'a> Run<'a> {
                 ));
             }
         }
-        match receipt.state {
-            ExecutionState::Completed => {}
-            ExecutionState::MissingExecutable => return Err(format!("tool-missing:{primary}")),
-            ExecutionState::SandboxMissing => return Err(format!("sandbox-missing:{primary}")),
-            ExecutionState::Timeout => return Err(format!("tool-timeout:{primary}")),
-            ExecutionState::OutputLimited => return Err(format!("output-limited:{primary}")),
-            other => return Err(format!("tool-failed:{primary}:{}", other.as_str())),
+        if self.provider.id != "secrets.current-history" {
+            match receipt.state {
+                ExecutionState::Completed => {}
+                ExecutionState::MissingExecutable => return Err(format!("tool-missing:{primary}")),
+                ExecutionState::SandboxMissing => return Err(format!("sandbox-missing:{primary}")),
+                ExecutionState::Timeout => return Err(format!("tool-timeout:{primary}")),
+                ExecutionState::OutputLimited => return Err(format!("output-limited:{primary}")),
+                other => return Err(format!("tool-failed:{primary}:{}", other.as_str())),
+            }
         }
         let stdout = receipt
             .stdout
             .as_ref()
             .and_then(|artifact| read_artifact(&self.scratch.path, artifact))
+            .or_else(|| (receipt.state != ExecutionState::Completed).then(Vec::new))
             .ok_or_else(|| format!("tool-output-unreadable:{primary}"))?;
+        let stderr = receipt
+            .stderr
+            .as_ref()
+            .and_then(|artifact| read_artifact(&self.scratch.path, artifact))
+            .or_else(|| (receipt.state != ExecutionState::Completed).then(Vec::new))
+            .ok_or_else(|| format!("tool-stderr-unreadable:{primary}"))?;
         let version = receipt
             .executable
             .as_ref()
@@ -662,7 +690,7 @@ impl<'a> Run<'a> {
         let argv: Vec<String> = std::iter::once(tool.clone())
             .chain(args.iter().cloned())
             .collect();
-        let receipt_value = json!({
+        let mut receipt_value = json!({
             "tool": tool,
             "version": version,
             "executableDigest": executable_digest,
@@ -683,13 +711,102 @@ impl<'a> Run<'a> {
             "environmentNames": receipt.environment_names,
             "evidence": "tool",
         });
-        Ok(ToolRun {
+        if self.provider.id == "secrets.current-history" {
+            receipt_value["stderrDigest"] = json!(digest(&stderr));
+            receipt_value["stderrBytes"] = json!(stderr.len());
+        }
+        let run = ToolRun {
             tool,
             version,
             executable_digest,
             stdout,
+            stderr,
+            actual_receipt: receipt,
             receipt: receipt_value,
-        })
+        };
+        if self.provider.id == "secrets.current-history" {
+            self.retain_secret_run(&run)?;
+        }
+        match run.actual_receipt.state {
+            ExecutionState::Completed => {}
+            ExecutionState::MissingExecutable => return Err(format!("tool-missing:{primary}")),
+            ExecutionState::SandboxMissing => return Err(format!("sandbox-missing:{primary}")),
+            ExecutionState::Timeout => return Err(format!("tool-timeout:{primary}")),
+            ExecutionState::OutputLimited => return Err(format!("output-limited:{primary}")),
+            other => return Err(format!("tool-failed:{primary}:{}", other.as_str())),
+        }
+        Ok(run)
+    }
+
+    /// Retain actual SDK evidence before scanner state/JSON rejection, only
+    /// inside an explicitly supplied run root. This never changes execution
+    /// state, parser outcome, admission or accepted exits.
+    fn retain_scanner_diagnostic(&self, receipt: &ExecutionReceipt) -> Result<(), String> {
+        let Some(parent) = self.producer.run_dir.as_ref() else {
+            return Ok(());
+        };
+        let invalid = || "scanner-diagnostic-retention-invalid".to_owned();
+        let parent = fs::canonicalize(parent).map_err(|_| invalid())?;
+        let scratch = fs::canonicalize(&self.scratch.path).map_err(|_| invalid())?;
+        let project = fs::canonicalize(self.root()).map_err(|_| invalid())?;
+        if scratch.parent() != Some(parent.as_path()) || parent.starts_with(&project) {
+            return Err(invalid());
+        }
+        let stream = |record: Option<&legion_effects::ArtifactRecord>| -> Result<Value, String> {
+            let Some(record) = record else {
+                return Ok(Value::Null);
+            };
+            let original = Path::new(&record.path);
+            let original = if original.is_absolute() {
+                original.to_path_buf()
+            } else {
+                scratch.join(original)
+            };
+            let metadata = fs::symlink_metadata(&original).map_err(|_| invalid())?;
+            let canonical = fs::canonicalize(&original).map_err(|_| invalid())?;
+            if !record.immutable
+                || !metadata.is_file()
+                || metadata.file_type().is_symlink()
+                || !canonical.starts_with(&scratch)
+                || metadata.len() != record.bytes as u64
+                || record.bytes > self.producer.output_limit
+            {
+                return Err(invalid());
+            }
+            let bytes = fs::read(&canonical).map_err(|_| invalid())?;
+            if bytes.len() != record.bytes || digest(&bytes) != record.digest {
+                return Err(invalid());
+            }
+            Ok(
+                json!({"originalPath":record.path,"originalAbsolutePath":original,
+                "digest":record.digest,"bytes":record.bytes,"immutable":record.immutable,
+                "raw":std::str::from_utf8(&bytes).ok(),"rawBytes":bytes}),
+            )
+        };
+        let diagnostic = json!({"schema":"legion-native-scanner-diagnostic/1",
+            "provider":self.provider.id,"inventoryDigest":self.inventory.digest,
+            "originalArtifactRoot":scratch,"receipt":crate::execution_policy::receipt_json(receipt),
+            "stdout":stream(receipt.stdout.as_ref())?,"stderr":stream(receipt.stderr.as_ref())?});
+        let directory = parent.join("native-diagnostics");
+        match fs::create_dir(&directory) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => return Err(invalid()),
+        }
+        let metadata = fs::symlink_metadata(&directory).map_err(|_| invalid())?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(invalid());
+        }
+        let bytes = serde_json::to_vec(&diagnostic).map_err(|_| invalid())?;
+        let filename = format!(
+            "{}-{}.json",
+            self.provider.id,
+            digest(&bytes).trim_start_matches("sha256:")
+        );
+        legion_effects::ArtifactWriter::new(&directory)
+            .write_immutable(&filename, &bytes)
+            .map_err(|_| invalid())?;
+        Ok(())
     }
 
     /// Bridges the async effect executor from the sync provider interface on a
@@ -922,7 +1039,6 @@ impl<'a> Run<'a> {
                 "--format",
                 "json",
                 "--quiet",
-                "--no-progress",
                 "--skip-check-update",
                 "--skip-version-check",
                 ".",
@@ -1142,81 +1258,259 @@ impl<'a> Run<'a> {
     // ------------------------------------------------------------------ secrets
 
     fn secrets(&self) -> Production {
-        let files: Vec<String> = self.entries().map(|entry| entry.path.clone()).collect();
-        let mut fallback_reason = None;
-        if self.producer.find_tool(&["gitleaks"]).is_some() {
-            match self.run_tool(
-                &["gitleaks"],
-                [
-                    "dir",
-                    ".",
-                    "--report-format",
-                    "json",
-                    "--report-path",
-                    "-",
-                    "--redact",
-                    "--no-banner",
-                ]
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
-                &[0, 1],
-                &[],
-            ) {
-                Ok(run) => {
-                    if let Ok(report) = serde_json::from_slice::<Value>(&run.stdout) {
-                        return Production::Artifact(self.gitleaks_input(&files, &run, &report));
-                    }
-                    fallback_reason = Some(format!("tool-output-invalid:{}", run.tool));
-                }
-                Err(reason) => fallback_reason = Some(reason),
-            }
+        let files: Vec<String> = match self.provider.configuration.get("selector") {
+            Some(selector) => match self.inventory.denominator_entries(selector) {
+                Ok(selected) => selected
+                    .entries
+                    .into_iter()
+                    .map(|entry| entry.path)
+                    .collect(),
+                Err(_) => return unavailable("secret-selector-invalid"),
+            },
+            None => self.entries().map(|entry| entry.path.clone()).collect(),
+        };
+        match self.gitleaks_current_history(&files) {
+            Ok(input) => Production::Artifact(input),
+            Err(reason) => Production::Artifact(self.native_secrets_input(&files, Some(reason))),
         }
-        Production::Artifact(self.native_secrets_input(&files, fallback_reason))
     }
 
-    fn gitleaks_input(&self, files: &[String], run: &ToolRun, report: &Value) -> Value {
-        let findings: Vec<Value> = report
-            .as_array()
+    fn gitleaks_current_history(&self, files: &[String]) -> Result<Value, String> {
+        use super::history::{manifest_value, FrozenHistory};
+        let frozen = FrozenHistory::capture(
+            self.root(),
+            self.producer.snapshot_manifest.as_deref(),
+            self.inventory,
+            files,
+        )?;
+        // Gitleaks always loads source/.gitleaksignore, including when an
+        // explicit ignore-path is supplied. Suppression is an explicit gap.
+        if frozen.manifest.object_root.join(".gitleaksignore").exists()
+            || files.iter().any(|path| path == ".gitleaksignore")
+        {
+            return Err("secret-history-suppression-unavailable".into());
+        }
+        let current_root = self.scratch.path.join("secret-current");
+        frozen.stage_current(&current_root)?;
+        let config = self.scratch.path.join("gitleaks.toml");
+        fs::write(&config, "[extend]\nuseDefault = true\n")
+            .map_err(|_| "secret-config-unavailable".to_owned())?;
+        let config_digest =
+            digest(&fs::read(&config).map_err(|_| "secret-config-unavailable".to_owned())?);
+        let common_args = vec![
+            "--report-format".into(),
+            "json".into(),
+            "--report-path".into(),
+            "-".into(),
+            "--redact=100".into(),
+            "--no-banner".into(),
+            "--no-color".into(),
+            "--log-level=error".into(),
+            "--exit-code=10".into(),
+            "--ignore-gitleaks-allow".into(),
+            "--config".into(),
+            config.to_string_lossy().into_owned(),
+            "--gitleaks-ignore-path".into(),
+            self.scratch.path.to_string_lossy().into_owned(),
+        ];
+        let environment = [
+            ("GIT_NO_REPLACE_OBJECTS", "1".into()),
+            ("GIT_NO_LAZY_FETCH", "1".into()),
+            ("GIT_CONFIG_NOSYSTEM", "1".into()),
+            (
+                "GIT_CONFIG_GLOBAL",
+                if cfg!(windows) {
+                    "NUL".into()
+                } else {
+                    "/dev/null".into()
+                },
+            ),
+            ("GIT_CONFIG_COUNT", "4".into()),
+            ("GIT_CONFIG_KEY_0", "core.hooksPath".into()),
+            (
+                "GIT_CONFIG_VALUE_0",
+                if cfg!(windows) {
+                    "NUL".into()
+                } else {
+                    "/dev/null".into()
+                },
+            ),
+            ("GIT_CONFIG_KEY_1", "diff.external".into()),
+            ("GIT_CONFIG_VALUE_1", "".into()),
+            ("GIT_CONFIG_KEY_2", "core.fsmonitor".into()),
+            ("GIT_CONFIG_VALUE_2", "false".into()),
+            ("GIT_CONFIG_KEY_3", "gc.auto".into()),
+            ("GIT_CONFIG_VALUE_3", "0".into()),
+        ];
+        let mut current_args = vec!["dir".into(), current_root.to_string_lossy().into_owned()];
+        current_args.extend(common_args.clone());
+        let current = self.run_tool_at(
+            &["gitleaks"],
+            current_args,
+            &[0, 10],
+            &environment,
+            &current_root,
+            self.producer.timeout_ms,
+        )?;
+        let current_report = self.strict_gitleaks_report(&current)?;
+        // Force text patches even for repository attributes marking text as
+        // binary; Gitleaks silently skips binary fragments. Never let local
+        // log.showSignature/gpg.program execute a project-selected verifier.
+        let mut history_args = vec!["git".into(),frozen.manifest.object_root.to_string_lossy().into_owned(),
+            format!("--log-opts=--full-history --root -m --text --no-show-signature --no-ext-diff --no-textconv --no-renames {} --",frozen.manifest.tips.iter().cloned().collect::<Vec<_>>().join(" "))];
+        history_args.extend(common_args);
+        let history = self.run_tool_at(
+            &["gitleaks"],
+            history_args,
+            &[0, 10],
+            &environment,
+            &frozen.manifest.object_root,
+            self.producer.timeout_ms,
+        )?;
+        let history_report = self.strict_gitleaks_report(&history)?;
+        if current.tool_identity() != history.tool_identity() {
+            return Err("secret-tool-identity-race".into());
+        }
+        frozen.revalidate()?;
+        // The staged tree is itself reconciled after both scanner executions.
+        let staged_paths: BTreeSet<String> = WalkDir::new(&current_root)
+            .follow_links(false)
             .into_iter()
-            .flatten()
-            .map(|item| {
-                let file = relative_path(
-                    self.root(),
-                    item.get("File").and_then(Value::as_str).unwrap_or_default(),
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "secret-current-stage-unreadable")?
+            .into_iter()
+            .filter(|entry| entry.file_type().is_file())
+            .map(|entry| relative_path(&current_root, &entry.path().to_string_lossy()))
+            .collect();
+        if staged_paths != files.iter().cloned().collect() {
+            return Err("secret-current-path-set-mismatch".into());
+        }
+        for (path, hash) in &frozen.manifest.current {
+            if digest(
+                &fs::read(current_root.join(path))
+                    .map_err(|_| "secret-current-stage-unreadable")?,
+            ) != *hash
+            {
+                return Err("secret-current-stage-drift".into());
+            }
+        }
+        let proof = manifest_value(&frozen.manifest);
+        let mut findings = Vec::new();
+        for (mode, rows, root) in [
+            ("current", current_report, &current_root),
+            ("history", history_report, &frozen.manifest.object_root),
+        ] {
+            for row in rows {
+                let path = relative_path(
+                    root,
+                    row["File"].as_str().ok_or("secret-report-path-invalid")?,
                 );
-                let line = item.get("StartLine").and_then(Value::as_u64).unwrap_or(1);
-                let rule = item
+                crate::scope::safe_path(&path).map_err(|_| "secret-report-path-invalid")?;
+                let line = row["StartLine"]
+                    .as_u64()
+                    .ok_or("secret-report-line-invalid")?;
+                let rule = row["RuleID"].as_str().ok_or("secret-report-rule-invalid")?;
+                let commit = row
+                    .get("Commit")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let mut finding = json!({"RuleID":rule,"File":path,"StartLine":line,"EndLine":row["EndLine"],"Match":"REDACTED","Mode":mode,
+                    "SecretDigest":digest(format!("{mode}\0{commit}\0{path}\0{line}\0{rule}").as_bytes())});
+                if mode == "current" {
+                    if !frozen.manifest.current.contains_key(&path) || !commit.is_empty() {
+                        return Err("secret-current-finding-outside-manifest".into());
+                    }
+                } else {
+                    let blob = frozen
+                        .manifest
+                        .commits
+                        .get(commit)
+                        .and_then(|commit| commit.files.get(&path))
+                        .ok_or("secret-history-finding-outside-manifest")?;
+                    if line > blob.lines as u64 {
+                        return Err("secret-history-finding-line-invalid".into());
+                    }
+                    finding["Commit"] = json!(commit);
+                    finding["BlobOid"] = json!(blob.oid);
+                    finding["BlobDigest"] = json!(blob.digest);
+                    finding["HistoryManifestDigest"] = proof["digest"].clone();
+                }
+                findings.push(finding);
+            }
+        }
+        let mut producer = current.producer();
+        producer["scope"] = json!("current-history");
+        producer["passes"] = json!([current.producer(), history.producer()]);
+        let evidence = json!({"scope":"current-history","denominator":{"mode":"current-history","trackedFiles":files.len(),"untrackedFiles":0,"ignoredFiles":0,"generatedFiles":0,"releaseArtifacts":0,"historyRefs":frozen.manifest.tips.len()},
+            "examined":files.len(),"tool":current.tool_identity(),"rulesetDigest":digest(format!("gitleaks-builtin\0{}\0{config_digest}",current.version).as_bytes()),"findings":findings,
+            "currentManifest":frozen.manifest.current,"historyProof":proof,"passes":[current.producer(),history.producer()]});
+        Ok(self.input(files, json!({"secretEvidence":evidence}), producer))
+    }
+
+    fn retain_secret_run(&self, run: &ToolRun) -> Result<(), String> {
+        self.producer
+            .retained_secret_runs
+            .lock()
+            .map_err(|_| "secret-evidence-lock-unavailable".to_owned())?
+            .push(run.clone());
+        Ok(())
+    }
+
+    fn strict_gitleaks_report(&self, run: &ToolRun) -> Result<Vec<Value>, String> {
+        // These flags & error/finding exit distinction were verified against
+        // pinned upstream v8.30.0; an unknown scanner needs qualification.
+        let versions: Vec<_> = run
+            .version
+            .split_whitespace()
+            .filter(|word| word.trim_start_matches('v') == "8.30.0")
+            .collect();
+        if versions.len() != 1
+            || !run.stderr.is_empty()
+            || !run.actual_receipt.complete
+            || !run.actual_receipt.process_tree.reaped
+            || run.actual_receipt.stdout.as_ref().is_none_or(|record| {
+                record.digest != digest(&run.stdout)
+                    || record.bytes != run.stdout.len()
+                    || !record.immutable
+            })
+            || run.actual_receipt.stderr.as_ref().is_none_or(|record| {
+                record.digest != digest(&run.stderr)
+                    || record.bytes != run.stderr.len()
+                    || !record.immutable
+            })
+            || !run.actual_receipt.gaps.is_empty()
+        {
+            return Err("secret-scanner-receipt-invalid".into());
+        }
+        let report: Value =
+            serde_json::from_slice(&run.stdout).map_err(|_| "secret-report-malformed")?;
+        let rows = report.as_array().ok_or("secret-report-not-array")?;
+        if run.actual_receipt.exit_code != Some(if rows.is_empty() { 0 } else { 10 }) {
+            return Err("secret-report-exit-mismatch".into());
+        }
+        for row in rows {
+            if !row.is_object()
+                || row
                     .get("RuleID")
                     .and_then(Value::as_str)
-                    .unwrap_or("secret.unknown");
-                let fingerprint = item
-                    .get("Fingerprint")
+                    .is_none_or(str::is_empty)
+                || row
+                    .get("File")
                     .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-                    .unwrap_or_else(|| format!("{file}:{line}:{rule}"));
-                json!({
-                    "RuleID": rule,
-                    "File": file,
-                    "StartLine": line,
-                    "EndLine": item.get("EndLine").cloned().unwrap_or(Value::Null),
-                    "SecretDigest": digest(fingerprint.as_bytes()),
-                    "Match": "REDACTED",
-                })
-            })
-            .collect();
-        let evidence = json!({
-            "scope": "current-tree",
-            "denominator": secret_denominator(files.len()),
-            "findings": findings,
-            "examined": files.len(),
-            "tool": run.tool_identity(),
-            "rulesetDigest": digest(format!("gitleaks-builtin\0{}", run.version).as_bytes()),
-        });
-        let mut producer = run.producer();
-        // `gitleaks dir` scans the working tree; commit history is not walked.
-        producer["scope"] = json!("current-tree");
-        self.input(files, json!({"secretEvidence": evidence}), producer)
+                    .is_none_or(str::is_empty)
+                || row
+                    .get("StartLine")
+                    .and_then(Value::as_u64)
+                    .is_none_or(|line| line == 0)
+                || row
+                    .get("EndLine")
+                    .and_then(Value::as_u64)
+                    .is_none_or(|end| end < row["StartLine"].as_u64().unwrap_or(1))
+            {
+                return Err("secret-report-row-malformed".into());
+            }
+        }
+        Ok(rows.clone())
     }
 
     fn native_secrets_input(&self, files: &[String], fallback_reason: Option<String>) -> Value {
@@ -2121,3 +2415,7 @@ mod tests {
         assert_eq!(purl("npm", "@a/b", "1.0.0"), "pkg:npm/%40a/b@1.0.0");
     }
 }
+
+#[cfg(test)]
+#[path = "history_qualification_tests.rs"]
+mod history_qualification_tests;

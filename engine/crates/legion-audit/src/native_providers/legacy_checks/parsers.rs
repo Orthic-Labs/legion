@@ -7,9 +7,11 @@
 //! explicitly treats unparseable output as a failed scan rather than a clean
 //! one) the same "malformed output => not proven" rule. Deliberately NOT
 //! ported: JS's own inconsistencies (e.g. `count || null` turning a real
-//! zero into a null finding count for `cargo_deny`/`cargo_unused_deps`) are
+//! zero into a null finding count for `cargo_unused_deps`) are
 //! preserved rather than "fixed", because parity with the frozen legacy
 //! behaviour is the point of this module.
+//! cargo-deny additionally requires its complete four-check summary so an
+//! operational failure or truncated JSONL stream cannot become clean evidence.
 //!
 //! `dispatch_json` handles tools whose entire stdout is one JSON value
 //! (object or array). `dispatch_text` handles tools whose stdout is plain
@@ -74,7 +76,7 @@ impl ParseOutcome {
 }
 
 /// JS `count || null`: a real, parseable zero collapses to a null finding
-/// count. Two JS checks (`cargo_deny`, `cargo_unused_deps`) do this;
+/// count. The `cargo_unused_deps` check does this;
 /// preserved here rather than corrected, per the module doc comment.
 fn zero_as_null(count: u64) -> Option<u64> {
     if count == 0 {
@@ -386,13 +388,16 @@ fn types_json(value: &Value) -> Option<ParseOutcome> {
 }
 
 // ---------- sast (semgrep --json) ----------
-// JS: count = (JSON.parse(r.stdout).results || []).length. No malformed rule.
+// Envelope acceptance is intentionally stricter than historical JS parity.
 fn semgrep(value: &Value) -> ParseOutcome {
-    match value.get("results").and_then(Value::as_array) {
-        Some(results) => {
-            ParseOutcome::ok("legacy.sast.semgrep", "high", Some(results.len() as u64))
-        }
-        None => ParseOutcome::malformed("legacy.sast.semgrep", "high"),
+    if super::semgrep::valid_envelope(value) {
+        ParseOutcome::ok(
+            "legacy.sast.semgrep",
+            "high",
+            Some(value["results"].as_array().unwrap().len() as u64),
+        )
+    } else {
+        ParseOutcome::malformed("legacy.sast.semgrep", "high")
     }
 }
 
@@ -442,6 +447,11 @@ fn js_licenses(value: &Value) -> ParseOutcome {
     let Some(object) = value.as_object() else {
         return ParseOutcome::malformed("legacy.js_licenses.license-checker", "high");
     };
+    // A healthy dependency-free project still contributes its root package.
+    // The CLI's zero-package read failure prints {}; never interpret it as clean.
+    if object.is_empty() {
+        return ParseOutcome::malformed("legacy.js_licenses.license-checker", "high");
+    }
     let mut total = 0_u64;
     let mut flagged = 0_u64;
     for entry in object.values() {
@@ -485,29 +495,56 @@ fn deps_cve(value: &Value) -> ParseOutcome {
     }
 }
 
-// ---------- py_deps_cve (pip-audit -f json) ----------
-// JS: deps = Array.isArray(j) ? j : (j.dependencies || []); count = sum of each dep's
-// vulns/vulnerabilities array length. No malformed rule (parse failure leaves count null).
+// ---------- py_deps_cve (explicit frozen requirements; no host environment) ----------
 fn py_deps_cve(value: &Value) -> ParseOutcome {
-    let deps = value
-        .as_array()
-        .cloned()
-        .or_else(|| value.get("dependencies").and_then(Value::as_array).cloned());
-    let Some(deps) = deps else {
-        return ParseOutcome::malformed("legacy.py_deps_cve.pip-audit", "critical");
+    let invalid = || ParseOutcome::malformed("legacy.py_deps_cve.pip-audit", "critical");
+    let Some(deps) = value.get("dependencies").and_then(Value::as_array) else {
+        return invalid();
     };
-    let count = Some({
-        deps.iter()
-            .map(|dep| {
-                dep.get("vulns")
-                    .or_else(|| dep.get("vulnerabilities"))
+    if deps.is_empty()
+        || value
+            .get("fixes")
+            .and_then(Value::as_array)
+            .is_none_or(|f| !f.is_empty())
+    {
+        return invalid();
+    }
+    let mut count = 0_u64;
+    for dep in deps {
+        if dep.get("skip_reason").is_some()
+            || dep
+                .get("name")
+                .and_then(Value::as_str)
+                .is_none_or(str::is_empty)
+            || dep
+                .get("version")
+                .and_then(Value::as_str)
+                .is_none_or(str::is_empty)
+        {
+            return invalid();
+        }
+        let Some(vulns) = dep.get("vulns").and_then(Value::as_array) else {
+            return invalid();
+        };
+        for vuln in vulns {
+            if vuln
+                .get("id")
+                .and_then(Value::as_str)
+                .is_none_or(str::is_empty)
+                || vuln
+                    .get("fix_versions")
                     .and_then(Value::as_array)
-                    .map(|a| a.len() as u64)
-                    .unwrap_or(0)
-            })
-            .sum::<u64>()
-    });
-    ParseOutcome::ok("legacy.py_deps_cve.pip-audit", "critical", count)
+                    .is_none_or(|v| !v.iter().all(Value::is_string))
+            {
+                return invalid();
+            }
+        }
+        let Some(next) = count.checked_add(vulns.len() as u64) else {
+            return invalid();
+        };
+        count = next;
+    }
+    ParseOutcome::ok("legacy.py_deps_cve.pip-audit", "critical", Some(count))
 }
 
 // ---------- cargo_audit (cargo audit --json) ----------
@@ -523,39 +560,156 @@ fn cargo_audit(value: &Value) -> ParseOutcome {
     }
 }
 
-// ---------- cargo_deny (cargo deny --format json check; JSONL on stderr in JS) ----------
-// JS loops every line of stderr+stdout, JSON-parses each, counts `type === 'diagnostic'`
-// entries whose severity/level matches /error|warning/i. `findings_count: count || null`
-// (a real zero collapses to null — preserved, see module doc comment).
-fn cargo_deny(text: &str) -> ParseOutcome {
-    let mut count = 0_u64;
-    for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
+// ---------- cargo_deny (all four checks, offline JSONL on stderr) ----------
+// cargo-deny 0.20.2 emits a terminal summary even for a clean run. Its error
+// exit is a bitset; code 1 alone cannot distinguish findings from an operational
+// failure. Reconcile emitted error/warning diagnostics with all four stats.
+pub(super) fn cargo_deny_completion(text: &str) -> Option<(u64, i32)> {
+    let mut errors = 0_u64;
+    let mut warnings = 0_u64;
+    let mut summary = None;
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        if summary.is_some() {
+            return None; // The sole summary must be terminal.
         }
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        if value.get("type").and_then(Value::as_str) != Some("diagnostic") {
-            continue;
-        }
-        let level = value
-            .get("fields")
-            .and_then(|f| f.get("severity").or_else(|| f.get("level")))
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        if level.contains("error") || level.contains("warning") {
-            count += 1;
+        let value: Value = serde_json::from_str(line).ok()?;
+        match value.get("type")?.as_str()? {
+            "diagnostic" => {
+                let fields = value.get("fields")?.as_object()?;
+                fields.get("message")?.as_str()?;
+                match fields.get("severity")?.as_str()? {
+                    "error" => errors = errors.checked_add(1)?,
+                    "warning" => warnings = warnings.checked_add(1)?,
+                    "note" | "help" => {}
+                    _ => return None,
+                }
+            }
+            "summary" => {
+                let fields = value.get("fields")?.as_object()?;
+                if fields.len() != 4 {
+                    return None;
+                }
+                let mut totals = [0_u64; 2];
+                let mut exit = 0;
+                for (bit, check) in ["advisories", "bans", "licenses", "sources"]
+                    .iter()
+                    .enumerate()
+                {
+                    let stats = fields.get(*check)?.as_object()?;
+                    if stats.len() != 4 {
+                        return None;
+                    }
+                    for (index, name) in ["errors", "warnings", "notes", "helps"].iter().enumerate()
+                    {
+                        let count = stats.get(*name)?.as_u64()?;
+                        u32::try_from(count).ok()?;
+                        if index < 2 {
+                            totals[index] = totals[index].checked_add(count)?;
+                        }
+                        if index == 0 && count > 0 {
+                            exit |= 1 << bit;
+                        }
+                    }
+                }
+                if totals != [errors, warnings] {
+                    return None;
+                }
+                summary = Some((errors.checked_add(warnings)?, exit));
+            }
+            // Structured non-diagnostic logs may precede successful summaries;
+            // an error log is an operational failure even if a summary follows.
+            "log" => {
+                let fields = value.get("fields")?.as_object()?;
+                let level = fields.get("level")?.as_str()?;
+                if !matches!(
+                    level,
+                    "WARN" | "INFO" | "DEBUG" | "TRACE" | "warn" | "info" | "debug" | "trace"
+                ) {
+                    return None;
+                }
+            }
+            _ => return None,
         }
     }
-    ParseOutcome::ok("legacy.cargo_deny.cargo-deny", "high", zero_as_null(count))
+    summary
+}
+
+fn cargo_deny(text: &str) -> ParseOutcome {
+    match cargo_deny_completion(text) {
+        Some((count, _)) => ParseOutcome::ok("legacy.cargo_deny.cargo-deny", "high", Some(count)),
+        None => ParseOutcome::malformed("legacy.cargo_deny.cargo-deny", "high"),
+    }
 }
 
 // ---------- cargo_unused_deps (cargo machete --with-metadata, plain text) ----------
 // JS: no JSON; one unused crate per indented, non-header line.
 // `count = (...).length || null` (zero -> null, preserved).
+// Completion contract grounded in cargo-machete v0.9.1 main.rs. Its per-manifest
+// errors are printed on stderr & swallowed by upstream, including exit-zero
+// clean summaries. Unknown report formats remain incomplete rather than clean.
+pub(super) fn cargo_machete_report_complete(
+    stdout: &[u8],
+    stderr: &[u8],
+    exit: Option<i32>,
+) -> bool {
+    let (Ok(stdout), Ok(stderr)) = (std::str::from_utf8(stdout), std::str::from_utf8(stderr))
+    else {
+        return false;
+    };
+    if stderr.lines().collect::<Vec<_>>()
+        != [
+            "Analyzing dependencies of crates in this directory...",
+            "Done!",
+        ]
+    {
+        return false;
+    }
+    let clean = "cargo-machete didn't find any unused dependencies in this directory. Good job!";
+    if exit == Some(0) {
+        return stdout.trim_end_matches(['\r', '\n']) == clean;
+    }
+    if exit != Some(1) {
+        return false;
+    }
+    let Some(body) = stdout
+        .strip_prefix("cargo-machete found the following unused dependencies in this directory:\n")
+    else {
+        return false;
+    };
+    let advisory = "\nIf you believe cargo-machete has detected an unused dependency incorrectly,\nyou can add the dependency to the list of dependencies to ignore in the\n`[package.metadata.cargo-machete]` section of the appropriate Cargo.toml.\nFor example:\n\n[package.metadata.cargo-machete]\nignored = [\"prost\"]\n\n";
+    let Some(body) = body.strip_suffix(advisory) else {
+        return false;
+    };
+    let mut package = false;
+    let mut dependencies = 0_u64;
+    for line in body.lines() {
+        if let Some(dependency) = line.strip_prefix('\t') {
+            if !package
+                || dependency.is_empty()
+                || !dependency
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            {
+                return false;
+            }
+            dependencies += 1;
+        } else if let Some((name, path)) = line.split_once(" -- ") {
+            if name.is_empty()
+                || !name
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+                || !path.ends_with("Cargo.toml:")
+            {
+                return false;
+            }
+            package = true;
+        } else {
+            return false;
+        }
+    }
+    dependencies > 0 && cargo_machete(stdout).findings_count == Some(dependencies)
+}
+
 fn cargo_machete(text: &str) -> ParseOutcome {
     let count = text
         .lines()
@@ -580,67 +734,231 @@ fn cargo_machete(text: &str) -> ParseOutcome {
     )
 }
 
-// ---------- cargo_unsafe (cargo geiger --output-format Json) ----------
-// JS: sum of every package's used unsafety categories' `unsafe_` counters. No malformed rule.
+// ---------- cargo_unsafe (cargo-geiger 0.13.0 full SafetyReport) ----------
+// Pinned upstream cargo-geiger-serde/report.rs: QuickSafetyReport is not a scan.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerReport {
+    packages: Vec<GeigerEntry>,
+    packages_without_metrics: Vec<GeigerPackage>,
+    used_but_not_scanned_files: Vec<String>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerEntry {
+    package: GeigerPackageInfo,
+    unsafety: GeigerUnsafeInfo,
+}
+#[derive(serde::Deserialize, PartialEq, Eq, Hash)]
+#[serde(deny_unknown_fields)]
+struct GeigerPackage {
+    name: String,
+    version: String,
+    source: GeigerSource,
+}
+#[derive(serde::Deserialize, PartialEq, Eq, Hash)]
+enum GeigerSource {
+    Git { url: String, rev: String },
+    Registry { name: String, url: String },
+    Path(String),
+}
+impl GeigerPackage {
+    fn valid(&self) -> bool {
+        !self.name.is_empty()
+            && !self.version.is_empty()
+            && match &self.source {
+                GeigerSource::Git { url, rev } => !url.is_empty() && !rev.is_empty(),
+                GeigerSource::Registry { name, url } => !name.is_empty() && !url.is_empty(),
+                GeigerSource::Path(url) => !url.is_empty(),
+            }
+    }
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerPackageInfo {
+    id: GeigerPackage,
+    dependencies: Vec<GeigerPackage>,
+    dev_dependencies: Vec<GeigerPackage>,
+    build_dependencies: Vec<GeigerPackage>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerUnsafeInfo {
+    used: GeigerCounters,
+    unused: GeigerCounters,
+    #[serde(rename = "forbids_unsafe")]
+    _forbids_unsafe: bool,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerCounters {
+    functions: GeigerCount,
+    exprs: GeigerCount,
+    item_impls: GeigerCount,
+    item_traits: GeigerCount,
+    methods: GeigerCount,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GeigerCount {
+    safe: u64,
+    unsafe_: u64,
+}
+impl GeigerCounters {
+    fn totals(&self) -> Option<(u64, u64)> {
+        let (mut safe, mut unsafe_) = (0_u64, 0_u64);
+        for count in [
+            &self.functions,
+            &self.exprs,
+            &self.item_impls,
+            &self.item_traits,
+            &self.methods,
+        ] {
+            safe = safe.checked_add(count.safe)?;
+            unsafe_ = unsafe_.checked_add(count.unsafe_)?;
+        }
+        Some((safe, unsafe_))
+    }
+}
 fn cargo_unsafe(value: &Value) -> ParseOutcome {
-    let Some(packages) = value.get("packages").and_then(Value::as_array) else {
-        return ParseOutcome::malformed("legacy.cargo_unsafe.cargo-geiger", "medium");
+    const RULE: &str = "legacy.cargo_unsafe.cargo-geiger";
+    let invalid = || ParseOutcome::malformed(RULE, "medium");
+    let Ok(report) = serde_json::from_value::<GeigerReport>(value.clone()) else {
+        return invalid();
     };
-    let count = Some({
-        packages
-            .iter()
-            .filter_map(|p| p.get("unsafety")?.get("used"))
-            .filter_map(Value::as_object)
-            .flat_map(|used| used.values())
-            .filter_map(|category| category.get("unsafe_"))
-            .filter_map(Value::as_u64)
-            .sum::<u64>()
-    });
-    ParseOutcome::ok("legacy.cargo_unsafe.cargo-geiger", "medium", count)
+    if report.packages.is_empty()
+        || !report.packages_without_metrics.is_empty()
+        || !report.used_but_not_scanned_files.is_empty()
+    {
+        return invalid();
+    }
+    let mut ids = std::collections::HashSet::new();
+    let (mut safe_total, mut unsafe_total, mut unused_safe, mut unused_unsafe) =
+        (0_u64, 0_u64, 0_u64, 0_u64);
+    for entry in report.packages {
+        let package = entry.package;
+        if !package.id.valid()
+            || !package
+                .dependencies
+                .iter()
+                .chain(&package.dev_dependencies)
+                .chain(&package.build_dependencies)
+                .all(GeigerPackage::valid)
+            || !ids.insert(package.id)
+        {
+            return invalid();
+        }
+        let Some((safe, unsafe_)) = entry.unsafety.used.totals() else {
+            return invalid();
+        };
+        let Some((other_safe, other_unsafe)) = entry.unsafety.unused.totals() else {
+            return invalid();
+        };
+        let (Some(a), Some(b), Some(c), Some(d)) = (
+            safe_total.checked_add(safe),
+            unsafe_total.checked_add(unsafe_),
+            unused_safe.checked_add(other_safe),
+            unused_unsafe.checked_add(other_unsafe),
+        ) else {
+            return invalid();
+        };
+        (safe_total, unsafe_total, unused_safe, unused_unsafe) = (a, b, c, d);
+    }
+    ParseOutcome::ok(RULE, "medium", Some(unsafe_total))
 }
 
 // ---------- outdated (npm/pnpm outdated --json) ----------
 // JS: total = entry count; majors_behind = entries whose latest major > current major.
-fn outdated(value: &Value) -> ParseOutcome {
-    let Some(object) = value.as_object() else {
-        return ParseOutcome::malformed("legacy.outdated.pkg-mgr", "low");
-    };
-    let total = object.len() as u64;
-    let majors = object
-        .values()
-        .filter(|entry| major_behind(entry, "current", "latest"))
-        .count() as u64;
-    ParseOutcome::ok("legacy.outdated.pkg-mgr", "low", Some(total))
-        .with_meta(vec![("majorsBehind", Value::from(majors))])
+fn outdated(_value: &Value) -> ParseOutcome {
+    // Production uses node_outdated::execute. A standalone report, including
+    // {}, cannot prove npm's silently skipped registry lookups were examined.
+    ParseOutcome::malformed("legacy.outdated.npm", "low")
 }
 
 // ---------- cargo_outdated (cargo outdated --format json --root-deps-only) ----------
 fn cargo_outdated(value: &Value) -> ParseOutcome {
-    let Some(deps) = value.get("dependencies").and_then(Value::as_array) else {
-        return ParseOutcome::malformed("legacy.cargo_outdated.cargo-outdated", "low");
+    let invalid = || ParseOutcome::malformed("legacy.cargo_outdated.cargo-outdated", "low");
+    let Some(object) = value.as_object() else {
+        return invalid();
     };
-    let relevant: Vec<&Value> = deps
-        .iter()
-        .filter(|dep| {
-            let latest = dep.get("latest").and_then(Value::as_str);
-            match latest {
-                Some(latest) if latest != "---" => {
-                    Some(latest) != dep.get("project").and_then(Value::as_str)
-                }
-                _ => false,
-            }
-        })
-        .collect();
-    let majors = relevant
-        .iter()
-        .filter(|dep| major_behind(dep, "project", "latest"))
-        .count() as u64;
-    ParseOutcome::ok(
-        "legacy.cargo_outdated.cargo-outdated",
-        "low",
-        Some(relevant.len() as u64),
-    )
-    .with_meta(vec![("majorsBehind", Value::from(majors))])
+    if object.len() != 2
+        || !object
+            .get("crate_name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| !name.is_empty())
+    {
+        return invalid();
+    }
+    let Some(deps) = object.get("dependencies").and_then(Value::as_array) else {
+        return invalid();
+    };
+    let semver = regex::Regex::new(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$").expect("static semver pattern");
+    let version = |text: &str| semver.is_match(text);
+    let status = |text: &str| text == "---" || text == "Removed" || version(text);
+    let mut total = 0;
+    let mut majors = 0;
+    let mut names = std::collections::BTreeSet::new();
+    for dep in deps {
+        let Some(row) = dep.as_object() else {
+            return invalid();
+        };
+        if row.len() != 6
+            || !["name", "project", "compat", "latest", "kind", "platform"]
+                .iter()
+                .all(|key| row.contains_key(*key))
+        {
+            return invalid();
+        }
+        let Some(name) = row
+            .get("name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.is_empty())
+        else {
+            return invalid();
+        };
+        let Some(project) = row
+            .get("project")
+            .and_then(Value::as_str)
+            .filter(|value| version(value))
+        else {
+            return invalid();
+        };
+        let Some(compat) = row
+            .get("compat")
+            .and_then(Value::as_str)
+            .filter(|value| status(value))
+        else {
+            return invalid();
+        };
+        let Some(latest) = row
+            .get("latest")
+            .and_then(Value::as_str)
+            .filter(|value| status(value))
+        else {
+            return invalid();
+        };
+        if !names.insert(name)
+            || !row.get("kind").is_some_and(|value| {
+                value.is_null()
+                    || matches!(value.as_str(), Some("Normal" | "Development" | "Build"))
+            })
+            || !row.get("platform").is_some_and(|value| {
+                value.is_null() || value.as_str().is_some_and(|text| !text.is_empty())
+            })
+        {
+            return invalid();
+        }
+        // Each status column independently uses `---` for unchanged.
+        // Removed is a change, while only a numeric latest version can be major-behind.
+        if (compat != "---" && compat != project) || (latest != "---" && latest != project) {
+            total += 1;
+        }
+        if version(latest) && major_behind(dep, "project", "latest") {
+            majors += 1;
+        }
+    }
+    ParseOutcome::ok("legacy.cargo_outdated.cargo-outdated", "low", Some(total))
+        .with_meta(vec![("majorsBehind", Value::from(majors))])
 }
 
 fn major_behind(entry: &Value, current_key: &str, latest_key: &str) -> bool {
@@ -913,6 +1231,13 @@ mod tests {
     }
 
     #[test]
+    fn js_licenses_empty_object_is_unproven_not_clean() {
+        let outcome = js_licenses(&json("{}"));
+        assert!(outcome.malformed);
+        assert_eq!(outcome.findings_count, None);
+    }
+
+    #[test]
     fn deps_cve_reads_metadata_total() {
         let outcome = deps_cve(&json(fixture!("deps_cve_npm_audit.json")));
         assert_eq!(outcome.findings_count, Some(4));
@@ -929,7 +1254,7 @@ mod tests {
     #[test]
     fn py_deps_cve_sums_per_dependency_vuln_arrays() {
         let value = json(
-            r#"{"dependencies":[{"name":"requests","vulns":[{"id":"PYSEC-1"}]},{"name":"flask","vulnerabilities":[]}]}"#,
+            r#"{"dependencies":[{"name":"requests","version":"2.0","vulns":[{"id":"PYSEC-1","fix_versions":[]}]},{"name":"flask","version":"1.0","vulns":[]}],"fixes":[]}"#,
         );
         let outcome = py_deps_cve(&value);
         assert_eq!(outcome.findings_count, Some(1));
@@ -948,10 +1273,87 @@ mod tests {
     }
 
     #[test]
-    fn cargo_deny_zero_diagnostics_collapses_to_null() {
-        let outcome = cargo_deny("");
-        assert_eq!(outcome.findings_count, None);
-        assert!(!outcome.malformed);
+    fn cargo_deny_requires_terminal_complete_reconciled_summary() {
+        assert!(cargo_deny("").malformed);
+        let mut summary = serde_json::json!({"type":"summary", "fields":{}});
+        for check in ["advisories", "bans", "licenses", "sources"] {
+            summary["fields"][check] =
+                serde_json::json!({"errors":0,"warnings":0,"notes":0,"helps":0});
+        }
+        let clean = summary.to_string();
+        assert_eq!(cargo_deny(&clean).findings_count, Some(0));
+        assert_eq!(cargo_deny_completion(&clean), Some((0, 0)));
+        assert!(cargo_deny(&format!("{clean}\n{clean}")).malformed);
+        summary["fields"]["sources"]["errors"] = serde_json::json!(1);
+        assert!(cargo_deny(&summary.to_string()).malformed);
+        let diagnostic =
+            r#"{"type":"diagnostic","fields":{"severity":"error","message":"source denied"}}"#;
+        assert_eq!(
+            cargo_deny_completion(&format!("{diagnostic}\n{summary}")),
+            Some((1, 8))
+        );
+        summary["fields"]
+            .as_object_mut()
+            .unwrap()
+            .remove("licenses");
+        assert!(cargo_deny(&format!("{diagnostic}\n{summary}")).malformed);
+        assert!(
+            cargo_deny(r#"{"type":"log","fields":{"level":"ERROR","message":"database missing"}}"#)
+                .malformed
+        );
+        for bits in 0..16 {
+            let mut rows = Vec::new();
+            let mut fields = serde_json::Map::new();
+            for (bit, name) in ["advisories", "bans", "licenses", "sources"]
+                .into_iter()
+                .enumerate()
+            {
+                let failed = bits & (1 << bit) != 0;
+                fields.insert(name.into(), serde_json::json!({"errors":u32::from(failed),"warnings":0,"notes":0,"helps":0}));
+                if failed {
+                    rows.push(serde_json::json!({"type":"diagnostic","fields":{"severity":"error","message":name}}).to_string());
+                }
+            }
+            rows.push(serde_json::json!({"type":"summary","fields":fields}).to_string());
+            assert_eq!(
+                cargo_deny_completion(&rows.join("\n")),
+                Some(((bits as u32).count_ones() as u64, bits))
+            );
+        }
+    }
+
+    #[test]
+    fn cargo_machete_completion_rejects_swallowed_manifest_errors_and_unknown_output() {
+        let clean =
+            b"cargo-machete didn't find any unused dependencies in this directory. Good job!\n";
+        let progress = b"Analyzing dependencies of crates in this directory...\nDone!\n";
+        assert!(cargo_machete_report_complete(clean, progress, Some(0)));
+        assert!(!cargo_machete_report_complete(clean, b"Analyzing dependencies of crates in this directory...\nerror when handling ./Cargo.toml: invalid manifest\nDone!\n", Some(0)));
+        assert!(!cargo_machete_report_complete(clean, progress, Some(2)));
+        assert!(!cargo_machete_report_complete(b"", progress, Some(0)));
+        assert!(!cargo_machete_report_complete(
+            b"arbitrary text\n",
+            progress,
+            Some(0)
+        ));
+        let positive = "cargo-machete found the following unused dependencies in this directory:\nmachete-probe -- ./Cargo.toml:\n\tmachete-helper\n\nIf you believe cargo-machete has detected an unused dependency incorrectly,\nyou can add the dependency to the list of dependencies to ignore in the\n`[package.metadata.cargo-machete]` section of the appropriate Cargo.toml.\nFor example:\n\n[package.metadata.cargo-machete]\nignored = [\"prost\"]\n\n";
+        assert!(cargo_machete_report_complete(
+            positive.as_bytes(),
+            progress,
+            Some(1)
+        ));
+        assert!(!cargo_machete_report_complete(
+            positive.as_bytes(),
+            progress,
+            Some(0)
+        ));
+        assert!(!cargo_machete_report_complete(
+            positive
+                .replace("\tmachete-helper", "\tunrelated diagnostic text")
+                .as_bytes(),
+            progress,
+            Some(1)
+        ));
     }
 
     #[test]
@@ -966,19 +1368,96 @@ mod tests {
         assert_eq!(outcome.findings_count, None);
     }
 
+    fn geiger_report() -> Value {
+        let counters = serde_json::json!({"functions":{"safe":1,"unsafe_":0},"exprs":{"safe":0,"unsafe_":0},
+            "item_impls":{"safe":0,"unsafe_":0},"item_traits":{"safe":0,"unsafe_":0},"methods":{"safe":0,"unsafe_":0}});
+        serde_json::json!({"packages":[{"package":{"id":{"name":"fixture","version":"0.0.0","source":{"Path":"file:///fixture"}},
+            "dependencies":[],"dev_dependencies":[],"build_dependencies":[]},
+            "unsafety":{"used":counters,"unused":counters,"forbids_unsafe":false}}],
+            "packages_without_metrics":[],"used_but_not_scanned_files":[]})
+    }
     #[test]
-    fn cargo_unsafe_sums_used_unsafe_counters() {
-        let value = json(
-            r#"{"packages":[{"unsafety":{"used":{"functions":{"unsafe_":2,"safe":1},"exprs":{"unsafe_":1}}}}]}"#,
-        );
-        let outcome = cargo_unsafe(&value);
-        assert_eq!(outcome.findings_count, Some(3));
+    fn cargo_unsafe_requires_full_typed_report_and_checked_counters() {
+        let clean = geiger_report();
+        assert_eq!(cargo_unsafe(&clean).findings_count, Some(0));
+        let mut positive = clean.clone();
+        positive["packages"][0]["unsafety"]["used"]["functions"]["unsafe_"] = Value::from(2);
+        positive["packages"][0]["unsafety"]["used"]["methods"]["unsafe_"] = Value::from(1);
+        assert_eq!(cargo_unsafe(&positive).findings_count, Some(3));
+        let mut cases = vec![
+            serde_json::json!({"packages":[]}),
+            serde_json::json!({"packages":[{"forbids_unsafe":true}],"packages_without_metrics":[]}),
+        ];
+        for key in ["packages_without_metrics", "used_but_not_scanned_files"] {
+            let mut value = clean.clone();
+            value.as_object_mut().unwrap().remove(key);
+            cases.push(value);
+        }
+        let mut value = clean.clone();
+        value["packages"] = serde_json::json!([]);
+        cases.push(value);
+        let mut value = clean.clone();
+        value["packages_without_metrics"] =
+            serde_json::json!([clean["packages"][0]["package"]["id"].clone()]);
+        cases.push(value);
+        let mut value = clean.clone();
+        value["used_but_not_scanned_files"] = serde_json::json!(["missing.rs"]);
+        cases.push(value);
+        let mut value = clean.clone();
+        value["packages"]
+            .as_array_mut()
+            .unwrap()
+            .push(clean["packages"][0].clone());
+        cases.push(value);
+        for block in ["used", "unused"] {
+            for category in ["functions", "exprs", "item_impls", "item_traits", "methods"] {
+                let mut value = clean.clone();
+                value["packages"][0]["unsafety"][block]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(category);
+                cases.push(value);
+                for field in ["safe", "unsafe_"] {
+                    for bad in [
+                        serde_json::json!(-1),
+                        serde_json::json!(1.5),
+                        serde_json::json!("0"),
+                        Value::Null,
+                        Value::Bool(false),
+                    ] {
+                        let mut value = clean.clone();
+                        value["packages"][0]["unsafety"][block][category][field] = bad;
+                        cases.push(value);
+                    }
+                    let mut value = clean.clone();
+                    value["packages"][0]["unsafety"][block]["functions"][field] =
+                        Value::from(u64::MAX);
+                    value["packages"][0]["unsafety"][block]["methods"][field] = Value::from(1);
+                    cases.push(value);
+                }
+            }
+        }
+        for value in cases {
+            let result = cargo_unsafe(&value);
+            assert!(result.malformed, "{value}");
+            assert_eq!(result.findings_count, None);
+        }
     }
 
     #[test]
-    fn outdated_counts_total_and_major_behind() {
-        let outcome = outdated(&json(fixture!("outdated_npm.json")));
-        assert_eq!(outcome.findings_count, Some(2));
+    fn outdated_alone_never_claims_completion() {
+        assert!(outdated(&json(fixture!("outdated_npm.json"))).malformed);
+        assert!(outdated(&json("{}")).malformed);
+        assert!(outdated(&json(r#"{"error":{"code":"E404"}}"#)).malformed);
+    }
+
+    #[test]
+    fn cargo_outdated_counts_both_status_columns_and_removed() {
+        let outcome = cargo_outdated(&json(
+            r#"{"crate_name":"probe","dependencies":[{"name":"compat","project":"1.0.0","compat":"1.0.1","latest":"---","kind":"Normal","platform":null},{"name":"latest","project":"1.0.0","compat":"---","latest":"2.0.0","kind":"Normal","platform":null},{"name":"removed","project":"1.0.0","compat":"Removed","latest":"Removed","kind":"Normal","platform":null},{"name":"unchanged","project":"1.0.0","compat":"---","latest":"---","kind":"Normal","platform":null}]}"#,
+        ));
+        assert!(!outcome.malformed);
+        assert_eq!(outcome.findings_count, Some(3));
         assert!(outcome
             .meta
             .iter()
@@ -986,12 +1465,42 @@ mod tests {
     }
 
     #[test]
-    fn cargo_outdated_filters_unchanged_and_placeholder_entries() {
-        let value = json(
-            r#"{"dependencies":[{"name":"serde","project":"1.0.150","latest":"1.0.200"},{"name":"tokio","project":"1.30.0","latest":"1.30.0"},{"name":"local-crate","project":"0.1.0","latest":"---"}]}"#,
+    fn cargo_outdated_rejects_missing_and_malformed_rows() {
+        for value in [
+            r#"{"dependencies":[]}"#,
+            r#"{"crate_name":"probe","dependencies":[{}]}"#,
+            r#"{"crate_name":"probe","dependencies":[{"name":"bad","project":"1.0.0","compat":"---","latest":null,"kind":"Normal","platform":null}]}"#,
+        ] {
+            assert!(cargo_outdated(&json(value)).malformed);
+        }
+        assert_eq!(
+            cargo_outdated(&json(r#"{"crate_name":"probe","dependencies":[]}"#)).findings_count,
+            Some(0)
         );
-        let outcome = cargo_outdated(&value);
-        assert_eq!(outcome.findings_count, Some(1));
+    }
+
+    #[test]
+    fn cargo_outdated_rejects_invalid_versions_and_untyped_optional_fields() {
+        let valid = json(
+            r#"{"crate_name":"probe","dependencies":[{"name":"dep","project":"1.0.0","compat":"---","latest":"2.0.0","kind":"Normal","platform":null}]}"#,
+        );
+        for (field, value) in [
+            ("project", Value::from("01.0.0")),
+            ("compat", Value::from("not-a-version")),
+            ("latest", Value::from("2")),
+            ("kind", Value::from(42)),
+            ("platform", Value::from(false)),
+        ] {
+            let mut report = valid.clone();
+            report["dependencies"][0][field] = value;
+            assert!(cargo_outdated(&report).malformed, "{field}");
+        }
+        let mut duplicate = valid.clone();
+        duplicate["dependencies"]
+            .as_array_mut()
+            .unwrap()
+            .push(valid["dependencies"][0].clone());
+        assert!(cargo_outdated(&duplicate).malformed);
     }
 
     #[test]
@@ -1050,12 +1559,12 @@ mod tests {
 
     #[test]
     fn legitimately_empty_expected_shapes_stay_clean() {
-        assert_eq!(semgrep(&json(r#"{"results":[]}"#)).findings_count, Some(0));
+        assert_eq!(semgrep(&json(r#"{"version":"1.141.0","results":[],"errors":[],"paths":{"scanned":[],"skipped":[]},"skipped_rules":[]}"#)).findings_count, Some(0));
         assert_eq!(actionlint(&Value::Null).findings_count, Some(0));
         assert!(!actionlint(&Value::Null).malformed);
         assert_eq!(hadolint(&json("[]")).findings_count, Some(0));
         assert_eq!(swiftlint(&json("[]")).findings_count, Some(0));
-        assert_eq!(outdated(&json("{}")).findings_count, Some(0));
+        assert!(outdated(&json("{}")).malformed);
         assert!(!clippy(r#"{"reason":"build-finished","success":true}"#).malformed);
     }
 

@@ -1,0 +1,50 @@
+{
+  "toolAssets": [
+    {
+      "architecture": "aarch64",
+      "url": "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-aarch64-apple-darwin.tar.gz",
+      "archiveDigest": "sha256:fe67d82a10d8597a3549364cb733a3f9cc1bfff9031b7ae46384a9f2a72090c3",
+      "binaryDigest": "sha256:5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1",
+      "member": "cargo-deny-0.20.2-aarch64-apple-darwin/cargo-deny",
+      "binaryBytes": 7456248
+    },
+    {
+      "architecture": "x86_64",
+      "url": "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-apple-darwin.tar.gz",
+      "archiveDigest": "sha256:248da7f581724e470071990c088ffc55c811981715f4cbdb258621fb79f8b7a6",
+      "binaryDigest": "sha256:325ae013000059dfa398557f7bc35659e1d73af6b0c39955dff633de164f9c1e",
+      "member": "cargo-deny-0.20.2-x86_64-apple-darwin/cargo-deny",
+      "binaryBytes": 8025260
+    }
+  ],
+  "advisory": {
+    "commit": "999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b",
+    "url": "https://raw.githubusercontent.com/RustSec/advisory-db/999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b/crates/atty/RUSTSEC-2021-0145.md",
+    "digest": "sha256:89cc90b1a89167c07aa2461ae037595652e177f7ee338269de93f0dcfcd5a22d",
+    "scope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim"
+  },
+  "toolVersion": "0.20.2",
+  "toolSource": "https://github.com/EmbarkStudios/cargo-deny/releases/tag/0.20.2",
+  "behaviorSources": {
+    "src/cargo-deny/main.rs": {
+      "url": "https://raw.githubusercontent.com/EmbarkStudios/cargo-deny/0.20.2/src/cargo-deny/main.rs",
+      "digest": "sha256:f8399c7459f6515e93b93a24c1d53cf076ddcc65235923de60373eb64fd0a8e6"
+    },
+    "src/cargo-deny/check.rs": {
+      "url": "https://raw.githubusercontent.com/EmbarkStudios/cargo-deny/0.20.2/src/cargo-deny/check.rs",
+      "digest": "sha256:b4e9042710baace24517728763aa56294e87f06684af3ff28c96fe0bdd9dd1bf"
+    },
+    "src/cargo-deny/stats.rs": {
+      "url": "https://raw.githubusercontent.com/EmbarkStudios/cargo-deny/0.20.2/src/cargo-deny/stats.rs",
+      "digest": "sha256:8b54ed3281e39796c63e2ee6d32b1e67222f3c2d8b8151a76ffaceadac9510d9"
+    },
+    "src/advisories/helpers/db.rs": {
+      "url": "https://raw.githubusercontent.com/EmbarkStudios/cargo-deny/0.20.2/src/advisories/helpers/db.rs",
+      "digest": "sha256:e9e1cfab9e55e0386da3b11acd9cae177b845f79be8017cf4768da73db9ccfeb"
+    },
+    "src/git.rs": {
+      "url": "https://raw.githubusercontent.com/EmbarkStudios/cargo-deny/0.20.2/src/git.rs",
+      "digest": "sha256:2ea7462e9c39953199bcf4991e05eef4e5a8521ad14cac675c95bea9d0480779"
+    }
+  }
+}

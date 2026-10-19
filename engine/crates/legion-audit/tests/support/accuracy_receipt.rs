@@ -85,6 +85,44 @@ fn bound_file(root: &Path, path: &Path) -> Value {
     json!({"path": relative, "digest": digest(&fs::read(path).unwrap())})
 }
 
+// Generated host receipts are runtime evidence, never implementation inputs.
+// Match one exact repository-relative directory & lowercase SHA-256 JSON name.
+fn generated_session_provenance(relative: &str) -> bool {
+    relative
+        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|name| {
+            name.len() == 64
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+}
+
+#[test]
+fn source_binding_receipt_exclusion_is_exact() {
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    assert!(generated_session_provenance(&format!(
+        "{prefix}{}.json",
+        "0123456789abcdef".repeat(4)
+    )));
+    for relative in [
+        "engine/crates/legion-audit/src/mod.rs".to_owned(),
+        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("nested/{prefix}{}.json", "a".repeat(64)),
+    ] {
+        assert!(
+            !generated_session_provenance(&relative),
+            "unexpected exclusion: {relative}"
+        );
+    }
+}
+
 fn bind_tree(root: &Path, path: &Path, out: &mut Vec<Value>) {
     for entry in fs::read_dir(path).unwrap() {
         let path = entry.unwrap().path();
@@ -95,7 +133,14 @@ fn bind_tree(root: &Path, path: &Path, out: &mut Vec<Value>) {
         if path.is_dir() {
             bind_tree(root, &path, out);
         } else {
-            out.push(bound_file(root, &path));
+            let relative = path
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !generated_session_provenance(&relative) {
+                out.push(bound_file(root, &path));
+            }
         }
     }
 }

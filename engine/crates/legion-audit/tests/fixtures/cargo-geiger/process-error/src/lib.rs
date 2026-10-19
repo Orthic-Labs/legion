@@ -1,0 +1,1 @@
+compile_error!("LEGION_GEIGER_PROCESS_ERROR_CONTROL");

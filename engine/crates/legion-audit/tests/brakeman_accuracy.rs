@@ -457,6 +457,73 @@ fn artifact_json(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Valu
         "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 
+fn diagnostic_stream(root: &Path, record: Option<&legion_effects::ArtifactRecord>) -> Value {
+    let Some(record) = record else {
+        return Value::Null;
+    };
+    let path = root.join(&record.path);
+    match fs::read(&path) {
+        Ok(bytes) => json!({"path":record.path,"originalAbsolutePath":path,
+            "digest":record.digest,"bytes":record.bytes,"immutable":record.immutable,
+            "actualDigest":digest(&bytes),"actualBytes":bytes.len(),
+            "raw":std::str::from_utf8(&bytes).ok(),"rawBytes":bytes}),
+        Err(error) => json!({"path":record.path,"readError":error.to_string()}),
+    }
+}
+
+fn retain_benchmark_diagnostic(bytes: &[u8]) -> Value {
+    let Some(directory) = std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR") else {
+        return Value::Null;
+    };
+    let directory = PathBuf::from(directory).join("native-diagnostics");
+    if let Err(error) = fs::create_dir_all(&directory) {
+        return json!({"retentionError":error.to_string()});
+    }
+    let filename = format!(
+        "native-diagnostic-{}.json",
+        digest(bytes).trim_start_matches("sha256:")
+    );
+    let retained =
+        legion_effects::ArtifactWriter::new(&directory).write_immutable(&filename, bytes);
+    let result = match retained {
+        Ok(record) => match fs::read(directory.join(&record.path)) {
+            Ok(actual)
+                if actual == bytes
+                    && record.immutable
+                    && record.bytes == bytes.len()
+                    && record.digest == digest(bytes) =>
+            {
+                json!({"path":directory.join(&record.path),"digest":record.digest,"bytes":record.bytes,"qualificationEligible":false})
+            }
+            _ => json!({"retentionError":"immutable diagnostic readback differs"}),
+        },
+        Err(error) => json!({"retentionError":error.to_string()}),
+    };
+    eprintln!(
+        "REAL_SCANNER_DIAGNOSTIC_ARTIFACT {}",
+        serde_json::to_string(&result).unwrap()
+    );
+    result
+}
+
+fn scanner_diagnostics(run: &Path) -> Vec<Value> {
+    let mut paths: Vec<_> = fs::read_dir(run.join("native-diagnostics"))
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect();
+    paths.sort();
+    paths.into_iter().map(|path| match fs::read(&path) {
+        Ok(bytes) => {
+            let retained = retain_benchmark_diagnostic(&bytes);
+            json!({"path":path,"digest":digest(&bytes),"bytes":bytes.len(),
+                "rawBytes":bytes,"diagnostic":serde_json::from_slice::<Value>(&bytes).ok(),"retainedArtifact":retained})
+        },
+        Err(error) => json!({"path":path,"readError":error.to_string()}),
+    }).collect()
+}
+
 fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
     let auth = legion_effects::authenticate_sandbox(
         &policy.tool.to_string_lossy(),
@@ -499,6 +566,14 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
     let receipt = tokio::runtime::Runtime::new().unwrap().block_on(
         AuditExternalProjectTool::new(effects)
             .execute(request, tokio_util::sync::CancellationToken::new()),
+    );
+    eprintln!(
+        "BRAKEMAN_NATIVE_VERSION_DIAGNOSTIC {}",
+        serde_json::to_string(&json!({
+        "receiptDebug":format!("{receipt:?}"),
+        "stdout":diagnostic_stream(&artifacts, receipt.stdout.as_ref()),
+        "stderr":diagnostic_stream(&artifacts, receipt.stderr.as_ref())}))
+        .unwrap()
     );
     assert_eq!(
         receipt.state,
@@ -605,7 +680,32 @@ fn case(planted: bool) -> Value {
             .with_bounds(TIMEOUT, LIMIT)
             .with_policy_authorizer(policy.clone()),
     );
-    let execution = execute(&frozen, &inventory, &registry).unwrap();
+    let execution = execute(&frozen, &inventory, &registry);
+    let diagnostics = scanner_diagnostics(&run);
+    eprintln!(
+        "BRAKEMAN_NATIVE_CASE_DIAGNOSTIC {}",
+        serde_json::to_string(&json!({
+        "caseId":case_id,"execution":execution.as_ref().ok(),
+        "executionError":execution.as_ref().err().map(ToString::to_string),
+        "nativeDiagnostics":diagnostics,"policyDecisions":*policy.decisions.lock().unwrap()}))
+        .unwrap()
+    );
+    let execution = execution.unwrap();
+    assert_eq!(
+        diagnostics.len(),
+        1,
+        "one actual production scan diagnostic"
+    );
+    assert!(
+        diagnostics[0]["diagnostic"].is_object(),
+        "actual SDK diagnostic must parse"
+    );
+    assert!(
+        diagnostics[0]["retainedArtifact"]
+            .get("retentionError")
+            .is_none(),
+        "native diagnostic retention failed"
+    );
     assert_eq!(execution.planned_providers, vec![PROVIDER.to_owned()]);
     assert_eq!(execution.results.len(), 1);
     let entry = &execution.results[0];
@@ -712,7 +812,8 @@ fn case(planted: bool) -> Value {
         "planDigest": frozen.digest(), "inventoryDigest": inventory.digest, "coverage": result.coverage,
         "toolIdentity": {"path": policy.tool, "executableDigest": policy.tool_digest, "version": version, "runtime": policy.runtime.definition()},
         "policy": policy.definition(), "policyDecisions": *decisions, "executionReceipt": receipt, "actualProviderResult": result,
-        "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."})
+        "nativeDiagnostics":diagnostics,
+        "receiptRetentionLimit": "Actual SDK scan receipt & verified raw streams retained before assertions; reduced producer receipt & separate native version receipt retained."})
 }
 
 fn implementation_binding(root: &Path) -> Value {

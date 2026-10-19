@@ -85,8 +85,13 @@ pub fn resolve_request(
         RUNTIME_CAPTURE_TOOL => (current_legion_executable()?, args.to_vec()),
         // A cargo subcommand binary run directly (not through `cargo`) takes
         // its own name as the first argument.
-        "cargo-outdated" => (resolve_named_path(root, executable)?, {
-            let mut values = vec!["outdated".to_owned()];
+        "cargo-outdated" | "cargo-audit" => (resolve_named_path(root, executable)?, {
+            let subcommand = if executable == "cargo-audit" {
+                "audit"
+            } else {
+                "outdated"
+            };
+            let mut values = vec![subcommand.to_owned()];
             values.extend(args.iter().cloned());
             values
         }),

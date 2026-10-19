@@ -45,30 +45,27 @@ fn docker_check_targets_dockerfile() {
     assert_eq!(args, &["--format", "json", "Dockerfile"]);
 }
 
-/// collect-facts.mjs: `semgrep --config auto --json --quiet --exclude vendor
-/// --exclude qwik --exclude .audit --exclude .agent --exclude dist`.
-/// Without `--config auto` semgrep has no ruleset and scans nothing.
+/// Offline limited-scope bundle intentionally supersedes historical auto rules.
 #[test]
-fn sast_matches_js_semgrep_flags() {
+fn sast_uses_packaged_offline_rule_contract() {
     let (tool, args) = named_args("legacy.security.sast");
     assert_eq!(tool, "semgrep");
     assert_eq!(
         args,
         &[
+            "scan",
             "--config",
-            "auto",
+            "@legion-packaged-core",
             "--json",
-            "--quiet",
-            "--exclude",
-            "vendor",
-            "--exclude",
-            "qwik",
-            "--exclude",
-            ".audit",
-            "--exclude",
-            ".agent",
-            "--exclude",
-            "dist",
+            "--metrics",
+            "off",
+            "--disable-version-check",
+            "--disable-nosem",
+            "--no-rewrite-rule-ids",
+            "--strict",
+            "--verbose",
+            "--no-error",
+            "--no-git-ignore"
         ]
     );
 }
@@ -103,4 +100,24 @@ fn spec_lookup_is_consistent_with_specs_listing() {
         assert_eq!(found.check, entry.check);
         assert_eq!(found.command, entry.command);
     }
+}
+
+/// Full pinned scanner runs Cargo clean/check & project build scripts/proc macros.
+#[test]
+fn cargo_unsafe_declares_project_execution_resource() {
+    let registry: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/registry/providers.json"
+    )))
+    .unwrap();
+    let provider = registry["providers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == "legacy.security.rust-unsafe")
+        .unwrap();
+    assert_eq!(
+        provider["execution"]["resourceClaims"]["projectExecution"],
+        1
+    );
 }

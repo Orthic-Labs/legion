@@ -10,10 +10,14 @@
 mod attested_runs;
 mod contracts;
 mod disposable_copy;
+mod node_outdated;
 pub(crate) mod parsers;
+mod python_requirements;
 mod registry;
 mod resolver;
 mod runtime_capture;
+mod rust_outdated;
+pub(crate) mod semgrep;
 
 pub use attested_runs::{AdapterEnrollment, AttestedRunsEnrollment, EnrollmentError};
 pub use contracts::{
@@ -928,7 +932,7 @@ impl NativeLegacyCheckExecutor {
         cancellation: CancellationToken,
     ) -> Result<ProviderResult, AuditError> {
         let dispatcher = LegacyCheckDispatcher::new();
-        let input = dispatcher
+        let mut input = dispatcher
             .input(
                 provider,
                 inventory,
@@ -945,6 +949,9 @@ impl NativeLegacyCheckExecutor {
         // Runtime capture runs one browser invocation per requested surface
         // and builds its own evidence; it never goes through the single-run
         // parser path below.
+        if contract.check == "outdated" {
+            return node_outdated::execute(self, plan, provider, &input, cancellation).await;
+        }
         if contract.check == "runtime" {
             return runtime_capture::execute(self, plan, provider, &input, cancellation).await;
         }
@@ -1099,6 +1106,21 @@ impl NativeLegacyCheckExecutor {
                 )
             },
         );
+        if contract.check == "ci_lint" {
+            if input.denominator.entries.is_empty() {
+                return Err(AuditError::Provider("ci-lint-denominator-empty".into()));
+            }
+            // Explicit frozen workflows also work in exported/snapshot trees
+            // without .git. No repository discovery can widen this denominator.
+            args.push("--".into());
+            args.extend(
+                input
+                    .denominator
+                    .entries
+                    .iter()
+                    .map(|entry| format!("./{}", entry.path)),
+            );
+        }
         // `gitleaks git` scans commit history and needs a repository. A tree
         // without `.git` (an exported archive, a fixture) is scanned as a
         // plain directory instead of failing with no report.
@@ -1110,6 +1132,33 @@ impl NativeLegacyCheckExecutor {
             }
         }
         let scratch = self.scratch()?;
+        let python_requirements = if contract.check == "py_deps_cve" {
+            match python_requirements::prepare(&input, &scratch) {
+                Ok(prepared) => {
+                    args = prepared.args.clone();
+                    input.artifacts = json!({(python_requirements::KEY):prepared.binding});
+                    Some(prepared)
+                }
+                Err(reason) => {
+                    let execution = python_input_refusal(&input, contract.command, &reason);
+                    return dispatcher
+                        .project_result(provider, &input, execution)
+                        .map_err(|error| AuditError::Provider(error.to_string()));
+                }
+            }
+        } else {
+            None
+        };
+        if contract.check == "sast" {
+            match semgrep::prepare(&input, provider, &scratch, &args) {
+                Ok(prepared) => args = prepared,
+                Err(execution) => {
+                    return dispatcher
+                        .project_result(provider, &input, execution)
+                        .map_err(|error| AuditError::Provider(error.to_string()))
+                }
+            }
+        }
         let report_source = report_source_for(contract.check);
         // A file-backed report is never written into the project tree: the
         // executor owns a scratch dir for the run's lifetime and the tool is
@@ -1217,7 +1266,7 @@ impl NativeLegacyCheckExecutor {
                     // tacked on.
                     let mut probe_args: Vec<String> =
                         auth.wrapped_args.iter().take(4).cloned().collect();
-                    probe_args.push("--version".into());
+                    probe_args.push(legacy_version_probe_flag(contract.check).into());
                     (
                         auth.wrapped_executable,
                         auth.wrapped_args,
@@ -1287,7 +1336,8 @@ impl NativeLegacyCheckExecutor {
                     } else {
                         version.to_owned()
                     }
-                }),
+                })
+                .or_else(|| (contract.check == "sast").then(|| "exact:1.141.0".into())),
             environment,
             environment_allowlist,
             // Checks in `sandbox_required_check` now carry an authenticated
@@ -1314,9 +1364,12 @@ impl NativeLegacyCheckExecutor {
                 .get("stderrLimit")
                 .and_then(Value::as_u64)
                 .unwrap_or(8 * 1024 * 1024) as usize,
-            version_args: version_args.unwrap_or_else(|| vec!["--version".into()]),
+            version_args: version_args
+                .unwrap_or_else(|| vec![legacy_version_probe_flag(contract.check).into()]),
             ..ExternalToolRequest::default()
         };
+        let outdated_input = (contract.check == "cargo_outdated")
+            .then(|| rust_outdated::capture(&input, inventory, Path::new(&request.cwd)));
         let receipt = tool.execute(request, cancellation).await;
         let report_artifact = report_temp_dir
             .as_ref()
@@ -1325,7 +1378,10 @@ impl NativeLegacyCheckExecutor {
         // read back into memory, rather than leaving it until the process
         // exits.
         drop(report_temp_dir);
-        let execution = execution_from_receipt(
+        let python_sources_unchanged = python_requirements
+            .as_ref()
+            .is_none_or(|prepared| prepared.unchanged(&input));
+        let mut execution = execution_from_receipt(
             &input,
             contract.command,
             &[scratch.artifacts_dir().as_path(), self.root.as_path()],
@@ -1334,6 +1390,24 @@ impl NativeLegacyCheckExecutor {
             report_artifact,
             test_command_source,
         );
+        if !python_sources_unchanged {
+            if let Some(output) = execution.output.as_mut() {
+                output.complete = false;
+                output.findings.clear();
+                output.candidates.clear();
+                output.details.insert("findingsCount".into(), Value::Null);
+                output
+                    .coverage_gaps
+                    .push("python-requirements-input-drift".into());
+                if let Some(coverage) = output.coverage.as_mut() {
+                    coverage.examined = 0;
+                    coverage.gaps.push("python-requirements-input-drift".into());
+                }
+            }
+        }
+        if let Some(before) = outdated_input {
+            rust_outdated::reconcile(&input, inventory, before, &mut execution);
+        }
         dispatcher
             .project_result(provider, &input, execution)
             .map_err(|error| AuditError::Provider(error.to_string()))
@@ -1382,6 +1456,49 @@ impl NativeLegacyCheckExecutor {
             .project_result(provider, &input, execution)
             .map_err(|error| AuditError::Provider(error.to_string()))
     }
+}
+
+fn python_input_refusal(
+    input: &LegacyCheckInput,
+    command: CommandShape,
+    reason: &str,
+) -> LegacyCheckExecution {
+    let reason = format!("python-requirements-input-unavailable:{reason}");
+    let gap = super::availability::unavailable_gap(&reason);
+    let mut output = empty_output(vec![gap.clone()]);
+    output.details.insert(
+        python_requirements::KEY.into(),
+        json!({"status":"unavailable","reason":reason}),
+    );
+    output.details.insert(
+        super::availability::AVAILABILITY_DETAIL.into(),
+        super::availability::unavailable_detail(&reason),
+    );
+    output.coverage = Some(Coverage {
+        denominator_digest: input.denominator.digest.clone(),
+        expected: input.denominator.entries.len() as u64,
+        examined: 0,
+        gaps: vec![gap.clone()],
+    });
+    let mut execution = terminal_execution(
+        input,
+        command,
+        LegacyCheckProcessState::Failed,
+        None,
+        vec![],
+        vec![],
+        output,
+        vec![gap],
+        now_ms(),
+        false,
+        Some(&reason),
+    );
+    if let Some(output) = execution.output.as_mut() {
+        if let Some(receipt) = output.details.get_mut("executionReceipt") {
+            receipt["parser"]["attempted"] = json!(false);
+        }
+    }
+    execution
 }
 
 fn sandbox_required_check(check: &str) -> bool {
@@ -1451,11 +1568,15 @@ mod sandbox_policy_tests {
 
 fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     match check {
-        "repo" | "build" => [0].into_iter().collect(),
+        "repo" | "build" | "sast" | "cargo_outdated" => [0].into_iter().collect(),
         // A normally exited test runner with non-zero code is a completed
         // test result with a failing-test finding, not a launch failure.
         "test" => (0..=255).collect(),
-        "debt_markers" | "secrets" | "deps_cve" => [0, 1].into_iter().collect(),
+        // cargo-deny exposes a four-check bitset; completion is reconciled below.
+        "cargo_deny" => (0..=15).collect(),
+        "debt_markers" | "secrets" | "deps_cve" | "cargo_unused_deps" => {
+            [0, 1].into_iter().collect()
+        }
         _ => [0, 1, 2].into_iter().collect(),
     }
 }
@@ -1496,7 +1617,7 @@ pub(crate) fn audit_environment(
     let tmp = scratch.tmp_dir().to_string_lossy().into_owned();
     let cache = scratch.cache_dir();
     let cache_path = |name: &str| cache.join(name).to_string_lossy().into_owned();
-    let overrides: [(&str, String); 11] = [
+    let overrides: [(&str, String); 13] = [
         ("TMPDIR", tmp.clone()),
         ("TEMP", tmp.clone()),
         ("TMP", tmp),
@@ -1507,7 +1628,9 @@ pub(crate) fn audit_environment(
         ("MYPY_CACHE_DIR", cache_path("mypy")),
         ("PYTHONPYCACHEPREFIX", cache_path("pycache")),
         ("PYTHONDONTWRITEBYTECODE", "1".into()),
+        ("PYTHONNOUSERSITE", "1".into()),
         ("GOCACHE", cache_path("go-build")),
+        ("GIT_CONFIG_NOSYSTEM", "1".into()),
     ];
     let mut allowlist: BTreeSet<String> = names.into_iter().map(str::to_owned).collect();
     for (name, value) in overrides {
@@ -1537,6 +1660,26 @@ impl ProviderExecutor for NativeLegacyCheckExecutor {
         self.execute_async(plan, provider, inventory, cancellation)
             .await
     }
+}
+
+// license-checker 25.0.1's published CLI exits 1 for --version, but its
+// successful --help prints license-checker@<package version>. Keep SDK probe
+// success & real executable/script identity requirements unchanged (#71).
+fn legacy_version_probe_flag(check: &str) -> &'static str {
+    if check == "js_licenses" {
+        "--help"
+    } else {
+        "--version"
+    }
+}
+
+// The official CLI logs this exact line for read errors, yet can emit JSON &
+// exit 0. Neither JSON syntax nor successful process exit proves a scan (#73).
+fn license_checker_reported_error(check: &str, stderr: &[u8]) -> bool {
+    check == "js_licenses"
+        && stderr
+            .split(|byte| *byte == b'\n')
+            .any(|line| line.strip_suffix(b"\r").unwrap_or(line) == b"Found error")
 }
 
 fn execution_from_receipt(
@@ -1571,6 +1714,17 @@ fn execution_from_receipt(
         _ => LegacyCheckProcessState::Failed,
     };
     let mut output = empty_output(receipt.gaps.clone());
+    if input.check == "py_deps_cve" {
+        output.details.insert(
+            python_requirements::KEY.into(),
+            input.artifacts[python_requirements::KEY].clone(),
+        );
+    }
+    if input.check == "sast" && !semgrep::receipt_rules_valid(&receipt) {
+        output
+            .coverage_gaps
+            .push("semgrep-rules-or-exit-unproven".into());
+    }
     let stdout = receipt
         .stdout
         .as_ref()
@@ -1605,6 +1759,11 @@ fn execution_from_receipt(
                 .map(|report| report.bytes.as_slice()),
         }
     };
+    let cargo_deny_completion_unproven = input.check == "cargo_deny"
+        && !parse_bytes
+            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+            .and_then(parsers::cargo_deny_completion)
+            .is_some_and(|(_, exit)| receipt.exit_code == Some(exit));
     let clippy_exit_unproven = input.check == "lint"
         && receipt.exit_code == Some(101)
         && !receipt.command.as_ref().is_some_and(|command| {
@@ -1637,7 +1796,42 @@ fn execution_from_receipt(
     } else {
         None
     };
-    if clippy_exit_unproven {
+    // cargo-machete may print a clean summary & exit zero after a per-manifest
+    // metadata failure. Only a complete known report, not exit status alone,
+    // proves analysis. Preserve actual receipt/streams when rejecting it.
+    let cargo_machete_unproven = input.check == "cargo_unused_deps"
+        && !stdout
+            .as_deref()
+            .zip(stderr.as_deref())
+            .is_some_and(|(out, err)| {
+                parsers::cargo_machete_report_complete(out, err, receipt.exit_code)
+            });
+    if cargo_deny_completion_unproven {
+        output
+            .coverage_gaps
+            .push("cargo-deny-completion-unproven".into());
+        output.status = ProviderStatus::Partial;
+        output.details.insert("findingsCount".into(), Value::Null);
+        parsed = true; // Don't treat operational failures or truncated reports as findings.
+    } else if stderr
+        .as_deref()
+        .is_some_and(|bytes| license_checker_reported_error(&input.check, bytes))
+    {
+        output
+            .coverage_gaps
+            .push("legacy-tool-reported-error:js_licenses".into());
+        output.status = ProviderStatus::Partial;
+        output.details.insert("findingsCount".into(), Value::Null);
+        parsed = true; // Classified incomplete; do not convert partial JSON into findings/clean.
+    } else if cargo_machete_unproven {
+        output
+            .coverage_gaps
+            .push("cargo-machete-analysis-unproven".into());
+        output.status = ProviderStatus::Partial;
+        output.complete = false;
+        output.details.insert("findingsCount".into(), Value::Null);
+        parsed = true;
+    } else if clippy_exit_unproven {
         output
             .coverage_gaps
             .push("cargo-clippy-diagnostic-exit-unproven".into());
@@ -1689,7 +1883,11 @@ fn execution_from_receipt(
         output.coverage = Some(Coverage {
             denominator_digest: input.denominator.digest.clone(),
             expected: input.denominator.entries.len() as u64,
-            examined: input.denominator.entries.len() as u64,
+            examined: if input.check == "py_deps_cve" && !output.coverage_gaps.is_empty() {
+                0
+            } else {
+                input.denominator.entries.len() as u64
+            },
             gaps: output.coverage_gaps.clone(),
         });
     }
@@ -3212,6 +3410,20 @@ fn parse_external_value(
     value: &Value,
     output: &mut LegacyCheckOutput,
 ) -> bool {
+    if input.check == "py_deps_cve"
+        && python_requirements::reconcile(&input.artifacts[python_requirements::KEY], value)
+            .is_none()
+    {
+        output.complete = false;
+        output.details.insert("findingsCount".into(), Value::Null);
+        output
+            .coverage_gaps
+            .push("python-requirements-response-incomplete".into());
+        return true;
+    }
+    if input.check == "sast" {
+        return semgrep::parse(input, value, output);
+    }
     if let Some(outcome) = parsers::dispatch_json(input.check.as_str(), value) {
         return apply_parse_outcome(input, outcome, output);
     }
@@ -3600,6 +3812,29 @@ fn annotated_rust_functions(text: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn license_checker_probe_and_error_classification_preserve_fail_closed_contract() {
+        assert_eq!(super::legacy_version_probe_flag("js_licenses"), "--help");
+        assert_eq!(super::legacy_version_probe_flag("docker"), "--version");
+        assert!(super::license_checker_reported_error(
+            "js_licenses",
+            b"Found error\nError: No packages found\n"
+        ));
+        assert!(super::license_checker_reported_error(
+            "js_licenses",
+            b"Found error\r\n"
+        ));
+        assert!(!super::license_checker_reported_error(
+            "docker",
+            b"Found error\n"
+        ));
+        assert!(!super::license_checker_reported_error(
+            "js_licenses",
+            b"Not Found error\n"
+        ));
+        assert!(!super::license_checker_reported_error("js_licenses", b""));
+    }
+
     use super::*;
     use std::{
         fs,

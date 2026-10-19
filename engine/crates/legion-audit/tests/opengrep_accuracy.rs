@@ -18,6 +18,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
+    io::Read,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -273,7 +274,10 @@ fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
     json!({"path": artifact.path, "digest": artifact.digest, "bytes": artifact.bytes, "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 /// Exact field projection of actual EffectExecutor receipt; no inferred process proof.
-fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path) -> Value {
+fn artifact_metadata(artifact: &legion_effects::ArtifactRecord) -> Value {
+    json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable})
+}
+fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path, raw: bool) -> Value {
     json!({"schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id, "planId": receipt.plan_id,
         "policyId": receipt.policy_id, "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
@@ -285,8 +289,116 @@ fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path) ->
         "processTree":{"started":receipt.process_tree.started,"terminated":receipt.process_tree.terminated,"hardKilled":receipt.process_tree.hard_killed,"reaped":receipt.process_tree.reaped,"detail":receipt.process_tree.detail},
         "timing":{"startedAtMs":receipt.timing.started_at_ms,"completedAtMs":receipt.timing.completed_at_ms,"durationMs":receipt.timing.duration_ms},
         "exitCode":receipt.exit_code,"signal":receipt.signal,
-        "stdout":receipt.stdout.as_ref().map(|a| retained(artifacts,a)),"stderr":receipt.stderr.as_ref().map(|a| retained(artifacts,a)),
+        "stdout":receipt.stdout.as_ref().map(|a| if raw { retained(artifacts,a) } else { artifact_metadata(a) }),"stderr":receipt.stderr.as_ref().map(|a| if raw { retained(artifacts,a) } else { artifact_metadata(a) }),
         "parser":{"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error},"gaps":receipt.gaps})
+}
+
+// Retain actual failure evidence outside Fixture before any state/output assertion.
+// Diagnostic files cannot qualify controls; raw streams are copied without UTF-8 assumptions.
+fn retain_execution_diagnostics(
+    id: &str,
+    fixture: &Path,
+    artifacts: &Path,
+    receipt: &legion_effects::ExecutionReceipt,
+    policy: &ScopedPolicy,
+) {
+    let directory = PathBuf::from(
+        std::env::var_os("LEGION_OPENGREP_RECEIPTS")
+            .expect("explicit retained receipt directory required"),
+    );
+    assert!(directory.is_absolute());
+    fs::create_dir_all(&directory).unwrap();
+    let directory = fs::canonicalize(directory).unwrap();
+    assert!(!directory.starts_with(fixture));
+    let request_digest = digest(receipt.request_id.as_bytes());
+    let diagnostics = directory.join("diagnostics");
+    match fs::create_dir(&diagnostics) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            assert!(fs::symlink_metadata(&diagnostics)
+                .unwrap()
+                .file_type()
+                .is_dir());
+        }
+        Err(error) => panic!("diagnostic directory unavailable: {error}"),
+    }
+    assert!(matches!(
+        Path::new(id).components().collect::<Vec<_>>().as_slice(),
+        [std::path::Component::Normal(_)]
+    ));
+    let target = diagnostics.join(format!("{id}-{}", &request_digest[7..]));
+    fs::create_dir(&target).unwrap();
+    let writer = legion_effects::ArtifactWriter::new(&target);
+    let mut streams = serde_json::Map::new();
+    for (name, artifact) in [
+        ("stdout", receipt.stdout.as_ref()),
+        ("stderr", receipt.stderr.as_ref()),
+    ] {
+        let Some(artifact) = artifact else {
+            continue;
+        };
+        let relative = Path::new(&artifact.path);
+        let copied = (|| -> Result<Value, String> {
+            if relative.as_os_str().is_empty()
+                || relative
+                    .components()
+                    .any(|part| !matches!(part, std::path::Component::Normal(_)))
+            {
+                return Err("unsafe diagnostic artifact path".into());
+            }
+            let mut source = artifacts.to_path_buf();
+            for part in relative.components() {
+                source.push(part.as_os_str());
+                if fs::symlink_metadata(&source)
+                    .map_err(|error| error.to_string())?
+                    .file_type()
+                    .is_symlink()
+                {
+                    return Err("diagnostic artifact symlink".into());
+                }
+            }
+            let metadata = fs::metadata(&source).map_err(|error| error.to_string())?;
+            if !metadata.is_file() || metadata.len() > LIMIT as u64 {
+                return Err("diagnostic artifact not a bounded regular file".into());
+            }
+            let mut bytes = Vec::new();
+            fs::File::open(source)
+                .map_err(|error| error.to_string())?
+                .take(LIMIT as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|error| error.to_string())?;
+            if bytes.len() > LIMIT {
+                return Err("diagnostic artifact exceeded bound while reading".into());
+            }
+            let copy = writer
+                .write_immutable(&format!("{name}.bin"), &bytes)
+                .map_err(|error| error.to_string())?;
+            Ok(
+                json!({"copy":artifact_metadata(&copy),"sourceReceiptMatches":artifact.immutable && artifact.bytes == bytes.len() && artifact.digest == digest(&bytes)}),
+            )
+        })();
+        streams.insert(
+            name.into(),
+            match copied {
+                Ok(value) => value,
+                Err(error) => json!({"retentionError":error}),
+            },
+        );
+    }
+    let evidence = json!({"schema":"legion-opengrep-execution-diagnostic/1","provider":PROVIDER,
+        "caseId":id,"scope":SCOPE,"qualificationEligible":false,"policyDefinition":policy.definition(),
+        "policyDecisions":policy.decisions.lock().unwrap().clone(),
+        "executionReceipt":receipt_json(receipt, artifacts, false),"rawStreams":streams});
+    let record = writer
+        .write_immutable(
+            "receipt.json",
+            &serde_json::to_vec_pretty(&evidence).unwrap(),
+        )
+        .unwrap();
+    println!(
+        "OPENGREP_SDK_DIAGNOSTIC {}",
+        json!({"path":target.join(&record.path),"digest":record.digest,"bytes":record.bytes})
+    );
 }
 
 fn case(id: &str, source: &str, expected: &[&str]) -> Value {
@@ -398,6 +510,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
         AuditExternalProjectTool::new(effects)
             .execute(request, tokio_util::sync::CancellationToken::new()),
     );
+    retain_execution_diagnostics(id, &fixture.0, &artifacts, &receipt, &policy);
     assert_eq!(
         receipt.state,
         legion_effects::ExecutionState::Completed,
@@ -412,7 +525,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
             && receipt.gaps.is_empty()
     );
     assert_eq!(receipt.exit_code, Some(0));
-    let full_receipt = receipt_json(&receipt, &artifacts);
+    let full_receipt = receipt_json(&receipt, &artifacts, true);
     let output_bytes =
         fs::read(run.join("output.json")).expect("actual native JSON output required");
     let sarif_bytes =

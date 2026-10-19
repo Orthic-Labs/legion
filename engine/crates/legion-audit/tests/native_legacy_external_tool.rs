@@ -13,7 +13,9 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
     NativeProviderRegistry,
 };
-use legion_effects::{DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence};
+use legion_effects::{
+    ArtifactWriter, DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence,
+};
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
@@ -124,14 +126,11 @@ impl ExternalProjectTool for FakeTool {
             receipt.gaps.clear();
             receipt.complete = true;
             if let Some(body) = &self.body {
-                let path = PathBuf::from(&request.cwd).join("stdout.json");
-                fs::write(&path, body).unwrap();
-                receipt.stdout = Some(legion_effects::ArtifactRecord {
-                    path: "stdout.json".into(),
-                    digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(body))),
-                    bytes: body.len(),
-                    immutable: true,
-                });
+                // Completed native execution retains both streams, even when
+                // stderr is empty; build projection requires both artifacts.
+                let artifacts = ArtifactWriter::new(&request.cwd);
+                receipt.stdout = Some(artifacts.write_immutable("stdout.json", body).unwrap());
+                receipt.stderr = Some(artifacts.write_immutable("stderr.json", b"").unwrap());
             }
         }
         if cancellation.is_cancelled() {
@@ -235,6 +234,14 @@ fn completed_receipt_reads_immutable_stdout_and_projects_result() {
     let result = &report.results[0].result;
     assert!(result.complete);
     assert_eq!(result.coverage.as_ref().unwrap().examined, 1);
+    assert!(fs::read(root.join("stderr.json")).unwrap().is_empty());
+    assert_eq!(
+        result.details["executionReceipt"]["stderr"],
+        json!({
+            "path":"stderr.json", "digest":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes":0, "immutable":true
+        })
+    );
     assert!(result.details["executionReceipt"]["requestId"]
         .as_str()
         .unwrap()
@@ -431,6 +438,10 @@ fn untyped_json_can_never_become_a_false_clean() {
         .unwrap();
     let result = &report.results[0].result;
     assert!(!result.complete);
+    assert!(!result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "artifact-bytes-unreadable"));
     assert!(
         result
             .coverage_gaps

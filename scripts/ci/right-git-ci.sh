@@ -65,7 +65,10 @@ fi
 # Hosted runners own Cargo directly; local package scripts use the RightKit
 # broker client, which is intentionally absent from hosted CI.
 
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
 
 checks=(
@@ -174,6 +177,32 @@ audit_tflint_qualification() {
     audit_effects_test --lib scoped_ipc_timeout_and_cancel_cleanup_after_reaping -- --ignored --nocapture --test-threads=1 &&
     audit_cargo_test --test tflint_accuracy real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1
 }
+# Shared Python scanners use reviewed binary-wheel closures in private CI tools
+# storage. Each consumer calls this through run_audit_qualification before its
+# scanner selector; exports remain in this shell for actual SDK enrollment.
+provision_python_qualification_tool() {
+  export PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1
+  unset PYTHONPATH PYTHONHOME
+  local tool="$1"
+  case "$tool" in pip-audit|semgrep) ;; *) return 2 ;; esac
+  local output="${RUNNER_TEMP}/legion-python-tools/${tool}"
+  python3 -I -S -B scripts/ci/provision-python-qualification-tools.py \
+    --tool "$tool" --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
+  export LEGION_PYTHON_TOOL_ENROLLMENT="${output}/enrollment.json"
+  local launcher
+  launcher="$(python3 -I -S -B - "$LEGION_PYTHON_TOOL_ENROLLMENT" <<'PYTHON_LAUNCHER'
+import json
+import sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text())["launcher"]["path"])
+PYTHON_LAUNCHER
+)" || return "$?"
+  if [[ "$tool" == "pip-audit" ]]; then
+    export LEGION_PIP_AUDIT_BIN="$launcher"
+  else
+    export LEGION_SEMGREP_BIN="$launcher"
+  fi
+}
 run_audit_qualification() {
   audit_qualification_sequence=$((audit_qualification_sequence + 1))
   local sequence="$audit_qualification_sequence"
@@ -200,7 +229,7 @@ PY
 # Measure provider output separately from selection/routing & final adjudication.
 # Run explicitly on both native hosts even when change detection skips workspace
 # tests. Each registered provider must emit a current source/corpus-bound record.
-export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-accuracy"
+export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-provider-accuracy"
 mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
 run_audit_qualification audit_cargo_test \
   --test security_packs --test architecture_input_producer \
@@ -230,6 +259,33 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     > "$visual_accuracy_dir/validator.log" 2>&1
   cat "$visual_accuracy_dir/validator.log"
   unset LEGION_PROVIDER_BENCHMARK_DIR
+fi
+
+# Full cargo-geiger runs nested Cargo & target build scripts only in disposable CI scratch.
+# Upstream has no binary assets: build exact unchanged commit using pinned workspace toolchain.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  geiger_dir="${RUNNER_TEMP}/legion-cargo-geiger-0.13.0"
+  geiger_receipts="${RUNNER_TEMP}/legion-provider-qualification/cargo-geiger"
+  mkdir -p "$geiger_receipts"
+  geiger_toolchain_bin="$(rustc --print sysroot)/bin"
+  run_audit_qualification python3 scripts/ci/provision-cargo-geiger.py \
+    --directory "$geiger_dir" --toolchain-bin "$geiger_toolchain_bin" \
+    > "$geiger_receipts/provision.log" 2>&1
+  cat "$geiger_receipts/provision.log"
+  export LEGION_CARGO_GEIGER_BIN="$geiger_dir/tools/bin/cargo-geiger"
+  export LEGION_CARGO_GEIGER_TOOLCHAIN_BIN="$geiger_toolchain_bin"
+  export LEGION_CARGO_GEIGER_PROVISION="$geiger_dir/provision.json"
+  export LEGION_CARGO_GEIGER_RECEIPTS="$geiger_receipts"
+  run_audit_qualification audit_cargo_test --test cargo_geiger_accuracy real_cargo_geiger_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$geiger_receipts/harness.log" 2>&1
+  cat "$geiger_receipts/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-cargo-geiger-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$geiger_receipts" \
+    > "$geiger_receipts/validator.log" 2>&1
+  cat "$geiger_receipts/validator.log"
+  unset LEGION_CARGO_GEIGER_BIN LEGION_CARGO_GEIGER_TOOLCHAIN_BIN
+  unset LEGION_CARGO_GEIGER_PROVISION LEGION_CARGO_GEIGER_RECEIPTS
 fi
 
 # Constructed native SDK accuracy for structural.ast-grep. The pinned upstream
@@ -264,6 +320,92 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   cat "$ast_grep_receipts/validator.log"
   unset LEGION_AST_GREP_BIN LEGION_AST_GREP_ASSET_SHA256 LEGION_AST_GREP_FIXTURES
   unset LEGION_AST_GREP_RUN_DIR LEGION_AST_GREP_RECORD
+fi
+
+# Real cargo-machete 0.9.1 controls; constructed SDK admission only.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  case "$(uname -m)" in
+    arm64)
+      machete_target=aarch64-apple-darwin
+      machete_asset_sha=72355383848acb154060e6fea2d5b7d58a825ed49fef157b46a6fe25180f8638
+      machete_binary_sha=76ce4dc236df8204d8c110a4d1164a3abe8240fd622ab7016bf02f901d113167 ;;
+    x86_64)
+      machete_target=x86_64-apple-darwin
+      machete_asset_sha=fd0c0dbcc9db0c1b8745fe9dc4f273d838b04391c6e487d1146957bf687a9703
+      machete_binary_sha=e1cfbe4e076a040b6fa394f52e94a3895ff4078a1dd435ab5ed641f145a4815e ;;
+    *) echo "unsupported cargo-machete qualification architecture" >&2; exit 1 ;;
+  esac
+  machete_tool_dir="${RUNNER_TEMP}/legion-cargo-machete-0.9.1"
+  machete_receipts="${RUNNER_TEMP}/legion-provider-qualification/cargo-machete"
+  machete_asset="cargo-machete-v0.9.1-${machete_target}.tar.gz"
+  machete_member="cargo-machete-v0.9.1-${machete_target}/cargo-machete"
+  mkdir -p "$machete_tool_dir/bin" "$machete_tool_dir/unpacked" "$machete_receipts"
+  curl --fail --location "https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.1/$machete_asset" -o "$machete_tool_dir/$machete_asset"
+  printf '%s  %s\n' "$machete_asset_sha" "$machete_tool_dir/$machete_asset" | shasum -a 256 --check
+  tar -xzf "$machete_tool_dir/$machete_asset" -C "$machete_tool_dir/unpacked" "$machete_member"
+  printf '%s  %s\n' "$machete_binary_sha" "$machete_tool_dir/unpacked/$machete_member" | shasum -a 256 --check
+  cp "$machete_tool_dir/unpacked/$machete_member" "$machete_tool_dir/bin/cargo-machete"
+  chmod 755 "$machete_tool_dir/bin/cargo-machete"
+  export LEGION_CARGO_MACHETE_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_CARGO_MACHETE_BINARY_SHA256="sha256:$machete_binary_sha"
+  export LEGION_CARGO_MACHETE_ASSET_SHA256="sha256:$machete_asset_sha"
+  export LEGION_CARGO_MACHETE_SCRATCH="${RUNNER_TEMP}/legion-cargo-machete-fixtures"
+  export LEGION_CARGO_MACHETE_RECEIPTS="$machete_receipts"
+  mkdir -p "$LEGION_CARGO_MACHETE_SCRATCH"
+  PATH="$machete_tool_dir/bin:$PATH" run_audit_qualification audit_cargo_test \
+    --test real_cargo_machete_accuracy real_cargo_machete_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$machete_receipts/harness.log" 2>&1
+  cat "$machete_receipts/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-cargo-machete-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$machete_receipts" \
+    > "$machete_receipts/validator.log" 2>&1
+  cat "$machete_receipts/validator.log"
+  unset LEGION_CARGO_MACHETE_TOOLCHAIN_BIN LEGION_CARGO_MACHETE_BINARY_SHA256
+  unset LEGION_CARGO_MACHETE_ASSET_SHA256 LEGION_CARGO_MACHETE_SCRATCH LEGION_CARGO_MACHETE_RECEIPTS
+fi
+
+# Real cargo-outdated 0.19.0 controls; constructed SDK admission only.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  case "$(uname -m)" in
+    arm64)
+      outdated_target=aarch64-apple-darwin
+      outdated_asset_sha=c3a3ca56a748d94fdaa1f208c641685d996ee1c4954cd4fbe358b7c06a2186a5
+      outdated_binary_sha=22003be477d106e10c285d11e677b680859fc72d1c0035fe599b3755ede231a8 ;;
+    x86_64)
+      outdated_target=x86_64-apple-darwin
+      outdated_asset_sha=945b64728ae9021be49a70346424da7634d889f181f2d33af64c7bf95265f6d3
+      outdated_binary_sha=63a2f5ffe56c7c7ad0e21eba87e4dcf7ebd757bc376c16d534caaa2d82ac127b ;;
+    *) echo "unsupported cargo-outdated qualification architecture" >&2; exit 1 ;;
+  esac
+  outdated_tool_dir="${RUNNER_TEMP}/legion-cargo-outdated-0.19.0"
+  outdated_receipts="${RUNNER_TEMP}/legion-provider-qualification/rust-outdated"
+  outdated_asset="cargo-outdated-0.19.0-${outdated_target}.tar.gz"
+  outdated_member="cargo-outdated"
+  mkdir -p "$outdated_tool_dir/bin" "$outdated_tool_dir/unpacked" "$outdated_receipts"
+  curl --fail --location "https://github.com/kbknapp/cargo-outdated/releases/download/v0.19.0/$outdated_asset" -o "$outdated_tool_dir/$outdated_asset"
+  printf '%s  %s\n' "$outdated_asset_sha" "$outdated_tool_dir/$outdated_asset" | shasum -a 256 --check
+  tar -xzf "$outdated_tool_dir/$outdated_asset" -C "$outdated_tool_dir/unpacked" "$outdated_member"
+  printf '%s  %s\n' "$outdated_binary_sha" "$outdated_tool_dir/unpacked/$outdated_member" | shasum -a 256 --check
+  cp "$outdated_tool_dir/unpacked/$outdated_member" "$outdated_tool_dir/bin/cargo-outdated"
+  chmod 755 "$outdated_tool_dir/bin/cargo-outdated"
+  export LEGION_RUST_OUTDATED_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_RUST_OUTDATED_BINARY_SHA256="sha256:$outdated_binary_sha"
+  export LEGION_RUST_OUTDATED_ASSET_SHA256="sha256:$outdated_asset_sha"
+  export LEGION_RUST_OUTDATED_SCRATCH="${RUNNER_TEMP}/legion-cargo-outdated-fixtures"
+  export LEGION_RUST_OUTDATED_RECEIPTS="$outdated_receipts"
+  mkdir -p "$LEGION_RUST_OUTDATED_SCRATCH"
+  PATH="$outdated_tool_dir/bin:$PATH" run_audit_qualification audit_cargo_test \
+    --test real_rust_outdated_accuracy real_rust_outdated_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$outdated_receipts/harness.log" 2>&1
+  cat "$outdated_receipts/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-rust-outdated-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$outdated_receipts" \
+    > "$outdated_receipts/validator.log" 2>&1
+  cat "$outdated_receipts/validator.log"
+  unset LEGION_RUST_OUTDATED_TOOLCHAIN_BIN LEGION_RUST_OUTDATED_BINARY_SHA256
+  unset LEGION_RUST_OUTDATED_ASSET_SHA256 LEGION_RUST_OUTDATED_SCRATCH LEGION_RUST_OUTDATED_RECEIPTS
 fi
 
 # Native fixture qualification is intentionally ignored by ordinary unit tests.
@@ -371,63 +513,135 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification audit_cargo_test --test bench_recall \
     bench_recall_qualification_receipt -- --ignored --exact --nocapture --test-threads=1
   export LEGION_REAL_SCANNER_SCRATCH="${RUNNER_TEMP}/legion-real-scanner-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-external-provider-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-external-provider-accuracy"
   mkdir -p "$LEGION_REAL_SCANNER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test external_scanner_accuracy \
     real_scanner_accuracy_shellcheck -- --ignored --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-external-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-additional-scanner-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-additional-scanner-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test additional_external_scanner_accuracy \
     real_scanner_accuracy -- --ignored --nocapture --test-threads=1
   export LEGION_REAL_GIT_SCRATCH="${RUNNER_TEMP}/legion-real-git-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-git-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-real-git-accuracy"
   mkdir -p "$LEGION_REAL_GIT_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test legacy_git_accuracy \
     real_legacy_git_accuracy -- --ignored --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-real-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" \
-    --scanner-receipts "${RUNNER_TEMP}/legion-additional-scanner-accuracy" \
+    --scanner-receipts "${RUNNER_TEMP}/legion-provider-qualification/legion-additional-scanner-accuracy" \
     --git-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-squawk-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-squawk-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test more_external_scanner_accuracy \
     real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-tflint-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-tflint-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_tflint_qualification
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-kubeconform-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-kubeconform-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test kubeconform_accuracy \
     real_scanner_accuracy_kubeconform -- --ignored --nocapture --test-threads=1
   unset LEGION_KUBECONFORM_SCHEMA_DIR
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-golangci-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-golangci-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   audit_rustc_bin="$(command -v rustc)"
   PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
     run_audit_qualification audit_cargo_test --test golangci_accuracy \
       real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
   unset LEGION_GO_ROOT LEGION_GO_ARCHIVE LEGION_GOLANGCI_LINT_BIN LEGION_GOLANGCI_LINT_ARCHIVE
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-trivy-iac-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-trivy-iac-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test trivy_iac_accuracy \
     real_scanner_accuracy_trivy_iac -- --ignored --nocapture --test-threads=1
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-brakeman-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-brakeman-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test brakeman_accuracy \
     real_scanner_accuracy_brakeman -- --ignored --nocapture --test-threads=1
   unset LEGION_BRAKEMAN_GEM_ROOT
   export LEGION_REAL_LINTER_SCRATCH="${RUNNER_TEMP}/legion-real-linter-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-linter-accuracy"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-real-linter-accuracy"
   mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test real_legacy_linter_accuracy \
     real_legacy_linter_accuracy -- --ignored --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-extra-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" \
-    --squawk-receipts "${RUNNER_TEMP}/legion-squawk-accuracy" \
-    --brakeman-receipts "${RUNNER_TEMP}/legion-brakeman-accuracy" \
+    --squawk-receipts "${RUNNER_TEMP}/legion-provider-qualification/legion-squawk-accuracy" \
+    --brakeman-receipts "${RUNNER_TEMP}/legion-provider-qualification/legion-brakeman-accuracy" \
     --linter-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  # Official published JS entry + full installed closure, real native SDK controls.
+  # Dependencies provision only here; sandboxed version/scan requests deny network.
+  audit_license_tool_dir="${RUNNER_TEMP}/legion-license-checker-tool"
+  export LEGION_LICENSE_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/license-checker"
+  export LEGION_LICENSE_TOOL_ROOT="$audit_license_tool_dir"
+  mkdir -p "$audit_license_tool_dir/bin" "$LEGION_LICENSE_RECEIPTS/provision"
+  curl --fail --location --retry 0 --max-time 120 \
+    https://registry.npmjs.org/license-checker/-/license-checker-25.0.1.tgz \
+    --output "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz"
+  python3 - "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" <<'LICENSE_ASSET'
+import hashlib
+from pathlib import Path
+import sys
+assert hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() == "e0200853f53ff27b2418fe0e3497d50a4bb2a0978abe0ef6b86c80d92fc47363"
+LICENSE_ASSET
+  printf '%s\n' '{"name":"legion-license-tool-provision","version":"1.0.0","private":true}' > "$audit_license_tool_dir/package.json"
+  pnpm --dir "$audit_license_tool_dir" add --ignore-scripts --save-exact \
+    "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz"
+  python3 - "$audit_license_tool_dir" <<'LICENSE_ALIAS'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1]).resolve()
+entry = (root / "node_modules/license-checker/bin/license-checker").resolve(strict=True)
+assert entry.is_relative_to(root) and entry.is_file()
+# Alias genuine published executable, never pnpm's generated .bin shell shim.
+(root / "bin/license-checker").symlink_to(entry)
+LICENSE_ALIAS
+  audit_license_node_dir="$(dirname "$(command -v node)")"
+  PATH="$audit_license_tool_dir/bin:$audit_license_node_dir:$PATH" \
+    run_audit_qualification audit_cargo_test --test license_checker_accuracy \
+      real_license_checker_accuracy -- --ignored --exact --nocapture --test-threads=1 \
+      > "$LEGION_LICENSE_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_LICENSE_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-license-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_LICENSE_RECEIPTS" \
+    > "$LEGION_LICENSE_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_LICENSE_RECEIPTS/validator.log"
+  unset LEGION_LICENSE_RECEIPTS LEGION_LICENSE_TOOL_ROOT
+  # Real pinned native secret history controls; explicitly constructed admission.
+  secrets_tool_root="${RUNNER_TEMP}/legion-secrets-history-tool"
+  export LEGION_SECRET_QUALIFICATION_DIR="${RUNNER_TEMP}/legion-provider-qualification/secrets-history"
+  mkdir -p "$secrets_tool_root" "$LEGION_SECRET_QUALIFICATION_DIR"
+  case "$(uname -m)" in
+    arm64) export LEGION_GITLEAKS_ARCHIVE_NAME="gitleaks_8.30.0_darwin_arm64.tar.gz"
+      export LEGION_GITLEAKS_ARCHIVE_SHA256="sha256:b251ab2bcd4cd8ba9e56ff37698c033ebf38582b477d21ebd86586d927cf87e7" ;;
+    x86_64) export LEGION_GITLEAKS_ARCHIVE_NAME="gitleaks_8.30.0_darwin_x64.tar.gz"
+      export LEGION_GITLEAKS_ARCHIVE_SHA256="sha256:ca221d012d247080c2f6f61f4b7a83bffa2453806b0c195c795bbe9a8c775ed5" ;;
+    *) echo "Unsupported native Gitleaks qualification architecture" >&2; exit 1 ;;
+  esac
+  curl --fail --silent --show-error --location --retry 3 \
+    "https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/${LEGION_GITLEAKS_ARCHIVE_NAME}" \
+    --output "$secrets_tool_root/$LEGION_GITLEAKS_ARCHIVE_NAME"
+  python3 - "$secrets_tool_root/$LEGION_GITLEAKS_ARCHIVE_NAME" "$LEGION_GITLEAKS_ARCHIVE_SHA256" <<'PY_PIN'
+import hashlib, pathlib, sys
+actual = "sha256:" + hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest()
+if actual != sys.argv[2]:
+    raise SystemExit("Native Gitleaks archive digest mismatch")
+PY_PIN
+  tar -xzf "$secrets_tool_root/$LEGION_GITLEAKS_ARCHIVE_NAME" -C "$secrets_tool_root" gitleaks
+  export LEGION_GITLEAKS_BINARY="$secrets_tool_root/gitleaks"
+  LEGION_GITLEAKS_SHA256="$(python3 - "$LEGION_GITLEAKS_BINARY" <<'PY_PIN'
+import hashlib, pathlib, sys
+print("sha256:" + hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
+PY_PIN
+)"
+  export LEGION_GITLEAKS_SHA256
+  run_audit_qualification audit_cargo_test --lib \
+    native_providers::security::producer::history_qualification_tests::native_current_history_qualification \
+    -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-secrets-history-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_SECRET_QUALIFICATION_DIR"
+  unset LEGION_GITLEAKS_BINARY LEGION_GITLEAKS_SHA256 LEGION_GITLEAKS_ARCHIVE_NAME LEGION_GITLEAKS_ARCHIVE_SHA256 LEGION_SECRET_QUALIFICATION_DIR
   # Real existing build/lint SDK controls; no production owner-admission claim.
   export LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
   export LEGION_QUALITY_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-quality-command-fixtures"
@@ -436,6 +650,29 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification audit_cargo_test --test real_quality_command_accuracy \
     real_quality_command_accuracy -- --ignored --exact --nocapture --test-threads=1
   unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_QUALITY_COMMAND_SCRATCH
+  # Constructed pip-audit SDK controls use shared hash-locked Python enrollment.
+  run_audit_qualification provision_python_qualification_tool pip-audit
+  export LEGION_PIP_AUDIT_SCRATCH="$RUNNER_TEMP/legion-pip-audit-work"
+  export LEGION_PROVIDER_BENCHMARK_DIR="$RUNNER_TEMP/legion-provider-qualification/pip-audit"
+  mkdir -p "$LEGION_PIP_AUDIT_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  PATH="$(dirname "${LEGION_PIP_AUDIT_BIN:-/missing/pip-audit}"):$PATH" \
+    run_audit_qualification audit_cargo_test --test pip_audit_accuracy real_pip_audit_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-pip-audit-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_PIP_AUDIT_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR LEGION_PIP_AUDIT_BIN LEGION_PYTHON_TOOL_ENROLLMENT
+
+  # Constructed Semgrep SDK controls use shared hash-locked Python enrollment.
+  run_audit_qualification provision_python_qualification_tool semgrep
+  export LEGION_SEMGREP_SCRATCH="${RUNNER_TEMP}/legion-semgrep-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/semgrep"
+  mkdir -p "$LEGION_SEMGREP_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  PATH="$(dirname "$LEGION_SEMGREP_BIN"):$PATH" run_audit_qualification audit_cargo_test \
+    --test semgrep_accuracy real_semgrep_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-semgrep-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+
   # Fixed official OpenGrep binary; constructed SDK/artifact cases only.
   audit_provision_opengrep() {
     local opengrep_asset opengrep_sha
@@ -496,6 +733,71 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     > "$LEGION_OSV_RECEIPTS/validator.log" 2>&1
   cat "$LEGION_OSV_RECEIPTS/validator.log"
   unset LEGION_OSV_BIN LEGION_OSV_RECEIPTS
+  # Pinned official cargo-audit; unchanged historical advisory subset, no freshness claim.
+  audit_provision_cargo_audit() {
+    local audit_target audit_sha audit_binary_sha
+    case "$(uname -m)" in
+      arm64) audit_target=aarch64-apple-darwin; audit_sha=ec7ca4263769593df4d909be85b94a6b79efa2897be5d2bb8ebd516e823175af; audit_binary_sha=33fbe81adca1b794f4ffe98574d59b0ebe6fcfdb310976fafed98a094c795111 ;;
+      x86_64) audit_target=x86_64-apple-darwin; audit_sha=847831323de932155b226ab60ee4a180e13e5d007a019f0d4b7b4d89a6de2ab2; audit_binary_sha=1a63bb3ab4f99a0220a8e4d8a677692afe5901cb44a949b2473c545a02028326 ;;
+      *) return 1 ;;
+    esac
+    mkdir -p "$cargo_audit_tool_dir" || return $?
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-${audit_target}-v0.22.2.tgz" \
+      --output "$cargo_audit_tool_dir/tool.tgz" || return $?
+    printf '%s  %s\n' "$audit_sha" "$cargo_audit_tool_dir/tool.tgz" | shasum -a 256 -c - || return $?
+    tar -xzf "$cargo_audit_tool_dir/tool.tgz" -C "$cargo_audit_tool_dir" --strip-components=1 "cargo-audit-${audit_target}-v0.22.2/cargo-audit" || return $?
+    printf '%s  %s\n' "$audit_binary_sha" "$cargo_audit_tool_dir/cargo-audit" | shasum -a 256 -c - || return $?
+    chmod 0755 "$cargo_audit_tool_dir/cargo-audit"
+  }
+  cargo_audit_tool_dir="${RUNNER_TEMP}/legion-cargo-audit-native-v0.22.2"
+  run_audit_qualification audit_provision_cargo_audit
+  export LEGION_CARGO_AUDIT_BIN="$cargo_audit_tool_dir/cargo-audit"
+  export LEGION_CARGO_AUDIT_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/cargo-audit"
+  mkdir -p "$LEGION_CARGO_AUDIT_RECEIPTS"
+  run_audit_qualification audit_cargo_test \
+    --test cargo_audit_accuracy real_cargo_audit_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_CARGO_AUDIT_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_CARGO_AUDIT_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-cargo-audit-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_CARGO_AUDIT_RECEIPTS" \
+    > "$LEGION_CARGO_AUDIT_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_CARGO_AUDIT_RECEIPTS/validator.log"
+  unset LEGION_CARGO_AUDIT_BIN LEGION_CARGO_AUDIT_RECEIPTS
+  audit_provision_cargo_deny() {
+    local deny_arch deny_archive_sha deny_binary_sha
+    mkdir -p "$cargo_deny_tool_dir" || return $?
+    case "$(uname -m)" in
+      arm64) deny_arch=aarch64; deny_archive_sha=fe67d82a10d8597a3549364cb733a3f9cc1bfff9031b7ae46384a9f2a72090c3; deny_binary_sha=5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1 ;;
+      x86_64) deny_arch=x86_64; deny_archive_sha=248da7f581724e470071990c088ffc55c811981715f4cbdb258621fb79f8b7a6; deny_binary_sha=325ae013000059dfa398557f7bc35659e1d73af6b0c39955dff633de164f9c1e ;;
+      *) return 1 ;;
+    esac
+    curl --fail --location --retry 3 \
+      "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-${deny_arch}-apple-darwin.tar.gz" \
+      --output "${cargo_deny_tool_dir}/release.tar.gz" || return $?
+    printf '%s  %s\n' "$deny_archive_sha" "${cargo_deny_tool_dir}/release.tar.gz" | shasum -a 256 -c - || return $?
+    tar -xzf "${cargo_deny_tool_dir}/release.tar.gz" --strip-components=1 -C "$cargo_deny_tool_dir" \
+      "cargo-deny-0.20.2-${deny_arch}-apple-darwin/cargo-deny" || return $?
+    printf '%s  %s\n' "$deny_binary_sha" "${cargo_deny_tool_dir}/cargo-deny" | shasum -a 256 -c - || return $?
+    chmod 0755 "${cargo_deny_tool_dir}/cargo-deny"
+  }
+  cargo_deny_tool_dir="${RUNNER_TEMP}/legion-cargo-deny-native-0.20.2"
+  run_audit_qualification audit_provision_cargo_deny
+  export LEGION_CARGO_DENY_TOOLCHAIN_BIN="$(rustc --print sysroot)/bin"
+  export LEGION_CARGO_DENY_BIN="${cargo_deny_tool_dir}/cargo-deny"
+  export LEGION_CARGO_DENY_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/cargo-deny"
+  mkdir -p "$LEGION_CARGO_DENY_RECEIPTS"
+  run_audit_qualification audit_cargo_test --test cargo_deny_accuracy real_cargo_deny_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_CARGO_DENY_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_CARGO_DENY_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-cargo-deny-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_CARGO_DENY_RECEIPTS" \
+    > "$LEGION_CARGO_DENY_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_CARGO_DENY_RECEIPTS/validator.log"
+  unset LEGION_CARGO_DENY_BIN LEGION_CARGO_DENY_RECEIPTS LEGION_CARGO_DENY_TOOLCHAIN_BIN
+
   unset LEGION_REAL_LINTER_SCRATCH
   unset LEGION_REAL_GIT_SCRATCH
   unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR
@@ -641,6 +943,29 @@ for key, cases in behavior_groups:
 
 print("deterministic audit-behavior selected-provider A/A × 2 assertions passed")
 PY
+fi
+
+# npm completion controls use shared pinned CI Node/npm; audited fixtures are never installed.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  export LEGION_NODE_OUTDATED_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/node-outdated"
+  export LEGION_NODE_OUTDATED_PROVISION="$LEGION_NODE_OUTDATED_RECEIPTS/provision.json"
+  mkdir -p "$LEGION_NODE_OUTDATED_RECEIPTS"
+  if python3 scripts/ci/provision-audit-node-outdated.py --root "$GITHUB_WORKSPACE" \
+    --receipts "$LEGION_NODE_OUTDATED_RECEIPTS"; then
+    while IFS= read -r audit_npm_runtime; do
+      export "$audit_npm_runtime"
+    done < "$LEGION_NODE_OUTDATED_RECEIPTS/runtime.env"
+    run_audit_qualification audit_cargo_test --test node_outdated_accuracy real_node_outdated_accuracy \
+      -- --ignored --exact --nocapture --test-threads=1 \
+      > "$LEGION_NODE_OUTDATED_RECEIPTS/harness.log" 2>&1
+    cat "$LEGION_NODE_OUTDATED_RECEIPTS/harness.log"
+    run_audit_qualification python3 scripts/ci/audit-node-outdated-accuracy.py --root "$GITHUB_WORKSPACE" \
+      --receipts "$LEGION_NODE_OUTDATED_RECEIPTS"
+  else
+    audit_node_status=$?
+    audit_qualification_failures=$((audit_qualification_failures + 1))
+    printf '::error::npm outdated runtime binding failed (exit %s).\n' "$audit_node_status" >&2
+  fi
 fi
 
 if (( workspace_failures != 0 || audit_qualification_failures != 0 )); then

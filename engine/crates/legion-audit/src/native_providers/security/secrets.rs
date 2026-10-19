@@ -102,7 +102,7 @@ pub fn normalize_finding(
     let secret_digest = valid_digest(digest_value)
         .then(|| digest_value.cloned().unwrap_or(Value::Null))
         .unwrap_or(Value::Null);
-    json!({"schemaVersion":1,"kind":"legion-secret-finding","provider":provider.unwrap_or("secrets.gitleaks"),"providerVersion":provider_version.unwrap_or("8.18.0"),"ruleId":rule.cloned().unwrap_or_else(|| Value::String("secret.unknown".into())),"file":file.cloned().unwrap_or(Value::Null),"line":line,"endLine":end_line,"secretType":rule.cloned().unwrap_or(Value::Null),"secretDigest":secret_digest,"match":if finding.get("Match").is_some_and(|v| !v.is_null()) {Value::String(REDACTED.into())} else {Value::Null},"commit":finding.get("Commit").or_else(|| finding.get("commit")).cloned().unwrap_or(Value::Null),"mode":mode,"validity":finding.get("Validity").or_else(|| finding.get("validity")).and_then(Value::as_str).unwrap_or("unproven"),"classification":finding.get("Classification").or_else(|| finding.get("classification")).and_then(Value::as_str).unwrap_or("unproven"),"evidenceRefs":[]})
+    json!({"schemaVersion":1,"kind":"legion-secret-finding","provider":provider.unwrap_or("secrets.gitleaks"),"providerVersion":provider_version.unwrap_or("8.18.0"),"ruleId":rule.cloned().unwrap_or_else(|| Value::String("secret.unknown".into())),"file":file.cloned().unwrap_or(Value::Null),"line":line,"endLine":end_line,"secretType":rule.cloned().unwrap_or(Value::Null),"secretDigest":secret_digest,"match":if finding.get("Match").is_some_and(|v| !v.is_null()) {Value::String(REDACTED.into())} else {Value::Null},"commit":finding.get("Commit").or_else(|| finding.get("commit")).cloned().unwrap_or(Value::Null),"mode":finding.get("Mode").or_else(||finding.get("mode")).and_then(Value::as_str).unwrap_or(mode),"blobOid":finding.get("BlobOid").or_else(||finding.get("blobOid")).cloned().unwrap_or(Value::Null),"blobDigest":finding.get("BlobDigest").or_else(||finding.get("blobDigest")).cloned().unwrap_or(Value::Null),"historyManifestDigest":finding.get("HistoryManifestDigest").or_else(||finding.get("historyManifestDigest")).cloned().unwrap_or(Value::Null),"validity":finding.get("Validity").or_else(|| finding.get("validity")).and_then(Value::as_str).unwrap_or("unproven"),"classification":finding.get("Classification").or_else(|| finding.get("classification")).and_then(Value::as_str).unwrap_or("unproven"),"evidenceRefs":[]})
 }
 
 pub fn denominator_receipt(input: &Value) -> Value {
@@ -129,7 +129,6 @@ pub fn analyze(input: &Value) -> Value {
         "ignoredFiles",
         "generatedFiles",
         "releaseArtifacts",
-        "historyRefs",
     ]
     .iter()
     .map(|field| receipt.get(field).and_then(Value::as_u64).unwrap_or(0))
@@ -142,21 +141,90 @@ pub fn analyze(input: &Value) -> Value {
     // This provider promises current files plus history. A current-tree scan
     // can retain useful findings, but file counts (or merely counted refs)
     // cannot attest that commit history was examined.
-    let history_examined = matches!(mode, "history" | "current-history")
-        && receipt
-            .get("historyRefs")
-            .and_then(Value::as_u64)
-            .unwrap_or(0)
-            > 0
-        && matches!(
-            evidence.get("scope").and_then(Value::as_str),
-            Some("history" | "current-history")
-        )
-        && input
-            .get("producer")
-            .and_then(|p| p.get("scope"))
-            .and_then(Value::as_str)
-            != Some("current-tree");
+    let proof = evidence.get("historyProof").unwrap_or(&Value::Null);
+    let manifest = super::history::validate_manifest(proof);
+    let current = evidence.get("currentManifest").and_then(Value::as_object);
+    let projected: std::collections::BTreeSet<_> = input
+        .pointer("/projection/files")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|row| row.get("path").and_then(Value::as_str))
+        .collect();
+    let current_valid = manifest.as_ref().is_some_and(|manifest| {
+        current.is_some_and(|current| {
+            current.len() == manifest.current.len()
+                && current.iter().all(|(path, hash)| {
+                    hash.as_str() == manifest.current.get(path).map(String::as_str)
+                })
+        }) && projected.len() == manifest.current.len()
+            && projected
+                .iter()
+                .all(|path| manifest.current.contains_key(*path))
+            && expected == manifest.current.len() as u64
+            && input
+                .pointer("/plan/binding/digest")
+                .and_then(Value::as_str)
+                == Some(manifest.inventory_digest.as_str())
+    });
+    let passes = evidence.get("passes").and_then(Value::as_array);
+    let receipt_valid = passes.is_some_and(|passes| {
+        passes.len() == 2
+            && passes.iter().all(|pass| {
+                pass.get("complete").and_then(Value::as_bool) == Some(true)
+                    && pass.get("state").and_then(Value::as_str) == Some("completed")
+                    && pass
+                        .get("exitCode")
+                        .and_then(Value::as_i64)
+                        .is_some_and(|exit| matches!(exit, 0 | 10))
+                    && valid_digest(pass.get("executableDigest"))
+                    && valid_digest(pass.get("stdoutDigest"))
+                    && valid_digest(pass.get("stderrDigest"))
+                    && pass
+                        .get("stdoutBytes")
+                        .and_then(Value::as_u64)
+                        .is_some_and(|bytes| bytes > 0)
+                    && pass
+                        .get("receiptId")
+                        .and_then(Value::as_str)
+                        .is_some_and(|id| !id.is_empty())
+            })
+            && passes[0].get("receiptId") != passes[1].get("receiptId")
+            && passes[0].get("executableDigest") == passes[1].get("executableDigest")
+            && passes[0].get("version") == passes[1].get("version")
+            && passes[0]
+                .get("argv")
+                .and_then(Value::as_array)
+                .and_then(|argv| argv.get(1))
+                .and_then(Value::as_str)
+                == Some("dir")
+            && passes[1]
+                .get("argv")
+                .and_then(Value::as_array)
+                .and_then(|argv| argv.get(1))
+                .and_then(Value::as_str)
+                == Some("git")
+    });
+    let history_examined = matches!(mode, "current-history")
+        && current_valid
+        && receipt_valid
+        && manifest.as_ref().is_some_and(|manifest| {
+            receipt.get("historyRefs").and_then(Value::as_u64) == Some(manifest.tips.len() as u64)
+        })
+        && evidence.get("scope").and_then(Value::as_str) == Some("current-history")
+        && input.pointer("/producer/scope").and_then(Value::as_str) == Some("current-history");
+    if !current_valid {
+        gaps.push(json!({"kind":"secret-current-manifest-invalid"}));
+    }
+    if !receipt_valid {
+        gaps.push(json!({"kind":"secret-scanner-passes-invalid"}));
+    }
+    if findings.iter().any(|finding| {
+        finding.get("mode").and_then(Value::as_str) == Some("history")
+            && !super::history::historical_anchor(finding, proof)
+    }) {
+        gaps.push(json!({"kind":"secret-historical-anchor-invalid"}));
+    }
     if !history_examined {
         gaps.push(json!({"kind":"secret-history-not-examined"}));
     }
@@ -177,7 +245,7 @@ pub fn analyze(input: &Value) -> Value {
             json!({"kind":"secret-denominator-mismatch","expected":expected,"examined":examined}),
         );
     }
-    json!({"status":if !gaps.is_empty(){"unproven"}else if !findings.is_empty(){"fail"}else{"pass"},"complete":gaps.is_empty(),"denominator":{"kind":"secret-scope","expected":expected,"examined":examined},"findings":findings,"coverageGaps":gaps})
+    json!({"status":if !gaps.is_empty(){"unproven"}else if !findings.is_empty(){"fail"}else{"pass"},"complete":gaps.is_empty(),"denominator":{"kind":"secret-scope","expected":expected,"examined":examined},"findings":findings,"coverageGaps":gaps,"sourceCoverage":{"validatedPaths":if current_valid {projected.iter().copied().collect::<Vec<_>>()}else{Vec::new()},"currentComplete":current_valid,"historyComplete":history_examined},"historyProof":proof})
 }
 
 #[cfg(test)]
@@ -207,12 +275,11 @@ mod tests {
     }
 
     #[test]
-    fn explicit_history_evidence_with_reconciled_counts_can_complete() {
+    fn counted_refs_without_frozen_manifest_cannot_complete() {
         let result = analyze(&history_input());
-        assert_eq!(result["complete"], true, "{result}");
-        assert_eq!(result["status"], "pass");
-        assert_eq!(result["denominator"]["expected"], 3);
-        assert_eq!(result["denominator"]["examined"], 3);
+        assert_eq!(result["complete"], false, "{result}");
+        assert_eq!(result["status"], "unproven");
+        assert_eq!(result["denominator"]["expected"], 2);
     }
 
     #[test]

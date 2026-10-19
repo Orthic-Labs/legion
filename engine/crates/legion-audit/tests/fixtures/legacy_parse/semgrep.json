@@ -1,1 +1,1 @@
-{"results":[{"check_id":"generic.secrets.security.detected-private-key","path":"src/key.ts","start":{"line":4}}],"errors":[]}
+{"version":"1.141.0","results":[{"check_id":"legion-command-injection-shell","path":"src/key.ts","start":{"line":4}}],"errors":[],"paths":{"scanned":["src/key.ts"],"skipped":[]},"skipped_rules":[]}

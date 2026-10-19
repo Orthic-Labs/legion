@@ -181,6 +181,10 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
         env.insert(name.into(), run.join(path).to_string_lossy().into_owned());
         allowed.insert(name.into());
     }
+    env.insert("PYTHONNOUSERSITE".into(), "1".into());
+    env.insert("GIT_CONFIG_NOSYSTEM".into(), "1".into());
+    allowed.insert("PYTHONNOUSERSITE".into());
+    allowed.insert("GIT_CONFIG_NOSYSTEM".into());
     env.insert("PYTHONDONTWRITEBYTECODE".into(), "1".into());
     allowed.insert("PYTHONDONTWRITEBYTECODE".into());
     (env, allowed)
@@ -375,7 +379,11 @@ fn fixture_contents(id: &str, positive: bool) -> (&'static str, &'static str) {
 
 fn expected_args(id: &str) -> (&'static str, &'static str, &'static [&'static str]) {
     match id {
-        ACTIONLINT => ("actionlint", "ci_lint", &["-format", "{{json .}}"]),
+        ACTIONLINT => (
+            "actionlint",
+            "ci_lint",
+            &["-format", "{{json .}}", "--", "./.github/workflows/ci.yml"],
+        ),
         HADOLINT => ("hadolint", "docker", &["--format", "json", "Dockerfile"]),
         SWIFTLINT => (
             "swiftlint",
@@ -470,15 +478,71 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
     native.legacy_checks = native
         .legacy_checks
         .with_fixture_policy_authorizer(policy.clone());
-    let report = tokio::runtime::Runtime::new()
+    let execution = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(execute_with_cancellation(
             &frozen,
             &inventory,
             &native,
             tokio_util::sync::CancellationToken::new(),
-        ))
-        .unwrap();
+        ));
+    eprintln!(
+        "LEGACY_LINTER_NATIVE_EXECUTION_DIAGNOSTIC {}",
+        serde_json::to_string(&json!({
+        "caseId":case_id,"execution":execution.as_ref().ok(),
+        "executionError":execution.as_ref().err().map(ToString::to_string)}))
+        .unwrap()
+    );
+    let report = execution.unwrap();
+    // Capture every actual result & original immutable stream before asserting
+    // successful completion; failed native tools must remain diagnosable.
+    let diagnostic_results: Vec<Value> = report.results.iter().map(|entry| {
+        let receipt = &entry.result.details["executionReceipt"];
+        let streams: BTreeMap<_, _> = ["stdout", "stderr"].into_iter().map(|stream| {
+            let item = &receipt[stream];
+            let raw = item["path"].as_str().and_then(|path| fs::read(scratch.artifacts_dir().join(path)).ok());
+            (stream, json!({"artifact":item,"raw":raw.as_ref().and_then(|b| std::str::from_utf8(b).ok()),
+                "rawBytes":raw.as_ref(),"actualDigest":raw.as_ref().map(|b| digest(b))}))
+        }).collect();
+        json!({"provider":entry.provider,"actualProviderResult":entry.result,"streams":streams})
+    }).collect();
+    let diagnostic = json!({"schema":"legion-native-linter-diagnostic/1","caseId":case_id,
+        "execution":report,"results":diagnostic_results,"policyDecisions":*policy.decisions.lock().unwrap()});
+    let diagnostic_bytes = serde_json::to_vec(&diagnostic).unwrap();
+    eprintln!(
+        "LEGACY_LINTER_NATIVE_CASE_DIAGNOSTIC {}",
+        serde_json::to_string(&diagnostic).unwrap()
+    );
+    let retained_diagnostic = if let Some(directory) =
+        std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR")
+    {
+        let directory = PathBuf::from(directory).join("native-diagnostics");
+        fs::create_dir_all(&directory).unwrap();
+        let filename = format!(
+            "native-diagnostic-{}.json",
+            digest(&diagnostic_bytes).trim_start_matches("sha256:")
+        );
+        let retained = legion_effects::ArtifactWriter::new(&directory)
+            .write_immutable(&filename, &diagnostic_bytes)
+            .unwrap();
+        assert_eq!(
+            fs::read(directory.join(&retained.path)).unwrap(),
+            diagnostic_bytes
+        );
+        assert!(retained.immutable);
+        assert_eq!(retained.digest, digest(&diagnostic_bytes));
+        assert_eq!(retained.bytes, diagnostic_bytes.len());
+        let item = json!({"path":directory.join(retained.path),"digest":retained.digest,"bytes":retained.bytes,
+            "qualificationEligible":false});
+        eprintln!(
+            "REAL_LINTER_DIAGNOSTIC_ARTIFACT {}",
+            serde_json::to_string(&item).unwrap()
+        );
+        item
+    } else {
+        Value::Null
+    };
+    fs::write(run.join("native-case-diagnostic.json"), &diagnostic_bytes).unwrap();
     assert_eq!(report.planned_providers, vec![id]);
     assert_eq!(report.results.len(), 1);
     let result = &report.results[0].result;
@@ -715,6 +779,7 @@ fn case(base: &Path, id: &str, positive: bool) -> Value {
     );
     json!({
         "caseId":case_id,
+        "nativeDiagnostic":{"diagnostic":diagnostic,"retainedArtifact":retained_diagnostic,"rawBytes":diagnostic_bytes},
         "outputKind":if id == SWIFTLINT {"findings"} else {"candidates"},
         "control":if positive {"positive"} else {"absence"},
         "fixtureFiles":{(path):source},

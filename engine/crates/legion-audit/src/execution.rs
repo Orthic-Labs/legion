@@ -828,7 +828,27 @@ fn validate_result(
                 .map(|(path, _)| path)
                 .unwrap_or(location)
                 .replace('\\', "/");
-            if !denominator.paths.contains(&path) {
+            let historical = provider.id == "secrets.current-history"
+                && evidence.get("mode").and_then(Value::as_str) == Some("history")
+                && evidence.get("path").and_then(Value::as_str) == Some(path.as_str())
+                && evidence
+                    .get("line")
+                    .and_then(Value::as_u64)
+                    .is_some_and(|line| location == format!("{path}:{line}"))
+                && result
+                    .details
+                    .get("analysis")
+                    .and_then(|analysis| analysis.get("historyProof"))
+                    .is_some_and(|proof| {
+                        crate::native_providers::security::history::live_anchor(evidence, proof)
+                    });
+            if evidence.get("mode").and_then(Value::as_str) == Some("history") && !historical {
+                return Err(format!(
+                    "finding {} historical source proof is invalid",
+                    finding.id
+                ));
+            }
+            if !denominator.paths.contains(&path) && !historical {
                 return Err(format!(
                     "finding {} location is outside frozen selector denominator: {path}",
                     finding.id

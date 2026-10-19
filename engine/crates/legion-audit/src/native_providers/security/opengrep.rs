@@ -147,8 +147,6 @@ pub fn command_contract(
         json_path.into(),
         "--sarif-output".into(),
         sarif_path.into(),
-        "--metrics".into(),
-        "off".into(),
         "--disable-version-check".into(),
         "-f".into(),
         rules_path.into(),
