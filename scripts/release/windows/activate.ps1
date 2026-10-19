@@ -8,14 +8,15 @@ $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid Legion version' }
 $currentPath = Join-Path $rootPath 'current'
 $payloadPath = Join-Path $rootPath ('.next-version-' + $Version)
-$backupPath = Join-Path $rootPath 'current.previous'
-$savedPreviousPath = Join-Path $rootPath '.next-previous'
-$legacyCodexSnapshotRoot = Join-Path $rootPath '.rollback-codex'
+$transactionRoot = Join-Path $PSScriptRoot ('legion-activation-' + [Guid]::NewGuid().ToString('N'))
+$backupPath = Join-Path $transactionRoot 'current'
+$legacyCodexSnapshotRoot = Join-Path $transactionRoot 'codex'
+$retiredCodexSnapshotRoot = Join-Path $rootPath '.rollback-codex'
 $eventLog = if ($env:LEGION_INSTALL_EVENT_LOG) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_EVENT_LOG) } else { Join-Path $rootPath 'install-events.jsonl' }
 if ($env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS -match '^\d+$') {
   $ChildTimeoutSeconds = [Math]::Max(1, [Math]::Min(600, [int]$env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS))
 }
-foreach ($path in @($currentPath, $payloadPath, $backupPath, $savedPreviousPath, $legacyCodexSnapshotRoot)) {
+foreach ($path in @($currentPath, $payloadPath, $retiredCodexSnapshotRoot)) {
   if (-not [IO.Path]::GetFullPath($path).StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Activation path escaped install root' }
 }
 if (-not [IO.Path]::IsPathRooted($eventLog)) { throw 'Activation event log must be absolute' }
@@ -39,8 +40,8 @@ function Get-BinaryHash([string]$Path) {
   finally { $hasher.Dispose(); $stream.Dispose() }
 }
 function Remove-InstallTree([string]$Path) {
-  $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-  if ($null -eq $item) { return }
+  try { $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop }
+  catch [System.Management.Automation.ItemNotFoundException] { return }
   if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
     # Delete only the junction, never its target (legacy current points into versions).
     [IO.Directory]::Delete($Path)
@@ -57,15 +58,32 @@ function Get-PayloadDigests([string]$Path, [bool]$AllowRootLink = $false) {
 }
 function Save-CurrentPayload([string]$Current, [string]$Backup) {
   $owned = Get-OwnedPayload $Current (Split-Path -Parent $Current) $true
-  $item = Get-Item -LiteralPath $Current -Force
+  # Installer temp may be on another volume; verify a complete copy before removal.
+  try {
+    Copy-Item -LiteralPath $owned.root -Destination $Backup -Recurse -Force
+    Assert-PayloadDigests $Backup $owned.digests
+  } catch { Remove-InstallTree $Backup; throw }
+}
+function Remove-RetiredHistoryTree([string]$Path) {
+  try { $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop }
+  catch [System.Management.Automation.ItemNotFoundException] { return }
+  # Never follow junctions or symlinks, including links nested in retired history.
   if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-    try {
-      Copy-Item -LiteralPath $owned.root -Destination $Backup -Recurse
-      # Check copied bytes without executing from the backup path.
-      Assert-PayloadDigests $Backup $owned.digests
-      Remove-InstallTree $Current
-    } catch { Remove-InstallTree $Backup; throw }
-  } else { Move-Item -LiteralPath $Current -Destination $Backup }
+    if ($item.PSIsContainer) { [IO.Directory]::Delete($Path) } else { [IO.File]::Delete($Path) }
+  } elseif ($item.PSIsContainer) {
+    foreach ($child in Get-ChildItem -LiteralPath $Path -Force) { Remove-RetiredHistoryTree $child.FullName }
+    [IO.Directory]::Delete($Path)
+  } else { Remove-Item -LiteralPath $Path -Force -ErrorAction Stop }
+}
+function Remove-InstalledHistory([string]$ProductRoot) {
+  Assert-RealAncestors $ProductRoot
+  $retiredNames = @('current.previous', '.next-previous', 'versions')
+  foreach ($name in $retiredNames) {
+    Remove-RetiredHistoryTree (Join-Path $ProductRoot $name)
+  }
+  foreach ($item in Get-ChildItem -LiteralPath $ProductRoot -Force) {
+    if ($retiredNames -contains $item.Name) { throw "Historical payload remains after cleanup: $($item.FullName)" }
+  }
 }
 function Assert-PayloadDigests([string]$Path, $Digests) {
   $actual = Get-PayloadDigests $Path
@@ -255,25 +273,20 @@ function Sync-PackagedLocalCacheMirrors([string]$CurrentPath, [System.Collection
     if (-not (Test-Path -LiteralPath $mirrorProductRoot -PathType Container)) { continue }
     $mirrorCurrent = Join-Path $mirrorProductRoot 'current'
     $stagePath = Join-Path $mirrorProductRoot ('.next-current-' + [Guid]::NewGuid().ToString('N'))
-    $backupPath = Join-Path $mirrorProductRoot 'current.previous'
-    $savedPrevious = Join-Path $mirrorProductRoot '.next-previous'
-    $transaction = [pscustomobject]@{current=$mirrorCurrent;stage=$stagePath;backup=$backupPath;savedPrevious=$savedPrevious;previousSaved=$false;backupCreated=$false;replacementCreated=$false}
+    $backupPath = Join-Path $transactionRoot ('mirror-' + [Guid]::NewGuid().ToString('N'))
+    $transaction = [pscustomobject]@{root=$mirrorProductRoot;current=$mirrorCurrent;stage=$stagePath;backup=$backupPath;backupCreated=$false;replacementCreated=$false}
     $Transactions.Add($transaction) | Out-Null
     try {
       Write-InstallEvent 'localcache-mirror' 'started' $mirrorCurrent
       Assert-RealAncestors $mirrorProductRoot
-      Assert-NoRecoveryRoot $savedPrevious
       $priorMirror = if (Test-Path -LiteralPath $mirrorCurrent) { Get-OwnedPayload $mirrorCurrent $mirrorProductRoot $true } else { $null }
-      if (Test-Path -LiteralPath $backupPath) { $null = Get-OwnedPayload $backupPath $mirrorProductRoot }
       Copy-Item -LiteralPath $CurrentPath -Destination $stagePath -Recurse
       Assert-PayloadDigests $stagePath (Get-PayloadDigests $CurrentPath)
-      if (Test-Path -LiteralPath $backupPath) {
-        Move-Item -LiteralPath $backupPath -Destination $savedPrevious
-        $transaction.previousSaved = $true
-      }
       if (Test-Path -LiteralPath $mirrorCurrent) {
         Save-CurrentPayload $mirrorCurrent $backupPath
         $transaction.backupCreated = $true
+        $transaction.replacementCreated = $true
+        Remove-InstallTree $mirrorCurrent
       }
       Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
       $transaction.replacementCreated = $true
@@ -292,17 +305,15 @@ function Restore-PackagedLocalCacheMirrors([System.Collections.Generic.List[obje
     Remove-InstallTree $transaction.stage
     if ($transaction.backupCreated) {
       if (-not (Test-Path -LiteralPath $transaction.backup)) { throw 'Packaged LocalCache prior payload disappeared during rollback' }
-      Move-Item -LiteralPath $transaction.backup -Destination $transaction.current -ErrorAction Stop
-    }
-    if ($transaction.previousSaved) {
-      Move-Item -LiteralPath $transaction.savedPrevious -Destination $transaction.backup -ErrorAction Stop
+      Copy-Item -LiteralPath $transaction.backup -Destination $transaction.current -Recurse -Force -ErrorAction Stop
+      Assert-PayloadDigests $transaction.current (Get-PayloadDigests $transaction.backup)
     }
   }
 }
 function Commit-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
   foreach ($transaction in $Transactions) {
     Remove-InstallTree $transaction.stage
-    Remove-InstallTree $transaction.savedPrevious
+    Remove-InstalledHistory $transaction.root
   }
 }
 function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
@@ -365,8 +376,8 @@ $priorRuntimeVersion = $null
 $priorRuntimeHash = $null
 $priorPayload = $null
 $currentBackupCreated = $false
-$previousSaved = $false
 $currentReplaced = $false
+$activationCommitted = $false
 $mirrorTransactions = [System.Collections.Generic.List[object]]::new()
 $legacyCodexSnapshot = $null
 $codexDisabledIntent = $null
@@ -385,28 +396,28 @@ try {
   $payloadDigests = $stagedPayload.digests
   $payloadOwned = $true
   if ($env:LEGION_INSTALL_TEST_MODE -eq 'staged-validation-failure') { throw 'Forced staged payload validation failure' }
-  Assert-NoRecoveryRoot $savedPreviousPath
-  Assert-NoRecoveryRoot $legacyCodexSnapshotRoot
+  Assert-NoRecoveryRoot $retiredCodexSnapshotRoot
+  Assert-RealAncestors $PSScriptRoot
+  if ($transactionRoot.StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Installer temporary storage must be outside install root' }
+  Assert-NoRecoveryRoot $transactionRoot
   if ($hadCurrent) {
     $priorPayload = Get-OwnedPayload $currentPath $rootPath $true
     $priorRuntimeVersion = $priorPayload.version
     $priorRuntimeHash = $priorPayload.runtimeHash
     $priorSupportsNativeMarketplace = $null -ne $priorPayload.release.nativeMarketplaces
   }
-  if (Test-Path -LiteralPath $backupPath) { $null = Get-OwnedPayload $backupPath $rootPath }
   $hostHome = if ($env:USERPROFILE) { [IO.Path]::GetFullPath($env:USERPROFILE) } else { [Environment]::GetFolderPath('UserProfile') }
   $stateRoot = if ($env:LEGION_STATE_ROOT) { [IO.Path]::GetFullPath($env:LEGION_STATE_ROOT) } else { Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Legion' }
   $codexDisabledIntent = Get-CodexDisabledIntent $hostHome
   $priorCodexProjection = Get-LegacyCodexProjection $stateRoot $hostHome $rootPath
+  New-Item -ItemType Directory -Path $transactionRoot | Out-Null
   $legacyCodexSnapshot = Save-LegacyCodexProjection $priorCodexProjection $legacyCodexSnapshotRoot
-  if (Test-Path -LiteralPath $backupPath) {
-    Move-Item -LiteralPath $backupPath -Destination $savedPreviousPath
-    $previousSaved = $true
-  }
   if ($hadCurrent) {
     # Materialize legacy junctions so rollback restores a real current folder.
     Save-CurrentPayload $currentPath $backupPath
     $currentBackupCreated = $true
+    $currentReplaced = $true
+    Remove-InstallTree $currentPath
   }
   Move-Item -LiteralPath $payloadPath -Destination $currentPath
   $currentReplaced = $true
@@ -426,25 +437,23 @@ try {
   }
   Sync-PackagedLocalCacheMirrors $currentPath $mirrorTransactions
   Assert-PayloadDigests $currentPath $payloadDigests
-  # Retire only the validated target consumed by this migration, never its siblings.
-  if ($priorPayload -and $priorPayload.legacyTarget) {
-    Assert-PayloadDigests $priorPayload.legacyTarget $priorPayload.digests
-    Remove-InstallTree $priorPayload.legacyTarget
-    $versionsRoot = Split-Path -Parent $priorPayload.legacyTarget
-    if (@(Get-ChildItem -LiteralPath $versionsRoot -Force).Count -eq 0) { [IO.Directory]::Delete($versionsRoot) }
-  }
   # Set the rollback obligation before any write can truncate prior evidence.
   $receiptMutationAttempted = $true
-  [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$currentPath;previous=$(if ($hadCurrent) { $backupPath } else { $null });refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
-  Write-InstallEvent 'activation' 'complete' "version=$Version"
-  # Activation is committed; cleanup failures must not attempt a partial rollback.
-  foreach ($cleanup in @($savedPreviousPath,$legacyCodexSnapshotRoot)) {
-    try { Remove-InstallTree $cleanup } catch { Write-InstallEvent 'cleanup' 'failed' ([string]$_.Exception.Message) }
-  }
-  try { Commit-PackagedLocalCacheMirrors $mirrorTransactions }
-  catch { Write-InstallEvent 'cleanup' 'failed' ([string]$_.Exception.Message) }
+  [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$currentPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
+  # New current & registrations are committed before deleting any historical bytes.
+  # Cleanup failures report failure while preserving committed current; rollback is unsafe now.
+  $activationCommitted = $true
+  Remove-InstalledHistory $rootPath
+  Commit-PackagedLocalCacheMirrors $mirrorTransactions
+  Remove-InstallTree $transactionRoot
+  Write-InstallEvent 'activation' 'complete' "version=$Version; prior payloads removed"
 } catch {
   $activationError = ($_ | Out-String).Trim()
+  if ($activationCommitted) {
+    Write-InstallEvent 'cleanup' 'failed' $activationError
+    Write-InstallEvent 'activation' 'failed' 'current committed; retained payload cleanup incomplete'
+    throw "Activation committed but cleanup failed: $activationError"
+  }
   $rollbackIssues = [System.Collections.Generic.List[string]]::new()
   try { Restore-PackagedLocalCacheMirrors $mirrorTransactions }
   catch { $rollbackIssues.Add("restore packaged mirrors: $(($_ | Out-String).Trim())") | Out-Null }
@@ -481,7 +490,7 @@ try {
   if ($currentBackupCreated -and -not (Test-Path -LiteralPath $currentPath) -and (Test-Path -LiteralPath $backupPath)) {
     try {
       if (Test-Path -LiteralPath $currentPath) { throw 'Candidate current still occupies restore destination' }
-      Move-Item -LiteralPath $backupPath -Destination $currentPath -ErrorAction Stop
+      Copy-Item -LiteralPath $backupPath -Destination $currentPath -Recurse -Force -ErrorAction Stop
       Assert-PayloadDigests $currentPath $priorPayload.digests
       $restoredBinary = Join-Path $currentPath 'bin\legion.exe'
       if (-not (Test-Path -LiteralPath $restoredBinary -PathType Leaf)) { throw 'Restored current executable missing' }
@@ -497,12 +506,7 @@ try {
     } catch { $rollbackIssues.Add("restore prior current identity: $(($_ | Out-String).Trim())") | Out-Null }
   }
   if ($currentBackupCreated -and -not $currentRestored -and $rollbackIssues.Count -eq 0) {
-    $rollbackIssues.Add('Prior current payload could not be restored from current.previous') | Out-Null
-  }
-  if ($previousSaved -and -not (Test-Path -LiteralPath $backupPath)) {
-    try {
-      Move-Item -LiteralPath $savedPreviousPath -Destination $backupPath -ErrorAction Stop
-    } catch { $rollbackIssues.Add("restore previous backup: $(($_ | Out-String).Trim())") | Out-Null }
+    $rollbackIssues.Add('Prior current payload could not be restored from installer temporary storage') | Out-Null
   }
   if ($currentRestored -and $legacyCodexSnapshot) {
     try { Restore-LegacyCodexProjection $legacyCodexSnapshot }
@@ -529,7 +533,7 @@ try {
     } catch { $rollbackIssues.Add("restore prior activation receipt: $(($_ | Out-String).Trim())") | Out-Null }
   }
   if ($rollbackIssues.Count -eq 0) {
-    if ($legacyCodexSnapshot) { Remove-InstallTree $legacyCodexSnapshotRoot }
+    Remove-InstallTree $transactionRoot
   }
   Write-InstallEvent 'activation' 'failed' $activationError
   $rollbackDetail = if ($rollbackIssues.Count) { 'rollback issues: ' + ($rollbackIssues -join '; ') } elseif ($hadCurrent) { 'previous current and native registrations restored' } else { 'new current and native registrations removed' }

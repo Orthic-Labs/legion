@@ -1,4 +1,4 @@
-//! Integration-journal, previous-pointer, and receipt writers ported from
+//! Integration-journal & receipt writers ported from
 //! `qualify-windows-release.mjs`.
 
 use std::fs;
@@ -13,7 +13,7 @@ use crate::windows_release_support::{has_forbidden_binding_segment, read_json};
 pub struct IntegrationJournalInput<'a> {
     pub state_root: &'a Path,
     pub current_path: &'a Path,
-    pub previous_path: &'a Path,
+    pub previous_path: Option<&'a Path>,
     pub active_version_root: &'a Path,
     pub prior_version_root: Option<&'a Path>,
     pub target_version: &'a str,
@@ -95,14 +95,6 @@ pub fn write_integration_journal(path: &Path, record: Value) -> Result<Value, St
     );
     fs::write(path, text).map_err(|e| e.to_string())?;
     read_json(path, "integration journal")
-}
-
-/// Mirrors `writePointer`.
-pub fn write_pointer(path: &Path, target: &Path) -> Result<bool, String> {
-    let text = format!("{}\n", target.display());
-    fs::write(path, &text).map_err(|e| e.to_string())?;
-    let read_back = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    Ok(read_back.trim() == target.to_string_lossy())
 }
 
 /// Mirrors `writeReceipt` (write-to-temp then rename).

@@ -13,20 +13,18 @@ use serde_json::{json, Value};
 
 use crate::windows_release_config::WindowsInstallContract;
 use crate::windows_release_support::{
-    assert_regular_file, assert_source_revision, assert_version, bare_digest, digest_matches,
+    assert_regular_file, assert_source_revision, assert_version, digest_matches,
     has_forbidden_binding_segment, read_json, release_generation, sha256_file, sha256_prefixed,
-    version_root_matches,
 };
 // The JS qualifier's pathsEqual resolved both sides (realpath), unlike the packager's.
 use crate::windows_release_support::canonical_paths_equal as paths_equal;
 
 use super::journal::{
-    integration_journal_record, write_integration_journal, write_pointer, write_receipt,
-    IntegrationJournalInput,
+    integration_journal_record, write_integration_journal, write_receipt, IntegrationJournalInput,
 };
 use super::proofs::{command_environment, resolve_codex_executable, setup_health, CurrentRelease};
 use super::tree::{
-    assert_directory, assert_extracted_tree, assert_inside, atomic_replace_product, copy_tree,
+    assert_directory, assert_extracted_tree, assert_inside, atomic_replace_product,
     extract_with_native_windows_tar, is_same_or_inside, native_tool, next_run_sequence,
     remove_exact, tree_digest, CommandOptions, CommandOutcome,
 };
@@ -95,9 +93,7 @@ fn compare_versions(left: &str, right: &str) -> i64 {
 struct StablePaths {
     root: PathBuf,
     current: PathBuf,
-    previous: PathBuf,
     next: PathBuf,
-    versions: PathBuf,
     journal: PathBuf,
     executable: PathBuf,
 }
@@ -106,9 +102,7 @@ fn stable_install_paths(install_root: &Path) -> StablePaths {
     let root = install_root.to_path_buf();
     StablePaths {
         current: root.join(WindowsInstallContract::STABLE_CURRENT_NAME),
-        previous: root.join(WindowsInstallContract::PREVIOUS_CURRENT_NAME),
         next: root.join(WindowsInstallContract::NEXT_CURRENT_NAME),
-        versions: root.join("versions"),
         journal: root.join(WindowsInstallContract::INTEGRATION_JOURNAL_NAME),
         executable: root
             .join(WindowsInstallContract::STABLE_CURRENT_NAME)
@@ -219,26 +213,15 @@ fn validate_product_root(
     release_metadata(root, architecture, label)
 }
 
-/// Mirrors `retainedVersionMatches`.
-fn retained_version_matches(
-    root: Option<&Path>,
-    expected: Option<&ReleaseInfo>,
-    architecture: &str,
-    label: &str,
-) -> bool {
-    match (root, expected) {
-        (Some(root), Some(expected)) => match validate_product_root(root, architecture, label) {
-            Ok(observed) => {
-                observed.release_version == expected.release_version
-                    && digest_matches(
-                        Some(&observed.runtime_sha256),
-                        Some(&expected.runtime_sha256),
-                    )
-            }
-            Err(_) => false,
-        },
-        _ => false,
+fn assert_no_installed_history(root: &Path) -> Result<(), String> {
+    for name in WindowsInstallContract::RETIRED_HISTORY_NAMES {
+        if fs::symlink_metadata(root.join(name)).is_ok() {
+            return Err(format!(
+                "installed product retained historical payload: {name}"
+            ));
+        }
     }
+    Ok(())
 }
 
 /// Mirrors `resolvePathCommand`.
@@ -529,31 +512,23 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
         .iter()
         .fold(PathBuf::from(local_appdata), |acc, part| acc.join(part));
     let stable_paths = assert_stable_install_paths(stable_install_paths(&install_root))?;
-    let versions_root = stable_paths.versions.clone();
     let product_root = stable_paths.current.clone();
-    let previous_pointer = stable_paths.previous.clone();
     let integration_journal_path = stable_paths.journal.clone();
-    for path in [&stable_paths.root, &versions_root] {
-        assert_inside(&run_root, path, "stable user-local install path", &platform)?;
-        assert_directory(path, "stable user-local install directory", true)?;
-    }
-    let current_version_root = versions_root.join(format!(
-        "{}-{}",
-        current.release_version,
-        &bare_digest(&archive_sha256)[..12]
-    ));
-    let prior_version_root = match (&prior, &prior_archive_sha256) {
-        (Some(prior_info), Some(prior_digest)) => Some(versions_root.join(format!(
-            "{}-{}",
-            prior_info.release_version,
-            &bare_digest(prior_digest)[..12]
-        ))),
-        _ => None,
-    };
-    copy_tree(&current_root, &current_version_root, &run_root)?;
-    if let (Some(_), Some(prior_root_target)) = (&prior, &prior_version_root) {
-        copy_tree(&prior_root, prior_root_target, &run_root)?;
-    }
+    assert_inside(
+        &run_root,
+        &stable_paths.root,
+        "stable user-local install path",
+        &platform,
+    )?;
+    assert_directory(
+        &stable_paths.root,
+        "stable user-local install directory",
+        true,
+    )?;
+    // Archive fixtures stay in isolated qualification input roots; installed identity
+    // always resolves to current, with no retained executable generations or pointers.
+    let current_version_root = product_root.clone();
+    let prior_version_root = prior.as_ref().map(|_| product_root.clone());
 
     let mut environment = env.environment.clone();
     let path_value = [
@@ -651,9 +626,9 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
         integration_journal_record(IntegrationJournalInput {
             state_root: &env.state,
             current_path: &product_root,
-            previous_path: &previous_pointer,
+            previous_path: None,
             active_version_root: &current_version_root,
-            prior_version_root: prior_version_root.as_deref(),
+            prior_version_root: None,
             target_version: &current.release_version,
             prior_version: prior.as_ref().map(|p| p.release_version.as_str()),
             state_name: "installed",
@@ -846,8 +821,6 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
             } else {
                 let seed_prior =
                     atomic_replace_product(&prior_root, &product_root, &run_root, None)?;
-                let pointer_written =
-                    seed_prior.success && write_pointer(&previous_pointer, &prior_root_path)?;
                 let seeded_prior_release = CurrentRelease {
                     release_version: &prior_info.release_version,
                     runtime_sha256: &prior_info.runtime_sha256,
@@ -872,9 +845,9 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     integration_journal_record(IntegrationJournalInput {
                         state_root: &env.state,
                         current_path: &product_root,
-                        previous_path: &previous_pointer,
+                        previous_path: None,
                         active_version_root: &prior_root_path,
-                        prior_version_root: Some(&prior_root_path),
+                        prior_version_root: None,
                         target_version: &current.release_version,
                         prior_version: Some(&prior_info.release_version),
                         state_name: "update-pending",
@@ -904,19 +877,8 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                 } else {
                     None
                 };
-                let retained_versions = retained_version_matches(
-                    Some(&current_version_root),
-                    Some(&current),
-                    &normalized_architecture,
-                    "retained current version",
-                ) && retained_version_matches(
-                    prior_version_root.as_deref(),
-                    Some(prior_info),
-                    &normalized_architecture,
-                    "retained prior version",
-                );
+                let no_installed_history = assert_no_installed_history(&install_root).is_ok();
                 let update_pass = seed_prior.success
-                    && pointer_written
                     && prior_health
                         .as_ref()
                         .and_then(|h| h.get("complete"))
@@ -945,15 +907,15 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     && update_attempt.backup_moved
                     && archives_differ
                     && runtimes_differ
-                    && retained_versions;
+                    && no_installed_history;
                 integration_journal = write_integration_journal(
                     &integration_journal_path,
                     integration_journal_record(IntegrationJournalInput {
                         state_root: &env.state,
                         current_path: &product_root,
-                        previous_path: &previous_pointer,
+                        previous_path: None,
                         active_version_root: &current_version_root,
-                        prior_version_root: Some(&prior_root_path),
+                        prior_version_root: None,
                         target_version: &current.release_version,
                         prior_version: Some(&prior_info.release_version),
                         state_name: if update_pass {
@@ -981,7 +943,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                                 "installRoot": install_root,
                                 "generation": current.generation,
                                 "resolvedVersionRoot": current_version_root,
-                                "retainedPriorVersionRoot": prior_root_path,
+                                "noPriorPayloadRetention": no_installed_history,
                                 "integrationJournal": integration_journal_path,
                                 "priorHealthSha256": prior_health.as_ref().and_then(|h| h.get("fingerprint")),
                                 "currentHealthSha256": update_health.as_ref().and_then(|h| h.get("fingerprint")),
@@ -993,13 +955,13 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     } else {
                         failed_gate(
                             "update",
-                            "update must retain prior version, restore integrations, and pass exact setup health",
+                            "update must remove prior payloads, restore integrations, & pass exact setup health",
                             json!({
                                 "seedPrior": seed_prior.success,
                                 "updateAttempt": update_attempt.success,
                                 "priorHealth": prior_health,
                                 "updateHealth": update_health,
-                                "retainedVersions": retained_versions,
+                                "noPriorPayloadRetention": no_installed_history,
                                 "archivesDiffer": archives_differ,
                                 "runtimesDiffer": runtimes_differ,
                                 "priorArchiveSha256": prior_archive_sha256,
@@ -1061,16 +1023,13 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                         .unwrap_or(false)
                     && prior_health.as_ref().and_then(|h| h.get("fingerprint"))
                         == rollback_health.as_ref().and_then(|h| h.get("fingerprint"));
-                let rollback_pointer_restored = previous_pointer.exists()
-                    && fs::read_to_string(&previous_pointer)
-                        .map(|s| s.trim() == prior_root_path.to_string_lossy())
-                        .unwrap_or(false);
+                let rollback_layout_restored = assert_no_installed_history(&install_root).is_ok();
                 let rollback_pass = seed_prior_for_rollback.success
                     && !rollback_attempt.success
                     && rollback_attempt.rolled_back
                     && restored_prior.as_deref() == prior_tree_sha256.as_deref()
                     && restored_prior_health
-                    && rollback_pointer_restored
+                    && rollback_layout_restored
                     && archives_differ
                     && runtimes_differ;
                 integration_journal = write_integration_journal(
@@ -1078,9 +1037,9 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     integration_journal_record(IntegrationJournalInput {
                         state_root: &env.state,
                         current_path: &product_root,
-                        previous_path: &previous_pointer,
+                        previous_path: None,
                         active_version_root: &prior_root_path,
-                        prior_version_root: Some(&prior_root_path),
+                        prior_version_root: None,
                         target_version: &current.release_version,
                         prior_version: Some(&prior_info.release_version),
                         state_name: if rollback_pass {
@@ -1106,8 +1065,6 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                                 "installRoot": install_root,
                                 "generation": prior_info.generation,
                                 "resolvedVersionRoot": prior_root_path,
-                                "previousPointer": previous_pointer,
-                                "retainedPriorVersionRoot": prior_root_path,
                                 "integrationsRestored": true,
                                 "priorHealthRestored": true,
                                 "priorHealthSha256": rollback_health.as_ref().and_then(|h| h.get("fingerprint")),
@@ -1121,7 +1078,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     } else {
                         failed_gate(
                             "rollback",
-                            "failed update must restore pointer, integrations, prior version, and exact prior health",
+                            "failed update must restore current, integrations, & exact prior health without retained history",
                             json!({
                                 "seedPriorForRollback": seed_prior_for_rollback.success,
                                 "rollbackAttempt": rollback_attempt.success,
@@ -1129,7 +1086,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                                 "expectedPrior": prior_tree_sha256,
                                 "priorHealth": prior_health,
                                 "rollbackHealth": rollback_health,
-                                "rollbackPointerRestored": rollback_pointer_restored,
+                                "rollbackLayoutRestored": rollback_layout_restored,
                                 "archivesDiffer": archives_differ,
                                 "runtimesDiffer": runtimes_differ,
                                 "productRoot": product_root,
@@ -1162,9 +1119,9 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
             integration_journal_record(IntegrationJournalInput {
                 state_root: &env.state,
                 current_path: &product_root,
-                previous_path: &previous_pointer,
+                previous_path: None,
                 active_version_root: &current_version_root,
-                prior_version_root: prior_version_root.as_deref(),
+                prior_version_root: None,
                 target_version: &current.release_version,
                 prior_version: prior.as_ref().map(|p| p.release_version.as_str()),
                 state_name: "ready-for-uninstall",
@@ -1183,23 +1140,14 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
     let marker_before = fs::read(&foreign_marker).map_err(|e| e.to_string())?;
     remove_exact(&product_root, &run_root, "product root for uninstall")?;
     let marker_after = fs::read(&foreign_marker).map_err(|e| e.to_string())?;
-    let durable_state_retained = retained_version_matches(
-        Some(&current_version_root),
-        Some(&current),
-        &normalized_architecture,
-        "retained current version",
-    ) && (prior.is_none()
-        || retained_version_matches(
-            prior_version_root.as_deref(),
-            prior.as_ref(),
-            &normalized_architecture,
-            "retained prior version",
-        ))
-        && integration_journal_path.exists()
+    let no_installed_history = assert_no_installed_history(&install_root).is_ok();
+    let durable_state_retained = integration_journal_path.exists()
         && integration_journal.get("kind").and_then(|v| v.as_str())
             == Some("legion-integration-journal");
-    let uninstall_pass =
-        !product_root.exists() && marker_before == marker_after && durable_state_retained;
+    let uninstall_pass = !product_root.exists()
+        && marker_before == marker_after
+        && durable_state_retained
+        && no_installed_history;
     gates.insert(
         "uninstall".to_string(),
         if uninstall_pass {
@@ -1211,8 +1159,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     "foreignMarkerPreserved": true,
                     "foreignMarker": foreign_marker,
                     "durableStateRetained": durable_state_retained,
-                    "retainedCurrentVersionRoot": current_version_root,
-                    "retainedPriorVersionRoot": prior_version_root,
+                    "noPriorPayloadRetention": no_installed_history,
                     "integrationJournal": integration_journal_path,
                 }),
             )
@@ -1268,11 +1215,11 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
             "currentPath": product_root,
             "executable": installed_launcher,
             "generation": current.generation,
-            "previousPath": previous_pointer,
+            "previousPath": null,
             "nextPath": stable_paths.next,
-            "versionsRoot": versions_root,
+            "versionsRoot": null,
             "currentVersionRoot": current_version_root,
-            "priorVersionRoot": prior_version_root,
+            "priorVersionRoot": null,
             "integrationJournal": integration_journal_path,
             "allowDowngrade": allow_downgrade,
         },
@@ -1281,7 +1228,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
             "current": current_health.get("fingerprint"),
             "currentVersionRoot": current_version_root,
             "prior": prior_health.as_ref().and_then(|h| h.get("fingerprint")),
-            "priorVersionRoot": prior_version_root,
+            "priorVersionRoot": null,
             "rollback": rollback_health.as_ref().and_then(|h| h.get("fingerprint")),
             "final": final_health.as_ref().and_then(|h| h.get("fingerprint")),
         },

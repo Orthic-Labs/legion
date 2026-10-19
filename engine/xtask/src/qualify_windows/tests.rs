@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use super::lifecycle::{qualify_windows_release, QualifyWindowsOptions};
 use super::tree::{CommandOptions, CommandOutcome};
+use crate::windows_release_config::WindowsInstallContract;
 use crate::windows_release_support::{sha256_hex, sha256_prefixed};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -154,18 +155,13 @@ fn command_runner(
                 .unwrap()
                 .to_string();
             let install_root = options.cwd.parent().unwrap().to_path_buf();
-            let versions_dir = install_root.join("versions");
-            let active_version_name = fs::read_dir(&versions_dir)
-                .unwrap()
-                .filter_map(|e| e.ok())
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .find(|name| name.starts_with(&format!("{active_version}-")))
-                .expect("version root must be retained");
-            let resolved_manifest_path = versions_dir
-                .join(&active_version_name)
-                .join("share")
-                .join("legion")
-                .join("release.json");
+            for history in WindowsInstallContract::RETIRED_HISTORY_NAMES {
+                assert!(
+                    !install_root.join(history).exists(),
+                    "retained install history: {history}"
+                );
+            }
+            let resolved_manifest_path = options.cwd.join("share/legion/release.json");
 
             if args.first().map(String::as_str) == Some("--version") {
                 return CommandOutcome {
@@ -391,6 +387,15 @@ fn windows_qualification_exercises_native_lifecycle_through_injected_seams() {
     assert_eq!(receipt["installRoot"], receipt["install"]["root"]);
     assert_eq!(receipt["executable"], receipt["install"]["executable"]);
     assert_eq!(receipt["generation"], receipt["install"]["generation"]);
+    assert_eq!(
+        receipt["install"]["currentVersionRoot"],
+        receipt["install"]["currentPath"]
+    );
+    assert!(receipt["install"]["previousPath"].is_null());
+    assert!(receipt["install"]["priorVersionRoot"].is_null());
+    assert!(receipt["install"]["versionsRoot"].is_null());
+    assert!(receipt["integrationJournal"]["previousPath"].is_null());
+    assert!(receipt["integrationJournal"]["switch"]["previousPath"].is_null());
     assert_eq!(
         receipt["integrationJournal"]["kind"],
         "legion-integration-journal"

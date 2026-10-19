@@ -420,8 +420,12 @@ pub fn atomic_replace_product(
         });
     }
     let suffix = format!("{}-{}", std::process::id(), next_run_sequence());
-    let stage = parent.join(format!(".legion-incoming-{suffix}"));
-    let backup = parent.join(format!(".legion-backup-{suffix}"));
+    // Qualification's isolated installer temp owns rollback bytes, never install root.
+    let temporary_root = work_root.join("installer-temp");
+    assert_inside(work_root, &temporary_root, "installer temp", "posix")?;
+    assert_directory(&temporary_root, "installer temp", true)?;
+    let stage = temporary_root.join(format!(".legion-incoming-{suffix}"));
+    let backup = temporary_root.join(format!(".legion-backup-{suffix}"));
     let mut had_original = false;
     let mut backup_moved = false;
     let mut committed = false;
@@ -456,10 +460,20 @@ pub fn atomic_replace_product(
             backup,
         }),
         Err(error) => {
+            if committed {
+                // History deletion may already be partial. Preserve committed current
+                // & surface cleanup failure instead of restoring incomplete old bytes.
+                return Ok(AtomicReplaceResult {
+                    success: false,
+                    backup_moved,
+                    committed: true,
+                    rolled_back: false,
+                    error: Some(format!("product committed but cleanup failed: {error}")),
+                    stage,
+                    backup,
+                });
+            }
             let restore = (|| -> Result<(), String> {
-                if committed && product_root.exists() {
-                    remove_exact(product_root, work_root, "failed product replacement")?;
-                }
                 if had_original && backup.exists() && !product_root.exists() {
                     fs::rename(&backup, product_root).map_err(|e| e.to_string())?;
                 }

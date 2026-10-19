@@ -27,6 +27,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import sys
 
 binary = Path(__file__)
@@ -45,6 +46,11 @@ if generation == "candidate" and step == "setup repair --confirm":
         config.write_text('model = "fixture-model"')
 if generation == "candidate" and step == "doctor" and os.environ.get("LEGION_FIXTURE_TAMPER") == "1":
     (root / "generation.txt").write_text("tampered")
+if generation == "candidate" and step == "doctor" and os.environ.get("LEGION_FIXTURE_FAIL_HISTORY_CLEANUP") == "1":
+    os.chflags(root.parent / "current.previous", stat.UF_IMMUTABLE)
+if generation == "candidate" and step == "doctor" and os.environ.get("LEGION_FIXTURE_FAIL_STAGING_CLEANUP") == "1":
+    for transaction in root.parent.glob(".install-*"):
+        os.chflags(transaction, stat.UF_IMMUTABLE)
 if generation == "candidate" and step == os.environ.get("LEGION_FIXTURE_FAIL_STEP"):
     sys.exit(17)
 if generation == "candidate" and step == "setup remove --confirm" and os.environ.get("LEGION_FIXTURE_FAIL_CLEANUP") == "1":
@@ -150,7 +156,9 @@ def compile_fixture(output):
 def scenario(output, executable, name, *, legacy=False, fresh=False, native=True,
              failure=None, cleanup_failure=False, migrate_host=False, tamper=False,
              unsafe_payload=False, foreign_current=False, unknown_backup=False, locked=False,
-             development=False, runtime_development_opt_in=False):
+             development=False, runtime_development_opt_in=False, history_links=False,
+             nested_history_link=False, history_cleanup_failure=False,
+             staging_cleanup_failure=False, stale_transaction=False):
     case = output / name
     home = case / "home"
     root = home / RELATIVE_ROOT
@@ -163,7 +171,15 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
     current = root / "current"
     previous = root / "current.previous"
     prior = None
-    historical = None
+    versions = root / "versions"
+    outside_histories = []
+    if stale_transaction:
+        transaction = root / ".install-00000000-0000-0000-0000-000000000042"
+        payload(transaction / "prior", "older")
+        outside = case / "outside-transaction"
+        payload(outside, "outside")
+        outside_histories.append((outside, tree(outside)))
+        (transaction / "foreign").symlink_to(outside, target_is_directory=True)
     if not fresh:
         installed = root / "versions/0.3.23" if legacy else current
         if foreign_current:
@@ -172,17 +188,30 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         prior = tree(installed)
         if legacy or foreign_current:
             current.symlink_to(installed, target_is_directory=True)
-        if legacy:
-            historical = root / "versions/unknown.txt"
-            historical.write_text("preserve unknown history")
+        versions.mkdir(exist_ok=True)
+        (versions / "unknown.txt").write_text("obsolete unknown history")
+        payload(versions / "obsolete", "older")
         payload(previous, "older")
     if unsafe_payload:
         (resources / "payload/unsafe").symlink_to(case / "outside")
     if unknown_backup:
         shutil.rmtree(previous)
         previous.mkdir()
-        (previous / "private-notes.txt").write_text("preserve unknown backup")
+        (previous / "private-notes.txt").write_text("obsolete unknown backup")
+    if history_links:
+        for history in (previous, versions):
+            shutil.rmtree(history)
+            outside = case / ("outside-" + history.name)
+            payload(outside, "outside")
+            outside_histories.append((outside, tree(outside)))
+            history.symlink_to(outside, target_is_directory=True)
+    if nested_history_link:
+        outside = case / "outside-nested"
+        payload(outside, "outside")
+        outside_histories.append((outside, tree(outside)))
+        (versions / "foreign").symlink_to(outside, target_is_directory=True)
     previous_before = tree(previous) if previous.exists() else None
+    versions_before = tree(versions) if versions.exists() else None
     host = host_projection(home, root) if migrate_host else None
     if not migrate_host:
         (home / ".codex").mkdir()
@@ -200,6 +229,8 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         "LEGION_FIXTURE_FAIL_CLEANUP": "1" if cleanup_failure else "0",
         "LEGION_FIXTURE_MIGRATE_HOST": "1" if migrate_host else "0",
         "LEGION_FIXTURE_TAMPER": "1" if tamper else "0",
+        "LEGION_FIXTURE_FAIL_HISTORY_CLEANUP": "1" if history_cleanup_failure else "0",
+        "LEGION_FIXTURE_FAIL_STAGING_CLEANUP": "1" if staging_cleanup_failure else "0",
     })
     # Runtime inputs must never change a production executable's mode.
     environment.pop("LEGION_DEVELOPMENT_INSTALL", None)
@@ -215,22 +246,30 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
         result = subprocess.run(arguments, env=environment, capture_output=True, text=True, timeout=90)
     finally:
         lock.close()
+        if history_cleanup_failure and previous.exists():
+            os.chflags(previous, 0)
+        if staging_cleanup_failure:
+            for transaction in root.glob(".install-*"):
+                os.chflags(transaction, 0)
     (case / "installer.stdout").write_text(result.stdout)
     (case / "installer.stderr").write_text(result.stderr)
     calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
     for call in calls:
         require(call["binary"] == str(current / "bin/legion"), f"{name}: executed outside current: {call}")
         require(call["real"] == str(current / "bin/legion"), f"{name}: current was a symlink during execution: {call}")
-    rejected = unsafe_payload or foreign_current or (unknown_backup and not development) or locked
-    failed = failure is not None or cleanup_failure or tamper or rejected
+    rejected = unsafe_payload or foreign_current or locked
+    failed = failure is not None or cleanup_failure or tamper or rejected or history_cleanup_failure or staging_cleanup_failure
     require((result.returncode != 0) == failed, f"{name}: unexpected status {result.returncode}\n{result.stderr}")
     if rejected:
         require(not calls, f"{name}: rejected payload executed")
         require(tree(current.resolve()) == prior, f"{name}: rejected install changed prior payload")
         if foreign_current:
             require(current.is_symlink(), f"{name}: foreign pointer changed")
-        if unknown_backup:
-            require((previous / "private-notes.txt").read_text() == "preserve unknown backup", f"{name}: unknown backup changed")
+    elif history_cleanup_failure or staging_cleanup_failure:
+        require(not current.is_symlink() and tree(current) == expected, f"{name}: history cleanup failure lost activated current")
+        require([call["step"] for call in calls] == ["setup repair --confirm", "setup status", "doctor"],
+                f"{name}: cleanup failure reentered registration rollback")
+        require("retained-history cleanup failed" in result.stderr, f"{name}: history cleanup failure was not reported")
     elif development:
         require(not current.is_symlink() and current.is_dir(), f"{name}: candidate authority lost from real current")
         actual = tree(current)
@@ -251,7 +290,7 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
                     f"{name}: development failure entered production rollback")
     elif cleanup_failure:
         require(not current.is_symlink() and tree(current) == expected, f"{name}: cleanup failure lost candidate")
-        require(tree(previous) == prior, f"{name}: cleanup failure lost prior backup")
+        require(tree(previous) == previous_before, f"{name}: cleanup failure changed old history")
         require(not any(call["generation"] == "prior" for call in calls), f"{name}: restored registrations despite failed cleanup")
         require("Rollback incomplete" in result.stderr, f"{name}: cleanup failure was not reported")
     elif failed:
@@ -259,36 +298,50 @@ def scenario(output, executable, name, *, legacy=False, fresh=False, native=True
             require(not current.exists() and not previous.exists(), f"{name}: failed first install retained an active payload")
         else:
             require(not current.is_symlink() and tree(current) == prior, f"{name}: prior payload was not restored at real current")
-            require(tree(previous) == prior, f"{name}: prior backup was not retained")
+            require(tree(previous) == previous_before, f"{name}: failed activation changed old history")
             require(calls[-1]["generation"] == "prior" and calls[-1]["step"] == "setup repair --confirm", f"{name}: prior registration repair missing")
         removes = [call for call in calls if call["step"] == "setup remove --confirm"]
         require(bool(removes) == (not native), f"{name}: wrong native registration rollback policy")
     else:
         require(not current.is_symlink() and tree(current) == expected, f"{name}: exact candidate missing at real current")
-        require(not previous.exists() if fresh else tree(previous) == prior, f"{name}: incorrect retained backup")
+        require(not previous.exists() and not previous.is_symlink(), f"{name}: retained previous installation")
         require([call["step"] for call in calls] == ["setup repair --confirm", "setup status", "doctor"], f"{name}: activation steps changed")
-    if development:
+    if failed and not history_cleanup_failure and not staging_cleanup_failure:
         require((tree(previous) if previous.exists() else None) == previous_before,
-                f"{name}: development install created or altered prior backup")
+                f"{name}: unsuccessful activation altered prior history")
+    if staging_cleanup_failure:
+        require(not previous.exists() and not previous.is_symlink(),
+                f"{name}: staging cleanup failed before old backup was removed")
     if not rejected:
         for name_ in ("legion", "legion-hook", "legion-mcp"):
             link = home / ".local/bin" / name_
             require(link.is_symlink() and link.resolve() == current / "bin" / name_, f"{name}: unstable launcher {name_}")
-    if historical:
-        require(historical.read_text() == "preserve unknown history", f"{name}: unknown history removed")
-        require(tree(root / "versions/0.3.23") == prior, f"{name}: historical payload changed")
-    elif not legacy:
-        require(not (root / "versions").exists(), f"{name}: created versioned installation")
+    if failed and not staging_cleanup_failure:
+        require((tree(versions) if versions.exists() else None) == versions_before,
+                f"{name}: unsuccessful activation altered legacy versions")
+    else:
+        require(not versions.exists() and not versions.is_symlink(), f"{name}: retained version history")
+    for outside, before in outside_histories:
+        require(tree(outside) == before, f"{name}: history cleanup traversed outside installation root")
     require((home / ".codex/config.toml").read_text().rstrip("\n") == (UNRELATED + DISABLED).rstrip("\n"), f"{name}: host choice or unrelated setting changed")
     if host and not development:
         ledger, ledger_bytes, plugin_bytes = host
         require(ledger.read_bytes() == ledger_bytes, f"{name}: prior projection ledger lost")
         require((home / ".codex/plugins/legion/plugin.json").read_bytes() == plugin_bytes, f"{name}: prior projection lost")
         require((home / ".codex/plugins/legion/skills/sage").is_symlink(), f"{name}: prior skill link lost")
-    if development and not rejected and not legacy:
-        require(not any(path.read_text() in ("prior", "older") for path in root.rglob("generation.txt")
-                        if previous not in path.parents), f"{name}: prior executable payload was copied")
-    require(not list(root.glob(".install-*")), f"{name}: transaction staging was not cleaned")
+    if not failed:
+        require(not previous.exists() and not previous.is_symlink(), f"{name}: retained prior backup")
+        require(not any(path.read_text() in ("prior", "older") for path in root.rglob("generation.txt")),
+                f"{name}: retained prior executable bytes")
+        require({path.name for path in root.iterdir()} == {"current", ".install.lock"},
+                f"{name}: successful install retained transaction or history state")
+    staging = list(root.glob(".install-*"))
+    if cleanup_failure or history_cleanup_failure or staging_cleanup_failure:
+        require(len(staging) == 1, f"{name}: incomplete cleanup lost transaction recovery state")
+        if not development:
+            require(tree(staging[0] / "prior") == prior, f"{name}: incomplete cleanup lost recoverable prior bytes")
+    else:
+        require(not staging, f"{name}: transaction staging was not cleaned")
     print(f"PASS {name}")
 
 
@@ -315,6 +368,12 @@ def main():
         ("unsafe-payload", {"unsafe_payload": True}),
         ("foreign-current", {"foreign_current": True}),
         ("unknown-backup", {"unknown_backup": True}),
+        ("unknown-backup-rollback", {"unknown_backup": True, "failure": "doctor"}),
+        ("history-links", {"history_links": True}),
+        ("nested-history-link", {"nested_history_link": True}),
+        ("history-cleanup-failure", {"history_cleanup_failure": True}),
+        ("staging-cleanup-failure", {"staging_cleanup_failure": True}),
+        ("stale-transaction-cleaned", {"stale_transaction": True}),
         ("concurrent-install", {"locked": True}),
         ("production-runtime-dev-opt-in-ignored", {"runtime_development_opt_in": True, "failure": "doctor"}),
     ]
@@ -333,7 +392,12 @@ def main():
         ("dev-post-activation-tamper", {"tamper": True}),
         ("dev-unsafe-payload", {"unsafe_payload": True}),
         ("dev-foreign-current", {"foreign_current": True}),
-        ("dev-unknown-backup-untouched", {"unknown_backup": True}),
+        ("dev-unknown-backup-cleaned", {"unknown_backup": True}),
+        ("dev-history-links", {"history_links": True}),
+        ("dev-nested-history-link", {"nested_history_link": True}),
+        ("dev-history-cleanup-failure", {"history_cleanup_failure": True}),
+        ("dev-staging-cleanup-failure", {"staging_cleanup_failure": True}),
+        ("dev-stale-transaction-cleaned", {"stale_transaction": True}),
         ("dev-concurrent-install", {"locked": True}),
     ]
     for name, options in development_cases:
