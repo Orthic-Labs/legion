@@ -30,6 +30,27 @@ const SOURCE: &str = "engine/crates/legion-audit/tests/real_code_command_accurac
 const FIXTURES: &str = "scripts/ci/fixtures/audit-code-sdk-accuracy";
 const POLICY: &str = "legion-real-code-command-fixture-v1";
 const GO: &str = "code.go";
+const GOVULN_ENV: [&str; 5] = [
+    "LEGION_GOVULNCHECK_BIN",
+    "LEGION_GOVULNCHECK_DB_ROOT",
+    "LEGION_GOVULNCHECK_DB_ARCHIVE",
+    "LEGION_GOVULNCHECK_ENROLLMENT_JSON",
+    "GOMODCACHE",
+];
+const CONTROLS: [&str; 12] = [
+    "positive",
+    "nonempty-clean",
+    "vulnerability-positive",
+    "build-tags",
+    "cgo",
+    "workspace",
+    "external-test",
+    "test-failure",
+    "malformed",
+    "missing-tool",
+    "rejected-admission",
+    "absent-sandbox",
+];
 const PROVIDERS: [&str; 10] = [
     "code.c-family",
     "code.dotnet",
@@ -148,6 +169,8 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
         "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         FIXTURES,
+        "scripts/ci/audit-govulncheck-bootstrap.py",
+        "scripts/ci/audit-govulncheck-inputs.json",
     ] {
         walk(&root, &root.join(path), &mut sources);
     }
@@ -320,7 +343,78 @@ impl ScopedPolicy {
         .map(str::to_owned)
         .collect()
     }
+    fn db_url(&self) -> String {
+        let path =
+            fs::canonicalize(std::env::var_os("LEGION_GOVULNCHECK_DB_ROOT").unwrap()).unwrap();
+        let mut url = String::from("file://");
+        for b in path.to_str().unwrap().bytes() {
+            if b.is_ascii_alphanumeric() || b"/-._~:".contains(&b) {
+                url.push(b as char);
+            } else {
+                url.push_str(&format!("%{b:02X}"));
+            }
+        }
+        url.push('/');
+        url
+    }
+    fn source_stage(&self) -> PathBuf {
+        self.scratch
+            .cache_dir()
+            .join("govulncheck")
+            .join(digest(b"").trim_start_matches("sha256:"))
+    }
+    fn command_args(&self, task: &str) -> Vec<String> {
+        if task == "vulnerability" {
+            vec![
+                "-C".into(),
+                self.source_stage().to_str().unwrap().into(),
+                "-mode=source".into(),
+                "-scan=symbol".into(),
+                "-test".into(),
+                "-json".into(),
+                "-db".into(),
+                self.db_url(),
+                "./...".into(),
+            ]
+        } else {
+            Self::suffix(task)
+        }
+    }
+    fn task_environment(&self, task: &str) -> (BTreeMap<String, String>, BTreeSet<String>) {
+        let mut environment = self.environment.clone();
+        let mut allowed = self.allowlist.clone();
+        if task == "vulnerability" {
+            let home = self.source_stage().parent().unwrap().join(format!(
+                "home-{}",
+                digest(b"").trim_start_matches("sha256:")
+            ));
+            for (key, value) in [
+                ("GOWORK", "off".into()),
+                ("GOFLAGS", "-mod=readonly".into()),
+                ("CGO_ENABLED", "0".into()),
+                ("HOME", home.to_str().unwrap().into()),
+                (
+                    "XDG_CONFIG_HOME",
+                    home.join(".config").to_str().unwrap().into(),
+                ),
+                (
+                    "APPDATA",
+                    home.join("AppData/Roaming").to_str().unwrap().into(),
+                ),
+            ] {
+                environment.insert(key.into(), value);
+                allowed.insert(key.into());
+            }
+        }
+        (environment, allowed)
+    }
     fn version_args(&self, task: &str) -> Vec<String> {
+        if task == "vulnerability" {
+            return self.prefix(
+                "govulncheck",
+                &["-db".into(), self.db_url(), "-version".into()],
+            );
+        }
         let mut args = vec!["version".into()];
         if task == "format" {
             args.push(self.tools["gofmt"].0.to_string_lossy().into_owned());
@@ -339,16 +433,21 @@ impl ScopedPolicy {
             "provider":GO,"planDigest":self.plan,"cwd":self.root,"toolIdentities":self.tools,
             "wrapper":{"path":self.wrapper,"digest":self.wrapper_digest},
             "profile":{"path":self.profile(),"text":self.profile_text(),"receiptId":self.sandbox_id()},
-            "commands":["go list -m","go vet ./...","gofmt -l .","go test -count=1 ./..."],
+            "commands":["go list -m","go vet ./...","gofmt -l .","go test -count=1 ./...","govulncheck -C <frozen-stage> -mode=source -scan=symbol -test -json -db <sealed-official-db> ./..."],
+            "vulnerabilityCommand":{"args":self.command_args("vulnerability"),"versionArgs":self.version_args("vulnerability"),"environment":self.task_environment("vulnerability").0,"environmentAllowlist":self.task_environment("vulnerability").1},
             "environment":self.environment,"environmentAllowlist":self.allowlist,"absentSandboxControl":self.absent_sandbox,
             "timeoutMs":120000,"stdoutLimit":33554432,"stderrLimit":33554432})
     }
     fn permits(&self, r: &ExternalToolRequest) -> bool {
         let task = r.task_id.as_deref().unwrap_or("");
-        if !["module", "vet", "format", "test"].contains(&task) {
+        if !["module", "vet", "format", "test", "vulnerability"].contains(&task) {
             return false;
         }
-        let tool = if task == "format" { "gofmt" } else { "go" };
+        let tool = match task {
+            "format" => "gofmt",
+            "vulnerability" => "govulncheck",
+            _ => "go",
+        };
         let sandbox_ok = if self.absent_sandbox {
             r.sandbox.is_none()
         } else {
@@ -380,14 +479,14 @@ impl ScopedPolicy {
                 .tools
                 .values()
                 .all(|(p, d)| fs::read(p).is_ok_and(|b| digest(&b) == *d))
-            && r.args == self.prefix(tool, &Self::suffix(task))
+            && r.args == self.prefix(tool, &self.command_args(task))
             && r.version_args == self.version_args(task)
             && !r.skip_version_probe
             && r.version_requirement.is_none()
             && r.requires_network_sandbox
             && sandbox_ok
-            && r.environment == self.environment
-            && r.environment_allowlist == self.allowlist
+            && r.environment == self.task_environment(task).0
+            && r.environment_allowlist == self.task_environment(task).1
             && r.sensitive_argument_indexes.is_empty()
             && r.sensitive_environment_names.is_empty()
             && r.timeout_ms == 120000
@@ -491,7 +590,20 @@ fn fixture_files(control: &str) -> BTreeMap<String, String> {
         .join(FIXTURES)
         .join("go")
         .join(name);
-    ["go.mod", "answer.go", "answer_test.go"]
+    let mut paths = vec!["go.mod", "answer.go", "answer_test.go"];
+    if control == "vulnerability-positive" {
+        paths.push("go.sum");
+    }
+    if control == "build-tags" {
+        paths.push("excluded_test.go");
+    }
+    if control == "cgo" {
+        paths.push("cgo.go");
+    }
+    if control == "workspace" {
+        paths.push("go.work");
+    }
+    paths
         .into_iter()
         .map(|p| (p.into(), fs::read_to_string(root.join(p)).unwrap()))
         .collect()
@@ -540,9 +652,12 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
     let scratch = Arc::new(
         AuditScratch::with_scratch_dir(&root, retained.join("cases").join(&case_id)).unwrap(),
     );
-    let tools: [(&str, PathBuf); 2] = [
+    let scanner = fs::canonicalize(std::env::var_os("LEGION_GOVULNCHECK_BIN").unwrap()).unwrap();
+    assert_eq!(scanner.file_name().unwrap(), "govulncheck");
+    let tools: [(&str, PathBuf); 3] = [
         ("go", go_root.join("bin/go")),
         ("gofmt", go_root.join("bin/gofmt")),
+        ("govulncheck", scanner.clone()),
     ];
     let tools: BTreeMap<String, (PathBuf, String)> = tools
         .into_iter()
@@ -556,7 +671,15 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
     let wrapper = fs::canonicalize("/usr/bin/sandbox-exec").unwrap();
     let (mut environment, allowlist) = expected_environment(scratch.root());
     let bin = go_root.join("bin");
-    environment.insert("PATH".into(), bin.to_string_lossy().into_owned());
+    let search_dirs = vec![bin.clone(), scanner.parent().unwrap().to_path_buf()];
+    environment.insert(
+        "PATH".into(),
+        std::env::join_paths(&search_dirs)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .into(),
+    );
     let policy = Arc::new(ScopedPolicy {
         plan: frozen.digest().into(),
         root: root.clone(),
@@ -623,7 +746,7 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
             fs::create_dir(&p).unwrap();
             vec![p]
         } else {
-            vec![bin]
+            search_dirs
         };
         let native = NativeProviderRegistry::new(&root)
             .with_scratch(scratch.clone())
@@ -671,19 +794,29 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
         assert_eq!(r["policy"]["allowed"], true);
         assert_eq!(r["processTree"]["started"], false);
     } else {
-        assert_eq!(
-            result["nativeResult"]["complete"], false,
-            "partial provider can never become clean qualification"
+        let expected_complete = matches!(
+            control,
+            "positive" | "nonempty-clean" | "vulnerability-positive" | "external-test"
         );
-        assert!(!result["nativeResult"]["coverage_gaps"]
-            .as_array()
-            .unwrap()
-            .is_empty());
+        assert_eq!(result["nativeResult"]["complete"],expected_complete,
+            "complete fixture scope requires all five genuine tasks & full frozen source/context coverage");
+        assert_eq!(
+            result["nativeResult"]["coverage_gaps"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            expected_complete
+        );
+        if expected_complete {
+            let coverage = &result["nativeResult"]["coverage"];
+            assert_eq!(coverage["expected"], before.len());
+            assert_eq!(coverage["examined"], before.len());
+        }
         if control == "missing-tool" {
             assert!(rows.is_empty());
             assert!(native_result.to_string().contains("tool-missing"));
         } else if control == "rejected-admission" {
-            assert_eq!(rows.len(), 4);
+            assert_eq!(rows.len(), 5);
             for row in rows {
                 let r = &row["executionReceipt"];
                 assert_eq!(r["state"], "unauthorized_effect");
@@ -693,17 +826,21 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
         } else {
             assert_eq!(
                 rows.len(),
-                4,
-                "all four declared Go fixture commands must execute"
+                if control=="workspace" {4}else{5},
+                "all applicable mandatory commands must execute; unsupported workspace vulnerability remains counted gap"
             );
             let tasks: BTreeSet<_> = rows
                 .iter()
                 .map(|r| r["request"]["taskId"].as_str().unwrap())
                 .collect();
-            assert_eq!(
-                tasks,
+            let expected_tasks: BTreeSet<_> = if control == "workspace" {
                 ["module", "vet", "format", "test"].into_iter().collect()
-            );
+            } else {
+                ["module", "vet", "format", "test", "vulnerability"]
+                    .into_iter()
+                    .collect()
+            };
+            assert_eq!(tasks, expected_tasks);
             for row in rows {
                 let r = &row["executionReceipt"];
                 assert_eq!(r["policy"]["allowed"], true);
@@ -715,15 +852,61 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                 assert_eq!(r["processTree"]["reaped"], true);
                 assert_eq!(r["sandbox"]["receiptId"], policy.sandbox_id());
                 assert_eq!(r["sandbox"]["required"], true);
-                assert_eq!(r["executable"]["version"]["qualified"], true);
-                assert!(r["executable"]["version"]["output"]
-                    .as_str()
-                    .unwrap()
-                    .contains("go1.26.7"));
+                let malformed_probe_failure =
+                    control == "malformed" && r["state"] == "unsealed_executable";
+                if malformed_probe_failure {
+                    assert_eq!(r["executable"]["version"]["qualified"], false);
+                    assert_ne!(r["executable"]["version"]["exitCode"], 0);
+                    assert!(r["executable"]["version"]["output"]
+                        .as_str()
+                        .unwrap()
+                        .contains("invalid go version"));
+                    assert_eq!(r["complete"], false);
+                } else {
+                    assert_eq!(r["executable"]["version"]["qualified"], true);
+                }
+                if row["request"]["taskId"] != "vulnerability" && !malformed_probe_failure {
+                    assert!(r["executable"]["version"]["output"]
+                        .as_str()
+                        .unwrap()
+                        .contains("go1.26.7"));
+                }
                 assert_eq!(
                     r["executable"]["version"]["args"],
                     row["request"]["versionArgs"]
                 );
+            }
+            if control != "workspace" {
+                let vulnerability = native_result["details"]["nativeProducer"]["toolReceipts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|r| r["tool"] == "vulnerability")
+                    .expect("genuine vulnerability receipt retained by production producer");
+                let snapshots = &vulnerability["nativeInputSnapshots"];
+                assert_eq!(snapshots["unchanged"], true);
+                assert!(snapshots["afterError"].is_null());
+                assert_eq!(snapshots["before"], snapshots["after"]);
+                assert_eq!(
+                    snapshots["before"]["schema"],
+                    "legion-govulncheck-input-snapshot/1"
+                );
+                assert_eq!(
+                    snapshots["before"]["databaseDigest"],
+                    "sha256:a79c70ba57625f5f164cc7b96f99c0adb231308bd311817aa768b532b7314901"
+                );
+                assert_eq!(
+                    snapshots["before"]["databaseFiles"]
+                        .as_object()
+                        .unwrap()
+                        .len(),
+                    4616
+                );
+                let scanner_row = rows
+                    .iter()
+                    .find(|r| r["request"]["taskId"] == "vulnerability")
+                    .unwrap();
+                assert_eq!(vulnerability["sdkReceipt"], scanner_row["executionReceipt"]);
             }
             let test = rows
                 .iter()
@@ -737,7 +920,8 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                 String::from_utf8(
                     row[stream]["rawBytes"]
                         .as_array()
-                        .unwrap()
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[])
                         .iter()
                         .map(|n| n.as_u64().unwrap() as u8)
                         .collect(),
@@ -765,6 +949,45 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                         assert_eq!(row["executionReceipt"]["exitCode"], 0);
                     }
                 }
+                "vulnerability-positive" => {
+                    assert_eq!(test["executionReceipt"]["exitCode"], 0);
+                    assert!(native_result["details"]["findingEvidence"]
+                        .as_object()
+                        .unwrap()
+                        .values()
+                        .any(|f| f["ruleId"] == "govulncheck:GO-2021-0113"
+                            && (f["path"] == "answer.go" || f["path"] == "answer_test.go")
+                            && f["line"] == 6));
+                }
+                "build-tags" | "cgo" => {
+                    assert_eq!(test["executionReceipt"]["state"], "completed");
+                    assert_eq!(test["executionReceipt"]["exitCode"], 0);
+                    assert!(!raw(test, "stdout").contains("excluded build-tag test must not run"));
+                    assert!(native_result["coverage_gaps"]
+                        .to_string()
+                        .contains("unproven-build-variant"));
+                    assert_eq!(native_result["coverage"]["expected"], before.len());
+                    assert_eq!(native_result["coverage"]["examined"], before.len());
+                }
+                "workspace" => {
+                    assert_eq!(test["executionReceipt"]["exitCode"], 0);
+                    for row in rows {
+                        assert_eq!(row["executionReceipt"]["state"], "completed");
+                    }
+                    assert!(native_result["coverage_gaps"]
+                        .to_string()
+                        .contains("workspace-or-replacement-path-closure-unavailable"));
+                    assert_eq!(native_result["coverage"]["expected"], before.len());
+                    assert_eq!(native_result["coverage"]["examined"], before.len() - 1);
+                }
+                "external-test" => {
+                    assert_eq!(test["executionReceipt"]["state"], "completed");
+                    assert_eq!(test["executionReceipt"]["exitCode"], 0);
+                    assert!(native_result["findings"].as_array().unwrap().is_empty());
+                    for row in rows {
+                        assert_eq!(row["executionReceipt"]["state"], "completed");
+                    }
+                }
                 "test-failure" => {
                     assert_ne!(test["executionReceipt"]["exitCode"], 0);
                     assert_eq!(test["executionReceipt"]["state"], "failed");
@@ -773,14 +996,82 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                 "malformed" => {
                     assert!(rows
                         .iter()
-                        .any(|row| row["executionReceipt"]["state"] == "failed"));
-                    assert!(rows
-                        .iter()
-                        .any(|row| raw(row, "stderr").contains("invalid go version")));
+                        .any(|row| row["executionReceipt"]["state"] == "failed"
+                            || row["executionReceipt"]["state"] == "unsealed_executable"));
+                    assert!(rows.iter().any(|row| raw(row, "stderr")
+                        .contains("invalid go version")
+                        || row["executionReceipt"]["executable"]["version"]["output"]
+                            .as_str()
+                            .is_some_and(|text| text.contains("invalid go version"))));
                 }
                 _ => unreachable!(),
             }
         }
+    }
+    if control != "absent-sandbox" {
+        let actual_gaps: BTreeSet<String> = native_result["coverage_gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        let mut expected_gaps = BTreeSet::new();
+        let tool_gap = |task: &str| format!("code.go:tool-evidence-gap:{task}");
+        match control {
+            "build-tags" => {
+                for file in ["answer.go", "excluded_test.go"] {
+                    expected_gaps
+                        .insert(format!("code.go:govulncheck:unproven-build-variant:{file}"));
+                }
+            }
+            "cgo" => {
+                expected_gaps.insert("code.go:govulncheck:unproven-build-variant:cgo.go".into());
+            }
+            "workspace" => {
+                expected_gaps.extend([
+                    tool_gap("vulnerability"),
+                    "code.go:govulncheck:workspace-or-replacement-path-closure-unavailable".into(),
+                    "code.go:tool-not-run:vulnerability:govulncheck-input-incomplete".into(),
+                    "code.go:selection-narrower-than-denominator:3of4".into(),
+                ]);
+            }
+            "missing-tool" => {
+                for task in ["module", "format", "vet", "test", "vulnerability"] {
+                    expected_gaps.insert(tool_gap(task));
+                    expected_gaps.insert(format!("code.go:tool-missing:{task}"));
+                }
+            }
+            "rejected-admission" => {
+                for task in ["module", "format", "vet", "test", "vulnerability"] {
+                    expected_gaps.insert(tool_gap(task));
+                }
+                expected_gaps.insert("code.go:native-owner-admission-unavailable".into());
+            }
+            "test-failure" | "malformed" => {
+                for row in rows {
+                    let task = row["request"]["taskId"].as_str().unwrap();
+                    let receipt = &row["executionReceipt"];
+                    if receipt["state"] == "failed" {
+                        let exit = receipt["exitCode"].as_i64().unwrap();
+                        assert_ne!(exit, 0);
+                        expected_gaps.insert(tool_gap(task));
+                        expected_gaps.insert(format!("code.go:tool-failed:{task}:exit-{exit}"));
+                    } else if control == "malformed" && receipt["state"] == "unsealed_executable" {
+                        expected_gaps.insert(tool_gap(task));
+                        expected_gaps
+                            .insert(format!("code.go:tool-failed:{task}:unsealed_executable"));
+                    } else {
+                        assert_eq!(receipt["state"], "completed");
+                        assert_eq!(receipt["exitCode"], 0);
+                    }
+                }
+            }
+            _ => {}
+        }
+        assert_eq!(
+            actual_gaps, expected_gaps,
+            "every runtime gap must match source-owned expected control disposition"
+        );
     }
     if control == "nonempty-clean" {
         let captured = requests
@@ -928,10 +1219,72 @@ fn toolchain_tree(root: &Path) -> BTreeMap<String, String> {
     assert!(!files.is_empty());
     files
 }
+fn verify_govuln_enrollment(enrollment: &Value, go_root: &Path) {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let lock_bytes = fs::read(source.join("scripts/ci/audit-govulncheck-inputs.json")).unwrap();
+    let lock: Value = serde_json::from_slice(&lock_bytes).unwrap();
+    assert_eq!(lock["schema"], "legion-govulncheck-inputs/1");
+    assert_eq!(enrollment["schema"], "legion-govulncheck-enrollment/1");
+    assert_eq!(enrollment["qualificationEligible"], false);
+    assert_eq!(enrollment["inputsDigest"], digest(&lock_bytes));
+    assert_eq!(enrollment["database"]["files"], lock["database"]["files"]);
+    assert_eq!(enrollment["database"]["digest"], lock["database"]["digest"]);
+    assert_eq!(enrollment["moduleProxy"], lock["moduleProxy"]);
+    for name in GOVULN_ENV {
+        assert_eq!(
+            enrollment["environment"][name].as_str().unwrap(),
+            std::env::var(name).unwrap()
+        );
+    }
+    assert_eq!(
+        enrollment["go"]["runtime"]["root"].as_str().unwrap(),
+        go_root.to_str().unwrap()
+    );
+    for part in ["database", "moduleCache"] {
+        let root = Path::new(enrollment[part]["root"].as_str().unwrap());
+        let files = toolchain_tree(root);
+        assert_eq!(json!(files), enrollment[part]["files"]);
+        assert_eq!(
+            digest(&canonical_bytes(&json!(files))),
+            enrollment[part]["digest"]
+        );
+    }
+    assert_eq!(
+        json!(toolchain_tree(go_root)),
+        enrollment["go"]["runtime"]["files"]
+    );
+    let scanner = &enrollment["scanner"];
+    assert_eq!(scanner["module"], lock["scanner"]["module"]);
+    assert_eq!(scanner["version"], lock["scanner"]["version"]);
+    assert_eq!(
+        digest(&fs::read(scanner["path"].as_str().unwrap()).unwrap()),
+        scanner["digest"]
+    );
+    assert_eq!(scanner["buildInfo"]["exitCode"], 0);
+    assert!(scanner["buildInfo"]["stdout"]
+        .as_str()
+        .unwrap()
+        .contains("\tmod\tgolang.org/x/vuln\tv1.9.0\t"));
+    let archive = fs::read(enrollment["databaseArchivePath"].as_str().unwrap()).unwrap();
+    assert_eq!(digest(&archive), enrollment["databaseArchiveDigest"]);
+    assert_eq!(
+        digest(&archive),
+        format!("sha256:{}", lock["database"]["sha256"].as_str().unwrap())
+    );
+    let cache = enrollment["moduleCache"]["files"].as_object().unwrap();
+    let positive: BTreeMap<String, Value> = cache
+        .iter()
+        .filter_map(|(p, d)| {
+            p.strip_prefix("golang.org/x/text@v0.3.6/")
+                .map(|rel| (rel.to_owned(), d.clone()))
+        })
+        .collect();
+    assert_eq!(json!(positive), lock["positiveControl"]["files"]);
+}
 fn contract(id: &str) -> Value {
     let c = code::evidence::config_for(id).unwrap();
     json!({"tools":c.tools,"extensions":c.extensions,"variants":c.variants,"requiredContext":c.required_context,
-        "coverageRequirement":"all declared tools, source variants, runtime & supported platform contracts; subset success cannot qualify provider"})
+        "coverageRequirement":"bounded SDK accuracy requires every declared tool/context & source-owned control; arbitrary-input, platform & variant completeness remains distinct"})
 }
 #[test]
 #[ignore = "constructed SDK controls; requires pinned Go1.26.7, native macOS sandbox & explicit external scratch/output roots"]
@@ -964,22 +1317,38 @@ fn real_code_command_accuracy() {
         let tree_bytes = serde_json::to_vec_pretty(&tree_value).unwrap();
         fs::write(retained.join("toolchain-tree.json"), &tree_bytes).unwrap();
         let tree_descriptor = json!({"file":"toolchain-tree.json","digest":digest(&tree_bytes),"bytes":tree_bytes.len(),"fileCount":tree_before.len()});
-        let cases: Vec<Value> = [
-            "positive",
-            "nonempty-clean",
-            "test-failure",
-            "malformed",
-            "missing-tool",
-            "rejected-admission",
-            "absent-sandbox",
-        ]
-        .into_iter()
-        .map(|control| case(&base, &retained, &go_root, control))
-        .collect();
+        let enrollment_path = fs::canonicalize(
+            std::env::var_os("LEGION_GOVULNCHECK_ENROLLMENT_JSON")
+                .expect("CI-provisioned immutable enrollment required"),
+        )
+        .unwrap();
+        let enrollment_bytes = fs::read(&enrollment_path).unwrap();
+        fs::write(
+            retained.join("govulncheck-enrollment.json"),
+            &enrollment_bytes,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(retained.join("govulncheck-enrollment.json")).unwrap(),
+            enrollment_bytes
+        );
+        let enrollment_descriptor = json!({"file":"govulncheck-enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()});
+        let enrollment: Value = serde_json::from_slice(&enrollment_bytes).unwrap();
+        verify_govuln_enrollment(&enrollment, &go_root);
+        let cases: Vec<Value> = CONTROLS
+            .into_iter()
+            .map(|control| case(&base, &retained, &go_root, control))
+            .collect();
         assert_eq!(
             toolchain_tree(&go_root),
             tree_before,
             "full pinned Go compiler/linker/stdlib tree must remain unchanged"
+        );
+        verify_govuln_enrollment(&enrollment, &go_root);
+        assert_eq!(
+            fs::read(&enrollment_path).unwrap(),
+            enrollment_bytes,
+            "original enrollment bytes must remain unchanged"
         );
         let fixture_sources: BTreeMap<String, String> = cases
             .iter()
@@ -1006,30 +1375,74 @@ fn real_code_command_accuracy() {
                 )
             })
             .collect();
+        let go_config = code::evidence::config_for(GO).unwrap();
+        assert_eq!(
+            go_config.tools,
+            ["module", "format", "vet", "test", "vulnerability"]
+        );
+        assert_eq!(go_config.required_context, ["modules", "buildTags"]);
+        assert_eq!(go_config.extensions, ["go"]);
+        assert_eq!(json!(go_config.variants), json!([["go", ["go"]]]));
+        let complete_controls = cases
+            .iter()
+            .filter(|case| {
+                matches!(
+                    case["control"].as_str(),
+                    Some(
+                        "positive" | "nonempty-clean" | "vulnerability-positive" | "external-test"
+                    )
+                )
+            })
+            .all(|case| {
+                case["nativeResult"]["complete"] == true
+                    && case["nativeResult"]["coverage_gaps"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+            });
+        let mutations = cases
+            .iter()
+            .find(|case| case["control"] == "nonempty-clean")
+            .unwrap()["requestMutationControls"]
+            .as_array()
+            .unwrap();
+        let go_eligible = cases.len() == CONTROLS.len()
+            && cases.iter().all(|case| case["matched"] == true)
+            && complete_controls
+            && mutations.len() == 4
+            && mutations.iter().all(|case| case["matched"] == true);
+        assert!(go_eligible,"bounded SDK accuracy requires full source-owned control matrix & genuine complete positive/clean controls");
         for id in PROVIDERS {
             let observed = id == GO;
+            let eligible = observed && go_eligible;
             let mut record = json!({"schema":"legion-code-command-sdk-accuracy/1","kind":"code-command-sdk-constructed",
-                "provider":id,"providerVersion":registry_spec(id)["providerVersion"],"productionQualification":false,"qualificationEligible":false,
+                "provider":id,"providerVersion":registry_spec(id)["providerVersion"],"productionQualification":false,"qualificationEligible":eligible,
                 "claimScope":"known-answer-fixture-cases","executionPath":"native-sdk-frozen-plan-self-sourced-code","modelCalls":0,
                 "admissionScope":"explicit constructed SDK authorizer; genuine OwnerAdmissionRequired denial control; no production owner-admission claim",
                 "binding":binding(id,&fixture_sources),"requiredContract":contract(id),
                 "toolchain":{"version":"go1.26.7","root":go_root,"archive":archive,"archiveDigest":expected,"binaryDigests":tools,"tree":tree_descriptor},
-                "executedScope":if observed {json!(["module","format","vet","test"])}else{json!([])},
-                "missingControls":if observed {json!([{"scope":"required-tools","missing":["vulnerability"],"reason":"no genuine vulnerability SDK controls in this slice"},
-                    {"scope":"language-platform-runtime-contract","reason":"entire declared provider contract not qualified by constructed Go module"}])}
+                "goVulnerability":{"enrollment":enrollment_descriptor},
+                "executedScope":if observed {json!(["module","format","vet","test","vulnerability"])}else{json!([])},
+                "missingControls":if eligible {json!([])}
                     else {json!([{"scope":"entire-provider-contract","reason":"not exercised by this Go fixture slice","required":contract(id)}])},
+                "runtimeLimitations":if observed {json!([
+                    {"control":"build-tags","scope":"excluded-build-variants","providerComplete":false},
+                    {"control":"cgo","scope":"excluded-cgo-source","providerComplete":false},
+                    {"control":"workspace","scope":"workspace-path-closure-unavailable","providerComplete":false}])}else{json!([])},
                 "cases":if observed {json!(cases)}else{json!([])},
-                "metrics":{"cases":if observed {cases.len()}else{0},"matched":if observed {cases.iter().filter(|case|case["matched"]==true).count()}else{0},"mismatched":if observed {cases.iter().filter(|case|case["matched"]!=true).count()}else{0},"wholeProviderQualified":false},
-                "status":if observed {"observed-controls-incomplete-provider"}else{"unavailable"}});
+                "metrics":{"cases":if observed {cases.len()}else{0},"matched":if observed {cases.iter().filter(|case|case["matched"]==true).count()}else{0},"mismatched":if observed {cases.iter().filter(|case|case["matched"]!=true).count()}else{0},"wholeProviderQualified":false,"boundedSdkAccuracyQualified":eligible},
+                "status":if eligible {"observed-known-answer-controls"}else{"unavailable"}});
             record["qualificationDigest"] = json!(digest(&canonical_bytes(&record)));
-            fs::write(
-                retained.join(format!("{}.json", id.replace('.', "_"))),
-                serde_json::to_vec_pretty(&record).unwrap(),
-            )
-            .unwrap();
+            let file = format!("{}.json", id.replace('.', "_"));
+            let bytes = serde_json::to_vec_pretty(&record).unwrap();
+            fs::write(retained.join(&file), &bytes).unwrap();
+            assert_eq!(fs::read(retained.join(&file)).unwrap(), bytes);
+            let summary = json!({"schema":"legion-code-command-sdk-artifact/1","provider":id,"file":file,
+                "digest":digest(&bytes),"bytes":bytes.len(),"qualificationDigest":record["qualificationDigest"],
+                "qualificationEligible":eligible,"productionQualification":false});
             println!(
-                "CODE_COMMAND_SDK_ACCURACY {}",
-                serde_json::to_string(&record).unwrap()
+                "CODE_COMMAND_SDK_ACCURACY_ARTIFACT {}",
+                serde_json::to_string(&summary).unwrap()
             );
         }
         return;
@@ -1052,6 +1465,16 @@ fn real_code_command_accuracy() {
         std::env::var_os("LEGION_GO_ARCHIVE").expect("existing authenticated Go archive required"),
     )
     .unwrap();
+    let govuln_environment: BTreeMap<String, String> = GOVULN_ENV
+        .into_iter()
+        .map(|name| {
+            let value =
+                std::env::var_os(name).expect("exact CI govulncheck enrollment export required");
+            let path = fs::canonicalize(value).unwrap();
+            assert!(path.is_absolute() && !path.starts_with(&fixture.0));
+            (name.to_owned(), path.to_str().unwrap().to_owned())
+        })
+        .collect();
     let output = Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
@@ -1068,6 +1491,7 @@ fn real_code_command_accuracy() {
         .env("GOROOT", &go_root)
         .env("LEGION_GO_ROOT", &go_root)
         .env("LEGION_GO_ARCHIVE", &archive)
+        .envs(&govuln_environment)
         .env("LEGION_CODE_COMMAND_CHILD", &fixture.0)
         .env("LEGION_PROVIDER_BENCHMARK_DIR", &retained)
         .output()
@@ -1082,7 +1506,7 @@ fn real_code_command_accuracy() {
         output.status.success(),
         "actual code SDK child failed; original receipt/artifacts & full streams retained"
     );
-    let marker = b"CODE_COMMAND_SDK_ACCURACY ";
+    let marker = b"CODE_COMMAND_SDK_ACCURACY_ARTIFACT ";
     let lines: Vec<&[u8]> = output
         .stdout
         .split_inclusive(|b| *b == b'\n')
@@ -1096,9 +1520,26 @@ fn real_code_command_accuracy() {
     for (line, id) in lines.iter().zip(PROVIDERS) {
         assert_eq!(line.last(), Some(&b'\n'));
         let r: Value = serde_json::from_slice(&line[marker.len()..]).unwrap();
+        assert_eq!(r["schema"], "legion-code-command-sdk-artifact/1");
         assert_eq!(r["provider"], id);
-        assert_eq!(r["qualificationEligible"], false);
+        assert_eq!(r["qualificationEligible"], id == GO);
         assert_eq!(r["productionQualification"], false);
+        let file = format!("{}.json", id.replace('.', "_"));
+        assert_eq!(r["file"], file);
+        let bytes = fs::read(retained.join(&file)).unwrap();
+        assert_eq!(r["digest"], digest(&bytes));
+        assert_eq!(r["bytes"], bytes.len());
+        let mut record: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(record["provider"], id);
+        assert_eq!(record["qualificationDigest"], r["qualificationDigest"]);
+        assert_eq!(record["qualificationEligible"], id == GO);
+        assert_eq!(record["productionQualification"], false);
+        let q = record
+            .as_object_mut()
+            .unwrap()
+            .remove("qualificationDigest")
+            .unwrap();
+        assert_eq!(q, digest(&canonical_bytes(&record)));
     }
     let mut stdout = std::io::stdout().lock();
     for line in lines {

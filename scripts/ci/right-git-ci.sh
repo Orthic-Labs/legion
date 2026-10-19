@@ -203,6 +203,28 @@ PYTHON_LAUNCHER
     export LEGION_SEMGREP_BIN="$launcher"
   fi
 }
+provision_code_sdk_vulnerability_tool() {
+  local output="${RUNNER_TEMP}/legion-govulncheck"
+  python3 scripts/ci/audit-govulncheck-bootstrap.py \
+    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" \
+    --go-root "$LEGION_GO_ROOT" --go-archive "$LEGION_GO_ARCHIVE" || return "$?"
+  local values
+  values="$(python3 - "$output/enrollment.json" <<'CODE_SDK_ENV'
+import json
+import sys
+from pathlib import Path
+names = ["LEGION_GOVULNCHECK_BIN", "LEGION_GOVULNCHECK_DB_ROOT", "LEGION_GOVULNCHECK_DB_ARCHIVE", "LEGION_GOVULNCHECK_ENROLLMENT_JSON", "GOMODCACHE"]
+values = json.loads(Path(sys.argv[1]).read_bytes())["environment"]
+if set(values) != set(names) or any(not isinstance(value, str) or not Path(value).is_absolute() or any(c in value for c in "\0\t\r\n") for value in values.values()):
+    raise SystemExit("Exact code SDK bootstrap environment missing or malformed")
+print("\t".join(values[name] for name in names))
+CODE_SDK_ENV
+)" || return "$?"
+  IFS=$'\t' read -r LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT \
+    LEGION_GOVULNCHECK_DB_ARCHIVE LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE <<< "$values" || return "$?"
+  export LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT LEGION_GOVULNCHECK_DB_ARCHIVE \
+    LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
+}
 run_audit_qualification() {
   audit_qualification_sequence=$((audit_qualification_sequence + 1))
   local sequence="$audit_qualification_sequence"
@@ -550,6 +572,18 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
     run_audit_qualification audit_cargo_test --test golangci_accuracy \
       real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
+  # Provision exact official vulnerability inputs before the network-denied SDK controls.
+  run_audit_qualification provision_code_sdk_vulnerability_tool
+  # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.
+  export LEGION_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-code-command-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-sdk"
+  mkdir -p "$LEGION_CODE_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test real_code_command_accuracy \
+    real_code_command_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-code-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  unset LEGION_CODE_COMMAND_SCRATCH LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT \
+    LEGION_GOVULNCHECK_DB_ARCHIVE LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
   unset LEGION_GO_ROOT LEGION_GO_ARCHIVE LEGION_GOLANGCI_LINT_BIN LEGION_GOLANGCI_LINT_ARCHIVE
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-trivy-iac-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"

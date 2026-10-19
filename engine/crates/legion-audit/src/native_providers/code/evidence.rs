@@ -102,7 +102,7 @@ pub struct Produced {
     pub expected: u64,
     /// In-language files actually read.
     pub examined: u64,
-    /// Frozen Go module manifests selected for separate context inspection.
+    /// Frozen Go module manifests & dependency locks selected for context inspection.
     pub context_expected: u64,
     pub context_examined: u64,
     pub context_bytes_read: u64,
@@ -1012,7 +1012,7 @@ pub fn produce(
             }
         }
     }
-    // Manifest membership alone is not an inspection. Go module context is
+    // Manifest membership alone is not an inspection. Go module/lock context is
     // admitted only after reading the original, frozen digest-bound bytes with
     // the same path, symlink & shared byte limits as language source. Source
     // analysis/facts remain separate from this context inspection.
@@ -1024,7 +1024,7 @@ pub fn produce(
     if provider_id == "code.go" {
         for entry in entries
             .iter()
-            .filter(|entry| file_name(&entry.path) == "go.mod")
+            .filter(|entry| matches!(file_name(&entry.path), "go.mod" | "go.sum"))
         {
             context_expected += 1;
             let outcome = if entry.digest.is_none() {
@@ -1046,7 +1046,8 @@ pub fn produce(
                     bytes_read += text.len() as u64;
                     verified_context.push(entry.clone());
                     context_accounting.push(json!({
-                        "path": entry.path, "status": "examined", "analysis": "module-context",
+                        "path": entry.path, "status": "examined",
+                        "analysis": if file_name(&entry.path) == "go.mod" { "module-context" } else { "dependency-lock-context" },
                         "bytes": text.len(), "digest": entry.digest,
                     }));
                 }
@@ -1305,22 +1306,48 @@ mod go_context_tests {
             fixture.file("main.go", source),
             fixture.file("main_test.go", source),
             fixture.file("README.md", "unrelated\n"),
+            fixture.file(
+                "go.sum",
+                "example.invalid/dependency v1.0.0 h1:opaque-fixture-digest\n",
+            ),
+            fixture.file("go.work", "go 1.26\n\nuse .\n"),
+            fixture.file("go.work.sum", "unsupported workspace lock fixture\n"),
         ];
         let made = fixture.produce(&entries, &EvidenceLimits::default());
         assert_eq!((made.expected, made.examined), (2, 2));
-        assert_eq!((made.context_expected, made.context_examined), (1, 1));
-        assert_eq!(made.context_bytes_read, module.len() as u64);
-        assert_eq!(made.bytes_read, (2 * source.len() + module.len()) as u64);
+        assert_eq!((made.context_expected, made.context_examined), (2, 2));
+        let context_bytes =
+            module.len() as u64 + std::fs::metadata(fixture.0.join("go.sum")).unwrap().len();
+        assert_eq!(made.context_bytes_read, context_bytes);
+        assert_eq!(made.bytes_read, 2 * source.len() as u64 + context_bytes);
         assert_eq!(made.input["facts"][0]["filesRead"], 2);
         assert_eq!(made.input["facts"][0]["bytesRead"], 2 * source.len());
         assert_eq!(made.input["sourceAccounting"].as_array().unwrap().len(), 2);
-        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 1);
+        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 2);
         assert_eq!(
             made.input["contextAccounting"][0]["digest"],
             entries[0].digest.as_ref().unwrap().as_str()
         );
         assert_eq!(made.input["context"]["modules"], json!(["go.mod"]));
         assert_eq!(made.input["context"]["buildTags"], json!([]));
+        assert_eq!(
+            made.input["contextAccounting"][0]["analysis"],
+            "module-context"
+        );
+        assert_eq!(
+            made.input["contextAccounting"][1]["analysis"],
+            "dependency-lock-context"
+        );
+        assert!(made.input["contextAccounting"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| {
+                !matches!(
+                    item["path"].as_str(),
+                    Some("go.work" | "go.work.sum" | "README.md")
+                )
+            }));
         assert!(made.skips.is_empty());
         assert!(made.expected + made.context_expected < entries.len() as u64);
     }
@@ -1344,47 +1371,49 @@ mod go_context_tests {
 
     #[test]
     fn changed_missing_unreadable_unbound_and_capped_context_never_receive_credit() {
-        for (control, reason) in [
-            ("changed", "changed-since-inventory"),
-            ("missing", "missing"),
-            ("unreadable", "unreadable"),
-            ("unbound", "context-inventory-digest-missing"),
-            ("file-cap", "file-size-cap"),
-            ("total-cap", "total-size-cap"),
-        ] {
-            let fixture = Fixture::new();
-            let text = "module example.invalid/sample\n";
-            let mut entry = fixture.file("go.mod", text);
-            let mut limits = EvidenceLimits::default();
-            match control {
-                "changed" => {
-                    std::fs::write(fixture.0.join("go.mod"), "module changed.invalid/sample\n")
-                        .unwrap()
+        for path in ["go.mod", "go.sum"] {
+            for (control, reason) in [
+                ("changed", "changed-since-inventory"),
+                ("missing", "missing"),
+                ("unreadable", "unreadable"),
+                ("unbound", "context-inventory-digest-missing"),
+                ("file-cap", "file-size-cap"),
+                ("total-cap", "total-size-cap"),
+            ] {
+                let fixture = Fixture::new();
+                let text = "module example.invalid/sample\n";
+                let mut entry = fixture.file(path, text);
+                let mut limits = EvidenceLimits::default();
+                match control {
+                    "changed" => {
+                        std::fs::write(fixture.0.join(path), "module changed.invalid/sample\n")
+                            .unwrap()
+                    }
+                    "missing" => std::fs::remove_file(fixture.0.join(path)).unwrap(),
+                    "unreadable" => {
+                        std::fs::remove_file(fixture.0.join(path)).unwrap();
+                        std::fs::create_dir(fixture.0.join(path)).unwrap();
+                    }
+                    "unbound" => entry.digest = None,
+                    "file-cap" => limits.max_file_bytes = text.len() as u64 - 1,
+                    "total-cap" => limits.max_total_bytes = text.len() as u64 - 1,
+                    _ => unreachable!(),
                 }
-                "missing" => std::fs::remove_file(fixture.0.join("go.mod")).unwrap(),
-                "unreadable" => {
-                    std::fs::remove_file(fixture.0.join("go.mod")).unwrap();
-                    std::fs::create_dir(fixture.0.join("go.mod")).unwrap();
-                }
-                "unbound" => entry.digest = None,
-                "file-cap" => limits.max_file_bytes = text.len() as u64 - 1,
-                "total-cap" => limits.max_total_bytes = text.len() as u64 - 1,
-                _ => unreachable!(),
+                let made = fixture.produce(&[entry], &limits);
+                assert_eq!((made.expected, made.examined), (0, 0), "{control}");
+                assert_eq!(
+                    (made.context_expected, made.context_examined),
+                    (1, 0),
+                    "{control}"
+                );
+                assert_eq!(made.context_bytes_read, 0, "{control}");
+                assert!(made.input["context"].get("modules").is_none(), "{control}");
+                assert_eq!(
+                    made.input["contextAccounting"][0]["reason"], reason,
+                    "{control}"
+                );
+                assert_eq!(made.skips, vec![format!("{reason}:{path}")], "{control}");
             }
-            let made = fixture.produce(&[entry], &limits);
-            assert_eq!((made.expected, made.examined), (0, 0), "{control}");
-            assert_eq!(
-                (made.context_expected, made.context_examined),
-                (1, 0),
-                "{control}"
-            );
-            assert_eq!(made.context_bytes_read, 0, "{control}");
-            assert!(made.input["context"].get("modules").is_none(), "{control}");
-            assert_eq!(
-                made.input["contextAccounting"][0]["reason"], reason,
-                "{control}"
-            );
-            assert_eq!(made.skips, vec![format!("{reason}:go.mod")], "{control}");
         }
     }
 

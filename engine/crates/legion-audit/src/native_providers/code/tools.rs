@@ -64,6 +64,8 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
+#[path = "govulncheck.rs"]
+mod govulncheck;
 #[path = "native_commands.rs"]
 mod native_commands;
 #[path = "rubocop.rs"]
@@ -194,6 +196,7 @@ enum Parser {
     GoVet,
     Gofmt,
     GoList,
+    Govulncheck,
     /// Exit-only project command contract: failure is a gap, never a fabricated finding.
     Process,
     Syntax,
@@ -634,6 +637,9 @@ fn plan_commands(
         _ => {}
     }
     native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
+    if provider_id == "code.go" {
+        govulncheck::plan(root, entries, scratch, &mut plan);
+    }
     plan
 }
 
@@ -1004,7 +1010,16 @@ async fn run_one(
     // the same authenticated wrapper. PowerShell uses its profile-free probe.
     let mut version_probe_executable = executable_text.clone();
     let mut version_probe_identity = None;
-    let tool_version_args = if command.parser == Parser::Gofmt {
+    let tool_version_args = if command.parser == Parser::Govulncheck {
+        match govulncheck::version_args() {
+            Ok(args) => args,
+            Err(reason) => {
+                return RunOutput::failed(Outcome::Failed(format!(
+                    "tool-failed:vulnerability:version-probe:{reason}"
+                )))
+            }
+        }
+    } else if command.parser == Parser::Gofmt {
         if ctx.sandbox != SandboxPolicy::Required {
             return RunOutput::failed(Outcome::NotRun(
                 "gofmt-build-info-probe-requires-authenticated-sandbox".into(),
@@ -1109,7 +1124,31 @@ async fn run_one(
         version_args: version_args.unwrap_or(tool_version_args),
         ..ExternalToolRequest::default()
     };
+    let native_input_before = if command.parser == Parser::Govulncheck {
+        match govulncheck::snapshot(command) {
+            Ok(snapshot) => Some(snapshot),
+            Err(reason) => {
+                return RunOutput::failed(Outcome::Failed(format!(
+                    "tool-failed:vulnerability:input-before:{reason}"
+                )))
+            }
+        }
+    } else {
+        None
+    };
     let receipt = ctx.tool.execute(request, cancellation).await;
+    // Recheck even failed/refused executions. Retain actual receipt unchanged;
+    // input snapshots describe closure stability, never authorize execution.
+    let native_input_after = native_input_before
+        .as_ref()
+        .map(|_| govulncheck::snapshot(command));
+    let native_input_error = match (&native_input_before, &native_input_after) {
+        (Some(before), Some(Ok(after))) if before != after => {
+            Some("input-closure-changed".to_owned())
+        }
+        (Some(_), Some(Err(reason))) => Some(format!("input-after:{reason}")),
+        _ => None,
+    };
 
     let mut output = RunOutput::failed(Outcome::Ran);
     output.program = program.clone();
@@ -1152,7 +1191,7 @@ async fn run_one(
     let stderr_digest = stderr.as_deref().map(sha256_text);
     let program_label = argv[0].clone();
     let mut retained_receipt = crate::execution_policy::receipt_json(&receipt);
-    let summary = json!({
+    let mut summary = json!({
         "sdkReceipt": retained_receipt.clone(),
         "tool": command.tool,
         "program": program_label,
@@ -1179,6 +1218,14 @@ async fn run_one(
             "networkEnabled": receipt.sandbox.network_enabled,
         },
     });
+    if let Some(before) = &native_input_before {
+        summary["nativeInputSnapshots"] = json!({
+            "before": before,
+            "after": native_input_after.as_ref().and_then(|result| result.as_ref().ok()),
+            "afterError": native_input_after.as_ref().and_then(|result| result.as_ref().err()),
+            "unchanged": native_input_error.is_none(),
+        });
+    }
     for (key, value) in summary.as_object().expect("summary object") {
         if classify(command.tool, &receipt) == Some(Outcome::AdmissionUnavailable) {
             retained_receipt
@@ -1193,6 +1240,10 @@ async fn run_one(
     output.receipt = Some(retained_receipt);
     if let Some(outcome) = classify(command.tool, &receipt) {
         output.outcome = outcome;
+        return output;
+    }
+    if let Some(reason) = native_input_error {
+        output.outcome = Outcome::Failed(format!("tool-failed:vulnerability:{reason}"));
         return output;
     }
     if let Some(identity) = &version_probe_identity {
@@ -1243,7 +1294,9 @@ async fn run_one(
         output.outcome = Outcome::Failed(format!("tool-output-unreadable:{}", command.tool));
         return output;
     };
-    let parsed = if command.parser == Parser::Rubocop {
+    let parsed = if command.parser == Parser::Govulncheck {
+        govulncheck::parse(bytes, receipt.exit_code, command)
+    } else if command.parser == Parser::Rubocop {
         rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else {
         parse(command.parser, bytes, receipt.exit_code)
@@ -1291,6 +1344,7 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::GoVet => parse_go_vet(bytes, exit),
         Parser::Gofmt => parse_gofmt(bytes),
         Parser::GoList => Ok(Vec::new()),
+        Parser::Govulncheck => Err("govulncheck-source-binding-required".into()),
         Parser::Process => match exit {
             Some(0) => Ok(Vec::new()),
             Some(code) => Err(format!("exit-{code}")),

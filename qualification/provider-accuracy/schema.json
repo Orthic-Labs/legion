@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Orthic-Labs/legion/qualification/provider-accuracy/schema.json",
   "title": "Source-owned provider accuracy registration index",
-  "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters, five known-answer class projections, & two fixed constructed build/lint SDK adapters require authenticated successful final Rust assertions. Bench & build/lint records remain fixture-level evidence with productionQualification false. Semgrep SDK controls qualify only two packaged Python rule fixtures with productionQualification false. No record grants production admission or candidate adjudication.",
+  "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters, five known-answer class projections, & two fixed constructed build/lint SDK adapters require authenticated successful final Rust assertions. Bench & build/lint records remain fixture-level evidence with productionQualification false. Semgrep SDK controls qualify only two packaged Python rule fixtures with productionQualification false. Bounded code SDK records require original tool/context controls, exact retained artifact locators & authenticated CI; unexecuted providers remain ineligible. No record grants production admission or candidate adjudication.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "entries"],
@@ -57,12 +57,27 @@
         "validator": {"oneOf": [{"$ref": "#/$defs/reference"}, {"type": "null"}]}, "log": {"$ref": "#/$defs/reference"}
       }
     },
+    "codeSdkEvidence": {
+      "description": "Exact original code SDK proof metadata; full provider contract & authenticated CI remain mandatory.",
+      "type": "object", "additionalProperties": false,
+      "required": ["toolchainTree", "childExecution", "childStdout", "childStderr", "govulnEnrollment", "providerRecords"],
+      "properties": {
+        "toolchainTree": {"$ref": "#/$defs/reference"}, "childExecution": {"$ref": "#/$defs/reference"},
+        "childStdout": {"$ref": "#/$defs/reference"}, "childStderr": {"$ref": "#/$defs/reference"},
+        "govulnEnrollment": {"$ref": "#/$defs/reference"},
+        "providerRecords": {
+          "type": "object", "additionalProperties": false,
+          "required": ["code.c-family", "code.dotnet", "code.go", "code.javascript", "code.jvm", "code.long-tail", "code.mobile", "code.php-ruby", "code.python", "code.rust"],
+          "properties": {"code.c-family": {"$ref": "#/$defs/reference"}, "code.dotnet": {"$ref": "#/$defs/reference"}, "code.go": {"$ref": "#/$defs/reference"}, "code.javascript": {"$ref": "#/$defs/reference"}, "code.jvm": {"$ref": "#/$defs/reference"}, "code.long-tail": {"$ref": "#/$defs/reference"}, "code.mobile": {"$ref": "#/$defs/reference"}, "code.php-ruby": {"$ref": "#/$defs/reference"}, "code.python": {"$ref": "#/$defs/reference"}, "code.rust": {"$ref": "#/$defs/reference"}}
+        }
+      }
+    },
     "entry": {
       "type": "object", "additionalProperties": false,
       "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
       "properties": {
         "provider": {"type": "string", "minLength": 1},
-        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated"]},
+        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "visual", "opengrep-artifact", "osv-artifact", "cargo-geiger", "secrets-history", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated", "code-sdk"]},
         "record": {"$ref": "#/$defs/record"},
         "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
         "scope": {"type": "string", "minLength": 1, "maxLength": 1000},
@@ -74,8 +89,11 @@
           }
         },
         "provenance": {"$ref": "#/$defs/provenance"},
-        "provenanceVerification": {"$ref": "#/$defs/reference"}
-      }
+        "provenanceVerification": {"$ref": "#/$defs/reference"},
+        "codeSdkEvidence": {"$ref": "#/$defs/codeSdkEvidence"}
+      },
+      "allOf": [{"if": {"properties": {"family": {"const": "code-sdk"}}},
+                 "then": {"required": ["codeSdkEvidence"]}, "else": {"not": {"required": ["codeSdkEvidence"]}}}]
     },
     "provenanceVerification": {
       "description": "Separate source-owned object populated only by maintainers after authenticated GitHub retrieval; never inferred from CI numbers or produced by this checker.",
