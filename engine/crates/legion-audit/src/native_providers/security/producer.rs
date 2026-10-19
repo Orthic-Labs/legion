@@ -851,6 +851,25 @@ impl<'a> Run<'a> {
     // ------------------------------------------------------------ container.iac
 
     fn container_iac(&self) -> Production {
+        let Some(selector) = self.provider.configuration.get("selector") else {
+            return unavailable("iac-frozen-selection-missing");
+        };
+        let selected = match self.inventory.denominator_entries(selector) {
+            Ok(selected) => selected,
+            Err(_) => return unavailable("iac-frozen-selection-invalid"),
+        };
+        let files: Vec<String> = selected
+            .entries
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect();
+        let scope = json!({
+            "digest": self.provider.configuration.get("denominatorDigest"),
+            "count": self.provider.configuration.get("denominatorCount"),
+            "computedDigest": selected.digest, "computedCount": files.len(),
+            "entries": selected.entries.iter().map(|entry| json!({"path": entry.path, "digest": entry.digest})).collect::<Vec<_>>(),
+        });
+        let mut dispositions = iac_source_dispositions(self.root(), &selected.entries);
         let run = match self.run_tool(
             &["trivy"],
             [
@@ -875,10 +894,27 @@ impl<'a> Run<'a> {
         let Ok(output) = serde_json::from_slice::<Value>(&run.stdout) else {
             return unavailable(format!("tool-output-invalid:{}", run.tool));
         };
-        let files: Vec<String> = self.entries().map(|entry| entry.path.clone()).collect();
-        let source: BTreeSet<String> = files.iter().filter(|p| is_iac_path(p)).cloned().collect();
-        let mut rendered = Vec::new();
-        let mut covered_sources = 0usize;
+        let post = iac_source_dispositions(self.root(), &selected.entries);
+        for (row, after) in dispositions.iter_mut().zip(&post) {
+            row["postScanDigest"] = after["observedDigest"].clone();
+            if row["state"] == "validated" && after["state"] != "validated" {
+                row["state"] = json!("unproven");
+                row["reason"] = after["reason"].clone();
+            }
+        }
+        let valid_sources: BTreeSet<&str> = dispositions
+            .iter()
+            .filter(|row| {
+                row["disposition"] == "applicable-iac"
+                    && row["state"] == "validated"
+                    && row["frozenDigest"] == row["postScanDigest"]
+            })
+            .filter_map(|row| row["path"].as_str())
+            .collect();
+        let mut observations = Vec::new();
+        let mut covered_sources = BTreeSet::new();
+        let mut record_ids = BTreeSet::new();
+        let mut examined_records = 0usize;
         let mut findings = Vec::new();
         for result in output
             .get("Results")
@@ -889,17 +925,25 @@ impl<'a> Run<'a> {
             if result.get("Class").and_then(Value::as_str) != Some("config") {
                 continue;
             }
-            let target = relative_path(
-                self.root(),
-                result
-                    .get("Target")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default(),
-            );
-            if source.contains(&target) {
-                covered_sources += 1;
+            let id = digest_json(result);
+            if !record_ids.insert(id.clone()) {
+                continue;
             }
-            rendered.push(json!({"target": target, "type": result.get("Type")}));
+            let target = result
+                .get("Target")
+                .and_then(Value::as_str)
+                .and_then(|raw| container_iac::config_target(self.root(), raw));
+            let target_valid = target
+                .as_deref()
+                .is_some_and(|path| valid_sources.contains(path));
+            if target_valid {
+                covered_sources.insert(target.clone().unwrap());
+                examined_records += 1;
+            }
+            // Compatibility field name; these are Trivy config observations,
+            // not rendered deployments or evidence that a resource executed.
+            observations.push(json!({"target": target, "type": result.get("Type"),
+                "reportedTarget": result.get("Target"), "rawResultDigest": id}));
             for misconfiguration in result
                 .get("Misconfigurations")
                 .and_then(Value::as_array)
@@ -908,29 +952,29 @@ impl<'a> Run<'a> {
             {
                 findings.push(container_iac::normalize_iac_finding(
                     &json!({
-                        "ID": misconfiguration.get("ID"),
-                        "Severity": misconfiguration.get("Severity"),
+                        "ID": misconfiguration.get("ID"), "Severity": misconfiguration.get("Severity"),
                         "Target": target,
                         "resource": misconfiguration.get("CauseMetadata").and_then(|c| c.get("Resource")),
                         "message": misconfiguration.get("Message"),
                     }),
-                    Some("container-iac.trivy"),
-                    Some(run.version.as_str()),
+                    Some("container-iac.trivy"), Some(run.version.as_str()),
                 ));
             }
         }
-        let examined = covered_sources + rendered.len();
+        let mut receipt = self.execution_receipt(&run);
+        receipt["binding"] = self.binding();
+        receipt["selectedDenominator"] = scope.clone();
         let evidence = json!({
-            "binding": self.binding(),
-            "executionReceipt": self.execution_receipt(&run),
-            // Trivy's embedded check bundle ships with the binary: the version
-            // is the closest identity available offline.
+            "binding": self.binding(), "executionReceipt": receipt,
             "databaseDigest": digest(format!("trivy-builtin-checks\0{}", run.version).as_bytes()),
-            "examined": examined,
-            "findings": findings,
+            "databaseIdentityKind": "embedded-checks-version-derived",
+            "sourceDispositions": dispositions, "rawResults": output.get("Results"),
+            "examined": covered_sources.len() + examined_records, "findings": findings,
         });
-        let artifacts = json!({"renderedInfrastructure": rendered, "iacEvidence": evidence});
-        Production::Artifact(self.input(&files, artifacts, run.producer()))
+        let artifacts = json!({"renderedInfrastructure": observations, "iacEvidence": evidence});
+        let mut input = self.input(&files, artifacts, run.producer());
+        input["plan"]["selectedDenominator"] = scope;
+        Production::Artifact(input)
     }
 
     // ----------------------------------------------------------- dependency.osv
@@ -1408,12 +1452,60 @@ const AST_GREP_EXTENSIONS: &[&str] = &[
 ];
 
 fn is_iac_path(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
-    lower.contains("dockerfile")
-        || lower.ends_with(".yaml")
-        || lower.ends_with(".yml")
-        || lower.ends_with(".tf")
-        || lower.contains("compose")
+    container_iac::is_iac_path(path)
+}
+
+/// Observe exact selected sources before & after scanning. No classification
+/// disposition can stand in for observing frozen source bytes, including paths
+/// classified outside supported IaC scope.
+fn iac_source_dispositions(root: &Path, entries: &[InventoryEntry]) -> Vec<Value> {
+    let root = fs::canonicalize(root).ok();
+    entries
+        .iter()
+        .map(|entry| {
+            let disposition = if is_iac_path(&entry.path) {
+                "applicable-iac"
+            } else {
+                "outside-supported-iac-scope"
+            };
+            let mut row = json!({"path": entry.path, "disposition": disposition,
+            "frozenDigest": entry.digest, "state": "unproven"});
+            let Some(root) = root.as_deref() else {
+                row["reason"] = json!("iac-source-path-invalid");
+                return row;
+            };
+            if container_iac::config_target(root, &entry.path).as_deref()
+                != Some(entry.path.as_str())
+            {
+                row["reason"] = json!("iac-source-path-invalid");
+                return row;
+            }
+            let path = match fs::canonicalize(root.join(&entry.path)) {
+                Ok(path) if path.starts_with(root) && path.is_file() => path,
+                Ok(_) => {
+                    row["reason"] = json!("iac-source-path-invalid");
+                    return row;
+                }
+                Err(_) => {
+                    row["reason"] = json!("iac-source-unreadable");
+                    return row;
+                }
+            };
+            let Ok(bytes) = fs::read(path) else {
+                row["reason"] = json!("iac-source-unreadable");
+                return row;
+            };
+            row["observedDigest"] = json!(digest(&bytes));
+            if !super::common::valid_digest(row.get("frozenDigest")) {
+                row["reason"] = json!("iac-source-digest-missing");
+            } else if row["observedDigest"] != row["frozenDigest"] {
+                row["reason"] = json!("iac-source-drift");
+            } else {
+                row["state"] = json!("validated");
+            }
+            row
+        })
+        .collect()
 }
 
 /// Existing conventional ruleset locations, relative to `root`, sorted.
@@ -1811,6 +1903,117 @@ fn requirements_packages(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn iac_dispositions_observe_frozen_bytes_and_fail_closed_on_drift_or_missing_source() {
+        let scratch = Scratch::create(None).unwrap();
+        let root = &scratch.path;
+        let bytes = b"FROM scratch\n";
+        fs::write(root.join("Dockerfile"), bytes).unwrap();
+        let entry = InventoryEntry {
+            path: "Dockerfile".into(),
+            symbols: vec![],
+            dependencies: vec![],
+            package_scripts: vec![],
+            source_file: false,
+            digest: Some(digest(bytes)),
+        };
+        let observed = iac_source_dispositions(root, std::slice::from_ref(&entry));
+        assert_eq!(observed[0]["state"], "validated");
+        assert_eq!(observed[0]["observedDigest"], digest(bytes));
+        let mut unhashed = entry.clone();
+        unhashed.digest = None;
+        assert_eq!(
+            iac_source_dispositions(root, &[unhashed])[0]["reason"],
+            "iac-source-digest-missing"
+        );
+        fs::write(root.join("Dockerfile"), b"FROM changed\n").unwrap();
+        assert_eq!(
+            iac_source_dispositions(root, std::slice::from_ref(&entry))[0]["reason"],
+            "iac-source-drift"
+        );
+        fs::remove_file(root.join("Dockerfile")).unwrap();
+        assert_eq!(
+            iac_source_dispositions(root, &[entry])[0]["reason"],
+            "iac-source-unreadable"
+        );
+    }
+
+    #[test]
+    fn iac_dispositions_use_predicate_for_outside_scope_and_reject_path_escape() {
+        let scratch = Scratch::create(None).unwrap();
+        fs::write(scratch.path.join("README.md"), b"source").unwrap();
+        let entry = |path: &str| InventoryEntry {
+            path: path.into(),
+            symbols: vec![],
+            dependencies: vec![],
+            package_scripts: vec![],
+            source_file: false,
+            digest: Some(digest(b"source")),
+        };
+        let rows =
+            iac_source_dispositions(&scratch.path, &[entry("README.md"), entry("../Dockerfile")]);
+        assert_eq!(rows[0]["disposition"], "outside-supported-iac-scope");
+        assert_eq!(rows[0]["state"], "validated");
+        assert_eq!(rows[1]["reason"], "iac-source-path-invalid");
+    }
+
+    #[test]
+    fn outside_iac_scope_still_requires_readable_frozen_bytes() {
+        let scratch = Scratch::create(None).unwrap();
+        let root = &scratch.path;
+        fs::write(root.join("README.md"), b"source").unwrap();
+        let entry = InventoryEntry {
+            path: "README.md".into(),
+            symbols: vec![],
+            dependencies: vec![],
+            package_scripts: vec![],
+            source_file: false,
+            digest: Some(digest(b"source")),
+        };
+        let observed = iac_source_dispositions(root, std::slice::from_ref(&entry));
+        assert_eq!(observed[0]["disposition"], "outside-supported-iac-scope");
+        assert_eq!(observed[0]["state"], "validated");
+        let mut unhashed = entry.clone();
+        unhashed.digest = None;
+        assert_eq!(
+            iac_source_dispositions(root, &[unhashed])[0]["reason"],
+            "iac-source-digest-missing"
+        );
+        fs::write(root.join("README.md"), b"changed").unwrap();
+        assert_eq!(
+            iac_source_dispositions(root, std::slice::from_ref(&entry))[0]["reason"],
+            "iac-source-drift"
+        );
+        fs::remove_file(root.join("README.md")).unwrap();
+        assert_eq!(
+            iac_source_dispositions(root, &[entry])[0]["reason"],
+            "iac-source-unreadable"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn iac_dispositions_reject_symlink_escape_even_when_bytes_match() {
+        let scratch = Scratch::create(None).unwrap();
+        let root = scratch.path.join("source");
+        fs::create_dir(&root).unwrap();
+        fs::write(scratch.path.join("Dockerfile"), b"FROM scratch\n").unwrap();
+        std::os::unix::fs::symlink(scratch.path.join("Dockerfile"), root.join("Dockerfile"))
+            .unwrap();
+        let entry = InventoryEntry {
+            path: "Dockerfile".into(),
+            symbols: vec![],
+            dependencies: vec![],
+            package_scripts: vec![],
+            source_file: false,
+            digest: Some(digest(b"FROM scratch\n")),
+        };
+        assert_eq!(
+            iac_source_dispositions(&root, &[entry])[0]["reason"],
+            "iac-source-path-invalid"
+        );
+    }
 
     #[test]
     fn tool_version_probe_uses_tool_specific_args_in_both_routes() {

@@ -151,7 +151,8 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 audit_qualification_failures=0
-audit_cargo_test() { (cd engine && cargo test --locked -p legion-audit "$@"); }
+audit_cargo_bin="$(command -v cargo)"
+audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
 run_audit_qualification() {
   if "$@"; then
     return 0
@@ -164,7 +165,7 @@ run_audit_qualification() {
   return 0
 }
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint swiftlint ruby@3.3
+  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3
   # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
   # default gem directory because native scanner execution scrubs GEM_HOME.
   export PATH="$(brew --prefix ruby@3.3)/bin:$PATH"
@@ -186,6 +187,62 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   printf '%s  %s\n' "$squawk_sha" "$squawk_dir/squawk" | shasum -a 256 --check
   chmod +x "$squawk_dir/squawk"
   export PATH="$squawk_dir:$PATH"
+  # Official TFLint archive includes its Terraform ruleset; never --init.
+  case "$(uname -m)" in
+    arm64) tflint_asset=tflint_darwin_arm64.zip; tflint_sha=2496e9cb3d24992d553b45e7c87a0fdc9449ca975233876247a9bfeda857e6c0 ;;
+    x86_64) tflint_asset=tflint_darwin_amd64.zip; tflint_sha=0f3a9fd17526014646a2dfc3f9122f7b4161abe3d6b0f0f03f9014483ddf4d19 ;;
+    *) echo "Unsupported TFLint host architecture" >&2; exit 1 ;;
+  esac
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://github.com/terraform-linters/tflint/releases/download/v0.64.0/${tflint_asset}" \
+    --output "$squawk_dir/tflint.zip"
+  printf '%s  %s\n' "$tflint_sha" "$squawk_dir/tflint.zip" | shasum -a 256 --check
+  unzip -q "$squawk_dir/tflint.zip" tflint -d "$squawk_dir"
+  chmod +x "$squawk_dir/tflint"
+  case "$(uname -m)" in
+    arm64) trivy_asset=trivy_0.69.3_macOS-ARM64.tar.gz; trivy_sha=a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5 ;;
+    x86_64) trivy_asset=trivy_0.69.3_macOS-64bit.tar.gz; trivy_sha=fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e ;;
+    *) echo "Unsupported Trivy host architecture" >&2; exit 1 ;;
+  esac
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/${trivy_asset}" \
+    --output "$squawk_dir/trivy.tar.gz"
+  printf '%s  %s\n' "$trivy_sha" "$squawk_dir/trivy.tar.gz" | shasum -a 256 --check
+  tar -xzf "$squawk_dir/trivy.tar.gz" -C "$squawk_dir" trivy
+  chmod +x "$squawk_dir/trivy"
+  # Real Go scanner/toolchain archives stay isolated from host installations.
+  case "$(uname -m)" in
+    arm64)
+      golangci_arch=arm64
+      golangci_sha=d1e409481a8ca846c4bc97e781eb5cb1bd5c23353a0b3977a1cbda1b1b6447d5
+      go_sha=020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d ;;
+    x86_64)
+      golangci_arch=amd64
+      golangci_sha=767b899a28285e88ded2823d5dcc4bc5ef681173eb2d80f029a7b17ee4ece3b8
+      go_sha=92e8b34bff3c89ab16404c595669ac8cb004cc2f676dcbd1f5b87a6b8def3b47 ;;
+    *) echo "Unsupported Go scanner host architecture" >&2; exit 1 ;;
+  esac
+  export LEGION_GOLANGCI_LINT_ARCHIVE="$squawk_dir/golangci-lint-2.15.0-darwin-${golangci_arch}.tar.gz"
+  export LEGION_GO_ARCHIVE="$squawk_dir/go1.26.7.darwin-${golangci_arch}.tar.gz"
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://github.com/golangci/golangci-lint/releases/download/v2.15.0/$(basename "$LEGION_GOLANGCI_LINT_ARCHIVE")" \
+    --output "$LEGION_GOLANGCI_LINT_ARCHIVE"
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://go.dev/dl/$(basename "$LEGION_GO_ARCHIVE")" --output "$LEGION_GO_ARCHIVE"
+  printf '%s  %s\n' "$golangci_sha" "$LEGION_GOLANGCI_LINT_ARCHIVE" "$go_sha" "$LEGION_GO_ARCHIVE" | shasum -a 256 --check
+  mkdir -p "$RUNNER_TEMP/legion-go-toolchain"
+  tar -xzf "$LEGION_GO_ARCHIVE" -C "$RUNNER_TEMP/legion-go-toolchain"
+  tar -xzf "$LEGION_GOLANGCI_LINT_ARCHIVE" -C "$squawk_dir"
+  export LEGION_GO_ROOT="$RUNNER_TEMP/legion-go-toolchain/go"
+  export LEGION_GOLANGCI_LINT_BIN="$squawk_dir/golangci-lint-2.15.0-darwin-${golangci_arch}/golangci-lint"
+  # Freeze an upstream Kubernetes schema for offline native validation.
+  export LEGION_KUBECONFORM_SCHEMA_DIR="${RUNNER_TEMP}/legion-kubeconform-schemas"
+  mkdir -p "$LEGION_KUBECONFORM_SCHEMA_DIR"
+  curl --fail --location --connect-timeout 20 --max-time 120 \
+    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json" \
+    --output "$LEGION_KUBECONFORM_SCHEMA_DIR/pod-v1.json"
+  printf '%s  %s\n' 4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66 \
+    "$LEGION_KUBECONFORM_SCHEMA_DIR/pod-v1.json" | shasum -a 256 --check
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
   run_audit_qualification audit_cargo_test --test bench_recall -- --ignored --nocapture
@@ -213,6 +270,26 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test more_external_scanner_accuracy \
     real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-tflint-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test tflint_accuracy \
+    real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-kubeconform-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test kubeconform_accuracy \
+    real_scanner_accuracy_kubeconform -- --ignored --nocapture --test-threads=1
+  unset LEGION_KUBECONFORM_SCHEMA_DIR
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-golangci-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  audit_rustc_bin="$(command -v rustc)"
+  PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
+    run_audit_qualification audit_cargo_test --test golangci_accuracy \
+      real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
+  unset LEGION_GO_ROOT LEGION_GO_ARCHIVE LEGION_GOLANGCI_LINT_BIN LEGION_GOLANGCI_LINT_ARCHIVE
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-trivy-iac-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test trivy_iac_accuracy \
+    real_scanner_accuracy_trivy_iac -- --ignored --nocapture --test-threads=1
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-brakeman-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test brakeman_accuracy \
@@ -223,6 +300,11 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test real_legacy_linter_accuracy \
     real_legacy_linter_accuracy -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-extra-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" \
+    --squawk-receipts "${RUNNER_TEMP}/legion-squawk-accuracy" \
+    --brakeman-receipts "${RUNNER_TEMP}/legion-brakeman-accuracy" \
+    --linter-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   unset LEGION_REAL_LINTER_SCRATCH
   unset LEGION_REAL_GIT_SCRATCH
   unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR

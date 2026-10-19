@@ -210,7 +210,7 @@ impl ProviderExecutor for SecurityProviderExecutor {
             .and_then(|d| d.get("examined"))
             .and_then(Value::as_u64)
             .unwrap_or(0);
-        let gaps = analysis
+        let mut gaps = analysis
             .get("coverageGaps")
             .and_then(Value::as_array)
             .cloned()
@@ -226,6 +226,57 @@ impl ProviderExecutor for SecurityProviderExecutor {
             .and_then(|d| d.get("expected"))
             .and_then(Value::as_u64)
             .unwrap_or(0);
+        // Only this invocation's self-produced IaC artifact can reconcile
+        // configuration observations into frozen selector-path coverage.
+        // Host JSON never opts into this conversion.
+        let native_iac = produced_artifact && provider.id == "container.iac";
+        let mut iac_examined_paths = 0;
+        let mut iac_reconciled = false;
+        if native_iac {
+            let paths: BTreeSet<&str> = frozen_paths
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(String::as_str)
+                .collect();
+            let validated = analysis
+                .pointer("/sourceCoverage/validatedPaths")
+                .and_then(Value::as_array);
+            let validated_paths: BTreeSet<&str> = validated
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            let scope_valid = frozen.as_ref().is_some_and(|(digest, count)| {
+                *count == paths.len() as u64
+                    && analysis
+                        .pointer("/sourceCoverage/selectedCount")
+                        .and_then(Value::as_u64)
+                        == Some(*count)
+                    && analysis
+                        .pointer("/sourceCoverage/frozenDenominatorCount")
+                        .and_then(Value::as_u64)
+                        == Some(*count)
+                    && analysis
+                        .pointer("/sourceCoverage/frozenDenominatorDigest")
+                        .and_then(Value::as_str)
+                        == Some(digest.as_str())
+                    && validated.is_some_and(|rows| rows.len() == validated_paths.len())
+                    && validated_paths.is_subset(&paths)
+            });
+            if !scope_valid {
+                gaps.push(json!({"kind": "iac-frozen-path-reconciliation-invalid"}));
+            }
+            iac_examined_paths = validated_paths.intersection(&paths).count() as u64;
+            iac_reconciled = scope_valid
+                && validated_paths == paths
+                && analysis
+                    .pointer("/sourceCoverage/complete")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+                && expected == examined
+                && gaps.is_empty();
+        }
         // Dependency and SBOM analysis count manifests and packages, not
         // selector paths. The producer scans every selected path to find them,
         // so when the analysis reconciled fully in its own unit the frozen path
@@ -251,6 +302,10 @@ impl ProviderExecutor for SecurityProviderExecutor {
                 )
             });
         let (expected, examined) = match (&frozen, produced_artifact) {
+            // This count comes only from validated selected paths, never
+            // from the infrastructure-resource count. A malformed frozen
+            // count is separately gapped & cannot make completion true.
+            (Some((_, count)), true) if native_iac => (*count, iac_examined_paths.min(*count)),
             (Some((_, count)), true) if expected > 0 && unit_reconciled => (*count, *count),
             (Some((_, count)), true) if expected > 0 => (*count, examined.min(*count)),
             // An unavailable provider still reports what was selected, with
@@ -259,10 +314,12 @@ impl ProviderExecutor for SecurityProviderExecutor {
             _ => (expected, examined),
         };
         let reconciled = !produced_artifact
+            || (native_iac && iac_reconciled)
             || own_unit
-            || frozen
-                .as_ref()
-                .is_some_and(|(_, count)| *count == analysis_expected);
+            || (!native_iac
+                && frozen
+                    .as_ref()
+                    .is_some_and(|(_, count)| *count == analysis_expected));
         let complete = analysis.get("complete").and_then(Value::as_bool) == Some(true)
             && reconciled
             && expected == examined
