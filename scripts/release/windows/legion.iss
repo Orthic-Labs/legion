@@ -4,6 +4,7 @@
 #define SourceRoot "@@SOURCE_ROOT@@"
 #define OutputRoot "@@OUTPUT_ROOT@@"
 #define SetupName "@@SETUP_NAME@@"
+#define DevelopmentInstall @@DEVELOPMENT_INSTALL@@
 
 [Setup]
 AppId={{A34A13B9-B8BC-4A06-8D7E-6CD71298F27E}
@@ -34,7 +35,7 @@ UninstallDisplayName=Legion
 Uninstallable=yes
 
 [Files]
-Source: "@@ACTIVATION_SCRIPT@@"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "@@ACTIVATION_SCRIPT@@"; Flags: dontcopy
 ; Stage into a fresh root.  Same-version installs must not merge into the
 ; existing current tree: removed payload entries would otherwise survive.
 ; This directory is nonrunning staging only; activation moves it to current.
@@ -60,6 +61,7 @@ function SendMessageTimeout(hWnd: HWND; Msg: UINT; wParam: Longint; lParam: Stri
   external 'SendMessageTimeoutW@user32.dll stdcall';
 var
   ActivationExitCode: Integer;
+  DevelopmentRetryPrepared: Boolean;
 
 procedure BroadcastEnvironmentChange;
 var
@@ -108,6 +110,12 @@ var
 begin
   Params := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\activate.ps1') +
     '" -InstallRoot "' + ExpandConstant('{app}') + '" -Version "{#ProductVersion}"';
+  { Mode is fixed when this installer is built, never selected by caller flags. }
+#if DevelopmentInstall
+  Params := Params + ' -DevelopmentInstall';
+  Params := Params + ' -InstallerPath "' + ExpandConstant('{srcexe}') + '"';
+  if DevelopmentRetryPrepared then Params := Params + ' -ResumeDevelopmentRetry';
+#endif
   if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     ActivationExitCode := 4;
@@ -128,12 +136,30 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
+  Params: String;
 begin
+  DevelopmentRetryPrepared := False;
+  { Always use this installer's bundled script, including retry preflight. }
+  ExtractTemporaryFile('activate.ps1');
   { Preserve any unfinished or foreign stage rather than merging or deleting it.
     SetupMutex serializes installers before this check & all payload writes. }
   if DirExists(ExpandConstant('{app}\.next-version-{#ProductVersion}')) then begin
+#if DevelopmentInstall
+    Params := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\activate.ps1') +
+      '" -InstallRoot "' + ExpandConstant('{app}') + '" -Version "{#ProductVersion}" -DevelopmentInstall -PrepareDevelopmentRetry -InstallerPath "' + ExpandConstant('{srcexe}') + '"';
+    if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
+      Result := 'Could not validate interrupted Legion development replacement';
+      Exit;
+    end;
+    if ResultCode <> 0 then begin
+      Result := 'Preserving unfinished Legion payload stage; exact installer recovery could not be validated';
+      Exit;
+    end;
+    DevelopmentRetryPrepared := True;
+#else
     Result := 'Preserving unfinished Legion payload stage; recovery is required';
     Exit;
+#endif
   end;
   { A client keeps `legion serve --stdio` running, and Windows will not replace
     a running executable, so an upgrade aborted with the previous version left

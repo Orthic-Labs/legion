@@ -1,6 +1,10 @@
 param(
   [Parameter(Mandatory=$true)][string]$InstallRoot,
   [Parameter(Mandatory=$true)][string]$Version,
+  [switch]$DevelopmentInstall,
+  [string]$InstallerPath,
+  [switch]$PrepareDevelopmentRetry,
+  [switch]$ResumeDevelopmentRetry,
   [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 600
 )
 $ErrorActionPreference = 'Stop'
@@ -8,6 +12,8 @@ $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid Legion version' }
 $currentPath = Join-Path $rootPath 'current'
 $payloadPath = Join-Path $rootPath ('.next-version-' + $Version)
+$activationReceiptPath = Join-Path $rootPath 'activation.json'
+$developmentRecovery = $null
 $transactionRoot = Join-Path $PSScriptRoot ('legion-activation-' + [Guid]::NewGuid().ToString('N'))
 $backupPath = Join-Path $transactionRoot 'current'
 $legacyCodexSnapshotRoot = Join-Path $transactionRoot 'codex'
@@ -124,6 +130,76 @@ function Get-OwnedPayload([string]$Path, [string]$ProductRoot, [bool]$AllowLegac
   $declaredHash = ([string]$release.runtime.sha256).ToLowerInvariant() -replace '^sha256:', ''
   if ($declaredHash -notmatch '^[a-f0-9]{64}$' -or $declaredHash -ne (Get-BinaryHash (Join-Path $payloadRoot 'bin\legion.exe')).ToLowerInvariant()) { throw "Prior payload runtime digest is invalid: $Path" }
   return [pscustomobject]@{ root=$payloadRoot; legacyTarget=$legacyTarget; release=$release; digests=$digests; version=$releaseVersion; runtimeHash=$declaredHash }
+}
+function Get-RecordedDigests($Value) {
+  $digests = [System.Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
+  $entries = if ($Value -is [System.Collections.IDictionary]) { $Value.GetEnumerator() } else { $Value.PSObject.Properties | ForEach-Object { [pscustomobject]@{Key=$_.Name;Value=$_.Value} } }
+  foreach ($entry in $entries) {
+    $relative = [string]$entry.Key
+    $digest = [string]$entry.Value
+    if (-not $relative -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.?([\\/]|$)' -or $relative.Contains(':') -or $digest -notmatch '^[A-Fa-f0-9]{64}$') { throw 'Invalid development recovery digest record' }
+    $digests.Add($relative, $digest)
+  }
+  if ($digests.Count -eq 0) { throw 'Development recovery digest record is empty' }
+  return ,$digests
+}
+function New-RecoveryPayloadRecord([string]$Path, $Payload) {
+  if ($null -eq $Payload) { return $null }
+  return [pscustomobject]@{path=$Path;legacyTarget=$Payload.legacyTarget;digests=$Payload.digests}
+}
+function Assert-RecoverableCurrent([string]$Path, [string]$ProductRoot, $Prior, $CandidateDigests) {
+  Assert-RealAncestors (Split-Path -Parent $Path)
+  $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+  if ($null -eq $item) { return }
+  if ($null -ne $Prior -and [IO.Path]::GetFullPath([string]$Prior.path) -ine $Path) { throw 'Development recovery prior path differs from stable current' }
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    if ($null -eq $Prior -or -not $Prior.legacyTarget) { throw 'Development recovery refuses current reparse point' }
+    $owned = Get-OwnedPayload $Path $ProductRoot $true
+    if ($owned.legacyTarget -ine [string]$Prior.legacyTarget) { throw 'Development recovery current junction changed' }
+    Assert-PayloadDigests $owned.root (Get-RecordedDigests $Prior.digests)
+    return
+  }
+  if (-not $item.PSIsContainer) { throw 'Development recovery current is not a real directory' }
+  $actual = Get-PayloadDigests $Path
+  # A retry can itself stop while deleting candidate current. Require every
+  # remaining file to match one complete recorded identity, never a per-file union.
+  $candidateMatches = $actual.Count -le $CandidateDigests.Count
+  foreach ($relative in $actual.Keys) {
+    if (-not $CandidateDigests.ContainsKey($relative) -or $actual[$relative] -ne $CandidateDigests[$relative]) { $candidateMatches = $false; break }
+  }
+  if ($candidateMatches) { return }
+  if ($null -eq $Prior -or $Prior.legacyTarget) { throw 'Development recovery current has no matching prior identity' }
+  $priorDigests = Get-RecordedDigests $Prior.digests
+  foreach ($relative in $actual.Keys) {
+    if (-not $priorDigests.ContainsKey($relative) -or $actual[$relative] -ne $priorDigests[$relative]) { throw "Development recovery refuses changed or foreign current bytes: $relative" }
+  }
+}
+function Get-DevelopmentRecovery([bool]$Required = $false) {
+  if (-not $DevelopmentInstall) { if ($Required) { throw 'Only development installers can retry interrupted replacement' }; return $null }
+  if (-not [IO.Path]::IsPathRooted($InstallerPath)) { throw 'Development installer source path must be absolute' }
+  $installer = Get-Item -LiteralPath $InstallerPath -Force -ErrorAction Stop
+  if ($installer.PSIsContainer -or ($installer.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Development installer source is not a regular file' }
+  $script:developmentInstallerHash = Get-BinaryHash $InstallerPath
+  $receiptItem = Get-Item -LiteralPath $activationReceiptPath -Force -ErrorAction SilentlyContinue
+  if ($null -eq $receiptItem) { if ($Required) { throw 'Interrupted development stage lacks recovery context' }; return $null }
+  if ($receiptItem.PSIsContainer -or ($receiptItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Development recovery receipt is not a regular file' }
+  $receipt = Get-Content -LiteralPath $activationReceiptPath -Raw | ConvertFrom-Json -ErrorAction Stop
+  $context = $receipt.developmentRecovery
+  if ($receipt.schema -cne 'legion.install.activation.v1' -or $receipt.state -notin @('replacing','failed') -or $null -eq $context) {
+    if ($Required) { throw 'Interrupted development stage lacks replacement context' }; return $null
+  }
+  if ($context.owner -cne 'legion.dev-replacement.v1' -or $context.version -cne $Version -or
+      [string]$context.installerSha256 -cne $developmentInstallerHash -or
+      [string]$context.root -ine $rootPath -or [string]$context.current -ine $currentPath -or [string]$context.stage -ine $payloadPath -or
+      [string]$receipt.current -ine $currentPath -or [string]$receipt.target -ine $currentPath) {
+    if ($Required) { throw 'Development recovery does not match this exact installer and stable paths' }; return $null
+  }
+  $candidateDigests = Get-RecordedDigests $context.candidateDigests
+  $candidate = Get-OwnedPayload $payloadPath $rootPath
+  if ($candidate.version -cne $Version) { throw 'Interrupted development candidate version differs' }
+  Assert-PayloadDigests $payloadPath $candidateDigests
+  Assert-RecoverableCurrent $currentPath $rootPath $context.priorCurrent $candidateDigests
+  return $context
 }
 function Assert-NoRecoveryRoot([string]$Path) {
   if ($null -ne (Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue)) { throw "Preserving unfinished or unowned recovery root: $Path" }
@@ -283,11 +359,14 @@ function Sync-PackagedLocalCacheMirrors([string]$CurrentPath, [System.Collection
       Copy-Item -LiteralPath $CurrentPath -Destination $stagePath -Recurse
       Assert-PayloadDigests $stagePath (Get-PayloadDigests $CurrentPath)
       if (Test-Path -LiteralPath $mirrorCurrent) {
-        Save-CurrentPayload $mirrorCurrent $backupPath
-        $transaction.backupCreated = $true
+        if (-not $DevelopmentInstall) {
+          Save-CurrentPayload $mirrorCurrent $backupPath
+          $transaction.backupCreated = $true
+        }
         $transaction.replacementCreated = $true
         Remove-InstallTree $mirrorCurrent
       }
+      if ($DevelopmentInstall) { Remove-InstalledHistory $mirrorProductRoot }
       Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
       $transaction.replacementCreated = $true
       if ($env:LEGION_INSTALL_TEST_MODE -eq 'mirror-sync-failure') { throw 'Forced packaged LocalCache mirror failure' }
@@ -296,6 +375,40 @@ function Sync-PackagedLocalCacheMirrors([string]$CurrentPath, [System.Collection
       Write-InstallEvent 'localcache-mirror' 'failed' ($_ | Out-String).Trim()
       throw
     }
+  }
+}
+function Assert-PackagedLocalCacheMirrors($Recovery = $null) {
+  $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
+  $packagesRoot = if ($env:LEGION_INSTALL_PACKAGES_ROOT) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_PACKAGES_ROOT) } else { Join-Path $localAppData 'Packages' }
+  if (-not (Test-Path -LiteralPath $packagesRoot -PathType Container)) { return }
+  Assert-RealAncestors $packagesRoot
+  foreach ($package in Get-ChildItem -LiteralPath $packagesRoot -Directory -ErrorAction SilentlyContinue) {
+    $mirrorProductRoot = Join-Path $package.FullName 'LocalCache\Local\Orthic Labs\Legion'
+    if (-not (Test-Path -LiteralPath $mirrorProductRoot -PathType Container)) { continue }
+    Assert-RealAncestors $mirrorProductRoot
+    $mirrorCurrent = Join-Path $mirrorProductRoot 'current'
+    $priorRecord = $null
+    $recoveringMirror = @($Recovery.mirrors | Where-Object { [string]$_.root -ieq $mirrorProductRoot })
+    if ($null -ne $Recovery -and $recoveringMirror.Count -gt 0) {
+      if ($recoveringMirror.Count -ne 1) { throw 'Duplicate development recovery mirror identity' }
+      $priorRecord = $recoveringMirror[0].prior
+      Assert-RecoverableCurrent $mirrorCurrent $mirrorProductRoot $priorRecord (Get-RecordedDigests $Recovery.candidateDigests)
+    } elseif ($null -ne (Get-Item -LiteralPath $mirrorCurrent -Force -ErrorAction SilentlyContinue)) {
+      $priorRecord = New-RecoveryPayloadRecord $mirrorCurrent (Get-OwnedPayload $mirrorCurrent $mirrorProductRoot $true)
+    }
+    [pscustomobject]@{root=$mirrorProductRoot;prior=$priorRecord}
+  }
+}
+function Write-FailedDevelopmentReceipt([string]$Detail, [string]$State = 'failed') {
+  # Direct atomic IO also replaces a partially written success receipt.
+  $temporary = Join-Path $rootPath ('.activation-failed-' + [Guid]::NewGuid().ToString('N'))
+  $receipt = [ordered]@{schema='legion.install.activation.v1';state=$State;current=$currentPath;target=$currentPath;previous=$null;refresh='failed';recovery='reinstall';error=$Detail;developmentRecovery=$developmentRecovery}
+  [IO.File]::WriteAllText($temporary, ($receipt | ConvertTo-Json -Depth 12 -Compress), [Text.UTF8Encoding]::new($false))
+  try {
+    if ([IO.File]::Exists($activationReceiptPath)) { [IO.File]::Replace($temporary, $activationReceiptPath, $null) }
+    else { [IO.File]::Move($temporary, $activationReceiptPath) }
+  } finally {
+    if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
   }
 }
 function Restore-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
@@ -369,6 +482,13 @@ try {
   catch [Threading.AbandonedMutexException] { $lockAcquired = $true }
   if (-not $lockAcquired) { throw 'Another Legion activation holds this install root (30s timeout)' }
   Write-InstallEvent 'activation-lock' 'complete' 'exclusive install-root lock acquired'
+  if ($PrepareDevelopmentRetry) {
+    Assert-RealAncestors $rootPath
+    $retry = Get-DevelopmentRecovery $true
+    Assert-PackagedLocalCacheMirrors $retry | Out-Null
+    Write-InstallEvent 'development-retry' 'validated' 'exact installer and interrupted candidate verified'
+    exit 0
+  }
 if (-not (Test-Path -LiteralPath (Join-Path $payloadPath 'bin\legion.exe') -PathType Leaf)) { throw 'Staged Legion executable missing' }
 $hadCurrent = $null -ne (Get-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue)
 $priorSupportsNativeMarketplace = $false
@@ -377,6 +497,7 @@ $priorRuntimeHash = $null
 $priorPayload = $null
 $currentBackupCreated = $false
 $currentReplaced = $false
+$developmentReplacementStarted = $false
 $activationCommitted = $false
 $mirrorTransactions = [System.Collections.Generic.List[object]]::new()
 $legacyCodexSnapshot = $null
@@ -385,11 +506,11 @@ $clientRegistrationAttempted = $false
 $candidateValidated = $false
 $receiptMutationAttempted = $false
 $payloadOwned = $false
-$activationReceiptPath = Join-Path $rootPath 'activation.json'
-$priorActivationReceipt = if (Test-Path -LiteralPath $activationReceiptPath -PathType Leaf) { [IO.File]::ReadAllBytes($activationReceiptPath) } else { $null }
+$priorActivationReceipt = if (-not $DevelopmentInstall -and (Test-Path -LiteralPath $activationReceiptPath -PathType Leaf)) { [IO.File]::ReadAllBytes($activationReceiptPath) } else { $null }
 Write-InstallEvent 'activation' 'started' "version=$Version"
 try {
   Assert-RealAncestors $rootPath
+  $developmentRecovery = Get-DevelopmentRecovery ([bool]$ResumeDevelopmentRetry)
   # Treat staging as data only; ownership & runtime digest precede cleanup or execution.
   $stagedPayload = Get-OwnedPayload $payloadPath $rootPath
   if ($stagedPayload.version -cne $Version) { throw 'Staged payload declares an unexpected Windows release identity' }
@@ -401,27 +522,64 @@ try {
   if ($transactionRoot.StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Installer temporary storage must be outside install root' }
   Assert-NoRecoveryRoot $transactionRoot
   if ($hadCurrent) {
-    $priorPayload = Get-OwnedPayload $currentPath $rootPath $true
-    $priorRuntimeVersion = $priorPayload.version
-    $priorRuntimeHash = $priorPayload.runtimeHash
-    $priorSupportsNativeMarketplace = $null -ne $priorPayload.release.nativeMarketplaces
+    if ($null -ne $developmentRecovery) {
+      Assert-RecoverableCurrent $currentPath $rootPath $developmentRecovery.priorCurrent (Get-RecordedDigests $developmentRecovery.candidateDigests)
+    } else {
+      $priorPayload = Get-OwnedPayload $currentPath $rootPath $true
+      $priorRuntimeVersion = $priorPayload.version
+      $priorRuntimeHash = $priorPayload.runtimeHash
+      $priorSupportsNativeMarketplace = $null -ne $priorPayload.release.nativeMarketplaces
+    }
   }
+  # Reject foreign mirror roots before destructive development replacement.
+  $validatedMirrors = @(Assert-PackagedLocalCacheMirrors $developmentRecovery)
   $hostHome = if ($env:USERPROFILE) { [IO.Path]::GetFullPath($env:USERPROFILE) } else { [Environment]::GetFolderPath('UserProfile') }
   $stateRoot = if ($env:LEGION_STATE_ROOT) { [IO.Path]::GetFullPath($env:LEGION_STATE_ROOT) } else { Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Legion' }
   $codexDisabledIntent = Get-CodexDisabledIntent $hostHome
-  $priorCodexProjection = Get-LegacyCodexProjection $stateRoot $hostHome $rootPath
-  New-Item -ItemType Directory -Path $transactionRoot | Out-Null
-  $legacyCodexSnapshot = Save-LegacyCodexProjection $priorCodexProjection $legacyCodexSnapshotRoot
+  if (-not $DevelopmentInstall) {
+    $priorCodexProjection = Get-LegacyCodexProjection $stateRoot $hostHome $rootPath
+    New-Item -ItemType Directory -Path $transactionRoot | Out-Null
+    $legacyCodexSnapshot = Save-LegacyCodexProjection $priorCodexProjection $legacyCodexSnapshotRoot
+  }
+  # From here dev recovery is reinstall: never create or restore prior payload copies.
+  if ($DevelopmentInstall) {
+    $priorRecord = if ($null -ne $developmentRecovery) { $developmentRecovery.priorCurrent } else { New-RecoveryPayloadRecord $currentPath $priorPayload }
+    $developmentRecovery = [pscustomobject]@{owner='legion.dev-replacement.v1';version=$Version;installerSha256=$developmentInstallerHash;root=$rootPath;current=$currentPath;stage=$payloadPath;candidateDigests=$payloadDigests;priorCurrent=$priorRecord;mirrors=$validatedMirrors}
+    # Persist only identity/digest metadata before any old bytes can be removed.
+    Write-FailedDevelopmentReceipt 'development replacement started; reinstall required until activation succeeds' 'replacing'
+    $developmentReplacementStarted = $true
+  }
   if ($hadCurrent) {
-    # Materialize legacy junctions so rollback restores a real current folder.
-    Save-CurrentPayload $currentPath $backupPath
-    $currentBackupCreated = $true
+    if (-not $DevelopmentInstall) {
+      # Materialize legacy junctions so release rollback restores real current.
+      Save-CurrentPayload $currentPath $backupPath
+      $currentBackupCreated = $true
+    }
     $currentReplaced = $true
+    if ($DevelopmentInstall -and $env:LEGION_INSTALL_TEST_MODE -eq 'partial-current-removal-failure') {
+      Remove-Item -LiteralPath (Join-Path $currentPath 'share\legion\release.json') -Force
+      throw 'Forced interrupted prior current removal after identity deletion'
+    }
     Remove-InstallTree $currentPath
   }
+  if ($DevelopmentInstall) { Remove-InstalledHistory $rootPath }
   Move-Item -LiteralPath $payloadPath -Destination $currentPath
   $currentReplaced = $true
   Assert-PayloadDigests $currentPath $payloadDigests
+  if ($DevelopmentInstall) {
+    # Retire all validated old mirrors before any candidate child can fail.
+    foreach ($mirror in $validatedMirrors) {
+      $mirrorRoot = $mirror.root
+      Assert-RealAncestors $mirrorRoot
+      $mirrorCurrent = Join-Path $mirrorRoot 'current'
+      if ($null -ne (Get-Item -LiteralPath $mirrorCurrent -Force -ErrorAction SilentlyContinue)) {
+        Assert-RecoverableCurrent $mirrorCurrent $mirrorRoot $mirror.prior $payloadDigests
+        Remove-InstallTree $mirrorCurrent
+      }
+      Remove-InstalledHistory $mirrorRoot
+    }
+    Sync-PackagedLocalCacheMirrors $currentPath $mirrorTransactions
+  }
   $legion = Join-Path $currentPath 'bin\legion.exe'
   $reportedVersion = ([string](Invoke-Bounded 'activation-version' $legion @('--version'))).Trim()
   if ($reportedVersion -ne $Version) { throw "Activation verification returned version $reportedVersion" }
@@ -435,7 +593,7 @@ try {
     try { $refresh = $refreshJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client refresh returned invalid JSON' }
     if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
   }
-  Sync-PackagedLocalCacheMirrors $currentPath $mirrorTransactions
+  if (-not $DevelopmentInstall) { Sync-PackagedLocalCacheMirrors $currentPath $mirrorTransactions }
   Assert-PayloadDigests $currentPath $payloadDigests
   # Set the rollback obligation before any write can truncate prior evidence.
   $receiptMutationAttempted = $true
@@ -449,6 +607,18 @@ try {
   Write-InstallEvent 'activation' 'complete' "version=$Version; prior payloads removed"
 } catch {
   $activationError = ($_ | Out-String).Trim()
+  if ($DevelopmentInstall -and $developmentReplacementStarted) {
+    # Preserve candidate current/stage & registrations for an exact installer retry.
+    # Do not run stale runtime repair, candidate removal, or transaction rollback.
+    $failureIssues = [System.Collections.Generic.List[string]]::new()
+    try { Write-FailedDevelopmentReceipt $activationError }
+    catch { $failureIssues.Add("write failed activation receipt: $(($_ | Out-String).Trim())") | Out-Null }
+    try { Write-InstallEvent 'activation' 'failed' $activationError }
+    catch { $failureIssues.Add("write activation failure event: $(($_ | Out-String).Trim())") | Out-Null }
+    try { Write-InstallEvent 'recovery' 'required' 'development replacement started; candidate preserved; reinstall required; no prior payload saved' }
+    catch { $failureIssues.Add("write reinstall event: $(($_ | Out-String).Trim())") | Out-Null }
+    throw "Development activation failed; candidate preserved; reinstall required: $activationError; $($failureIssues -join '; ')"
+  }
   if ($activationCommitted) {
     Write-InstallEvent 'cleanup' 'failed' $activationError
     Write-InstallEvent 'activation' 'failed' 'current committed; retained payload cleanup incomplete'

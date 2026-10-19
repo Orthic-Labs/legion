@@ -249,6 +249,7 @@ pub fn render_inno_template(
     output_root: &Path,
     version: &str,
     architecture: &str,
+    unsigned: bool,
 ) -> ReleaseResult<String> {
     for (label, value) in [("source", source_root), ("output", output_root)] {
         if !value.is_absolute() {
@@ -273,6 +274,10 @@ pub fn render_inno_template(
         ("@@SOURCE_ROOT@@", source_root.to_string_lossy().to_string()),
         ("@@OUTPUT_ROOT@@", output_root.to_string_lossy().to_string()),
         ("@@SETUP_NAME@@", setup_name),
+        (
+            "@@DEVELOPMENT_INSTALL@@",
+            if unsigned { "1" } else { "0" }.to_string(),
+        ),
     ] {
         out = out.replace(needle, &value);
     }
@@ -434,6 +439,7 @@ pub fn finalize_windows_installer(
         &output,
         &input.version,
         &input.architecture,
+        input.unsigned,
     )?;
     fs::write(&script_path, rendered).map_err(|e| fail(e.to_string()))?;
     let installer = output.join(&identity.name);
@@ -566,5 +572,30 @@ mod tests {
         assert!(template.contains(r#"{#SourceRoot}\.agents\plugins\*"#));
         assert!(template.contains(r#"{app}\.next-version-{#ProductVersion}\.claude-plugin"#));
         assert!(template.contains(r#"{app}\.next-version-{#ProductVersion}\.agents\plugins"#));
+    }
+
+    #[test]
+    fn unsigned_installer_bakes_development_activation_mode() {
+        let template = include_str!("../../../../scripts/release/windows/legion.iss");
+        let root = std::env::temp_dir();
+        for (unsigned, expected) in [(true, "1"), (false, "0")] {
+            let rendered = render_inno_template(
+                template,
+                &root.join("activate.ps1"),
+                &root.join("payload"),
+                &root.join("installer"),
+                "1.2.3",
+                "x86_64",
+                unsigned,
+            )
+            .unwrap();
+            assert!(rendered.contains(&format!("#define DevelopmentInstall {expected}")));
+            assert!(rendered
+                .contains("#if DevelopmentInstall\n  Params := Params + ' -DevelopmentInstall';"));
+            assert!(rendered.contains("ExpandConstant('{srcexe}')"));
+            assert!(rendered.contains("ExtractTemporaryFile('activate.ps1')"));
+            assert!(rendered.contains("-PrepareDevelopmentRetry -InstallerPath"));
+            assert!(!rendered.contains("@@DEVELOPMENT_INSTALL@@"));
+        }
     }
 }

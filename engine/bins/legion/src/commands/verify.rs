@@ -980,6 +980,13 @@ mod tests {
         }
         fn seal_plan_with_bounds(&self, parent_digest: Option<&str>, mut bounds: Value) -> String {
             let mut outer = read_runtime_plan(&self.0.join("plan.json")).unwrap();
+            bounds.as_object_mut().unwrap().extend(
+                legion_audit::execution_policy::binding()
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.clone())),
+            );
             if let Some(parent) = parent_digest {
                 bounds["followup"] = json!({"parentPlanDigest":parent});
                 outer["followupOf"] =

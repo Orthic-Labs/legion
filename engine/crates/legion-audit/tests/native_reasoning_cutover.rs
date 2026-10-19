@@ -138,10 +138,18 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
     let author_result = json!({"schemaVersion":1,"kind":"legion-lens-result","provider":request.provider_id,
         "packetDigest":canonical_digest(&request.packet).unwrap(),"planDigest":request.plan_digest,
         "complete":true,"findings":[],"withdrawn":[],"details":{"fixtureSimulation":true}});
+    let negative_review = common::negative_review(request, &author_result, fixture_root());
+    let verification_gap = (negative_review["verdict"] == "unresolved").then(|| {
+        format!(
+            "verification-negative-unresolved:{}:{}",
+            request.provider_id,
+            negative_review["reason"].as_str().unwrap(),
+        )
+    });
     details.insert("verificationEvidence".into(), json!({
         "schemaVersion": 1, "kind": "legion-runtime-verification", "requestId": request.request_id,
         "packetDigest": canonical_digest(&request.packet).unwrap(), "findings": [],
-        "negativeReview":common::negative_review(request,&author_result,fixture_root())
+        "negativeReview":negative_review
     }));
     match request.provider_id.as_str() {
         "reasoning.architecture" => {
@@ -176,7 +184,10 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
         }
         _ => {}
     }
-    let gaps = required_packet_gaps(request);
+    let mut gaps = required_packet_gaps(request);
+    // Empty packet scopes cannot support even a simulated scoped-clean review.
+    // Preserve the helper's real unresolved disposition in the signed result.
+    gaps.extend(verification_gap);
     let complete = gaps.is_empty();
     ProviderResult {
         schema_version: 1,
@@ -457,8 +468,46 @@ fn every_reasoning_id_executes_through_the_shared_native_registry() {
         "{:?}",
         report.gaps
     );
-    assert!(report.results.iter().all(|entry| entry.result.complete
-        == (entry.provider.as_str() != "legacy.security.adjudication")));
+    assert!(
+        report
+            .gaps
+            .iter()
+            .all(|gap| !gap.contains("reasoning receipt rejected")),
+        "{:?}",
+        report.gaps
+    );
+    for entry in &report.results {
+        let review = &entry.result.details["verificationEvidence"]["negativeReview"];
+        assert!(
+            matches!(
+                review["verdict"].as_str(),
+                Some("scoped_clean" | "unresolved")
+            ),
+            "{}: {review}",
+            entry.provider
+        );
+        assert_eq!(
+            entry.result.complete,
+            entry.provider.as_str() != "legacy.security.adjudication"
+                && review["verdict"] == "scoped_clean",
+            "{}: {:?}",
+            entry.provider,
+            entry.result.coverage_gaps
+        );
+        if review["verdict"] == "unresolved" {
+            assert!(
+                entry.result.coverage_gaps.iter().any(|gap| gap
+                    == &format!(
+                        "verification-negative-unresolved:{}:{}",
+                        entry.provider,
+                        review["reason"].as_str().unwrap(),
+                    )),
+                "{}: {:?}",
+                entry.provider,
+                entry.result.coverage_gaps
+            );
+        }
+    }
 }
 
 #[test]
