@@ -150,6 +150,19 @@ PY
 # macOS leg because dead-code, duplication and type checks must run inside
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
+audit_qualification_failures=0
+audit_cargo_test() { (cd engine && cargo test --locked -p legion-audit "$@"); }
+run_audit_qualification() {
+  if "$@"; then
+    return 0
+  else
+    local status=$?
+    audit_qualification_failures=$((audit_qualification_failures + 1))
+    printf '::error::Audit qualification command failed (exit %s): %s\n' "$status" "$*" >&2
+  fi
+  # Continue independent controls, then refuse delivery below if any failed.
+  return 0
+}
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint swiftlint ruby@3.3
   # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
@@ -175,41 +188,41 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   export PATH="$squawk_dir:$PATH"
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
-  (cd engine && cargo test --locked -p legion-audit --test bench_recall -- --ignored --nocapture)
+  run_audit_qualification audit_cargo_test --test bench_recall -- --ignored --nocapture
   export LEGION_REAL_SCANNER_SCRATCH="${RUNNER_TEMP}/legion-real-scanner-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-external-provider-accuracy"
   mkdir -p "$LEGION_REAL_SCANNER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test external_scanner_accuracy \
-    real_scanner_accuracy_shellcheck -- --ignored --nocapture --test-threads=1)
-  python3 scripts/ci/audit-external-provider-accuracy.py \
+  run_audit_qualification audit_cargo_test --test external_scanner_accuracy \
+    real_scanner_accuracy_shellcheck -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-external-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-additional-scanner-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test additional_external_scanner_accuracy \
-    real_scanner_accuracy -- --ignored --nocapture --test-threads=1)
+  run_audit_qualification audit_cargo_test --test additional_external_scanner_accuracy \
+    real_scanner_accuracy -- --ignored --nocapture --test-threads=1
   export LEGION_REAL_GIT_SCRATCH="${RUNNER_TEMP}/legion-real-git-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-git-accuracy"
   mkdir -p "$LEGION_REAL_GIT_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test legacy_git_accuracy \
-    real_legacy_git_accuracy -- --ignored --nocapture --test-threads=1)
-  python3 scripts/ci/audit-real-provider-accuracy.py \
+  run_audit_qualification audit_cargo_test --test legacy_git_accuracy \
+    real_legacy_git_accuracy -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-real-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" \
     --scanner-receipts "${RUNNER_TEMP}/legion-additional-scanner-accuracy" \
     --git-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-squawk-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test more_external_scanner_accuracy \
-    real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1)
+  run_audit_qualification audit_cargo_test --test more_external_scanner_accuracy \
+    real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-brakeman-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test brakeman_accuracy \
-    real_scanner_accuracy_brakeman -- --ignored --nocapture --test-threads=1)
+  run_audit_qualification audit_cargo_test --test brakeman_accuracy \
+    real_scanner_accuracy_brakeman -- --ignored --nocapture --test-threads=1
   unset LEGION_BRAKEMAN_GEM_ROOT
   export LEGION_REAL_LINTER_SCRATCH="${RUNNER_TEMP}/legion-real-linter-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-linter-accuracy"
   mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
-  (cd engine && cargo test --locked -p legion-audit --test real_legacy_linter_accuracy \
-    real_legacy_linter_accuracy -- --ignored --nocapture --test-threads=1)
+  run_audit_qualification audit_cargo_test --test real_legacy_linter_accuracy \
+    real_legacy_linter_accuracy -- --ignored --nocapture --test-threads=1
   unset LEGION_REAL_LINTER_SCRATCH
   unset LEGION_REAL_GIT_SCRATCH
   unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR
@@ -237,7 +250,7 @@ test -f "$ci_xtask"
 # No model process, token reservation, reasoning execution or semantic score.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   LEGION_PROVIDER_REGISTRY="${RUNNER_TEMP}/legion-install/share/legion/assets/registry/providers.json" \
-    python3 scripts/ci/audit-capsule-preflight.py \
+    run_audit_qualification python3 scripts/ci/audit-capsule-preflight.py \
       --root "$GITHUB_WORKSPACE" \
       --legion "${RUNNER_TEMP}/legion-install/bin/legion" \
       --out "${RUNNER_TEMP}/legion-capsule-preflight"
@@ -355,6 +368,11 @@ for key, cases in behavior_groups:
 
 print("deterministic audit-behavior selected-provider A/A × 2 assertions passed")
 PY
+fi
+
+if (( audit_qualification_failures != 0 )); then
+  printf 'Audit qualification failed: %s command(s); refusing installer delivery.\n' "$audit_qualification_failures" >&2
+  exit 1
 fi
 
 # Unsigned Windows development installer (formerly windows-development.yml);
