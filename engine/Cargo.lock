@@ -2286,6 +2286,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "tar",
+ "toml",
  "walkdir",
 ]
 
