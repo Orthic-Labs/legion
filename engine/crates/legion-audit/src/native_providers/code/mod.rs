@@ -301,11 +301,12 @@ impl ProviderExecutorAdapter {
                     .and_then(Value::as_str)
                     .map_or(denominator.digest, str::to_owned);
                 expected = frozen_count;
-                examined = made.examined.min(frozen_count);
-                selection_gap = (made.expected != frozen_count).then(|| {
+                let inspected_scope = made.expected + made.context_expected;
+                examined = (made.examined + made.context_examined).min(frozen_count);
+                selection_gap = (inspected_scope != frozen_count).then(|| {
                     format!(
                         "{}:selection-narrower-than-denominator:{}of{}",
-                        provider.id, made.expected, frozen_count
+                        provider.id, inspected_scope, frozen_count
                     )
                 });
                 let mut input = made.input.clone();
@@ -391,7 +392,7 @@ impl ProviderExecutorAdapter {
                 gaps.push(gap.clone());
                 complete = false;
             }
-            if made.examined != made.expected {
+            if made.examined != made.expected || made.context_examined != made.context_expected {
                 complete = false;
             }
             let mut evidence_items = Map::new();
@@ -437,8 +438,14 @@ impl ProviderExecutorAdapter {
                 "nativeProducer".into(),
                 json!({
                     "mode": "self-sourced",
-                    "filesExpected": made.expected,
-                    "filesRead": made.examined,
+                    "filesExpected": made.expected + made.context_expected,
+                    "filesRead": made.examined + made.context_examined,
+                    "sourceFilesExpected": made.expected,
+                    "sourceFilesRead": made.examined,
+                    "contextFilesExpected": made.context_expected,
+                    "contextFilesRead": made.context_examined,
+                    "contextBytesRead": made.context_bytes_read,
+                    "contextAccounting": made.input.get("contextAccounting"),
                     "bytesRead": made.bytes_read,
                     "rules": made.rule_ids,
                     "sourceAccounting": made.input.get("sourceAccounting"),
