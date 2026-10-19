@@ -284,7 +284,7 @@ class RegistrationGateTests(unittest.TestCase):
             gate["check"](self.root)
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 14)
+        self.assertEqual(len(gate["ADAPTERS"]), 20)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
@@ -292,7 +292,7 @@ class RegistrationGateTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
 
-    def test_grouped_tflint_requires_all_six_named_tests_to_execute(self):
+    def test_grouped_tflint_requires_all_seven_named_tests_to_execute(self):
         command = ["audit_tflint_qualification"]
         names = gate["TFLINT_TESTS"]
         path = self.root / "terminal-checker-unit.log"
@@ -320,6 +320,139 @@ class RegistrationGateTests(unittest.TestCase):
             entry["stage"] = "finding"
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
+
+    def test_osv_adapter_is_fixed_to_native_artifact_fixture(self):
+        entry = {"provider": "dependency.osv", "family": "osv-artifact", "stage": "finding"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("osv-artifact", "osv_accuracy", "native-insertion-json", "real_sdk_artifact_accuracy_osv"))
+        entry["stage"] = "candidate"
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, entry)
+
+    def test_osv_metadata_preserves_three_nonproduction_scopes(self):
+        entry = {"provider": "dependency.osv", "family": "osv-artifact", "stage": "finding", "scope": "constructed controls",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        for key in ("productionQualification", "selfProducerQualification", "publicHelperQualification"):
+            self.assertIs(value[key], False)
+        self.assertEqual(value["fixtureScope"], entry["scope"])
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+
+    def test_osv_record_cannot_claim_public_helper_qualification(self):
+        scope = gate["helper"]("audit-osv-artifact-accuracy.py")["FAMILY_SCOPE"]
+        entry = {"provider": "dependency.osv", "family": "osv-artifact", "stage": "finding", "scope": scope}
+        row = {"schema": "legion-osv-sdk-artifact-accuracy/1", "provider": "dependency.osv", "stage": "finding",
+               "scope": entry["scope"], "productionQualification": False, "selfProducerQualification": False,
+               "publicHelperQualification": True, "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_opengrep_adapter_is_fixed_to_native_artifact_fixture(self):
+        entry = {"provider": "security.opengrep", "family": "opengrep-artifact", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("opengrep-artifact", "opengrep_accuracy", "native-insertion-json", "real_sdk_artifact_accuracy_opengrep"))
+        entry["stage"] = "finding"
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, entry)
+
+    def test_opengrep_metadata_preserves_both_nonproduction_scopes(self):
+        entry = {"provider": "security.opengrep", "family": "opengrep-artifact", "stage": "candidate", "scope": "constructed-native-sdk-artifact-fixture",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertIs(value["selfProducerQualification"], False)
+        self.assertEqual(value["fixtureScope"], entry["scope"])
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+
+    def test_opengrep_record_cannot_claim_self_producer_qualification(self):
+        entry = {"provider": "security.opengrep", "family": "opengrep-artifact", "stage": "candidate", "scope": "constructed-native-sdk-artifact-fixture"}
+        row = {"schema": "legion-opengrep-sdk-artifact-accuracy/1", "provider": "security.opengrep", "stage": "candidate",
+               "scope": entry["scope"], "productionQualification": False, "selfProducerQualification": True, "status": "pass", "modelCalls": 0}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_quality_adapter_is_fixed_to_build_and_lint(self):
+        for provider in ("legacy.quality.build", "legacy.quality.lint"):
+            entry = {"provider": provider, "family": "harness-quality", "stage": "finding"}
+            self.assertEqual(gate["adapter"](self.root, entry),
+                             ("harness-quality", "real_quality_command_accuracy", "canonical-json", "real_quality_command_accuracy"))
+            entry["stage"] = "outcome"
+            with self.assertRaises(AssertionError):
+                gate["adapter"](self.root, entry)
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {"provider": "legacy.quality.test", "family": "harness-quality", "stage": "finding"})
+
+    def test_quality_metadata_preserves_constructed_scope(self):
+        entry = {"provider": "legacy.quality.build", "family": "harness-quality", "stage": "finding", "scope": "known-answer-fixture-cases",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertEqual(value["fixtureScope"], "known-answer-fixture-cases")
+        self.assertEqual(value["admissionScope"], "explicit constructed SDK authorizer; no production CLI owner-admission claim")
+        self.assertEqual(value["validationBasis"], "source-owned-harness-success")
+        self.assertNotIn("qualificationEligible", value)
+
+    def test_quality_record_cannot_claim_production_qualification(self):
+        entry = {"provider": "legacy.quality.build", "family": "harness-quality", "stage": "finding", "scope": "known-answer-fixture-cases"}
+        row = {"schema": "legion-quality-command-sdk-accuracy/1", "kind": "quality-command-sdk-constructed", "productionQualification": True,
+               "claimScope": "known-answer-fixture-cases", "provider": "legacy.quality.build", "status": "pass", "modelCalls": 0}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_quality_closure_keeps_harness_toolchain_and_helper_sources(self):
+        paths = gate["closure_paths"](self.root, {"provider": "legacy.quality.lint", "family": "harness-quality", "stage": "finding"})
+        self.assertTrue({"engine/crates/legion-audit/tests/real_quality_command_accuracy.rs", "engine/rust-toolchain.toml",
+                         "scripts/ci/audit-real-provider-accuracy.py", "scripts/ci/audit-external-provider-accuracy.py"} <= set(paths))
+
+    def test_ast_grep_adapter_is_fixed_to_constructed_native_candidate_controls(self):
+        entry = {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate"}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("harness-ast-grep", "ast_grep_accuracy", "canonical-json", "real_ast_grep_accuracy"))
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, {**entry, "provider": "structural.other"})
+        entry["stage"] = "finding"
+        with self.assertRaises(AssertionError):
+            gate["adapter"](self.root, entry)
+
+    def test_ast_grep_metadata_keeps_fixture_scope_and_production_false(self):
+        entry = {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate",
+                 "scope": "constructed-native-sdk-artifact-fixture",
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        value = gate["qualification"](entry)
+        self.assertIs(value["productionQualification"], False)
+        self.assertIs(value["selfProducerQualification"], False)
+        self.assertEqual(value["fixtureScope"], "constructed-native-sdk-artifact-fixture")
+        self.assertEqual(value["validationBasis"], "native-family-validator")
+        self.assertNotIn("qualificationEligible", value)
+
+    def test_ast_grep_record_cannot_claim_production_qualification(self):
+        entry = {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate",
+                 "scope": "constructed-native-sdk-artifact-fixture"}
+        row = {"schema": "legion-ast-grep-accuracy/1", "providerId": "structural.ast-grep",
+               "claimScope": "constructed-native-sdk-artifact-fixture", "productionQualification": True}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_ast_grep_record_cannot_claim_self_producer_qualification(self):
+        entry = {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate",
+                 "scope": "constructed-native-sdk-artifact-fixture"}
+        row = {"schema": "legion-ast-grep-accuracy/1", "providerId": "structural.ast-grep",
+               "claimScope": "constructed-native-sdk-artifact-fixture", "productionQualification": False,
+               "selfProducerQualification": True}
+        with self.assertRaises(AssertionError):
+            gate["controls"](row, entry)
+
+    def test_ast_grep_source_closure_includes_rules_and_fixture_files(self):
+        self.write_json("src/registry/rules/ast-grep/structural-core.json", {"rules": []})
+        self.write("engine/crates/legion-audit/tests/fixtures/ast-grep/planted/src/probe.ts",
+                   "// synthetic closure input; never executed\n")
+        entry = {"provider": "structural.ast-grep", "family": "harness-ast-grep", "stage": "candidate"}
+        paths = set(gate["closure_paths"](self.root, entry))
+        self.assertIn("engine/crates/legion-audit/tests/ast_grep_accuracy.rs", paths)
+        self.assertIn("src/registry/rules/ast-grep/structural-core.json", paths)
+        self.assertIn("engine/crates/legion-audit/tests/fixtures/ast-grep/planted/src/probe.ts", paths)
+        self.assertIn("scripts/ci/audit-ast-grep-provider-accuracy.py", paths)
+        self.assertNotIn("src/registry/providers.json", paths)
 
     def test_failed_known_answer_class_cannot_register_from_emission(self):
         rows = [{"benchClass": value, "status": "pass", "productionQualification": False}

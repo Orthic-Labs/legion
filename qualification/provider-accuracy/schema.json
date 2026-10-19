@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Orthic-Labs/legion/qualification/provider-accuracy/schema.json",
   "title": "Source-owned provider accuracy registration index",
-  "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters & five known-answer class projections require authenticated successful final Rust assertions. Bench projections remain fixture-level evidence with productionQualification false. No record grants production admission or candidate adjudication.",
+  "description": "Offline registration through fixed source-owned provider adapters. Existing native validators check retained semantics without reading absent tool binaries. Four explicit scanner adapters, five known-answer class projections, & two fixed constructed build/lint SDK adapters require authenticated successful final Rust assertions. Bench & build/lint records remain fixture-level evidence with productionQualification false. No record grants production admission or candidate adjudication.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "entries"],
@@ -62,7 +62,7 @@
       "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
       "properties": {
         "provider": {"type": "string", "minLength": 1},
-        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer"]},
+        "family": {"enum": ["file", "shellcheck", "scanner", "git", "extra-scanner", "linter", "harness-scanner", "harness-iac", "bench-known-answer", "harness-quality", "harness-ast-grep", "visual", "opengrep-artifact", "osv-artifact"]},
         "record": {"$ref": "#/$defs/record"},
         "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
         "scope": {"type": "string", "minLength": 1, "maxLength": 1000},

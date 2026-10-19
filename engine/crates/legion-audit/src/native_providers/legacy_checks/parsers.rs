@@ -237,6 +237,83 @@ fn lint_json(value: &Value) -> Option<ParseOutcome> {
 }
 
 // ---------- clippy (cargo clippy --message-format=json, JSONL on stdout) ----------
+// A 101 exit is a completed diagnostic scan only when Cargo's entire stdout
+// is JSONL, its final event is an unsuccessful build-finished, & every error
+// is a located denied lint. Compiler errors, crashes & empty/truncated reports
+// remain incomplete even if Cargo itself returned normally.
+pub(crate) fn clippy_diagnostic_exit(stdout: &[u8], stderr: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(stdout) else {
+        return false;
+    };
+    let Ok(errors) = std::str::from_utf8(stderr) else {
+        return false;
+    };
+    if [
+        "panicked at",
+        "internal compiler error",
+        "process didn't exit successfully",
+        "could not execute process",
+        "signal:",
+    ]
+    .iter()
+    .any(|marker| errors.contains(marker))
+    {
+        return false;
+    }
+    let mut diagnostic = false;
+    let mut finished = false;
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        if finished {
+            return false;
+        }
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            return false;
+        };
+        match value["reason"].as_str() {
+            Some("compiler-message") => {
+                let message = &value["message"];
+                if !matches!(
+                    message["level"].as_str(),
+                    Some("error" | "warning" | "note" | "help" | "failure-note")
+                ) {
+                    return false;
+                }
+                if message["level"] == "error" {
+                    let Some(code) = message.pointer("/code/code").and_then(Value::as_str) else {
+                        return false;
+                    };
+                    let code = code.strip_prefix("clippy::").unwrap_or(code);
+                    let mut identifier = code.bytes();
+                    if !identifier
+                        .next()
+                        .is_some_and(|b| b.is_ascii_lowercase() || b == b'_')
+                        || !identifier
+                            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+                    {
+                        return false;
+                    }
+                    if !message["spans"].as_array().is_some_and(|spans| {
+                        spans.iter().any(|span| {
+                            span["is_primary"] == true
+                                && span["file_name"]
+                                    .as_str()
+                                    .is_some_and(|path| !path.is_empty())
+                                && span["line_start"].as_u64().is_some_and(|line| line > 0)
+                        })
+                    }) {
+                        return false;
+                    }
+                    diagnostic = true;
+                }
+            }
+            Some("build-finished") if value["success"] == false => finished = true,
+            Some("compiler-artifact" | "build-script-executed") => {}
+            _ => return false,
+        }
+    }
+    diagnostic && finished
+}
+
 // JS counts only `compiler-message` reasons with a non-empty `message.spans` and a
 // warning/error level; malformed/non-JSON lines are silently skipped (count defaults 0,
 // never null — no malformed rule).
@@ -652,6 +729,71 @@ fn build(text: &str) -> ParseOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Synthetic parser controls only; these are never execution qualification.
+    fn denied_clippy_report(code: &str) -> Vec<u8> {
+        format!(
+            "{}\n{}\n",
+            serde_json::json!({
+                "reason":"compiler-message", "message": {
+                    "level":"error", "code":{"code":code},
+                    "spans":[{"is_primary":true,"file_name":"src/lib.rs","line_start":2}]
+                }
+            }),
+            serde_json::json!({"reason":"build-finished","success":false})
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn clippy_exit_101_requires_located_lint_and_terminal_event() {
+        assert!(clippy_diagnostic_exit(
+            &denied_clippy_report("clippy::eq_op"),
+            b""
+        ));
+        assert!(clippy_diagnostic_exit(
+            &denied_clippy_report("unused_imports"),
+            b""
+        ));
+        assert!(clippy_diagnostic_exit(
+            &denied_clippy_report("clippy::char_lit_as_u8"),
+            b""
+        ));
+        assert!(!clippy_diagnostic_exit(
+            &denied_clippy_report("clippy::8bit_lint"),
+            b""
+        ));
+        assert!(!clippy_diagnostic_exit(&denied_clippy_report("E0425"), b""));
+        assert!(!clippy_diagnostic_exit(b"", b""));
+        assert!(!clippy_diagnostic_exit(
+            b"{\"reason\":\"build-finished\",\"success\":false}\n",
+            b""
+        ));
+        let report = denied_clippy_report("clippy::eq_op");
+        let first = report.split(|b| *b == b'\n').next().unwrap();
+        assert!(!clippy_diagnostic_exit(first, b""));
+    }
+
+    #[test]
+    fn clippy_exit_101_rejects_crash_and_corrupt_reports() {
+        let report = denied_clippy_report("clippy::eq_op");
+        for stderr in [
+            "thread panicked at fixture",
+            "internal compiler error",
+            "signal: 11",
+            "process didn't exit successfully",
+            "could not execute process",
+        ] {
+            assert!(!clippy_diagnostic_exit(&report, stderr.as_bytes()));
+        }
+        let mut trailing = report.clone();
+        trailing.extend_from_slice(b"not json\n");
+        assert!(!clippy_diagnostic_exit(&trailing, b""));
+        let unlocated = String::from_utf8(report)
+            .unwrap()
+            .replace("\"is_primary\":true", "\"is_primary\":false");
+        assert!(!clippy_diagnostic_exit(unlocated.as_bytes(), b""));
+    }
 
     // Realistic captured-output fixtures live under
     // engine/crates/legion-audit/tests/fixtures/legacy_parse/, written by hand

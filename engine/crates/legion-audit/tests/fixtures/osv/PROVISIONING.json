@@ -1,0 +1,93 @@
+{
+  "advisory": {
+    "url": "https://raw.githubusercontent.com/github/advisory-database/95c688698ee6767a611e157d7329d11f3e0a1f4b/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json",
+    "commit": "95c688698ee6767a611e157d7329d11f3e0a1f4b",
+    "path": "advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json",
+    "bytes": 4272,
+    "digest": "sha256:3060fadb9a686e5041d53fe5c20c7844b2a0a49ce8d7b3d89d70703be02ec4f1"
+  },
+  "tool": {
+    "version": "2.2.2",
+    "source": "https://api.github.com/repos/google/osv-scanner/releases/tags/v2.2.2",
+    "assets": [
+      {
+        "name": "osv-scanner_darwin_amd64",
+        "url": "https://github.com/google/osv-scanner/releases/download/v2.2.2/osv-scanner_darwin_amd64",
+        "digest": "sha256:5c2a2e2a686e34c0674e0a463aa626467df5d9fba0ed06870a2eb684dc434de3"
+      },
+      {
+        "name": "osv-scanner_darwin_arm64",
+        "url": "https://github.com/google/osv-scanner/releases/download/v2.2.2/osv-scanner_darwin_arm64",
+        "digest": "sha256:f1e1cc84b6e365b79b874cb9028a4f74ac64666094b542f1eb196b10f44b505e"
+      },
+      {
+        "name": "osv-scanner_SHA256SUMS",
+        "url": "https://github.com/google/osv-scanner/releases/download/v2.2.2/osv-scanner_SHA256SUMS",
+        "digest": "sha256:1afa86dbd4ecc04a2848d2f35da319f626de244a2d2cde85022f7227774b85e1"
+      }
+    ]
+  },
+  "scope": "one unchanged official advisory; constructed fixture-only offline database, not complete OSV database",
+  "primarySources": [
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/cmd/osv-scanner/internal/helper/flags.go",
+      "path": "primary-source/cmd/osv-scanner/internal/helper/flags.go",
+      "bytes": 5354,
+      "digest": "sha256:313a0b7655514fdf4b82d1882d6e1f858b465e865d4ab2f38441c0a0c448311b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/cmd/osv-scanner/internal/helper/getters.go",
+      "path": "primary-source/cmd/osv-scanner/internal/helper/getters.go",
+      "bytes": 1809,
+      "digest": "sha256:509517b5899fc6b69c39099356a2414fb9938d6f0a0c1888f5303bafcd3cd4eb"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/cmd/osv-scanner/internal/cmd/helpers.go",
+      "path": "primary-source/cmd/osv-scanner/internal/cmd/helpers.go",
+      "bytes": 4338,
+      "digest": "sha256:691e36763d6c51b6fe020ae019dacf83dca58d3faac9d73a6d696f086688ea17"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/cmd/osv-scanner/internal/cmd/run.go",
+      "path": "primary-source/cmd/osv-scanner/internal/cmd/run.go",
+      "bytes": 3854,
+      "digest": "sha256:9e6a1fb834bccce3e1e4e16287f798f0e9f0c6042bc0c463ec585b047b1e5ca9"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/pkg/osvscanner/vulnerability_result.go",
+      "path": "primary-source/pkg/osvscanner/vulnerability_result.go",
+      "bytes": 8984,
+      "digest": "sha256:83aa01cedac5c603f632594703e3f8e7f9a99c42022b0281fc46fa36b4e438b2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/internal/clients/clientimpl/localmatcher/localmatcher.go",
+      "path": "primary-source/internal/clients/clientimpl/localmatcher/localmatcher.go",
+      "bytes": 5037,
+      "digest": "sha256:a96b2cc21a51c3136527cc962a3e8ad1054a1c0eb4723b5c4842b3deb96eaada"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/internal/clients/clientimpl/localmatcher/zip.go",
+      "path": "primary-source/internal/clients/clientimpl/localmatcher/zip.go",
+      "bytes": 6072,
+      "digest": "sha256:05da6dfc1daa9a737e387bc7e0bdfe5ba135f2b120067fe54b6113969ba6b5a4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/cmd/osv-scanner/scan/source/command.go",
+      "path": "primary-source/cmd/osv-scanner/scan/source/command.go",
+      "bytes": 4892,
+      "digest": "sha256:768c8a99f23e60480ed7f3cd67db4af64174602a6faac806e50287235ddb7b04"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/internal/output/machinejson.go",
+      "path": "primary-source/internal/output/machinejson.go",
+      "bytes": 376,
+      "digest": "sha256:e3c1937f336ad343df0e8a932befd53201d5efc54b2d44b3b5d2551499fe0722"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/osv-scanner/v2.2.2/docs/offline-mode.md",
+      "path": "primary-source/docs/offline-mode.md",
+      "bytes": 3501,
+      "digest": "sha256:a43328b4a4b3cfa9ebdc7aa85a3c25b09971ee57421457d663ee638dd43f1d81"
+    }
+  ]
+}

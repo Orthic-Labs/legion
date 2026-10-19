@@ -27,6 +27,9 @@ VALIDATOR = "scripts/ci/audit-provider-accuracy.py"
 # Provider, family, harness, stage & original encoding are source-owned.
 BASE = "engine/crates/legion-audit/tests/"
 ADAPTERS = {
+    "dependency.osv": ("osv-artifact", "osv_accuracy", "finding", "native-insertion-json", "real_sdk_artifact_accuracy_osv"),
+    "security.opengrep": ("opengrep-artifact", "opengrep_accuracy", "candidate", "native-insertion-json", "real_sdk_artifact_accuracy_opengrep"),
+    "legacy.visual.core": ("visual", "visual_accuracy", "finding", "native-insertion-json", "real_browser_accuracy_visual_regression"),
     "security.scanner-shellcheck": ("shellcheck", "external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_shellcheck"),
     "security.scanner-zizmor": ("scanner", "additional_external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy"),
     "security.scanner-kube-linter": ("scanner", "additional_external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy"),
@@ -41,19 +44,24 @@ ADAPTERS = {
     "security.scanner-kubeconform": ("harness-scanner", "kubeconform_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_kubeconform"),
     "security.scanner-golangci-lint": ("harness-scanner", "golangci_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_golangci_lint"),
     "container.iac": ("harness-iac", "trivy_iac_accuracy", "finding", "native-insertion-json", "real_scanner_accuracy_trivy_iac"),
+    "legacy.quality.build": ("harness-quality", "real_quality_command_accuracy", "finding", "canonical-json", "real_quality_command_accuracy"),
+    "legacy.quality.lint": ("harness-quality", "real_quality_command_accuracy", "finding", "canonical-json", "real_quality_command_accuracy"),
+    "structural.ast-grep": ("harness-ast-grep", "ast_grep_accuracy", "candidate", "canonical-json", "real_ast_grep_accuracy"),
 }
 HARNESS_CONTROLS = {"security.scanner-tflint": ("tflint", "tflint", "terraform_unused_declarations|main.tf|5"),
                     "security.scanner-kubeconform": ("kubeconform", "kubeconform", "schema|pod.yaml|unresolved"),
                     "security.scanner-golangci-lint": ("golangci-lint", "golangci", "gosec|main.go|4"),
                     "container.iac": ("trivy", "trivy-iac", "DS-0002|Dockerfile")}
-VALIDATORS = {"file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
+VALIDATORS = {"osv-artifact": "scripts/ci/audit-osv-artifact-accuracy.py", "opengrep-artifact": "scripts/ci/audit-opengrep-artifact-accuracy.py", "visual": "scripts/ci/audit-visual-provider-accuracy.py", "harness-ast-grep": "scripts/ci/audit-ast-grep-provider-accuracy.py", "file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
               "scanner": "scripts/ci/audit-real-provider-accuracy.py", "git": "scripts/ci/audit-real-provider-accuracy.py",
               "extra-scanner": "scripts/ci/audit-extra-provider-accuracy.py", "linter": "scripts/ci/audit-extra-provider-accuracy.py"}
 FILE_HARNESS = ["audit_cargo_test", "--test", "security_packs", "--test", "architecture_input_producer", "--test", "code_provider_accuracy",
                 "--test", "suite_provider_accuracy", "--test", "legacy_file_accuracy", "--test", "artifact_provider_accuracy",
                 "file_only_provider_accuracy", "--", "--nocapture", "--test-threads=1"]
+QUALITY_HARNESS = ["audit_cargo_test", "--test", "real_quality_command_accuracy", "real_quality_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 BENCH_HARNESS = ["audit_cargo_test", "--test", "bench_recall", "bench_recall_qualification_receipt", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
-TFLINT_TESTS = ["scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools",
+TFLINT_TESTS = ["scoped_ipc_ci_storage_requires_private_canonical_owned_root",
+                "scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools",
                 "scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure",
                 "scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace", "scoped_ipc_native_confinement",
                 "scoped_ipc_timeout_and_cancel_cleanup_after_reaping", "real_scanner_accuracy_tflint"]
@@ -158,9 +166,45 @@ def closure_paths(root, entry):
             require(not path.is_symlink(), "symlink in bench fixture closure")
             if path.is_file():
                 paths.add(path.relative_to(root).as_posix())
+    elif family == "harness-quality":
+        paths.update({BASE + harness + ".rs", "engine/rust-toolchain.toml", VALIDATORS["shellcheck"], VALIDATORS["scanner"]})
+    elif family == "harness-ast-grep":
+        paths.update({BASE + harness + ".rs", VALIDATORS[family], "engine/Cargo.toml", "engine/Cargo.lock",
+                      "engine/crates/legion-audit/Cargo.toml", "engine/crates/legion-effects/Cargo.toml",
+                      "engine/crates/legion-provider-sdk/Cargo.toml", "engine/crates/legion-contracts/Cargo.toml",
+                      "engine/crates/legion-rules/Cargo.toml"})
+        for source_root in ("engine/crates/legion-audit/src", "engine/crates/legion-effects/src",
+                            "engine/crates/legion-provider-sdk/src", "engine/crates/legion-contracts/src",
+                            "engine/crates/legion-rules/src", "src/registry/rules", "src/registry/controls"):
+            directory = root / source_root
+            require(directory.is_dir() and not directory.is_symlink(), "missing/unsafe ast-grep source closure root")
+            for path in directory.rglob("*"):
+                require(not path.is_symlink(), "symlink in ast-grep source closure")
+                if path.is_file():
+                    paths.add(path.relative_to(root).as_posix())
+        fixture_root = root / BASE / "fixtures/ast-grep"
+        require(fixture_root.is_dir() and not fixture_root.is_symlink(), "missing/unsafe ast-grep fixture root")
+        for path in fixture_root.rglob("*"):
+            require(not path.is_symlink(), "symlink in ast-grep fixture closure")
+            if path.is_file():
+                paths.add(path.relative_to(root).as_posix())
     elif family == "file":
         paths.update(plan_for(root, entry["provider"])["fixtures"])
         paths.add("bench/provider-accuracy-plan.json")
+    elif family == "osv-artifact":
+        paths.update({BASE + harness + ".rs", "engine/rust-toolchain.toml", ".rightgit.json", "package.json", "pnpm-lock.yaml"})
+        api = helper("audit-osv-artifact-accuracy.py")
+        paths.update(api["SOURCE_FILES"])
+        for relative in api["SOURCE_ROOTS"]:
+            for source in (root / relative).rglob("*"):
+                require(not source.is_symlink(), "symlink in OSV source closure")
+                if source.is_file():
+                    paths.add(source.relative_to(root).as_posix())
+    elif family == "opengrep-artifact":
+        paths.update({BASE + harness + ".rs", "src/registry/rules/opengrep/legion-core.yml", "engine/rust-toolchain.toml", ".rightgit.json", "package.json", "pnpm-lock.yaml"})
+    elif family == "visual":
+        paths.add(BASE + harness + ".rs")
+        paths.update({".rightgit.json", "package.json", "pnpm-lock.yaml"})
     else:
         paths.add(BASE + harness + ".rs")
         paths.add(VALIDATORS["shellcheck"])
@@ -181,6 +225,10 @@ def summary_projection(value, family, provider):
         return value.get(provider)
     if family == "shellcheck":
         return value if value.get("provider") == provider else None
+    if family == "harness-ast-grep":
+        require(value.get("providerId") == provider and value.get("caseCount") == 2 and value.get("fixtureOnly") is True,
+                "ast-grep validator summary provider/control scope differs")
+        return value
     keys(value, {"records", "modelCalls"})
     require(type(value["modelCalls"]) is int and value["modelCalls"] == 0 and isinstance(value["records"], list), "validator summary shape differs")
     ids = [item["provider"] for item in value["records"]]
@@ -191,21 +239,25 @@ def summary_projection(value, family, provider):
 
 def log_evidence(log, row, validated, family):
     emissions, summaries = [], []
-    emission = "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
-    summary = "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
+    provider = row.get("provider", row.get("providerId"))
+    emission = "OSV_SDK_ARTIFACT_ACCURACY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY" if family == "harness-ast-grep" else "QUALITY_COMMAND_SDK_ACCURACY" if family == "harness-quality" else "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
+    summary = "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
+    emission_separator = "=" if family == "harness-ast-grep" else " "
+    summary_separator = "=" if family == "harness-ast-grep" else " "
     for number, line in enumerate(log.read_text(encoding="utf-8").splitlines(), 1):
-        for prefix, collection in ((emission + " ", emissions), (summary + " ", summaries)):
+        for prefix, collection in ((emission + emission_separator, emissions), (summary + summary_separator, summaries)):
             position = line.find(prefix)
             if position >= 0:
                 collection.append((number, parsed(line[position + len(prefix):], log)))
-    originals = emissions if family == "bench-known-answer" else [(number, value) for number, value in emissions if value["provider"] == row["provider"]]
+    originals = emissions if family == "bench-known-answer" else [(number, value) for number, value in emissions
+        if value.get("provider", value.get("providerId")) == provider]
     require(len(originals) == 1, "CI log missing/duplicate original record emission")
     same(originals[0][1], row, "CI log original record differs")
-    if family in ("harness-scanner", "harness-iac", "bench-known-answer"):
+    if family in ("harness-scanner", "harness-iac", "bench-known-answer", "harness-quality"):
         return None, originals[0][0], None
-    successful = [(number, value) for number, value in summaries if summary_projection(value, family, row["provider"]) is not None]
+    successful = [(number, value) for number, value in summaries if summary_projection(value, family, provider) is not None]
     require(len(successful) == 1, "CI log missing/duplicate successful validator summary")
-    same(summary_projection(successful[0][1], family, row["provider"]), validated, "CI validator summary differs from validated record")
+    same(summary_projection(successful[0][1], family, provider), validated, "CI validator summary differs from validated record")
     return digest(encoded(successful[0][1])), originals[0][0], successful[0][0]
 
 
@@ -236,7 +288,7 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
         require(sequence in ends, "qualification command never terminated")
         end, status = ends[sequence]
         require(start < evidence_line < end and status == 0, "qualification command failed/cancelled or evidence outside span")
-        if summary_line is None:
+        if summary_line is None or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"])):
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             outcomes = re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span)
             expected_tests = TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[3]]
@@ -263,21 +315,26 @@ def provenance(root, entry, row, validated):
     require(isinstance(proof["jobName"], str) and 0 < len(proof["jobName"]) <= 200, "CI job missing")
     require(proof["jobConclusion"] in ("success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "startup_failure", "stale"), "CI job conclusion missing")
     family, harness, _, selector = adapter(root, entry)
-    harness_only = family in ("harness-scanner", "harness-iac", "bench-known-answer")
+    harness_only = family in ("harness-scanner", "harness-iac", "bench-known-answer", "harness-quality")
     keys(proof["command"], {"harness"} if harness_only else {"harness", "validator"})
     validator = VALIDATORS.get(family)
     for args in proof["command"].values():
         require(isinstance(args, list) and 0 < len(args) <= 100 and all(isinstance(arg, str) and 0 < len(arg) <= 4096 for arg in args), "CI command missing")
-    wanted_harness = (FILE_HARNESS if family == "file" else BENCH_HARNESS if family == "bench-known-answer" else ["audit_tflint_qualification"] if entry["provider"] == "security.scanner-tflint" else
+    wanted_harness = (FILE_HARNESS if family == "file" else QUALITY_HARNESS if family == "harness-quality" else BENCH_HARNESS if family == "bench-known-answer" else ["audit_tflint_qualification"] if entry["provider"] == "security.scanner-tflint" else
                       ["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"])
+    if family in ("visual", "harness-ast-grep", "opengrep-artifact", "osv-artifact"):
+        wanted_harness.insert(wanted_harness.index("--nocapture"), "--exact")
     same(proof["command"]["harness"], wanted_harness, "CI harness selector differs")
     if harness_only:
         require(proof["validator"] is None, "harness-only proof must not invent independent validator")
     else:
         require(proof["command"]["validator"][:2] == ["python3", validator], "CI validator command differs")
-        options = ["--root", "--receipts"] if family in ("file", "shellcheck") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
+        options = ["--root", "--receipts"] if family in ("file", "shellcheck", "visual", "harness-ast-grep", "opengrep-artifact", "osv-artifact") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
         args = proof["command"]["validator"]
         require(len(args) == 2 + 2 * len(options) and args[2::2] == options, "CI validator flags differ")
+        if family == "harness-ast-grep":
+            require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/ast-grep"),
+                    "ast-grep validator root/receipt scope differs")
         keys(proof["validator"], {"path", "sha256"})
         require(proof["validator"] == {"path": validator, "sha256": digest(relative_file(root, validator).read_bytes())}, "CI validator stale")
     log = reference(root, proof["log"], "logs")
@@ -309,8 +366,19 @@ def record_binding(root, entry, path, row, registry):
         return None
     if family == "shellcheck":
         return helper("audit-external-provider-accuracy.py")["validate_record"](root, row, live=False)
+    if family == "osv-artifact":
+        return helper("audit-osv-artifact-accuracy.py")["validate_record"](root, row, live=False)
+    if family == "opengrep-artifact":
+        return helper("audit-opengrep-artifact-accuracy.py")["validate_record"](root, row, live=False)
+    if family == "visual":
+        return helper("audit-visual-provider-accuracy.py")["validate_record"](root, row, live=False)
+    if family == "harness-ast-grep":
+        return helper("audit-ast-grep-provider-accuracy.py")["validate_record"](root, row, live=False)
     api = helper("audit-real-provider-accuracy.py")
     files = api["sources"](root)
+    if family == "harness-quality":
+        validate_quality_record(root, entry, row, registry, files, api)
+        return None
     if family in ("harness-scanner", "harness-iac"):
         validate_harness_record(root, entry, row, registry, files, api)
         return None
@@ -508,7 +576,197 @@ def validate_harness_record(root, entry, row, registry, files, api):
                           "positiveCases": 1, "cleanCases": 1}, "harness duplicate-preserving metrics differ")
 
 
+def quality_fixtures(provider, control):
+    """Source-owned corpus; no execution or generated qualification evidence."""
+    source = ("pub fn answer() -> u8 { missing_name }\n" if control == "compiler-failure" else
+              "use std::fmt;\npub fn answer() -> u8 { 42 }\n" if provider == "legacy.quality.build" and control == "positive" else
+              "pub fn answer() -> u8 { 42 }\n" if provider == "legacy.quality.build" else
+              "pub fn equal(value: i32) -> bool {\n    value == value\n}\n" if control == "positive" else
+              "pub fn equal(left: i32, right: i32) -> bool {\n    left == right\n}\n")
+    return {"Cargo.toml": '[package]\nname = "legion_quality_fixture"\nversion = "0.0.0"\nedition = "2021"\n[workspace]\n',
+            "Cargo.lock": '# This file is automatically @generated by Cargo.\n# It is not intended for manual editing.\nversion = 4\n\n[[package]]\nname = "legion_quality_fixture"\nversion = "0.0.0"\n',
+            "rust-toolchain.toml": '[toolchain]\nchannel = "1.98.0"\nprofile = "minimal"\ncomponents = ["clippy"]\n', "src/lib.rs": source}
+
+
+def validate_quality_record(root, entry, row, registry, files, api):
+    """Retained SDK evidence only; successful source-owned Rust assertions remain required."""
+    provider = entry["provider"]
+    build = provider == "legacy.quality.build"
+    harness = BASE + "real_quality_command_accuracy.rs"
+    spec = {key: value for key, value in registry[provider].items() if key != "benchmark"}
+    expected_sources = dict(files + [(path, digest(relative_file(root, path).read_bytes()))
+                                    for path in (harness, "engine/rust-toolchain.toml")])
+    bound = row["binding"]
+    require(bound["fixture"] == harness and row["providerVersion"] == spec["providerVersion"]
+            and row["executionPath"] == "native-sdk-frozen-plan-real-cargo"
+            and row["admissionScope"] == "explicit constructed SDK authorizer; no production CLI owner-admission claim", "quality SDK path/scope differs")
+    same(bound["providerSpec"], spec, "quality provider specification differs")
+    require(bound["providerSpecDigest"] == digest(encoded(spec)), "quality specification stale")
+    same(bound["sources"], expected_sources, "quality implementation closure stale/incomplete")
+    require(bound["sourcesDigest"] == digest(encoded(expected_sources)), "quality implementation digest differs")
+    cases = row["cases"]
+    controls = ("positive", "absence", "compiler-failure")
+    require([case["caseId"] for case in cases] == [provider.replace(".", "-") + "-" + control for control in controls], "quality controls missing/duplicated")
+    fixture_sources, identities = {}, []
+    for case, control in zip(cases, controls):
+        positive, failed = control == "positive", control == "compiler-failure"
+        wanted = quality_fixtures(provider, control)
+        hashes = {path: digest(text.encode()) for path, text in wanted.items()}
+        same(case["fixtureFiles"], wanted, "quality fixture bytes differ")
+        same(case["fixtureSources"], hashes, "quality full fixture binding differs")
+        fixture_sources.update({case["caseId"] + "/" + path: value for path, value in hashes.items()})
+        require(case["provider"] == provider and case["control"] == control and case["matched"] is True
+                and case["locatorPrecision"] == "case classification from actual diagnostic; native finding is aggregate summary anchor", "quality case identity/claim differs")
+        inventory, planned, result = case["inventory"], case["frozenProvider"], case["nativeResult"]
+        entries = [{"path": path, "symbols": [], "dependencies": [], "packageScripts": [],
+                    "sourceFile": path == "src/lib.rs", "digest": hashes[path]} for path in sorted(wanted)]
+        same(inventory["entries"], entries, "quality frozen inventory differs")
+        require(inventory["schemaVersion"] == 1 and inventory["repositoryId"] == case["caseId"]
+                and inventory["generation"] == "filesystem:" + digest(encoded(entries))
+                and inventory["digest"] == digest(encoded([1, case["caseId"], inventory["generation"], entries])), "quality inventory digest differs")
+        selected = [item for item in entries if item["path"] == ("Cargo.toml" if build else "src/lib.rs")]
+        denominator = digest(encoded([inventory["digest"], spec["selector"], selected]))
+        require(planned["id"] == provider and planned["version"] == spec["providerVersion"]
+                and planned["configuration"]["denominatorCount"] == len(selected)
+                and planned["configuration"]["denominatorDigest"] == denominator
+                and is_digest(case["planDigest"]) and result["provider"] == provider and result["applicable"] is True, "quality frozen provider/denominator differs")
+        rule = "legacy.build.warnings" if build else "legacy.lint.clippy"
+        same(case["expected"], {"complete": not failed, "findingCount": int(positive), "ruleId": rule,
+                              "rawDiagnostic": "E0425" if failed else ("unused_imports" if build else "clippy::eq_op") if positive else None}, "quality expected control differs")
+        policy, receipt = case["policyDefinition"], case["executionReceipt"]
+        cwd = PurePosixPath(policy["cwd"])
+        require(cwd.is_absolute() and ".." not in cwd.parts and cwd.name == "source" and cwd.parent.name == case["caseId"], "quality source root differs")
+        run = cwd.parent / "run"
+        tool = api["executable"](policy["tool"]["path"], policy["tool"]["digest"], live=False)
+        wrapper = api["executable"](policy["wrapper"]["path"], policy["wrapper"]["digest"], live=False)
+        require(tool.name == "cargo" and not tool.is_relative_to(cwd.parent.parent)
+                and wrapper == PurePosixPath("/usr/bin/sandbox-exec"), "quality host executable differs")
+        escaped = str(cwd).replace("\\", "\\\\").replace('"', '\\"')
+        text = f'(version 1)\n(allow default)\n(deny network*)\n(allow file-read* file-write* (subpath "{escaped}"))\n'
+        profile_hash = digest(text.encode()).removeprefix("sha256:")
+        profile = run / "sandbox" / ("audit-" + profile_hash + ".sb")
+        sandbox_id = "sandbox:macos:" + profile_hash
+        same(policy["profile"], {"path": str(profile), "text": text, "digest": digest(text.encode()), "receiptId": sandbox_id}, "quality native sandbox differs")
+        args = ["build"] if build else ["clippy", "--all-targets", "--message-format=json", "--", "-D", "warnings"]
+        prefix = ["-f", str(profile), "--", str(tool)]
+        accepted = [0] if build else [0, 1, 2, 101]
+        require(policy["id"] == "legion-real-quality-command-qualification-v1" and policy["version"] == 1
+                and policy["provider"] == provider and policy["task"] == ("build" if build else "lint")
+                and policy["plan"] == case["planDigest"] and policy["args"] == args and policy["wrappedArgs"] == prefix + args
+                and policy["versionArgs"] == prefix + ["--version"] and policy["acceptedExitCodes"] == accepted
+                and policy["artifactRequestId"] == "legion-audit/<64 lowercase hex>; one admission only"
+                and policy["timeoutMs"] == 120000 and policy["stdoutLimit"] == policy["stderrLimit"] == 8388608
+                and policy["sandbox"] == "native-macos-deny-network-quality-command-contract", "quality exact SDK policy differs")
+        environment = {"PATH": policy["environment"]["PATH"], "HOME": str(cwd.parent.parent / "home")}
+        require(environment["PATH"].split(":")[0] == str(tool.parent), "quality actual toolchain PATH differs")
+        for part in environment["PATH"].split(":"):
+            path = PurePosixPath(part)
+            require(path.is_absolute() and ".." not in path.parts and str(path) == part, "quality retained PATH differs")
+        cache = {"TMPDIR": "tmp", "TEMP": "tmp", "TMP": "tmp", "XDG_CACHE_HOME": "cache/xdg", "CARGO_TARGET_DIR": "cache/cargo-target",
+                 "npm_config_cache": "cache/npm", "RUFF_CACHE_DIR": "cache/ruff", "MYPY_CACHE_DIR": "cache/mypy", "PYTHONPYCACHEPREFIX": "cache/pycache", "GOCACHE": "cache/go-build"}
+        environment.update({key: str(run / value) for key, value in cache.items()})
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        same(policy["environment"], environment, "quality environment differs")
+        same(policy["environmentAllowlist"], sorted(set(["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"] + list(cache) + ["PYTHONDONTWRITEBYTECODE"])), "quality environment allowlist differs")
+        same(receipt, result["details"]["executionReceipt"], "quality native receipt differs")
+        decisions = case["policyDecisions"]
+        require(len(decisions) == 1 and decisions[0]["allowed"] is True, "quality SDK admissions missing/duplicated")
+        decision, version = decisions[0], receipt["executable"]["version"]
+        require(re.fullmatch(r"legion-audit/[0-9a-f]{64}", receipt["requestId"]) is not None
+                and receipt["receiptId"] == "receipt:" + receipt["requestId"] and decision["requestId"] == receipt["requestId"]
+                and receipt["providerId"] == decision["providerId"] == provider and receipt["planId"] == decision["planId"] == case["planDigest"]
+                and receipt["taskId"] == decision["taskId"] == policy["task"] and receipt["cwd"] == decision["cwd"] == str(cwd)
+                and receipt["command"]["args"] == decision["args"] == prefix + args
+                and receipt["command"]["executable"] == decision["executable"] == receipt["executable"]["canonicalPath"] == str(wrapper)
+                and receipt["executable"]["digest"] == decision["expectedDigest"] == policy["wrapper"]["digest"]
+                and receipt["policyId"] == receipt["policy"]["id"] == policy["id"] and receipt["policy"]["allowed"] is True
+                and receipt["policy"]["version"] == 1 and receipt["policy"]["digest"] == digest(encoded(policy)), "quality native admission linkage differs")
+        require(version["qualified"] is True and version["exitCode"] == 0 and version["output"].startswith("cargo 1.98.0 ")
+                and version["args"] == decision["versionArgs"] == prefix + ["--version"]
+                and receipt["signal"] is None and all(receipt["processTree"][key] is True for key in ("started", "terminated", "reaped")), "quality process/version evidence incomplete")
+        require(decision["requiresNetworkSandbox"] is True and decision["acceptedExitCodes"] == accepted
+                and decision["timeoutMs"] == 120000 and decision["stdoutLimit"] == decision["stderrLimit"] == 8388608
+                and decision["environmentNames"] == sorted(environment) and decision["environmentDigest"] == digest(encoded(environment)), "quality admitted bounds/environment differ")
+        same(decision["sandbox"], {"id": sandbox_id, "network": True, "filesystemScope": str(cwd)}, "quality admitted sandbox differs")
+        same(receipt["sandbox"], {"required": True, "receiptId": sandbox_id, "networkEnabled": True}, "quality executed sandbox differs")
+        out, err = case["actualStdout"], case["actualStderr"]
+        for stream, data in (("stdout", out), ("stderr", err)):
+            api["artifact"](receipt[stream], data)
+        report = [parsed(line, "retained Cargo JSONL") for line in out.splitlines() if line.strip()] if not build else []
+        same(case["actualToolReport"], report, "quality actual tool report differs")
+        diagnostics = [item for item in report if item.get("reason") == "compiler-message" and item["message"].get("level") in ("error", "warning")]
+        require(result["details"]["candidates"] == [] and len(result["findings"]) == int(positive), "quality native output stage differs")
+        if failed:
+            require(result["complete"] is False and result["coverage_gaps"] and receipt["exitCode"] == 101
+                    and "E0425" in out + err and "missing_name" in out + err, "quality failure control became clean")
+            if build:
+                require(receipt["state"] == "failed" and receipt["complete"] is False, "failed build receipt became successful")
+            else:
+                require("cargo-clippy-diagnostic-exit-unproven" in result["coverage_gaps"]
+                        and any(item["message"].get("code", {}).get("code") == "E0425" for item in diagnostics), "compiler failure classified as lint")
+        else:
+            coverage = result["coverage"]
+            require(result["complete"] is True and result["status"] in ("ok", "complete") and result["coverage_gaps"] == result["degradation"] == []
+                    and coverage["expected"] == coverage["examined"] == len(selected) and coverage["gaps"] == []
+                    and coverage["denominator_digest"] == denominator and receipt["state"] == "completed" and receipt["complete"] is True
+                    and receipt["gaps"] == [] and receipt["exitCode"] == (101 if positive and not build else 0), "quality successful denominator/process incomplete")
+            count = result["details"]["findingsCount"]
+            if build:
+                require(count == sum(re.search(r"\bwarn(?:ing)?\b", line, re.I) is not None for line in (out + "\n" + err).splitlines()), "build warning line count differs")
+                require((count > 0) is positive and (not positive or ("warning: unused import: `std::fmt`" in err and "src/lib.rs:1:5" in err
+                        and "generated 1 warning" in err and sum(line.startswith("warning:") for line in err.splitlines()) == 2)), "build raw fixture diagnostic differs")
+            else:
+                require(report and report[-1] == {"reason": "build-finished", "success": not positive}
+                        and count == len(diagnostics) and bool(diagnostics) is positive, "clippy terminal/diagnostic count differs")
+                for item in diagnostics:
+                    message = item["message"]
+                    require(message["level"] == "error" and message["code"]["code"] == "clippy::eq_op"
+                            and any(span["is_primary"] is True and span["file_name"] == "src/lib.rs" and span["line_start"] == 2 for span in message["spans"]), "clippy raw fixture diagnostic differs")
+            if positive:
+                path = selected[0]["path"]
+                finding = digest(f"{rule}\0{path}\0{1}".encode())
+                same(result["findings"], [{"id": finding, "severity": "medium"}], "quality aggregate finding differs")
+                same(result["details"]["findingEvidence"], {finding: {"ruleId": rule, "path": path, "line": 1,
+                     "message": f"{'build' if build else 'lint'} reported {count} finding(s)"}}, "quality aggregate evidence differs")
+        identities.append((policy["tool"], policy["wrapper"], version["output"]))
+    require(all(identity == identities[0] for identity in identities), "quality host tool changed between controls")
+    same(bound["fixtureSources"], fixture_sources, "quality corpus binding incomplete")
+    require(bound["fixtureSourcesDigest"] == digest(encoded(fixture_sources)), "quality corpus digest differs")
+    same(row["metrics"], {"cases": 3, "matched": 3, "mismatched": 0}, "quality metrics differ")
+
+
 def controls(row, entry):
+    if entry["family"] == "osv-artifact":
+        require(row["schema"] == "legion-osv-sdk-artifact-accuracy/1"
+                and row["provider"] == entry["provider"] == "dependency.osv" and row["stage"] == entry["stage"] == "finding"
+                and row["scope"] == entry["scope"] == helper("audit-osv-artifact-accuracy.py")["FAMILY_SCOPE"]
+                and all(row[key] is False for key in ("productionQualification", "selfProducerQualification", "publicHelperQualification"))
+                and row["qualificationEligible"] is True and row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0,
+                "OSV constructed SDK/artifact scope differs")
+        return
+    if entry["family"] == "opengrep-artifact":
+        require(row["schema"] == "legion-opengrep-sdk-artifact-accuracy/1"
+                and row["provider"] == entry["provider"] == "security.opengrep" and row["stage"] == entry["stage"] == "candidate"
+                and row["scope"] == entry["scope"] == "constructed-native-sdk-artifact-fixture"
+                and row["productionQualification"] is False and row["selfProducerQualification"] is False
+                and row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0,
+                "OpenGrep constructed SDK/artifact scope differs")
+        return
+    if entry["family"] == "harness-ast-grep":
+        require(row["schema"] == "legion-ast-grep-accuracy/1"
+                and row["providerId"] == entry["provider"] == "structural.ast-grep"
+                and row["claimScope"] == entry["scope"] == "constructed-native-sdk-artifact-fixture"
+                and row["productionQualification"] is False and row["selfProducerQualification"] is False,
+                "ast-grep SDK record identity/claim differs")
+        return
+    if entry["family"] == "harness-quality":
+        require(row["schema"] == "legion-quality-command-sdk-accuracy/1"
+                and row["kind"] == "quality-command-sdk-constructed" and row["productionQualification"] is False
+                and row["claimScope"] == entry["scope"] == "known-answer-fixture-cases"
+                and row["provider"] == entry["provider"] and entry["stage"] == "finding"
+                and row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0,
+                "quality SDK record identity/claim differs")
+        return
     if entry["family"] == "bench-known-answer":
         require(row["schemaVersion"] == 1 and row["kind"] == "audit-known-answer-execution-record"
                 and row["family"] == "bench-known-answer" and row["productionQualification"] is False
@@ -527,10 +785,26 @@ def controls(row, entry):
 def qualification(entry):
     value = {"basis": "retained-provider-accuracy", "index": INDEX, "record": entry["record"]["path"],
             "recordSha256": entry["record"]["sha256"], "originalQualificationDigest": entry["record"]["qualificationDigest"],
-            "validationBasis": "source-owned-harness-success" if entry["provider"] in HARNESS_CONTROLS or entry["family"] == "bench-known-answer" else "native-family-validator",
+            "validationBasis": "source-owned-harness-success" if entry["provider"] in HARNESS_CONTROLS or entry["family"] in ("bench-known-answer", "harness-quality") else "native-family-validator",
             "stage": entry["stage"], "scope": entry["scope"]}
     if entry["family"] == "bench-known-answer":
         value.update({"benchClass": BENCH[entry["provider"]], "productionQualification": False})
+    if entry["family"] == "harness-quality":
+        value.update({"productionQualification": False, "fixtureScope": "known-answer-fixture-cases",
+                      "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
+    if entry["family"] == "osv-artifact":
+        value.update({"productionQualification": False, "selfProducerQualification": False, "publicHelperQualification": False,
+                      "fixtureScope": entry["scope"]})
+    if entry["family"] == "opengrep-artifact":
+        value.update({"productionQualification": False, "selfProducerQualification": False,
+                      "fixtureScope": "constructed-native-sdk-artifact-fixture"})
+    if entry["family"] == "harness-ast-grep":
+        value.update({"productionQualification": False, "fixtureScope": "constructed-native-sdk-artifact-fixture",
+                      "selfProducerQualification": False,
+                      "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
+    if entry["family"] == "osv-artifact":
+        value.update({"productionQualification": False, "selfProducerQualification": False, "publicHelperQualification": False,
+                      "fixtureScope": entry["scope"]})
     return value
 
 
@@ -557,11 +831,15 @@ def check(root):
         row = load(path)
         _, _, mode, _ = adapter(root, entry)
         require(entry["record"]["encoding"] == mode, "original digest encoding differs")
-        claimed = row.pop("qualificationDigest")
-        require(claimed == entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "original qualification digest changed")
-        row["qualificationDigest"] = claimed
+        if entry["family"] == "harness-ast-grep":
+            require("qualificationDigest" not in row, "ast-grep receipt must not invent a digest field")
+            require(entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "ast-grep canonical receipt digest changed")
+        else:
+            claimed = row.pop("qualificationDigest")
+            require(claimed == entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "original qualification digest changed")
+            row["qualificationDigest"] = claimed
         controls(row, entry)
-        require(row.get("claimScope") == entry["scope"] if entry["family"] == "bench-known-answer" else row["scope"] == entry["scope"], "corpus claim differs from original")
+        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("bench-known-answer", "harness-quality", "harness-ast-grep") else row["scope"] == entry["scope"], "corpus claim differs from original")
         validated = record_binding(root, entry, path, row, specs)
         retained.add(entry["record"]["path"])
         retained.update(provenance(root, entry, row, validated))

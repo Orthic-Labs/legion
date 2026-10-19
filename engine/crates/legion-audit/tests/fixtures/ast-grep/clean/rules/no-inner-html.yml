@@ -1,0 +1,6 @@
+id: no-inner-html
+language: typescript
+severity: error
+message: Raw innerHTML assignment requires a proven sanitization boundary.
+rule:
+  pattern: $X.innerHTML = $VALUE

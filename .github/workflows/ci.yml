@@ -156,6 +156,14 @@ jobs:
         with:
           path: ~/.right-git-last-green
           key: legion-last-green-${{ matrix.os }}-${{ matrix.node }}-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qa-evidence-${{ matrix.os || runner.os }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/legion-provider-qualification
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Upload unsigned dev build (Windows)
         if: ${{ (github.event_name == 'push' && github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch') && runner.os == 'Windows' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

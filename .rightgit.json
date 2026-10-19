@@ -84,11 +84,18 @@
     "linux-audit-artifact": {
       "kind": "custom",
       "file": "linux-audit-artifact.yml",
-      "on": { "workflow_dispatch": true },
+      "on": {
+        "workflow_dispatch": true
+      },
       "runsOn": "ubuntu-24.04",
       "timeoutMinutes": 60,
-      "concurrency": { "group": "legion-linux-audit-artifact", "cancelInProgress": false },
-      "toolchain": { "rust": "1.98.0" },
+      "concurrency": {
+        "group": "legion-linux-audit-artifact",
+        "cancelInProgress": false
+      },
+      "toolchain": {
+        "rust": "1.98.0"
+      },
       "steps": [
         {
           "name": "Build and qualify Linux Audit payload",
@@ -107,5 +114,7 @@
   "concurrency": {
     "mainPushes": "queue",
     "reason": "Preserve warm native caches & finish one batched qualification before signing its exact artifact."
-  }
+  },
+  "qaEvidencePath": "legion-provider-qualification",
+  "qaEvidenceRetentionDays": 7
 }

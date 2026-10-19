@@ -110,15 +110,18 @@ pub fn osv_command(
     let repository_root = repository_root.into();
     let mut env = serde_json::Map::new();
     if let Some(db) = offline_db {
-        env.insert("OSV_SCANNER_OFFLINE_DB".into(), Value::String(db.into()));
+        env.insert(
+            "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY".into(),
+            Value::String(db.into()),
+        );
     }
     json!({
         "executable": resolved_osv_scanner.into(),
-        "args": ["scan", "--format", "json", "--output", output_path.into(), repository_root.clone()],
+        "args": ["scan", "source", "--offline", "--format", "json", "--all-packages", "--output", output_path.into(), "-r", repository_root.clone()],
         "cwd": repository_root,
         "timeoutMs": policy.and_then(|p| p.get("providerTimeoutMs")).and_then(Value::as_u64).unwrap_or(120_000),
         "maxOutputBytes": policy.and_then(|p| p.get("maxOutputBytes")).and_then(Value::as_u64).unwrap_or(8_388_608),
-        "environmentKeys": ["PATH", "HOME", "USERPROFILE", "TEMP", "TMP", "OSV_SCANNER_OFFLINE_DB"],
+        "environmentKeys": ["PATH", "HOME", "USERPROFILE", "TEMP", "TMP", "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"],
         "env": Value::Object(env),
     })
 }

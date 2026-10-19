@@ -6,6 +6,22 @@ if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then
   exit 1
 fi
 
+# Remove only empty IPC storage: failed process-tree reaping deliberately
+# retains live namespaces. Never recursively remove them from an EXIT trap.
+legion_ci_ipc_storage=""
+cleanup_ci_storage() {
+  local status=$?
+  if [[ -n "${regen_log:-}" ]]; then rm -f "$regen_log"; fi
+  if [[ -n "${regen_patch:-}" ]]; then rm -f "$regen_patch"; fi
+  if [[ -n "$legion_ci_ipc_storage" ]]; then
+    if ! rmdir "$legion_ci_ipc_storage"; then
+      printf 'Preserving IPC run storage: %s\n' "$legion_ci_ipc_storage" >&2
+    fi
+  fi
+  return "$status"
+}
+trap cleanup_ci_storage EXIT
+
 regenerate_workflow=false
 if [[ "${GITHUB_WORKFLOW:-}" == "legion-regenerate" ]]; then
   regenerate_workflow=true
@@ -23,7 +39,6 @@ pnpm install --frozen-lockfile
 if [[ "$regenerate_workflow" != "true" ]]; then
   regen_log="$(mktemp)"
   regen_patch="$(mktemp)"
-  trap 'rm -f "$regen_log" "$regen_patch"' EXIT
   if ! bash scripts/ci/regenerate.sh > "$regen_log" 2>&1; then
     cat "$regen_log" >&2
     echo "Canonical regeneration failed; stopping CI." >&2
@@ -95,6 +110,15 @@ if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
   exit 0
 fi
 
+# RUNNER_TEMP may have ACL-bearing ancestors. Provision short private IPC
+# storage explicitly; native validation still rejects every nonempty ancestor
+# ACL, symlink, foreign owner or unsafe mode. Keep artifacts in RUNNER_TEMP.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  legion_ci_ipc_storage="$(mktemp -d /private/tmp/li-ci.XXXXXXXX)"
+  chmod 700 "$legion_ci_ipc_storage"
+  export LEGION_CI_IPC_STORAGE="$legion_ci_ipc_storage"
+fi
+
 # Provision pinned Chrome assets through RightKit before native qualification.
 RIGHTKIT_CHROME_FOR_TESTING_ROOT="${RUNNER_TEMP}/rightkit-chrome-for-testing"
 export RIGHTKIT_CHROME_FOR_TESTING_ROOT
@@ -109,13 +133,31 @@ fi
 # clippy::correctness findings fail the build; other warnings are allowed.
 (cd engine && cargo fmt --all -- --check)
 
+# Preserve independent qualification evidence after a workspace failure;
+# every command records its own status before the installer delivery barrier.
+workspace_failures=0
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
-  (
-    cd engine
-    cargo clippy --workspace --all-targets --locked --keep-going -- -A warnings -D clippy::correctness
-    cargo check --workspace --all-targets --locked
-    cargo test --locked --no-fail-fast
-  )
+  if (cd engine && cargo clippy --workspace --all-targets --locked --keep-going -- -A warnings -D clippy::correctness); then
+    :
+  else
+    workspace_status=$?
+    workspace_failures=$((workspace_failures + 1))
+    printf '::error::Workspace clippy failed (exit %s).\n' "$workspace_status" >&2
+  fi
+  if (cd engine && cargo check --workspace --all-targets --locked); then
+    :
+  else
+    workspace_status=$?
+    workspace_failures=$((workspace_failures + 1))
+    printf '::error::Workspace check failed (exit %s).\n' "$workspace_status" >&2
+  fi
+  if (cd engine && cargo test --locked --no-fail-fast); then
+    :
+  else
+    workspace_status=$?
+    workspace_failures=$((workspace_failures + 1))
+    printf '::error::Workspace tests failed (exit %s).\n' "$workspace_status" >&2
+  fi
 fi
 
 audit_qualification_failures=0
@@ -124,7 +166,8 @@ audit_cargo_bin="$(command -v cargo)"
 audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
 audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
 audit_tflint_qualification() {
-  audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
+  audit_effects_test --lib scoped_ipc_ci_storage_requires_private_canonical_owned_root -- --nocapture --test-threads=1 &&
+    audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_native_confinement -- --ignored --nocapture --test-threads=1 &&
@@ -167,6 +210,61 @@ run_audit_qualification audit_cargo_test \
 run_audit_qualification python3 scripts/ci/audit-provider-accuracy.py \
   --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
 unset LEGION_PROVIDER_BENCHMARK_DIR
+
+# Existing explicit visual provider: real pinned shared Chrome & retained PNGs.
+# This is separate from file-only controls; no model or system Chrome fallback.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  visual_accuracy_dir="${RUNNER_TEMP}/legion-provider-qualification/visual"
+  visual_accuracy_tmp="${RUNNER_TEMP}/legion-visual-tmp"
+  mkdir -p "$visual_accuracy_dir" "$visual_accuracy_tmp"
+  export LEGION_PROVIDER_BENCHMARK_DIR="$visual_accuracy_dir"
+  # Redirect without a pipeline: preserve run_audit_qualification's failure count
+  # in this shell, then replay actual log bytes into authenticated CI job output.
+  TMPDIR="$visual_accuracy_tmp" run_audit_qualification audit_cargo_test \
+    --test visual_accuracy real_browser_accuracy_visual_regression \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$visual_accuracy_dir/harness.log" 2>&1
+  cat "$visual_accuracy_dir/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-visual-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" \
+    > "$visual_accuracy_dir/validator.log" 2>&1
+  cat "$visual_accuracy_dir/validator.log"
+  unset LEGION_PROVIDER_BENCHMARK_DIR
+fi
+
+# Constructed native SDK accuracy for structural.ast-grep. The pinned upstream
+# release is verified before extraction; this remains fixture-only evidence.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  case "$(uname -m)" in
+    arm64) ast_grep_asset=app-aarch64-apple-darwin.zip; ast_grep_asset_sha=e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8 ;;
+    x86_64) ast_grep_asset=app-x86_64-apple-darwin.zip; ast_grep_asset_sha=8438fe549da59da28518c45bdaab5b851aabafe8fb4f8dc05c261a7649b4eca6 ;;
+    *) echo "unsupported ast-grep qualification host: $(uname -m)" >&2; exit 1 ;;
+  esac
+  ast_grep_dir="${RUNNER_TEMP}/legion-ast-grep-0.51.0"
+  ast_grep_receipts="${RUNNER_TEMP}/legion-provider-qualification/ast-grep"
+  mkdir -p "$ast_grep_dir" "$ast_grep_receipts"
+  curl --fail --location "https://github.com/ast-grep/ast-grep/releases/download/0.51.0/$ast_grep_asset" -o "$ast_grep_dir/$ast_grep_asset"
+  printf '%s  %s\n' "$ast_grep_asset_sha" "$ast_grep_dir/$ast_grep_asset" | shasum -a 256 --check
+  unzip -q "$ast_grep_dir/$ast_grep_asset" -d "$ast_grep_dir/unpacked"
+  ast_grep_bin="$(find "$ast_grep_dir/unpacked" -type f -name ast-grep -perm -111 -print)"
+  test "$(printf '%s\n' "$ast_grep_bin" | wc -l | tr -d ' ')" -eq 1
+  export LEGION_AST_GREP_BIN="$ast_grep_bin"
+  export LEGION_AST_GREP_ASSET_SHA256="sha256:$ast_grep_asset_sha"
+  export LEGION_AST_GREP_FIXTURES="$GITHUB_WORKSPACE/engine/crates/legion-audit/tests/fixtures/ast-grep"
+  export LEGION_AST_GREP_RUN_DIR="$ast_grep_receipts/run"
+  export LEGION_AST_GREP_RECORD="$ast_grep_receipts/ast-grep-provider-accuracy.json"
+  mkdir -p "$LEGION_AST_GREP_RUN_DIR"
+  run_audit_qualification audit_cargo_test --test ast_grep_accuracy real_ast_grep_accuracy \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$ast_grep_receipts/harness.log" 2>&1
+  cat "$ast_grep_receipts/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-ast-grep-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$ast_grep_receipts" \
+    > "$ast_grep_receipts/validator.log" 2>&1
+  cat "$ast_grep_receipts/validator.log"
+  unset LEGION_AST_GREP_BIN LEGION_AST_GREP_ASSET_SHA256 LEGION_AST_GREP_FIXTURES
+  unset LEGION_AST_GREP_RUN_DIR LEGION_AST_GREP_RECORD
+fi
 
 # Native fixture qualification is intentionally ignored by ordinary unit tests.
 # Both native hosts must execute it after shared RightKit provisions pinned
@@ -330,6 +428,74 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --squawk-receipts "${RUNNER_TEMP}/legion-squawk-accuracy" \
     --brakeman-receipts "${RUNNER_TEMP}/legion-brakeman-accuracy" \
     --linter-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  # Real existing build/lint SDK controls; no production owner-admission claim.
+  export LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_QUALITY_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-quality-command-fixtures"
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/quality"
+  mkdir -p "$LEGION_QUALITY_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test real_quality_command_accuracy \
+    real_quality_command_accuracy -- --ignored --exact --nocapture --test-threads=1
+  unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_QUALITY_COMMAND_SCRATCH
+  # Fixed official OpenGrep binary; constructed SDK/artifact cases only.
+  audit_provision_opengrep() {
+    local opengrep_asset opengrep_sha
+    mkdir -p "$opengrep_tool_dir" || return $?
+    case "$(uname -m)" in
+      arm64) opengrep_asset=opengrep_osx_arm64; opengrep_sha=035dd8fd2410fe68513916df0c2895257fffafcd5314b4a118484ce8db62bedb ;;
+      x86_64) opengrep_asset=opengrep_osx_x86; opengrep_sha=2f0d0c7a41a3e48dc02c30dabc4851bc37c18f021b46c9ae54b15177ece088ee ;;
+      *) return 1 ;;
+    esac
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      "https://github.com/opengrep/opengrep/releases/download/v1.31.0/${opengrep_asset}" \
+      --output "${opengrep_tool_dir}/opengrep" || return $?
+    printf '%s  %s\n' "$opengrep_sha" "${opengrep_tool_dir}/opengrep" | shasum -a 256 -c - || return $?
+    chmod 0755 "${opengrep_tool_dir}/opengrep"
+  }
+  opengrep_tool_dir="${RUNNER_TEMP}/legion-opengrep-native-v1.31.0"
+  run_audit_qualification audit_provision_opengrep
+  export LEGION_OPENGREP_SCRATCH="${RUNNER_TEMP}/legion-opengrep-fixtures"
+  export LEGION_OPENGREP_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/opengrep"
+  mkdir -p "$LEGION_OPENGREP_SCRATCH" "$LEGION_OPENGREP_RECEIPTS"
+  PATH="${opengrep_tool_dir}:$PATH" run_audit_qualification audit_cargo_test \
+    --test opengrep_accuracy real_sdk_artifact_accuracy_opengrep \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_OPENGREP_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_OPENGREP_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-opengrep-artifact-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_OPENGREP_RECEIPTS" \
+    > "$LEGION_OPENGREP_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_OPENGREP_RECEIPTS/validator.log"
+  unset LEGION_OPENGREP_SCRATCH LEGION_OPENGREP_RECEIPTS
+  # Official pinned OSV; one advisory offline SDK/artifact fixtures only.
+  audit_provision_osv() {
+    local osv_asset osv_sha
+    mkdir -p "$osv_tool_dir" || return $?
+    case "$(uname -m)" in
+      arm64) osv_asset=osv-scanner_darwin_arm64; osv_sha=f1e1cc84b6e365b79b874cb9028a4f74ac64666094b542f1eb196b10f44b505e ;;
+      x86_64) osv_asset=osv-scanner_darwin_amd64; osv_sha=5c2a2e2a686e34c0674e0a463aa626467df5d9fba0ed06870a2eb684dc434de3 ;;
+      *) return 1 ;;
+    esac
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      "https://github.com/google/osv-scanner/releases/download/v2.2.2/${osv_asset}" \
+      --output "${osv_tool_dir}/osv-scanner" || return $?
+    printf '%s  %s\n' "$osv_sha" "${osv_tool_dir}/osv-scanner" | shasum -a 256 -c - || return $?
+    chmod 0755 "${osv_tool_dir}/osv-scanner"
+  }
+  osv_tool_dir="${RUNNER_TEMP}/legion-osv-native-v2.2.2"
+  run_audit_qualification audit_provision_osv
+  export LEGION_OSV_BIN="${osv_tool_dir}/osv-scanner"
+  export LEGION_OSV_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/osv"
+  mkdir -p "$LEGION_OSV_RECEIPTS"
+  run_audit_qualification audit_cargo_test \
+    --test osv_accuracy real_sdk_artifact_accuracy_osv \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_OSV_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_OSV_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-osv-artifact-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_OSV_RECEIPTS" \
+    > "$LEGION_OSV_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_OSV_RECEIPTS/validator.log"
+  unset LEGION_OSV_BIN LEGION_OSV_RECEIPTS
   unset LEGION_REAL_LINTER_SCRATCH
   unset LEGION_REAL_GIT_SCRATCH
   unset LEGION_REAL_SCANNER_SCRATCH LEGION_PROVIDER_BENCHMARK_DIR
@@ -477,8 +643,9 @@ print("deterministic audit-behavior selected-provider A/A × 2 assertions passed
 PY
 fi
 
-if (( audit_qualification_failures != 0 )); then
-  printf 'Audit qualification failed: %s command(s); refusing installer delivery.\n' "$audit_qualification_failures" >&2
+if (( workspace_failures != 0 || audit_qualification_failures != 0 )); then
+  printf 'CI checks failed: %s workspace command(s), %s Audit qualification command(s); refusing installer delivery.\n' \
+    "$workspace_failures" "$audit_qualification_failures" >&2
   exit 1
 fi
 

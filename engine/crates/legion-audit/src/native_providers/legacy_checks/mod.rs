@@ -1136,6 +1136,20 @@ impl NativeLegacyCheckExecutor {
         );
         let (environment, environment_allowlist) = audit_environment(&scratch);
         let needs_sandbox = sandbox_required_check(contract.check);
+        // Cargo uses 101 for denied lint diagnostics as well as launch/compiler
+        // failures. Admit that raw exit only for the resolved frozen clippy
+        // invocation; execution_from_receipt still requires diagnostic evidence.
+        let mut exit_codes = accepted_exit_codes(contract.check);
+        if contract.check == "lint"
+            && resolve_request(&self.root, &executable, &args).is_ok_and(|resolved| {
+                cargo_clippy_args(&resolved.args)
+                    && resolve_request(&self.root, "cargo", &[]).is_ok_and(|cargo| {
+                        cargo.executable == resolved.executable && cargo.digest == resolved.digest
+                    })
+            })
+        {
+            exit_codes.insert(101);
+        }
         // Once the sandbox wrapper is the executable the adapter can no longer
         // see the tool it wraps, so the working directory the tool needs (a
         // nested Cargo workspace, `src-tauri`) is resolved here.
@@ -1262,7 +1276,7 @@ impl NativeLegacyCheckExecutor {
             cwd: request_cwd.to_string_lossy().into_owned(),
             shell: false,
             expected_digest: None,
-            accepted_exit_codes: accepted_exit_codes(contract.check),
+            accepted_exit_codes: exit_codes,
             version_requirement: test_command_source
                 .as_ref()
                 .and_then(|source| source.get("versionRequirement"))
@@ -1446,6 +1460,17 @@ fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
     }
 }
 
+fn cargo_clippy_args(args: &[String]) -> bool {
+    args.iter().map(String::as_str).eq([
+        "clippy",
+        "--all-targets",
+        "--message-format=json",
+        "--",
+        "-D",
+        "warnings",
+    ])
+}
+
 pub(crate) fn audit_environment(
     scratch: &AuditScratch,
 ) -> (BTreeMap<String, String>, BTreeSet<String>) {
@@ -1556,13 +1581,45 @@ fn execution_from_receipt(
         .and_then(|a| readable_artifact(roots, a));
     let mut parsed =
         input.check == "test" && receipt.complete && state == LegacyCheckProcessState::Completed;
-    let parse_bytes: Option<&[u8]> = match report_source {
-        ReportSource::Stdout => stdout.as_deref(),
-        ReportSource::Stderr => stderr.as_deref(),
-        ReportSource::File(_) => report_artifact
-            .as_ref()
-            .map(|report| report.bytes.as_slice()),
+    // Build diagnostics commonly land on stderr (notably rustc). Preserve both
+    // original artifacts in the receipt while parsing their combined bytes.
+    // A missing/unreadable stream cannot become a clean empty build report.
+    let build_report = if input.check == "build" {
+        stdout.as_deref().zip(stderr.as_deref()).map(|(out, err)| {
+            let mut bytes = out.to_vec();
+            bytes.push(b'\n');
+            bytes.extend_from_slice(err);
+            bytes
+        })
+    } else {
+        None
     };
+    let parse_bytes: Option<&[u8]> = if input.check == "build" {
+        build_report.as_deref()
+    } else {
+        match report_source {
+            ReportSource::Stdout => stdout.as_deref(),
+            ReportSource::Stderr => stderr.as_deref(),
+            ReportSource::File(_) => report_artifact
+                .as_ref()
+                .map(|report| report.bytes.as_slice()),
+        }
+    };
+    let clippy_exit_unproven = input.check == "lint"
+        && receipt.exit_code == Some(101)
+        && !receipt.command.as_ref().is_some_and(|command| {
+            let args = &command.args;
+            let clippy_args = if args.len() == 10 && args[0] == "-f" && args[2] == "--" {
+                &args[4..]
+            } else {
+                args.as_slice()
+            };
+            cargo_clippy_args(clippy_args)
+                && stdout
+                    .as_deref()
+                    .zip(stderr.as_deref())
+                    .is_some_and(|(out, err)| parsers::clippy_diagnostic_exit(out, err))
+        });
     let exact_test_version_unproven = if input.check == "test"
         && (receipt.executable.is_some() || state == LegacyCheckProcessState::Completed)
     {
@@ -1580,7 +1637,14 @@ fn execution_from_receipt(
     } else {
         None
     };
-    if let Some(required) = exact_test_version_unproven {
+    if clippy_exit_unproven {
+        output
+            .coverage_gaps
+            .push("cargo-clippy-diagnostic-exit-unproven".into());
+        output.status = ProviderStatus::Partial;
+        output.details.insert("findingsCount".into(), Value::Null);
+        parsed = true; // Classified incomplete; do not parse failure text as findings.
+    } else if let Some(required) = exact_test_version_unproven {
         let reason = "test-runner-version-mismatch:test";
         let gap = super::availability::unavailable_gap(reason);
         output.coverage_gaps.push(gap.clone());

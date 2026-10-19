@@ -270,21 +270,26 @@ fn canonical_owned_path(path: &Path) -> Result<PathBuf, SandboxGap> {
     let mut current = PathBuf::new();
     for component in path.components() {
         current.push(component);
-        let meta = std::fs::symlink_metadata(&current).map_err(ipc_error)?;
+        let invalid = |detail: String| ipc_error(format!("{detail}: {}", current.display()));
+        let meta =
+            std::fs::symlink_metadata(&current).map_err(|error| invalid(error.to_string()))?;
         // Root/system ancestors may be root-owned; no other user may own an
         // ancestor that can replace the namespace. Reject symlinks throughout.
         if meta.file_type().is_symlink()
             || !meta.is_dir()
             || (meta.uid() != 0 && meta.uid() != unsafe { libc::geteuid() })
         {
-            return Err(ipc_error(
-                "symlink, non-directory or foreign-owned IPC ancestor",
+            return Err(invalid(
+                "symlink, non-directory or foreign-owned IPC ancestor".into(),
             ));
         }
         if meta.mode() & 0o022 != 0 && !(meta.uid() == 0 && meta.mode() & 0o1000 != 0) {
-            return Err(ipc_error("IPC ancestor writable by another principal"));
+            return Err(invalid("IPC ancestor writable by another principal".into()));
         }
-        require_empty_acl(&current)?;
+        require_empty_acl(&current).map_err(|error| match error {
+            SandboxGap::IpcNamespaceInvalid(detail) => invalid(detail),
+            other => other,
+        })?;
     }
     let canonical = path.canonicalize().map_err(ipc_error)?;
     if canonical != path {
@@ -293,18 +298,47 @@ fn canonical_owned_path(path: &Path) -> Result<PathBuf, SandboxGap> {
     Ok(canonical)
 }
 
-/// No arbitrary temporary fallback. CI explicitly designates RUNNER_TEMP;
-/// local macOS uses workspace-authorized run storage.
+/// CI provisions one exclusive private directory; environment alone never
+/// exempts its path, ownership, mode or ancestors from native validation.
+#[cfg(target_os = "macos")]
+fn ci_ipc_run_storage(path: &Path) -> Result<PathBuf, SandboxGap> {
+    use std::os::unix::fs::MetadataExt;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    if path.parent() != Some(Path::new("/private/tmp"))
+        || !name.starts_with("li-ci.")
+        || name.len() != 14
+        || !name[6..].bytes().all(|byte| byte.is_ascii_alphanumeric())
+    {
+        return Err(ipc_error(
+            "CI IPC storage must be /private/tmp/li-ci.<8 alphanumeric characters>",
+        ));
+    }
+    let canonical = canonical_owned_path(path)?;
+    let meta = std::fs::symlink_metadata(&canonical).map_err(ipc_error)?;
+    if meta.uid() != unsafe { libc::geteuid() } || meta.mode() & 0o7777 != 0o700 {
+        return Err(ipc_error(
+            "CI IPC storage must be effective-owner mode 0700",
+        ));
+    }
+    Ok(canonical)
+}
+
+/// No arbitrary temporary fallback. CI explicitly provisions private IPC
+/// storage; RUNNER_TEMP remains available for retained qualification artifacts.
 #[cfg(target_os = "macos")]
 fn ipc_run_storage() -> Result<PathBuf, SandboxGap> {
-    let path = if std::env::var("CI").as_deref() == Ok("true") {
-        PathBuf::from(
-            std::env::var_os("RUNNER_TEMP").ok_or_else(|| ipc_error("CI RUNNER_TEMP missing"))?,
-        )
+    if std::env::var("CI").as_deref() == Ok("true") {
+        let path = PathBuf::from(
+            std::env::var_os("LEGION_CI_IPC_STORAGE")
+                .ok_or_else(|| ipc_error("CI LEGION_CI_IPC_STORAGE missing"))?,
+        );
+        ci_ipc_run_storage(&path)
     } else {
-        PathBuf::from("/Volumes/D/scratch")
-    };
-    canonical_owned_path(&path)
+        canonical_owned_path(Path::new("/Volumes/D/scratch"))
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -1078,6 +1112,53 @@ mod scoped_ipc_tests {
     }
 
     #[test]
+    fn scoped_ipc_ci_storage_requires_private_canonical_owned_root() {
+        use std::os::unix::fs::PermissionsExt;
+        struct CiStorage(PathBuf);
+        impl Drop for CiStorage {
+            fn drop(&mut self) {
+                // Retained namespaces must survive even fixture teardown.
+                let _ = fs::remove_dir(&self.0);
+            }
+        }
+        let seed = format!("{}:{:?}", std::process::id(), std::time::SystemTime::now());
+        let suffix = hex::encode(Sha256::digest(seed.as_bytes()));
+        let path = PathBuf::from(format!("/private/tmp/li-ci.{}", &suffix[..8]));
+        fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
+        let storage = CiStorage(path);
+        assert_eq!(ci_ipc_run_storage(&storage.0).unwrap(), storage.0);
+        let namespace = storage.0.join("li-0123456789abcdef");
+        fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&namespace)
+            .unwrap();
+        assert!(
+            ci_ipc_run_storage(&namespace).is_err(),
+            "must be a direct /private/tmp child"
+        );
+        assert!(
+            fs::remove_dir(&storage.0).is_err(),
+            "nonempty storage must be retained"
+        );
+        fs::remove_dir(&namespace).unwrap();
+        fs::set_permissions(&storage.0, fs::Permissions::from_mode(0o750)).unwrap();
+        assert!(ci_ipc_run_storage(&storage.0).is_err());
+        fs::set_permissions(&storage.0, fs::Permissions::from_mode(0o700)).unwrap();
+        let alias = storage
+            .0
+            .with_file_name(format!("li-ci.{}", &suffix[8..16]));
+        std::os::unix::fs::symlink(&storage.0, &alias).unwrap();
+        let rejected_alias = ci_ipc_run_storage(&alias);
+        fs::remove_file(&alias).unwrap();
+        assert!(rejected_alias.is_err());
+        assert!(ci_ipc_run_storage(Path::new("/private/tmp/not-ci-root")).is_err());
+        assert!(ci_ipc_run_storage(Path::new("/tmp/li-ci.12345678")).is_err());
+        let path = storage.0.clone();
+        drop(storage);
+        assert!(!path.exists(), "empty fixture storage must be removed");
+    }
+
+    #[test]
     fn scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure() {
         use std::{
             ffi::{c_char, c_int, c_void, CString},
@@ -1133,6 +1214,9 @@ mod scoped_ipc_tests {
                 require_empty_acl(&path).is_err(),
                 "even deny-only ACL must fail closed"
             );
+            let error = canonical_owned_path(&path).unwrap_err().as_str();
+            assert!(error.contains("nonempty IPC ancestor ACL"), "{error}");
+            assert!(error.contains(path.to_str().unwrap()), "{error}");
             set("!#acl 1\n".into());
             require_empty_acl(&path).unwrap();
         }

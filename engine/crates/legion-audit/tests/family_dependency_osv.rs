@@ -19,17 +19,24 @@ fn osv_command_builds_offline_scan_args() {
         cmd["args"],
         json!([
             "scan",
+            "source",
+            "--offline",
             "--format",
             "json",
+            "--all-packages",
             "--output",
             "/tmp/out.json",
+            "-r",
             "/repo"
         ])
     );
     assert_eq!(cmd["cwd"], "/repo");
     assert_eq!(cmd["timeoutMs"], 120_000);
     assert_eq!(cmd["maxOutputBytes"], 8_388_608);
-    assert_eq!(cmd["env"]["OSV_SCANNER_OFFLINE_DB"], "/tmp/offline-db");
+    assert_eq!(
+        cmd["env"]["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"],
+        "/tmp/offline-db"
+    );
 }
 
 #[test]

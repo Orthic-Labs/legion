@@ -1,0 +1,6 @@
+id: no-console-error-leak
+language: typescript
+severity: warning
+message: Console error output may leak internal state.
+rule:
+  pattern: console.error($ARGS)

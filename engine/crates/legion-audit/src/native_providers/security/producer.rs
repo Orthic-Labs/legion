@@ -1040,10 +1040,19 @@ impl<'a> Run<'a> {
         let database_text = database.to_string_lossy().into_owned();
         let run = match self.run_tool(
             &["osv-scanner"],
-            ["scan", "source", "--offline", "--format", "json", "-r", "."]
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
+            [
+                "scan",
+                "source",
+                "--offline",
+                "--format",
+                "json",
+                "--all-packages",
+                "-r",
+                ".",
+            ]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
             &[0, 1],
             &[("OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY", database_text)],
         ) {
