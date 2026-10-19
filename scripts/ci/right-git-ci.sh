@@ -151,7 +151,14 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint swiftlint
+  brew install gitleaks shellcheck zizmor kube-linter actionlint hadolint swiftlint ruby@3.3
+  # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
+  # default gem directory because native scanner execution scrubs GEM_HOME.
+  export PATH="$(brew --prefix ruby@3.3)/bin:$PATH"
+  gem install brakeman --version 8.1.0 --no-document
+  LEGION_BRAKEMAN_GEM_ROOT="$(ruby -rrubygems -e 'print Gem::Specification.find_by_name("brakeman", "=8.1.0").full_gem_path')"
+  export LEGION_BRAKEMAN_GEM_ROOT
+  export PATH="$LEGION_BRAKEMAN_GEM_ROOT/bin:$PATH"
   # Official native Squawk release; avoid npm/Python wrapper substitutions.
   squawk_dir="${RUNNER_TEMP}/legion-scanners"
   mkdir -p "$squawk_dir"
@@ -193,6 +200,11 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   (cd engine && cargo test --locked -p legion-audit --test more_external_scanner_accuracy \
     real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1)
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-brakeman-accuracy"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  (cd engine && cargo test --locked -p legion-audit --test brakeman_accuracy \
+    real_scanner_accuracy_brakeman -- --ignored --nocapture --test-threads=1)
+  unset LEGION_BRAKEMAN_GEM_ROOT
   export LEGION_REAL_LINTER_SCRATCH="${RUNNER_TEMP}/legion-real-linter-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-real-linter-accuracy"
   mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
