@@ -605,7 +605,8 @@
             "dotnet-sdk",
             "code-rust-sdk",
             "quality-test-native",
-            "backend-source-facts"
+            "backend-source-facts",
+            "supply-chain-native"
           ]
         },
         "record": {

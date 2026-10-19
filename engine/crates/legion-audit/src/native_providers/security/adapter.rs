@@ -239,6 +239,36 @@ impl ProviderExecutor for SecurityProviderExecutor {
         // Host JSON never opts into this conversion.
         let native_iac = produced_artifact && provider.id == "container.iac";
         let native_secrets = produced_artifact && provider.id == "secrets.current-history";
+        let native_supply_chain =
+            produced_artifact && provider.id == "supply-chain.license-sbom-provenance";
+        if provider.id == "supply-chain.license-sbom-provenance" && !native_supply_chain {
+            gaps.push(json!({"kind":"supply-chain-native-proof-required"}));
+        }
+        let supply_chain_reconciled = native_supply_chain
+            && frozen.as_ref().is_some_and(|(_, count)| {
+                let rows = analysis
+                    .pointer("/sourceCoverage/validatedPaths")
+                    .and_then(Value::as_array);
+                let paths: BTreeSet<&str> = rows
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect();
+                let selected: BTreeSet<&str> = frozen_paths
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                analysis
+                    .pointer("/sourceCoverage/complete")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+                    && rows.is_some_and(|rows| rows.len() == paths.len())
+                    && paths == selected
+                    && paths.len() as u64 == *count
+            });
+
         // Only this producer invocation owns actual SDK receipts/raw streams.
         // Untrusted injected JSON cannot substitute for native history proof.
         if provider.id == "secrets.current-history" && !native_secrets {
@@ -352,6 +382,7 @@ impl ProviderExecutor for SecurityProviderExecutor {
             Some("lockfile-packages" | "dependency-manifests")
         );
         let unit_reconciled = own_unit
+            && !native_supply_chain
             && examined >= expected
             && !gaps.iter().any(|gap| {
                 matches!(
@@ -377,6 +408,9 @@ impl ProviderExecutor for SecurityProviderExecutor {
                 },
             ),
             (Some((_, count)), true) if native_iac => (*count, iac_examined_paths.min(*count)),
+            (Some((_, count)), true) if native_supply_chain => {
+                (*count, if supply_chain_reconciled { *count } else { 0 })
+            }
             (Some((_, count)), true) if expected > 0 && unit_reconciled => (*count, *count),
             (Some((_, count)), true) if expected > 0 => (*count, examined.min(*count)),
             // An unavailable provider still reports what was selected, with
@@ -387,9 +421,11 @@ impl ProviderExecutor for SecurityProviderExecutor {
         let reconciled = !produced_artifact
             || (native_iac && iac_reconciled)
             || (native_secrets && secret_reconciled)
-            || own_unit
+            || (native_supply_chain && supply_chain_reconciled)
+            || (own_unit && !native_supply_chain)
             || (!native_iac
                 && !native_secrets
+                && !native_supply_chain
                 && frozen
                     .as_ref()
                     .is_some_and(|(_, count)| *count == analysis_expected));

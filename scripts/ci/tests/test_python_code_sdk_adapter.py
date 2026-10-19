@@ -20,4 +20,4 @@ class PythonSdkAdapterTests(unittest.TestCase):
 
     def test_python_retained_reference_set_is_fixed(self):
         self.assertEqual(gate["PYTHON_SDK_EVIDENCE"], {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "pythonEnrollment": "python-sdk-enrollment.json", "providerRecord": "code_python.json"})
-        self.assertEqual(len(gate["ADAPTERS"]), 37)
+        self.assertEqual(len(gate["ADAPTERS"]), 38)

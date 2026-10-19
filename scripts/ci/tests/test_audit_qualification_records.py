@@ -460,7 +460,7 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 37)
+        self.assertEqual(len(gate["ADAPTERS"]), 38)
 
     def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
         api = gate["helper"]("audit-javascript-sdk-accuracy.py")
@@ -528,7 +528,7 @@ class RegistrationGateTests(unittest.TestCase):
             api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 37)
+        self.assertEqual(len(gate["ADAPTERS"]), 38)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)

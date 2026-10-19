@@ -252,11 +252,13 @@ fn lockfile_inventory_lists_planted_dependencies() {
 
     // The provider path labels the evidence and keeps the unproven gaps.
     let result = run(&root, bare(&root), "supply-chain.license-sbom-provenance");
-    assert_eq!(result.details["producer"]["mode"], json!("native-fallback"));
-    assert_eq!(
-        analysis(&result)["denominator"]["expected"],
-        json!(packages.len())
-    );
+    assert_eq!(result.details["producer"]["mode"], json!("tool"));
+    // Full legacy inventory helper remains observation-only. Native production
+    // now refuses malformed/unresolved lock syntax rather than dropping rows.
+    assert!(!analysis(&result)["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     assert_eq!(analysis(&result)["complete"], json!(false));
     let gaps = serde_json::to_string(&analysis(&result)["coverageGaps"]).unwrap();
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
@@ -515,7 +517,7 @@ fn flagged_findings_carry_evidence_and_locations_without_the_value() {
 }
 
 #[test]
-fn lockfile_sbom_fallback_is_not_reported_as_missing() {
+fn source_inventory_never_substitutes_for_native_dual_sbom() {
     let root = fixture("sbom-native");
     write(
         &root,
@@ -525,7 +527,10 @@ fn lockfile_sbom_fallback_is_not_reported_as_missing() {
     write(&root, "src/lib.rs", "pub fn f() {}\n");
     let result = run_selected(&root, "supply-chain.license-sbom-provenance");
     let gaps = result.coverage_gaps.join(" ");
-    assert!(!gaps.contains("sbom-artifact-missing"), "{gaps}");
+    assert!(
+        gaps.contains("sbom-native-receipt-or-artifact-invalid"),
+        "{gaps}"
+    );
     // Provenance cannot come from a source tree: the gap stays visible.
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
     assert!(!result.complete);

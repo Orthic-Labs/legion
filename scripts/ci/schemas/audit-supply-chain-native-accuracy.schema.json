@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-supply-chain-native-accuracy/1",
+  "title": "Bounded native SBOM/license controls; target build provenance unproven",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "family",
+    "provider",
+    "stage",
+    "scope",
+    "status",
+    "boundedSbomLicenseKnownAnswerEligible",
+    "qualificationEligible",
+    "wholeProviderQualification",
+    "productionQualification",
+    "targetBuildProvenanceVerified",
+    "modelCalls",
+    "requiredGap",
+    "binding",
+    "toolchainBefore",
+    "toolchainAfter",
+    "syftVersion",
+    "cases",
+    "qualificationDigest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "legion-supply-chain-native-accuracy/1"
+    },
+    "family": {
+      "const": "supply-chain-native"
+    },
+    "provider": {
+      "const": "supply-chain.license-sbom-provenance"
+    },
+    "stage": {
+      "const": "candidate"
+    },
+    "scope": {
+      "const": "native Syft dual-format SBOM + explicit license policy; full constructed npm-v3 lock including dev/transitive; audited target build provenance unproven"
+    },
+    "status": {
+      "const": "pass"
+    },
+    "boundedSbomLicenseKnownAnswerEligible": {
+      "const": true
+    },
+    "qualificationEligible": {
+      "const": true
+    },
+    "wholeProviderQualification": {
+      "const": false
+    },
+    "productionQualification": {
+      "const": false
+    },
+    "targetBuildProvenanceVerified": {
+      "const": false
+    },
+    "modelCalls": {
+      "const": 0
+    },
+    "requiredGap": {
+      "const": "supply-chain-provenance-invalid"
+    },
+    "syftVersion": {
+      "const": "1.55.0"
+    },
+    "binding": {
+      "type": "object"
+    },
+    "toolchainBefore": {
+      "type": "object"
+    },
+    "toolchainAfter": {
+      "type": "object"
+    },
+    "qualificationDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "prefixItems": [
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "nonempty-clean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "license-violation"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "unknown-license"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "malformed-lock"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "missing-package"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "malformed-receipt"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "mismatched-binding"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "substituted-subject"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "tampered-provenance"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "tool-unavailable"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "admission-unavailable"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "sandbox-missing"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "control",
+            "kind"
+          ],
+          "properties": {
+            "control": {
+              "const": "source-drift"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

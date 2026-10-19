@@ -68,6 +68,7 @@ fi
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
@@ -207,6 +208,22 @@ provision_php_ruby_sdk() {
     --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   test -f "$output/exports.sh" || return 1
   . "$output/exports.sh"
+}
+
+# Provisioning refusal counts against delivery without stopping independent lanes.
+provision_js_sdk() {
+  unset LEGION_JS_SDK_ENROLLMENT
+  local output="${RUNNER_TEMP}/legion-js-sdk-tools"
+  local node enrollment
+  node="$(command -v node)" || return "$?"
+  enrollment="$(python3 scripts/ci/audit-javascript-sdk-bootstrap.py \
+    --repository-root "$GITHUB_WORKSPACE" \
+    --output-root "$output" --node "$node")" || return "$?"
+  if [[ "$enrollment" != "$output/enrollment.json" || ! -f "$enrollment" || -L "$enrollment" ]]; then
+    printf 'JavaScript SDK bootstrap enrollment missing or malformed.\n' >&2
+    return 1
+  fi
+  export LEGION_JS_SDK_ENROLLMENT="$enrollment"
 }
 
 audit_tflint_qualification() {
@@ -482,6 +499,38 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   unset LEGION_CARGO_MACHETE_ASSET_SHA256 LEGION_CARGO_MACHETE_SCRATCH LEGION_CARGO_MACHETE_RECEIPTS
 fi
 
+# Genuine pinned Syft SBOM/license controls. CI execution provenance never
+# substitutes for audited-target build provenance; target gap remains required.
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  case "$(uname -m)" in
+    arm64)
+      supply_chain_asset=syft_1.55.0_darwin_arm64.tar.gz
+      supply_chain_asset_sha=1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625 ;;
+    x86_64)
+      supply_chain_asset=syft_1.55.0_darwin_amd64.tar.gz
+      supply_chain_asset_sha=e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003 ;;
+    *) echo "unsupported supply-chain native qualification architecture" >&2; exit 1 ;;
+  esac
+  supply_chain_tool_dir="${RUNNER_TEMP}/legion-syft-1.55.0"
+  export LEGION_SUPPLY_CHAIN_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/supply-chain-native"
+  mkdir -p "$supply_chain_tool_dir" "$LEGION_SUPPLY_CHAIN_RECEIPTS"
+  curl --fail --location "https://github.com/anchore/syft/releases/download/v1.55.0/$supply_chain_asset" -o "$supply_chain_tool_dir/$supply_chain_asset"
+  printf '%s  %s\n' "$supply_chain_asset_sha" "$supply_chain_tool_dir/$supply_chain_asset" | shasum -a 256 --check
+  tar -xzf "$supply_chain_tool_dir/$supply_chain_asset" -C "$supply_chain_tool_dir" syft
+  export LEGION_SYFT_BINARY="$supply_chain_tool_dir/syft"
+  export LEGION_SYFT_ARCHIVE="$supply_chain_tool_dir/$supply_chain_asset"
+  run_audit_qualification audit_cargo_test --lib \
+    native_providers::security::producer::supply_chain_qualification_tests::native_supply_chain_qualification \
+    -- --ignored --exact --nocapture --test-threads=1 \
+    > "$LEGION_SUPPLY_CHAIN_RECEIPTS/harness.log" 2>&1
+  cat "$LEGION_SUPPLY_CHAIN_RECEIPTS/harness.log"
+  run_audit_qualification python3 scripts/ci/audit-supply-chain-native-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_SUPPLY_CHAIN_RECEIPTS" \
+    > "$LEGION_SUPPLY_CHAIN_RECEIPTS/validator.log" 2>&1
+  cat "$LEGION_SUPPLY_CHAIN_RECEIPTS/validator.log"
+  unset LEGION_SYFT_BINARY LEGION_SYFT_ARCHIVE LEGION_SUPPLY_CHAIN_RECEIPTS
+fi
+
 # Real cargo-outdated 0.19.0 controls; constructed SDK admission only.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   case "$(uname -m)" in
@@ -749,18 +798,19 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
   unset LEGION_MOBILE_SDK_SCRATCH LEGION_MOBILE_SDK_OUTPUT LEGION_MOBILE_SDK_ENROLLMENT LEGION_MOBILE_SOURCE_ENROLLMENT
   # Archive-only official JS tooling enrollment; no project install or scripts.
-  javascript_sdk_enrollment="$(python3 scripts/ci/audit-javascript-sdk-bootstrap.py \
-    --repository-root "$GITHUB_WORKSPACE" \
-    --output-root "$RUNNER_TEMP/legion-js-sdk-tools" --node "$(command -v node)")"
-  export LEGION_JS_SDK_ENROLLMENT="$javascript_sdk_enrollment"
-  export LEGION_JS_SDK_SCRATCH="$RUNNER_TEMP/legion-js-sdk-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="$RUNNER_TEMP/legion-provider-qualification/javascript-sdk"
-  mkdir -p "$LEGION_JS_SDK_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test real_javascript_sdk_accuracy \
-    real_javascript_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
-  run_audit_qualification python3 scripts/ci/audit-javascript-sdk-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
-  unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH javascript_sdk_enrollment
+  run_audit_qualification provision_js_sdk
+  if [[ -n "${LEGION_JS_SDK_ENROLLMENT:-}" ]]; then
+    export LEGION_JS_SDK_SCRATCH="$RUNNER_TEMP/legion-js-sdk-fixtures"
+    export LEGION_PROVIDER_BENCHMARK_DIR="$RUNNER_TEMP/legion-provider-qualification/javascript-sdk"
+    mkdir -p "$LEGION_JS_SDK_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
+    run_audit_qualification audit_cargo_test --test real_javascript_sdk_accuracy \
+      real_javascript_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
+    run_audit_qualification python3 scripts/ci/audit-javascript-sdk-accuracy.py \
+      --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  else
+    printf '::error::JavaScript SDK controls skipped: provisioning refused.\n' >&2
+  fi
+  unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH
   # Acquire pinned SDK/package inputs before native network-denied project execution.
   run_audit_qualification provision_dotnet_code_sdk
   export LEGION_DOTNET_ENROLLMENT="${RUNNER_TEMP}/legion-dotnet-code-sdk-tools/enrollment.json"

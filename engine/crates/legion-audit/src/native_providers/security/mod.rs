@@ -13,6 +13,7 @@ pub mod producer;
 pub mod scanners;
 pub mod secrets;
 pub mod supply_chain;
+pub mod supply_chain_documents;
 pub mod suppressions;
 
 pub use adapter::SecurityProviderExecutor;

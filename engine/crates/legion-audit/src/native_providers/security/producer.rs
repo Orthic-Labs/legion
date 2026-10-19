@@ -13,7 +13,7 @@
 //!   environment allowlist, timeout and output caps, authenticated network
 //!   sandbox. Scratch output lives in a directory outside the audited tree.
 //! * `native-fallback` — a cheap, conservative Rust implementation (lockfile
-//!   inventory for the SBOM provider, a known-prefix/high-entropy scan for
+//!   observations for selected providers & a known-prefix/high-entropy scan for
 //!   secrets). It never claims more than it examined.
 //!
 //! The producer makes no network request. Tools run offline (`--offline`,
@@ -610,7 +610,10 @@ impl<'a> Run<'a> {
         };
 
         let request = ExternalToolRequest {
-            request_id: if self.provider.id == "secrets.current-history" {
+            request_id: if matches!(
+                self.provider.id.as_str(),
+                "secrets.current-history" | "supply-chain.license-sbom-provenance"
+            ) {
                 format!(
                     "security-producer:{}:{}:{}",
                     self.provider.id,
@@ -648,6 +651,7 @@ impl<'a> Run<'a> {
         let receipt = self.execute(request)?;
         if matches!(tool.as_str(), "brakeman" | "kube-linter" | "trivy")
             || self.provider.id == "security.opengrep"
+            || self.provider.id == "supply-chain.license-sbom-provenance"
         {
             self.retain_scanner_diagnostic(&receipt)?;
         }
@@ -785,10 +789,19 @@ impl<'a> Run<'a> {
                 "raw":std::str::from_utf8(&bytes).ok(),"rawBytes":bytes}),
             )
         };
-        let diagnostic = json!({"schema":"legion-native-scanner-diagnostic/1",
+        let mut diagnostic = json!({"schema":"legion-native-scanner-diagnostic/1",
             "provider":self.provider.id,"inventoryDigest":self.inventory.digest,
             "originalArtifactRoot":scratch,"receipt":crate::execution_policy::receipt_json(receipt),
             "stdout":stream(receipt.stdout.as_ref())?,"stderr":stream(receipt.stderr.as_ref())?});
+        if self.provider.id == "supply-chain.license-sbom-provenance" {
+            if let Some(command) = receipt.command.as_ref() {
+                if command.args.first().is_some_and(|arg| arg == "-f") {
+                    let profile = Path::new(command.args.get(1).ok_or_else(invalid)?);
+                    let bytes = fs::read(profile).map_err(|_| invalid())?;
+                    diagnostic["sandboxProfile"] = json!({"path":profile,"raw":std::str::from_utf8(&bytes).ok(),"digest":digest(&bytes)});
+                }
+            }
+        }
         let directory = parent.join("native-diagnostics");
         match fs::create_dir(&directory) {
             Ok(()) => {}
@@ -1600,90 +1613,114 @@ impl<'a> Run<'a> {
     // ------------------------------------------------------------- supply chain
 
     fn supply_chain(&self) -> Production {
+        use super::supply_chain_documents::{lock_kind, parse_lock, source_snapshot};
         let paths: Vec<String> = self.entries().map(|entry| entry.path.clone()).collect();
-        let lock_packages = lockfile_inventory(self.root(), &paths);
-        let mut syft = None;
-        let mut fallback_reason = "tool-missing:syft".to_owned();
-        if self.producer.find_tool(&["syft"]).is_some() {
-            let cyclonedx = self.run_tool(
-                &["syft"],
-                ["scan", "dir:.", "-o", "cyclonedx-json", "-q"]
-                    .iter()
-                    .map(|s| (*s).to_owned())
-                    .collect(),
-                &[0],
-                &[],
-            );
-            let spdx = self.run_tool(
-                &["syft"],
-                ["scan", "dir:.", "-o", "spdx-json", "-q"]
-                    .iter()
-                    .map(|s| (*s).to_owned())
-                    .collect(),
-                &[0],
-                &[],
-            );
-            match (cyclonedx, spdx) {
-                (Ok(cyclonedx), Ok(spdx)) => syft = Some((cyclonedx, spdx)),
-                (Err(reason), _) | (_, Err(reason)) => fallback_reason = reason,
+        let before = source_snapshot(self.root(), &self.inventory.entries);
+        if before["complete"] != true {
+            return unavailable("supply-chain-source-binding-invalid");
+        }
+        let mut locks = Vec::new();
+        let mut packages = BTreeSet::new();
+        let mut gaps = Vec::new();
+        for entry in self
+            .entries()
+            .filter(|entry| lock_kind(&entry.path).is_some())
+        {
+            let raw = fs::read(self.root().join(&entry.path));
+            match raw {
+                Ok(raw) if entry.digest.as_ref() == Some(&digest(&raw)) => {
+                    match std::str::from_utf8(&raw)
+                        .ok()
+                        .and_then(|text| parse_lock(&entry.path, text).ok())
+                    {
+                        Some(parsed) => packages.extend(parsed),
+                        None => gaps
+                            .push(json!({"kind":"dependency-manifest-unparsed","path":entry.path})),
+                    }
+                    locks.push(json!({"path":entry.path,"digest":digest(&raw),"raw":std::str::from_utf8(&raw).ok()}));
+                }
+                _ => gaps.push(json!({"kind":"supply-chain-source-drift","path":entry.path})),
             }
         }
-        let (sbom_packages, cyclonedx_digest, spdx_digest, producer) = match &syft {
-            Some((cyclonedx, spdx)) => {
-                let document: Value =
-                    serde_json::from_slice(&cyclonedx.stdout).unwrap_or(Value::Null);
-                let packages: Vec<String> = document
-                    .get("components")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|c| c.get("purl").and_then(Value::as_str))
-                    .map(|purl| purl.split(['?', '#']).next().unwrap_or(purl).to_owned())
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect();
-                let mut producer = cyclonedx.producer();
-                producer["spdx"] = spdx.receipt.clone();
-                (
-                    packages,
-                    json!(digest(&cyclonedx.stdout)),
-                    json!(digest(&spdx.stdout)),
-                    producer,
-                )
+        let configuration_path = self.scratch.path.join("syft-native.yaml");
+        let configuration_raw = super::supply_chain_documents::SYFT_CONFIGURATION;
+        if fs::write(&configuration_path, configuration_raw).is_err() {
+            return unavailable("syft-configuration-unavailable");
+        }
+        let configuration = json!({"path":configuration_path,"raw":configuration_raw,"digest":digest(configuration_raw.as_bytes())});
+        let mut documents = serde_json::Map::new();
+        let mut passes = Vec::new();
+        // Always enter native SDK admission before executable discovery.
+        // Every attempt retains original SDK diagnostics before error/parse handling.
+        for (format, output) in [("cyclonedx", "cyclonedx-json"), ("spdx", "spdx-json")] {
+            let args = [
+                "scan",
+                "dir:.",
+                "--config",
+                configuration_path.to_str().unwrap_or(""),
+                "--override-default-catalogers",
+                "all",
+                "-o",
+                output,
+                "-q",
+            ]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+            match self.run_tool(&["syft"], args, &[0], &[]) {
+                Ok(run) => {
+                    documents.insert(format.into(), json!({"raw":std::str::from_utf8(&run.stdout).ok(),"digest":digest(&run.stdout),"receipt":crate::execution_policy::receipt_json(&run.actual_receipt)}));
+                    passes.push(run.producer());
+                }
+                Err(reason) => gaps
+                    .push(json!({"kind":"sbom-tool-unavailable","format":format,"reason":reason})),
             }
-            None => {
-                // Native SBOM: a CycloneDX document derived from the same
-                // lockfile inventory. It reconciles by construction, so the
-                // evidence is labelled and no SPDX/provenance is claimed.
-                let components: Vec<Value> = lock_packages
-                    .iter()
-                    .map(|purl| json!({"type":"library","purl":purl}))
-                    .collect();
-                let document =
-                    json!({"bomFormat":"CycloneDX","specVersion":"1.5","components":components});
-                (
-                    lock_packages.clone(),
-                    json!(digest_json(&document)),
-                    Value::Null,
-                    json!({
-                        "mode": "native-fallback",
-                        "evidence": "native-fallback",
-                        "offline": true,
-                        "fallbackReason": fallback_reason,
-                        "lockfiles": lockfile_paths(&paths),
-                    }),
-                )
+        }
+        let policy = self
+            .provider
+            .configuration
+            .get("supplyChainLicensePolicy")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let after = source_snapshot(self.root(), &self.inventory.entries);
+        // No source-only or signed-catalog shortcut supplies build provenance.
+        // Existing RightRelease catalogs authenticate manifests, not builder/source
+        // predicates. A supported build-attestation owner is still required.
+        let mut chain = json!({"schema":"legion-supply-chain-native-evidence/1",
+            "lockPackages":packages,"lockfiles":locks,"documents":documents,"syftConfiguration":configuration,
+            "licensePolicy":policy,"sourceBefore":before,"sourceAfter":after,
+            "producerGaps":gaps,"provenanceAuthority":{"status":"unavailable","reason":"build-attestation-verification-owner-unavailable"}});
+        for (setting, key) in [
+            ("supplyChainSubjectPath", "subjectArtifact"),
+            ("supplyChainProvenancePath", "provenance"),
+        ] {
+            if let Some(path) = self
+                .provider
+                .configuration
+                .get(setting)
+                .and_then(Value::as_str)
+            {
+                if let Some(entry) = self.entries().find(|entry| entry.path == path) {
+                    if let Ok(raw) = fs::read(self.root().join(path)) {
+                        if entry.digest.as_ref() == Some(&digest(&raw))
+                            && before["files"][path] == digest(&raw)
+                            && after["files"][path] == digest(&raw)
+                        {
+                            chain[key] = if key == "subjectArtifact" {
+                                json!({"path":path,"digest":digest(&raw),"rawBytes":raw})
+                            } else {
+                                json!({"path":path,"digest":digest(&raw),"raw":std::str::from_utf8(&raw).ok(),"binding":self.binding(),"executionReceipt":null})
+                            };
+                        }
+                    }
+                }
             }
-        };
-        let chain = json!({
-            "lockPackages": lock_packages,
-            "sbomPackages": sbom_packages,
-            "cycloneDxDigest": cyclonedx_digest,
-            "spdxDigest": spdx_digest,
-            // Build provenance (an attestation of how the artifact was built)
-            // cannot be produced from a source tree; the gap stays visible.
-        });
-        Production::Artifact(self.input(&paths, json!({"supplyChain": chain}), producer))
+        }
+        Production::Artifact(self.input(
+            &paths,
+            json!({"supplyChain":chain}),
+            json!({"mode":"tool","evidence":"native-dual-sbom","passes":passes,"offline":true}),
+        ))
     }
 
     // ----------------------------------------------------------- imported.sarif
@@ -2517,3 +2554,7 @@ mod tests {
 #[cfg(test)]
 #[path = "history_qualification_tests.rs"]
 mod history_qualification_tests;
+
+#[cfg(test)]
+#[path = "supply_chain_qualification_tests.rs"]
+mod supply_chain_qualification_tests;

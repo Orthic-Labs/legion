@@ -1,7 +1,7 @@
 //! Artifact accuracy controls use shipped specs, frozen plans & native dispatch.
-//! Supply-chain is explicitly excluded from accuracy qualification: its analysis
-//! emits neither findings nor candidates, while source-only SBOM production
-//! cannot provide build provenance. No fabricated tool receipt fills that gap.
+//! This file keeps supply-chain absence controls outside native qualification.
+//! Dedicated pinned Syft controls exercise SBOM/license behavior separately;
+//! audited-target build provenance remains an explicit gap.
 
 #[path = "support/accuracy_receipt.rs"]
 mod accuracy_receipt;
@@ -364,18 +364,19 @@ fn file_only_provider_accuracy_artifacts() {
         .security
         .with_producer(ArtifactProducer::new(&root.0).with_search_path(Vec::new()));
     let result = run(id, &frozen, &inventory, &registry, false);
-    assert_eq!(result.details["producer"]["mode"], "native-fallback");
-    assert_eq!(
-        result.details["analysis"]["coverageGaps"],
-        json!([{"kind":"supply-chain-provenance-invalid"}])
-    );
+    assert_eq!(result.details["producer"]["mode"], "tool");
+    assert!(result.details["analysis"]["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|gap| gap["kind"] == "supply-chain-provenance-invalid"));
     assert!(!result.coverage_gaps.is_empty());
     assert!(result.findings.is_empty());
     assert_eq!(result.details["candidates"], json!([]));
     println!(
         "FILE_PROVIDER_ACCURACY_EXCLUSION {}",
         json!({"provider": id,
-        "qualificationEligible": false, "reason": "No finding/candidate output exists; source-only SBOM lacks build provenance",
+        "qualificationEligible": false, "reason": "Source-only absence controls; dedicated native Syft SBOM/license controls required, target provenance remains unproven",
         "coverageGaps": result.coverage_gaps})
     );
 }
