@@ -12,6 +12,26 @@ SOURCE_ALLOWANCE, ASSESSOR_ALLOWANCE, SEAT_ALLOWANCE = 40000, 10000, 10000
 LIMITS = {"seatTokenBudget": 10000, "waveWidth": 1, "runTokenBudget": 40000, "maxTotalSeats": 3}
 RESERVATIONS = ("requiredInitialCalls", "gatherCalls", "followupReserveCalls",
                 "initialCallReservationTokens", "followupReserveTokens")
+MANDATORY_CAPSULES = {
+    "core.json": {
+        ("core-doc-drift-retries", "doc-drift", "reasoning.doc-drift"),
+        ("core-architecture-domain-ui", "architecture", "reasoning.architecture"),
+        ("core-correctness-shipping-boundary", "correctness", "reasoning.correctness"),
+        ("core-ai-slop-comment", "ai-slop", "reasoning.ai-slop"),
+        ("core-naming-boolean-prefix", "naming", "reasoning.naming"),
+        ("core-dead-file-unreferenced-module", "dead-file", "reasoning.dead-file"),
+        ("core-schema-integer-cents", "schema", "reasoning.schema"),
+    },
+    "conditional.json": {
+        ("conditional-minimize-rounding-strategy", "minimize", "reasoning.minimize"),
+        ("conditional-performance-batched-order-query", "performance", "reasoning.performance"),
+        ("conditional-a11y-checkout-action", "a11y", "reasoning.a11y"),
+        ("conditional-data-safety-orders-migration", "data-safety", "reasoning.data-safety"),
+        ("conditional-resilience-child-process", "resilience", "reasoning.resilience"),
+        ("conditional-platform-parity-workspace", "platform-parity", "reasoning.platform-parity"),
+        ("conditional-release-sign-before-upload", "release-readiness", "reasoning.release-readiness"),
+    },
+}
 
 
 def encoded(value):
@@ -46,19 +66,27 @@ def load_corpus(root):
     registry = json.loads((root / "src/registry/providers.json").read_bytes())
     specs = {spec["id"]: spec for spec in registry["providers"]}
     cases, bindings, capsules, lenses, ids = [], [], set(), set(), set()
-    for path in sorted((root / "evals/audit-bench/capsules").glob("*.json")):
+    capsule_paths = sorted((root / "evals/audit-bench/capsules").glob("*.json"))
+    names = {path.name for path in capsule_paths}
+    require(set(MANDATORY_CAPSULES).issubset(names), "mandatory core/conditional capsule files missing")
+    require(names.issubset(set(MANDATORY_CAPSULES) | {"security.json"}),
+            "unexpected capsule file cannot substitute for a reviewed optional provider")
+    security_included = "security.json" in names
+    for path in capsule_paths:
         require(path.is_file() and not path.is_symlink(), "capsule must be a regular file")
         raw = path.read_bytes()
         document = json.loads(raw)
         require(document.get("schema") == "legion-audit-capsules/1"
                 and document.get("constructed") is True, "invalid constructed corpus schema")
         bindings.append({"path": str(path.relative_to(root)), "digest": sha(raw)})
+        file_identities = set()
         for entry in document["capsules"]:
             identity, lens, provider = (entry.get(key) for key in ("id", "lens", "providerId"))
             require(all(isinstance(v, str) and v for v in (identity, lens, provider)), "invalid capsule identity")
             require(identity not in capsules and lens not in lenses and provider == "reasoning." + lens,
                     "duplicate capsule/lens or incorrect provider binding")
             require(provider in specs and lens in specs[provider]["lensIds"], "provider absent from shipped registry")
+            file_identities.add((identity, lens, provider))
             contract = entry.get("contract")
             require((isinstance(contract, str) and bool(contract.strip())) or
                     (isinstance(contract, dict) and isinstance(contract.get("invariant"), str)
@@ -87,8 +115,20 @@ def load_corpus(root):
                             and isinstance(contract.get("reachableCallers"), list), "invalid contract source references")
                 cases.append({"capsuleId": identity, "lens": lens, "providerId": provider, "case": case,
                               "nativeContract": specs[provider]["runner"]["contract"]})
-    require(len(capsules) == 14 and len(cases) == 28, "expected fourteen pairs / twenty-eight cases")
-    return cases, bindings
+        if path.name in MANDATORY_CAPSULES:
+            require(file_identities == MANDATORY_CAPSULES[path.name],
+                    f"mandatory capsule identities differ in {path.name}")
+        else:
+            require(path.name == "security.json" and file_identities and len(file_identities) == 1
+                    and next(iter(file_identities)) == ("core-security-invoice-tenant-isolation",
+                                                         "security", "reasoning.security")
+                    and {case["id"] for entry in document["capsules"] for case in entry["cases"]}
+                    == {"invoice-tenant-lookup-a", "invoice-tenant-lookup-b"},
+                    "optional security file must contain the reviewed reasoning.security control pair")
+    expected_capsules = 14 + int(security_included)
+    require(len(capsules) == expected_capsules and len(cases) == expected_capsules * 2,
+            "mandatory pairs or optional security pair are incomplete")
+    return cases, bindings, security_included
 
 
 def projection(files, expected, evidence, excerpts):
@@ -253,7 +293,7 @@ def main():
         require(out.is_relative_to(Path(os.environ["RUNNER_TEMP"]).resolve())
                 and not out.is_relative_to(root), "output must be under RUNNER_TEMP outside checkout")
         require(legion.is_file() and os.access(legion, os.X_OK), "native binary unavailable")
-        items, bindings = load_corpus(root)
+        items, bindings, security_included = load_corpus(root)
         out.mkdir(parents=True, exist_ok=True)
         cases = report["cases"] = []
         for i, item in enumerate(items, 1):
@@ -269,13 +309,14 @@ def main():
         calls = sum(d["requiredInitialCalls"] + d["followupReserveCalls"] for d in priced)
         report.update({"status": "ready" if complete else "unproven", "corpusFiles": bindings,
             "corpusDigest": sha(encoded(bindings)), "caseCount": len(cases), "cases": cases,
-            "reservation": {"scope": "these 28 independent source plans only; tally is not additional admission",
+            "reservation": {"scope": f"these {len(items)} independent source plans only; tally is not additional admission",
                 "pricedCases": len(priced), "aggregateRequiredSourceReservationTokens": tokens,
                 "aggregateRequiredSourceCalls": calls, "existingSourceAllowanceTokens": SOURCE_ALLOWANCE,
-                "existingSourceAdmissions": 4, "fitsExistingSourceAllowance": len(priced) == 28 and tokens <= SOURCE_ALLOWANCE and calls <= 4,
+                "existingSourceAdmissions": 4, "fitsExistingSourceAllowance": len(priced) == len(items) and tokens <= SOURCE_ALLOWANCE and calls <= 4,
                 "assessorAllowanceTokens": ASSESSOR_ALLOWANCE, "assessorSeparate": True,
                 "allowanceChanged": False, "automaticSpend": False},
-            "unpricedRemainingProviders": ["reasoning.security", "legacy.security.adjudication", "legacy.security.variant-analysis"],
+            "unpricedRemainingProviders": (["legacy.security.adjudication", "legacy.security.variant-analysis"]
+                if security_included else ["reasoning.security", "legacy.security.adjudication", "legacy.security.variant-analysis"]),
             "preflightGaps": [{"caseId": c["caseId"], "gap": g} for c in cases for g in c["preflightGaps"]]})
         (out / "capsule-preflight.json").write_bytes(encoded(report) + b"\n")
     except (OSError, ValueError, KeyError, TypeError, AttributeError, IndexError) as error:

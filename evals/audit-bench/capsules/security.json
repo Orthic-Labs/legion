@@ -1,0 +1,137 @@
+{
+  "schema": "legion-audit-capsules/1",
+  "constructed": true,
+  "capsules": [
+    {
+      "id": "core-security-invoice-tenant-isolation",
+      "lens": "security",
+      "providerId": "reasoning.security",
+      "contract": {
+        "invariant": "An authenticated invoice read must enforce invoice.tenantId == session tenantId before returning billing details. A valid session alone does not authorize a foreign invoice id.",
+        "supportingFiles": [
+          "contracts/invoice-isolation.md",
+          "src/server.ts",
+          "src/invoice_repository.ts",
+          "src/invoice_data.ts"
+        ],
+        "reachableCallers": [
+          "src/server.ts::handleGetInvoice"
+        ]
+      },
+      "cases": [
+        {
+          "id": "invoice-tenant-lookup-a",
+          "kind": "planted",
+          "requiredEvidence": [
+            {
+              "path": "contracts/invoice-isolation.md",
+              "lineRange": [
+                3,
+                4
+              ],
+              "role": "contract"
+            },
+            {
+              "path": "src/server.ts",
+              "lineRange": [
+                1,
+                10
+              ],
+              "role": "caller"
+            },
+            {
+              "path": "src/invoice_repository.ts",
+              "lineRange": [
+                1,
+                6
+              ],
+              "role": "behavior"
+            },
+            {
+              "path": "src/invoice_data.ts",
+              "lineRange": [
+                1,
+                4
+              ],
+              "role": "behavior"
+            }
+          ],
+          "files": {
+            "contracts/invoice-isolation.md": "# Invoice isolation\n\nAn authenticated tenant may read an invoice only when its tenantId equals the tenant assigned by the session lookup; possessing a valid session never grants access to another tenant's invoice.\nThis complete constructed source set exposes handleGetInvoice as its public read entrypoint. Callers control sessionId and invoiceId; only the fixed session map establishes tenant identity. Session-a belongs to tenant-a, session-b belongs to tenant-b, and every other session is rejected. These literal fixture sessions model established authentication; production session secrecy, transport and expiry are outside this case.\n",
+            "src/server.ts": "import { readInvoice } from './invoice_repository';\nconst sessions = new Map<string, string>([\n  ['session-a', 'tenant-a'],\n  ['session-b', 'tenant-b'],\n]);\nexport function handleGetInvoice(request: { sessionId: string; invoiceId: string }): string | null {\n  const tenantId = sessions.get(request.sessionId);\n  if (tenantId === undefined) return null;\n  return readInvoice(tenantId, request.invoiceId);\n}\n",
+            "src/invoice_repository.ts": "import { invoices } from './invoice_data';\n\nexport function readInvoice(tenantId: string, invoiceId: string): string | null {\n  const invoice = invoices.find(row => row.id === invoiceId);\n  return invoice?.billingDetails ?? null;\n}\n",
+            "src/invoice_data.ts": "export const invoices = [\n  { id: 'invoice-a', tenantId: 'tenant-a', billingDetails: 'A billing details' },\n  { id: 'invoice-b', tenantId: 'tenant-b', billingDetails: 'B billing details' },\n];\n"
+          },
+          "expected": [
+            {
+              "path": "src/invoice_repository.ts",
+              "lineRange": [
+                4,
+                5
+              ],
+              "claim": "An authenticated tenant-a request for invoice-b returns tenant-b billing details because lookup uses only invoice id, violating tenant isolation.",
+              "severity": "high"
+            }
+          ],
+          "forbiddenClaims": [
+            "The authenticated tenant-a request for invoice-b is rejected.",
+            "Authentication is absent from the request handler.",
+            "The caller can choose a tenant identity independently of the fixed session lookup.",
+            "These constructed session identifiers prove production session-token secrecy or compromise."
+          ]
+        },
+        {
+          "id": "invoice-tenant-lookup-b",
+          "kind": "clean",
+          "requiredEvidence": [
+            {
+              "path": "contracts/invoice-isolation.md",
+              "lineRange": [
+                3,
+                4
+              ],
+              "role": "contract"
+            },
+            {
+              "path": "src/server.ts",
+              "lineRange": [
+                1,
+                10
+              ],
+              "role": "caller"
+            },
+            {
+              "path": "src/invoice_repository.ts",
+              "lineRange": [
+                1,
+                6
+              ],
+              "role": "behavior"
+            },
+            {
+              "path": "src/invoice_data.ts",
+              "lineRange": [
+                1,
+                4
+              ],
+              "role": "behavior"
+            }
+          ],
+          "files": {
+            "contracts/invoice-isolation.md": "# Invoice isolation\n\nAn authenticated tenant may read an invoice only when its tenantId equals the tenant assigned by the session lookup; possessing a valid session never grants access to another tenant's invoice.\nThis complete constructed source set exposes handleGetInvoice as its public read entrypoint. Callers control sessionId and invoiceId; only the fixed session map establishes tenant identity. Session-a belongs to tenant-a, session-b belongs to tenant-b, and every other session is rejected. These literal fixture sessions model established authentication; production session secrecy, transport and expiry are outside this case.\n",
+            "src/server.ts": "import { readInvoice } from './invoice_repository';\nconst sessions = new Map<string, string>([\n  ['session-a', 'tenant-a'],\n  ['session-b', 'tenant-b'],\n]);\nexport function handleGetInvoice(request: { sessionId: string; invoiceId: string }): string | null {\n  const tenantId = sessions.get(request.sessionId);\n  if (tenantId === undefined) return null;\n  return readInvoice(tenantId, request.invoiceId);\n}\n",
+            "src/invoice_repository.ts": "import { invoices } from './invoice_data';\n\nexport function readInvoice(tenantId: string, invoiceId: string): string | null {\n  const invoice = invoices.find(row => row.id === invoiceId && row.tenantId === tenantId);\n  return invoice?.billingDetails ?? null;\n}\n",
+            "src/invoice_data.ts": "export const invoices = [\n  { id: 'invoice-a', tenantId: 'tenant-a', billingDetails: 'A billing details' },\n  { id: 'invoice-b', tenantId: 'tenant-b', billingDetails: 'B billing details' },\n];\n"
+          },
+          "expected": [],
+          "forbiddenClaims": [
+            "The authenticated tenant-a request for invoice-b returns tenant-b billing details.",
+            "A valid session authorizes every invoice id.",
+            "The tenant-a request for invoice-a is denied by the ownership predicate.",
+            "This single clean control proves the whole application is secure."
+          ]
+        }
+      ]
+    }
+  ]
+}
