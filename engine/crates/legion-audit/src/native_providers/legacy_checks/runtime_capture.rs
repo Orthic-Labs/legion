@@ -858,6 +858,23 @@ fn is_console_warning(entry: &str) -> bool {
     entry.starts_with("console.warning")
 }
 
+/// A completed process or screenshot cannot replace the load action result.
+/// Retain a named gap for false, absent or malformed load evidence even when
+/// the external executor reports a successful terminal process receipt.
+fn verified_load(qa: &QaOutput, label: &str, gaps: &mut Vec<String>) -> bool {
+    let succeeded = qa
+        .eval_values
+        .iter()
+        .find(|(index, _)| *index == 1)
+        .and_then(|(_, text)| serde_json::from_str::<Value>(text).ok())
+        .and_then(|value| value.get("ok").and_then(Value::as_bool))
+        == Some(true);
+    if !succeeded {
+        gaps.push(format!("runtime-surface-load-failed:{label}"));
+    }
+    succeeded
+}
+
 /// Classify a failed invocation from the route's own messages. Returns an
 /// `unavailable:<reason>` reason when the browser itself is missing, and the
 /// gap to record.
@@ -1248,13 +1265,7 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
     }
 
     let expected_shot = shot_path.to_string_lossy().into_owned();
-    let load_succeeded = qa
-        .eval_values
-        .iter()
-        .find(|(index, _)| *index == 1)
-        .and_then(|(_, text)| serde_json::from_str::<Value>(text).ok())
-        .and_then(|value| value.get("ok").and_then(Value::as_bool))
-        == Some(true);
+    let load_succeeded = verified_load(&qa, label, &mut outcome.gaps);
     let screenshot_valid = if qa.screenshot.as_deref() != Some(expected_shot.as_str()) {
         outcome
             .gaps
@@ -3367,3 +3378,7 @@ mod tests {
         assert_eq!(oversized["reportedBytes"], 70002);
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_capture_load_tests.rs"]
+mod load_evidence_tests;
