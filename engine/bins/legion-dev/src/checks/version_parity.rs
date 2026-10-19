@@ -34,9 +34,10 @@ pub fn is_development_version(version: &str) -> bool {
 // directory recursion. Unsupported ownership overrides fail closed.
 fn cargo_manifests(root: &Path) -> Result<Vec<PathBuf>, String> {
     fn manifest(path: &Path) -> Result<toml::Value, String> {
-        fs::read_to_string(path)
-            .map_err(|error| format!("workspace manifest {} unreadable: {error}", path.display()))?
-            .parse::<toml::Value>()
+        let source = fs::read_to_string(path).map_err(|error| {
+            format!("workspace manifest {} unreadable: {error}", path.display())
+        })?;
+        toml::from_str::<toml::Value>(&source)
             .map_err(|error| format!("workspace manifest {} invalid: {error}", path.display()))
     }
     fn member_path(
