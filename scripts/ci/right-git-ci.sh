@@ -813,6 +813,43 @@ export CARGO_INCREMENTAL=1
 (cd engine && cargo build --locked --bins)
 ci_target_root="$(cargo metadata --locked --no-deps --format-version 1 --manifest-path engine/Cargo.toml | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).target_directory.replace(/\\/g, "/")));')"
 ci_binary_root="${ci_target_root}${CARGO_BUILD_TARGET:+/${CARGO_BUILD_TARGET}}/debug"
+case "${RUNNER_OS:-}" in
+  macOS) ci_dev_helper="${ci_binary_root}/legion-dev" ;;
+  Windows) ci_dev_helper="${ci_binary_root}/legion-dev.exe" ;;
+  *) echo "Unsupported native helper retention platform: ${RUNNER_OS:-unset}" >&2; exit 1 ;;
+esac
+ci_dev_helper_dir="${RUNNER_TEMP}/legion-provider-qualification/native-helper"
+ci_dev_helper_copy="${ci_dev_helper_dir}/$(basename "$ci_dev_helper")"
+mkdir -p "$ci_dev_helper_dir"
+python3 - "$ci_dev_helper" "$ci_dev_helper_copy" "$RUNNER_OS" "${RUNNER_ARCH:-unknown}" "$GITHUB_SHA" <<'PY'
+import hashlib
+import json
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+source, destination = Path(sys.argv[1]), Path(sys.argv[2])
+platform_os, platform_arch, revision = sys.argv[3:]
+if source.is_symlink() or not source.is_file():
+    raise SystemExit(f"already-built legion-dev helper is missing or not a regular file: {source}")
+shutil.copy2(source, destination)
+source_bytes, retained_bytes = source.read_bytes(), destination.read_bytes()
+source_sha = hashlib.sha256(source_bytes).hexdigest()
+retained_sha = hashlib.sha256(retained_bytes).hexdigest()
+if source_sha != retained_sha or len(source_bytes) != len(retained_bytes):
+    raise SystemExit("retained legion-dev helper does not match built source bytes")
+record = {
+    "source": str(source),
+    "sourceSHA": source_sha,
+    "sourceRevision": revision,
+    "platform": {"os": platform_os, "architecture": platform_arch},
+    "SHA256": retained_sha,
+    "bytes": len(retained_bytes),
+    "mode": stat.S_IMODE(source.stat().st_mode),
+}
+(destination.parent / "legion-dev.json").write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+PY
 ci_xtask="${ci_binary_root}/xtask"
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   ci_xtask="${ci_xtask}.exe"
