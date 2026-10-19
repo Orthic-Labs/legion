@@ -583,15 +583,19 @@ mod tests {
         );
     }
     fn adapter() -> AdapterConfig {
+        let fixture_root = std::env::temp_dir()
+            .canonicalize()
+            .expect("fixture temporary directory resolves to an absolute path")
+            .join("legion-native-consumer-fixture");
         AdapterConfig {
             operation: ConsumeOperation::Publish,
             executable: FilePin {
-                path: "/protected/native".into(),
+                path: fixture_root.join("protected").join("native"),
                 sha256: format!("sha256:{}", policy::sha256(b"native")),
             },
             dependencies: vec![],
             uid: 501,
-            home: "/home/owner".into(),
+            home: fixture_root.join("owner"),
             endpoint: "owner-endpoint".into(),
             destination: "fixed-destination".into(),
             timeout_seconds: 30,
@@ -643,8 +647,11 @@ mod tests {
     }
     #[test]
     fn enrollment_denies_root_duplicates_and_wrong_operation() {
+        let fixture = adapter();
+        assert!(fixture.executable.path.is_absolute());
+        assert!(fixture.home.is_absolute());
         assert!(validate_enrollment(&[], &[]).is_ok());
-        assert!(validate_enrollment(&[adapter()], &[Operation::Publish]).is_ok());
+        assert!(validate_enrollment(&[fixture], &[Operation::Publish]).is_ok());
         assert!(validate_enrollment(&[adapter()], &[Operation::Build]).is_err());
         assert!(validate_enrollment(&[adapter(), adapter()], &[Operation::Publish]).is_err());
         let mut root = adapter();
