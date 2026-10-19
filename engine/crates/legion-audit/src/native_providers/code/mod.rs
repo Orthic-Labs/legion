@@ -323,6 +323,17 @@ impl ProviderExecutorAdapter {
                                 Value::Object(tools.validated_context.clone()),
                             );
                         }
+                        if provider.id == "code.c-family" {
+                            if let Some(database) = tools
+                                .tools
+                                .get("compiler")
+                                .and_then(|v| v.pointer("/scope/compileDatabase"))
+                                .filter(|v| v.is_object())
+                            {
+                                object.entry("context").or_insert_with(|| json!({}))
+                                    ["compileDatabase"] = database.clone();
+                            }
+                        }
                     }
                     made.findings.extend(tools.findings.iter().cloned());
                 }

@@ -110,6 +110,8 @@
       },
       "allOf": [{"if": {"properties": {"family": {"const": "code-mobile-sdk"}}},
                  "then": {"required": ["codeMobileEvidence"]}, "else": {"not": {"required": ["codeMobileEvidence"]}}},
+{"if": {"properties": {"family": {"const": "code-c-family-sdk"}}},
+                 "then": {"properties": {"provider": {"const": "code.c-family"}, "stage": {"const": "finding"}, "scope": {"const": "source-bound CMake/Clang C-family operations/v1 known-answer SDK fixtures"}}}},
                 {"if": {"properties": {"family": {"const": "code-sdk"}}},
                  "then": {"required": ["codeSdkEvidence"]}, "else": {"not": {"required": ["codeSdkEvidence"]}}},
                 {"if": {"properties": {"family": {"const": "code-python-sdk"}}},

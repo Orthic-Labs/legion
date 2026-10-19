@@ -39,8 +39,9 @@
 //! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
 //! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
+//! | `code.c-family` | compiler/lint/analyzer/sanitizer/test | bounded CMake/Clang/clang-tidy/CTest, isolated source/build snapshots |
 //!
-//! Go/Rust tests & Python configured tools/backends execute project code only through
+//! Go/Rust/C-family builds & tests & Python configured tools/backends execute project code only through
 //! supplied ExternalProjectTool; Python uses frozen staged inputs & denies writes
 //! to original audited tree. Explicit package/v1 never installs dependencies. The
 //! installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
@@ -70,6 +71,8 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
+#[path = "c_family_native.rs"]
+mod c_family_native;
 #[path = "govulncheck.rs"]
 mod govulncheck;
 #[path = "mobile_sdk.rs"]
@@ -221,6 +224,9 @@ enum Parser {
     MobileCompiler,
     MobileLint,
     MobileProcess,
+    ClangCompiler,
+    ClangTidy,
+    CFamilyProcess,
 }
 
 struct Planned {
@@ -826,7 +832,9 @@ impl<'a> Resolver<'a> {
         let found = command.programs.iter().find_map(|name| {
             if mobile_sdk::is_mobile(command.parser) {
                 mobile_sdk::resolve(self.ctx, command, name)
-            } else if command.parser == Parser::Rubocop {
+            } else if command.parser == Parser::Rubocop
+                || c_family_native::is_native(command.parser)
+            {
                 rubocop::search_dirs(self.ctx)
                     .iter()
                     .find_map(|dir| in_dir(dir, name))
@@ -1136,12 +1144,12 @@ async fn run_one(
         SandboxPolicy::Required => match legion_effects::authenticate_sandbox(
             &executable_text,
             &command.args,
-            if ctx.provider_id == "code.python" {
+            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) {
                 ctx.root.to_str().unwrap_or("")
             } else {
                 &cwd_text
             },
-            if ctx.provider_id == "code.python" {
+            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) {
                 legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
             } else {
                 legion_effects::SandboxMode::DenyNetwork
@@ -1215,6 +1223,8 @@ async fn run_one(
             mobile_sdk::snapshot(command)
         } else if command.parser == Parser::RustDependency {
             rust_dependency::snapshot(command, rust_binding, &executable)
+        } else if c_family_native::is_native(command.parser) {
+            c_family_native::snapshot(command)
         } else {
             govulncheck::snapshot(command)
         }
@@ -1222,6 +1232,7 @@ async fn run_one(
     let native_input_before =
         if matches!(command.parser, Parser::Govulncheck | Parser::RustDependency)
             || mobile_sdk::is_mobile(command.parser)
+            || c_family_native::is_native(command.parser)
             || ctx.provider_id == "code.python"
         {
             match snapshot() {
@@ -1283,7 +1294,9 @@ async fn run_one(
         command.cwd_rel.clone()
     };
     let sandbox_mode = match ctx.sandbox {
-        SandboxPolicy::Required if ctx.provider_id == "code.python" => {
+        SandboxPolicy::Required
+            if ctx.provider_id == "code.python" || c_family_native::is_native(command.parser) =>
+        {
             "deny-network-deny-project-write"
         }
         SandboxPolicy::Required => "deny-network",
@@ -1320,6 +1333,15 @@ async fn run_one(
             "networkEnabled": receipt.sandbox.network_enabled,
         },
     });
+    let native_executable_after = c_family_native::is_native(command.parser).then(|| {
+        std::fs::read(&executable)
+            .ok()
+            .map(|bytes| sha256_text(&bytes))
+    });
+    if let Some(after) = &native_executable_after {
+        summary["nativeExecutableSnapshot"] =
+            json!({"path":executable,"before":executable_digest,"after":after});
+    }
     if let Some(before) = &native_input_before {
         summary["nativeInputSnapshots"] = json!({
             "before": before,
@@ -1359,6 +1381,16 @@ async fn run_one(
             return output;
         }
     }
+    if native_executable_after
+        .as_ref()
+        .is_some_and(|after| after.as_deref() != Some(executable_digest.as_str()))
+    {
+        output.outcome = Outcome::Failed(format!(
+            "tool-failed:{}:native-executable-changed",
+            command.tool
+        ));
+        return output;
+    }
     if let Some(reason) = native_input_error {
         output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         return output;
@@ -1392,6 +1424,9 @@ async fn run_one(
         command.parser,
         Parser::Syntax
             | Parser::Process
+            | Parser::CFamilyProcess
+            | Parser::ClangCompiler
+            | Parser::ClangTidy
             | Parser::MobileCompiler
             | Parser::MobileLint
             | Parser::MobileProcess
@@ -1442,6 +1477,9 @@ async fn run_one(
             Some(paths) => parse_py_compile(bytes, &paths),
             None => Err("compile-scope-unreadable".into()),
         }
+    } else if c_family_native::is_native(command.parser) && command.parser != Parser::CFamilyProcess
+    {
+        c_family_native::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else {
         parse(command.parser, bytes, receipt.exit_code)
     };
@@ -1500,7 +1538,8 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::GoList => Ok(Vec::new()),
         Parser::Govulncheck => Err("govulncheck-source-binding-required".into()),
         Parser::RustDependency => Err("rust-dependency-source-binding-required".into()),
-        Parser::Process => match exit {
+        Parser::ClangCompiler | Parser::ClangTidy => Err("c-family-source-binding-required".into()),
+        Parser::CFamilyProcess | Parser::Process => match exit {
             Some(0) => Ok(Vec::new()),
             Some(code) => Err(format!("exit-{code}")),
             None => Err("process-missing-exit-code".into()),
@@ -1893,6 +1932,9 @@ pub async fn run(
         return super::jvm_sdk::run(ctx, entries, selected, cancellation).await;
     }
     let provider_id = ctx.provider_id;
+    if provider_id == "code.c-family" {
+        return c_family_native::run(ctx, entries, selected, cancellation).await;
+    }
     let plan = plan_commands(provider_id, ctx.root, entries, selected, ctx.scratch);
     let mut evidence = ToolEvidence::default();
     for command in &plan.deferred {

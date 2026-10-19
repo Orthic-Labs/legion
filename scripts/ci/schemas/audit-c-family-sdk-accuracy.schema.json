@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Retained native C-family SDK fixture envelope",
+  "description": "Shape only. Strict source-owned validator, actual SDK bytes & authenticated CI provenance remain mandatory. No production owner admission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "provider",
+    "claimScope",
+    "operationsVersion",
+    "productionQualification",
+    "selfProducerQualification",
+    "qualificationEligible",
+    "assertionsPassed",
+    "modelCalls",
+    "sourceBinding",
+    "toolchainEnrollment",
+    "toolchainEnrollmentDigest",
+    "qualificationDigest",
+    "toolchainEnrollmentRawBytes",
+    "controls",
+    "cases"
+  ],
+  "properties": {
+    "schema": {
+      "const": "legion-c-family-sdk-qualification/1"
+    },
+    "provider": {
+      "const": "code.c-family"
+    },
+    "claimScope": {
+      "const": "source-bound CMake/Clang C-family operations/v1 known-answer SDK fixtures"
+    },
+    "operationsVersion": {
+      "const": "c-family-operations/v1"
+    },
+    "productionQualification": {
+      "const": false
+    },
+    "selfProducerQualification": {
+      "const": false
+    },
+    "qualificationEligible": {
+      "const": true
+    },
+    "assertionsPassed": {
+      "const": true
+    },
+    "modelCalls": {
+      "const": 0
+    },
+    "sourceBinding": {
+      "type": "object"
+    },
+    "toolchainEnrollment": {
+      "type": "object"
+    },
+    "toolchainEnrollmentDigest": {
+      "$ref": "#/$defs/digest"
+    },
+    "qualificationDigest": {
+      "$ref": "#/$defs/digest"
+    },
+    "toolchainEnrollmentRawBytes": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      }
+    },
+    "controls": {
+      "const": [
+        "nonempty-clean",
+        "compiler-warning",
+        "lint-warning",
+        "analyzer-defect",
+        "sanitizer-defect",
+        "test-failure",
+        "malformed-cmake",
+        "unenrolled-sysroot",
+        "orphan-source",
+        "orphan-header",
+        "source-drift",
+        "missing-tool",
+        "rejected-admission",
+        "absent-sandbox"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "required": [
+          "control",
+          "fixtureRoot",
+          "scratchRoot",
+          "fixtureFiles",
+          "fixtureSources",
+          "fixtureAfter",
+          "inventory",
+          "planDigest",
+          "result",
+          "sdkExecutions",
+          "admissionDecisions",
+          "assertionsPassed"
+        ],
+        "properties": {
+          "control": {
+            "enum": [
+              "nonempty-clean",
+              "compiler-warning",
+              "lint-warning",
+              "analyzer-defect",
+              "sanitizer-defect",
+              "test-failure",
+              "malformed-cmake",
+              "unenrolled-sysroot",
+              "orphan-source",
+              "orphan-header",
+              "source-drift",
+              "missing-tool",
+              "rejected-admission",
+              "absent-sandbox"
+            ]
+          },
+          "assertionsPassed": {
+            "const": true
+          },
+          "productionQualification": {
+            "const": false
+          },
+          "qualificationEligible": {
+            "const": false
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

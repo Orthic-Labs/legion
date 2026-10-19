@@ -1039,7 +1039,10 @@ pub fn produce(
     let mut context_examined = 0u64;
     let mut context_accounting = Vec::new();
     let mut verified_context = Vec::new();
-    if matches!(provider_id, "code.go" | "code.python" | "code.rust") {
+    if matches!(
+        provider_id,
+        "code.c-family" | "code.go" | "code.python" | "code.rust"
+    ) {
         if provider_id == "code.python" {
             // setup.py already belongs to Python source coverage. Reuse only
             // its actual digest-bound source read; never count it twice.
@@ -1058,6 +1061,7 @@ pub fn produce(
         }
         for entry in entries.iter().filter(|entry| match provider_id {
             "code.go" => matches!(file_name(&entry.path), "go.mod" | "go.sum"),
+            "code.c-family" => entry.path == "CMakeLists.txt",
             "code.python" => matches!(
                 file_name(&entry.path),
                 "pyproject.toml" | "setup.cfg" | "requirements.txt" | "Pipfile"
@@ -1113,7 +1117,7 @@ pub fn produce(
                     }
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
+                        "analysis": if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
                             "go.mod" | "Cargo.toml" => "module-context",
                             "rust-toolchain.toml" | "rust-toolchain" => "toolchain-context",
                             _ => "dependency-lock-context",
@@ -1175,7 +1179,10 @@ pub fn produce(
 
     // Go build tags are only a complete fact when every Go file was read.
     let tags = (examined as usize == selected.len()).then_some(build_tags);
-    let context_entries = if matches!(provider_id, "code.rust" | "code.go" | "code.python") {
+    let context_entries = if matches!(
+        provider_id,
+        "code.rust" | "code.c-family" | "code.go" | "code.python"
+    ) {
         verified_context.as_slice()
     } else {
         entries
@@ -1225,7 +1232,7 @@ pub fn produce(
     });
     if matches!(
         provider_id,
-        "code.rust" | "code.go" | "code.python" | "code.jvm"
+        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.jvm"
     ) {
         input["contextAccounting"] = json!(context_accounting);
     }

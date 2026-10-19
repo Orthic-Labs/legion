@@ -240,6 +240,29 @@ CODE_SDK_ENV
   export LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT LEGION_GOVULNCHECK_DB_ARCHIVE \
     LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
 }
+# Native tools are provisioned by managed macOS runner owner. Enroll observed
+# installed LLVM/CMake dependency roots; missing native tools fail this lane.
+provision_c_family_sdk() {
+  [[ "${RUNNER_OS}" == "macOS" && "${CI}" == "true" ]] || return 2
+  local llvm_root cmake_root sdk_root dependency prefix
+  llvm_root="$(brew --prefix llvm)" || return "$?"
+  cmake_root="$(brew --prefix cmake)" || return "$?"
+  sdk_root="$(xcrun --sdk macosx --show-sdk-path)" || return "$?"
+  local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root" --runtime-root /usr/bin)
+  local dependencies
+  dependencies="$(brew deps --installed --recursive llvm cmake)" || return "$?"
+  while IFS= read -r dependency; do
+    [[ -n "$dependency" ]] || continue
+    prefix="$(brew --prefix "$dependency")" || return "$?"
+    roots+=(--runtime-root "$prefix")
+  done <<< "$dependencies"
+  export LEGION_C_FAMILY_ENROLLMENT_JSON="${RUNNER_TEMP}/legion-provider-qualification/code-c-family-toolchain/enrollment.json"
+  python3 scripts/ci/audit-c-family-sdk-bootstrap.py \
+    --cmake "$cmake_root/bin/cmake" --ctest "$cmake_root/bin/ctest" \
+    --clang "$llvm_root/bin/clang" --clangxx "$llvm_root/bin/clang++" \
+    --clang-tidy "$llvm_root/bin/clang-tidy" --make /usr/bin/make \
+    "${roots[@]}" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
+}
 provision_python_code_sdk() {
   local output="${RUNNER_TEMP}/legion-python-code-sdk-tools"
   python3 scripts/ci/audit-python-sdk-bootstrap.py \
@@ -633,6 +656,17 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     cp -R "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${RUNNER_TEMP}/legion-provider-qualification/jvm-confinement"
   fi
   unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT LEGION_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
+  # Real CMake objects/link, clang-tidy/analyzer & normal/instrumented CTest.
+  run_audit_qualification provision_c_family_sdk
+  if [[ -f "${LEGION_C_FAMILY_ENROLLMENT_JSON:-/missing-c-family-enrollment}" ]]; then
+  export LEGION_C_FAMILY_SCRATCH="${RUNNER_TEMP}/legion-provider-qualification/code-c-family"
+  mkdir -p "$LEGION_C_FAMILY_SCRATCH"
+  run_audit_qualification audit_cargo_test --test c_family_sdk_accuracy \
+    c_family_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-c-family-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_C_FAMILY_SCRATCH"
+  fi
+  unset LEGION_C_FAMILY_SCRATCH LEGION_C_FAMILY_ENROLLMENT_JSON
   # Pin official Python wheels before network-denied SDK commands & retain original enrollment.
   run_audit_qualification provision_python_code_sdk
   export LEGION_PYTHON_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-python-code-command-fixtures"
