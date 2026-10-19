@@ -679,6 +679,13 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   unset LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH LEGION_PHP_RUBY_SDK_ENROLLMENT_JSON \
     LEGION_PHP_RUBY_SDK_PHP LEGION_PHP_RUBY_SDK_RUBY LEGION_PHP_RUBY_SDK_BIN_DIR
   # Generic-source controls retain mandatory unsupported-language gaps in every native case.
+  # Source facts only: exact original13 framework controls, no runtime/auth admission.
+  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/backend-source"
+  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+  run_audit_qualification audit_cargo_test --test backend_source_facts \
+    backend_source_native_qualification -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-backend-source-facts.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-long-tail"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test code_long_tail_accuracy \

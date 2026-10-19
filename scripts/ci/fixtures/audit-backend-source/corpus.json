@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "provider": "framework.backend",
+  "frameworkDenominator": [
+    "express",
+    "fastify",
+    "nest",
+    "django",
+    "fastapi",
+    "flask",
+    "spring",
+    "ktor",
+    "aspnet",
+    "rails",
+    "laravel",
+    "go-router",
+    "rust-web"
+  ],
+  "scope": "literal source-route facts; no runtime, mount composition or auth claim",
+  "frameworks": [
+    {
+      "framework": "express",
+      "manifest": {
+        "path": "package.json",
+        "body": "{\"name\":\"known-answer\",\"dependencies\":{\"express\":\"1.0.0\"}}\n",
+        "inventoryDependencies": [
+          "express"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.js",
+        "body": "const app = makeServer();\napp.get('/health', handler);\napp.post('/private', handler);\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/server.js",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/server.js",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "const declaredPath = '/decoy';\nconst methods = ['get', 'post'];\n"
+    },
+    {
+      "framework": "fastify",
+      "manifest": {
+        "path": "package.json",
+        "body": "{\"name\":\"known-answer\",\"dependencies\":{\"fastify\":\"1.0.0\"}}\n",
+        "inventoryDependencies": [
+          "fastify"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.js",
+        "body": "const app = makeServer();\napp.get('/health', handler);\napp.post('/private', handler);\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/server.js",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/server.js",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "const declaredPath = '/decoy';\nconst methods = ['get', 'post'];\n"
+    },
+    {
+      "framework": "nest",
+      "manifest": {
+        "path": "package.json",
+        "body": "{\"name\":\"known-answer\",\"dependencies\":{\"@nestjs/core\":\"1.0.0\"}}\n",
+        "inventoryDependencies": [
+          "@nestjs/core"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/routes.ts",
+        "body": "class Routes {\n@Get('health')\nhealth() {}\n@Post('private')\nprivateRoute() {}\n}\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "health",
+          "file": "src/routes.ts",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "private",
+          "file": "src/routes.ts",
+          "line": 4,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "const declaredPath = '/decoy';\nconst methods = ['get', 'post'];\n"
+    },
+    {
+      "framework": "django",
+      "manifest": {
+        "path": "requirements.txt",
+        "body": "Django==1.0\n",
+        "inventoryDependencies": [
+          "Django"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/urls.py",
+        "body": "from django.urls import path\nurlpatterns = [\n    path('health/', handler),\n    path('private/', handler),\n]\n"
+      },
+      "routes": [
+        {
+          "method": "ANY",
+          "path": "health/",
+          "file": "src/urls.py",
+          "line": 3,
+          "auth": "unknown"
+        },
+        {
+          "method": "ANY",
+          "path": "private/",
+          "file": "src/urls.py",
+          "line": 4,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "urlpatterns = []\n# computed routes are not literal path facts\n"
+    },
+    {
+      "framework": "fastapi",
+      "manifest": {
+        "path": "requirements.txt",
+        "body": "fastapi==1.0\n",
+        "inventoryDependencies": [
+          "fastapi"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.py",
+        "body": "@app.get('/health')\ndef health(): pass\n@app.post('/private')\ndef private_route(): pass\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/server.py",
+          "line": 1,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/server.py",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "declared_path = '/decoy'\nmethods = ['get', 'post']\n"
+    },
+    {
+      "framework": "flask",
+      "manifest": {
+        "path": "requirements.txt",
+        "body": "Flask==1.0\n",
+        "inventoryDependencies": [
+          "Flask"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.py",
+        "body": "@app.route('/health')\ndef health(): pass\n@app.post('/private')\ndef private_route(): pass\n"
+      },
+      "routes": [
+        {
+          "method": "ROUTE",
+          "path": "/health",
+          "file": "src/server.py",
+          "line": 1,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/server.py",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "declared_path = '/decoy'\nmethods = ['get', 'post']\n"
+    },
+    {
+      "framework": "spring",
+      "manifest": {
+        "path": "pom.xml",
+        "body": "<project><dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency></dependencies></project>\n",
+        "inventoryDependencies": [
+          "org.springframework.boot:spring-boot-starter-web"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/Routes.java",
+        "body": "class Routes {\n  @GetMapping(\"/health\")\n  Object health() { return null; }\n  @PostMapping(path = \"/private\")\n  Object privateRoute() { return null; }\n}\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/Routes.java",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/Routes.java",
+          "line": 4,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "/*\n@GetMapping(\"/decoy\")\n*/\n// @PostMapping(\"/decoy\")\nclass NoRoutes {}\n",
+      "unsupported": "class Routes {\nString text = \"\"\"\n@GetMapping(\"/decoy\")\n\"\"\";\n}\n"
+    },
+    {
+      "framework": "ktor",
+      "manifest": {
+        "path": "build.gradle.kts",
+        "body": "dependencies {\n  implementation(\"io.ktor:ktor-server-core:1.0\")\n}\n",
+        "inventoryDependencies": [],
+        "sourceFile": true
+      },
+      "source": {
+        "path": "src/Routes.kt",
+        "body": "fun routes() {\n  get(\"/health\") { }\n  post(\"/private\") { }\n}\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/Routes.kt",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/Routes.kt",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "/*\nget(\"/decoy\") { }\n*/\n// post(\"/decoy\") { }\nfun noRoutes() {}\n",
+      "unsupported": "val text = \"\"\"\nget(\"/decoy\") { }\n\"\"\"\n"
+    },
+    {
+      "framework": "aspnet",
+      "manifest": {
+        "path": "App.csproj",
+        "body": "<Project Sdk=\"Microsoft.NET.Sdk.Web\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>\n",
+        "inventoryDependencies": [],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/Program.cs",
+        "body": "var app = WebApplication.CreateBuilder(args).Build();\napp.MapGet(\"/health\", () => \"healthy\");\napp.MapPost(\"/private\", () => \"private\");\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/Program.cs",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/Program.cs",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "/*\napp.MapGet(\"/decoy\", handler);\n*/\n// app.MapPost(\"/decoy\", handler);\nclass NoRoutes {}\n",
+      "unsupported": "var text = @\"\napp.MapGet(\"\"/decoy\"\", handler);\n\";\n"
+    },
+    {
+      "framework": "rails",
+      "manifest": {
+        "path": "Gemfile",
+        "body": "source 'https://rubygems.org'\ngem 'rails', '1.0'\n",
+        "inventoryDependencies": [
+          "rails"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "config/routes.rb",
+        "body": "Rails.application.routes.draw do\n  get '/health', to: 'health#show'\n  post '/private', to: 'private#create'\nend\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "config/routes.rb",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "config/routes.rb",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "# get '/decoy', to: 'decoy#show'\nRails.application.routes.draw do\nend\n",
+      "unsupported": "text = <<~TEXT\nget '/decoy', to: 'decoy#show'\nTEXT\n",
+      "quotedDecoy": "text = \"ordinary multiline Ruby string\nget '/decoy', to: 'decoy#show'\n\"\ntext2 = 'ordinary multiline Ruby string\npost \"/also-decoy\", to: \"decoy#create\"\n'\n"
+    },
+    {
+      "framework": "laravel",
+      "manifest": {
+        "path": "composer.json",
+        "body": "{\"require\":{\"laravel/framework\":\"1.0\"}}\n",
+        "inventoryDependencies": [],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "routes/web.php",
+        "body": "<?php\nRoute::get('/health', fn() => 'healthy');\nRoute::post('/private', fn() => 'private');\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "routes/web.php",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "routes/web.php",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "<?php\n/*\nRoute::get('/decoy', handler);\n*/\n// Route::post('/decoy', handler);\n",
+      "unsupported": "<?php\n$text = <<<TEXT\nRoute::get('/decoy', handler);\nTEXT;\n",
+      "quotedDecoy": "<?php\n$text = \"ordinary multiline PHP string\nRoute::get('/decoy', handler);\n\";\n$text2 = 'ordinary multiline PHP string\nRoute::post(\"/also-decoy\", handler);\n';\n"
+    },
+    {
+      "framework": "go-router",
+      "manifest": {
+        "path": "go.mod",
+        "body": "module fixture\n\nrequire github.com/go-chi/chi/v5 v5.0.0\n",
+        "inventoryDependencies": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.go",
+        "body": "package main\nfunc routes() {\n r.Get(\"/health\", handler)\n r.Post(\"/private\", handler)\n}\n"
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "file": "src/server.go",
+          "line": 3,
+          "auth": "unknown"
+        },
+        {
+          "method": "POST",
+          "path": "/private",
+          "file": "src/server.go",
+          "line": 4,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "package main\nvar declaredPath = \"/decoy\"\n"
+    },
+    {
+      "framework": "rust-web",
+      "manifest": {
+        "path": "Cargo.toml",
+        "body": "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\n[dependencies]\naxum = \"0.8\"\n",
+        "inventoryDependencies": [
+          "axum"
+        ],
+        "sourceFile": false
+      },
+      "source": {
+        "path": "src/server.rs",
+        "body": "fn routes() {\n let app = Router::new().route(\"/health\", get(handler));\n let app = app.route(\"/private\", post(handler));\n}\n"
+      },
+      "routes": [
+        {
+          "method": "ANY",
+          "path": "/health",
+          "file": "src/server.rs",
+          "line": 2,
+          "auth": "unknown"
+        },
+        {
+          "method": "ANY",
+          "path": "/private",
+          "file": "src/server.rs",
+          "line": 3,
+          "auth": "unknown"
+        }
+      ],
+      "decoy": "fn no_routes() { let declared_path = \"/decoy\"; }\n"
+    }
+  ],
+  "controls": [
+    "positive",
+    "absence",
+    "missing-manifest",
+    "drift"
+  ],
+  "extraControls": [
+    "spring-unsupported",
+    "ktor-unsupported",
+    "aspnet-unsupported",
+    "rails-unsupported",
+    "laravel-unsupported",
+    "rails-quoted-decoy",
+    "laravel-quoted-decoy",
+    "express-route-cap"
+  ]
+}

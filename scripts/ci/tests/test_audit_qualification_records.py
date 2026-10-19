@@ -181,6 +181,39 @@ class RegistrationGateTests(unittest.TestCase):
         for field,wrong in (("productionQualification",True),("stage","candidate"),("scope","full registry qualification")):
             with self.subTest(field=field),self.assertRaises(AssertionError):gate["controls"]({**row,field:wrong},entry)
 
+    def test_backend_source_adapter_is_dedicated_and_cannot_qualify_runtime(self):
+        api = gate["helper"]("audit-backend-source-facts.py")
+        entry = {"provider": "framework.backend", "family": "backend-source-facts", "stage": "fact-output", "scope": api["SCOPE"],
+                 "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("backend-source-facts", "backend_source_facts", "canonical-json", "backend_source_native_qualification"))
+        for field, value in (("family", "file"), ("stage", "finding")):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, {**entry, field: value})
+        result = gate["qualification"](entry)
+        for key in api["FALSE_CLAIMS"]:
+            self.assertIs(result[key], False)
+        self.assertEqual(result["runtimeExamined"], 0)
+        row = {"schema": api["SCHEMA"], "provider": "framework.backend", "stage": "fact-output", "scope": api["SCOPE"],
+               "qualificationEligible": True, "status": "pass", "coverageState": "scoped-controls-complete", "modelCalls": 0, "runtimeExamined": 0,
+               **{key: False for key in api["FALSE_CLAIMS"]}}
+        gate["controls"](row, entry)
+        for key in api["FALSE_CLAIMS"]:
+            with self.subTest(claim=key), self.assertRaises(AssertionError):
+                gate["controls"]({**row, key: True}, entry)
+
+    def test_backend_source_harness_requires_exact_executed_test_terminal(self):
+        command = ["audit_cargo_test", "--test", "backend_source_facts", "backend_source_native_qualification", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
+        log = self.root / "backend-unit.log"
+        prefix = "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command}) + "\n"
+        record = {"sha256": "sha256:" + "a" * 64}
+        proof = {"command": {"harness": command}}
+        for output in ("test result: ok. 0 passed; 0 failed; 1 ignored;\n",
+                       "test backend_source_native_qualification ... ignored\ntest result: ok. 0 passed; 0 failed; 1 ignored;\n"):
+            log.write_text(prefix + "BACKEND_SOURCE_FACTS_ACCURACY {}\n" + output + "AUDIT_QUALIFICATION_COMMAND_END 1 0\n")
+            with self.assertRaises(AssertionError):
+                gate["terminal_checks"](log, proof, record, None, 2, None)
+
     def test_valid_synthetic_metadata_is_checker_unit_only(self):
         before = (self.root / "src/registry/providers.json").read_bytes()
         self.assertEqual(gate["check"](self.root), {"registeredRecords": 1, "legacyBenchRecords": 0, "promotions": 0})
@@ -427,7 +460,7 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 36)
+        self.assertEqual(len(gate["ADAPTERS"]), 37)
 
     def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
         api = gate["helper"]("audit-javascript-sdk-accuracy.py")
@@ -495,7 +528,7 @@ class RegistrationGateTests(unittest.TestCase):
             api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 36)
+        self.assertEqual(len(gate["ADAPTERS"]), 37)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)

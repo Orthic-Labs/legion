@@ -128,6 +128,34 @@ lazy_re!(
 );
 lazy_re!(cargo_name_re, r#"(?m)^[ \t]*name[ \t]*=[ \t]*"([^"]+)""#);
 
+// Literal source facts only: no mounted path composition or runtime auth claim.
+// Lexical filtering rejects unsupported multiline strings before anchored matching.
+// Computed/array routes remain absent facts, never invented route values.
+lazy_re!(
+    route_spring_re,
+    r#"(?m)^[ \t]*@(Get|Post|Put|Patch|Delete)Mapping\([ \t]*(?:(?:value|path)[ \t]*=[ \t]*)?"([^"\r\n]+)"[ \t]*\)"#
+);
+lazy_re!(
+    route_ktor_re,
+    r#"(?m)^[ \t]*(get|post|put|patch|delete)\([ \t]*"([^"\r\n]+)"[ \t]*\)"#
+);
+lazy_re!(
+    route_aspnet_re,
+    r#"(?m)^[ \t]*(?:app|group)\.Map(Get|Post|Put|Patch|Delete)\([ \t]*"([^"\r\n]+)"[ \t]*,"#
+);
+lazy_re!(
+    route_rails_re,
+    r#"(?m)^[ \t]*(get|post|put|patch|delete)[ \t]+['"]([^'"\r\n]+)['"]"#
+);
+lazy_re!(
+    route_laravel_re,
+    r#"(?m)^[ \t]*Route::(get|post|put|patch|delete)\([ \t]*['"]([^'"\r\n]+)['"][ \t]*,"#
+);
+lazy_re!(
+    aspnet_sdk_re,
+    r#"(?s)^\s*(?:<\?xml[^?]*\?>\s*)?<Project\b[^>]*\bSdk[ \t]*=[ \t]*['"]Microsoft\.NET\.Sdk\.Web['"]"#
+);
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Lang {
     Rust,
@@ -233,8 +261,23 @@ fn is_manifest_name(name: &str) -> bool {
     ) || (name.starts_with("requirements") && name.ends_with(".txt"))
 }
 
+fn is_backend_manifest_name(name: &str) -> bool {
+    is_manifest_name(name)
+        || matches!(
+            name,
+            "pom.xml" | "build.gradle" | "build.gradle.kts" | "Gemfile" | "composer.json"
+        )
+        || name.ends_with(".csproj")
+}
+
 fn retain(path: &str) -> bool {
-    lang_of(path) != Lang::Other || extension(path) == "md" || is_manifest_name(file_name(path))
+    lang_of(path) != Lang::Other
+        || extension(path) == "md"
+        || is_backend_manifest_name(file_name(path))
+        || matches!(
+            extension(path).as_str(),
+            "java" | "kt" | "cs" | "rb" | "php"
+        )
 }
 
 fn is_test_path(path: &str) -> bool {
@@ -1460,12 +1503,100 @@ fn build_tests(ctx: &Ctx, facts: &mut Facts) {
 // Framework markers
 // ---------------------------------------------------------------------------
 
+fn xml_without_comments(text: &str) -> String {
+    static COMMENT: OnceLock<Regex> = OnceLock::new();
+    COMMENT
+        .get_or_init(|| Regex::new(r"(?s)<!--.*?-->").expect("XML comment regex"))
+        .replace_all(text, "")
+        .into_owned()
+}
+
+// Literal readers retain route argument strings, but reject lexical forms
+// requiring a language parser before matching any route. Newlines inside an
+// ordinary quoted Ruby/PHP string are legal: their contents are never code.
+fn backend_lexical(text: &str, name: &str) -> (String, bool) {
+    let bytes = text.as_bytes();
+    let mut out = bytes.to_vec();
+    let mut i = 0;
+    let mut quote = None;
+    let mut unsupported = name == "laravel" && !text.trim_start().starts_with("<?php");
+    while i < bytes.len() {
+        if let Some(delimiter) = quote {
+            if bytes[i] == b'\\' {
+                if bytes.get(i + 1) == Some(&b'\n') {
+                    unsupported = true;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            if matches!(bytes[i], b'\n' | b'\r') {
+                unsupported = true;
+            }
+            if (name == "rails" && bytes[i..].starts_with(b"#{"))
+                || (name == "laravel" && bytes[i..].starts_with(b"{$"))
+            {
+                unsupported = true;
+            }
+            if bytes[i] == delimiter {
+                quote = None;
+            }
+            i += 1;
+        } else if (!matches!(name, "rails") && bytes[i..].starts_with(b"//"))
+            || (matches!(name, "rails" | "laravel") && bytes[i] == b'#')
+        {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                out[i] = b' ';
+                i += 1;
+            }
+        } else if name != "rails" && bytes[i..].starts_with(b"/*") {
+            out[i] = b' ';
+            out[i + 1] = b' ';
+            i += 2;
+            while i < bytes.len() && !bytes[i..].starts_with(b"*/") {
+                if bytes[i..].starts_with(b"/*") {
+                    unsupported = true;
+                }
+                if !matches!(bytes[i], b'\n' | b'\r') {
+                    out[i] = b' ';
+                }
+                i += 1;
+            }
+            if i + 1 < bytes.len() {
+                out[i] = b' ';
+                out[i + 1] = b' ';
+                i += 2;
+            } else {
+                unsupported = true;
+            }
+        } else {
+            if bytes[i..].starts_with(b"\"\"\"")
+                || bytes[i..].starts_with(b"<<")
+                || bytes[i] == b'`'
+                || (name == "aspnet" && bytes[i..].starts_with(b"@\""))
+                || (name == "rails" && matches!(bytes[i], b'%' | b'/'))
+                || (name == "rails" && bytes[i..].starts_with(b"=begin"))
+                || (name == "laravel" && bytes[i..].starts_with(b"?>"))
+            {
+                unsupported = true;
+            }
+            if matches!(bytes[i], b'\'' | b'"') {
+                quote = Some(bytes[i]);
+            }
+            i += 1;
+        }
+    }
+    (
+        String::from_utf8(out).expect("only ASCII comment bytes replaced"),
+        unsupported || quote.is_some(),
+    )
+}
+
 fn manifest_framework_dependencies(ctx: &Ctx) -> Vec<(String, String, Vec<String>)> {
     // (package dir, manifest name, lowercase dependency names)
     let mut out = Vec::new();
     for entry in ctx.entries {
         let name = file_name(&entry.path);
-        if !is_manifest_name(name) {
+        if !is_backend_manifest_name(name) {
             continue;
         }
         let mut dependencies: Vec<String> = entry
@@ -1485,6 +1616,35 @@ fn manifest_framework_dependencies(ctx: &Ctx) -> Vec<(String, String, Vec<String
                         dependencies.push(token.to_ascii_lowercase());
                     }
                 }
+            }
+        }
+        if let Some(text) = ctx.texts.get(&entry.path) {
+            if name == "composer.json" {
+                if let Ok(value) = serde_json::from_str::<Value>(text) {
+                    if value
+                        .get("require")
+                        .and_then(Value::as_object)
+                        .is_some_and(|items| items.contains_key("laravel/framework"))
+                    {
+                        dependencies.push("laravel/framework".into());
+                    }
+                }
+            } else if matches!(name, "build.gradle" | "build.gradle.kts") {
+                // Inventory's shallow coordinate parser omits versioned literals.
+                // Keep original frozen inventory intact; read this named manifest.
+                static COORDINATE: OnceLock<Regex> = OnceLock::new();
+                let (lexical, unsupported) = backend_lexical(text, "gradle");
+                if !unsupported {
+                    for capture in COORDINATE.get_or_init(|| Regex::new(
+                        r#"(?m)^[ \t]*(?:implementation|api|compile|compileOnly|runtimeOnly)[ \t]*\(?[ \t]*["']([^"':\s]+):([^"':\s]+)(?::[^"'\s]+)?["']"#
+                    ).expect("Gradle dependency regex")).captures_iter(&lexical) {
+                        dependencies.push(format!("{}:{}", &capture[1], &capture[2]).to_ascii_lowercase());
+                    }
+                }
+            } else if name.ends_with(".csproj")
+                && aspnet_sdk_re().is_match(&xml_without_comments(text))
+            {
+                dependencies.push("microsoft.net.sdk.web".into());
             }
         }
         out.push((
@@ -1565,6 +1725,29 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
                     backend.entry(framework).or_default().insert(dir.clone());
                 }
             }
+        } else if matches!(
+            name.as_str(),
+            "pom.xml" | "build.gradle" | "build.gradle.kts"
+        ) {
+            if deps.iter().any(|dep| {
+                dep.starts_with("org.springframework:")
+                    || dep.starts_with("org.springframework.boot:")
+                    || dep == "org.springframework.boot"
+            }) {
+                backend.entry("spring").or_default().insert(dir.clone());
+            }
+            if deps
+                .iter()
+                .any(|dep| dep.starts_with("io.ktor:") || dep == "io.ktor.plugin")
+            {
+                backend.entry("ktor").or_default().insert(dir.clone());
+            }
+        } else if name.ends_with(".csproj") && has(&["microsoft.net.sdk.web"]) {
+            backend.entry("aspnet").or_default().insert(dir.clone());
+        } else if name == "Gemfile" && has(&["rails"]) {
+            backend.entry("rails").or_default().insert(dir.clone());
+        } else if name == "composer.json" && has(&["laravel/framework"]) {
+            backend.entry("laravel").or_default().insert(dir.clone());
         } else if name == "Cargo.toml" {
             if has(&["axum", "actix-web", "rocket", "warp", "poem"]) {
                 backend.entry("rust-web").or_default().insert(dir.clone());
@@ -1619,6 +1802,27 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
                 true
             };
             let lang = lang_of(path);
+            let bounded_reader_source = match name {
+                "spring" => matches!(extension(path).as_str(), "java" | "kt"),
+                "ktor" => extension(path) == "kt",
+                "aspnet" => extension(path) == "cs",
+                "rails" => path.ends_with("config/routes.rb"),
+                "laravel" => {
+                    extension(path) == "php" && path.split('/').any(|part| part == "routes")
+                }
+                _ => false,
+            };
+            let (lexical, unsupported) = if bounded_reader_source {
+                backend_lexical(text, name)
+            } else {
+                (String::new(), false)
+            };
+            if unsupported {
+                facts
+                    .gaps
+                    .push(format!("producer-backend-source-syntax-unsupported:{path}"));
+                continue;
+            }
             let mut ok = true;
             match (name, lang) {
                 ("express" | "fastify", Lang::Js) => {
@@ -1655,9 +1859,39 @@ fn build_frameworks(ctx: &Ctx, facts: &mut Facts) {
                         ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
                     }
                 }
+                ("spring", _) if matches!(extension(path).as_str(), "java" | "kt") => {
+                    for c in route_spring_re().captures_iter(&lexical) {
+                        ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
+                    }
+                }
+                ("ktor", _) if extension(path) == "kt" => {
+                    for c in route_ktor_re().captures_iter(&lexical) {
+                        ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
+                    }
+                }
+                ("aspnet", _) if extension(path) == "cs" => {
+                    for c in route_aspnet_re().captures_iter(&lexical) {
+                        ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
+                    }
+                }
+                ("rails", _) if path.ends_with("config/routes.rb") => {
+                    for c in route_rails_re().captures_iter(&lexical) {
+                        ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
+                    }
+                }
+                ("laravel", _)
+                    if extension(path) == "php" && path.split('/').any(|part| part == "routes") =>
+                {
+                    for c in route_laravel_re().captures_iter(&lexical) {
+                        ok &= push(&c[1], &c[2], c.get(0).map_or(0, |m| m.start()));
+                    }
+                }
                 _ => {}
             }
             if !ok {
+                facts
+                    .gaps
+                    .push(format!("producer-backend-route-cap:{name}:{MAX_ITEMS}"));
                 break 'files;
             }
         }
@@ -1860,6 +2094,9 @@ pub fn reconcile(facts: &Facts, provider: &str, analysis: &mut Analysis) {
         if (kind.starts_with("producer-frontend-component-cap:")
             && provider != "framework.frontend")
             || (kind.starts_with("producer-data-model-cap:") && provider != "framework.data")
+            || ((kind.starts_with("producer-backend-route-cap:")
+                || kind.starts_with("producer-backend-source-syntax-unsupported:"))
+                && provider != "framework.backend")
         {
             continue;
         }
