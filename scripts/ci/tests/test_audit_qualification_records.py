@@ -462,7 +462,7 @@ class RegistrationGateTests(unittest.TestCase):
         receipt = prefix + "a" * 64 + ".json"
         bound = ("engine/crates/legion-audit/src/mod.rs",
                  "engine/crates/legion-audit/src/nested/.audit/anything.rs",
-                 prefix + "A" * 64 + ".json")
+                 prefix + "B" * 64 + ".json")
         for family, provider, script, roots_key, files_key, function in cases:
             with self.subTest(family=family):
                 api = gate["helper"](script)
