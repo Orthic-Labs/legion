@@ -707,6 +707,93 @@ fn assert_real_install_directory(path: &Path) -> ReleaseResult<()> {
     Ok(())
 }
 
+fn payload_file_sha256(current: &Path, relative: &Path) -> ReleaseResult<String> {
+    let components: Vec<_> = relative.components().collect();
+    if components.is_empty()
+        || components
+            .iter()
+            .any(|part| !matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(fail("payload identity path must stay below current"));
+    }
+    assert_real_install_directory(current)?;
+    let mut path = current.to_path_buf();
+    for component in &components[..components.len() - 1] {
+        path.push(component.as_os_str());
+        assert_real_install_directory(&path)?;
+    }
+    path.push(components.last().unwrap().as_os_str());
+    let metadata = fs::symlink_metadata(&path)
+        .map_err(|e| fail(format!("payload identity file {}: {e}", path.display())))?;
+    #[cfg(windows)]
+    let is_reparse = {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0
+    };
+    #[cfg(not(windows))]
+    let is_reparse = metadata.file_type().is_symlink();
+    if !metadata.is_file() || is_reparse {
+        return Err(fail(format!(
+            "payload identity requires a real regular file: {}",
+            path.display()
+        )));
+    }
+    let canonical_current = fs::canonicalize(current).map_err(|e| fail(e.to_string()))?;
+    let canonical_file = fs::canonicalize(&path).map_err(|e| fail(e.to_string()))?;
+    if !canonical_file.starts_with(&canonical_current) || canonical_file == canonical_current {
+        return Err(fail(format!(
+            "payload identity file escapes current: {}",
+            path.display()
+        )));
+    }
+    sha256_file(&canonical_file)
+}
+
+/// Capture independent readback expectations from qualification's final isolated
+/// payload. Reject junctions at every level, including parents of fixed current.
+fn installed_payload_identity(workspace: &Path, current: &Path) -> ReleaseResult<Value> {
+    let relative = current
+        .strip_prefix(workspace)
+        .map_err(|_| fail("payload identity current escapes qualification workspace"))?;
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|part| !matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(fail(
+            "payload identity current must stay below qualification workspace",
+        ));
+    }
+    assert_real_install_directory(workspace)?;
+    let mut directory = workspace.to_path_buf();
+    for component in relative.components() {
+        directory.push(component.as_os_str());
+        assert_real_install_directory(&directory)?;
+    }
+    let canonical_workspace = fs::canonicalize(workspace).map_err(|e| fail(e.to_string()))?;
+    let canonical_current = fs::canonicalize(current).map_err(|e| fail(e.to_string()))?;
+    if !canonical_current.starts_with(&canonical_workspace)
+        || canonical_current == canonical_workspace
+    {
+        return Err(fail(
+            "payload identity current escapes qualification workspace",
+        ));
+    }
+    let digest = |relative: &str| payload_file_sha256(&canonical_current, Path::new(relative));
+    Ok(json!({
+        "runtimeSha256": {
+            "legion": digest("bin/legion.exe")?,
+            "legion-hook": digest("bin/legion-hook.exe")?,
+            "legion-mcp": digest("bin/legion-mcp.exe")?,
+        },
+        "releaseManifestSha256": digest("share/legion/release.json")?,
+        "capabilityBodySha256": {
+            "debugger": digest("share/legion/assets/skills/debugger/SKILL.md")?,
+            "architect": digest("share/legion/assets/skills/architect/SKILL.md")?,
+        },
+    }))
+}
+
 fn assert_fixed_payload_layout(root: &Path) -> ReleaseResult<()> {
     assert_real_install_directory(&root.join("current"))?;
     let release_text = fs::read_to_string(root.join("current/share/legion/release.json"))
@@ -2067,6 +2154,10 @@ throw 'Receipt fault did not interrupt activation'
             )
         })?;
 
+        *current_stage.borrow_mut() = "payload-identity".to_string();
+        let payload_identity =
+            installed_payload_identity(workspace, &install_root.join("current"))?;
+
         let uninstaller = install_root.join("unins000.exe");
         if !uninstaller.is_file() {
             return Err(fail(format!(
@@ -2109,6 +2200,7 @@ throw 'Receipt fault did not interrupt activation'
             "schemaVersion": 1, "kind": "legion-windows-installed-installer-qualification", "status": "qualified",
             "product": "legion", "version": version, "sourceRevision": revision,
             "windowsFinalizationSha256": finalization_sha256,
+            "payloadIdentity": payload_identity,
             "setup": {
                 "name": installer.file_name().map(|n| n.to_string_lossy().to_string()),
                 "sha256": sha256_file(installer)?,
@@ -2247,6 +2339,144 @@ fn now_iso8601() -> String {
 #[cfg(test)]
 mod windows_qualification_tests {
     use super::*;
+
+    const IDENTITY_FILES: [(&str, &str); 6] = [
+        ("bin/legion.exe", "/runtimeSha256/legion"),
+        ("bin/legion-hook.exe", "/runtimeSha256/legion-hook"),
+        ("bin/legion-mcp.exe", "/runtimeSha256/legion-mcp"),
+        ("share/legion/release.json", "/releaseManifestSha256"),
+        (
+            "share/legion/assets/skills/debugger/SKILL.md",
+            "/capabilityBodySha256/debugger",
+        ),
+        (
+            "share/legion/assets/skills/architect/SKILL.md",
+            "/capabilityBodySha256/architect",
+        ),
+    ];
+
+    fn payload_identity_fixture() -> (PathBuf, PathBuf) {
+        let workspace = std::env::temp_dir().join(format!(
+            "legion-payload-identity-{}-{}",
+            std::process::id(),
+            rand_suffix()
+        ));
+        let current = workspace.join("installed/current");
+        for (relative, _) in IDENTITY_FILES {
+            let path = current.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"abc").unwrap();
+        }
+        (workspace, current)
+    }
+
+    #[test]
+    fn payload_identity_hashes_each_final_payload_file_and_changes_with_bytes() {
+        let (workspace, current) = payload_identity_fixture();
+        let original = installed_payload_identity(&workspace, &current).unwrap();
+        let abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let abcd = "88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589";
+        assert_eq!(
+            original,
+            json!({
+                "runtimeSha256": {"legion": abc, "legion-hook": abc, "legion-mcp": abc},
+                "releaseManifestSha256": abc,
+                "capabilityBodySha256": {"debugger": abc, "architect": abc},
+            })
+        );
+        for (relative, field) in IDENTITY_FILES {
+            let path = current.join(relative);
+            fs::write(&path, b"abcd").unwrap();
+            let changed = installed_payload_identity(&workspace, &current).unwrap();
+            let mut expected = original.clone();
+            *expected.pointer_mut(field).unwrap() = json!(abcd);
+            assert_eq!(changed, expected, "changed payload file: {relative}");
+            fs::write(path, b"abc").unwrap();
+        }
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn payload_identity_rejects_missing_and_nonregular_inputs() {
+        let (workspace, current) = payload_identity_fixture();
+        for (relative, _) in IDENTITY_FILES {
+            let path = current.join(relative);
+            fs::remove_file(&path).unwrap();
+            assert!(installed_payload_identity(&workspace, &current).is_err());
+            fs::create_dir(&path).unwrap();
+            assert!(installed_payload_identity(&workspace, &current).is_err());
+            fs::remove_dir(&path).unwrap();
+            fs::write(path, b"abc").unwrap();
+        }
+        assert!(payload_file_sha256(&current, Path::new("../outside.exe")).is_err());
+        assert!(payload_file_sha256(&current, &current.join("bin/legion.exe")).is_err());
+        assert!(installed_payload_identity(&current, &workspace).is_err());
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn payload_identity_rejects_file_symlinks_even_to_matching_bytes() {
+        let (workspace, current) = payload_identity_fixture();
+        let outside = workspace.join("outside.exe");
+        fs::write(&outside, b"abc").unwrap();
+        let runtime = current.join("bin/legion.exe");
+        fs::remove_file(&runtime).unwrap();
+        std::os::unix::fs::symlink(&outside, &runtime).unwrap();
+        assert!(installed_payload_identity(&workspace, &current).is_err());
+        fs::remove_file(runtime).unwrap();
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[cfg(any(unix, windows))]
+    fn link_identity_directory(target: &Path, link: &Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).unwrap();
+        #[cfg(windows)]
+        {
+            // Junctions require no developer-mode/admin symlink privilege &
+            // exercise FILE_ATTRIBUTE_REPARSE_POINT rather than only symlinks.
+            let result = Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(link)
+                .arg(target)
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "junction fixture failed: {result:?}"
+            );
+        }
+    }
+
+    #[cfg(any(unix, windows))]
+    fn remove_identity_directory_link(link: &Path) {
+        #[cfg(unix)]
+        fs::remove_file(link).unwrap();
+        #[cfg(windows)]
+        fs::remove_dir(link).unwrap();
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn payload_identity_rejects_current_parent_and_nested_directory_links() {
+        let (workspace, current) = payload_identity_fixture();
+        for relative in [
+            "installed/current/bin",
+            "installed/current/share/legion/assets/skills/debugger",
+            "installed/current",
+            "installed",
+        ] {
+            let original = workspace.join(relative);
+            let outside = workspace.join("foreign-payload");
+            fs::rename(&original, &outside).unwrap();
+            link_identity_directory(&outside, &original);
+            assert!(installed_payload_identity(&workspace, &current).is_err());
+            remove_identity_directory_link(&original);
+            fs::rename(&outside, &original).unwrap();
+        }
+        fs::remove_dir_all(workspace).unwrap();
+    }
 
     #[test]
     fn development_failure_requires_failed_receipt_events_and_no_prior_copies() {
