@@ -226,6 +226,42 @@ provision_js_sdk() {
   export LEGION_JS_SDK_ENROLLMENT="$enrollment"
 }
 
+# Returned provisioning failures count without stopping independent controls.
+provision_license_checker() {
+  unset LEGION_LICENSE_TOOL_ROOT audit_license_tool_dir audit_license_node_dir
+  local tool="${RUNNER_TEMP}/legion-license-checker-tool"
+  local node node_dir
+  # Remove prior official-entry alias before accepting any new provision.
+  rm -f "$tool/bin/license-checker" || return "$?"
+  mkdir -p "$tool/bin" "$LEGION_LICENSE_RECEIPTS/provision" || return "$?"
+  node="$(command -v node)" || return "$?"
+  node_dir="$(dirname "$node")" || return "$?"
+  curl --fail --location --retry 0 --max-time 120 \
+    https://registry.npmjs.org/license-checker/-/license-checker-25.0.1.tgz \
+    --output "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" || return "$?"
+  python3 - "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" <<'LICENSE_ASSET' || return "$?"
+import hashlib
+from pathlib import Path
+import sys
+assert hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() == "e0200853f53ff27b2418fe0e3497d50a4bb2a0978abe0ef6b86c80d92fc47363"
+LICENSE_ASSET
+  printf '%s\n' '{"name":"legion-license-tool-provision","version":"1.0.0","private":true}' > "$tool/package.json" || return "$?"
+  pnpm --dir "$tool" add --ignore-scripts --save-exact \
+    "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" || return "$?"
+  python3 - "$tool" <<'LICENSE_ALIAS' || return "$?"
+from pathlib import Path
+import sys
+root = Path(sys.argv[1]).resolve()
+entry = (root / "node_modules/license-checker/bin/license-checker").resolve(strict=True)
+assert entry.is_relative_to(root) and entry.is_file()
+# Alias genuine published executable, never pnpm's generated .bin shell shim.
+(root / "bin/license-checker").symlink_to(entry)
+LICENSE_ALIAS
+  audit_license_tool_dir="$tool"
+  audit_license_node_dir="$node_dir"
+  export LEGION_LICENSE_TOOL_ROOT="$tool"
+}
+
 audit_tflint_qualification() {
   audit_effects_test --lib scoped_ipc_ci_storage_requires_private_canonical_owned_root -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
@@ -857,42 +893,22 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --linter-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   # Official published JS entry + full installed closure, real native SDK controls.
   # Dependencies provision only here; sandboxed version/scan requests deny network.
-  audit_license_tool_dir="${RUNNER_TEMP}/legion-license-checker-tool"
   export LEGION_LICENSE_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/license-checker"
-  export LEGION_LICENSE_TOOL_ROOT="$audit_license_tool_dir"
-  mkdir -p "$audit_license_tool_dir/bin" "$LEGION_LICENSE_RECEIPTS/provision"
-  curl --fail --location --retry 0 --max-time 120 \
-    https://registry.npmjs.org/license-checker/-/license-checker-25.0.1.tgz \
-    --output "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz"
-  python3 - "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" <<'LICENSE_ASSET'
-import hashlib
-from pathlib import Path
-import sys
-assert hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() == "e0200853f53ff27b2418fe0e3497d50a4bb2a0978abe0ef6b86c80d92fc47363"
-LICENSE_ASSET
-  printf '%s\n' '{"name":"legion-license-tool-provision","version":"1.0.0","private":true}' > "$audit_license_tool_dir/package.json"
-  pnpm --dir "$audit_license_tool_dir" add --ignore-scripts --save-exact \
-    "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz"
-  python3 - "$audit_license_tool_dir" <<'LICENSE_ALIAS'
-from pathlib import Path
-import sys
-root = Path(sys.argv[1]).resolve()
-entry = (root / "node_modules/license-checker/bin/license-checker").resolve(strict=True)
-assert entry.is_relative_to(root) and entry.is_file()
-# Alias genuine published executable, never pnpm's generated .bin shell shim.
-(root / "bin/license-checker").symlink_to(entry)
-LICENSE_ALIAS
-  audit_license_node_dir="$(dirname "$(command -v node)")"
-  PATH="$audit_license_tool_dir/bin:$audit_license_node_dir:$PATH" \
-    run_audit_qualification audit_cargo_test --test license_checker_accuracy \
-      real_license_checker_accuracy -- --ignored --exact --nocapture --test-threads=1 \
-      > "$LEGION_LICENSE_RECEIPTS/harness.log" 2>&1
-  cat "$LEGION_LICENSE_RECEIPTS/harness.log"
-  run_audit_qualification python3 scripts/ci/audit-license-provider-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_LICENSE_RECEIPTS" \
-    > "$LEGION_LICENSE_RECEIPTS/validator.log" 2>&1
-  cat "$LEGION_LICENSE_RECEIPTS/validator.log"
-  unset LEGION_LICENSE_RECEIPTS LEGION_LICENSE_TOOL_ROOT
+  run_audit_qualification provision_license_checker
+  if [[ -n "${LEGION_LICENSE_TOOL_ROOT:-}" ]]; then
+    PATH="$audit_license_tool_dir/bin:$audit_license_node_dir:$PATH" \
+      run_audit_qualification audit_cargo_test --test license_checker_accuracy \
+        real_license_checker_accuracy -- --ignored --exact --nocapture --test-threads=1 \
+        > "$LEGION_LICENSE_RECEIPTS/harness.log" 2>&1
+    cat "$LEGION_LICENSE_RECEIPTS/harness.log"
+    run_audit_qualification python3 scripts/ci/audit-license-provider-accuracy.py \
+      --root "$GITHUB_WORKSPACE" --receipts "$LEGION_LICENSE_RECEIPTS" \
+      > "$LEGION_LICENSE_RECEIPTS/validator.log" 2>&1
+    cat "$LEGION_LICENSE_RECEIPTS/validator.log"
+  else
+    printf '::error::License-checker controls skipped: provisioning refused.\n' >&2
+  fi
+  unset LEGION_LICENSE_RECEIPTS LEGION_LICENSE_TOOL_ROOT audit_license_tool_dir audit_license_node_dir
   # Real pinned native secret history controls; explicitly constructed admission.
   secrets_tool_root="${RUNNER_TEMP}/legion-secrets-history-tool"
   export LEGION_SECRET_QUALIFICATION_DIR="${RUNNER_TEMP}/legion-provider-qualification/secrets-history"
