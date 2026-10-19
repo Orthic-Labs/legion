@@ -26,6 +26,7 @@ walkdir.workspace = true
 tokio-util.workspace = true
 tokio.workspace = true
 toml.workspace = true
+rightkit-ownership = "=0.3.1"
 rightkit-browser = "=0.3.1"
 rightkit-child-process = "=0.4.0"
 rightkit-fs = { version = "=0.4.3", default-features = false, features = ["fs", "json"] }

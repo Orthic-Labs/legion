@@ -29,6 +29,7 @@ pub struct NativeProviderRegistry {
     pub legacy_checks: legacy_checks::NativeLegacyCheckExecutor,
     pub reasoning: reasoning::ReasoningProviderExecutor,
     pub external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
+    ownership_owner: Option<legacy::ownership_sdk::NativeOwner>,
 }
 
 impl NativeProviderRegistry {
@@ -88,6 +89,7 @@ impl NativeProviderRegistry {
             legacy_checks: legacy_checks::NativeLegacyCheckExecutor::new(root.clone()),
             reasoning: reasoning::ReasoningProviderExecutor::unavailable(root.clone()),
             external_project_tool: None,
+            ownership_owner: None,
             root,
         }
     }
@@ -112,6 +114,13 @@ impl NativeProviderRegistry {
     /// bounds for its tool runs). The root is re-applied.
     pub fn with_code(mut self, code: code::ProviderExecutorAdapter) -> Self {
         self.code = code.with_root(self.root.clone());
+        self
+    }
+
+    /// Enroll a pinned native owner transport. The frozen plan must independently
+    /// bind its identity; the injected SDK authorizer still decides every effect.
+    pub fn with_ownership_owner(mut self, owner: legacy::ownership_sdk::NativeOwner) -> Self {
+        self.ownership_owner = Some(owner);
         self
     }
 
@@ -218,6 +227,24 @@ impl ProviderExecutor for NativeProviderRegistry {
         inventory: &InventoryEnvelope,
         cancellation: CancellationToken,
     ) -> Result<ProviderResult, AuditError> {
+        if provider.id == "governance.capability-ownership" {
+            if let (Some(owner), Some(tool)) = (&self.ownership_owner, &self.external_project_tool)
+            {
+                let scratch = self.legacy_checks.scratch()?;
+                return self
+                    .legacy
+                    .execute_ownership_async(
+                        plan,
+                        provider,
+                        inventory,
+                        owner,
+                        tool.as_ref(),
+                        &scratch.artifacts_dir(),
+                        cancellation,
+                    )
+                    .await;
+            }
+        }
         if legacy_checks::spec(&provider.id).is_some() {
             return self
                 .legacy_checks

@@ -290,6 +290,28 @@ impl ProviderExecutor for ProviderExecutorAdapter {
 }
 
 impl ProviderExecutorAdapter {
+    /// Explicit host enrollment only; this supplies no policy admission.
+    pub async fn execute_ownership_async(
+        &self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        owner: &super::ownership_sdk::NativeOwner,
+        tool: &dyn legion_provider_sdk::ExternalProjectTool,
+        artifacts_root: &Path,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<ProviderResult, AuditError> {
+        super::ownership_sdk::execute(
+            &self.input(provider, inventory),
+            plan,
+            owner,
+            tool,
+            artifacts_root,
+            cancellation,
+        )
+        .await
+    }
+
     pub(crate) fn execute_ownership_bound(
         &self,
         plan: &crate::FrozenPlan,
