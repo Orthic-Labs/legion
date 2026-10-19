@@ -40,6 +40,13 @@ const NODE_REGISTRY: &str = concat!(
 const TEST_FIXTURE_PACKAGE_JSON: &str =
     "{\"scripts\":{\"build\":\"build\",\"dev\":\"dev\",\"test\":\"test\"}}\n";
 const TEST_FIXTURE_PACKAGE_LOCK: &str = "{}\n";
+const TEST_FIXTURE_CARGO_TOML: &str =
+    "[package]\nname=\"fixture\"\nversion=\"0.1.0\"\nedition=\"2021\"\n";
+const TEST_FIXTURE_CARGO_LOCK: &str = "# fixture\n";
+const TEST_FIXTURE_MACHETE_STDOUT: &[u8] =
+    b"cargo-machete didn't find any unused dependencies in this directory. Good job!\n";
+const TEST_FIXTURE_MACHETE_STDERR: &[u8] =
+    b"Analyzing dependencies of crates in this directory...\nDone!\n";
 
 /// Tool labels and readiness gates are copied from
 /// `tools/audit/collect-facts.mjs::buildChecks` and its `doctor` function.
@@ -342,11 +349,8 @@ fn fixture_root() -> PathBuf {
         ),
         ("package.json", TEST_FIXTURE_PACKAGE_JSON),
         ("package-lock.json", TEST_FIXTURE_PACKAGE_LOCK),
-        (
-            "Cargo.toml",
-            "[package]\nname=\"fixture\"\nversion=\"0.1.0\"\nedition=\"2021\"\n",
-        ),
-        ("Cargo.lock", "# fixture\n"),
+        ("Cargo.toml", TEST_FIXTURE_CARGO_TOML),
+        ("Cargo.lock", TEST_FIXTURE_CARGO_LOCK),
         ("pyproject.toml", "[project]\nname=\"fixture\"\n"),
         ("requirements.txt", ""),
         ("Dockerfile", "FROM scratch\n"),
@@ -414,6 +418,14 @@ fn inventory() -> InventoryEnvelope {
                     "sha256:{}",
                     hex::encode(sha2::Sha256::digest(TEST_FIXTURE_PACKAGE_LOCK.as_bytes()))
                 )),
+                "Cargo.toml" => Some(format!(
+                    "sha256:{}",
+                    hex::encode(sha2::Sha256::digest(TEST_FIXTURE_CARGO_TOML.as_bytes()))
+                )),
+                "Cargo.lock" => Some(format!(
+                    "sha256:{}",
+                    hex::encode(sha2::Sha256::digest(TEST_FIXTURE_CARGO_LOCK.as_bytes()))
+                )),
                 _ => None,
             },
         },
@@ -452,6 +464,21 @@ impl ExternalProjectTool for FakeTool {
         // actionlint, hadolint and swiftlint print a top-level JSON array, so
         // an object fixture body is an unexpected shape for them.
         let body_for_tool: Option<Vec<u8>> = match &self.body {
+            Some(body)
+                if request.task_id.as_deref() == Some("cargo_unused_deps")
+                    && serde_json::from_slice::<Value>(body)
+                        .is_ok_and(|value| value["complete"] == true) =>
+            {
+                Some(TEST_FIXTURE_MACHETE_STDOUT.to_vec())
+            }
+            Some(body)
+                if request.task_id.as_deref() == Some("cargo_outdated")
+                    && serde_json::from_slice::<Value>(body)
+                        .is_ok_and(|value| value["complete"] == true) =>
+            {
+                // Strict report identity must match the existing executed root package.
+                Some(br#"{"crate_name":"fixture","dependencies":[]}"#.to_vec())
+            }
             Some(body)
                 if request.task_id.as_deref() == Some("cargo_unsafe")
                     && serde_json::from_slice::<Value>(body)
@@ -497,12 +524,21 @@ impl ExternalProjectTool for FakeTool {
                 // `cargo_deny` reads its JSON from stderr
                 // (`report_source_for("cargo_deny")` is `ReportSource::Stderr`),
                 // so mirror the body there too, as the real tool would.
+                // cargo-machete's completion contract binds both genuine stream shapes.
+                // Invalid fixtures keep their original bytes in both streams.
+                let stderr = if request.task_id.as_deref() == Some("cargo_unused_deps")
+                    && body.as_slice() == TEST_FIXTURE_MACHETE_STDOUT
+                {
+                    TEST_FIXTURE_MACHETE_STDERR
+                } else {
+                    body.as_slice()
+                };
                 let err_path = PathBuf::from(&request.cwd).join("provider-result.stderr.json");
-                fs::write(&err_path, body).unwrap();
+                fs::write(&err_path, stderr).unwrap();
                 receipt.stderr = Some(legion_effects::ArtifactRecord {
                     path: "provider-result.stderr.json".into(),
-                    digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(body))),
-                    bytes: body.len(),
+                    digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(stderr))),
+                    bytes: stderr.len(),
                     immutable: true,
                 });
                 // `duplication` (jscpd) reads its report from a file under
@@ -795,6 +831,40 @@ fn invalid_runner_identity_is_rejected_for_each_frozen_provider() {
     fs::remove_dir_all(root).unwrap();
 }
 
+// This mixed fixture deliberately selects unsupported pyproject input as well
+// as requirements.txt. Preserve both paths: it must refuse before any tool call.
+fn assert_python_input_refused(
+    result: &legion_contracts::ProviderResult,
+    provider: &AuditProvider,
+) {
+    assert!(result.applicable && !result.complete);
+    let coverage = result.coverage.as_ref().unwrap();
+    assert_eq!(coverage.expected, 2);
+    assert_eq!(coverage.examined, 0);
+    assert_eq!(
+        coverage.denominator_digest,
+        provider.configuration["denominatorDigest"]
+            .as_str()
+            .unwrap()
+    );
+    let reason = "python-requirements-input-unavailable:unsupported-python-input:pyproject.toml";
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == &format!("unavailable:{reason}")));
+    assert_eq!(result.details["pythonRequirements"]["reason"], reason);
+    assert_eq!(result.details["availability"]["reason"], reason);
+    assert_eq!(
+        result.details["executionReceipt"]["processTree"]["started"],
+        false
+    );
+    assert_eq!(
+        result.details["executionReceipt"]["parser"]["attempted"],
+        false
+    );
+    assert!(result.findings.is_empty());
+}
+
 #[test]
 fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external_providers() {
     let records = node_registry();
@@ -874,6 +944,18 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             );
             continue;
         }
+        if id == "legacy.security.python-dependencies" {
+            let result = runtime
+                .block_on(registry.execute_async(
+                    &plan,
+                    provider,
+                    &inventory,
+                    CancellationToken::new(),
+                ))
+                .unwrap();
+            assert_python_input_refused(&result, provider);
+            continue;
+        }
         if id == "legacy.stack.node-outdated" {
             let result = runtime
                 .block_on(registry.execute_async(
@@ -922,9 +1004,9 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} receipt process authority"
         );
     }
-    // Managed tests have a separate no-trust/no-launch regression in
-    // `native_legacy_external_tool`; they cannot be a successful FakeTool run.
-    assert_eq!(checked, 20);
+    // Managed tests need enrolled trust; mixed Python input is unsupported.
+    // Neither prerequisite refusal can be a successful FakeTool run.
+    assert_eq!(checked, 19);
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -962,8 +1044,8 @@ fn cargo_deny_reconciled_summary_with_wrong_exit_stays_unproven() {
 }
 
 /// Checks whose `parsers::dispatch_text` handler is a plain freeform-text line
-/// scan (`legacy_checks::parsers::{build,clippy,tsc,cargo_machete,
-/// debt_markers}`) always return `ParseOutcome::ok` — a count of zero for text
+/// scan (`legacy_checks::parsers::{build,clippy,tsc,debt_markers}`)
+/// always return `ParseOutcome::ok` — a count of zero for text
 /// containing no matching lines is a legitimate result, not a parse failure,
 /// matching the JS check's own tool-output-shape tolerance (these tools emit
 /// freeform diagnostics, not a fixed schema). Whitespace-only stdout is
@@ -975,7 +1057,6 @@ const TEXT_PERMISSIVE_IDS: &[&str] = &[
     "legacy.quality.build",
     "legacy.quality.lint",
     "legacy.quality.types",
-    "legacy.quality.rust-unused-deps",
     "legacy.quality.debt-markers",
 ];
 
@@ -1004,6 +1085,21 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
         if NATIVE_IDS.contains(&id) || id == "legacy.runtime.app" || id == "legacy.quality.test" {
+            continue;
+        }
+        if id == "legacy.security.python-dependencies" {
+            let provider = plan.provider(id).unwrap();
+            for registry in [&invalid_registry, &failed_registry] {
+                let result = runtime
+                    .block_on(registry.execute_async(
+                        &plan,
+                        provider,
+                        &inventory,
+                        CancellationToken::new(),
+                    ))
+                    .unwrap();
+                assert_python_input_refused(&result, provider);
+            }
             continue;
         }
         if id == "legacy.stack.node-outdated" {
@@ -1040,6 +1136,7 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
                     .iter()
                     .any(|gap| gap == "artifact-bytes-unreadable"
                         || gap == "cargo-deny-completion-unproven"
+                        || gap == "cargo-machete-analysis-unproven"
                         || gap.starts_with("legacy-tool-output-unparseable:")),
                 "{id} invalid gap"
             );
@@ -1063,8 +1160,8 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
             "{id} failed denominator"
         );
     }
-    // Managed-test no-trust refusal is covered separately; timeout results
-    // here must correspond to an external process that actually started.
-    assert_eq!(checked, 20);
+    // Managed-test & unsupported Python input refusals happen before launch;
+    // timeout results here must correspond to a tool that was called.
+    assert_eq!(checked, 19);
     fs::remove_dir_all(root).unwrap();
 }
