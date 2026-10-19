@@ -955,6 +955,41 @@ PY_PIN
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_CARGO_AUDIT_RECEIPTS" \
     > "$LEGION_CARGO_AUDIT_RECEIPTS/validator.log" 2>&1
   cat "$LEGION_CARGO_AUDIT_RECEIPTS/validator.log"
+  # Dedicated full Rust SDK controls reuse already provisioned pinned scanner & managed Rust.
+  provision_rust_code_sdk() {
+    local output="${RUNNER_TEMP}/legion-rust-code-sdk-tools"
+    python3 scripts/ci/provision-rust-code-fixtures.py --root "$output" || return "$?"
+    local values
+    values="$(python3 - "$output/environment.json" <<'RUST_CODE_SDK_ENV'
+import json
+import sys
+from pathlib import Path
+names = ["CARGO_HOME", "LEGION_RUST_CODE_ENROLLMENT_JSON", "SDKROOT"]
+values = json.loads(Path(sys.argv[1]).read_bytes())
+if set(values) != set(names) or any(not isinstance(v, str) or not Path(v).is_absolute() or any(c in v for c in "\0\t\r\n") for v in values.values()):
+    raise SystemExit("Exact Rust SDK environment export missing or malformed")
+print("\t".join(values[name] for name in names))
+RUST_CODE_SDK_ENV
+)" || return "$?"
+    IFS=$'\t' read -r rust_sdk_fixture_cargo_home LEGION_RUST_CODE_ENROLLMENT_JSON SDKROOT <<< "$values" || return "$?"
+    export LEGION_RUST_CODE_ENROLLMENT_JSON SDKROOT
+  }
+  rust_sdk_previous_cargo_home="${CARGO_HOME-}"
+  rust_sdk_previous_sdkroot="${SDKROOT-}"
+  rust_sdk_had_cargo_home="${CARGO_HOME+x}"
+  rust_sdk_had_sdkroot="${SDKROOT+x}"
+  run_audit_qualification provision_rust_code_sdk
+  export LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_RUST_CODE_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/code-rust-sdk"
+  mkdir -p "$LEGION_RUST_CODE_RECEIPTS"
+  run_audit_qualification audit_cargo_test --test real_rust_code_accuracy \
+    real_rust_code_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-rust-code-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_RUST_CODE_RECEIPTS"
+  unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_RUST_CODE_RECEIPTS LEGION_RUST_CODE_ENROLLMENT_JSON rust_sdk_fixture_cargo_home
+  if [[ "$rust_sdk_had_cargo_home" == x ]]; then export CARGO_HOME="$rust_sdk_previous_cargo_home"; else unset CARGO_HOME; fi
+  if [[ "$rust_sdk_had_sdkroot" == x ]]; then export SDKROOT="$rust_sdk_previous_sdkroot"; else unset SDKROOT; fi
+  unset rust_sdk_previous_cargo_home rust_sdk_previous_sdkroot rust_sdk_had_cargo_home rust_sdk_had_sdkroot
   unset LEGION_CARGO_AUDIT_BIN LEGION_CARGO_AUDIT_RECEIPTS
   audit_provision_cargo_deny() {
     local deny_arch deny_archive_sha deny_binary_sha

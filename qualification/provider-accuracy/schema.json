@@ -571,7 +571,8 @@
             "code-mobile-sdk",
             "code-c-family-sdk",
             "javascript-sdk",
-            "dotnet-sdk"
+            "dotnet-sdk",
+            "code-rust-sdk"
           ]
         },
         "record": {
@@ -635,6 +636,9 @@
         },
         "dotnetSdkEvidence": {
           "$ref": "#/$defs/dotnetSdkEvidence"
+        },
+        "rustSdkEvidence": {
+          "$ref": "#/$defs/rustSdkEvidence"
         }
       },
       "allOf": [
@@ -800,6 +804,32 @@
             "not": {
               "required": [
                 "dotnetSdkEvidence"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "code-rust-sdk"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rustSdkEvidence"
+            ],
+            "properties": {
+              "provider": {
+                "const": "code.rust"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "rustSdkEvidence"
               ]
             }
           }
@@ -980,6 +1010,17 @@
         "providerRecord": {
           "$ref": "#/$defs/reference"
         }
+      }
+    },
+    "rustSdkEvidence": {
+      "description": "Exact original Rust enrollment, environment export, native snapshots, crates & all 19 child/SDK streams; authenticated CI remains mandatory.",
+      "type": "object",
+      "minProperties": 100,
+      "additionalProperties": {
+        "$ref": "#/$defs/reference"
+      },
+      "propertyNames": {
+        "pattern": "^(code_rust\\.json|input-enrollment\\.json|environment\\.json|toolchain-runtime(-after)?\\.json|input-archives/smallvec-0\\.6\\.(9|10)\\.crate|cases/[a-z-]+/(child-execution\\.json|child\\.(stdout|stderr)\\.log|input-snapshots\\.json|case-observation\\.json|run/sdk-execution-[0-4]\\.json))$"
       }
     }
   }

@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-rust-code-sdk-accuracy/1",
+  "title": "Original bounded Rust SDK known-answer observation",
+  "type": "object",
+  "required": [
+    "schema",
+    "kind",
+    "provider",
+    "providerVersion",
+    "platform",
+    "retainedRoot",
+    "productionQualification",
+    "selfProducerQualification",
+    "publicHelperQualification",
+    "qualificationEligible",
+    "claimScope",
+    "modelCalls",
+    "executionPath",
+    "admissionScope",
+    "requiredContract",
+    "binding",
+    "controls",
+    "children",
+    "cases",
+    "inputSnapshots",
+    "inputArchives",
+    "inputEnrollment",
+    "environment",
+    "toolchain",
+    "metrics",
+    "runtimeLimitations",
+    "qualificationDigest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "legion-rust-code-sdk-accuracy/1"
+    },
+    "provider": {
+      "const": "code.rust"
+    },
+    "productionQualification": {
+      "const": false
+    },
+    "selfProducerQualification": {
+      "const": false
+    },
+    "publicHelperQualification": {
+      "const": false
+    },
+    "qualificationEligible": {
+      "const": true
+    },
+    "modelCalls": {
+      "const": 0
+    },
+    "claimScope": {
+      "const": "known-answer-fixture-cases"
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19,
+      "uniqueItems": true
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19
+    },
+    "children": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19
+    },
+    "qualificationDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "kind": {
+      "const": "code-rust-sdk-constructed"
+    },
+    "providerVersion": {
+      "type": "string"
+    },
+    "platform": {
+      "const": {
+        "os": "macos",
+        "arch": "aarch64"
+      }
+    },
+    "retainedRoot": {
+      "type": "string"
+    },
+    "executionPath": {
+      "type": "string"
+    },
+    "admissionScope": {
+      "type": "string"
+    },
+    "requiredContract": {
+      "type": "object"
+    },
+    "binding": {
+      "type": "object"
+    },
+    "inputSnapshots": {
+      "type": "object"
+    },
+    "inputArchives": {
+      "type": "object"
+    },
+    "inputEnrollment": {
+      "type": "object"
+    },
+    "environment": {
+      "type": "object"
+    },
+    "toolchain": {
+      "type": "object"
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "runtimeLimitations": {
+      "type": "array"
+    }
+  },
+  "$defs": {
+    "enrollment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "scope",
+        "productionQualification",
+        "inputsDigest",
+        "archives",
+        "nativeLinker",
+        "vendor",
+        "cargoHome",
+        "database"
+      ],
+      "properties": {
+        "schema": {
+          "const": "legion-rust-code-fixture-enrollment/1"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "productionQualification": {
+          "const": false
+        },
+        "inputsDigest": {
+          "type": "string"
+        },
+        "archives": {
+          "type": "object"
+        },
+        "nativeLinker": {
+          "type": "object"
+        },
+        "vendor": {
+          "type": "object"
+        },
+        "cargoHome": {
+          "type": "object"
+        },
+        "database": {
+          "type": "object"
+        }
+      }
+    },
+    "nativeLinker": {
+      "type": "object",
+      "required": [
+        "schema",
+        "target",
+        "bin",
+        "sdkRoot",
+        "resourceRoot",
+        "tools",
+        "discoveryTool",
+        "searchInputs",
+        "probes",
+        "runtime",
+        "nativeDiscovery",
+        "scope"
+      ],
+      "properties": {
+        "schema": {
+          "const": "legion-rust-native-linker-enrollment/1"
+        },
+        "target": {
+          "const": "aarch64-apple-darwin"
+        },
+        "probes": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

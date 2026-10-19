@@ -70,12 +70,13 @@ HARNESS_CONTROLS = {"security.scanner-tflint": ("tflint", "tflint", "terraform_u
                     "security.scanner-kubeconform": ("kubeconform", "kubeconform", "schema|pod.yaml|unresolved"),
                     "security.scanner-golangci-lint": ("golangci-lint", "golangci", "gosec|main.go|4"),
                     "container.iac": ("trivy", "trivy-iac", "DS-0002|Dockerfile")}
-VALIDATORS = {"javascript-sdk": "scripts/ci/audit-javascript-sdk-accuracy.py", "code-c-family-sdk": "scripts/ci/audit-c-family-sdk-accuracy.py", "code-mobile-sdk": "scripts/ci/audit-mobile-sdk-accuracy.py", "code-jvm-sdk": "scripts/ci/audit-jvm-sdk-accuracy.py", "ownership-native": "scripts/ci/validate-ownership-native-accuracy.py", "code-python-sdk": "scripts/ci/audit-python-code-sdk-accuracy.py", "code-long-tail": "scripts/ci/audit-code-long-tail-accuracy.py", "code-sdk": "scripts/ci/audit-code-sdk-accuracy.py", "node-outdated": "scripts/ci/audit-node-outdated-accuracy.py", "harness-rust-outdated": "scripts/ci/audit-rust-outdated-provider-accuracy.py", "semgrep-sdk": "scripts/ci/audit-semgrep-provider-accuracy.py", "pip-audit": "scripts/ci/audit-pip-audit-provider-accuracy.py", "secrets-history": "scripts/ci/audit-secrets-history-provider-accuracy.py", "cargo-geiger": "scripts/ci/audit-cargo-geiger-accuracy.py", "cargo-deny": "scripts/ci/audit-cargo-deny-accuracy.py", "cargo-audit-sdk": "scripts/ci/audit-cargo-audit-provider-accuracy.py", "license-checker": "scripts/ci/audit-license-provider-accuracy.py", "harness-machete": "scripts/ci/audit-cargo-machete-provider-accuracy.py", "osv-artifact": "scripts/ci/audit-osv-artifact-accuracy.py", "opengrep-artifact": "scripts/ci/audit-opengrep-artifact-accuracy.py", "visual": "scripts/ci/audit-visual-provider-accuracy.py", "harness-ast-grep": "scripts/ci/audit-ast-grep-provider-accuracy.py", "file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
+VALIDATORS = {"code-rust-sdk": "scripts/ci/audit-rust-code-sdk-accuracy.py", "javascript-sdk": "scripts/ci/audit-javascript-sdk-accuracy.py", "code-c-family-sdk": "scripts/ci/audit-c-family-sdk-accuracy.py", "code-mobile-sdk": "scripts/ci/audit-mobile-sdk-accuracy.py", "code-jvm-sdk": "scripts/ci/audit-jvm-sdk-accuracy.py", "ownership-native": "scripts/ci/validate-ownership-native-accuracy.py", "code-python-sdk": "scripts/ci/audit-python-code-sdk-accuracy.py", "code-long-tail": "scripts/ci/audit-code-long-tail-accuracy.py", "code-sdk": "scripts/ci/audit-code-sdk-accuracy.py", "node-outdated": "scripts/ci/audit-node-outdated-accuracy.py", "harness-rust-outdated": "scripts/ci/audit-rust-outdated-provider-accuracy.py", "semgrep-sdk": "scripts/ci/audit-semgrep-provider-accuracy.py", "pip-audit": "scripts/ci/audit-pip-audit-provider-accuracy.py", "secrets-history": "scripts/ci/audit-secrets-history-provider-accuracy.py", "cargo-geiger": "scripts/ci/audit-cargo-geiger-accuracy.py", "cargo-deny": "scripts/ci/audit-cargo-deny-accuracy.py", "cargo-audit-sdk": "scripts/ci/audit-cargo-audit-provider-accuracy.py", "license-checker": "scripts/ci/audit-license-provider-accuracy.py", "harness-machete": "scripts/ci/audit-cargo-machete-provider-accuracy.py", "osv-artifact": "scripts/ci/audit-osv-artifact-accuracy.py", "opengrep-artifact": "scripts/ci/audit-opengrep-artifact-accuracy.py", "visual": "scripts/ci/audit-visual-provider-accuracy.py", "harness-ast-grep": "scripts/ci/audit-ast-grep-provider-accuracy.py", "file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
               "scanner": "scripts/ci/audit-real-provider-accuracy.py", "git": "scripts/ci/audit-real-provider-accuracy.py",
               "extra-scanner": "scripts/ci/audit-extra-provider-accuracy.py", "linter": "scripts/ci/audit-extra-provider-accuracy.py"}
 FILE_HARNESS = ["audit_cargo_test", "--test", "security_packs", "--test", "architecture_input_producer", "--test", "code_provider_accuracy",
                 "--test", "suite_provider_accuracy", "--test", "legacy_file_accuracy", "--test", "artifact_provider_accuracy",
                 "file_only_provider_accuracy", "--", "--nocapture", "--test-threads=1"]
+RUST_SDK_HARNESS = ["audit_cargo_test", "--test", "real_rust_code_accuracy", "real_rust_code_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 PYTHON_SDK_HARNESS = ["audit_cargo_test", "--test", "real_python_code_command_accuracy", "real_python_code_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 JVM_SDK_HARNESS = ["audit_jvm_qualification"]
 CODE_MOBILE_HARNESS = ["audit_cargo_test", "--lib", ADAPTERS["code.mobile"][4], "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
@@ -181,6 +182,9 @@ def adapter(root, entry):
     if entry["family"] == "dotnet-sdk":
         require(provider == "code.dotnet" and entry["stage"] == "finding", ".NET SDK provider/stage differs")
         return "dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", DOTNET_SDK_SELECTOR
+    if entry["family"] == "code-rust-sdk":
+        require(provider == "code.rust" and entry["stage"] == "finding" and entry["scope"] == "known-answer-fixture-cases", "Rust SDK provider/stage/scope differs")
+        return "code-rust-sdk", "real_rust_code_accuracy", "canonical-json", "real_rust_code_accuracy"
     if entry["family"] == "code-jvm-sdk":
         require(provider == "code.jvm" and entry["stage"] == "finding", "JVM SDK provider/stage differs")
         return "code-jvm-sdk", "real_jvm_sdk_accuracy", "canonical-json", "real_jvm_sdk_accuracy"
@@ -208,7 +212,10 @@ def closure_paths(root, entry):
     paths = {GATE, TEST, SCHEMA, ".github/workflows/ci.yml", "scripts/ci/right-git-ci.sh"}
     if family in VALIDATORS:
         paths.add(VALIDATORS[family])
-    if family == "code-c-family-sdk":
+    if family == "code-rust-sdk":
+        paths.update(helper("audit-rust-code-sdk-accuracy.py")["source_files"](root))
+        paths.update({"scripts/ci/audit-code-sdk-accuracy.py", "scripts/ci/schemas/audit-rust-code-sdk-accuracy.schema.json"})
+    elif family == "code-c-family-sdk":
         paths.update(helper("audit-c-family-sdk-registration.py")["source_files"](root))
     elif family == "javascript-sdk":
         paths.update(helper("audit-javascript-sdk-accuracy.py")["source_files"](root))
@@ -392,8 +399,8 @@ def summary_projection(value, family, provider):
 def log_evidence(log, row, validated, family, code_artifact=None):
     emissions, summaries = [], []
     provider = row.get("provider", row.get("providerId"))
-    emission = "C_FAMILY_SDK_ACCURACY_ARTIFACT" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_ARTIFACT" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_ARTIFACT" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_ARTIFACT" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY" if family == "harness-ast-grep" else "QUALITY_COMMAND_SDK_ACCURACY" if family == "harness-quality" else "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
-    summary = "C_FAMILY_SDK_ACCURACY_SUMMARY" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_SUMMARY" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_SUMMARY" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_SUMMARY" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY_SUMMARY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY_SUMMARY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY_SUMMARY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION_SUMMARY" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY_SUMMARY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY_SUMMARY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
+    emission = "RUST_CODE_SDK_ACCURACY_ARTIFACT" if family == "code-rust-sdk" else "C_FAMILY_SDK_ACCURACY_ARTIFACT" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_ARTIFACT" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_ARTIFACT" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_ARTIFACT" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY" if family == "harness-ast-grep" else "QUALITY_COMMAND_SDK_ACCURACY" if family == "harness-quality" else "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
+    summary = "RUST_CODE_SDK_ACCURACY_SUMMARY" if family == "code-rust-sdk" else "C_FAMILY_SDK_ACCURACY_SUMMARY" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_SUMMARY" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_SUMMARY" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_SUMMARY" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY_SUMMARY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY_SUMMARY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY_SUMMARY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION_SUMMARY" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY_SUMMARY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY_SUMMARY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
     emission_separator = "=" if family == "harness-ast-grep" else " "
     summary_separator = "=" if family == "harness-ast-grep" else " "
     if family == "dotnet-sdk":
@@ -406,7 +413,7 @@ def log_evidence(log, row, validated, family, code_artifact=None):
     originals = emissions if family == "bench-known-answer" else [(number, value) for number, value in emissions
         if value.get("provider", value.get("providerId")) == provider]
     require(len(originals) == 1, "CI log missing/duplicate original record emission")
-    same(originals[0][1], code_artifact if family in ("dotnet-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
+    same(originals[0][1], code_artifact if family in ("dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
     if family in ("harness-scanner", "harness-iac", "bench-known-answer", "harness-quality"):
         return None, originals[0][0], None
     successful = [(number, value) for number, value in summaries if summary_projection(value, family, provider) is not None]
@@ -442,7 +449,7 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
         require(sequence in ends, "qualification command never terminated")
         end, status = ends[sequence]
         require(start < evidence_line < end and status == 0, "qualification command failed/cancelled or evidence outside span")
-        if summary_line is None or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
+        if summary_line is None or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "real_rust_code_accuracy"], ["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             outcomes = re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span)
             expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[2]] if command in (SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS) else [command[3]]
@@ -476,7 +483,7 @@ def provenance(root, entry, row, validated):
     validator = VALIDATORS.get(family)
     for args in proof["command"].values():
         require(isinstance(args, list) and 0 < len(args) <= 100 and all(isinstance(arg, str) and 0 < len(arg) <= 4096 for arg in args), "CI command missing")
-    wanted_harness = (helper("audit-c-family-sdk-registration.py")["HARNESS_COMMAND"] if family == "code-c-family-sdk" else CODE_MOBILE_HARNESS if family == "code-mobile-sdk" else JVM_SDK_HARNESS if family == "code-jvm-sdk" else PYTHON_SDK_HARNESS if family == "code-python-sdk" else CODE_SDK_HARNESS if family == "code-sdk" else SECRETS_HISTORY_HARNESS if family == "secrets-history" else FILE_HARNESS if family == "file" else QUALITY_HARNESS if family == "harness-quality" else BENCH_HARNESS if family == "bench-known-answer" else ["audit_tflint_qualification"] if entry["provider"] == "security.scanner-tflint" else
+    wanted_harness = (RUST_SDK_HARNESS if family == "code-rust-sdk" else helper("audit-c-family-sdk-registration.py")["HARNESS_COMMAND"] if family == "code-c-family-sdk" else CODE_MOBILE_HARNESS if family == "code-mobile-sdk" else JVM_SDK_HARNESS if family == "code-jvm-sdk" else PYTHON_SDK_HARNESS if family == "code-python-sdk" else CODE_SDK_HARNESS if family == "code-sdk" else SECRETS_HISTORY_HARNESS if family == "secrets-history" else FILE_HARNESS if family == "file" else QUALITY_HARNESS if family == "harness-quality" else BENCH_HARNESS if family == "bench-known-answer" else ["audit_tflint_qualification"] if entry["provider"] == "security.scanner-tflint" else
                       ["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"])
     if family in ("javascript-sdk", "ownership-native", "code-long-tail", "visual", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated"):
         wanted_harness.insert(wanted_harness.index("--nocapture"), "--exact")
@@ -487,7 +494,7 @@ def provenance(root, entry, row, validated):
         require(proof["validator"] is None, "harness-only proof must not invent independent validator")
     else:
         require(proof["command"]["validator"][:2] == ["python3", validator], "CI validator command differs")
-        options = ["--root", "--receipts"] if family in ("javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-jvm-sdk", "ownership-native", "code-python-sdk", "code-long-tail", "code-sdk", "file", "shellcheck", "visual", "secrets-history", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
+        options = ["--root", "--receipts"] if family in ("code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-jvm-sdk", "ownership-native", "code-python-sdk", "code-long-tail", "code-sdk", "file", "shellcheck", "visual", "secrets-history", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
         args = proof["command"]["validator"]
         if family == "dotnet-sdk":
             options = ["--root", "--receipts"]
@@ -516,6 +523,8 @@ def provenance(root, entry, row, validated):
             require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-dotnet-sdk")
                     and args[5] == str(PurePosixPath(row["cases"][0]["policyDefinition"]["scratch"]).parents[2]),
                     ".NET SDK validator native receipt scope differs")
+        if family == "code-rust-sdk":
+            require(Path(args[3]).is_absolute() and args[5] == row["retainedRoot"] and args[5].endswith("/legion-provider-qualification/code-rust-sdk"), "Rust SDK validator original root differs")
         if family == "code-jvm-sdk":
             require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-jvm-sdk"), "JVM SDK validator original receipt root differs")
         if family == "code-python-sdk":
@@ -540,6 +549,10 @@ def provenance(root, entry, row, validated):
         raw = relative_file(root, entry["dotnetSdkEvidence"]["providerRecord"]["path"]).read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed .NET SDK record is not original artifact bytes")
         code_artifact = helper("audit-dotnet-sdk-accuracy.py")["artifact_locator"](row, raw)
+    if family == "code-rust-sdk":
+        raw = relative_file(root, entry["rustSdkEvidence"]["code_rust.json"]["path"]).read_bytes()
+        require(digest(raw) == entry["record"]["sha256"], "indexed Rust record is not original bytes")
+        code_artifact = helper("audit-rust-code-sdk-accuracy.py")["artifact_locator"](row, raw)
     if family == "code-jvm-sdk":
         raw = relative_file(root, entry["jvmSdkEvidence"]["code_jvm.json"]["path"]).read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed JVM SDK record is not original artifact bytes")
@@ -587,6 +600,10 @@ def record_binding(root, entry, path, row, registry):
     if family == "dotnet-sdk":
         require(entry["provenance"]["platform"] == "macos-15", ".NET SDK native platform differs")
         return helper("audit-dotnet-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["dotnetSdkEvidence"]["dotnetEnrollment"]["path"])))
+    if family == "code-rust-sdk":
+        require(entry["provenance"]["platform"] == "macos-15", "Rust SDK native platform differs")
+        retained = relative_file(root, entry["rustSdkEvidence"]["code_rust.json"]["path"]).parent
+        return helper("audit-rust-code-sdk-accuracy.py")["validate_retained"](root, row, retained)
     if family == "code-mobile-sdk":
         require(entry["provenance"]["platform"] == "macos-15", "mobile SDK native platform differs")
         _, evidence = code_mobile_evidence(root, entry, row)
@@ -1029,6 +1046,9 @@ def controls(row, entry):
                 and type(row.get("modelCalls")) is int and row["modelCalls"] == 0,
                 "incomplete/unexecuted .NET SDK controls cannot qualify")
         return
+    if entry["family"] == "code-rust-sdk":
+        require(row["provider"] == entry["provider"] == "code.rust" and row["qualificationEligible"] is True and row["productionQualification"] is False and row["claimScope"] == entry["scope"] == "known-answer-fixture-cases" and row["metrics"]["wholeProviderQualified"] is False, "Rust bounded claim differs")
+        return
     if entry["family"] == "code-mobile-sdk":
         require(row["schema"] == "legion-mobile-sdk-controls/2" and row["provider"] == entry["provider"] == "code.mobile"
                 and row["family"] == "code-mobile-sdk" and row["stage"] == entry["stage"] == "finding"
@@ -1240,6 +1260,8 @@ def qualification(entry):
             "recordSha256": entry["record"]["sha256"], "originalQualificationDigest": entry["record"]["qualificationDigest"],
             "validationBasis": "source-owned-harness-success" if entry["provider"] in HARNESS_CONTROLS or entry["family"] in ("bench-known-answer", "harness-quality") else "native-family-validator",
             "stage": entry["stage"], "scope": entry["scope"]}
+    if entry["family"] == "code-rust-sdk":
+        value.update({"productionQualification": False, "selfProducerQualification": False, "publicHelperQualification": False, "wholeProviderQualified": False, "fixtureScope": entry["scope"], "admissionScope": "exact constructed SDK fixture authorizer; production owner admission remains denied", "coverageScope": "five original Rust tasks; features/targets & unsafe soundness remain explicit gaps; unchanged historical RustSec subset only"})
     if entry["family"] == "code-mobile-sdk":
         value.update({"productionQualification":False, "wholePlatformQualified":False, "productionOwnerAdmissionQualified":False,
                       "fixtureScope":entry["scope"], "admissionScope":"constructed exact SDK admission; production owner admission remains denied",
@@ -1403,6 +1425,18 @@ def dotnet_sdk_evidence(root, entry, row):
     return {ref["path"] for ref in refs.values()}
 
 
+def rust_sdk_evidence(root, entry, row):
+    refs = entry["rustSdkEvidence"]
+    api = helper("audit-rust-code-sdk-accuracy.py")
+    keys(refs, api["retained_files"](row))
+    directory = f"{ARCHIVE}/records/code.rust/evidence/{row['qualificationDigest'].removeprefix('sha256:')}/"
+    for filename, ref in refs.items():
+        require(ref.get("path") == directory + filename, "Rust SDK original retained layout differs")
+        reference(root, ref, "records")
+    require(refs["code_rust.json"]["sha256"] == entry["record"]["sha256"], "Rust original record differs")
+    return {ref["path"] for ref in refs.values()}
+
+
 def check(root):
     root = Path(root).resolve()
     index = load(relative_file(root, INDEX))
@@ -1414,7 +1448,7 @@ def check(root):
     require(len({row["id"] for row in registry}) == len(registry), "duplicate registry provider")
     specs, entries = {row["id"]: row for row in registry}, {}
     for entry in index["entries"]:
-        keys(entry, ENTRY_KEYS | {"dotnetSdkEvidence"} if entry.get("family") == "dotnet-sdk" else ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS | {"codeSdkEvidence"} if entry.get("family") == "code-sdk" else ENTRY_KEYS)
+        keys(entry, ENTRY_KEYS | {"rustSdkEvidence"} if entry.get("family") == "code-rust-sdk" else ENTRY_KEYS | {"dotnetSdkEvidence"} if entry.get("family") == "dotnet-sdk" else ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS | {"codeSdkEvidence"} if entry.get("family") == "code-sdk" else ENTRY_KEYS)
         require(entry["provider"] in specs and entry["provider"] not in entries, "unexpected/duplicate index provider")
         entries[entry["provider"]] = entry
     retained = {INDEX, SCHEMA}
@@ -1435,6 +1469,8 @@ def check(root):
             row["qualificationDigest"] = claimed
         if entry["family"] == "javascript-sdk":
             retained.update(javascript_sdk_evidence(root, entry, row))
+        if entry["family"] == "code-rust-sdk":
+            retained.update(rust_sdk_evidence(root, entry, row))
         if entry["family"] == "code-jvm-sdk":
             retained.update(jvm_sdk_evidence(root, entry, row))
         if entry["family"] == "code-mobile-sdk":
@@ -1446,7 +1482,7 @@ def check(root):
         if entry["family"] == "code-sdk":
             retained.update(code_sdk_evidence(root, entry, row))
         controls(row, entry)
-        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("dotnet-sdk", "javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
+        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
         validated = record_binding(root, entry, path, row, specs)
         retained.add(entry["record"]["path"])
         retained.update(provenance(root, entry, row, validated))

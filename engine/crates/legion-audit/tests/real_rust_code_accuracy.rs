@@ -131,6 +131,7 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
         "engine/crates/legion-audit/tests/fixtures/cargo-audit",
         "scripts/ci/provision-rust-code-fixtures.py",
         "scripts/ci/provision-python-qualification-tools.py",
+        "scripts/ci/audit-pip-audit-provider-accuracy.py",
     ] {
         walk(&root, &root.join(path), &mut sources);
     }
@@ -1493,10 +1494,12 @@ fn verify_enrollment(enrollment: &Value) -> Value {
     let expected=format!("[source.crates-io]\nreplace-with=\"legion-fixed-vendor\"\n[source.legion-fixed-vendor]\ndirectory={}\n[target.aarch64-apple-darwin]\nlinker={}\nrustflags={}\n",serde_json::to_string(vendor.to_str().unwrap()).unwrap(),serde_json::to_string(clang).unwrap(),serde_json::to_string(&flags).unwrap());
     let native_snapshot = verify_native_linker(native);
     assert_eq!(config_bytes, expected.as_bytes());
-    assert_eq!(
-        enrollment["cargoHome"]["root"].as_str().unwrap(),
-        std::env::var("CARGO_HOME").unwrap()
-    );
+    if std::env::var_os("LEGION_RUST_CODE_CHILD").is_some() {
+        assert_eq!(
+            enrollment["cargoHome"]["root"].as_str().unwrap(),
+            std::env::var("CARGO_HOME").unwrap()
+        );
+    }
     let home = Path::new(enrollment["cargoHome"]["root"].as_str().unwrap());
     for name in ["config", "credentials", "credentials.toml"] {
         assert!(
@@ -1698,6 +1701,14 @@ fn real_rust_code_accuracy() {
     let runtime_bytes = serde_json::to_vec_pretty(&runtime_value).unwrap();
     fs::write(retained.join("toolchain-runtime.json"), &runtime_bytes).unwrap();
     fs::write(retained.join("input-enrollment.json"), &enrollment_bytes).unwrap();
+    let environment_bytes =
+        fs::read(enrollment_path.parent().unwrap().join("environment.json")).unwrap();
+    let environment: Value = serde_json::from_slice(&environment_bytes).unwrap();
+    assert_eq!(
+        environment,
+        json!({"CARGO_HOME":enrollment["cargoHome"]["root"],"LEGION_RUST_CODE_ENROLLMENT_JSON":enrollment_path,"SDKROOT":enrollment["nativeLinker"]["sdkRoot"]})
+    );
+    fs::write(retained.join("environment.json"), &environment_bytes).unwrap();
     fs::create_dir(retained.join("input-archives")).unwrap();
     let mut archives = BTreeMap::new();
     for (name, archive) in enrollment["archives"].as_object().unwrap() {
@@ -1710,7 +1721,7 @@ fn real_rust_code_accuracy() {
         );
     }
     let scanner = fs::canonicalize(std::env::var_os("LEGION_CARGO_AUDIT_BIN").unwrap()).unwrap();
-    let cargo_home = fs::canonicalize(std::env::var_os("CARGO_HOME").unwrap()).unwrap();
+    let cargo_home = fs::canonicalize(enrollment["cargoHome"]["root"].as_str().unwrap()).unwrap();
     let mut child_receipts = Vec::new();
     let mut cases = Vec::new();
     for control in CONTROLS {
@@ -1793,6 +1804,7 @@ fn real_rust_code_accuracy() {
         "executionPath":"native-sdk-frozen-plan-self-sourced-code","admissionScope":"exact constructed authorizer & genuine default denial; no production owner admission",
         "requiredContract":{"tools":TASKS,"contexts":config.required_context,"unsafe":"keyword inventory & explicit soundness gap; no semantic assessment","dependency":"dependency/v1 official unchanged RUSTSEC-2019-0009 subset only"},
         "binding":binding(ID,&fixture_sources),"controls":CONTROLS,"children":child_receipts,"cases":cases,
+        "environment":{"file":"environment.json","digest":digest(&environment_bytes),"bytes":environment_bytes.len()},
         "inputSnapshots":{"before":input_before,"after":input_after,"unchanged":input_stable},"inputArchives":archives,"inputEnrollment":{"file":"input-enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},
         "toolchain":{"version":"1.98.0","file":"toolchain-runtime.json","digest":digest(&runtime_bytes),"bytes":runtime_bytes.len(),"after":{"file":"toolchain-runtime-after.json","digest":digest(&runtime_after_bytes),"bytes":runtime_after_bytes.len()},"unchanged":runtime_stable},
         "metrics":{"cases":cases.len(),"matched":cases.iter().filter(|case|case["matched"]==true).count(),"wholeProviderQualified":false,"boundedSdkAccuracyQualified":eligible},
