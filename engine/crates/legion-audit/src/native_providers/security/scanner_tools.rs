@@ -689,6 +689,18 @@ impl<'a> Run<'a> {
 mod tests {
     use super::*;
 
+    fn fixture_producer(root: &Path) -> ArtifactProducer {
+        ArtifactProducer::new(root).with_policy_authorizer(Arc::new(legion_effects::StaticPolicy {
+            decision: legion_effects::PolicyDecision {
+                allowed: true,
+                policy_id: "scanner-fixture".into(),
+                policy_version: 1,
+                policy_digest: format!("sha256:{}", "f".repeat(64)),
+                reason: None,
+            },
+        }))
+    }
+
     fn provider(id: &str, selector: Value) -> AuditProvider {
         serde_json::from_value(json!({"id":id,"version":"1.0.0","role":"candidate-generator","phase":"source","dependencies":[],"kind":"rust-algorithm","configuration":{"selector":selector},"cleanClaim":"evidence-only","benchmarkStatus":"unproven","benchmarkRequiredForCleanClaim":false,"qualificationDigest":null,"required":true})).unwrap()
     }
@@ -729,7 +741,7 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let text = "ALTER TABLE users DROP COLUMN name;\n";
         fs::write(root.join("m.sql"), text).unwrap();
-        let producer = ArtifactProducer::new(&root).with_search_path(vec![]);
+        let producer = fixture_producer(&root).with_search_path(vec![]);
         let provider = provider("security.scanner-squawk", scanners::selector("squawk"));
         let Production::Artifact(input) = producer.produce(&provider, &inventory("m.sql", text))
         else {
@@ -752,7 +764,7 @@ mod tests {
         let text = format!("token = '{token}'\n");
         fs::write(root.join("fixtures/token.env"), &text).unwrap();
         let provider = provider("secrets.current-history", json!({"op":"always"}));
-        let Production::Artifact(input) = ArtifactProducer::new(&root)
+        let Production::Artifact(input) = fixture_producer(&root)
             .with_search_path(vec![])
             .produce(&provider, &inventory("fixtures/token.env", &text))
         else {
@@ -779,7 +791,7 @@ mod tests {
                 &format!("security.scanner-{tool}"),
                 scanners::selector(tool),
             );
-            let Production::Artifact(input) = ArtifactProducer::new(&root)
+            let Production::Artifact(input) = fixture_producer(&root)
                 .with_search_path(vec![])
                 .produce(&provider, &inventory("package.json", text))
             else {
@@ -847,7 +859,7 @@ mod tests {
                 &format!("security.scanner-{tool}"),
                 scanners::selector(tool),
             );
-            let Production::Artifact(input) = ArtifactProducer::new(&root)
+            let Production::Artifact(input) = fixture_producer(&root)
                 .with_search_path(vec![])
                 .produce(&provider, &inventory)
             else {
@@ -941,7 +953,7 @@ mod tests {
                     &format!("security.scanner-{tool}"),
                     scanners::selector(tool),
                 );
-                let Production::Artifact(input) = ArtifactProducer::new(&root)
+                let Production::Artifact(input) = fixture_producer(&root)
                     .with_search_path(vec![])
                     .produce(&provider, &inventory("pod.yaml", text))
                 else {

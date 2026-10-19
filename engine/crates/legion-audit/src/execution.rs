@@ -103,6 +103,10 @@ pub struct ProviderExecution {
 pub struct ExecutionReport {
     pub plan_digest: String,
     pub plan_signature: Option<String>,
+    #[serde(default)]
+    pub execution_policy: serde_json::Value,
+    #[serde(default)]
+    pub execution_policy_identity: serde_json::Value,
     pub generation: String,
     pub inventory_digest: String,
     pub planned_providers: Vec<String>,
@@ -464,6 +468,8 @@ pub fn execute(
     Ok(ExecutionReport {
         plan_digest: plan.digest().into(),
         plan_signature: plan.signature().map(ToOwned::to_owned),
+        execution_policy: plan.plan().bounds["executionPolicy"].clone(),
+        execution_policy_identity: plan.plan().bounds["executionPolicyIdentity"].clone(),
         generation: inventory.generation.clone(),
         inventory_digest: inventory.digest.clone(),
         planned_providers,
@@ -661,6 +667,8 @@ pub async fn execute_with_cancellation(
     Ok(ExecutionReport {
         plan_digest: plan.digest().into(),
         plan_signature: plan.signature().map(ToOwned::to_owned),
+        execution_policy: plan.plan().bounds["executionPolicy"].clone(),
+        execution_policy_identity: plan.plan().bounds["executionPolicyIdentity"].clone(),
         generation: inventory.generation.clone(),
         inventory_digest: inventory.digest.clone(),
         planned_providers,

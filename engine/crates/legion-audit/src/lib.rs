@@ -4,6 +4,7 @@ pub mod continuation;
 mod dag;
 mod error;
 mod execution;
+pub mod execution_policy;
 pub mod graph_context;
 mod integrity;
 mod inventory;

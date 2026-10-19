@@ -185,6 +185,11 @@ impl ProviderExecutor for NativeProviderRegistry {
         if reasoning::REASONING_PROVIDER_IDS.contains(&provider.id.as_str()) {
             return self.reasoning.execute_bound(plan, provider, inventory);
         }
+        if provider.id == "governance.capability-ownership" {
+            return self
+                .legacy
+                .execute_ownership_bound(plan, provider, inventory);
+        }
         self.execute(provider, inventory)
     }
 

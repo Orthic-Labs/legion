@@ -42,6 +42,7 @@ pub fn verify(
     signature: Option<&str>,
     key: Option<&[u8]>,
 ) -> Result<(), AuditError> {
+    plan.validate_execution_policy()?;
     if plan_digest(plan)? != expected_digest {
         return Err(AuditError::SourceDrift("audit plan digest mismatch".into()));
     }

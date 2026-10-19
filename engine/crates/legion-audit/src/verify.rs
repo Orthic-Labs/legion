@@ -268,6 +268,14 @@ pub fn verify_source_diagnostic(
 }
 
 fn verify_execution_structure(report: &ExecutionReport) -> Result<(), AuditError> {
+    let policy = crate::execution_policy::binding();
+    if report.execution_policy != policy["executionPolicy"]
+        || report.execution_policy_identity != policy["executionPolicyIdentity"]
+    {
+        return Err(AuditError::Invalid(
+            "audit execution policy binding is absent or unsupported; regenerate Audit plan".into(),
+        ));
+    }
     if report.planned_providers.is_empty() {
         return Err(AuditError::Invalid(
             "audit execution has no planned providers".into(),
@@ -390,6 +398,8 @@ mod effect_artifact_tests {
             "planSignature": null,
             "generation": "generation",
             "inventoryDigest": "sha256:inventory",
+            "executionPolicy": crate::execution_policy::resolved_policy(),
+            "executionPolicyIdentity": crate::execution_policy::binding()["executionPolicyIdentity"],
             "plannedProviders": ["fixture.provider"],
             "results": [{
                 "provider": "fixture.provider",

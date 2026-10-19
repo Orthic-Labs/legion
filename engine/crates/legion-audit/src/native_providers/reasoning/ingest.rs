@@ -5623,6 +5623,7 @@ fn verify_persisted_native_plan(
             .ok_or_else(|| invalid("nativePlan body is missing"))?,
     )
     .map_err(|error| invalid(format!("nativePlan body is invalid: {error}")))?;
+    plan.validate_execution_policy()?;
     reject_provider_universe_execution_plan(&plan)?;
     let provider_ids = plan
         .providers
@@ -5642,6 +5643,8 @@ fn verify_persisted_native_plan(
         .collect::<Result<Vec<_>, _>>()?;
     if plan.inventory_generation != execution.generation
         || plan.inventory_digest != execution.inventory_digest
+        || plan.bounds.get("executionPolicy") != Some(&execution.execution_policy)
+        || plan.bounds.get("executionPolicyIdentity") != Some(&execution.execution_policy_identity)
         || outer.get("repository").and_then(Value::as_str) != Some(plan.repository_id.as_str())
         || provider_ids != execution.planned_providers
         || provider_ids != outer_ids
@@ -6090,7 +6093,14 @@ mod provider_universe_binding_tests {
 
     const KEY: &[u8] = b"provider-universe-test-key";
 
-    fn plan(bounds: BTreeMap<String, Value>) -> AuditPlan {
+    fn plan(mut bounds: BTreeMap<String, Value>) -> AuditPlan {
+        bounds.extend(
+            crate::execution_policy::binding()
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
         AuditPlan {
             schema_version: 1,
             repository_id: "/repo".into(),

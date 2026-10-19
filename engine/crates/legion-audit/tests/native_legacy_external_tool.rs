@@ -17,7 +17,7 @@ use legion_effects::{DigestState, ExecutableIdentity, SignatureState, VersionPro
 use legion_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::Digest;
 use tokio_util::sync::CancellationToken;
 
@@ -239,6 +239,80 @@ fn completed_receipt_reads_immutable_stdout_and_projects_result() {
         .as_str()
         .unwrap()
         .starts_with("audit:"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn native_owner_denial_preserves_plan_report_binding_and_provider_coverage() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"scripts":{"build":"must-never-start"}}"#,
+    )
+    .unwrap();
+    let inventory = inventory();
+    let plan = plan(&inventory);
+    #[cfg(unix)]
+    let process = legion_effects::platform::unix::UnixProcess::new();
+    #[cfg(windows)]
+    let process = legion_effects::platform::windows::WindowsProcess::default();
+    let registry = NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(
+        legion_effects::EffectExecutor::new(
+            process,
+            legion_effects::ArtifactWriter::new(root.join("effects")),
+            legion_audit::execution_policy::OwnerAdmissionRequired,
+        ),
+    ));
+    let execution = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    assert_eq!(execution.planned_providers, vec!["legacy.quality.build"]);
+    assert_eq!(plan.providers().len(), 1);
+    assert_eq!(execution.results.len(), 1);
+    assert!(!execution.results[0].skipped);
+    let result = &execution.results[0].result;
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert!(!result.complete);
+    assert_eq!(
+        result.details["availability"]["reason"],
+        legion_audit::execution_policy::ADMISSION_UNAVAILABLE
+    );
+    let receipt = &result.details["executionReceipt"];
+    assert_eq!(receipt["state"], "unauthorized_effect");
+    assert_eq!(receipt["processTree"]["started"], false);
+    assert_eq!(receipt["executable"], Value::Null);
+    assert_eq!(receipt["planId"], plan.digest());
+    assert_eq!(
+        receipt["executionPolicy"],
+        plan.plan().bounds["executionPolicy"]
+    );
+    let report = legion_audit::canonical_report("repo", &execution).unwrap();
+    assert_eq!(report.status, legion_contracts::ReportStatus::Incomplete);
+    assert_eq!(
+        report.claims["executionPolicy"],
+        plan.plan().bounds["executionPolicy"]
+    );
+    assert_eq!(
+        report.claims["executionPolicyIdentity"],
+        plan.plan().bounds["executionPolicyIdentity"]
+    );
+    assert!(legion_audit::verify_execution(&execution).is_ok());
+    let mut tampered = execution.clone();
+    tampered.execution_policy["effectiveMode"] = json!("allow-external");
+    assert!(legion_audit::verify_execution(&tampered).is_err());
+    assert!(report.claims["coverageNotes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|note| note
+            .as_str()
+            .is_some_and(|note| note.contains("native-owner-admission-unavailable"))));
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -706,6 +780,82 @@ fn enrolled_runner_registration_and_version_gaps_do_not_copy_or_launch() {
         fs::remove_dir_all(scratch_path).unwrap();
         fs::remove_dir_all(root).unwrap();
     }
+}
+
+#[test]
+fn enrolled_managed_test_requires_admission_before_git_inventory_or_copy() {
+    let root = root();
+    fs::write(
+        root.join("package.json"),
+        r#"{"packageManager":"pnpm@9.1.0","scripts":{"test":"vitest"}}"#,
+    )
+    .unwrap();
+    let client = root.join("trusted-bin/rightkit");
+    fs::create_dir_all(client.parent().unwrap()).unwrap();
+    let bytes = b"fixture pinned rightkit client";
+    fs::write(&client, bytes).unwrap();
+    let enrollment = enrollment_with(
+        &root,
+        1,
+        "trusted-bin/rightkit",
+        hex::encode(sha2::Sha256::digest(bytes)),
+        json!({"pnpm":{"brokerAdapterId":"pnpm-test-adapter","qualifiedVersion":"9.1.0"}}),
+    );
+    let inventory = FilesystemInventorySource::new(&root)
+        .unwrap()
+        .inventory("fixture")
+        .unwrap();
+    let plan = plan_for(&inventory, "legacy.quality.test", "test", "deterministic");
+    let captured = Arc::new(Mutex::new(None));
+    let scratch_path = root.with_file_name(format!(
+        "{}-scratch",
+        root.file_name().unwrap().to_string_lossy()
+    ));
+    let scratch = Arc::new(AuditScratch::with_scratch_dir(&root, &scratch_path).unwrap());
+    let registry = NativeProviderRegistry::new(&root)
+        .with_scratch(scratch.clone())
+        .with_attested_runs(enrollment)
+        .with_external_project_tool(Arc::new(CapturingTool {
+            request: captured.clone(),
+        }));
+    let execution = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(legion_audit::execute_with_cancellation(
+            &plan,
+            &inventory,
+            &registry,
+            CancellationToken::new(),
+        ))
+        .unwrap();
+    assert_eq!(execution.results.len(), 1);
+    let result = &execution.results[0].result;
+    assert!(!result.complete);
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(
+        result.details["availability"]["reason"],
+        legion_audit::execution_policy::ADMISSION_UNAVAILABLE
+    );
+    let receipt = &result.details["executionReceipt"];
+    assert_eq!(receipt["state"], "unauthorized_effect");
+    assert_eq!(receipt["planId"], plan.digest());
+    assert_eq!(receipt["taskId"], "managed-test-disposable-copy");
+    assert_eq!(receipt["processTree"]["started"], false);
+    assert_eq!(receipt["executable"], Value::Null);
+    assert_eq!(
+        receipt["executionPolicyIdentity"],
+        legion_audit::execution_policy::binding()["executionPolicyIdentity"]
+    );
+    assert!(result.coverage.as_ref().unwrap().expected > 0);
+    assert_eq!(result.coverage.as_ref().unwrap().examined, 0);
+    assert!(captured.lock().unwrap().is_none());
+    assert!(fs::read_dir(&scratch_path).unwrap().all(|entry| !entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with("test-copy-")));
+    drop(registry);
+    drop(scratch);
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]

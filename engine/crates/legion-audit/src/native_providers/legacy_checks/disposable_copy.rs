@@ -1320,6 +1320,8 @@ fn copied_request(
 /// source-unchanged broker receipts produce a pass or failing-test finding.
 pub(super) async fn execute(
     tool: &dyn ExternalProjectTool,
+    plan_digest: &str,
+    preparation_authorizer: Option<&dyn legion_effects::PolicyAuthorizer>,
     root: &Path,
     command: &ResolvedCommand,
     source: &Value,
@@ -1444,6 +1446,57 @@ pub(super) async fn execute(
             json!({"assurance":"attested-runs-required","reason":"pinned-client-unavailable-or-mismatched"}),
         );
     }
+    // Enrollment authenticates the broker; it does not admit Git inventory,
+    // disposable-copy preparation, or the managed test operation itself.
+    let preparation = ExternalToolRequest {
+        request_id: format!(
+            "audit:{}:{}:managed-test-preparation",
+            provider.id, plan_digest
+        ),
+        provider_id: provider.id.clone(),
+        plan_id: plan_digest.into(),
+        policy_id: crate::execution_policy::POLICY_ID.into(),
+        task_id: Some("managed-test-disposable-copy".into()),
+        executable: command.executable.to_string_lossy().into_owned(),
+        args: command.args.clone(),
+        cwd: root.to_string_lossy().into_owned(),
+        timeout_ms,
+        ..ExternalToolRequest::default()
+    };
+    let decision = preparation_authorizer.map_or_else(
+        || {
+            legion_effects::PolicyAuthorizer::authorize(
+                &crate::execution_policy::OwnerAdmissionRequired,
+                &preparation,
+            )
+        },
+        |authorizer| authorizer.authorize(&preparation),
+    );
+    if !decision.allowed {
+        #[cfg(unix)]
+        let process = legion_effects::platform::unix::UnixProcess::new();
+        #[cfg(windows)]
+        let process = legion_effects::platform::windows::WindowsProcess::default();
+        let effects = legion_effects::EffectExecutor::new(
+            process,
+            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+            legion_effects::StaticPolicy { decision },
+        );
+        let receipt = effects
+            .execute_with_cancellation(&preparation, cancellation)
+            .await;
+        return super::execution_from_receipt(
+            input,
+            super::spec(&provider.id)
+                .expect("managed test contract")
+                .command,
+            &[root],
+            receipt,
+            super::ReportSource::Stdout,
+            None,
+            Some(source.clone()),
+        );
+    }
     let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
     let mut copy = match prepare_copy(
         root,
@@ -1504,7 +1557,7 @@ pub(super) async fn execute(
             hex::encode(Sha256::digest(request_material.as_bytes()))
         ),
         provider_id: provider.id.clone(),
-        plan_id: input.inventory_digest.clone(),
+        plan_id: plan_digest.into(),
         policy_id: provider
             .configuration
             .get("policyId")

@@ -2,7 +2,7 @@
 //!
 //! Runs the REAL native Audit providers (production dispatch through
 //! `NativeProviderRegistry`, wired to the real `EffectExecutor` subprocess
-//! route exactly as `legion` bin's `native_audit_external_tool` wires it) over
+//! route with an explicit in-process fixture authorizer) over
 //! the AU20 planted-defect bench fixtures ported from `bench/manifest.json`.
 //! For every bench class this asserts: the positive fixture is detected, and
 //! the negative-control fixture produces zero findings. A class with no
@@ -197,9 +197,9 @@ fn inventory(paths: &[String]) -> InventoryEnvelope {
     .expect("fixture inventory")
 }
 
-/// The real production external-tool route: `EffectExecutor` over the real
-/// platform process backend, exactly as `legion` bin's
-/// `native_audit_external_tool` wires it for `/audit`. No reimplemented
+/// Real `EffectExecutor` over the platform backend with SDK fixture admission.
+/// Production CLI denies external tools until native owner admission exists.
+/// This harness proves provider behavior, not deployment admission. No reimplemented
 /// detector logic — findings come only from the real subprocess + parser.
 fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {

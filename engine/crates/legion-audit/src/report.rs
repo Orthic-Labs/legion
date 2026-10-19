@@ -223,6 +223,11 @@ pub fn canonical_report(
         claims: BTreeMap::from([
             ("planDigest".into(), json!(execution.plan_digest)),
             ("planSignature".into(), json!(execution.plan_signature)),
+            ("executionPolicy".into(), execution.execution_policy.clone()),
+            (
+                "executionPolicyIdentity".into(),
+                execution.execution_policy_identity.clone(),
+            ),
             ("inventoryGeneration".into(), json!(execution.generation)),
             ("inventoryDigest".into(), json!(execution.inventory_digest)),
             (
@@ -363,6 +368,10 @@ mod tests {
         ExecutionReport {
             plan_digest: format!("sha256:{}", "a".repeat(64)),
             plan_signature: Some("signed".into()),
+            execution_policy: crate::execution_policy::resolved_policy(),
+            execution_policy_identity: crate::execution_policy::binding()
+                ["executionPolicyIdentity"]
+                .clone(),
             generation: "test-generation".into(),
             inventory_digest: format!("sha256:{}", "b".repeat(64)),
             planned_providers: results.iter().map(|row| row.provider.clone()).collect(),

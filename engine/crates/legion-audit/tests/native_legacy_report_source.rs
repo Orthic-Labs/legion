@@ -1,8 +1,8 @@
 //! Production-route coverage for `ReportSource` (mod.rs): cargo-deny's JSON
 //! diagnostics arrive on stderr and jscpd's JSON report arrives as a file
 //! under a per-run temp dir, not stdout. Both must reach their parser
-//! through the real `EffectExecutor` subprocess route — exactly as
-//! `legion` bin's `native_audit_external_tool` wires it — via tiny fake
+//! through the real `EffectExecutor` subprocess route with explicit SDK
+//! fixture admission (production CLI denies external admission) via tiny fake
 //! executables, not a fabricated `ExternalProjectTool`/`ExecutionReceipt`.
 //!
 //! Unix-only: relies on shell-script fake executables and POSIX permission
@@ -106,8 +106,8 @@ fn plan_for(
     })).unwrap()]).unwrap().freeze(Some(b"test-key")).unwrap()
 }
 
-/// The real production external-tool route: `EffectExecutor` over the real
-/// unix subprocess backend, wired exactly as `legion` bin does for `/audit`.
+/// Real effect executor & Unix backend with explicit in-process SDK fixture
+/// admission; this proves parser behavior, not production admission.
 fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn legion_provider_sdk::ExternalProjectTool> {
     let policy = legion_effects::StaticPolicy {
         decision: legion_effects::PolicyDecision {

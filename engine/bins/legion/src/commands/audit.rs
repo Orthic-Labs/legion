@@ -998,6 +998,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     }
     let mut declared_input_gaps = [runtime_gaps, visual_gaps].concat();
     declared_input_gaps.extend(frozen_snapshot.manifest.gaps.iter().cloned());
+    if !args.plan_only && trusted_scope_universe {
+        eprintln!("{}", legion_audit::execution_policy::NOTICE);
+    }
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -1141,6 +1144,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "providers": providers,
                 "providerSpecs": selected_specs,
                 "nativePlan": native_plan,
+                "executionPolicy": legion_audit::execution_policy::resolved_policy(),
+                "executionPolicyIdentity": legion_audit::execution_policy::binding()["executionPolicyIdentity"],
                 "providerSelection": provider_selection,
                 "contextNotices": context_notices,
                 "auditStatus": "incomplete",
@@ -1418,6 +1423,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "providerSpecs": selected_specs,
                     "providerSelection": provider_selection,
                     "nativePlan": native_plan,
+                    "executionPolicy": execution.execution_policy,
+                    "executionPolicyIdentity": execution.execution_policy_identity,
                     "effectArtifactsRoot": effect_artifact_root,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
                 });
@@ -4469,21 +4476,17 @@ fn native_registry_application(
         Some(root.to_path_buf()),
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, Vec::new(), scratch))
+    Ok((
+        application,
+        vec![legion_audit::execution_policy::NOTICE.into()],
+        scratch,
+    ))
 }
 
 fn native_audit_external_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
 ) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
-    let policy = legion_effects::StaticPolicy {
-        decision: legion_effects::PolicyDecision {
-            allowed: true,
-            policy_id: "native-audit-external-tools-v1".into(),
-            policy_version: 1,
-            policy_digest: format!("sha256:{}", sha256_hex(b"native-audit-external-tools-v1")),
-            reason: None,
-        },
-    };
+    let policy = legion_audit::execution_policy::OwnerAdmissionRequired;
     #[cfg(windows)]
     let process = legion_effects::platform::windows::WindowsProcess;
     #[cfg(unix)]
@@ -4493,9 +4496,9 @@ fn native_audit_external_tool(
         legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
-    std::sync::Arc::new(
-        legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects),
-    )
+    // Admission precedes project command resolution, version probes & launch.
+    // The SDK adapter remains available for explicit in-process test fixtures.
+    std::sync::Arc::new(effects)
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
@@ -6546,6 +6549,10 @@ mod effect_artifact_retention_tests {
             )]),
         };
         legion_audit::ExecutionReport {
+            execution_policy: legion_audit::execution_policy::resolved_policy(),
+            execution_policy_identity: legion_audit::execution_policy::binding()
+                ["executionPolicyIdentity"]
+                .clone(),
             results: vec![legion_audit::ProviderExecution {
                 provider: "fixture.external".into(),
                 result,

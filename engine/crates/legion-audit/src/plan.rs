@@ -529,7 +529,12 @@ impl AuditPlan {
             inventory_generation: inventory.generation.clone(),
             inventory_digest: inventory.digest.clone(),
             providers,
-            bounds: BTreeMap::new(),
+            bounds: crate::execution_policy::binding()
+                .as_object()
+                .expect("static policy binding")
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
             excluded_conditional_providers,
         })
     }
@@ -655,7 +660,22 @@ impl AuditPlan {
         self.bounds.get(FOLLOWUP_BOUND)
     }
 
+    pub(crate) fn validate_execution_policy(&self) -> Result<(), AuditError> {
+        for (field, value) in crate::execution_policy::binding()
+            .as_object()
+            .expect("static policy binding")
+        {
+            if self.bounds.get(field) != Some(value) {
+                return Err(AuditError::Invalid(format!(
+                    "audit plan {field} binding is absent or unsupported; regenerate Audit plan with native owner admission policy"
+                )));
+            }
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), AuditError> {
+        self.validate_execution_policy()?;
         if self.schema_version != 1
             || self.repository_id.trim().is_empty()
             || self.inventory_generation.trim().is_empty()
@@ -937,10 +957,42 @@ mod authenticated_restore_tests {
                 qualification_digest: None,
                 required: true,
             }],
-            bounds: BTreeMap::new(),
+            bounds: crate::execution_policy::binding()
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
             excluded_conditional_providers: Vec::new(),
         };
         let key = b"restore-fixture-key";
+        assert_eq!(
+            plan.bounds["executionPolicy"],
+            crate::execution_policy::resolved_policy()
+        );
+        let mut old_plan = plan.clone();
+        old_plan.bounds.remove("executionPolicy");
+        assert!(old_plan
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("regenerate Audit plan"));
+        let old_digest = plan_digest(&old_plan).unwrap();
+        let old_signature = sign(&old_plan, key).unwrap();
+        assert!(
+            crate::integrity::verify(&old_plan, &old_digest, Some(&old_signature), Some(key))
+                .unwrap_err()
+                .to_string()
+                .contains("regenerate Audit plan")
+        );
+        let mut permissive = plan.clone();
+        permissive.bounds.get_mut("executionPolicy").unwrap()["effectiveMode"] =
+            serde_json::json!("allow-external");
+        assert_ne!(
+            plan_digest(&plan).unwrap(),
+            plan_digest(&permissive).unwrap()
+        );
+        assert!(permissive.validate().is_err());
         let digest = plan_digest(&plan).unwrap();
         let signature = sign(&plan, key).unwrap();
         let restored =

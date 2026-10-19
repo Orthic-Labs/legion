@@ -290,6 +290,15 @@ impl ProviderExecutor for ProviderExecutorAdapter {
 }
 
 impl ProviderExecutorAdapter {
+    pub(crate) fn execute_ownership_bound(
+        &self,
+        plan: &crate::FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+    ) -> Result<ProviderResult, AuditError> {
+        super::governance_ownership::execute_bound(&self.input(provider, inventory), plan.digest())
+    }
+
     fn execute_input(&self, input: &ProviderInput<'_>) -> Result<ProviderResult, AuditError> {
         let provider = input.provider;
         // Providers whose analysis needs a host-supplied artifact that nothing

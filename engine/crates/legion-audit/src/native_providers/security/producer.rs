@@ -36,10 +36,12 @@
 //!   `OSV_SCANNER_OFFLINE_DB`) in the environment, or `with_osv_database`.
 
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -65,7 +67,7 @@ use crate::{
 #[path = "scanner_tools.rs"]
 mod scanner_tools;
 
-const POLICY_ID: &str = "audit-security-producer-v1";
+const POLICY_ID: &str = crate::execution_policy::POLICY_ID;
 const SARIF_FILE_LIMIT: usize = 16;
 const SARIF_BYTE_LIMIT: u64 = 8 * 1024 * 1024;
 const SECRET_FILE_LIMIT: u64 = 2 * 1024 * 1024;
@@ -88,7 +90,7 @@ pub enum SandboxPolicy {
     /// Default. A tool on a host with no sandbox authenticator is refused and
     /// reported as `sandbox-missing:<tool>`, exactly as the legacy checks are.
     Required,
-    /// Run without the OS sandbox (offline flags only). Never the default.
+    /// Relax sandboxing after separate admission. This never grants admission.
     Disabled,
 }
 
@@ -99,9 +101,14 @@ pub enum Production {
     Artifact(Value),
     /// Typed reason; the adapter reports `unavailable:<reason>`.
     Unavailable(String),
+    /// Actual effect-layer denials; retain receipts even without an artifact.
+    AdmissionUnavailable {
+        reason: String,
+        receipts: Vec<Value>,
+    },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ArtifactProducer {
     root: PathBuf,
     run_dir: Option<PathBuf>,
@@ -111,6 +118,28 @@ pub struct ArtifactProducer {
     snapshot_manifest: Option<PathBuf>,
     timeout_ms: u64,
     output_limit: usize,
+    authorizer: Option<Arc<dyn legion_effects::PolicyAuthorizer>>,
+}
+
+impl std::fmt::Debug for ArtifactProducer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArtifactProducer")
+            .field("root", &self.root)
+            .finish_non_exhaustive()
+    }
+}
+
+struct ProducerAuthorizer<'a>(&'a ArtifactProducer);
+impl legion_effects::PolicyAuthorizer for ProducerAuthorizer<'_> {
+    fn authorize(&self, request: &ExternalToolRequest) -> legion_effects::PolicyDecision {
+        match &self.0.authorizer {
+            Some(authorizer) => authorizer.authorize(request),
+            None => legion_effects::PolicyAuthorizer::authorize(
+                &crate::execution_policy::OwnerAdmissionRequired,
+                request,
+            ),
+        }
+    }
 }
 
 impl ArtifactProducer {
@@ -132,6 +161,7 @@ impl ArtifactProducer {
             snapshot_manifest: None,
             timeout_ms: 120_000,
             output_limit: 8 * 1024 * 1024,
+            authorizer: None,
         }
     }
 
@@ -149,6 +179,16 @@ impl ArtifactProducer {
 
     pub fn with_sandbox(mut self, policy: SandboxPolicy) -> Self {
         self.sandbox = policy;
+        self
+    }
+
+    /// In-process SDK seam for explicit authorizers (e.g. scanner fixtures).
+    /// Public CLI/MCP composition never accepts a caller-supplied authorizer.
+    pub fn with_policy_authorizer(
+        mut self,
+        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+    ) -> Self {
+        self.authorizer = Some(authorizer);
         self
     }
 
@@ -179,8 +219,9 @@ impl ArtifactProducer {
             provider,
             inventory,
             scratch,
+            denied_receipts: RefCell::new(Vec::new()),
         };
-        match provider.id.as_str() {
+        let production = match provider.id.as_str() {
             id if super::scanners::tool_for(id).is_some() => run.named_scanner(),
             "security.suppression-changes" => run.suppression_changes(),
             "security.opengrep" => run.opengrep(),
@@ -191,6 +232,25 @@ impl ArtifactProducer {
             "supply-chain.license-sbom-provenance" => run.supply_chain(),
             "imported.sarif" => run.imported_sarif(),
             other => Production::Unavailable(format!("unsupported-provider:{other}")),
+        };
+        let receipts = run.denied_receipts.into_inner();
+        if receipts.is_empty() {
+            return production;
+        }
+        match production {
+            Production::Artifact(mut value) => {
+                value["executionReceipt"] = receipts[0].clone();
+                value["executionReceipts"] = json!(receipts);
+                value["executionAdmissionUnavailable"] =
+                    json!(crate::execution_policy::ADMISSION_UNAVAILABLE);
+                Production::Artifact(value)
+            }
+            Production::Unavailable(_) | Production::AdmissionUnavailable { .. } => {
+                Production::AdmissionUnavailable {
+                    reason: crate::execution_policy::ADMISSION_UNAVAILABLE.into(),
+                    receipts,
+                }
+            }
         }
     }
 
@@ -286,6 +346,7 @@ struct Run<'a> {
     provider: &'a AuditProvider,
     inventory: &'a InventoryEnvelope,
     scratch: Scratch,
+    denied_receipts: RefCell<Vec<Value>>,
 }
 
 fn unavailable(reason: impl Into<String>) -> Production {
@@ -368,6 +429,59 @@ impl<'a> Run<'a> {
         timeout_ms: u64,
     ) -> Result<ToolRun, String> {
         let primary = names.first().copied().unwrap_or("tool");
+        if self.producer.authorizer.is_none() {
+            // Admission runs before executable resolution, sandbox wrapping,
+            // version probes or target launch. This is an actual executor
+            // receipt, never a synthesized empty scanner result.
+            let receipt = self.execute(ExternalToolRequest {
+                request_id: format!(
+                    "security-producer:{}:{}",
+                    self.provider.id, self.inventory.digest
+                ),
+                provider_id: self.provider.id.clone(),
+                plan_id: self.inventory.digest.clone(),
+                policy_id: POLICY_ID.into(),
+                task_id: Some(primary.into()),
+                executable: primary.into(),
+                args,
+                cwd: cwd.to_string_lossy().into_owned(),
+                accepted_exit_codes: accepted.iter().copied().collect(),
+                timeout_ms,
+                stdout_limit: self.producer.output_limit,
+                stderr_limit: self.producer.output_limit,
+                ..ExternalToolRequest::default()
+            })?;
+            if receipt.state == ExecutionState::UnauthorizedEffect
+                && !receipt.process_tree.started
+                && receipt
+                    .policy
+                    .as_ref()
+                    .is_some_and(|p| p.id == POLICY_ID && !p.allowed)
+            {
+                let mut value = json!({
+                    "schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
+                    "requestId": receipt.request_id, "providerId": receipt.provider_id,
+                    "planId": receipt.plan_id, "policyId": receipt.policy_id,
+                    "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
+                    "state": receipt.state.as_str(), "complete": receipt.complete,
+                    "taskId": receipt.task_id,
+                    "executable": null,
+                    "command": receipt.command.as_ref().map(|c| json!({"executable":c.executable,"args":c.args,"environmentNames":c.environment_names,"redactedArgumentIndexes":c.redacted_argument_indexes,"redactedEnvironmentNames":c.redacted_environment_names})),
+                    "cwd": receipt.cwd, "environmentNames": receipt.environment_names,
+                    "sandbox": {"required":receipt.sandbox.required,"receiptId":receipt.sandbox.receipt_id,"networkEnabled":receipt.sandbox.network_enabled},
+                    "processTree": {"started":receipt.process_tree.started,"terminated":receipt.process_tree.terminated,"hardKilled":receipt.process_tree.hard_killed,"reaped":receipt.process_tree.reaped,"detail":receipt.process_tree.detail},
+                    "timing": {"startedAtMs":receipt.timing.started_at_ms,"completedAtMs":receipt.timing.completed_at_ms,"durationMs":receipt.timing.duration_ms},
+                    "exitCode": receipt.exit_code, "signal": receipt.signal,
+                    "stdout": null, "stderr": null,
+                    "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error},
+                    "gaps": receipt.gaps,
+                });
+                crate::execution_policy::project_binding(&mut value);
+                self.denied_receipts.borrow_mut().push(value);
+                return Err(crate::execution_policy::ADMISSION_UNAVAILABLE.into());
+            }
+            return Err(format!("tool-failed:{primary}:{}", receipt.state.as_str()));
+        }
         let Some((tool, executable)) = self.producer.find_tool(names) else {
             return Err(format!("tool-missing:{primary}"));
         };
@@ -525,22 +639,21 @@ impl<'a> Run<'a> {
         let effects = legion_effects::EffectExecutor::new(
             process,
             legion_effects::ArtifactWriter::new(&self.scratch.path),
-            legion_effects::StaticPolicy {
-                decision: legion_effects::PolicyDecision {
-                    allowed: true,
-                    policy_id: POLICY_ID.into(),
-                    policy_version: 1,
-                    policy_digest: format!("sha256:{POLICY_ID}"),
-                    reason: None,
-                },
-            },
+            ProducerAuthorizer(self.producer),
         );
-        let tool = AuditExternalProjectTool::new(effects);
+        let explicit_authorizer = self.producer.authorizer.is_some();
         std::thread::scope(|scope| {
             scope
                 .spawn(|| {
                     let runtime = tokio::runtime::Runtime::new().ok()?;
-                    Some(runtime.block_on(tool.execute(request, CancellationToken::new())))
+                    Some(if explicit_authorizer {
+                        let tool = AuditExternalProjectTool::new(effects);
+                        runtime.block_on(tool.execute(request, CancellationToken::new()))
+                    } else {
+                        runtime.block_on(
+                            effects.execute_with_cancellation(&request, CancellationToken::new()),
+                        )
+                    })
                 })
                 .join()
                 .ok()

@@ -76,6 +76,20 @@ fn bare(root: &Path) -> ArtifactProducer {
     ArtifactProducer::new(root).with_search_path(Vec::new())
 }
 
+fn admitted_fixture(root: &Path) -> ArtifactProducer {
+    ArtifactProducer::new(root).with_policy_authorizer(std::sync::Arc::new(
+        legion_effects::StaticPolicy {
+            decision: legion_effects::PolicyDecision {
+                allowed: true,
+                policy_id: "scanner-fixture".into(),
+                policy_version: 1,
+                policy_digest: format!("sha256:{}", "f".repeat(64)),
+                reason: None,
+            },
+        },
+    ))
+}
+
 fn analysis(result: &ProviderResult) -> &Value {
     &result.details["analysis"]
 }
@@ -163,7 +177,7 @@ fn gitleaks_dir_keeps_findings_without_claiming_history_coverage() {
     .unwrap();
     fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
 
-    let producer = ArtifactProducer::new(&root)
+    let producer = admitted_fixture(&root)
         .with_search_path(vec![bin])
         .with_sandbox(SandboxPolicy::Disabled);
     let result = run(&root, producer, "secrets.current-history");
@@ -286,7 +300,7 @@ fn stub_scanner_on_path_is_run_and_its_receipt_recorded() {
     }
     let before = fs::read_dir(&root).unwrap().count();
 
-    let producer = ArtifactProducer::new(&root)
+    let producer = admitted_fixture(&root)
         .with_search_path(vec![bin.clone()])
         .with_sandbox(SandboxPolicy::Disabled);
     let result = run(&root, producer, "security.opengrep");
@@ -322,6 +336,58 @@ fn stub_scanner_on_path_is_run_and_its_receipt_recorded() {
     assert_eq!(fs::read_dir(&root).unwrap().count(), before);
 }
 
+#[cfg(unix)]
+#[test]
+fn default_admission_denies_scanner_version_probe_and_target_even_without_sandbox() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = fixture("admission-denied-root");
+    write(&root, "src/lib.rs", "pub fn f() {}\n");
+    write(&root, ".semgrep.yml", "rules: []\n");
+    let bin = fixture("admission-denied-bin");
+    let marker = bin.join("process-started");
+    let scanner = bin.join("opengrep");
+    fs::write(
+        &scanner,
+        "#!/bin/sh\ntouch \"$(dirname \"$0\")/process-started\"\nexit 0\n",
+    )
+    .unwrap();
+    fs::set_permissions(&scanner, fs::Permissions::from_mode(0o755)).unwrap();
+    let result = run(
+        &root,
+        ArtifactProducer::new(&root)
+            .with_search_path(vec![bin])
+            .with_sandbox(SandboxPolicy::Disabled),
+        "security.opengrep",
+    );
+    assert!(
+        !marker.exists(),
+        "neither --version nor target command may run"
+    );
+    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert!(!result.complete);
+    assert_eq!(
+        result.details["availability"]["reason"],
+        legion_audit::execution_policy::ADMISSION_UNAVAILABLE
+    );
+    let receipt = &result.details["executionReceipt"];
+    assert_eq!(receipt["state"], "unauthorized_effect");
+    assert_eq!(receipt["processTree"]["started"], false);
+    assert_eq!(receipt["executable"], Value::Null);
+    assert_eq!(receipt["policy"]["allowed"], false);
+    assert_eq!(
+        receipt["executionPolicy"],
+        legion_audit::execution_policy::resolved_policy()
+    );
+    assert_eq!(
+        receipt["executionPolicyIdentity"],
+        legion_audit::execution_policy::binding()["executionPolicyIdentity"]
+    );
+    assert!(result
+        .coverage_gaps
+        .iter()
+        .any(|gap| gap == "unavailable:native-owner-admission-unavailable"));
+}
+
 #[test]
 fn missing_tools_yield_typed_gaps_per_provider() {
     let root = fixture("missing");
@@ -335,7 +401,11 @@ fn missing_tools_yield_typed_gaps_per_provider() {
         ("dependency.osv", "tool-missing:osv-scanner"),
         ("imported.sarif", "sarif-not-present:imported.sarif"),
     ] {
-        let result = run(&root, bare(&root), id);
+        let result = run(
+            &root,
+            admitted_fixture(&root).with_search_path(Vec::new()),
+            id,
+        );
         let gap = format!("unavailable:{reason}");
         assert!(
             result.coverage_gaps.contains(&gap),

@@ -286,6 +286,17 @@ fn run_with_cancellation(
     let calls = Arc::new(Mutex::new(Vec::new()));
     let mut registry = NativeProviderRegistry::new(&root);
     if with_tool {
+        registry.legacy_checks = registry
+            .legacy_checks
+            .with_fixture_policy_authorizer(Arc::new(legion_effects::StaticPolicy {
+                decision: legion_effects::PolicyDecision {
+                    allowed: true,
+                    policy_id: "runtime-fixture-test".into(),
+                    policy_version: 1,
+                    policy_digest: format!("sha256:{}", "f".repeat(64)),
+                    reason: None,
+                },
+            }));
         registry = registry.with_external_project_tool(Arc::new(RuntimeFake {
             mode,
             perf,
@@ -448,6 +459,10 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
             plan_signature: Some("test-signature".into()),
             generation: "generation".into(),
             inventory_digest: format!("sha256:{}", "b".repeat(64)),
+            execution_policy: legion_audit::execution_policy::resolved_policy(),
+            execution_policy_identity: legion_audit::execution_policy::binding()
+                ["executionPolicyIdentity"]
+                .clone(),
             planned_providers: vec![PROVIDER.into()],
             results: vec![ProviderExecution {
                 provider: PROVIDER.into(),

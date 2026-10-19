@@ -5,6 +5,8 @@
 //! (argv, no shell). Legion ships no ownership ruleset of its own. The plan
 //! freezes whether the host declared the command and its digest; this module
 //! re-reads the declaration at execution time and refuses to run on drift.
+//! A matching declaration records intent only; external execution still
+//! requires native owner admission, which is currently unavailable.
 //!
 //! Contract with the host command: it is run with the frozen root as its
 //! working directory, must be read-only, and must print one JSON document on
@@ -15,12 +17,7 @@
 //! `"lineKnown": false` in its evidence. Findings are advisory "duplicates
 //! RightKit owner" notes unless the host sets `AUDIT_OWNERSHIP_SCAN_REQUIRED`.
 
-use std::{
-    collections::BTreeMap,
-    io::Read,
-    process::{Command, Stdio},
-    time::{Duration, Instant},
-};
+use std::collections::BTreeMap;
 
 use legion_contracts::{FindingRef, ProviderStatus};
 use serde_json::{json, Value};
@@ -32,9 +29,6 @@ use crate::error::AuditError;
 pub const COMMAND_ENV: &str = "AUDIT_OWNERSHIP_SCAN_CMD";
 /// Set to `1`/`true` by the host to make the provider required for a clean claim.
 pub const REQUIRED_ENV: &str = "AUDIT_OWNERSHIP_SCAN_REQUIRED";
-
-const TIMEOUT: Duration = Duration::from_secs(120);
-const MAX_OUTPUT_BYTES: u64 = 8 * 1024 * 1024;
 
 /// Parse a declared command into argv. `None` means not declared or malformed.
 pub fn parse_argv(raw: &str) -> Option<Vec<String>> {
@@ -50,58 +44,57 @@ pub fn command_digest(raw: &str) -> String {
     digest_text(raw)
 }
 
-fn run_scan(argv: &[String], root: &std::path::Path) -> Result<String, String> {
-    let mut command = Command::new(&argv[0]);
-    command
-        .args(&argv[1..])
-        .current_dir(root)
-        .env_clear()
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    if let Some(path) = std::env::var_os("PATH") {
-        command.env("PATH", path);
-    }
-    command.env("AUDIT_FROZEN_ROOT", root);
-    let mut child = command
-        .spawn()
-        .map_err(|error| format!("ownership-scan-spawn-failed:{error}"))?;
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "ownership-scan-spawn-failed:no stdout".to_owned())?;
-    let reader = std::thread::spawn(move || {
-        let mut buffer = Vec::new();
-        let _ = (&mut stdout)
-            .take(MAX_OUTPUT_BYTES)
-            .read_to_end(&mut buffer);
-        buffer
-    });
-    let started = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {
-                if started.elapsed() > TIMEOUT {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err("ownership-scan-timeout".into());
-                }
-                std::thread::sleep(Duration::from_millis(25));
-            }
-            Err(error) => return Err(format!("ownership-scan-wait-failed:{error}")),
-        }
+fn run_scan(
+    argv: &[String],
+    provider_id: &str,
+    root: &std::path::Path,
+    plan_digest: &str,
+    details: &mut BTreeMap<String, Value>,
+) -> Result<String, String> {
+    let request = legion_effects::ExternalToolRequest {
+        request_id: format!("audit:{provider_id}:{plan_digest}:ownership-scan"),
+        provider_id: provider_id.into(),
+        plan_id: plan_digest.into(),
+        policy_id: crate::execution_policy::POLICY_ID.into(),
+        task_id: Some("capability-ownership-scan".into()),
+        executable: argv[0].clone(),
+        args: argv[1..].to_vec(),
+        cwd: root.to_string_lossy().into_owned(),
+        timeout_ms: 120_000,
+        ..legion_effects::ExternalToolRequest::default()
     };
-    let bytes = reader.join().unwrap_or_default();
-    if !status.success() {
-        return Err(format!(
-            "ownership-scan-exit-nonzero:{}",
-            status
-                .code()
-                .map_or_else(|| "signal".to_owned(), |c| c.to_string())
-        ));
+    // A dedicated thread also supports synchronous SDK callers from within an
+    // existing Tokio runtime. No declared command, version probe, or artifact
+    // process can start: the real executor records native policy denial first.
+    let receipt = std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| format!("ownership-admission-runtime-unavailable:{error}"))?;
+        Ok::<_, String>(runtime.block_on(crate::execution_policy::deny(&request)))
+    })
+    .join()
+    .map_err(|_| "ownership-admission-runtime-failed".to_owned())??;
+    details.insert(
+        "executionReceipt".into(),
+        crate::execution_policy::receipt_json(&receipt),
+    );
+    if receipt.state == legion_effects::ExecutionState::UnauthorizedEffect
+        && !receipt.process_tree.started
+        && receipt.policy.as_ref().is_some_and(|policy| {
+            !policy.allowed
+                && policy.id == crate::execution_policy::POLICY_ID
+                && policy.reason.as_deref() == Some(crate::execution_policy::ADMISSION_UNAVAILABLE)
+        })
+    {
+        Err(crate::execution_policy::ADMISSION_UNAVAILABLE.into())
+    } else {
+        Err(format!(
+            "ownership-scan-effect-invalid:{}:{}",
+            receipt.state.as_str(),
+            receipt.gaps.join(",")
+        ))
     }
-    String::from_utf8(bytes).map_err(|_| "ownership-scan-output-not-utf8".to_owned())
 }
 
 fn safe_relative(path: &str) -> bool {
@@ -136,6 +129,13 @@ fn finding_message(message: Option<&str>, capability: Option<&str>, owner: Optio
 
 /// ProviderExecutor-facing entrypoint.
 pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderResult, AuditError> {
+    execute_bound(input, "unbound-sdk:ownership-scan")
+}
+
+pub(crate) fn execute_bound(
+    input: &ProviderInput<'_>,
+    plan_digest: &str,
+) -> Result<legion_contracts::ProviderResult, AuditError> {
     let denominator = denominator(input)?;
     let mut gaps: Vec<String> = Vec::new();
     let mut findings: Vec<FindingRef> = Vec::new();
@@ -163,7 +163,14 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
 
     if gaps.is_empty() {
         let argv = argv.expect("declaration checked above");
-        match run_scan(&argv, input.root).and_then(|text| {
+        match run_scan(
+            &argv,
+            &input.provider.id,
+            input.root,
+            plan_digest,
+            &mut details,
+        )
+        .and_then(|text| {
             serde_json::from_str::<Value>(&text)
                 .map_err(|error| format!("ownership-scan-output-invalid:{error}"))
         }) {
@@ -238,7 +245,10 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
         ),
     );
     let complete = gaps.is_empty();
-    result(
+    let admission_refused = gaps
+        .iter()
+        .any(|gap| gap == crate::execution_policy::ADMISSION_UNAVAILABLE);
+    let mut output = result(
         input,
         if complete {
             ProviderStatus::Complete
@@ -256,12 +266,54 @@ pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderRe
         gaps.clone(),
         gaps,
         details,
-    )
+    )?;
+    if admission_refused {
+        crate::native_providers::availability::mark_unavailable(
+            &mut output,
+            crate::execution_policy::ADMISSION_UNAVAILABLE,
+        );
+    }
+    Ok(output)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declared_ownership_command_requires_native_admission_before_resolution() {
+        let mut details = BTreeMap::new();
+        let argv = vec![
+            "definitely-missing-ownership-scanner".into(),
+            "--scan".into(),
+        ];
+        let root = std::env::temp_dir().join("missing-ownership-root");
+        assert_eq!(
+            run_scan(
+                &argv,
+                "governance.capability-ownership",
+                &root,
+                "sha256:frozen-plan",
+                &mut details
+            )
+            .unwrap_err(),
+            crate::execution_policy::ADMISSION_UNAVAILABLE
+        );
+        let receipt = &details["executionReceipt"];
+        assert_eq!(receipt["state"], "unauthorized_effect");
+        assert_eq!(receipt["planId"], "sha256:frozen-plan");
+        assert_eq!(receipt["command"]["executable"], argv[0]);
+        assert_eq!(receipt["processTree"]["started"], false);
+        assert_eq!(receipt["executable"], Value::Null);
+        assert_eq!(
+            receipt["policy"]["reason"],
+            crate::execution_policy::ADMISSION_UNAVAILABLE
+        );
+        assert_eq!(
+            receipt["executionPolicyIdentity"],
+            crate::execution_policy::binding()["executionPolicyIdentity"]
+        );
+    }
 
     #[test]
     fn argv_requires_non_empty_json_array() {

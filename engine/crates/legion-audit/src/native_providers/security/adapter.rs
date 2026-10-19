@@ -163,15 +163,26 @@ impl ProviderExecutor for SecurityProviderExecutor {
         }
         let mut unavailable_reason = None;
         let mut produced = None;
+        let mut denied_receipts = Vec::new();
         if !self.artifacts.contains_key(&provider.id) {
             if let Some(producer) = &self.producer {
                 match producer.produce(provider, inventory) {
                     Production::Artifact(value) => produced = Some(value),
                     Production::Unavailable(reason) => unavailable_reason = Some(reason),
+                    Production::AdmissionUnavailable { reason, receipts } => {
+                        unavailable_reason = Some(reason);
+                        denied_receipts = receipts;
+                    }
                 }
             }
         }
         let input = self.artifacts.get(&provider.id).or(produced.as_ref());
+        if let Some(reason) = input
+            .and_then(|value| value.get("executionAdmissionUnavailable"))
+            .and_then(Value::as_str)
+        {
+            unavailable_reason = Some(reason.into());
+        }
         let frozen_paths = Self::frozen_paths(provider, inventory);
         let observed;
         let analysis_input = match input {
@@ -334,6 +345,13 @@ impl ProviderExecutor for SecurityProviderExecutor {
         if let Some(producer) = input.and_then(|value| value.get("producer")) {
             details.insert("producer".into(), producer.clone());
         }
+        if let Some(receipts) = input.and_then(|value| value.get("executionReceipts")) {
+            details.insert("executionReceipts".into(), receipts.clone());
+        }
+        if !denied_receipts.is_empty() {
+            details.insert("executionReceipt".into(), denied_receipts[0].clone());
+            details.insert("executionReceipts".into(), json!(denied_receipts));
+        }
         // With no host-supplied artifact there is nothing to analyze: the
         // plan selected this provider, so it is applicable but unavailable.
         let artifact_supplied = input.is_some();
@@ -366,7 +384,7 @@ impl ProviderExecutor for SecurityProviderExecutor {
                 coverage.gaps.push(gap);
             }
         }
-        if !artifact_supplied {
+        if !artifact_supplied || unavailable_reason.is_some() {
             crate::native_providers::availability::mark_unavailable(
                 &mut result,
                 &unavailable_reason

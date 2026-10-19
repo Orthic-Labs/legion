@@ -122,6 +122,7 @@ pub enum Outcome {
     /// Every planned run completed and its output parsed.
     Ran,
     Missing,
+    AdmissionUnavailable,
     Timeout,
     Budget,
     SandboxMissing,
@@ -137,6 +138,7 @@ impl Outcome {
         match self {
             Outcome::Ran => format!("tool-ran:{tool}"),
             Outcome::Missing => format!("tool-missing:{tool}"),
+            Outcome::AdmissionUnavailable => crate::execution_policy::ADMISSION_UNAVAILABLE.into(),
             Outcome::Timeout => format!("tool-timeout:{tool}"),
             Outcome::Budget => format!("tool-budget-exhausted:{tool}"),
             Outcome::SandboxMissing => format!("sandbox-missing:{tool}"),
@@ -149,6 +151,7 @@ impl Outcome {
         match self {
             Outcome::Ran => 0,
             Outcome::Missing | Outcome::NotRun(_) => 1,
+            Outcome::AdmissionUnavailable => 3,
             Outcome::Failed(_) => 2,
             Outcome::SandboxMissing => 3,
             Outcome::Budget => 4,
@@ -865,6 +868,16 @@ fn read_artifact(
 }
 
 fn classify(tool: &str, receipt: &ExecutionReceipt) -> Option<Outcome> {
+    if receipt.state == ExecutionState::UnauthorizedEffect
+        && !receipt.process_tree.started
+        && receipt.policy.as_ref().is_some_and(|policy| {
+            policy.id == crate::execution_policy::POLICY_ID
+                && !policy.allowed
+                && policy.reason.as_deref() == Some(crate::execution_policy::ADMISSION_UNAVAILABLE)
+        })
+    {
+        return Some(Outcome::AdmissionUnavailable);
+    }
     match receipt.state {
         ExecutionState::Completed if receipt.complete => None,
         ExecutionState::Completed => {
@@ -1107,7 +1120,8 @@ async fn run_one(
     };
     let stderr_digest = stderr.as_deref().map(sha256_text);
     let program_label = argv[0].clone();
-    output.receipt = Some(json!({
+    let mut retained_receipt = crate::execution_policy::receipt_json(&receipt);
+    let summary = json!({
         "tool": command.tool,
         "program": program_label,
         "sourcePath": command.source_path,
@@ -1131,7 +1145,19 @@ async fn run_one(
             "receiptId": receipt.sandbox.receipt_id,
             "networkEnabled": receipt.sandbox.network_enabled,
         },
-    }));
+    });
+    for (key, value) in summary.as_object().expect("summary object") {
+        if classify(command.tool, &receipt) == Some(Outcome::AdmissionUnavailable) {
+            retained_receipt
+                .as_object_mut()
+                .expect("receipt object")
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        } else {
+            retained_receipt[key] = value.clone();
+        }
+    }
+    output.receipt = Some(retained_receipt);
     if let Some(outcome) = classify(command.tool, &receipt) {
         output.outcome = outcome;
         return output;
@@ -1622,7 +1648,7 @@ pub async fn run(
         let ran = outcome == Outcome::Ran;
         let status = match outcome {
             Outcome::Ran => "pass",
-            Outcome::Missing => "unavailable",
+            Outcome::Missing | Outcome::AdmissionUnavailable => "unavailable",
             Outcome::Timeout => "timeout",
             _ => "fail",
         };
@@ -1710,6 +1736,44 @@ pub async fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn owner_admission_denial_retains_effect_evidence_and_unavailable_reason() {
+        let request = ExternalToolRequest {
+            request_id: "code-denied".into(),
+            provider_id: "code.rust".into(),
+            plan_id: "sha256:frozen-plan".into(),
+            policy_id: POLICY_ID.into(),
+            executable: "definitely-missing-code-scanner".into(),
+            cwd: std::env::temp_dir()
+                .join("missing-code-root")
+                .to_string_lossy()
+                .into_owned(),
+            ..ExternalToolRequest::default()
+        };
+        let receipt = crate::execution_policy::deny(&request).await;
+        assert_eq!(
+            classify("check", &receipt),
+            Some(Outcome::AdmissionUnavailable)
+        );
+        assert_eq!(
+            Outcome::AdmissionUnavailable.reason("check"),
+            crate::execution_policy::ADMISSION_UNAVAILABLE
+        );
+        let retained = crate::execution_policy::receipt_json(&receipt);
+        assert_eq!(retained["planId"], request.plan_id);
+        assert_eq!(retained["processTree"]["started"], false);
+        assert_eq!(retained["policy"]["allowed"], false);
+        assert_eq!(retained["parser"]["attempted"], false);
+        assert_eq!(
+            retained["executionPolicy"],
+            crate::execution_policy::resolved_policy()
+        );
+        assert_eq!(
+            retained["executionPolicyIdentity"],
+            crate::execution_policy::binding()["executionPolicyIdentity"]
+        );
+    }
 
     #[test]
     fn native_syntax_failure_is_diagnostic_not_a_clean_pass() {

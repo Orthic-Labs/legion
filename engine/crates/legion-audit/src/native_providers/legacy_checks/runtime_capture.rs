@@ -893,7 +893,7 @@ fn sha256_label(bytes: &[u8]) -> String {
 /// Same projection `execution_from_receipt` records; the external-receipt
 /// validator in `execution.rs` requires exactly these fields.
 fn receipt_json(receipt: &ExecutionReceipt) -> Value {
-    json!({
+    let mut value = json!({
         "schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id,
         "planId": receipt.plan_id, "policyId": receipt.policy_id,
@@ -909,7 +909,9 @@ fn receipt_json(receipt: &ExecutionReceipt) -> Value {
         "stdout": receipt.stdout.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
         "stderr": receipt.stderr.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
         "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error}, "gaps": receipt.gaps,
-    })
+    });
+    crate::execution_policy::project_binding(&mut value);
+    value
 }
 
 fn bound_u64(provider: &AuditProvider, key: &str) -> Option<u64> {
@@ -1289,6 +1291,23 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         && receipt.complete
         && receipt.exit_code == Some(0);
     if !ran_clean {
+        if receipt.state == ExecutionState::UnauthorizedEffect
+            && !receipt.process_tree.started
+            && receipt.policy.as_ref().is_some_and(|policy| {
+                policy.id == crate::execution_policy::POLICY_ID
+                    && !policy.allowed
+                    && policy.reason.as_deref()
+                        == Some(crate::execution_policy::ADMISSION_UNAVAILABLE)
+            })
+        {
+            outcome.unavailable = Some(crate::execution_policy::ADMISSION_UNAVAILABLE.into());
+            outcome.status = "unavailable";
+            outcome.gaps.push(format!(
+                "unavailable:{}",
+                crate::execution_policy::ADMISSION_UNAVAILABLE
+            ));
+            return outcome;
+        }
         if receipt.state == ExecutionState::MissingExecutable {
             outcome.unavailable = Some("legion-executable-unavailable".to_owned());
             outcome.gaps.push(format!(
@@ -1917,6 +1936,70 @@ pub(super) async fn execute(
             );
         }
     };
+    if !params.interactions.is_empty() {
+        let mut request = base_request(
+            provider,
+            &plan_digest,
+            input,
+            "fixture-browser-admission",
+            &executor.root,
+            params
+                .interactions
+                .iter()
+                .flat_map(|probe| {
+                    [
+                        "--fixture".into(),
+                        probe.fixture_id.clone(),
+                        "--source-digest".into(),
+                        probe.fixture_source_digest.clone(),
+                        "--probe".into(),
+                        probe.probe_id.clone(),
+                        "--actions-digest".into(),
+                        probe.actions_digest.clone(),
+                    ]
+                })
+                .collect(),
+        );
+        request.executable = "rightweb-fixture-browser".into();
+        request.task_id = Some("runtime-fixture-browser-session".into());
+        let decision = match &executor.fixture_policy_authorizer {
+            Some(authorizer) => authorizer.authorize(&request),
+            None => legion_effects::PolicyAuthorizer::authorize(
+                &crate::execution_policy::OwnerAdmissionRequired,
+                &request,
+            ),
+        };
+        if !decision.allowed {
+            // The same effect executor issues the real denial receipt before
+            // FixtureServer preparation or browser/session launch.
+            #[cfg(unix)]
+            let process = legion_effects::platform::unix::UnixProcess::new();
+            #[cfg(windows)]
+            let process = legion_effects::platform::windows::WindowsProcess::default();
+            let scratch = executor.scratch()?;
+            let effects = legion_effects::EffectExecutor::new(
+                process,
+                legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+                legion_effects::StaticPolicy { decision },
+            );
+            let receipt = effects
+                .execute_with_cancellation(&request, cancellation)
+                .await;
+            let contract = spec(&provider.id).expect("validated above");
+            let execution = super::execution_from_receipt(
+                input,
+                contract.command,
+                &[executor.root.as_path()],
+                receipt,
+                super::ReportSource::Stdout,
+                None,
+                None,
+            );
+            return super::LegacyCheckDispatcher::new()
+                .project_result(provider, input, execution)
+                .map_err(|error| AuditError::Provider(error.to_string()));
+        }
+    }
     let mut fixture_outcomes = Vec::with_capacity(params.interactions.len());
     for probe in &params.interactions {
         fixture_outcomes.push(execute_fixture_probe(probe, &cancellation).await);
@@ -2376,6 +2459,14 @@ mod tests {
         params: &RuntimeParams,
         cancellation: CancellationToken,
     ) -> ProviderResult {
+        execute_test_runtime_with_admission(params, cancellation, true).await
+    }
+
+    async fn execute_test_runtime_with_admission(
+        params: &RuntimeParams,
+        cancellation: CancellationToken,
+        admitted: bool,
+    ) -> ProviderResult {
         let root = std::env::current_dir().unwrap();
         let inventory = crate::inventory::InventoryEnvelope::new(
             "fixture-only-runtime",
@@ -2422,15 +2513,23 @@ mod tests {
         let input = crate::native_providers::legacy_checks::LegacyCheckDispatcher::new()
             .input(provider, &inventory, &root, None, None, &Value::Null)
             .unwrap();
-        let result = execute(
-            &NativeLegacyCheckExecutor::new(root),
-            &plan,
-            provider,
-            &input,
-            cancellation,
-        )
-        .await
-        .unwrap();
+        let mut executor = NativeLegacyCheckExecutor::new(root);
+        if admitted {
+            executor = executor.with_fixture_policy_authorizer(std::sync::Arc::new(
+                legion_effects::StaticPolicy {
+                    decision: legion_effects::PolicyDecision {
+                        allowed: true,
+                        policy_id: "runtime-fixture-test".into(),
+                        policy_version: 1,
+                        policy_digest: format!("sha256:{}", "f".repeat(64)),
+                        reason: None,
+                    },
+                },
+            ));
+        }
+        let result = execute(&executor, &plan, provider, &input, cancellation)
+            .await
+            .unwrap();
         crate::execution::validate_external_receipt_projection(
             &provider.id,
             &result.details,
@@ -2438,6 +2537,40 @@ mod tests {
         )
         .unwrap();
         result
+    }
+
+    #[tokio::test]
+    async fn default_fixture_admission_denies_before_server_browser_and_actions() {
+        let params = fixture_test_params(json!([{"type":"assertVisible","selector":"#frozen"}]));
+        let result =
+            execute_test_runtime_with_admission(&params, CancellationToken::new(), false).await;
+        assert_eq!(result.status, ProviderStatus::Partial);
+        assert!(!result.complete);
+        assert_eq!(
+            result.details["availability"]["reason"],
+            crate::execution_policy::ADMISSION_UNAVAILABLE
+        );
+        let receipt = &result.details["executionReceipt"];
+        assert_eq!(receipt["state"], "unauthorized_effect");
+        assert_eq!(receipt["processTree"]["started"], false);
+        assert_eq!(receipt["executable"], Value::Null);
+        assert_eq!(receipt["command"]["executable"], "rightweb-fixture-browser");
+        assert!(receipt["command"]["args"]
+            .as_array()
+            .unwrap()
+            .contains(&json!(params.interactions[0].actions_digest)));
+        assert_eq!(
+            receipt["executionPolicy"],
+            crate::execution_policy::resolved_policy()
+        );
+        assert!(result
+            .coverage
+            .as_ref()
+            .is_some_and(|coverage| coverage.expected > 0 && coverage.examined == 0));
+        assert!(
+            !result.details.contains_key("runtime"),
+            "no fixture session or action was executed"
+        );
     }
 
     #[test]

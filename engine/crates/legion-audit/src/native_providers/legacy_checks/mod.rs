@@ -568,6 +568,19 @@ impl LegacyCheckDispatcher {
                 .chain(output.degradation.iter())
                 .chain(execution.error.iter().map(|error| &error.message))
                 .any(|gap| gap.contains(SANDBOX_RECEIPT_REQUIRED));
+        let admission_refused = execution.state == LegacyCheckProcessState::Unauthorized
+            && process_started == Some(false)
+            && output
+                .details
+                .get("executionReceipt")
+                .is_some_and(|receipt| {
+                    receipt.pointer("/policy/id").and_then(Value::as_str)
+                        == Some(crate::execution_policy::POLICY_ID)
+                        && receipt.pointer("/policy/allowed").and_then(Value::as_bool)
+                            == Some(false)
+                        && receipt.pointer("/policy/reason").and_then(Value::as_str)
+                            == Some(crate::execution_policy::ADMISSION_UNAVAILABLE)
+                });
         let read_only_test_owner_unavailable = execution.state
             == LegacyCheckProcessState::MissingExecutable
             && output
@@ -613,6 +626,7 @@ impl LegacyCheckDispatcher {
         let mut degradation = output.degradation.clone();
         if !process_ok
             && !sandbox_refused
+            && !admission_refused
             && !read_only_test_owner_unavailable
             && !managed_test_runner_unavailable
             && !matches!(declared_absence, Some(AbsenceOutcome::NonBlocking(_)))
@@ -661,7 +675,10 @@ impl LegacyCheckDispatcher {
                 }
             })
         }
-        .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)));
+        .or_else(|| sandbox_refused.then(|| format!("sandbox-missing:{}", contract.tool)))
+        .or_else(|| {
+            admission_refused.then(|| crate::execution_policy::ADMISSION_UNAVAILABLE.into())
+        });
         let unavailable_reason = match declared_absence.clone() {
             Some(AbsenceOutcome::Blocking(reason)) => Some(reason),
             _ => unavailable_reason,
@@ -830,6 +847,7 @@ impl LegacyCheckDispatcher {
 pub struct NativeLegacyCheckExecutor {
     root: PathBuf,
     external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
+    fixture_policy_authorizer: Option<Arc<dyn legion_effects::PolicyAuthorizer>>,
     attested_runs: Option<Arc<AttestedRunsEnrollment>>,
     /// Shared across clones; created lazily under the system temp dir unless
     /// the host supplied one with `with_scratch`.
@@ -854,6 +872,7 @@ impl NativeLegacyCheckExecutor {
         Self {
             root: root.into(),
             external_project_tool: None,
+            fixture_policy_authorizer: None,
             attested_runs: None,
             scratch: Arc::new(Mutex::new(None)),
         }
@@ -882,6 +901,16 @@ impl NativeLegacyCheckExecutor {
 
     pub fn with_external_project_tool(mut self, tool: Arc<dyn ExternalProjectTool>) -> Self {
         self.external_project_tool = Some(tool);
+        self
+    }
+
+    /// Explicit trusted in-process SDK fixture/managed-preparation seam;
+    /// never exposed by CLI/MCP.
+    pub fn with_fixture_policy_authorizer(
+        mut self,
+        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+    ) -> Self {
+        self.fixture_policy_authorizer = Some(authorizer);
         self
     }
 
@@ -1031,6 +1060,8 @@ impl NativeLegacyCheckExecutor {
                 .unwrap_or(120_000);
             let execution = disposable_copy::execute(
                 tool.as_ref(),
+                plan.digest(),
+                self.fixture_policy_authorizer.as_deref(),
                 &self.root,
                 resolved,
                 test_command_source
@@ -1599,7 +1630,7 @@ fn execution_from_receipt(
         });
     }
     let (_, args) = command_parts(command);
-    let receipt_value = json!({
+    let mut receipt_value = json!({
         "schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id,
         "planId": receipt.plan_id, "policyId": receipt.policy_id,
@@ -1620,6 +1651,7 @@ fn execution_from_receipt(
         "reportSource": match report_source { ReportSource::Stdout => "stdout", ReportSource::Stderr => "stderr", ReportSource::File(_) => "file" },
         "report": report_artifact.as_ref().map(|r| json!({"path":r.name,"digest":r.digest,"bytes":r.bytes.len(),"immutable":true})),
     });
+    crate::execution_policy::project_binding(&mut receipt_value);
     if input.check == "test" {
         if let Some(source) = test_command_source.as_ref() {
             output
