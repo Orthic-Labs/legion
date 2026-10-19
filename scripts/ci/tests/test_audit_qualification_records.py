@@ -905,6 +905,49 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             api["executable"](path, "not-a-digest", live=False)
 
+    def test_code_sdk_snapshot_binds_exact_off_mode_and_genuine_request_home(self):
+        api = gate["helper"]("audit-code-sdk-accuracy.py")
+        scratch = api["absolute"]("/legion-checker-unit/cases/code-go-malformed")
+        suffix = api["digest"](b"").removeprefix("sha256:")
+        stage = scratch / "cache" / "govulncheck" / suffix
+        home = stage.parent / ("home-" + suffix)
+        mode = "Library/Application Support/go/telemetry/mode"
+        source_files = {"go.mod": api["digest"](b"module unit\n\ngo not-a-version\n")}
+        database = {"root": "/unit/database", "files": {"index/db.json": api["digest"](b"unit")}, "digest": "unit-db"}
+        cache = {"root": "/unit/module-cache", "files": {}, "digest": "unit-cache"}
+        snapshot = {"schema": "legion-govulncheck-input-snapshot/1", "sourceRoot": str(stage),
+                    "sourceFiles": source_files, "sourceDigest": api["digest"](api["encoded"](source_files)),
+                    "verifiedModules": {}, "telemetryHome": str(home), "telemetryFiles": {mode: api["digest"](b"off")}}
+        for label, value in (("database", database), ("moduleCache", cache)):
+            snapshot.update({label + key[0].upper() + key[1:]: item for key, item in value.items()})
+        case = {"control": "malformed", "fixtureFiles": {}, "fixtureSources": source_files,
+                "sdkExecutions": [{"request": {"taskId": "vulnerability", "environment": {"HOME": str(home)}}}]}
+        result = {"vulnerability": ({"state": "failed", "complete": False, "exitCode": 1}, "", "")}
+        def check(snap, actual_case=case, after=None):
+            receipts = [{"tool": "vulnerability", "nativeInputSnapshots": {"before": snap,
+                        "after": copy.deepcopy(snap) if after is None else after, "afterError": None, "unchanged": True}}]
+            api["validate_go_inputs"](actual_case, receipts, result, scratch, {"database": database, "moduleCache": cache})
+        check(snapshot)
+        for label, mutate in (
+            ("home", lambda snap: snap.update(telemetryHome="/different/home")),
+            ("mode", lambda snap: snap["telemetryFiles"].update({mode: api["digest"](b"on")})),
+            ("extra", lambda snap: snap["telemetryFiles"].update({"unexpected": api["digest"](b"extra")})),
+            ("missing", lambda snap: snap.pop("telemetryFiles")),
+        ):
+            with self.subTest(label=label):
+                changed = copy.deepcopy(snapshot)
+                mutate(changed)
+                with self.assertRaises(AssertionError):
+                    check(changed)
+        changed_case = copy.deepcopy(case)
+        changed_case["sdkExecutions"][0]["request"]["environment"]["HOME"] = "/different/sdk-home"
+        with self.assertRaises(AssertionError):
+            check(snapshot, actual_case=changed_case)
+        after = copy.deepcopy(snapshot)
+        after["telemetryFiles"][mode] = api["digest"](b"on")
+        with self.assertRaises(AssertionError):
+            check(snapshot, after=after)
+
     def test_source_closure_cannot_omit_validator(self):
         self.entry["sourceClosure"]["sources"].pop("scripts/ci/audit-provider-accuracy.py")
         self.entry["sourceClosure"]["digest"] = gate["digest"](gate["encoded"](self.entry["sourceClosure"]["sources"]))

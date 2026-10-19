@@ -376,11 +376,19 @@ def validate_go_inputs(case, native_receipts, result, scratch, enrollment):
     require(snapshots["unchanged"] is True and snapshots["afterError"] is None, "actual scanner inputs changed/unreadable")
     same(snapshots["before"], snapshots["after"], "scanner input before/after closure differs")
     snap = snapshots["before"]
-    keys(snap, ("schema", "databaseRoot", "databaseDigest", "databaseFiles", "sourceRoot", "sourceDigest", "sourceFiles", "moduleCacheRoot", "moduleCacheDigest", "moduleCacheFiles", "verifiedModules"))
+    keys(snap, ("schema", "databaseRoot", "databaseDigest", "databaseFiles", "sourceRoot", "sourceDigest", "sourceFiles", "moduleCacheRoot", "moduleCacheDigest", "moduleCacheFiles", "verifiedModules", "telemetryHome", "telemetryFiles"))
     require(snap["schema"] == "legion-govulncheck-input-snapshot/1", "native scanner snapshot schema differs")
     for label, enrolled in (("database", enrollment["database"]), ("moduleCache", enrollment["moduleCache"])):
         same({k: snap[label + k[0].upper() + k[1:]] for k in ("root", "files", "digest")}, enrolled, "scanner " + label + " differs from exact enrolled closure")
     stage = scratch / "cache" / "govulncheck" / hashlib.sha256(b"").hexdigest()
+    home = stage.parent / ("home-" + hashlib.sha256(b"").hexdigest())
+    requests = [row["request"] for row in case["sdkExecutions"] if row["request"]["taskId"] == "vulnerability"]
+    require(len(requests) == 1 and requests[0]["environment"]["HOME"] == str(home)
+            and absolute(snap["telemetryHome"]) == home, "scanner telemetry home differs from staged SDK HOME")
+    # Fresh macOS scanner home contains only the source-created exact off mode.
+    # Full snapshot equality above also rejects every execution-time home mutation.
+    same(snap["telemetryFiles"], {"Library/Application Support/go/telemetry/mode": digest(b"off")},
+         "scanner telemetry closure differs from exact off-mode bytes")
     same(snap["sourceFiles"], case["fixtureSources"], "scanner frozen source closure differs")
     require(snap["sourceRoot"] == str(stage) and snap["sourceDigest"] == digest(encoded(snap["sourceFiles"])), "scanner frozen stage binding differs")
     expected_modules = {}
