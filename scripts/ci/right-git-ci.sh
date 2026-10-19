@@ -169,6 +169,20 @@ audit_qualification_sequence=0
 audit_cargo_bin="$(command -v cargo)"
 audit_cargo_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@"); }
 audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
+# Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
+# A failed native prerequisite stops JVM commands; no network relaxation occurs.
+audit_jvm_qualification() {
+  audit_effects_test --lib gradle_sandbox::tests::gradle_bind_only_native_confinement \
+    -- --ignored --exact --nocapture --test-threads=1 &&
+    audit_cargo_test --test real_jvm_sdk_accuracy real_jvm_sdk_accuracy \
+      -- --ignored --exact --nocapture --test-threads=1
+}
+provision_jvm_sdk() {
+  local output="${RUNNER_TEMP}/legion-jvm-sdk-tools"
+  python3 scripts/ci/provision-jvm-sdk.py --root "$output" || return "$?"
+  export LEGION_JVM_SDK_ENROLLMENT_JSON="${output}/enrollment.json"
+}
+
 audit_tflint_qualification() {
   audit_effects_test --lib scoped_ipc_ci_storage_requires_private_canonical_owned_root -- --nocapture --test-threads=1 &&
     audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
@@ -600,6 +614,25 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     code_long_tail_native_qualification -- --ignored --exact --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-code-long-tail-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+  # Official pinned distributions are enrolled before offline JVM execution.
+  # Private owner/ACL-checked IPC storage also holds JVM cache & staged inputs.
+  # Output is copied only after validation, preserving original absolute receipt paths.
+  run_audit_qualification provision_jvm_sdk
+  export LEGION_JVM_SDK_SCRATCH="${LEGION_CI_IPC_STORAGE}/jvm-sdk-fixtures"
+  export LEGION_JVM_SDK_OUTPUT="${LEGION_CI_IPC_STORAGE}/legion-provider-qualification/code-jvm-sdk"
+  export LEGION_JVM_CONFINEMENT_RECORD="${LEGION_CI_IPC_STORAGE}/jvm-confinement/confinement.json"
+  mkdir -p "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${LEGION_CI_IPC_STORAGE}/legion-provider-qualification"
+  run_audit_qualification audit_jvm_qualification
+  run_audit_qualification python3 scripts/ci/audit-jvm-sdk-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_JVM_SDK_OUTPUT"
+  if [[ -d "$LEGION_JVM_SDK_OUTPUT" ]]; then
+    cp -R "$LEGION_JVM_SDK_OUTPUT" "${RUNNER_TEMP}/legion-provider-qualification/code-jvm-sdk"
+  fi
+  # Preserve partial native failures for authenticated CI inspection too.
+  if [[ -d "${LEGION_CI_IPC_STORAGE}/jvm-confinement" ]]; then
+    cp -R "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${RUNNER_TEMP}/legion-provider-qualification/jvm-confinement"
+  fi
+  unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT LEGION_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
   # Pin official Python wheels before network-denied SDK commands & retain original enrollment.
   run_audit_qualification provision_python_code_sdk
   export LEGION_PYTHON_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-python-code-command-fixtures"

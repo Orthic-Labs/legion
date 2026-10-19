@@ -177,6 +177,8 @@ impl Outcome {
 pub struct ToolEvidence {
     /// Analyzer input `tools` object (`status`, `identity`, `artifactDigest`, `scope`).
     pub tools: Map<String, Value>,
+    /// Context proven by native tool output, not manifest membership.
+    pub validated_context: Map<String, Value>,
     pub outcomes: BTreeMap<&'static str, Outcome>,
     /// Deduplicated, capped diagnostics inside the denominator.
     pub findings: Vec<NativeFinding>,
@@ -894,7 +896,7 @@ struct Diag {
     message: String,
 }
 
-fn read_artifact(
+pub(super) fn read_artifact(
     scratch: &AuditScratch,
     record: &legion_effects::ArtifactRecord,
 ) -> Option<Vec<u8>> {
@@ -910,7 +912,7 @@ fn read_artifact(
     (bytes.len() == record.bytes && sha256_text(&bytes) == record.digest).then_some(bytes)
 }
 
-fn classify(tool: &str, receipt: &ExecutionReceipt) -> Option<Outcome> {
+pub(super) fn classify(tool: &str, receipt: &ExecutionReceipt) -> Option<Outcome> {
     if receipt.state == ExecutionState::UnauthorizedEffect
         && !receipt.process_tree.started
         && receipt.policy.as_ref().is_some_and(|policy| {
@@ -1828,6 +1830,9 @@ pub async fn run(
     selected: &BTreeSet<String>,
     cancellation: CancellationToken,
 ) -> ToolEvidence {
+    if ctx.provider_id == "code.jvm" {
+        return super::jvm_sdk::run(ctx, entries, selected, cancellation).await;
+    }
     let provider_id = ctx.provider_id;
     let plan = plan_commands(provider_id, ctx.root, entries, selected, ctx.scratch);
     let mut evidence = ToolEvidence::default();

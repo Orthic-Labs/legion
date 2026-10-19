@@ -1,0 +1,98 @@
+import java.security.MessageDigest
+plugins { id 'java' }
+
+// Versioned project test entry: each named assertion executes actual compiled behavior.
+// No external plugin, artifact repository, dependency resolution or toolchain download.
+def jdk = System.getenv('JAVA_HOME')
+def kotlin = System.getenv('LEGION_KOTLIN_HOME')
+def scala = System.getenv('LEGION_SCALA_HOME')
+// Prove --no-daemon uses this launcher JVM; a single-use daemon is a gap.
+if (!System.getProperty('sun.java.command').startsWith('org.gradle.wrapper.GradleWrapperMain ')) { throw new GradleException('single-use daemon forbidden') }
+println 'LEGION_GRADLE_LAUNCH_MODE|wrapper-main'
+println 'LEGION_GRADLE_PID|' + ProcessHandle.current().pid()
+def out = file(System.getenv('LEGION_JVM_BUILD'))
+layout.buildDirectory.set(out)
+def javaBin = jdk + '/bin/java'
+def javacBin = jdk + '/bin/javac'
+def kotlinLib = kotlin + '/lib/kotlin-stdlib.jar'
+def scalaLib = scala + '/lib/scala-library.jar'
+def kotlinCompiler = [javaBin, '-Dkotlin.home=' + kotlin, '-cp', kotlin + '/lib/*', 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler']
+def scalaCompiler = [javaBin, '-cp', scala + '/lib/*', 'scala.tools.nsc.Main']
+def classes = [out.path + '/classes/java/main', out.path + '/kotlin', out.path + '/scala']
+dependencies {
+    implementation project(':support')
+    implementation files(kotlinLib, scalaLib)
+}
+def runtime = { configurations.runtimeClasspath.asPath + File.pathSeparator + classes.join(File.pathSeparator) }
+def sourceManifest = new groovy.json.JsonSlurper().parse(file('legion-jvm-sdk.json'))
+
+tasks.register('legionKotlin', Exec) {
+    dependsOn ':support:jar'
+    doFirst { file(out.path + '/kotlin').mkdirs() }
+    commandLine kotlinCompiler + ['-no-reflect', '-classpath', configurations.compileClasspath.asPath, '-d', out.path + '/kotlin'] + sourceManifest.sourceSets.kotlin
+}
+tasks.register('legionScala', Exec) {
+    dependsOn ':support:jar'
+    doFirst { file(out.path + '/scala').mkdirs() }
+    commandLine scalaCompiler + ['-classpath', configurations.compileClasspath.asPath, '-d', out.path + '/scala'] + sourceManifest.sourceSets.scala
+}
+tasks.register('legionKts', Exec) {
+    dependsOn 'legionKotlin'
+    commandLine kotlinCompiler + ['-classpath', runtime(), '-script'] + sourceManifest.sourceSets.kts
+}
+tasks.register('legionCompile') {
+    dependsOn 'compileJava', 'legionKotlin', 'legionScala', 'legionKts'
+    doLast { println 'LEGION_COMPILE_DONE|java,kotlin,kts,scala' }
+}
+
+// Scope: compiler warning diagnostics, not style or security analysis.
+['java', 'kotlin', 'scala', 'kts'].each { language ->
+    tasks.register('legionLint' + language.capitalize(), Exec) {
+        dependsOn ':support:jar', 'legionKotlin'
+        ignoreExitValue = true
+        def target = out.path + '/lint-' + language
+        doFirst { file(target).mkdirs() }
+        if (language == 'java') {
+            commandLine [javacBin, '-Xlint:all', '-Werror', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.java.findAll { !it.contains('/test/') && !it.startsWith('support/') }
+        } else if (language == 'kotlin') {
+            commandLine kotlinCompiler + ['-Werror', '-Xrender-internal-diagnostic-names', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.kotlin
+        } else if (language == 'scala') {
+            commandLine scalaCompiler + ['-Xlint', '-deprecation', '-Wunused:locals', '-Werror', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.scala
+        } else {
+            commandLine kotlinCompiler + ['-Werror', '-Xrender-internal-diagnostic-names', '-classpath', runtime(), '-script'] + sourceManifest.sourceSets.kts
+        }
+        doLast { println 'LEGION_NATIVE_EXIT|' + language + '|' + executionResult.get().exitValue }
+    }
+}
+tasks.register('legionLint') {
+    dependsOn 'legionLintJava', 'legionLintKotlin', 'legionLintScala', 'legionLintKts'
+    doLast { println 'LEGION_LINT_DONE|java,kotlin,kts,scala' }
+}
+
+tasks.register('legionDependency') {
+    dependsOn ':support:jar'
+    doLast {
+        configurations.runtimeClasspath.incoming.resolutionResult.allComponents.each { component ->
+            println 'LEGION_COMPONENT|' + component.id.displayName
+        }
+        configurations.runtimeClasspath.incoming.artifacts.artifacts.each { artifact ->
+            def digest = MessageDigest.getInstance('SHA-256').digest(artifact.file.bytes).encodeHex().toString()
+            println 'LEGION_ARTIFACT|runtimeClasspath|' + artifact.file.canonicalPath + '|sha256:' + digest
+        }
+        sourceManifest.sourceSets.each { language, paths -> paths.each { println 'LEGION_SOURCE|' + language + '|' + it } }
+        println 'LEGION_DEPENDENCY_DONE|runtimeClasspath'
+    }
+}
+tasks.register('legionTestCompile', Exec) {
+    dependsOn 'compileJava', 'legionKotlin', 'legionScala'
+    doFirst { file(out.path + '/test').mkdirs() }
+    commandLine [javacBin, '-classpath', runtime(), '-d', out.path + '/test', 'src/test/java/KnownAnswerTest.java']
+}
+tasks.register('legionAssertions', Exec) {
+    dependsOn 'legionTestCompile'
+    commandLine [javaBin, '-classpath', runtime() + File.pathSeparator + out.path + '/test', 'KnownAnswerTest']
+}
+tasks.register('legionTest') {
+    dependsOn 'legionAssertions', 'legionKts'
+    doLast { println 'LEGION_PROJECT_TEST_DONE|4' }
+}

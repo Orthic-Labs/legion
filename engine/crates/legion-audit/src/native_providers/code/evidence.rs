@@ -1084,6 +1084,38 @@ pub fn produce(
             }
         }
     }
+    if provider_id == "code.jvm" {
+        for entry in entries.iter().filter(|entry| {
+            !config
+                .extensions
+                .contains(&extension_of(&entry.path).as_str())
+                && super::jvm_sdk::is_context(&entry.path)
+        }) {
+            context_expected += 1;
+            let remaining = limits.max_total_bytes.saturating_sub(bytes_read);
+            let result = root
+                .ok_or_else(|| "jvm-v1:root-missing".to_owned())
+                .and_then(|root| {
+                    super::jvm_sdk::context_bytes(root, entry, limits.max_file_bytes.min(remaining))
+                });
+            match result {
+                Ok(bytes) => {
+                    context_examined += 1;
+                    bytes_read += bytes.len() as u64;
+                    context_accounting.push(json!({"path":entry.path,"status":"examined","analysis":"jvm-build-context","bytes":bytes.len(),"digest":entry.digest}));
+                }
+                Err(reason) => {
+                    context_accounting
+                        .push(json!({"path":entry.path,"status":"skipped","reason":reason}));
+                    if skips.len() < limits.max_skip_records {
+                        skips.push(format!("{reason}:{}", entry.path));
+                    } else {
+                        skip_overflow += 1;
+                    }
+                }
+            }
+        }
+    }
     if skip_overflow > 0 {
         skips.push(format!("more-files-skipped:{skip_overflow}"));
     }
@@ -1098,7 +1130,11 @@ pub fn produce(
     } else {
         entries
     };
-    let context = derive_context(context_entries, config.required_context, tags);
+    let context = if provider_id == "code.jvm" {
+        Map::new() // Resolved sourceSets require native JVM dependency evidence.
+    } else {
+        derive_context(context_entries, config.required_context, tags)
+    };
 
     let mut rule_ids = rules.iter().map(|rule| rule.id).collect::<Vec<_>>();
     rule_ids.extend(ruby.iter().map(|rule| rule.id));
@@ -1137,7 +1173,7 @@ pub fn produce(
             "rules": rule_ids,
         }],
     });
-    if matches!(provider_id, "code.go" | "code.python") {
+    if matches!(provider_id, "code.go" | "code.python" | "code.jvm") {
         input["contextAccounting"] = json!(context_accounting);
     }
     if long_tail {

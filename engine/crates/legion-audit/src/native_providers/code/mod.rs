@@ -6,6 +6,7 @@ pub mod evidence;
 pub mod go;
 pub mod javascript;
 pub mod jvm;
+mod jvm_sdk;
 pub mod long_tail;
 pub mod mobile;
 pub mod php_ruby;
@@ -316,6 +317,12 @@ impl ProviderExecutorAdapter {
                     // findings.
                     if let Some(object) = input.as_object_mut() {
                         object.insert("tools".into(), Value::Object(tools.tools.clone()));
+                        if provider.id == "code.jvm" {
+                            object.insert(
+                                "context".into(),
+                                Value::Object(tools.validated_context.clone()),
+                            );
+                        }
                     }
                     made.findings.extend(tools.findings.iter().cloned());
                 }

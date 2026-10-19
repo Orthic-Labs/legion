@@ -255,7 +255,7 @@ fn require_empty_acl(path: &Path) -> Result<(), SandboxGap> {
 }
 
 #[cfg(target_os = "macos")]
-fn canonical_owned_path(path: &Path) -> Result<PathBuf, SandboxGap> {
+pub(super) fn canonical_owned_path(path: &Path) -> Result<PathBuf, SandboxGap> {
     use std::os::unix::fs::MetadataExt;
     if !path.is_absolute()
         || path.components().any(|c| {

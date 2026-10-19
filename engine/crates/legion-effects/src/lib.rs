@@ -4,6 +4,7 @@ pub mod environment;
 pub mod error;
 pub mod executable;
 pub mod executor;
+pub mod gradle_sandbox;
 pub mod platform;
 pub mod receipt;
 pub mod request;
@@ -24,3 +25,5 @@ pub use sandbox::{
     validate_tflint_ipc_namespace, OwnedIpcNamespace, SandboxAuthentication, SandboxGap,
     SandboxMode,
 };
+
+pub use gradle_sandbox::GradleBindOnlySandbox;

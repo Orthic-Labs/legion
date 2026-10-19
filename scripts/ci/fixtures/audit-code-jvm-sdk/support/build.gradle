@@ -1,0 +1,2 @@
+plugins { id 'java-library' }
+layout.buildDirectory.set(file(System.getenv('LEGION_JVM_BUILD') + '/support'))
