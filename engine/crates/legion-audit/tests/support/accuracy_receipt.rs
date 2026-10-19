@@ -120,6 +120,7 @@ fn source_binding(provider_id: &str, fixture_paths: &[&str]) -> (Value, Value) {
     // Bind the complete Audit/SDK/contracts/rules implementation, not just adapter entrypoints.
     let implementation_roots = [
         "engine/crates/legion-audit/src",
+        "engine/crates/legion-audit/tests",
         "engine/crates/legion-provider-sdk/src",
         "engine/crates/legion-contracts/src",
         "engine/crates/legion-rules/src",
@@ -138,7 +139,6 @@ fn source_binding(provider_id: &str, fixture_paths: &[&str]) -> (Value, Value) {
         "engine/crates/legion-contracts/Cargo.toml",
         "engine/crates/legion-rules/Cargo.toml",
         "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-audit/tests/support/accuracy_receipt.rs",
     ] {
         implementation.push(bound_file(&root, &root.join(path)));
     }

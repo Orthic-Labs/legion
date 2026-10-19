@@ -74,7 +74,8 @@ def validate(root, directory, expected):
                 "externalExecution": "not-required" if record["coverageState"] == "complete" else "missing",
             }, provider
         binding = record["binding"]
-        roots = ["engine/crates/legion-audit/src", "engine/crates/legion-provider-sdk/src",
+        roots = ["engine/crates/legion-audit/src", "engine/crates/legion-audit/tests",
+                 "engine/crates/legion-provider-sdk/src",
                  "engine/crates/legion-contracts/src", "engine/crates/legion-rules/src",
                  "engine/crates/legion-effects/src",
                  "src/registry/rules", "src/registry/controls"]
@@ -87,8 +88,7 @@ def validate(root, directory, expected):
                     implementation.append(bound_file(root, file))
         for file in ("engine/Cargo.lock", "engine/Cargo.toml", "engine/crates/legion-audit/Cargo.toml",
                      "engine/crates/legion-provider-sdk/Cargo.toml", "engine/crates/legion-contracts/Cargo.toml",
-                     "engine/crates/legion-rules/Cargo.toml", "engine/crates/legion-effects/Cargo.toml",
-                     "engine/crates/legion-audit/tests/support/accuracy_receipt.rs"):
+                     "engine/crates/legion-rules/Cargo.toml", "engine/crates/legion-effects/Cargo.toml"):
             implementation.append(bound_file(root, root / file))
         implementation.sort(key=lambda row: row["path"])
         assert binding["implementationFileCount"] == len(implementation), provider
