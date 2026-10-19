@@ -868,6 +868,99 @@ fn retained_diagnostics(run: &Path) -> Value {
     }
     json!(rows)
 }
+// Each case reserves one author call & one fresh-verifier call before generation.
+fn capsule_seat_budget(allocation: u64) -> Result<u64, String> {
+    let seat = 10_000.min(allocation / 2);
+    if seat / 4 == 0 {
+        return Err("capsule case allowance has no author/verifier output capacity".into());
+    }
+    Ok(seat)
+}
+fn precursor_args(
+    source: &Path,
+    provider: &str,
+    run: &Path,
+    allocation: u64,
+) -> Result<Vec<String>, String> {
+    let seat = capsule_seat_budget(allocation)?;
+    Ok(vec![
+        "audit".into(),
+        source.to_string_lossy().into_owned(),
+        "--type".into(),
+        "repo".into(),
+        "--only".into(),
+        provider.into(),
+        "--coverage".into(),
+        "exhaustive".into(),
+        "--max-lens-seats".into(),
+        "1".into(),
+        "--seat-token-budget".into(),
+        seat.to_string(),
+        "--run-token-budget".into(),
+        allocation.to_string(),
+        "--out".into(),
+        run.to_string_lossy().into_owned(),
+    ])
+}
+fn bounded_dispatch(dispatch: &Value, plan_digest: &str, allocation: u64) -> Result<(), String> {
+    let seat = capsule_seat_budget(allocation)?;
+    let output = 4096.min(seat / 4);
+    let number = |pointer: &str| {
+        dispatch
+            .pointer(pointer)
+            .and_then(Value::as_u64)
+            .ok_or_else(|| format!("capsule dispatch missing unsigned {pointer}"))
+    };
+    if dispatch["kind"] != "legion-lens-dispatch"
+        || dispatch["planDigest"] != plan_digest
+        || dispatch["withinLimits"] != true
+        || !dispatch["violations"].as_array().is_some_and(Vec::is_empty)
+        || number("/limits/waveWidth")? != 1
+        || number("/limits/seatTokenBudget")? != seat
+        || number("/limits/runTokenBudget")? != allocation
+        || number("/reasoningBudget/perCallTokens")? != seat
+        || number("/reasoningBudget/totalTokens")? != allocation
+        || number("/reasoningBudget/outputTokens")? != output
+    {
+        return Err("capsule frozen dispatch exceeds or differs from explicit case bounds".into());
+    }
+    let seats = dispatch["seats"]
+        .as_array()
+        .filter(|seats| !seats.is_empty())
+        .ok_or("capsule dispatch has no author seats")?;
+    for row in seats {
+        let actual_output = row["outputTokenLimit"].as_u64().unwrap_or(0);
+        if row["perCallTokenAllowance"].as_u64() != Some(seat)
+            || row["outputTokenCeiling"].as_u64() != Some(output)
+            || actual_output == 0
+            || actual_output > output
+        {
+            return Err("capsule frozen author seat has invalid call/output bounds".into());
+        }
+    }
+    let initial = number("/requiredInitialCalls")?;
+    let followup = number("/followupReserveCalls")?;
+    let initial_tokens = initial
+        .checked_mul(seat)
+        .ok_or("capsule initial reserve overflow")?;
+    let followup_tokens = followup
+        .checked_mul(seat)
+        .ok_or("capsule verifier reserve overflow")?;
+    if number("/requiredSeats")? != seats.len() as u64
+        || initial < seats.len() as u64
+        || followup == 0
+        || number("/initialCallReservationTokens")? != initial_tokens
+        || number("/followupReserveTokens")? != followup_tokens
+        || initial_tokens
+            .checked_add(followup_tokens)
+            .is_none_or(|total| total > allocation)
+    {
+        return Err(
+            "capsule author/verifier reservations do not fit explicit case allowance".into(),
+        );
+    }
+    Ok(())
+}
 fn attempt(
     opts: &Options,
     capsule: &Capsule,
@@ -881,6 +974,7 @@ fn attempt(
     let mut charged = Some(0);
     let run = parent.join("case-run");
     let result = (|| -> Result<(), String> {
+        capsule_seat_budget(allocation)?;
         fs::create_dir(parent).map_err(|e| e.to_string())?;
         let source = parent.join("source");
         materialize(case, &source)?;
@@ -889,20 +983,7 @@ fn attempt(
         if pin(&opts.legion)? != pins["legion"] || pin(claude)? != pins["claude"] {
             return Err("runtime executable changed before case".into());
         }
-        let args = vec![
-            "audit".into(),
-            source.to_string_lossy().into_owned(),
-            "--type".into(),
-            "repo".into(),
-            "--only".into(),
-            capsule.provider_id.clone(),
-            "--coverage".into(),
-            "exhaustive".into(),
-            "--run-token-budget".into(),
-            allocation.to_string(),
-            "--out".into(),
-            run.to_string_lossy().into_owned(),
-        ];
+        let args = precursor_args(&source, &capsule.provider_id, &run, allocation)?;
         row["precursorCommand"] = command(&opts.legion, &args, &source, parent, "audit")?;
         // A nonzero Audit result can mean pending reasoning. A valid report,
         // sealed source & exact target packet are checked after runtime admission.
@@ -917,7 +998,7 @@ fn attempt(
             return Err("Audit precursor did not terminate normally".into());
         }
         // Verify case/source/selection seal BEFORE paying for any generation.
-        preflight(case, capsule, &source, &run)?;
+        preflight(case, capsule, &source, &run, allocation)?;
         let runtime_args = vec![
             "audit".into(),
             "run-reasoning".into(),
@@ -980,8 +1061,19 @@ fn attempt(
     }
     (row, charged)
 }
-fn preflight(case: &Case, capsule: &Capsule, source: &Path, run: &Path) -> Result<(), String> {
+fn preflight(
+    case: &Case,
+    capsule: &Capsule,
+    source: &Path,
+    run: &Path,
+    allocation: u64,
+) -> Result<(), String> {
     let (plan, _, _) = ingest::frozen_reasoning_basis(run).map_err(|e| e.to_string())?;
+    bounded_dispatch(
+        &read_json(&run.join(legion_audit::next::DISPATCH_FILE))?,
+        plan.digest(),
+        allocation,
+    )?;
     let outer = read_json(&run.join("plan.json"))?;
     let snapshot = FrozenSnapshot::open(Path::new(
         outer
@@ -1205,6 +1297,71 @@ mod tests {
     }
     fn request(packet: Value) -> ReasoningInvocation {
         serde_json::from_value(json!({"schemaVersion":1,"kind":"legion-reasoning-invocation","requestId":"request","providerId":"reasoning.doc-drift","contract":"lens","planDigest":"plan","planSignature":"signature","repositoryId":"repository","inventoryGeneration":"generation","inventoryDigest":"inventory","denominatorDigest":"denominator","denominatorCount":1,"denominatorPaths":["docs/retries.md"],"packet":packet})).unwrap()
+    }
+    #[test]
+    fn capsule_precursor_pins_width_and_author_verifier_allowance() {
+        for (allocation, seat) in [(20_000, 10_000), (40_000, 10_000), (12_001, 6000)] {
+            let args = precursor_args(
+                Path::new("source"),
+                "reasoning.doc-drift",
+                Path::new("run"),
+                allocation,
+            )
+            .unwrap();
+            let value =
+                |flag: &str| args[args.iter().position(|arg| arg == flag).unwrap() + 1].clone();
+            assert_eq!(value("--max-lens-seats"), "1");
+            assert_eq!(value("--seat-token-budget"), seat.to_string());
+            assert_eq!(value("--run-token-budget"), allocation.to_string());
+            assert!(seat * 2 <= allocation);
+            assert!(!args.iter().any(|arg| arg == "--allow-oversize-lenses"));
+        }
+        for allocation in 0..8 {
+            assert!(precursor_args(
+                Path::new("source"),
+                "reasoning.doc-drift",
+                Path::new("run"),
+                allocation
+            )
+            .is_err());
+        }
+    }
+    #[test]
+    fn capsule_refuses_changed_or_unfunded_frozen_dispatch_before_runtime() {
+        let valid = json!({"kind":"legion-lens-dispatch","planDigest":"plan","withinLimits":true,"violations":[],
+            "limits":{"waveWidth":1,"seatTokenBudget":10000,"runTokenBudget":20000},
+            "reasoningBudget":{"perCallTokens":10000,"totalTokens":20000,"outputTokens":2500},
+            "seats":[{"perCallTokenAllowance":10000,"outputTokenCeiling":2500,"outputTokenLimit":2400}],
+            "requiredSeats":1,"requiredInitialCalls":1,"followupReserveCalls":1,
+            "initialCallReservationTokens":10000,"followupReserveTokens":10000});
+        assert!(bounded_dispatch(&valid, "plan", 20_000).is_ok());
+        let mut overrun = valid.clone();
+        overrun["requiredInitialCalls"] = json!(2);
+        overrun["initialCallReservationTokens"] = json!(20000);
+        assert!(bounded_dispatch(&overrun, "plan", 20_000).is_err());
+        for (pointer, replacement) in [
+            ("/planDigest", json!("other")),
+            ("/withinLimits", json!(false)),
+            ("/limits/waveWidth", json!(16)),
+            ("/limits/seatTokenBudget", json!(150000)),
+            ("/reasoningBudget/perCallTokens", json!(150000)),
+            ("/reasoningBudget/totalTokens", json!(40000)),
+            ("/reasoningBudget/outputTokens", json!(4096)),
+            ("/seats/0/outputTokenLimit", json!(4096)),
+            ("/seats/0/perCallTokenAllowance", json!(150000)),
+            ("/followupReserveCalls", json!(0)),
+            ("/requiredInitialCalls", json!(2)),
+            ("/followupReserveTokens", json!(0)),
+            ("/limits/waveWidth", Value::Null),
+            ("/seats", json!([])),
+        ] {
+            let mut changed = valid.clone();
+            *changed.pointer_mut(pointer).unwrap() = replacement;
+            assert!(
+                bounded_dispatch(&changed, "plan", 20_000).is_err(),
+                "{pointer}"
+            );
+        }
     }
     #[test]
     fn strict_unknown_fields_ids_providers_spans_paths_and_duplicate_files() {

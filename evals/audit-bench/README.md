@@ -211,13 +211,14 @@ to installed app or installer payloads.
 paths, literal evidence spans & exact case bytes are validated before execution. Capsule mode
 cannot combine bundle `--fixture`/`--case` filters. Counts derive from selected corpus bytes.
 
-Example (requires caller-approved model, installed executables & a separate qualification allowance):
+Illustrative example: requires caller-approved model, installed executables & an explicit, separate
+qualification allowance. Two cases each reserve two full 10,000-token calls (author & fresh verifier):
 
 ```sh
 legion-dev audit-bench --legion /absolute/installed/legion \
   --capsule core-doc-drift-retries --with-lenses \
   --claude /absolute/installed/claude --model APPROVED_MODEL \
-  --capsule-token-budget 20000 --capsule-case-token-budget 10000 \
+  --capsule-token-budget 40000 --capsule-case-token-budget 20000 \
   --work-dir /absolute/external/scratch --json
 ```
 
@@ -231,6 +232,7 @@ only source files can deliver actual contracts to reviewers. Their intentional m
 is reported separately from authenticated required source delivery.
 
 Runner invokes installed `legion audit <source> --type repo --only <providerId> --coverage exhaustive
+--max-lens-seats 1 --seat-token-budget <min(10000,case-reservation/2)>
 --run-token-budget <case-reservation> --out <case-run>`, then installed `audit run-reasoning`
 with pinned Claude/model, `--strict-no-retry --max-calls-per-packet 1`. Existing owned-child bounds
 limit Audit/runtime commands to ten minutes & fixture Git commands to thirty seconds. Outputs,
@@ -238,6 +240,10 @@ command exits, executable hashes, source/corpus/case digests, sealed plan/snapsh
 identity & original diagnostics remain under explicit external scratch. Evidence is always retained;
 `--keep` is unnecessary in capsule mode.
 
+Before any generation, frozen dispatch must retain width 1, explicit case/per-call bounds, output
+ceiling `min(4096,seat-token-budget/4)` (at most 2,500) & funded author/fresh-verifier reservations.
+Zero output capacity or a differing/refused plan fails before model execution; allowance never grows.
+Repeats, A/A controls & additional capsules require their own explicit total allowance.
 Source snapshots must match exact case bytes & provider selection before any generation. Completion
 requires authenticated ingest, actual host-delivered literal contract/caller/behavior spans, original
 author findings, withdrawals/final findings & fresh verifier dispositions. Runtime calls & usage
