@@ -308,7 +308,7 @@ function Restore-CodexDisabledIntent($Intent) {
   $updated = $currentText + $separator + ($Intent.block -join $newline) + $newline
   $temporary = $Intent.path + '.legion-rollback-' + [Guid]::NewGuid().ToString('N')
   [IO.File]::WriteAllText($temporary, $updated, [Text.UTF8Encoding]::new($false))
-  try { [IO.File]::Replace($temporary, $Intent.path, $null) }
+  try { [IO.File]::Replace($temporary, $Intent.path, [System.Management.Automation.Language.NullString]::Value) }
   finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue } }
 }
 function Restore-LegacyCodexProjection($Snapshot) {
@@ -405,7 +405,8 @@ function Write-FailedDevelopmentReceipt([string]$Detail, [string]$State = 'faile
   $receipt = [ordered]@{schema='legion.install.activation.v1';state=$State;current=$currentPath;target=$currentPath;previous=$null;refresh='failed';recovery='reinstall';error=$Detail;developmentRecovery=$developmentRecovery}
   [IO.File]::WriteAllText($temporary, ($receipt | ConvertTo-Json -Depth 12 -Compress), [Text.UTF8Encoding]::new($false))
   try {
-    if ([IO.File]::Exists($activationReceiptPath)) { [IO.File]::Replace($temporary, $activationReceiptPath, $null) }
+    # PowerShell converts $null to an empty string here; File.Replace needs native null to omit backup.
+    if ([IO.File]::Exists($activationReceiptPath)) { [IO.File]::Replace($temporary, $activationReceiptPath, [System.Management.Automation.Language.NullString]::Value) }
     else { [IO.File]::Move($temporary, $activationReceiptPath) }
   } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
