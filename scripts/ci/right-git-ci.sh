@@ -50,6 +50,9 @@ fi
 # Hosted runners own Cargo directly; local package scripts use the RightKit
 # broker client, which is intentionally absent from hosted CI.
 
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
+python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
+
 checks=(
   "check-canonical-names"
   "check-authority-parity"

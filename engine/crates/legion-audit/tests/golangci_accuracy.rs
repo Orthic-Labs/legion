@@ -640,6 +640,13 @@ fn case(planted: bool) -> Value {
     assert_eq!(entry.provider, PROVIDER);
     assert!(!entry.skipped);
     let result = &entry.result;
+    eprintln!(
+        "REAL_SCANNER_CASE_DIAGNOSTIC {}",
+        serde_json::to_string(&json!({
+            "providerId": PROVIDER, "planted": planted, "actualProviderResult": result
+        }))
+        .unwrap()
+    );
     assert!(result.applicable);
     assert!(result.details.get("availability").is_none());
     assert!(result.findings.is_empty(), "scanner output is candidates");

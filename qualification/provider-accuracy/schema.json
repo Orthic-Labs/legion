@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Orthic-Labs/legion/qualification/provider-accuracy/schema.json",
+  "title": "Source-owned provider accuracy registration index",
+  "description": "Offline registration of complete file-only records. External execution records are unsupported. Authentication comes from separately retained maintainer verification after authenticated GitHub retrieval. No record in this index grants production admission or candidate adjudication.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "entries"],
+  "properties": {
+    "schema": {"const": "legion-provider-accuracy-index/1"},
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "path": {"type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\:])[^/]+(?:/[^/]+)*$"},
+    "reference": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/digest"}}
+    },
+    "record": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "qualificationDigest", "encoding"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/digest"},
+        "qualificationDigest": {"$ref": "#/$defs/digest"},
+        "encoding": {"const": "canonical-json"}
+      }
+    },
+    "argv": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "runId", "runAttempt", "jobId", "jobName", "workflow", "commit", "platform", "command", "validator", "log"],
+      "properties": {
+        "repository": {"const": "Orthic-Labs/legion"},
+        "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
+        "jobName": {"type": "string", "minLength": 1, "maxLength": 200},
+        "workflow": {"const": ".github/workflows/ci.yml"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "platform": {"enum": ["macos-15", "windows-2025"]},
+        "command": {
+          "type": "object", "additionalProperties": false, "required": ["harness", "validator"],
+          "properties": {"harness": {"$ref": "#/$defs/argv"}, "validator": {"$ref": "#/$defs/argv"}}
+        },
+        "validator": {"$ref": "#/$defs/reference"}, "log": {"$ref": "#/$defs/reference"}
+      }
+    },
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "family": {"const": "file"},
+        "record": {"$ref": "#/$defs/record"},
+        "stage": {"enum": ["candidate", "finding", "fact-output", "outcome"]},
+        "scope": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "sourceClosure": {
+          "type": "object", "additionalProperties": false, "required": ["sources", "digest"],
+          "properties": {
+            "sources": {"type": "object", "propertyNames": {"$ref": "#/$defs/path"}, "additionalProperties": {"$ref": "#/$defs/digest"}},
+            "digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "provenanceVerification": {"$ref": "#/$defs/reference"}
+      }
+    },
+    "provenanceVerification": {
+      "description": "Separate source-owned object populated only by maintainers after authenticated GitHub retrieval; never inferred from CI numbers or produced by this checker.",
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "method", "verified", "repository", "runId", "runAttempt", "jobId", "workflow", "commit", "conclusion", "recordSha256", "provenanceDigest", "logSha256", "validatorSha256", "sourceClosureDigest", "summaryDigest"],
+      "properties": {
+        "schema": {"const": "legion-provider-accuracy-provenance-verification/1"},
+        "method": {"const": "authenticated-github-retrieval"}, "verified": {"const": true},
+        "repository": {"const": "Orthic-Labs/legion"},
+        "runId": {"type": "integer", "minimum": 1}, "runAttempt": {"type": "integer", "minimum": 1}, "jobId": {"type": "integer", "minimum": 1},
+        "workflow": {"const": ".github/workflows/ci.yml"}, "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "conclusion": {"const": "success"}, "recordSha256": {"$ref": "#/$defs/digest"},
+        "provenanceDigest": {"$ref": "#/$defs/digest"}, "logSha256": {"$ref": "#/$defs/digest"}, "validatorSha256": {"$ref": "#/$defs/digest"},
+        "sourceClosureDigest": {"$ref": "#/$defs/digest"}, "summaryDigest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}
