@@ -6,7 +6,7 @@ use legion_audit::{
         ingest::{self, Recomputed},
         security_adjudication::{self, ScannerCandidate, SecurityVerdict, ADJUDICATOR_PROVIDER_ID},
     },
-    plan::AuditPlan,
+    AuditPlan,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
