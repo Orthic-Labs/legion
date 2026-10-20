@@ -385,7 +385,7 @@ def sdk(run, scanner):
         raw = unhex(run[label + "Hex"])
         artifact = r[label]
         keys(artifact, {"path", "digest", "bytes", "immutable"})
-        require(artifact["digest"] == digest(raw) and artifact["bytes"] == len(raw) and artifact["immutable"] is True and safe_path(artifact["path"]), "raw artifact differs")
+        require(artifact["digest"] == digest(raw) and artifact["bytes"] == len(raw) and artifact["immutable"] is True and artifact["path"] == r["requestId"] + "/" + label, "raw artifact/request binding differs")
         require(projection[label + "Digest"] == artifact["digest"] and projection[label + "Bytes"] == len(raw), "reduced/raw receipt differs")
         streams.append(raw)
     require(streams[1] == b"", "scanner stderr prevents complete source proof")
@@ -464,7 +464,12 @@ def validate_case(case, scanner, snapshot=False):
     require(len({r["sdk"]["requestId"] for r in case["runs"]}) == 2, "passes share request identity")
     for run in case["runs"]:
         r = run["sdk"]
-        require(r["planId"] == inv["digest"] and r["taskId"] == "gitleaks" and r["receiptId"] == "receipt:" + r["requestId"] and r["requestId"].startswith("security-producer:" + PROVIDER + ":" + inv["digest"] + ":"), "SDK request/plan/receipt binding differs")
+        # Source-bound shared adapter hashes producer ID + time/sequence into the
+        # artifact namespace; its nonce preimage is not retained in SDK receipts.
+        request_id = r["requestId"]
+        require(isinstance(request_id, str) and re.fullmatch(r"legion-audit/[0-9a-f]{64}", request_id) is not None
+                and r["planId"] == inv["digest"] and r["taskId"] == "gitleaks"
+                and r["receiptId"] == "receipt:" + request_id, "SDK request/plan/receipt binding differs")
     history_args = passes[1][0]
     log_opts = [v for v in history_args if v.startswith("--log-opts=")]
     require(len(log_opts) == 1 and {"--text", "--no-show-signature", "--no-ext-diff", "--no-textconv", "--no-renames"}.issubset(set(log_opts[0].split())) and set(m["tips"]).issubset(set(log_opts[0].split())) and history_args[1] == m["objectRoot"], "scanner captured tips/source differ")

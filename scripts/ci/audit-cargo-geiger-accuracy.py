@@ -135,7 +135,7 @@ def validate_record(repository_root,row,live=False):
     source=absolute(provision["source"]);base=source.parent;toolchain=absolute(provision["toolchainBin"]);tool=absolute(provision["tool"])
     require(source==base/"source" and tool==base/"tools/bin/cargo-geiger" and absolute(provision["archivePath"])==base/"upstream.tar.gz","source build roots differ")
     build=provision["build"]
-    same(build["argv"],[str(toolchain/"cargo"),"install","--debug","--locked","--path",str(source/"cargo-geiger"),"--root",str(base/"tools"),"--target-dir",str(base/"build")],"exact pinned source build differs")
+    same(build["argv"],[str(toolchain/"cargo"),"install","--debug","--locked","--path",str(source/"cargo-geiger"),"--root",str(base/"tools")],"exact pinned source build differs")
     require(build["cwd"]==str(source) and build["exitCode"]==0 and build["timedOut"] is False and build["timeoutSeconds"]==1200 and all(build[k+"Digest"]==digest(build[k].encode()) for k in ["stdout","stderr"]),"actual source build completion absent")
     require(provision["sourceFiles"]["Cargo.lock"]==LOCK and all(re.fullmatch(r"sha256:[0-9a-f]{64}",v) for v in provision["sourceFiles"].values()),"source build closure absent")
     require(provision["sourceLinks"] == {"cargo-geiger/README.md":"../README.md"},"reviewed upstream source link differs")

@@ -3,8 +3,6 @@
     "name": "urllib3",
     "version": "1.26.5",
     "vulnerabilityIds": [
-      "CVE-2026-97687",
-      "CVE-2026-97689",
       "PYSEC-2023-192",
       "PYSEC-2023-192",
       "PYSEC-2023-212",

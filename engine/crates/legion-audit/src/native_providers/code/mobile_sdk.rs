@@ -299,6 +299,9 @@ pub(super) fn plan(
                 stage.join(package).to_string_lossy().into_owned(),
                 "--skip-update".into(),
                 "--disable-automatic-resolution".into(),
+                // SwiftPM cannot nest its subprocess sandbox inside authenticated
+                // outer confinement; required outer network denial stays intact.
+                "--disable-sandbox".into(),
                 "--cache-path".into(),
                 scratch
                     .cache_dir()
@@ -378,7 +381,7 @@ pub(super) fn plan(
                     ),
                 ];
                 if tool == "analyzer" {
-                    args.push("--analyzer-output=text".into());
+                    args.extend(["-Xanalyzer".into(), "-analyzer-output=text".into()]);
                 }
                 args.push(stage.join(path).to_string_lossy().into_owned());
                 let mut item = command(

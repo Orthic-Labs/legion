@@ -467,10 +467,10 @@ fn javascript_only_inventory_makes_other_families_not_applicable() {
     fs::remove_dir_all(root).unwrap();
 }
 
-/// The JavaScript family applies to the same inventory and keeps its
-/// accounting: one file read against the frozen denominator of two.
+/// The JavaScript source and digest-bound project manifest are both read;
+/// tool evidence remains absent, so the frozen denominator is still partial.
 #[test]
-fn javascript_family_is_unchanged_in_a_javascript_only_inventory() {
+fn javascript_family_reads_source_and_project_context_without_claiming_tools() {
     let root = fixture(&[
         ("package.json", "{\"name\":\"app\"}\n"),
         ("src/app.js", "export const app = 1;\n"),
@@ -480,10 +480,36 @@ fn javascript_family_is_unchanged_in_a_javascript_only_inventory() {
     assert!(!result.details.contains_key("applicability"));
     assert!(!result.complete, "tools never ran on the sync path");
     let coverage = result.coverage.as_ref().unwrap();
-    assert_eq!((coverage.expected, coverage.examined), (2, 1));
-    assert!(result
+    assert_eq!((coverage.expected, coverage.examined), (2, 2));
+    assert!(!result
         .coverage_gaps
         .contains(&"code.javascript:selection-narrower-than-denominator:1of2".to_string()));
+    let producer = &result.details["nativeProducer"];
+    assert_eq!(producer["filesExpected"], json!(2));
+    assert_eq!(producer["filesRead"], json!(2));
+    assert_eq!(producer["sourceFilesExpected"], json!(1));
+    assert_eq!(producer["sourceFilesRead"], json!(1));
+    assert_eq!(producer["contextFilesExpected"], json!(1));
+    assert_eq!(producer["contextFilesRead"], json!(1));
+    assert_eq!(
+        producer["contextAccounting"][0]["path"],
+        json!("package.json")
+    );
+    assert_eq!(
+        producer["contextAccounting"][0]["status"],
+        json!("examined")
+    );
+    assert!(producer["toolDiscovery"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|tool| tool["executed"] == false));
+    for tool in ["type", "lint", "build", "test"] {
+        assert!(result
+            .coverage_gaps
+            .iter()
+            .any(|gap| gap == &format!("code.javascript:tool-evidence-gap:{tool}")));
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -853,33 +879,31 @@ exit 3
             .unwrap()
             .starts_with("sha256:"));
 
-        // Tool evidence cleared for the tools that ran; typed gaps for the rest.
+        // Metadata completed; check diagnostics remain findings from a failed build.
         let gaps = &result.coverage_gaps;
-        for ran in ["metadata", "check"] {
-            assert!(
-                !gaps
-                    .iter()
-                    .any(|gap| gap == &format!("code.rust:tool-evidence-gap:{ran}")),
-                "{ran} ran with a receipt: {gaps:?}"
-            );
-            assert!(!gaps
-                .iter()
-                .any(|gap| gap == &format!("unavailable:tool-missing:{ran}")));
-        }
+        assert!(!gaps.contains(&"code.rust:tool-evidence-gap:metadata".to_string()));
+        assert!(!gaps.contains(&"unavailable:tool-missing:metadata".to_string()));
         assert_eq!(
             result.details["nativeAnalysis"]["toolEvidence"][1]["status"],
-            "pass"
+            "fail"
         );
+        assert!(gaps.contains(&"code.rust:tool-evidence-gap:check".to_string()));
+        assert!(gaps.contains(&"unavailable:tool-failed:check:cargo-build-incomplete".to_string()));
         assert!(
             gaps.contains(&"unavailable:tool-missing:lint".to_string()),
             "no cargo-clippy: {gaps:?}"
         );
-        assert!(gaps.contains(
-            &"unavailable:tool-not-run:test:policy-no-project-code-execution".to_string()
-        ));
+        // The authorized test command reaches the stub's explicit fallback exit.
+        let test = receipts
+            .iter()
+            .find(|receipt| receipt["tool"] == "test")
+            .expect("test receipt");
+        assert_eq!(test["exitCode"], json!(3));
+        assert!(gaps.contains(&"unavailable:tool-failed:test:exit-3".to_string()));
         assert!(!result.complete);
         let coverage = result.coverage.as_ref().unwrap();
-        assert_eq!((coverage.expected, coverage.examined), (2, 1));
+        // Source plus bound Cargo.toml context were read despite failed tools.
+        assert_eq!((coverage.expected, coverage.examined), (2, 2));
         result.validate().unwrap();
 
         // Nothing was written into the audited tree.
@@ -956,7 +980,7 @@ exit 3
             }),
             scratch.clone(),
         );
-        for tool in ["metadata", "check"] {
+        for tool in ["metadata", "check", "test"] {
             assert!(
                 result
                     .coverage_gaps
@@ -970,9 +994,12 @@ exit 3
 
         let requests = requests.lock().unwrap();
         assert_eq!(
-            requests.len(),
-            2,
-            "metadata and check; clippy is not installed"
+            requests
+                .iter()
+                .map(|request| request.task_id.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            ["metadata", "check", "test"],
+            "all planned commands time out; clippy is not installed"
         );
         for request in requests.iter() {
             assert!(!request.shell);

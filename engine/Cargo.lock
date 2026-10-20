@@ -2308,6 +2308,7 @@ dependencies = [
  "image",
  "legion-contracts",
  "legion-effects",
+ "legion-host",
  "legion-provider-sdk",
  "legion-report",
  "legion-rules",

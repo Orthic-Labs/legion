@@ -81,7 +81,8 @@ def main():
         target.symlink_to(link)
     require(digest((source / "Cargo.lock").read_bytes()) == LOCK, "upstream lock differs")
     source_hashes = {p.relative_to(source).as_posix(): digest(p.read_bytes()) for p in source.rglob("*") if p.is_file() and not p.is_symlink()}
-    argv = [str(toolchain / "cargo"), "install", "--debug", "--locked", "--path", str(source / "cargo-geiger"), "--root", str(base / "tools"), "--target-dir", str(base / "build")]
+    # Inherited CI Cargo configuration owns build/cache output.
+    argv = [str(toolchain / "cargo"), "install", "--debug", "--locked", "--path", str(source / "cargo-geiger"), "--root", str(base / "tools")]
     build = execute(argv, source, env)
     (base / "build.stdout.log").write_text(build["stdout"])
     (base / "build.stderr.log").write_text(build["stderr"])

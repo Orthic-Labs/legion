@@ -262,7 +262,7 @@ def plan_commands(files, stage, scratch, sdk):
         commands.append({"tool":tool, "programs":programs, "argv":args, "accepted":accepted})
     if "Package.swift" in files:
         for tool, action in (("compiler", "build"), ("test", "test")):
-            args = [action, "--package-path", str(stage), "--skip-update", "--disable-automatic-resolution", "--cache-path", str(scratch / "cache/mobile-spm-cache"),
+            args = [action, "--package-path", str(stage), "--skip-update", "--disable-automatic-resolution", "--disable-sandbox", "--cache-path", str(scratch / "cache/mobile-spm-cache"),
                     "--config-path", str(scratch / "cache/mobile-spm-config"), "--security-path", str(scratch / "cache/mobile-spm-security"), "--disable-netrc", "--disable-keychain", "--scratch-path", str(scratch / "cache/mobile-package-0")]
             add(tool, ["swift"], args, [0])
     else:
@@ -273,7 +273,7 @@ def plan_commands(files, stage, scratch, sdk):
         else:
             for tool, mode in (("compiler", "-fsyntax-only"), ("analyzer", "--analyze")):
                 args = [mode, "-x", "objective-c++" if path.endswith(".mm") else "objective-c", "-isysroot", str(sdk), "-fno-color-diagnostics", "-fno-caret-diagnostics", "-fmodules-cache-path=" + str(scratch / "cache/mobile-clang-modules")]
-                add(tool, ["clang"], args + (["--analyzer-output=text"] if tool == "analyzer" else []) + [str(stage / path)], [0, 1])
+                add(tool, ["clang"], args + (["-Xanalyzer", "-analyzer-output=text"] if tool == "analyzer" else []) + [str(stage / path)], [0, 1])
     return commands, selected
 
 

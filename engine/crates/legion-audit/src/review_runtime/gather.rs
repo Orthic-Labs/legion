@@ -85,12 +85,11 @@ pub(super) fn initial_request_sizes(
         .and_then(|request| request.packet.pointer("/reviewContext/snapshotKey"))
         .and_then(Value::as_str)
         .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
-    let execution = model::gatherer(&super::RuntimeOptions::default())?;
-    super::request_sizes(
+    super::planning_sizes(
         &prompt(&requests, snapshot_key),
-        GATHER_SYSTEM,
         &schema(),
-        &execution,
+        model::planning_gatherer_candidates()?,
+        |_| GATHER_SYSTEM,
     )
 }
 

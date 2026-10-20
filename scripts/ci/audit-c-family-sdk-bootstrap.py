@@ -67,7 +67,7 @@ def tree(root, allowed_roots=None):
             if stat.S_ISLNK(mode):
                 resolved = path.resolve(strict=True)
                 if not any(resolved == p or p in resolved.parents for p in allowed_roots):
-                    raise ValueError('native alias escapes enrolled roots')
+                    raise ValueError(f'native alias escapes enrolled roots: {path} -> {resolved}')
                 aliases[str(path)] = str(resolved)
             elif stat.S_ISREG(mode):
                 total += path.stat().st_size

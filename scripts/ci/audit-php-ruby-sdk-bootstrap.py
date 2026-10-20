@@ -6,6 +6,7 @@ provider. Homebrew runtime identity is observed bytes, not archive provenance.
 All package execution & native extension compilation is CI-only & network denied.
 """
 import argparse
+import gzip
 import hashlib
 import io
 import json
@@ -268,13 +269,40 @@ def download(row, directory):
     return path
 
 
+# These two official pinned archives carry exact detached-signature members.
+# Outer archive SHA-256 pins them; this records their presence/size only and
+# makes no signer-trust or signature-verification claim.
+GEM_SIGNATURE_MEMBERS = {
+    "minitest-5.25.5.gem": {
+        "metadata.gz.sig": 256,
+        "data.tar.gz.sig": 256,
+        "checksums.yaml.gz.sig": 256,
+    },
+    "ruby-progressbar-1.13.0.gem": {
+        "metadata.gz.sig": 384,
+        "data.tar.gz.sig": 384,
+        "checksums.yaml.gz.sig": 384,
+    },
+}
+GEM_PAYLOAD_MEMBERS = {"checksums.yaml.gz", "data.tar.gz", "metadata.gz"}
+
+
 def inspect_gem(path, row):
     # Inspect only pinned bytes. Do not execute gemspecs or extract unknown paths.
     with tarfile.open(path, "r:") as archive:
         members = archive.getmembers()
-        require(sorted(item.name for item in members) == ["checksums.yaml.gz", "data.tar.gz", "metadata.gz"]
-                and all(item.isfile() and item.size <= 32*1024*1024 for item in members), "unexpected gem archive members")
-        metadata = archive.extractfile("metadata.gz").read()
+        signature_members = GEM_SIGNATURE_MEMBERS.get(row["filename"], {})
+        expected_members = GEM_PAYLOAD_MEMBERS | set(signature_members)
+        require({item.name for item in members} == expected_members
+                and len(members) == len(expected_members)
+                and all(item.isfile() and item.size <= 32*1024*1024 for item in members)
+                and all(next(item.size for item in members if item.name == name) == size
+                        for name, size in signature_members.items()),
+                "unexpected gem archive members")
+        compressed_metadata = archive.extractfile("metadata.gz").read()
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed_metadata), mode="rb") as stream:
+            metadata = stream.read(32*1024*1024 + 1)
+        require(len(metadata) <= 32*1024*1024, "expanded gem metadata exceeds bound")
         require(digest(metadata) == "sha256:" + row["gemMetadataSha256"], "actual gem metadata member differs")
         data = archive.extractfile("data.tar.gz").read()
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:

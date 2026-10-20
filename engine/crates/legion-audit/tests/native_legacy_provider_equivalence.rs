@@ -514,10 +514,25 @@ impl ExternalProjectTool for FakeTool {
             receipt.complete = true;
             receipt.exit_code = Some(0);
             if let Some(body) = &body_for_tool {
-                let path = PathBuf::from(&request.cwd).join("provider-result.json");
+                let cwd = PathBuf::from(&request.cwd);
+                // Stream artifacts belong outside the sealed Cargo resolution copy.
+                let cargo_resolution = request.task_id.as_deref() == Some("cargo_outdated");
+                let artifacts = if cargo_resolution {
+                    assert_eq!(cwd.file_name().unwrap(), "source");
+                    let parent = cwd.parent().unwrap();
+                    assert_eq!(parent.file_name().unwrap(), "rust-outdated-resolution");
+                    parent.to_path_buf()
+                } else {
+                    cwd
+                };
+                let path = artifacts.join("provider-result.json");
                 fs::write(&path, body).unwrap();
                 receipt.stdout = Some(legion_effects::ArtifactRecord {
-                    path: "provider-result.json".into(),
+                    path: if cargo_resolution {
+                        path.to_string_lossy().into_owned()
+                    } else {
+                        "provider-result.json".into()
+                    },
                     digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(body))),
                     bytes: body.len(),
                     immutable: true,
@@ -534,10 +549,14 @@ impl ExternalProjectTool for FakeTool {
                 } else {
                     body.as_slice()
                 };
-                let err_path = PathBuf::from(&request.cwd).join("provider-result.stderr.json");
+                let err_path = artifacts.join("provider-result.stderr.json");
                 fs::write(&err_path, stderr).unwrap();
                 receipt.stderr = Some(legion_effects::ArtifactRecord {
-                    path: "provider-result.stderr.json".into(),
+                    path: if cargo_resolution {
+                        err_path.to_string_lossy().into_owned()
+                    } else {
+                        "provider-result.stderr.json".into()
+                    },
                     digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(stderr))),
                     bytes: stderr.len(),
                     immutable: true,
@@ -1053,6 +1072,19 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             "{id} authorized fixture should complete: {:?}",
             result.coverage_gaps
         );
+        if id == "legacy.stack.rust-outdated" {
+            let resolution = &result.details["rustOutdatedResolution"];
+            assert_eq!(resolution["valid"], true);
+            assert_eq!(resolution["sourceUnchanged"], true);
+            assert_eq!(resolution["runtimeUnchanged"], true);
+            assert_eq!(resolution["postimage"], resolution["preimage"]);
+            assert_eq!(resolution["deltas"], json!([]));
+            assert_ne!(resolution["executionCwd"], resolution["sourceCwd"]);
+            assert_eq!(
+                resolution["executionCwd"],
+                result.details["executionReceipt"]["cwd"]
+            );
+        }
         assert_eq!(
             result.coverage.as_ref().unwrap().examined,
             result.coverage.as_ref().unwrap().expected,

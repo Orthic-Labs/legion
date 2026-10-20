@@ -275,23 +275,38 @@ MACHO_MAGICS = {bytes.fromhex(x) for x in ("feedface", "cefaedfe", "feedfacf", "
 SYSTEM_LIBRARY_ROOTS = (Path("/usr/lib"), Path("/System/Library"))
 
 
-def is_arm64_macho(path):
+def arm64_macho_architecture(path):
+    # Select an exact observed subtype before inspection, never retry a failed
+    # inspector with another architecture. arm64e is distinct from arm64.
     with path.open("rb") as stream:
         header = stream.read(4096)
-    if len(header) < 12 or header[:4] not in MACHO_MAGICS:
-        return False
+    if len(header) < 4 or header[:4] not in MACHO_MAGICS:
+        return None
+    require(len(header) >= 12, "truncated Mach-O header: " + str(path))
     magic = header[:4].hex()
     endian = ">" if magic in ("feedface", "feedfacf", "cafebabe", "cafebabf") else "<"
     if magic in ("cafebabe", "bebafeca", "cafebabf", "bfbafeca"):
         count = struct.unpack(endian + "I", header[4:8])[0]
         width = 32 if magic in ("cafebabf", "bfbafeca") else 20
-        if not 1 <= count <= 64:
-            return False
-        if len(header) < 8 + count * width:
-            return False
-        return any(struct.unpack(endian + "I", header[8 + index * width:12 + index * width])[0] == 0x0100000C for index in range(count))
-    return struct.unpack(endian + "I", header[4:8])[0] == 0x0100000C
+        require(1 <= count <= 64 and len(header) >= 8 + count * width,
+                "malformed fat Mach-O table: " + str(path))
+        slices = [struct.unpack(endian + "II", header[8 + index * width:16 + index * width])
+                  for index in range(count)]
+    else:
+        slices = [struct.unpack(endian + "II", header[4:12])]
+    arm64 = [subtype & 0x00FFFFFF for cpu, subtype in slices if cpu == 0x0100000C]
+    if not arm64:
+        return None
+    # CPU_SUBTYPE_MASK removes capability bits, including pointer-auth ABI.
+    # Refuse unknown or multiple ARM64 slices instead of guessing host grading.
+    names = {0: "arm64", 2: "arm64e"}
+    require(len(arm64) == 1 and arm64[0] in names,
+            "unsupported/ambiguous ARM64 Mach-O subtype: " + str(path))
+    return names[arm64[0]]
 
+
+def is_arm64_macho(path):
+    return arm64_macho_architecture(path) is not None
 
 def native_dependency_closure(initial_roots, exclusions, python_executable):
     """Use system otool in CI; resolve all non-system load commands recursively.
@@ -322,7 +337,9 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
                 "inspector": {"path": str(inspector), "digest": digest_file(inspector)}}
 
     def inspect_output(path, option):
-        args = [str(inspector), "-arch", "arm64", option, str(path)]
+        architecture = arm64_macho_architecture(path)
+        require(architecture is not None, "non-ARM64 native inspection: " + str(path))
+        args = [str(inspector), "-arch", architecture, option, str(path)]
         try:
             result = subprocess.run(args, check=True, env=environment, stdin=subprocess.DEVNULL,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
@@ -340,7 +357,7 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
             return cache[path]
         header = inspect_output(path, "-hv")
         # Read otool's filetype column, never a type-looking token in a filename
-        # or flags. One requested arm64 slice must yield exactly one header row.
+        # or flags. One exact supported ARM64 slice must yield one header row.
         lines = header.splitlines()
         columns = ["magic", "cputype", "cpusubtype", "caps", "filetype", "ncmds", "sizeofcmds", "flags"]
         rows = [lines[index + 1].split() for index, line in enumerate(lines[:-1]) if line.split() == columns]
@@ -351,7 +368,7 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
             # MH_OBJECT is a relocatable linker input, not a dyld image. Keep its
             # original bytes in the unchanged runtime snapshot, outside this queue.
             evidence = {**inspection_identity(path), "filetype": filetype,
-                        "argv": [str(inspector), "-arch", "arm64", "-hv", str(path)],
+                        "argv": [str(inspector), "-arch", arm64_macho_architecture(path), "-hv", str(path)],
                         "stdout": retained_stream(header.encode("utf-8"))}
             print("NATIVE_MACHO_OBJECT_INPUT " + canonical(evidence).decode(), flush=True)
             cache[path] = (None, [], [])

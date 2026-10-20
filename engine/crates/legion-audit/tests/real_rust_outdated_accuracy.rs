@@ -723,6 +723,24 @@ fn case(base: &Path, control: &str, missing: bool) -> Value {
         })
         .unwrap();
     let result = &report.results[0].result;
+    // Preserve the actual refusal/version/policy evidence before stream assertions.
+    let retained_case = PathBuf::from(
+        std::env::var_os("LEGION_RUST_OUTDATED_RECEIPTS").expect("retained directory required"),
+    )
+    .join(control);
+    fs::create_dir_all(&retained_case).unwrap();
+    fs::write(
+        retained_case.join("native-observation.json"),
+        serde_json::to_vec_pretty(&json!({
+            "schema":"legion-rust-outdated-native-observation/1",
+            "productionQualification":false,"qualificationEligible":false,
+            "control":control,"inventoryDigest":inventory.digest,"planDigest":frozen.digest(),
+            "nativeResult":result,"policyDefinition":policy.definition(),
+            "policyDecisions":*policy.decisions.lock().unwrap()
+        }))
+        .unwrap(),
+    )
+    .unwrap();
     let receipt = &result.details["executionReceipt"];
     let stdout = artifact(receipt, "stdout", &scratch);
     let stderr = artifact(receipt, "stderr", &scratch);

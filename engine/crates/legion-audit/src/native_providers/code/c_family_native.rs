@@ -1988,9 +1988,9 @@ mod tests {
     fn response_plugins_frameworks_and_external_sysroots_are_not_replayed() {
         let root = std::env::var_os("LEGION_C_FAMILY_SCRATCH")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/Volumes/D/scratch"))
+            .unwrap_or_else(std::env::temp_dir)
             .join(format!("c-family-argv-{}", std::process::id()));
-        fs::create_dir_all(&root).unwrap();
+        fs::create_dir(&root).unwrap();
         let root = root.canonicalize().unwrap();
         fs::write(root.join("source.c"), "int value(void){return 1;}\n").unwrap();
         for extra in [
@@ -2017,9 +2017,9 @@ mod tests {
     fn malformed_diagnostic_output_and_unmapped_paths_cannot_be_clean() {
         let root = std::env::var_os("LEGION_C_FAMILY_SCRATCH")
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/Volumes/D/scratch"))
+            .unwrap_or_else(std::env::temp_dir)
             .join(format!("c-family-diag-{}", std::process::id()));
-        fs::create_dir_all(&root).unwrap();
+        fs::create_dir(&root).unwrap();
         let root = root.canonicalize().unwrap();
         fs::write(root.join("source.c"), "int value(void){return 1;}\n").unwrap();
         let child = root.join("child");

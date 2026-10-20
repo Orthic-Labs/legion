@@ -41,7 +41,10 @@ const CHROME_ARCHIVE_SHA256: &str =
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 48;
 const READY: &str = "document.readyState === 'complete'";
-const OBSERVE: &str = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; })()";
+const ANIMATION_FRAMES: &str = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()";
+const HIGH_ENTROPY_UA: &str =
+    "(async () => await navigator.userAgentData.getHighEntropyValues(['fullVersionList']))()";
+const OBSERVE_DOM: &str = "({ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent})";
 const LABEL: &str = "visual.regression|viewport|shots/viewport.png|artifact";
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(20);
 const LAUNCH_TIMEOUT: Duration = Duration::from_secs(60);
@@ -71,6 +74,32 @@ async fn bounded<T, E: std::fmt::Display>(
         }
         Ok(Err(error)) => format!("{stage}: {error}"),
         Err(_) => format!("{stage}: deadline exceeded after {} ms", limit.as_millis()),
+    };
+    lifecycle(stage, "fail", json!({"error": result}));
+    Err(result)
+}
+
+/// Bind sequential observation phases to one deadline, including phase logging overhead.
+async fn bounded_until<T, E: std::fmt::Display>(
+    stage: &str,
+    deadline: Instant,
+    operation: impl Future<Output = Result<T, E>>,
+) -> Result<T, String> {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    lifecycle(stage, "begin", json!({"timeoutMs": remaining.as_millis()}));
+    let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+        let error = format!("{stage}: shared observation deadline exceeded before operation");
+        lifecycle(stage, "fail", json!({"error": error}));
+        return Err(error);
+    };
+    let result = match tokio::time::timeout(remaining, operation).await {
+        Ok(Ok(value)) if Instant::now() < deadline => {
+            lifecycle(stage, "pass", json!({}));
+            return Ok(value);
+        }
+        Ok(Ok(_)) => format!("{stage}: shared observation deadline exceeded on completion"),
+        Ok(Err(error)) => format!("{stage}: {error}"),
+        Err(_) => format!("{stage}: shared observation deadline exceeded"),
     };
     lifecycle(stage, "fail", json!({"error": result}));
     Err(result)
@@ -336,13 +365,29 @@ async fn capture(
     )
     .await
     .unwrap();
-    let observed = bounded(
-        &format!("{name}.observe"),
-        OPERATION_TIMEOUT,
-        page.eval(OBSERVE),
+    let observe_deadline = Instant::now() + OPERATION_TIMEOUT;
+    bounded_until(
+        &format!("{name}.animation-frames"),
+        observe_deadline,
+        page.eval(ANIMATION_FRAMES),
     )
     .await
     .unwrap();
+    let user_agent = bounded_until(
+        &format!("{name}.high-entropy-user-agent"),
+        observe_deadline,
+        page.eval(HIGH_ENTROPY_UA),
+    )
+    .await
+    .unwrap();
+    let mut observed = bounded_until(
+        &format!("{name}.observe-dom"),
+        observe_deadline,
+        page.eval(OBSERVE_DOM),
+    )
+    .await
+    .unwrap();
+    observed["fullVersionList"] = user_agent["fullVersionList"].clone();
     assert_eq!(observed["ready"], "complete");
     assert_eq!(
         observed["background"],
@@ -603,7 +648,13 @@ fn real_browser_accuracy_visual_regression() {
             && match request.action {
                 ActionKind::Navigate => true,
                 ActionKind::Eval => {
-                    matches!(request.detail.as_deref(), Some(READY) | Some(OBSERVE))
+                    matches!(
+                        request.detail.as_deref(),
+                        Some(READY)
+                            | Some(ANIMATION_FRAMES)
+                            | Some(HIGH_ENTROPY_UA)
+                            | Some(OBSERVE_DOM)
+                    )
                 }
                 _ => false,
             };
@@ -775,7 +826,7 @@ fn real_browser_accuracy_visual_regression() {
             .iter()
             .filter(|a| a["pageId"] == captured["pageId"])
             .collect();
-        assert_eq!(page_admissions.len(), 3);
+        assert_eq!(page_admissions.len(), 5);
         assert!(page_admissions.iter().all(|a| a["url"] == captured["url"]));
         assert_eq!(
             page_admissions
@@ -784,7 +835,7 @@ fn real_browser_accuracy_visual_regression() {
                 .count(),
             1
         );
-        for expression in [READY, OBSERVE] {
+        for expression in [READY, ANIMATION_FRAMES, HIGH_ENTROPY_UA, OBSERVE_DOM] {
             assert_eq!(
                 page_admissions
                     .iter()

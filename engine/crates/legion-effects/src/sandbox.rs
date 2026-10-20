@@ -523,15 +523,27 @@ mod scoped_ipc_tests {
     struct Fixture(PathBuf);
     impl Fixture {
         fn new() -> Self {
-            let path = ipc_run_storage().unwrap().join(format!(
-                "ipc-test-{}-{:x}",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ));
-            fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
+            static NEXT_FIXTURE: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0);
+            let storage = ipc_run_storage().unwrap();
+            let created = (0..32).find_map(|_| {
+                let sequence = NEXT_FIXTURE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let path = storage.join(format!(
+                    "ipc-test-{}-{:x}-{:x}",
+                    std::process::id(),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos(),
+                    sequence
+                ));
+                match fs::DirBuilder::new().mode(0o700).create(&path) {
+                    Ok(()) => Some(path),
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => None,
+                    Err(error) => panic!("create scoped IPC test fixture: {error}"),
+                }
+            });
+            let path = created.expect("unable to allocate unique scoped IPC test fixture");
             fs::create_dir(path.join("project")).unwrap();
             Self(path)
         }

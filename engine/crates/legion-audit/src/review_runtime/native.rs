@@ -1,4 +1,4 @@
-//! Tool-less native Claude transport. No repository executable or shell is invoked.
+//! Controlled native transport. Unsupported host boundaries fail before launch.
 use super::{invalid, RuntimeOptions};
 use crate::{error::AuditError, next::UsageReceipt};
 use rightkit_agents::{
@@ -126,7 +126,20 @@ fn command(binary: &Path, cwd: &Path) -> OwnedCommand {
     command
 }
 
+pub(super) fn admit_host(host: &str) -> Result<(), AuditError> {
+    match host {
+        "claude-code" => Ok(()),
+        // Locked rightkit-agents 0.1.0 exposes Codex app-server protocol only.
+        // It cannot establish Audit's no-settings/plugins/tools/persistence,
+        // schema & hard output-token boundary. Never substitute Claude or guess
+        // Codex flags/config; refusal precedes probe, budget admission & spawn.
+        "codex" => Err(invalid("incomplete:host-capability:codex-controlled-generation-unavailable:required tool-less/schema/hard-output-token boundary unsupported by locked transport")),
+        _ => Err(invalid("incomplete:host-capability:unsupported harness")),
+    }
+}
+
 pub fn resolve(options: &RuntimeOptions, cwd: &Path) -> Result<PathBuf, AuditError> {
+    admit_host(super::model::current_host()?)?;
     let executable = if let Some(path) = &options.claude {
         path.clone()
     } else {
@@ -269,6 +282,8 @@ pub fn invoke(
         schema_rejection: None,
     };
     let result = (|| -> Result<(), String> {
+        super::model::validate_execution_host(execution).map_err(|error| error.to_string())?;
+        admit_host(execution.host).map_err(|error| error.to_string())?;
         let mut cmd = command(binary, cwd);
         // Installed --help defines safe-mode as disabling user/project
         // settings, hooks & plugins while retaining subscription auth. Bare
@@ -670,6 +685,9 @@ fn decode_stream_with_schema(
                 AgentEvent::ToolUse { .. } | AgentEvent::SubagentStarted { .. } => {
                     protocol_error = Some("native tool/subagent use violates controlled boundary")
                 }
+                AgentEvent::Unknown { .. } => {
+                    protocol_error = Some("native host stream contains unsupported protocol event")
+                }
                 _ => {}
             }
         }
@@ -1027,6 +1045,26 @@ pub(super) fn action_diagnostic(observation: &Observation) -> Value {
 mod tests {
     use super::*;
 
+    #[test]
+    fn host_dispatch_refuses_codex_and_unknown_before_launch() {
+        assert!(admit_host("claude-code").is_ok());
+        let error = admit_host("codex").unwrap_err().to_string();
+        assert!(error.contains("codex-controlled-generation-unavailable"));
+        assert!(admit_host("unknown").is_err());
+    }
+
+    #[test]
+    fn claude_parser_refuses_codex_and_unknown_protocol_events() {
+        for raw in [
+            json!({"jsonrpc":"2.0","method":"turn/completed","params":{"turn":{"status":"completed"}}}),
+            json!({"type":"future_native_execution","session_id":"fresh"}),
+        ] {
+            let observation = decode_fixture(&[raw]);
+            assert!(observation.error.is_some());
+            assert!(observation.reply.is_none());
+        }
+    }
+
     fn rejection_stream() -> Vec<Value> {
         vec![
             json!({"type":"system","subtype":"init","session_id":"fresh","model":"claude-sonnet-5-5","tools":["StructuredOutput"],"mcp_servers":[],"slash_commands":[]}),
@@ -1313,7 +1351,7 @@ mod tests {
     }
     #[test]
     fn explicit_terminal_output_cap_rejects_complete_json_and_retains_accounting() {
-        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        let execution = super::super::model::verifier_for_host("claude-code").unwrap();
         for stop_reason in ["max_tokens", "end_turn"] {
             let (mut observation, mut usage) = empty();
             let complete = json!({"finalResult":{"complete":true}});
@@ -1415,7 +1453,7 @@ mod tests {
     }
     #[test]
     fn model_policy_finalization_survives_refusal_and_malformed_output() {
-        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        let execution = super::super::model::verifier_for_host("claude-code").unwrap();
         for (terminal, suffix) in [(true, ""), (false, "\nmalformed")] {
             let (mut observation, mut usage) = empty();
             let fixture = format!(
@@ -1441,7 +1479,7 @@ mod tests {
     }
     #[test]
     fn started_native_process_requires_model_observation_for_every_outcome() {
-        let execution = super::super::model::verifier(&RuntimeOptions::default()).unwrap();
+        let execution = super::super::model::verifier_for_host("claude-code").unwrap();
         let (mut observation, mut usage) = empty();
         observation.error = Some("native process failed".into());
         finalize_model_policy(&mut observation, &mut usage, &execution);

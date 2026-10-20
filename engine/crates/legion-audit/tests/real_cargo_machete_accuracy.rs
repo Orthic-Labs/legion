@@ -155,7 +155,7 @@ fn source_binding_excludes_only_regular_generated_session_receipts() {
             .as_nanos()
     ));
     let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
-    let receipt = format!("{prefix}{}.json", "a".repeat(64));
+    let receipt = format!("{prefix}{}.json", "f".repeat(64));
     let retained = [
         "engine/crates/legion-audit/src/mod.rs".to_owned(),
         "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
@@ -208,7 +208,7 @@ fn source_binding_excludes_only_regular_generated_session_receipts() {
     // On Unix these backslashes are filename bytes, not path separators.
     let alias = source.join(format!(
         r".audit\arcane\receipts\session-provenance\{}.json",
-        "a".repeat(64)
+        "f".repeat(64)
     ));
     assert!(!generated_session_provenance(
         alias.strip_prefix(&root).unwrap()

@@ -55,14 +55,9 @@ pub(super) fn initial_prompt_with_sizer(
     if native::rendered_input(&prompt)?.len() > super::MAX_REQUEST_BYTES / 2 {
         return Ok(None);
     }
-    let selection = super::model::default_execution_for_works(works)?;
-    let (_, rendered) = super::rendered_request(
-        &prompt,
-        super::author_system(&selection),
-        &action_schema(),
-        &selection,
-    )?;
-    if super::request_bytes(&rendered)? > super::MAX_REQUEST_BYTES as u64 {
+    if super::planning_author_sizes(&prompt, works)?.host_envelope_bytes
+        > super::MAX_REQUEST_BYTES as u64
+    {
         return Ok(None);
     }
     Ok(Some(prompt))

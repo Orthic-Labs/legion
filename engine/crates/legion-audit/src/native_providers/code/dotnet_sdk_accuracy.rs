@@ -360,7 +360,7 @@ impl ExactPolicy {
         match task {
             "restore" => args.extend([
                 "--locked-mode".into(),
-                "--no-http-cache".into(),
+                "--no-cache".into(),
                 "--disable-parallel".into(),
                 "--configfile".into(),
                 string(&control.join("NuGet.Config")),

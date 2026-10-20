@@ -8,6 +8,7 @@ license.workspace = true
 regex.workspace = true
 async-trait.workspace = true
 legion-contracts = { path = "../legion-contracts" }
+legion-host = { path = "../legion-host" }
 legion-report = { path = "../legion-report" }
 legion-provider-sdk = { path = "../legion-provider-sdk" }
 legion-rules = { path = "../legion-rules" }

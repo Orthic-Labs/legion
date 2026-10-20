@@ -22,23 +22,29 @@ pub(super) struct ExecutionSelection {
     pub stage: &'static str,
 }
 
-fn tier_model(tier: &str) -> Result<String, AuditError> {
+pub(super) fn current_host() -> Result<&'static str, AuditError> {
+    legion_host::current_harness()
+        .map(legion_host::CurrentHarness::as_str)
+        .map_err(|error| invalid(format!("incomplete:host-identity:{error}")))
+}
+
+fn tier_model(tier: &str, host: &str) -> Result<String, AuditError> {
+    if !matches!(host, "claude-code" | "codex") {
+        return Err(invalid("incomplete:host-identity:unsupported harness"));
+    }
     serde_json::from_str::<Value>(MODEL_TIERS)
         .ok()
-        .and_then(|map| {
-            map.pointer(&format!("/tiers/{tier}/hosts/claude-code"))
-                .cloned()
-        })
+        .and_then(|map| map.pointer(&format!("/tiers/{tier}/hosts/{host}")).cloned())
         .and_then(|value| value.as_str().map(str::to_owned))
         .filter(|model| !model.trim().is_empty())
-        .ok_or_else(|| {
-            invalid(format!(
-                "incomplete:model-policy-unavailable:{tier}:claude-code"
-            ))
-        })
+        .ok_or_else(|| invalid(format!("incomplete:model-policy-unavailable:{tier}:{host}")))
 }
 
 pub(super) fn validate_options(options: &RuntimeOptions) -> Result<(), AuditError> {
+    validate_options_for_host(options, current_host()?)
+}
+
+fn validate_options_for_host(options: &RuntimeOptions, host: &str) -> Result<(), AuditError> {
     if options
         .reasoning_effort
         .as_deref()
@@ -50,8 +56,8 @@ pub(super) fn validate_options(options: &RuntimeOptions) -> Result<(), AuditErro
     }
     if let Some(model) = &options.model {
         let allowed = [
-            tier_model("mechanical-cheap")?,
-            tier_model("balanced-executor")?,
+            tier_model("mechanical-cheap", host)?,
+            tier_model("balanced-executor", host)?,
         ];
         if !allowed.contains(model) {
             return Err(invalid("incomplete:model-policy:Audit execution permits only canonical Alchemist models; frontier overrides are prohibited"));
@@ -65,7 +71,16 @@ fn selection(
     verifier: bool,
     options: &RuntimeOptions,
 ) -> Result<ExecutionSelection, AuditError> {
-    validate_options(options)?;
+    selection_for_host(mechanical, verifier, options, current_host()?)
+}
+
+fn selection_for_host(
+    mechanical: bool,
+    verifier: bool,
+    options: &RuntimeOptions,
+    host: &'static str,
+) -> Result<ExecutionSelection, AuditError> {
+    validate_options_for_host(options, host)?;
     // Only settled dead-file inventory currently has a mechanical lens
     // contract. Naming, source semantics, security & adjudication stay balanced.
     let cheap = mechanical && !verifier;
@@ -74,8 +89,8 @@ fn selection(
     } else {
         "balanced-executor"
     };
-    let cheap_model = tier_model("mechanical-cheap")?;
-    let balanced_model = tier_model("balanced-executor")?;
+    let cheap_model = tier_model("mechanical-cheap", host)?;
+    let balanced_model = tier_model("balanced-executor", host)?;
     let model = if verifier {
         balanced_model
     } else if let Some(model) = &options.model {
@@ -86,7 +101,7 @@ fn selection(
         }
         model.clone()
     } else {
-        tier_model(tier)?
+        tier_model(tier, host)?
     };
     let model_tier = if cheap && model == cheap_model {
         "mechanical-cheap"
@@ -107,7 +122,7 @@ fn selection(
             .reasoning_effort
             .clone()
             .unwrap_or_else(|| "high".into()),
-        host: "claude-code",
+        host,
         stage: if verifier {
             "finding-verification"
         } else {
@@ -120,12 +135,20 @@ pub(super) fn author<'a>(
     providers: impl IntoIterator<Item = &'a str>,
     options: &RuntimeOptions,
 ) -> Result<ExecutionSelection, AuditError> {
+    author_for_host(providers, options, current_host()?)
+}
+
+pub(super) fn author_for_host<'a>(
+    providers: impl IntoIterator<Item = &'a str>,
+    options: &RuntimeOptions,
+    host: &'static str,
+) -> Result<ExecutionSelection, AuditError> {
     let mut any = false;
     let mechanical = providers.into_iter().all(|provider| {
         any = true;
         provider == "reasoning.dead-file"
     });
-    selection(any && mechanical, false, options)
+    selection_for_host(any && mechanical, false, options, host)
 }
 
 pub(super) fn verifier(options: &RuntimeOptions) -> Result<ExecutionSelection, AuditError> {
@@ -147,10 +170,11 @@ pub(super) fn gatherer(options: &RuntimeOptions) -> Result<ExecutionSelection, A
 
 pub(super) fn observed_model_matches(execution: &ExecutionSelection, observed: &str) -> bool {
     observed == execution.model
-        || observed.strip_prefix("claude-").is_some_and(|name| {
-            name.strip_prefix(&execution.model)
-                .is_some_and(|suffix| suffix.starts_with('-'))
-        })
+        || (execution.host == "claude-code"
+            && observed.strip_prefix("claude-").is_some_and(|name| {
+                name.strip_prefix(&execution.model)
+                    .is_some_and(|suffix| suffix.starts_with('-'))
+            }))
 }
 
 pub(crate) fn validate_metadata(value: &Value) -> Result<(), AuditError> {
@@ -160,6 +184,7 @@ pub(crate) fn validate_metadata(value: &Value) -> Result<(), AuditError> {
     let tier = value["modelTier"].as_str().unwrap_or("");
     let role = value["role"].as_str().unwrap_or("");
     let stage = value["stage"].as_str().unwrap_or("");
+    let host = value["host"].as_str().unwrap_or("");
     let valid_boundary = matches!(
         (stage, role, tier),
         ("evidence-gathering", "alchemist", "mechanical-cheap")
@@ -180,8 +205,7 @@ pub(crate) fn validate_metadata(value: &Value) -> Result<(), AuditError> {
             .contains(&key.as_str())
         })
         || !valid_boundary
-        || value["host"] != "claude-code"
-        || value["model"] != tier_model(tier)?
+        || value["model"] != tier_model(tier, host)?
         || !matches!(
             value["reasoningEffort"].as_str(),
             Some("low" | "medium" | "high")
@@ -194,7 +218,28 @@ pub(crate) fn validate_metadata(value: &Value) -> Result<(), AuditError> {
     Ok(())
 }
 
+pub(super) fn validate_execution_host(execution: &ExecutionSelection) -> Result<(), AuditError> {
+    if execution.host != current_host()? {
+        return Err(invalid(
+            "incomplete:host-identity:execution host differs from current harness",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_receipt_host(receipt: &Value, host: &str) -> Result<(), AuditError> {
+    let execution = receipt
+        .get("execution")
+        .ok_or_else(|| invalid("incomplete:host-identity:prior receipt execution missing"))?;
+    validate_metadata(execution)?;
+    if execution["host"].as_str() != Some(host) {
+        return Err(invalid("incomplete:host-identity:prior receipt host differs from current harness; prepare a new run"));
+    }
+    Ok(())
+}
+
 pub(super) fn enforce_prior_receipts(run: &Path) -> Result<(), AuditError> {
+    let host = current_host()?;
     let entries = match fs::read_dir(run.join("runtime-calls")) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -213,6 +258,7 @@ pub(super) fn enforce_prior_receipts(run: &Path) -> Result<(), AuditError> {
         let receipt = super::read_json(&path)?;
         let receipt =
             crate::native_providers::reasoning::ingest::verify_runtime_call(run, &receipt)?;
+        validate_receipt_host(&receipt, host)?;
         // New receipts carry typed policy status even when refusal/protocol
         // errors remain primary. Retain compatibility with old mismatch receipts.
         if receipt
@@ -231,13 +277,47 @@ pub(super) fn enforce_prior_receipts(run: &Path) -> Result<(), AuditError> {
     Ok(())
 }
 
-pub(super) fn default_execution_for_works(
+/// Planning candidates are local metadata for numeric bounds only. They are
+/// never launch authority, actual host observations or persisted provenance.
+pub(super) fn planning_author_candidates(
+    works: &[PendingLensWork],
+) -> Result<Vec<ExecutionSelection>, AuditError> {
+    ["claude-code", "codex"]
+        .into_iter()
+        .map(|host| {
+            author_for_host(
+                works.iter().map(|work| work.provider_id.as_str()),
+                &RuntimeOptions::default(),
+                host,
+            )
+        })
+        .collect()
+}
+
+pub(super) fn planning_gatherer_candidates() -> Result<Vec<ExecutionSelection>, AuditError> {
+    ["claude-code", "codex"]
+        .into_iter()
+        .map(|host| {
+            let mut execution = selection_for_host(true, false, &RuntimeOptions::default(), host)?;
+            execution.stage = "evidence-gathering";
+            Ok(execution)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+pub(super) fn verifier_for_host(host: &'static str) -> Result<ExecutionSelection, AuditError> {
+    selection_for_host(false, true, &RuntimeOptions::default(), host)
+}
+
+#[cfg(test)]
+pub(super) fn test_largest_planning_execution(
     works: &[PendingLensWork],
 ) -> Result<ExecutionSelection, AuditError> {
-    author(
-        works.iter().map(|work| work.provider_id.as_str()),
-        &RuntimeOptions::default(),
-    )
+    planning_author_candidates(works)?
+        .into_iter()
+        .max_by_key(|candidate| serde_json::to_vec(candidate).unwrap().len())
+        .ok_or_else(|| invalid("planning candidates missing"))
 }
 
 #[cfg(test)]
@@ -245,66 +325,119 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roles_and_models_follow_work_instead_of_orchestrator_defaults() {
-        let options = RuntimeOptions::default();
-        let cheap = author(["reasoning.dead-file"], &options).unwrap();
-        assert_eq!(cheap.role, "alchemist");
-        assert_eq!(cheap.model_tier, "mechanical-cheap");
-        assert_eq!(cheap.model, tier_model("mechanical-cheap").unwrap());
-        for provider in [
-            "reasoning.naming",
-            "reasoning.correctness",
-            "reasoning.security",
-            "legacy.security.adjudication",
-        ] {
-            let semantic = author([provider], &options).unwrap();
-            assert_eq!(semantic.role, "alchemist-specialist");
-            assert_eq!(semantic.model_tier, "balanced-executor");
-        }
-        assert_eq!(
-            author(["reasoning.dead-file", "reasoning.security"], &options)
+    fn both_host_columns_preserve_role_tier_policy() {
+        for host in ["claude-code", "codex"] {
+            let options = RuntimeOptions::default();
+            let cheap = selection_for_host(true, false, &options, host).unwrap();
+            assert_eq!(cheap.role, "alchemist");
+            assert_eq!(cheap.model_tier, "mechanical-cheap");
+            assert_eq!(cheap.model, tier_model("mechanical-cheap", host).unwrap());
+            assert_eq!(cheap.host, host);
+            for provider in [
+                "reasoning.naming",
+                "reasoning.correctness",
+                "reasoning.security",
+                "legacy.security.adjudication",
+            ] {
+                assert_eq!(
+                    author_for_host([provider], &options, host)
+                        .unwrap()
+                        .model_tier,
+                    "balanced-executor"
+                );
+            }
+            assert_eq!(
+                author_for_host(
+                    ["reasoning.dead-file", "reasoning.security"],
+                    &options,
+                    host
+                )
                 .unwrap()
                 .model_tier,
-            "balanced-executor"
-        );
-        let oracle = verifier(&options).unwrap();
-        assert_eq!(oracle.role, "oracle");
-        assert_eq!(oracle.model_tier, "balanced-executor");
-        assert_eq!(oracle.reasoning_effort, "high");
-    }
-
-    #[test]
-    fn overrides_cannot_buy_frontier_audits_or_downgrade_semantic_work() {
-        for model in ["opus", "claude-fable-5-1", "gpt-6-astra", "sonnet[1m]", ""] {
-            assert!(validate_options(&RuntimeOptions {
-                model: Some(model.into()),
-                ..Default::default()
-            })
-            .is_err());
+                "balanced-executor"
+            );
+            let semantic = author_for_host(["reasoning.correctness"], &options, host).unwrap();
+            assert_eq!(semantic.role, "alchemist-specialist");
+            assert_eq!(semantic.model_tier, "balanced-executor");
+            assert_eq!(
+                semantic.model,
+                tier_model("balanced-executor", host).unwrap()
+            );
+            let oracle = selection_for_host(false, true, &options, host).unwrap();
+            assert_eq!(oracle.role, "oracle");
+            assert_eq!(oracle.model_tier, "balanced-executor");
+            assert_eq!(oracle.reasoning_effort, "high");
+            for execution in [cheap, semantic, oracle] {
+                validate_metadata(&serde_json::to_value(&execution).unwrap()).unwrap();
+                assert!(observed_model_matches(&execution, &execution.model));
+            }
         }
-        let options = RuntimeOptions {
-            model: Some(tier_model("mechanical-cheap").unwrap()),
-            ..Default::default()
-        };
-        assert!(author(["reasoning.correctness"], &options).is_err());
-        assert_eq!(
-            verifier(&options).unwrap().model,
-            tier_model("balanced-executor").unwrap()
-        );
+        assert!(tier_model("mechanical-cheap", "missing").is_err());
     }
 
     #[test]
-    fn execution_metadata_and_observed_models_preserve_role_tier_boundary() {
-        let execution = verifier(&RuntimeOptions::default()).unwrap();
-        let mut value = serde_json::to_value(&execution).unwrap();
-        validate_metadata(&value).unwrap();
-        value["modelTier"] = serde_json::json!("frontier-judgment");
-        assert!(validate_metadata(&value).is_err());
-        let execution = gatherer(&RuntimeOptions::default()).unwrap();
-        assert_eq!(execution.role, "alchemist");
-        assert_eq!(execution.stage, "evidence-gathering");
-        assert!(observed_model_matches(&execution, &execution.model));
-        assert!(!observed_model_matches(&execution, "claude-opus-5"));
-        assert!(!observed_model_matches(&execution, "claude-fable-5-1"));
+    fn overrides_refuse_frontier_cross_host_and_semantic_downgrade() {
+        for host in ["claude-code", "codex"] {
+            for model in ["opus", "claude-fable-5-1", "gpt-6-astra", "sonnet[1m]", ""] {
+                assert!(validate_options_for_host(
+                    &RuntimeOptions {
+                        model: Some(model.into()),
+                        ..Default::default()
+                    },
+                    host
+                )
+                .is_err());
+            }
+            let other = if host == "codex" {
+                "claude-code"
+            } else {
+                "codex"
+            };
+            assert!(validate_options_for_host(
+                &RuntimeOptions {
+                    model: Some(tier_model("balanced-executor", other).unwrap()),
+                    ..Default::default()
+                },
+                host
+            )
+            .is_err());
+            let options = RuntimeOptions {
+                model: Some(tier_model("mechanical-cheap", host).unwrap()),
+                ..Default::default()
+            };
+            assert!(selection_for_host(false, false, &options, host).is_err());
+            assert_eq!(
+                selection_for_host(false, true, &options, host)
+                    .unwrap()
+                    .model,
+                tier_model("balanced-executor", host).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn metadata_and_receipts_bind_host_column_without_relabeling() {
+        for host in ["claude-code", "codex"] {
+            let execution =
+                selection_for_host(false, true, &RuntimeOptions::default(), host).unwrap();
+            let value = serde_json::to_value(&execution).unwrap();
+            let receipt = serde_json::json!({"execution": value});
+            validate_receipt_host(&receipt, host).unwrap();
+            let other = if host == "codex" {
+                "claude-code"
+            } else {
+                "codex"
+            };
+            assert!(validate_receipt_host(&receipt, other).is_err());
+            let mut wrong_column = value.clone();
+            wrong_column["host"] = serde_json::json!(other);
+            assert!(validate_metadata(&wrong_column).is_err());
+            let mut frontier = value;
+            frontier["modelTier"] = serde_json::json!("frontier-judgment");
+            assert!(validate_metadata(&frontier).is_err());
+            assert!(!observed_model_matches(&execution, "gpt-6-astra"));
+            assert!(!observed_model_matches(&execution, "claude-opus-5"));
+        }
+        assert!(validate_receipt_host(&serde_json::json!({}), "codex").is_err());
     }
 }

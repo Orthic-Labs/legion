@@ -355,7 +355,7 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
 }
 
 fn actual_receipt(receipt: &ExecutionReceipt) -> Value {
-    let value = json!({
+    let mut value = json!({
         "schemaVersion": receipt.schema_version,
         "receiptId": receipt.receipt_id, "requestId": receipt.request_id,
         "providerId": receipt.provider_id, "planId": receipt.plan_id,
@@ -374,6 +374,7 @@ fn actual_receipt(receipt: &ExecutionReceipt) -> Value {
         "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error},
         "gaps": receipt.gaps,
     });
+    legion_audit::execution_policy::project_binding(&mut value);
     value
 }
 fn request_value(request: &ExternalToolRequest) -> Value {

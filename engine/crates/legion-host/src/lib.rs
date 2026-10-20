@@ -32,7 +32,10 @@ pub use descriptor::{
     deterministic_lookup, ClientIdentity, DescriptorRegistry, DetectionRule, HostDescriptor,
     Mechanism, SurfaceDescriptor, SCHEMA_VERSION,
 };
-pub use detect::{detect, detect_all, CommandResolutionEvidence, HostEvidence};
+pub use detect::{
+    current_harness, current_harness_from_environment, detect, detect_all,
+    CommandResolutionEvidence, CurrentHarness, HostEvidence,
+};
 pub use error::{FailureCode, HostError};
 pub use install::{
     apply, apply_transaction, capture_preimage, digest, install, install_transactional, plan,

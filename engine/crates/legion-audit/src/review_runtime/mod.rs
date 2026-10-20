@@ -390,14 +390,7 @@ impl InitialRequestSizer {
         let Some(prompt) = batch::initial_prompt_with_sizer(works, self)? else {
             return Ok(None);
         };
-        let selection = model::default_execution_for_works(works)?;
-        request_sizes(
-            &prompt,
-            author_system(&selection),
-            &action_schema(),
-            &selection,
-        )
-        .map(Some)
+        planning_author_sizes(&prompt, works).map(Some)
     }
 
     pub(crate) fn shared_request_bytes(
@@ -433,13 +426,7 @@ impl InitialRequestSizer {
                 );
             let mut prompt = review_prompt(&work.request, snapshot_key, None)?;
             self.attach_context(&mut prompt, &work.request)?;
-            let selection = model::default_execution_for_works(std::slice::from_ref(work))?;
-            let sizes = request_sizes(
-                &prompt,
-                author_system(&selection),
-                &action_schema(),
-                &selection,
-            )?;
+            let sizes = planning_author_sizes(&prompt, std::slice::from_ref(work))?;
             total.host_envelope_bytes = total
                 .host_envelope_bytes
                 .checked_add(sizes.host_envelope_bytes)
@@ -523,6 +510,38 @@ fn request_sizes(
         )?,
         model_visible_input_bytes: model_visible_input_bytes(prompt, system, schema)?,
     })
+}
+
+/// Conservative metadata bound through implemented Claude framing only. Each
+/// component is maximized independently; no planning candidate escapes as host
+/// provenance or implies availability of a Codex transport.
+fn planning_sizes(
+    prompt: &Value,
+    schema: &Value,
+    candidates: Vec<model::ExecutionSelection>,
+    system: impl Fn(&model::ExecutionSelection) -> &'static str,
+) -> Result<RequestSizes, AuditError> {
+    let mut bound = RequestSizes::default();
+    for candidate in candidates {
+        let sizes = request_sizes(prompt, system(&candidate), schema, &candidate)?;
+        bound.host_envelope_bytes = bound.host_envelope_bytes.max(sizes.host_envelope_bytes);
+        bound.model_visible_input_bytes = bound
+            .model_visible_input_bytes
+            .max(sizes.model_visible_input_bytes);
+    }
+    Ok(bound)
+}
+
+fn planning_author_sizes(
+    prompt: &Value,
+    works: &[PendingLensWork],
+) -> Result<RequestSizes, AuditError> {
+    planning_sizes(
+        prompt,
+        &action_schema(),
+        model::planning_author_candidates(works)?,
+        author_system,
+    )
 }
 
 /// Initial physical host envelopes, including JSON escaping, schemas & tools.
@@ -877,6 +896,8 @@ impl Controller<'_> {
             let history = seat_call_history(self.run, seat_id)?;
             history.admit(self.options.max_calls_per_packet, repair_of.is_some())?;
         }
+        model::validate_execution_host(execution)?;
+        native::admit_host(execution.host)?;
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
         let model_input_bytes = model_visible_input_bytes(&prompt, system, schema)?;
@@ -1694,6 +1715,50 @@ mod tests {
         }
     }
     #[test]
+    fn offline_planning_bounds_actual_claude_without_live_identity() {
+        let work = estimate_work("reasoning.correctness", "offline", "quoted \"source\"\n");
+        let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
+        let bound = planning_author_sizes(&prompt, std::slice::from_ref(&work)).unwrap();
+        let actual = model::author_for_host(
+            ["reasoning.correctness"],
+            &RuntimeOptions::default(),
+            "claude-code",
+        )
+        .unwrap();
+        let actual =
+            request_sizes(&prompt, author_system(&actual), &action_schema(), &actual).unwrap();
+        assert!(bound.host_envelope_bytes >= actual.host_envelope_bytes);
+        assert!(bound.model_visible_input_bytes >= actual.model_visible_input_bytes);
+        assert!(initial_seat_request_bytes(&[work]).is_ok());
+    }
+
+    #[test]
+    fn planning_bounds_maximize_components_independently() {
+        let mut envelope = model::verifier_for_host("claude-code").unwrap();
+        envelope.model = "metadata".repeat(1024);
+        let input = model::verifier_for_host("codex").unwrap();
+        let system = |candidate: &model::ExecutionSelection| {
+            if candidate.host == "codex" {
+                "longer model-visible system"
+            } else {
+                ""
+            }
+        };
+        let prompt = json!({"source":"bounded"});
+        let schema = action_schema();
+        let left = request_sizes(&prompt, system(&envelope), &schema, &envelope).unwrap();
+        let right = request_sizes(&prompt, system(&input), &schema, &input).unwrap();
+        assert!(left.host_envelope_bytes > right.host_envelope_bytes);
+        assert!(right.model_visible_input_bytes > left.model_visible_input_bytes);
+        let bound = planning_sizes(&prompt, &schema, vec![envelope, input], system).unwrap();
+        assert_eq!(bound.host_envelope_bytes, left.host_envelope_bytes);
+        assert_eq!(
+            bound.model_visible_input_bytes,
+            right.model_visible_input_bytes
+        );
+    }
+
+    #[test]
     fn initial_estimate_counts_host_frame_escaping_schema_and_tools() {
         let work = estimate_work("reasoning.naming", "naming", "quote:\" slash:\\ newline:\n");
         let prompt = review_prompt(&work.request, "sha256:fixture", None).unwrap();
@@ -1703,7 +1768,7 @@ mod tests {
             &prompt,
             SYSTEM,
             &action_schema(),
-            &model::default_execution_for_works(std::slice::from_ref(&work)).unwrap(),
+            &model::test_largest_planning_execution(std::slice::from_ref(&work)).unwrap(),
         )
         .unwrap();
         let exact = serde_json::to_vec(&envelope).unwrap().len() as u64;
@@ -1716,7 +1781,7 @@ mod tests {
         let prompt = json!({"source":"quote:\" slash:\\ newline:\n".repeat(200),"contextTools":tools::specs()});
         let schema = action_schema();
         let work = estimate_work("reasoning.correctness", "correctness", "source");
-        let execution = model::default_execution_for_works(&[work]).unwrap();
+        let execution = model::test_largest_planning_execution(&[work]).unwrap();
         let (frame, mut envelope) = rendered_request(&prompt, SYSTEM, &schema, &execution).unwrap();
         let canonical = legion_contracts::canonical_json_bytes(&prompt).unwrap();
         let turn: Value = serde_json::from_str(&frame).unwrap();
@@ -2234,7 +2299,7 @@ mod tests {
                     &prompt,
                     SYSTEM,
                     &action_schema(),
-                    &model::default_execution_for_works(&works).unwrap()
+                    &model::test_largest_planning_execution(&works).unwrap()
                 )
                 .unwrap()
                 .1
@@ -2294,7 +2359,7 @@ mod tests {
                     &prompt,
                     SYSTEM,
                     &action_schema(),
-                    &model::default_execution_for_works(&works).unwrap()
+                    &model::test_largest_planning_execution(&works).unwrap()
                 )
                 .unwrap()
                 .1
@@ -2437,7 +2502,7 @@ mod tests {
             repaired["schemaRepair"]["validation"]["keyword"],
             "additionalProperties"
         );
-        let execution = model::verifier(&RuntimeOptions::default()).unwrap();
+        let execution = model::verifier_for_host("claude-code").unwrap();
         let (_, rendered) =
             rendered_request(&repaired, SYSTEM, &action_schema(), &execution).unwrap();
         assert!(rendered["controls"]
@@ -2532,7 +2597,7 @@ mod tests {
         let seat = json!({"seatId":"seat","attempt":1});
         let author = receipt(
             "seat:author:1",
-            model::author(["reasoning.security"], &options).unwrap(),
+            model::author_for_host(["reasoning.security"], &options, "claude-code").unwrap(),
         );
         let author = ingest::mint_runtime_call(run, &author).unwrap();
         persist(&run.join("runtime-calls"), "author.json", &author).unwrap();
@@ -2554,7 +2619,10 @@ mod tests {
             .admit(1, false)
             .is_err());
 
-        let verifier = receipt("seat:verifier:1", model::verifier(&options).unwrap());
+        let verifier = receipt(
+            "seat:verifier:1",
+            model::verifier_for_host("claude-code").unwrap(),
+        );
         let verifier = ingest::mint_runtime_call(run, &verifier).unwrap();
         persist(&run.join("runtime-calls"), "verifier.json", &verifier).unwrap();
         let after_restart =
