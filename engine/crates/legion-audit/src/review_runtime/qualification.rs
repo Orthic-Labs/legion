@@ -17,9 +17,48 @@ use std::{
 pub const EXPORT_SCHEMA: &str = "legion-reasoning-runtime-export/1";
 pub const PREFLIGHT_SCHEMA: &str = "legion-reasoning-runtime-preflight/1";
 pub const MAX_CALLS: u64 = 44;
-pub const PER_CALL_TOKENS: u64 = 10_000;
-pub const MAX_RESERVED_TOKENS: u64 = 440_000;
+pub const PER_CALL_TOKENS: u64 = 150_000;
+pub const MAX_RESERVED_TOKENS: u64 = MAX_CALLS * PER_CALL_TOKENS;
 const MAX_AUTHOR_PACKETS: usize = 8;
+pub const MEMBER_PROVIDERS: [&[&str]; 3] = [
+    &[
+        "reasoning.security",
+        "legacy.security.adjudication",
+        "legacy.security.variant-analysis",
+        "reasoning.correctness",
+        "reasoning.doc-drift",
+        "reasoning.schema",
+    ],
+    &[
+        "reasoning.architecture",
+        "reasoning.minimize",
+        "reasoning.naming",
+        "reasoning.dead-file",
+        "reasoning.performance",
+        "reasoning.ai-slop",
+    ],
+    &[
+        "reasoning.a11y",
+        "reasoning.data-safety",
+        "reasoning.resilience",
+        "reasoning.platform-parity",
+        "reasoning.release-readiness",
+    ],
+];
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Member {
+    schema: String,
+    member_id: String,
+    member_index: usize,
+    corpus_root: String,
+    provider_ids: Vec<String>,
+    case_ids: Vec<String>,
+    source_root: String,
+    source_files: BTreeMap<String, String>,
+    cases_digest: String,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -380,6 +419,139 @@ fn validate_production_packet_bound(dispatch: &Value) -> Result<(), AuditError> 
     Ok(())
 }
 
+fn member_binding(run: &Path, plan: &Value) -> Result<(Member, BTreeSet<String>), AuditError> {
+    let parent = run
+        .parent()
+        .ok_or_else(|| invalid("qualification member parent missing"))?;
+    let member: Member =
+        serde_json::from_value(read_json(&parent.join("qualification-member.json"))?)
+            .map_err(|error| invalid(error.to_string()))?;
+    let expected = MEMBER_PROVIDERS
+        .get(member.member_index)
+        .ok_or_else(|| invalid("qualification member index differs"))?;
+    if member.schema != "legion-reasoning-qualification-member/1"
+        || member.member_id != format!("run-{:02}", member.member_index + 1)
+        || member.provider_ids
+            != expected
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        || fs::canonicalize(&member.source_root).map_err(|error| invalid(error.to_string()))?
+            != fs::canonicalize(parent.join("fixture-source"))
+                .map_err(|error| invalid(error.to_string()))?
+        || plan
+            .pointer("/reviewContext/sourceRepository")
+            .and_then(Value::as_str)
+            != Some(member.source_root.as_str())
+    {
+        return Err(invalid(
+            "qualification member source/provider binding differs",
+        ));
+    }
+    let corpus = Path::new(&member.corpus_root);
+    let raw = source_bytes(corpus, "cases.json")?;
+    if digest_bytes(&raw) != member.cases_digest {
+        return Err(invalid("qualification cases digest differs"));
+    }
+    let controls: Cases =
+        serde_json::from_slice(&raw).map_err(|error| invalid(error.to_string()))?;
+    preflight(
+        corpus,
+        &serde_json::from_slice(&raw).map_err(|error| invalid(error.to_string()))?,
+        &read_json(&corpus.join("packet-plan.json"))?,
+    )?;
+    let selected: Vec<_> = controls
+        .cases
+        .iter()
+        .filter(|case| {
+            case.provider_ids.len() == 1 && member.provider_ids.contains(&case.provider_ids[0])
+        })
+        .collect();
+    let mut cases: Vec<_> = selected.iter().map(|case| case.case_id.clone()).collect();
+    cases.sort();
+    if selected.len() != expected.len() * 2
+        || member.case_ids != cases
+        || member.source_files.is_empty()
+    {
+        return Err(invalid("qualification paired member cases differ"));
+    }
+    let roots: Vec<_> = selected
+        .iter()
+        .map(|case| {
+            case.fixture_root
+                .strip_prefix("fixtures/")
+                .ok_or_else(|| invalid("qualification fixture prefix differs"))
+        })
+        .collect::<Result<_, _>>()?;
+    fn collect(
+        root: &Path,
+        directory: &Path,
+        files: &mut BTreeSet<String>,
+    ) -> Result<(), AuditError> {
+        for entry in fs::read_dir(directory).map_err(|error| invalid(error.to_string()))? {
+            let path = entry.map_err(|error| invalid(error.to_string()))?.path();
+            if fs::symlink_metadata(&path)
+                .map_err(|error| invalid(error.to_string()))?
+                .file_type()
+                .is_symlink()
+                || files.len() > 1000
+            {
+                return Err(invalid("qualification member source unsafe/oversized"));
+            }
+            if path.is_dir() {
+                collect(root, &path, files)?;
+            } else {
+                files.insert(
+                    path.strip_prefix(root)
+                        .map_err(|error| invalid(error.to_string()))?
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                );
+            }
+        }
+        Ok(())
+    }
+    let mut original_files = BTreeSet::new();
+    for root in &roots {
+        collect(
+            &corpus.join("fixtures"),
+            &corpus.join("fixtures").join(root),
+            &mut original_files,
+        )?;
+    }
+    if original_files != member.source_files.keys().cloned().collect() {
+        return Err(invalid("qualification member omits original case source"));
+    }
+    for (name, sha) in &member.source_files {
+        relative(name)?;
+        if !roots
+            .iter()
+            .any(|root| name.starts_with(&format!("{root}/")))
+            || digest_bytes(&source_bytes(corpus, &format!("fixtures/{name}"))?) != *sha
+            || digest_bytes(&source_bytes(Path::new(&member.source_root), name)?) != *sha
+        {
+            return Err(invalid("qualification member source bytes differ"));
+        }
+    }
+    let snapshot = plan
+        .pointer("/reviewContext/snapshotManifest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("qualification snapshot missing"))?;
+    let snapshot = read_json(Path::new(snapshot))?;
+    let files: BTreeSet<_> = snapshot["files"]
+        .as_object()
+        .ok_or_else(|| invalid("qualification snapshot files missing"))?
+        .keys()
+        .cloned()
+        .collect();
+    if files != member.source_files.keys().cloned().collect() {
+        return Err(invalid("qualification snapshot/source subset differs"));
+    }
+    let mut providers: BTreeSet<_> = member.provider_ids.iter().cloned().collect();
+    providers.insert("security.misuse-resistance".into());
+    Ok((member, providers))
+}
+
 /// Inspect a genuine prepared production plan before any paid call. This
 /// validates native frozen artifacts without leasing a seat or probing a CLI.
 /// Conditional security stages remain explicit; proposed packet groups cannot
@@ -394,6 +566,12 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
     let verified = ingest::recompute_run(&run)?;
     let plan = super::read_plan_json(&run.join("plan.json"))?;
     let dispatch = read_json(&run.join("lens-dispatch.json"))?;
+    let (member, expected) = member_binding(&run, &plan)?;
+    let quota = dispatch
+        .pointer("/reasoningBudget/maxSeats")
+        .and_then(Value::as_u64)
+        .filter(|quota| (1..=MAX_CALLS).contains(quota))
+        .ok_or_else(|| invalid("qualification remaining quota invalid"))?;
     // Reconstruct the complete original packet universe from the canonical
     // sealed scope, verified inventory, immutable source & native candidates.
     // Scalar budget checks alone cannot authenticate dispatch membership.
@@ -406,6 +584,15 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
         &inventory,
         Some(&candidates),
     )?;
+    let logical_requests: BTreeSet<_> = work
+        .iter()
+        .map(|item| item.request.request_id.as_str())
+        .collect();
+    if logical_requests.len() != work.len() || logical_requests.len() > 8 {
+        return Err(invalid(
+            "qualification logical pending requests exceed fresh verifier item capacity",
+        ));
+    }
     let mut expected_packets = BTreeSet::new();
     for item in &work {
         item.request.validate().map_err(invalid)?;
@@ -440,8 +627,8 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
         &ingest::DispatchLimits {
             seat_token_budget: PER_CALL_TOKENS,
             wave_width: 1,
-            run_token_budget: MAX_RESERVED_TOKENS,
-            max_total_seats: MAX_CALLS,
+            run_token_budget: quota * PER_CALL_TOKENS,
+            max_total_seats: quota,
         },
     )?;
     if actual_packets != expected_packets || dispatch != canonical {
@@ -453,20 +640,17 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
     let selected = plan["providers"]
         .as_array()
         .ok_or_else(|| invalid("frozen provider selection missing"))?;
-    let expected: BTreeSet<_> = REASONING_PROVIDER_IDS
-        .into_iter()
-        .chain(["security.misuse-resistance"])
-        .collect();
     if selected.len() != expected.len()
         || selected
             .iter()
             .filter_map(Value::as_str)
+            .map(str::to_owned)
             .collect::<BTreeSet<_>>()
             != expected
         || dispatch.pointer("/reasoningBudget/schemaVersion") != Some(&json!(2))
-        || dispatch.pointer("/reasoningBudget/totalTokens") != Some(&json!(MAX_RESERVED_TOKENS))
+        || dispatch.pointer("/reasoningBudget/totalTokens") != Some(&json!(quota * PER_CALL_TOKENS))
         || dispatch.pointer("/reasoningBudget/perCallTokens") != Some(&json!(PER_CALL_TOKENS))
-        || dispatch.pointer("/reasoningBudget/maxSeats") != Some(&json!(MAX_CALLS))
+        || dispatch.pointer("/reasoningBudget/maxSeats") != Some(&json!(quota))
         || dispatch.pointer("/limits/waveWidth") != Some(&json!(1))
         || dispatch["withinLimits"] != true
         || dispatch["boundedAudit"] != false
@@ -477,7 +661,7 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
         ));
     }
     Ok(
-        json!({"schema":"legion-reasoning-runtime-dispatch-preflight/1","run":run,"planDigest":plan.pointer("/seal/digest"),"dispatchDigest":digest(&dispatch)?,"dispatch":dispatch,"pending":verified.pending,"modelCalls":0,"productionDispatchValidated":true,"qualification":false}),
+        json!({"schema":"legion-reasoning-runtime-dispatch-preflight/1","run":run,"memberId":member.member_id,"memberIndex":member.member_index,"caseIds":member.case_ids,"providerIds":member.provider_ids,"expectedPlantedPositives":member.provider_ids.len(),"knownAnswerExpectedPositives":member.provider_ids.len(),"expectedPairedCleanControls":member.provider_ids.len(),"expectedVerifierItems":member.provider_ids.len(),"logicalPendingRequestCount":logical_requests.len(),"zeroFindingReviewHeadroom":8-member.provider_ids.len(),"verifierItemCap":8,"verifierEnvelopeBasis":"known-answer expectation; logical requests are a lower bound, multiple findings and zero-finding reviews remain subject to native cap","plannedFreshBatchVerifierAdmissions":1,"plannedAuthorSeats":dispatch["requiredSeats"],"remainingAdmissions":quota,"planDigest":plan.pointer("/seal/digest"),"dispatchDigest":digest(&dispatch)?,"dispatch":dispatch,"pending":verified.pending,"modelCalls":0,"productionDispatchValidated":true,"qualification":false}),
     )
 }
 

@@ -237,16 +237,53 @@ def inspect_plan(plan, run, item):
     return {key: dispatch[key] for key in keys}, excerpts, packets, packet_gaps
 
 
+def write_fixture_sources(source, files):
+    hashes = {path: sha(text.encode("utf-8")) for path, text in sorted(files.items())}
+    for relative, text in files.items():
+        target = source / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        raw = text.encode("utf-8")
+        target.write_bytes(raw)
+        require(not target.is_symlink() and target.is_file() and target.read_bytes() == raw
+                and sha(raw) == hashes[relative], "fixture source bytes differ after materialization")
+    return hashes
+
+
+def initialize_fixture_git(source, hashes):
+    """Give each source-only fixture a fresh local Git baseline without rewriting inputs."""
+    hooks = source.parent / (source.name + "-disabled-hooks")
+    hooks.mkdir(parents=False, exist_ok=False)
+    environment = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+                   "GIT_AUTHOR_NAME": "Legion capsule preflight", "GIT_AUTHOR_EMAIL": "capsule-preflight@localhost",
+                   "GIT_COMMITTER_NAME": "Legion capsule preflight", "GIT_COMMITTER_EMAIL": "capsule-preflight@localhost"}
+
+    def git(*args):
+        completed = subprocess.run(["git", "-C", str(source), *args], cwd=source,
+                                   env=environment, capture_output=True, check=False, shell=False)
+        require(completed.returncode == 0,
+                "fixture Git baseline failed: " + completed.stderr.decode("utf-8", "replace"))
+        return completed.stdout
+
+    git("init", "--quiet")
+    git("add", "--all")
+    git("-c", f"core.hooksPath={hooks}", "commit", "--quiet", "-m", "source-owned capsule fixture")
+    tracked = {path.decode("utf-8") for path in git("ls-files", "-z").split(b"\0") if path}
+    require(tracked == set(hashes), "fixture Git baseline tracked-file set differs")
+    for relative, expected in hashes.items():
+        target = source / relative
+        require(not target.is_symlink() and target.is_file() and sha(target.read_bytes()) == expected,
+                "fixture Git baseline changed source bytes")
+        require(sha(git("show", f"HEAD:{relative}")) == expected,
+                "fixture Git commit does not preserve source bytes")
+
+
 def run_case(root, legion, out, number, item):
     case, gaps = item["case"], []
     source, run = out / "fixtures" / f"{number:04}", out / "runs" / f"{number:04}"
     source.mkdir(parents=True, exist_ok=False)
     run.mkdir(parents=True, exist_ok=False)
-    hashes = {path: sha(text.encode()) for path, text in sorted(case["files"].items())}
-    for path, text in case["files"].items():
-        target = source / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
+    hashes = write_fixture_sources(source, case["files"])
+    initialize_fixture_git(source, hashes)
     command = [str(legion), "audit", str(source), "--only", item["providerId"], "--plan-only", "--out", str(run),
                "--coverage", "exhaustive", "--seat-token-budget", "10000", "--run-token-budget", "40000",
                "--max-lens-seats", "1", "--max-total-seats", "3", "--json"]

@@ -4082,6 +4082,37 @@ mod tests {
     }
 
     #[test]
+    fn opengrep_producer_candidates_keep_anchors_at_adjudication_intake() {
+        use crate::native_providers::security::opengrep;
+        let (root, mut result) = scanner_fixture();
+        let raw = json!({"check_id":"query-concat", "path":"src/db.rs",
+            "start":{"line":2,"col":5}, "end":{"line":3,"col":2},
+            "extra":{"severity":"WARNING","message":"query built by concatenation"}});
+        // Use both production transformations rather than constructing an
+        // already anchored candidate, which would miss projection losses.
+        let normalized =
+            opengrep::normalize_finding(&raw, Some("security.opengrep"), Some("1.31.0"), None);
+        let projected =
+            opengrep::to_candidate(&normalized, Some("security.opengrep"), Some("1.31.0"), None);
+        assert_eq!(projected["range"], normalized["range"]);
+        result.findings.clear();
+        result.details = BTreeMap::from([("candidates".into(), json!([projected]))]);
+        let candidates = scanner_candidates(&root, "security.opengrep", &result);
+        assert_eq!(candidates.len(), 1);
+        let candidate = &candidates[0];
+        assert_eq!(candidate.rule, "query-concat");
+        assert_eq!(candidate.path.as_deref(), Some("src/db.rs"));
+        assert_eq!(candidate.line, Some(2));
+        assert_eq!(candidate.end_line, Some(3));
+        assert_eq!(candidate.location_status, "known");
+        assert!(candidate
+            .evidence_excerpt
+            .as_deref()
+            .is_some_and(|excerpt| excerpt.contains("db.execute")));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn scanner_candidates_carry_rule_location_and_excerpt() {
         let (root, result) = scanner_fixture();
         let candidates = scanner_candidates(&root, "legacy.security.sast", &result);

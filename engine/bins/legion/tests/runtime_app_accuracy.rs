@@ -445,7 +445,10 @@ fn real_runtime_app_accuracy() {
         } else {
             vec![]
         };
-        let inventory = FilesystemInventorySource::new(&fixture).capture().unwrap();
+        let inventory = FilesystemInventorySource::new(&fixture)
+            .unwrap()
+            .capture()
+            .unwrap();
         let mut configured = spec.clone();
         configured["runner"]["runtime"] =
             runtime_inputs(&url, &extra, &[], 640, 480, None).unwrap();

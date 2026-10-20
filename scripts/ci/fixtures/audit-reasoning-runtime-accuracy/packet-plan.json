@@ -110,7 +110,7 @@
     }
   ],
   "maxCalls": 44,
-  "maxTokens": 440000,
-  "perCallTokens": 10000,
+  "maxTokens": 6600000,
+  "perCallTokens": 150000,
   "width": 1
 }

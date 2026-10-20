@@ -1,19 +1,35 @@
-use legion_audit::inventory::{FilesystemInventorySource, InventorySource};
+use legion_audit::{FilesystemInventorySource, InventorySource};
 use serde_json::Value;
-use std::path::Path;
+use std::{
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+fn temp_dir() -> std::path::PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!(
+        "legion-reasoning-context-selectors-{}-{nanos}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
 
 #[test]
 fn shipped_doc_and_schema_selectors_include_real_context_without_global_source_reclassification() {
-    let root = tempfile::tempdir().unwrap();
+    let root = temp_dir();
     for (path, text) in [
         ("lib.rs", "pub struct Request { pub count: u64 }"),
         ("README.md", "count is inclusive"),
         ("schema.json", r#"{"type":"string"}"#),
         ("image.svg", "<svg/>"),
     ] {
-        std::fs::write(root.path().join(path), text).unwrap();
+        std::fs::write(root.join(path), text).unwrap();
     }
-    let inventory = FilesystemInventorySource::new(root.path())
+    let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
         .inventory("regression")
         .unwrap();
@@ -63,4 +79,5 @@ fn shipped_doc_and_schema_selectors_include_real_context_without_global_source_r
         );
         assert!(!paths.contains(&excluded) && !paths.contains(&"image.svg"));
     }
+    std::fs::remove_dir_all(root).unwrap();
 }

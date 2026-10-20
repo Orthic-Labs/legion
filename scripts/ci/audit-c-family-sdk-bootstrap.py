@@ -2,8 +2,9 @@
 """Enroll owner-provisioned native C-family tools in managed CI; never install.
 
 This records observed bytes/versions, not official-archive provenance, owner
-admission, CI authentication, or qualification. Explicit runtime roots must cover
-CMake modules, LLVM tools/resources/runtime & selected macOS SDK. Run outside any
+admission, CI authentication, or qualification. Explicit runtime roots cover
+CMake modules, LLVM tools/resources/runtime & selected macOS SDK; system make
+is enrolled as one exact file. Run outside any
 project under audit. Verification is importable, read-only & execution-free.
 """
 import argparse
@@ -44,6 +45,18 @@ def file_digest(path):
     if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino) or count != before.st_size:
         raise ValueError('native input changed while reading')
     return 'sha256:' + value.hexdigest()
+
+
+def native_file(path):
+    """Seal one canonical native file without enrolling its parent directory."""
+    path = Path(path)
+    if (not path.is_absolute() or path.resolve(strict=True) != path
+            or not stat.S_ISREG(path.lstat().st_mode)):
+        raise ValueError('native file must be canonical and regular')
+    with path.open('rb') as stream:
+        if stream.read(2) == b'#!':
+            raise ValueError('actual native executable required')
+    return {str(path): file_digest(path)}
 
 
 def homebrew_clang_config_root(clang, homebrew_prefix, runtime_roots):
@@ -124,6 +137,8 @@ def verify_enrollment(value, live=False):
     roots = [absolute(part['root']) for part in value['runtimeRoots']]
     if not roots or len(set(roots)) != len(roots):
         raise ValueError('runtime roots')
+    if Path('/usr/bin') in roots:
+        raise ValueError('system make must be enrolled as one file')
     files, aliases = {}, {}
     for part in value['runtimeRoots']:
         for p, d in part['files'].items():
@@ -141,6 +156,15 @@ def verify_enrollment(value, live=False):
                 raise ValueError('runtime identity collision')
             files[p] = d
         aliases.update(part['aliases'])
+    make = value['tools']['make']
+    if (make['path'] != '/usr/bin/make' or not isinstance(make['digest'], str)
+            or len(make['digest']) != 71 or not make['digest'].startswith('sha256:')):
+        raise ValueError('fixed system make required')
+    if make['path'] in files and files[make['path']] != make['digest']:
+        raise ValueError('runtime identity collision')
+    files[make['path']] = make['digest']
+    if live and native_file(Path(make['path'])) != {make['path']: make['digest']}:
+        raise ValueError('system make drift')
     if value['runtimeFiles'] != dict(sorted(files.items())):
         raise ValueError('full native closure differs')
     sdk = value['sdk']
@@ -181,10 +205,16 @@ def main():
     if os.environ.get('CI') != 'true' or platform.system() != 'Darwin':
         raise ValueError('explicit managed macOS CI required')
     roots = list(dict.fromkeys(p.resolve(strict=True) for p in args.runtime_root + [args.sdk_root]))
+    if Path('/usr/bin') in roots:
+        raise ValueError('system make must be enrolled as one file')
     config_root = homebrew_clang_config_root(args.clang, args.homebrew_prefix, roots)
     roots = list(dict.fromkeys(roots + [config_root]))
     snapshots = [tree(root, roots) for root in roots]
     files = dict(sorted((p, d) for part in snapshots for p, d in part['files'].items()))
+    if args.make != Path('/usr/bin/make'):
+        raise ValueError('fixed system make required')
+    files.update(native_file(args.make))
+    files = dict(sorted(files.items()))
     sdk_snapshot = next(part for part in snapshots if part['root'] == str(args.sdk_root.resolve(strict=True)))
     runtime_bytes = sum(Path(p).stat().st_size for p in files)
     sdk_bytes = sum(Path(p).stat().st_size for p in sdk_snapshot['files'])

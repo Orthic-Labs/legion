@@ -17,6 +17,40 @@ POLICY = "legion-dotnet-sdk-qualification-v1"
 LANGUAGES = ("csharp", "fsharp", "visualBasic")
 TASKS = ("restore", "build", "analyzer", "test")
 CONTROLS = ("positive", "nonempty-clean", "test-failure", "malformed", "missing-tool", "rejected-admission", "unsupported-framework", "unsupported-import", "source-drift", "package-drift", "sdk-drift")
+LOOPBACK_APPROVAL = ".NET: approved — qualification-only loopback TCP admission for the VSTest harness process tree, recorded verbatim in code.dotnet’s record; external/non-loopback/UDP stay denied. Include in this batch."
+
+
+def sandbox_admission():
+    return {"approval": LOOPBACK_APPROVAL, "scope": "qualification-only VSTest harness process tree", "provider": ID,
+            "task": "test", "transport": "TCP", "addresses": ["127.0.0.1", "::1"], "ports": "dynamic",
+            "operations": ["bind", "inbound", "outbound"], "externalNetwork": False, "nonLoopback": False,
+            "udp": False, "productionAdmission": False, "inheritedDescriptorConfinementProven": False}
+
+
+def qualification_profiles(stage):
+    baseline = '(version 1)\n(allow default)\n(deny network*)\n'
+    file_rule = '(allow file-read* file-write* (subpath "' + str(stage).replace('\\', '\\\\').replace('"', '\\"') + '"))\n'
+    loopback = ('(allow network-bind (require-all (local ip "localhost:*") (socket-type SOCK_STREAM)))\n'
+                '(allow network-inbound (require-all (local ip "localhost:*") (socket-type SOCK_STREAM)))\n'
+                '(allow network-outbound (require-all (remote ip "localhost:*") (socket-type SOCK_STREAM)))\n')
+    return {task: baseline + (loopback if task == "test" else "") + file_rule for task in TASKS}
+
+
+def sandbox_policy(policy, stage):
+    same(policy["profiles"], qualification_profiles(stage), "sandbox task profiles differ")
+    require(policy["wrapper"] == "/usr/bin/sandbox-exec" and policy["productionAdmission"] is False,
+            "sandbox/policy definition differs")
+    same([request["taskId"] for request in policy["requests"]], list(TASKS), "sandbox task definition differs")
+    for request in policy["requests"]:
+        profile_hash = digest(qualification_profiles(stage)[request["taskId"]].encode()).removeprefix("sha256:")
+        prefix = ["-f", str(absolute(policy["scratch"]) / "sandbox" / ("audit-" + profile_hash + ".sb")), "--"]
+        same(request["args"][:3], prefix, "sandbox command profile hash differs")
+        same(request["versionArgs"][:3], prefix, "sandbox version profile hash differs")
+        if request["sandbox"] is not None:
+            same(request["sandbox"], {"id": "sandbox:macos:" + profile_hash, "network": True,
+                                       "filesystemScope": str(stage)}, "sandbox receipt profile hash differs")
+
+
 CRATES = ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")
 SOURCE_DIRS = ["engine/crates/" + name + "/src" for name in CRATES] + ["src/registry/rules", "src/registry/controls"]
 SOURCE_FILES = ["engine/crates/" + name + "/Cargo.toml" for name in CRATES] + ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", "scripts/ci/provision-dotnet-qualification-tools.py", "scripts/ci/audit-dotnet-sdk-accuracy.py", "scripts/ci/run-dotnet-sdk-qualification-child.py"]
@@ -167,7 +201,8 @@ def execution(row, case, enrollment, live):
     stage = scratch / "cache/dotnet-source"
     task, language = req["taskId"], case["language"]
     require(task in TASKS and re.fullmatch(r"legion-audit/[0-9a-f]{64}", req["requestId"]), "SDK request identity malformed")
-    profile_text = '(version 1)\n(allow default)\n(deny network*)\n(allow file-read* file-write* (subpath "' + str(stage).replace('\\', '\\\\').replace('"', '\\"') + '"))\n'
+    sandbox_policy(policy, stage)
+    profile_text = qualification_profiles(stage)[task]
     profile_hash = digest(profile_text.encode()).removeprefix("sha256:")
     prefix = ["-f", str(scratch / "sandbox" / ("audit-" + profile_hash + ".sb")), "--", enrollment["sdkRoot"] + "/dotnet"]
     args = commands(language, task, scratch, enrollment)
@@ -176,7 +211,6 @@ def execution(row, case, enrollment, live):
     environment(req, scratch, enrollment, language, task)
     expected = dict(req, schemaVersion=1, providerId=ID, planId=case["planDigest"], policyId="audit", executable="/usr/bin/sandbox-exec", args=prefix + args, cwd=str(stage), origin="TargetProject", shell=False, expectedDigest=policy["wrapperDigest"], acceptedExitCodes=[-1, 0, 255] if is_fsharp else [0] if task in ("restore", "test") else [0, 1], versionArgs=version_args, skipVersionProbe=False, versionRequirement=None, sensitiveArgumentIndexes=[], sensitiveEnvironmentNames=[], requiresNetworkSandbox=True, sandbox={"id": "sandbox:macos:" + profile_hash, "network": True, "filesystemScope": str(stage)}, timeoutMs=120000, stdoutLimit=33554432, stderrLimit=33554432)
     same(req, expected, "actual SDK request differs from independently reconstructed command")
-    require(policy["wrapper"] == "/usr/bin/sandbox-exec" and policy["profile"] == profile_text and policy["productionAdmission"] is False, "sandbox/policy definition differs")
     definition = next(r for r in policy["requests"] if r["taskId"] == task)
     same(dict(req, requestId="legion-audit/<content-digest>"), definition, "policy request definition differs")
     require(receipt["schemaVersion"] == 1 and receipt["receiptId"] == "receipt:" + req["requestId"] and receipt["requestId"] == req["requestId"] and receipt["providerId"] == ID and receipt["planId"] == case["planDigest"] and receipt["taskId"] == task and receipt["cwd"] == str(stage), "SDK receipt identity differs")
@@ -294,6 +328,7 @@ def positive_finding(case, sources, raw):
 
 
 def validate(repo, record, live=False):
+    same(record["sandboxAdmission"], sandbox_admission(), "qualification loopback approval/scope differs")
     require(record["schema"] == "legion-dotnet-sdk-accuracy/1" and record["provider"] == ID and record["qualificationEligible"] is True and record["productionQualification"] is False and record["modelCalls"] == 0, "qualification envelope differs")
     require(record["kind"] == "dotnet-code-command-sdk-constructed" and record["claimScope"] == "known-answer-fixture-cases" and record["executionPath"] == "native-sdk-frozen-plan-self-sourced-code" and record["status"] == "observed-known-answer-controls" and record["missingControls"] == [] and record["executedScope"] == list(TASKS), "constructed execution scope differs")
     same(record["qualificationDigest"], digest(encoded({k: v for k, v in record.items() if k != "qualificationDigest"})), "qualification bytes changed")

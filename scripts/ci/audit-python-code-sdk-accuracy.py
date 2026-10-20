@@ -123,7 +123,14 @@ def sdk(item, policy, control, plan, scratch, enrollment, commands, live):
     keys(r["timing"], ("startedAtMs", "completedAtMs", "durationMs"))
     require(all(type(v) is int and v >= 0 for v in r["timing"].values()), "SDK timing malformed")
     if rejected or absent:
-        require(r["state"] == ("unauthorized_effect" if rejected else "sandbox_missing") and r["complete"] is False and r["exitCode"] is r["signal"] is r["executable"] is None and r["gaps"], "actual SDK refusal became execution/clean")
+        require(r["state"] == ("unauthorized_effect" if rejected else "sandbox_missing") and r["complete"] is False and r["exitCode"] is r["signal"] is None and r["gaps"], "actual SDK refusal became execution/clean")
+        if rejected:
+            require(r["executable"] is None, "owner-admission refusal resolved an executable")
+        else:
+            e = r["executable"]
+            require(e["canonicalPath"] == e["requestedPath"] == policy["wrapper"]["path"] and e["digest"] == policy["wrapper"]["digest"] and e["digestState"] == "sealed", "sandbox refusal lost resolved wrapper identity")
+            same(e["version"], {"args": [], "output": None, "exitCode": None, "qualified": False, "skippedByPolicy": False}, "sandbox refusal probed executable version")
+            require(r["gaps"] == ["network sandbox receipt is required"], "sandbox refusal gap differs")
         same(r["processTree"], {"started": False, "terminated": False, "hardKilled": False, "reaped": False, "detail": None}, "SDK refusal launched process")
         same(r["timing"], {"startedAtMs": 0, "completedAtMs": 0, "durationMs": 0}, "SDK refusal launched timed process")
     else:

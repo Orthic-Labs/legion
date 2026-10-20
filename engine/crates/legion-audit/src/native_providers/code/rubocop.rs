@@ -650,6 +650,8 @@ mod tests {
                 tool: &tool,
                 scratch: &scratch,
                 sandbox: SandboxPolicy::Required,
+                #[cfg(all(test, target_os = "macos"))]
+                dotnet_qualification_loopback: false,
                 search_path: Some(&search_path),
                 plan_digest: "sha256:plan",
                 inventory_digest: "sha256:inventory",
@@ -775,6 +777,8 @@ mod tests {
             tool: &NeverSubmit,
             scratch: &scratch,
             sandbox: SandboxPolicy::Required,
+            #[cfg(all(test, target_os = "macos"))]
+            dotnet_qualification_loopback: false,
             search_path: Some(&search_path),
             plan_digest: "sha256:plan",
             inventory_digest: "sha256:inventory",

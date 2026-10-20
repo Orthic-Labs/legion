@@ -118,6 +118,13 @@ def native_linker(root, native, live):
         require(resolve_observed(item['selectedPath'],links) == item['path'], 'selected tool aliases differ')
     same(native['discoveryTool'], {'path':'/usr/bin/xcrun','digest':files.get('usr/bin/xcrun')}, 'fixed discovery tool differs')
     bound('/usr/bin/xcrun')
+    loader_seeds = {item['path'] for item in native['tools'].values()} | {'/usr/bin/xcrun'}
+    lto = str(PurePosixPath(native['tools']['clang']['path']).parent.parent / 'lib/libLTO.dylib')
+    if lto not in runtime['absent']:
+        resolved_lto = resolve_observed(lto, links)
+        bound(resolved_lto)
+        loader_seeds.add(resolved_lto)
+    require(loader_seeds <= {image['path'] for image in graph['images']}, 'native executable/libLTO seed omitted from dyld discovery')
     bin_path = str(absolute(native['bin']))
     expected_links = {bin_path[1:]+'/'+name: '/usr/bin/xcrun' if name == 'xcrun' else native['tools']['clang' if name == 'cc' else name]['path'] for name in ('clang','cc','ld','ar','ranlib','dsymutil','xcrun')}
     same({k:v for k,v in links.items() if k.startswith(bin_path[1:]+'/')},expected_links,'isolated native PATH membership differs')

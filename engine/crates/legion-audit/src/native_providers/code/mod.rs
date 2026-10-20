@@ -45,6 +45,8 @@ pub struct ProviderExecutorAdapter {
     search_path: Option<Vec<PathBuf>>,
     /// `None` is `SandboxPolicy::Required`.
     sandbox: Option<SandboxPolicy>,
+    #[cfg(all(test, target_os = "macos"))]
+    dotnet_qualification_loopback: bool,
     /// Per-tool-run timeout (default 120s, or the provider's `timeoutMs`).
     tool_timeout_ms: Option<u64>,
     /// Total wall-clock budget for all tool runs of one provider.
@@ -88,6 +90,12 @@ impl ProviderExecutorAdapter {
     /// `sandbox-missing:<tool>` instead of running unsandboxed.
     pub fn with_sandbox(mut self, policy: SandboxPolicy) -> Self {
         self.sandbox = Some(policy);
+        self
+    }
+
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn with_dotnet_qualification_loopback(mut self) -> Self {
+        self.dotnet_qualification_loopback = true;
         self
     }
 
@@ -143,6 +151,8 @@ impl ProviderExecutorAdapter {
             tool: tool.as_ref(),
             scratch: scratch.as_ref(),
             sandbox: self.sandbox.unwrap_or(SandboxPolicy::Required),
+            #[cfg(all(test, target_os = "macos"))]
+            dotnet_qualification_loopback: self.dotnet_qualification_loopback,
             search_path: self.search_path.as_deref(),
             plan_digest: &plan_digest,
             inventory_digest: &inventory.digest,

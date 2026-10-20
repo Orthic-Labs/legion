@@ -842,7 +842,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, Option<&'static str>)> {
         ("shell-clean", "import os\nfrom flask import request\nsupplied = request.args.get(\"cmd\")\nos.system(\"printf fixed\") # nosemgrep\n", None),
         ("sql-planted", "from flask import request\ndef query(cursor):\n    cursor.execute(request.args.get(\"sql\")) # nosemgrep\n", Some("legion-sql-interpolation")),
         ("sql-clean", "from flask import request\ndef query(cursor):\n    supplied = request.args.get(\"sql\")\n    cursor.execute(\"SELECT 1\") # nosemgrep\n", None),
-        ("operational-error", "def broken(:\n", None),
+        ("operational-error", "import os\nfrom flask import request\ndef broken(:\n    os.system(request.args.get(\"cmd\"))\n", None),
     ]
 }
 fn run_case(
@@ -956,7 +956,21 @@ fn run_case(
     assert_eq!(report.results.len(), 1);
     let result = &report.results[0].result;
     let receipt = &result.details["executionReceipt"];
+    // Retain original process streams before any control assertion can panic.
+    let stdout = if missing {
+        vec![]
+    } else {
+        artifact(receipt, "stdout", &scratch)
+    };
+    let stderr = if missing {
+        vec![]
+    } else {
+        artifact(receipt, "stderr", &scratch)
+    };
+    fs::write(scratch.root().join("original-provider.stdout"), &stdout).unwrap();
+    fs::write(scratch.root().join("original-provider.stderr"), &stderr).unwrap();
     let failure_witness = json!({"schema":"legion-semgrep-provider-failure-witness/1","qualificationEligible":false,
+        "actualStdout":String::from_utf8_lossy(&stdout),"actualStderr":String::from_utf8_lossy(&stderr),
         "caseId":name,"nativeResult":result,"executionReceipt":receipt,
         "policyDefinition":policy.definition(),"policyDecisions":policy.decisions.lock().unwrap().clone()});
     fs::write(
@@ -979,8 +993,6 @@ fn run_case(
             .unwrap()
     );
     let mut raw = Value::Null;
-    let mut stdout = vec![];
-    let mut stderr = vec![];
     let mut labels = vec![];
     if missing {
         assert_eq!(receipt["processTree"]["started"], false);
@@ -1004,8 +1016,6 @@ fn run_case(
             .split_whitespace()
             .any(|v| v == "1.141.0"));
         assert_eq!(policy.decisions.lock().unwrap().len(), 1);
-        stdout = artifact(receipt, "stdout", &scratch);
-        stderr = artifact(receipt, "stderr", &scratch);
         raw = serde_json::from_slice(&stdout).expect("actual Semgrep JSON");
         if failed {
             assert_ne!(receipt["exitCode"], 0);

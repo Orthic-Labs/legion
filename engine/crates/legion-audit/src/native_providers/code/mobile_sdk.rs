@@ -293,10 +293,15 @@ pub(super) fn plan(
     }
     for (index, package) in packages.iter().enumerate() {
         for (tool, action) in [("compiler", "build"), ("test", "test")] {
+            let package_path = if package.is_empty() {
+                stage.clone()
+            } else {
+                stage.join(package)
+            };
             let args = vec![
                 action.into(),
                 "--package-path".into(),
-                stage.join(package).to_string_lossy().into_owned(),
+                package_path.to_string_lossy().into_owned(),
                 "--skip-update".into(),
                 "--disable-automatic-resolution".into(),
                 // SwiftPM cannot nest its subprocess sandbox inside authenticated

@@ -367,7 +367,13 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
         env.insert(name.into(), path.to_string_lossy().into_owned());
         allowed.insert(name.into());
     }
-    for (name, value) in [("CI", "true"), ("COREPACK_ENABLE_NETWORK", "0")] {
+    // Pinned pnpm's uppercase config reader parses Boolean false. Skip its
+    // pre-run dependency auto-install/check writer; enrolled runtime stays sealed.
+    for (name, value) in [
+        ("CI", "true"),
+        ("COREPACK_ENABLE_NETWORK", "0"),
+        ("PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN", "false"),
+    ] {
         env.insert(name.into(), value.into());
         allowed.insert(name.into());
     }

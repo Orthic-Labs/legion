@@ -473,7 +473,7 @@ def main():
     env["PATH"] = str(Path(tools["ruby"]["path"]).parent) + ":/usr/bin:/bin:/usr/sbin:/sbin"
     gem_program = Path(prefixes["ruby"]) / "bin/gem"
     require(gem_program.is_file(), "managed RubyGems entry absent")
-    run_offline([tools["ruby"]["path"],gem_program,"--norc","install","--local","--ignore-dependencies","--no-document",
+    run_offline([tools["ruby"]["path"],gem_program,"install","--local","--ignore-dependencies","--no-document",
         "--install-dir",out / "gems","--bindir",out / "gems/bin", *[out / "downloads" / row["filename"] for row in lock["gems"]]], env, out, logs, "gem-offline-install", timeout=1200)
     gem_audit = parsed(run_offline([*audit_args,"installed",str(out / "downloads")], env, out, logs, "gem-installed-dependency-audit"))
     require(gem_audit["installedDependenciesSatisfied"] is True and gem_audit["nativeExtensionGems"] == lock["nativeExtensionGems"], "installed native/dependency closure differs")

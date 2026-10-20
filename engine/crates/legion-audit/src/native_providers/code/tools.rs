@@ -138,6 +138,8 @@ pub struct ToolContext<'a> {
     pub tool: &'a dyn ExternalProjectTool,
     pub scratch: &'a AuditScratch,
     pub sandbox: SandboxPolicy,
+    #[cfg(all(test, target_os = "macos"))]
+    pub dotnet_qualification_loopback: bool,
     pub search_path: Option<&'a [PathBuf]>,
     pub plan_digest: &'a str,
     pub inventory_digest: &'a str,
@@ -1199,53 +1201,69 @@ async fn run_one(
             None,
             false,
         ),
-        SandboxPolicy::Required => match legion_effects::authenticate_sandbox(
-            &executable_text,
-            &command.args,
-            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
-                || c_family_native::is_native(command.parser)
-            {
-                ctx.root.to_str().unwrap_or("")
-            } else {
-                &cwd_text
-            },
-            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
-                || c_family_native::is_native(command.parser)
-            {
-                legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
-            } else {
-                legion_effects::SandboxMode::DenyNetwork
-            },
-            &ctx.scratch.sandbox_dir(),
-        ) {
-            Ok(auth) => {
-                // Probe the real tool's version through the same wrapper
-                // prefix (`-f profile -- tool`).
-                let mut probe: Vec<String> = auth.wrapped_args.iter().take(3).cloned().collect();
-                probe.push(version_probe_executable.clone());
-                probe.extend(tool_version_args.iter().cloned());
-                (
-                    auth.wrapped_executable,
-                    auth.wrapped_args,
-                    Some(legion_effects::SandboxReceipt {
-                        id: auth.id,
-                        network: auth.network,
-                        filesystem_scope: auth.filesystem_scope,
-                    }),
-                    Some(probe),
-                    true,
+        SandboxPolicy::Required => {
+            let authenticate = || {
+                legion_effects::authenticate_sandbox(
+                    &executable_text,
+                    &command.args,
+                    if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
+                        || c_family_native::is_native(command.parser)
+                    {
+                        ctx.root.to_str().unwrap_or("")
+                    } else {
+                        &cwd_text
+                    },
+                    if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
+                        || c_family_native::is_native(command.parser)
+                    {
+                        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+                    } else {
+                        legion_effects::SandboxMode::DenyNetwork
+                    },
+                    &ctx.scratch.sandbox_dir(),
                 )
+            };
+            #[cfg(all(test, target_os = "macos"))]
+            let authentication = dotnet_sdk_accuracy::authenticate_qualification_sandbox(
+                ctx,
+                command.tool,
+                &executable_text,
+                &command.args,
+                &cwd_text,
+            )
+            .unwrap_or_else(authenticate);
+            #[cfg(not(all(test, target_os = "macos")))]
+            let authentication = authenticate();
+            match authentication {
+                Ok(auth) => {
+                    // Probe the real tool's version through the same wrapper
+                    // prefix (`-f profile -- tool`).
+                    let mut probe: Vec<String> =
+                        auth.wrapped_args.iter().take(3).cloned().collect();
+                    probe.push(version_probe_executable.clone());
+                    probe.extend(tool_version_args.iter().cloned());
+                    (
+                        auth.wrapped_executable,
+                        auth.wrapped_args,
+                        Some(legion_effects::SandboxReceipt {
+                            id: auth.id,
+                            network: auth.network,
+                            filesystem_scope: auth.filesystem_scope,
+                        }),
+                        Some(probe),
+                        true,
+                    )
+                }
+                // No authenticator: the executor refuses the absent receipt.
+                Err(_) => (
+                    executable_text.clone(),
+                    command.args.clone(),
+                    None,
+                    None,
+                    true,
+                ),
             }
-            // No authenticator: leave the receipt absent so the executor
-            // refuses (typed `sandbox-missing`, never an unsandboxed run).
-            Err(_) => (
-                executable_text.clone(),
-                command.args.clone(),
-                None,
-                None,
-                true,
-            ),
-        },
+        }
     };
     let native_tool_identity = mobile_sdk::is_mobile(command.parser).then(|| json!({
         "path": executable, "digest": executable_digest,
@@ -2429,6 +2447,8 @@ mod tests {
                 tool: &sdk,
                 scratch: &scratch,
                 sandbox: SandboxPolicy::Disabled,
+                #[cfg(all(test, target_os = "macos"))]
+                dotnet_qualification_loopback: false,
                 search_path: Some(&search),
                 plan_digest: "sha256:frozen-php-ruby-plan",
                 inventory_digest: "sha256:frozen-php-ruby-inventory",

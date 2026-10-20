@@ -175,6 +175,7 @@ def inspect_case(case, rules, selector, *, live):
         # normalizer. This corpus qualifies rule/path/line pattern candidates;
         # it does not qualify trace extraction or interfile reachability.
         require(candidate["detectorMetadata"] == {"capability": "pattern", "source": None, "sink": None, "intermediateVars": []}, "unexpected trace/capability scope")
+        require(candidate["file"] == raw["path"] and candidate["line"] == raw["start"]["line"] and candidate["endLine"] == raw["end"]["line"] and candidate["range"] == {"start": {"line": raw["start"]["line"], "column": raw["start"]["col"]}, "end": {"line": raw["end"]["line"], "column": raw["end"]["col"]}}, "candidate source anchor differs")
         body = {"provider": PROVIDER, "ruleId": raw["check_id"], "file": "app.py", "line": 3, "traceDigest": None}
         require(candidate["id"] == digest(b"opengrep-candidate\x00" + compact(body)), "candidate ID lost fixed source location")
         require(candidate["binding"] is None and candidate["candidateClass"] == "sast" and candidate["evidenceRefs"] == [] and candidate["uncertainty"] == ["A pattern match is never a vulnerability by itself; adjudication is required."], "candidate assurance scope differs")

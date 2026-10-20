@@ -446,7 +446,7 @@ def expected_environment(policy):
     env = {"PATH": ":".join(map(str, (cwd / "node_modules/.bin", node.parent, PurePosixPath("/usr/bin"), PurePosixPath("/bin"))))}
     for name, path in (("TMPDIR", "tmp"), ("TEMP", "tmp"), ("TMP", "tmp"), ("XDG_CACHE_HOME", "cache/xdg"), ("CARGO_TARGET_DIR", "cache/cargo-target"), ("npm_config_cache", "cache/npm"), ("RUFF_CACHE_DIR", "cache/ruff"), ("MYPY_CACHE_DIR", "cache/mypy"), ("PYTHONPYCACHEPREFIX", "cache/pycache"), ("GOCACHE", "cache/go-build"), ("HOME", "cache/javascript-home"), ("USERPROFILE", "cache/javascript-home"), ("XDG_CONFIG_HOME", "cache/javascript-home/.config"), ("APPDATA", "cache/javascript-home/AppData/Roaming"), ("LEGION_AUDIT_JS_OUTPUT", "cache/javascript-build")):
         env[name] = str(scratch / path)
-    env.update({"PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1", "PYTHONDONTWRITEBYTECODE": "1", "NO_COLOR": "1", "CARGO_NET_OFFLINE": "true", "CARGO_TERM_COLOR": "never", "CI": "true", "COREPACK_ENABLE_NETWORK": "0"})
+    env.update({"PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1", "PYTHONDONTWRITEBYTECODE": "1", "NO_COLOR": "1", "CARGO_NET_OFFLINE": "true", "CARGO_TERM_COLOR": "never", "CI": "true", "COREPACK_ENABLE_NETWORK": "0", "PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN": "false"})
     allowed = sorted(set(env) | {"PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"})
     return env, allowed
 

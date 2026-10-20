@@ -772,7 +772,9 @@ fn real_browser_accuracy_visual_regression() {
                     allow_system_chrome: false,
                     use_system_chrome_only: false,
                     profile: ProfileSpec::Temporary,
-                    viewport: (WIDTH, HEIGHT),
+                    // Outer window must leave visible content for frame callbacks.
+                    // Renderer & PNG dimensions remain pinned by set_viewport.
+                    viewport: (800, 600),
                     launch_timeout: Duration::from_secs(30),
                     request_timeout: Duration::from_secs(10),
                     admission: Some(admission),

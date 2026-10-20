@@ -1,5 +1,6 @@
 """Dedicated .NET registration boundaries; these units grant no qualification."""
 import base64
+import copy
 import hashlib
 import json
 import os
@@ -96,6 +97,58 @@ class DotnetPackageHashTests(unittest.TestCase):
 
 
 class DotnetSdkAdapterTests(unittest.TestCase):
+    def sandbox_policy(self):
+        scratch = Path("/native/scratch")
+        stage = scratch / "cache/dotnet-source"
+        profiles = validator["qualification_profiles"](stage)
+        requests = []
+        for task in validator["TASKS"]:
+            hashed = validator["digest"](profiles[task].encode()).removeprefix("sha256:")
+            prefix = ["-f", str(scratch / "sandbox" / ("audit-" + hashed + ".sb")), "--"]
+            requests.append({"taskId": task, "args": prefix + ["/sdk/dotnet", task],
+                             "versionArgs": prefix + ["/sdk/dotnet", "--version"],
+                             "sandbox": {"id": "sandbox:macos:" + hashed, "network": True,
+                                         "filesystemScope": str(stage)}})
+        return stage, {"scratch": str(scratch), "profiles": profiles, "requests": requests,
+                       "wrapper": "/usr/bin/sandbox-exec", "productionAdmission": False}
+
+    def test_qualification_policy_rejects_udp_nonloopback_and_non_test_expansion(self):
+        stage, original = self.sandbox_policy()
+        validator["sandbox_policy"](original, stage)
+        for task, old, new in (("test", "SOCK_STREAM", "SOCK_DGRAM"),
+                               ("test", "localhost:*", "*:*") ,
+                               ("test", "localhost:*", "192.0.2.1:*"),
+                               ("restore", "(deny network*)", "(allow network*)"),
+                               ("build", "(deny network*)", "(allow network*)"),
+                               ("analyzer", "(deny network*)", "(allow network*)")):
+            changed = copy.deepcopy(original)
+            changed["profiles"][task] = changed["profiles"][task].replace(old, new)
+            with self.subTest(task=task, replacement=new), self.assertRaises(AssertionError):
+                validator["sandbox_policy"](changed, stage)
+
+    def test_qualification_policy_rejects_profile_hash_rebinding(self):
+        stage, original = self.sandbox_policy()
+        for field in ("args", "versionArgs", "sandbox"):
+            changed = copy.deepcopy(original)
+            request = changed["requests"][-1]
+            if field == "sandbox":
+                request[field]["id"] = "sandbox:macos:" + "0" * 64
+            else:
+                request[field][1] = "/native/scratch/sandbox/audit-" + "0" * 64 + ".sb"
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                validator["sandbox_policy"](changed, stage)
+
+    def test_approval_and_confinement_scope_are_digest_bound_and_exact(self):
+        original = validator["sandbox_admission"]()
+        self.assertIn("VSTest harness process tree", original["approval"])
+        self.assertFalse(original["inheritedDescriptorConfinementProven"])
+        for field, value in (("approval", "approved"), ("task", "build"),
+                             ("udp", True), ("productionAdmission", True),
+                             ("inheritedDescriptorConfinementProven", True)):
+            changed = dict(original, **{field: value})
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                validator["validate"](ROOT, {"sandboxAdmission": changed})
+
     def test_native_family_has_exact_provider_stage_and_selector(self):
         entry = {"provider": "code.dotnet", "family": "dotnet-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, entry), ("dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", gate["DOTNET_SDK_SELECTOR"]))

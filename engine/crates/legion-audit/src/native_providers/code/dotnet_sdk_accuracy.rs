@@ -16,6 +16,88 @@ use std::{
 const ID: &str = "code.dotnet";
 const POLICY: &str = "legion-dotnet-sdk-qualification-v1";
 const TASKS: [&str; 4] = ["restore", "build", "analyzer", "test"];
+const LOOPBACK_APPROVAL: &str = ".NET: approved — qualification-only loopback TCP admission for the VSTest harness process tree, recorded verbatim in code.dotnet’s record; external/non-loopback/UDP stay denied. Include in this batch.";
+const LOOPBACK_RULES: &str = "(allow network-bind (require-all (local ip \"localhost:*\") (socket-type SOCK_STREAM)))\n(allow network-inbound (require-all (local ip \"localhost:*\") (socket-type SOCK_STREAM)))\n(allow network-outbound (require-all (remote ip \"localhost:*\") (socket-type SOCK_STREAM)))\n";
+
+fn qualification_profile(stage: &Path, task: &str) -> String {
+    let p = string(stage).replace('\\', "\\\\").replace('"', "\\\"");
+    let rules = if task == "test" { LOOPBACK_RULES } else { "" };
+    format!("(version 1)\n(allow default)\n(deny network*)\n{rules}(allow file-read* file-write* (subpath \"{p}\"))\n")
+}
+fn sandbox_admission() -> Value {
+    json!({"approval":LOOPBACK_APPROVAL,"scope":"qualification-only VSTest harness process tree","provider":ID,"task":"test","transport":"TCP","addresses":["127.0.0.1","::1"],"ports":"dynamic","operations":["bind","inbound","outbound"],"externalNetwork":false,"nonLoopback":false,"udp":false,"productionAdmission":false,"inheritedDescriptorConfinementProven":false})
+}
+
+fn qualification_applies(opt_in: bool, provider: &str, task: &str) -> bool {
+    opt_in && provider == ID && task == "test"
+}
+
+#[test]
+fn loopback_admission_requires_explicit_dotnet_test_opt_in() {
+    for opt_in in [false, true] {
+        for provider in [ID, "code.jvm", "code.python"] {
+            for task in TASKS {
+                assert_eq!(
+                    qualification_applies(opt_in, provider, task),
+                    opt_in && provider == ID && task == "test"
+                );
+            }
+        }
+    }
+    let stage = Path::new("/qualification/stage");
+    let baseline = "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* file-write* (subpath \"/qualification/stage\"))\n";
+    for task in ["restore", "build", "analyzer"] {
+        assert_eq!(qualification_profile(stage, task), baseline);
+    }
+    let test = qualification_profile(stage, "test");
+    assert_eq!(
+        test,
+        baseline.replacen(
+            "(deny network*)\n",
+            &format!("(deny network*)\n{LOOPBACK_RULES}"),
+            1
+        )
+    );
+    assert_eq!(test.matches("(socket-type SOCK_STREAM)").count(), 3);
+    assert!(!test.contains("SOCK_DGRAM"));
+}
+
+// This module only exists in macOS test builds. Explicit adapter opt-in
+// cannot change installed owner admission or another provider/task's profile.
+pub(super) fn authenticate_qualification_sandbox(
+    ctx: &ToolContext<'_>,
+    task: &str,
+    executable: &str,
+    args: &[String],
+    cwd: &str,
+) -> Option<Result<legion_effects::SandboxAuthentication, legion_effects::SandboxGap>> {
+    if !qualification_applies(ctx.dotnet_qualification_loopback, ctx.provider_id, task) {
+        return None;
+    }
+    Some((|| {
+        let wrapper = Path::new("/usr/bin/sandbox-exec");
+        if !wrapper.is_file() {
+            return Err(legion_effects::SandboxGap::ToolMissing);
+        }
+        let profile = qualification_profile(Path::new(cwd), task);
+        let hash = sha256_text(profile.as_bytes());
+        let hash = hash.trim_start_matches("sha256:");
+        let path = ctx.scratch.sandbox_dir().join(format!("audit-{hash}.sb"));
+        fs::create_dir_all(ctx.scratch.sandbox_dir())
+            .map_err(|e| legion_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
+        fs::write(&path, &profile)
+            .map_err(|e| legion_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
+        let mut wrapped_args = vec!["-f".into(), string(&path), "--".into(), executable.into()];
+        wrapped_args.extend_from_slice(args);
+        Ok(legion_effects::SandboxAuthentication {
+            id: format!("sandbox:macos:{hash}"),
+            network: true,
+            filesystem_scope: Some(cwd.into()),
+            wrapped_executable: string(wrapper),
+            wrapped_args,
+        })
+    })())
+}
 const CONTROLS: [&str; 11] = [
     "positive",
     "nonempty-clean",
@@ -295,22 +377,19 @@ impl ExactPolicy {
     fn fsharp(&self, task: &str) -> bool {
         task == "analyzer" && self.language == "fsharp"
     }
-    fn profile_text(&self) -> String {
-        let p = string(&self.stage())
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
-        format!("(version 1)\n(allow default)\n(deny network*)\n(allow file-read* file-write* (subpath \"{p}\"))\n")
+    fn profile_text(&self, task: &str) -> String {
+        qualification_profile(&self.stage(), task)
     }
-    fn profile(&self) -> PathBuf {
+    fn profile(&self, task: &str) -> PathBuf {
         self.scratch.sandbox_dir().join(format!(
             "audit-{}.sb",
-            sha256_text(self.profile_text().as_bytes()).trim_start_matches("sha256:")
+            sha256_text(self.profile_text(task).as_bytes()).trim_start_matches("sha256:")
         ))
     }
-    fn prefix(&self, args: Vec<String>) -> Vec<String> {
+    fn prefix(&self, task: &str, args: Vec<String>) -> Vec<String> {
         let mut result = vec![
             "-f".into(),
-            string(&self.profile()),
+            string(&self.profile(task)),
             "--".into(),
             format!("{}/dotnet", self.enrollment["sdkRoot"].as_str().unwrap()),
         ];
@@ -463,11 +542,14 @@ impl ExactPolicy {
     }
     fn expected(&self, task: &str, request_id: String) -> ExternalToolRequest {
         let (environment, environment_allowlist) = self.environment(task);
-        let version = self.prefix(if self.fsharp(task) {
-            vec![self.command(task)[0].clone(), "--version".into()]
-        } else {
-            vec!["--version".into()]
-        });
+        let version = self.prefix(
+            task,
+            if self.fsharp(task) {
+                vec![self.command(task)[0].clone(), "--version".into()]
+            } else {
+                vec!["--version".into()]
+            },
+        );
         ExternalToolRequest {
             request_id,
             provider_id: ID.into(),
@@ -475,7 +557,7 @@ impl ExactPolicy {
             policy_id: "audit".into(),
             task_id: Some(task.into()),
             executable: string(&self.wrapper),
-            args: self.prefix(self.command(task)),
+            args: self.prefix(task, self.command(task)),
             cwd: string(&self.stage()),
             expected_digest: Some(self.wrapper_digest.clone()),
             accepted_exit_codes: if self.fsharp(task) {
@@ -495,7 +577,8 @@ impl ExactPolicy {
                 Some(legion_effects::SandboxReceipt {
                     id: format!(
                         "sandbox:macos:{}",
-                        sha256_text(self.profile_text().as_bytes()).trim_start_matches("sha256:")
+                        sha256_text(self.profile_text(task).as_bytes())
+                            .trim_start_matches("sha256:")
                     ),
                     network: true,
                     filesystem_scope: Some(string(&self.stage())),
@@ -507,7 +590,7 @@ impl ExactPolicy {
         }
     }
     fn definition(&self) -> Value {
-        json!({"id":POLICY,"provider":ID,"plan":self.plan,"language":self.language,"scratch":self.scratch.root(),"enrollmentDigest":sha256_text(&bytes(&self.enrollment)),"wrapper":self.wrapper,"wrapperDigest":self.wrapper_digest,"profile":self.profile_text(),"requests":TASKS.iter().map(|task|request_value(&self.expected(task,"legion-audit/<content-digest>".into()))).collect::<Vec<_>>(),"productionAdmission":false,"absentSandboxControl":self.absent})
+        json!({"id":POLICY,"provider":ID,"plan":self.plan,"language":self.language,"scratch":self.scratch.root(),"enrollmentDigest":sha256_text(&bytes(&self.enrollment)),"wrapper":self.wrapper,"wrapperDigest":self.wrapper_digest,"profiles":TASKS.iter().map(|task|((*task).to_owned(), self.profile_text(task))).collect::<BTreeMap<_,_>>(),"requests":TASKS.iter().map(|task|request_value(&self.expected(task,"legion-audit/<content-digest>".into()))).collect::<Vec<_>>(),"productionAdmission":false,"absentSandboxControl":self.absent})
     }
 }
 impl PolicyAuthorizer for ExactPolicy {
@@ -527,7 +610,7 @@ impl PolicyAuthorizer for ExactPolicy {
             && id_ok
             && *r == self.expected(task, r.request_id.clone())
             && fs::read(&self.wrapper).is_ok_and(|b| sha256_text(&b) == self.wrapper_digest)
-            && fs::read(self.profile()).is_ok_and(|b| b == self.profile_text().as_bytes())
+            && fs::read(self.profile(task)).is_ok_and(|b| b == self.profile_text(task).as_bytes())
             && !rows.iter().any(|row| row["requestId"] == r.request_id);
         rows.push(json!({"requestId":r.request_id,"allowed":allowed,"request":request_value(r)}));
         PolicyDecision {
@@ -796,7 +879,8 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, language: &str, contro
             code::ProviderExecutorAdapter::new()
                 .with_root(&root)
                 .with_search_path(search)
-                .with_sandbox(SandboxPolicy::Required),
+                .with_sandbox(SandboxPolicy::Required)
+                .with_dotnet_qualification_loopback(),
         );
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let report = runtime
@@ -1095,6 +1179,7 @@ fn original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls() {
         bind_source_tree(&repo, &repo.join(path), &mut source_binding);
     }
     let mut record = json!({"schema":"legion-dotnet-sdk-accuracy/1","kind":"dotnet-code-command-sdk-constructed","provider":ID,"providerVersion":spec()["providerVersion"],"productionQualification":false,"qualificationEligible":true,"claimScope":"known-answer-fixture-cases","supportedSurface":"frozen SDK8 net8.0 simple projects; C#/VB Roslyn CA1822 & frozen-file FSharpLint FL0014; actual MSTest execution","executionPath":"native-sdk-frozen-plan-self-sourced-code","admissionScope":"explicit constructed SDK authorizer; genuine OwnerAdmissionRequired denial; no production owner-admission claim","status":"observed-known-answer-controls","missingControls":[],"executedScope":TASKS,"originalContract":{"variants":["csharp","fsharp","visualBasic"],"extensions":["cs","fs","vb"],"tasks":TASKS,"contexts":["targetFrameworks"]},"modelCalls":0,"providerSpec":spec(),"requiredForCleanClaim":required_for_clean_claim(),"sourceBinding":source_binding,"enrollment":enrollment,"enrollmentDigest":sha256_text(&enrollment_bytes),"sdkFiles":sdk_before,"packageFiles":packages_before,"cases":cases,"metrics":{"cases":33,"matched":33,"mismatched":0,"wholeProviderQualified":false,"boundedSdkAccuracyQualified":true}});
+    record["sandboxAdmission"] = sandbox_admission();
     record["qualificationDigest"] = json!(sha256_text(&bytes(&record)));
     let raw = serde_json::to_vec_pretty(&record).unwrap();
     fs::write(

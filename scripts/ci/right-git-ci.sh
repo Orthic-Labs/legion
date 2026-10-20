@@ -79,6 +79,7 @@ python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
 python3 -m unittest discover -s scripts/ci/tests -p test_c_family_sdk_bootstrap.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
 
@@ -366,7 +367,7 @@ provision_c_family_sdk() {
   llvm_root="$(audit_native_command brew --prefix llvm)" || return "$?"
   cmake_root="$(audit_native_command brew --prefix cmake)" || return "$?"
   sdk_root="$(audit_native_command xcrun --sdk macosx --show-sdk-path)" || return "$?"
-  local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root" --runtime-root /usr/bin)
+  local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root")
   local dependencies
   dependencies="$(audit_native_command brew deps --installed --union llvm cmake)" || return "$?"
   while IFS= read -r dependency; do

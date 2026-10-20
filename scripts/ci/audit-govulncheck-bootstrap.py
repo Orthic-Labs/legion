@@ -241,6 +241,15 @@ def provision(args):
         fetch(row, path)
         if row['extension'] == 'zip':
             validate_zip(path)
+    pinned_versions = {}
+    for row in lock['moduleProxy']:
+        pinned_versions.setdefault(row['module'], set()).add(row['version'])
+    for module, versions in sorted(pinned_versions.items()):
+        # Go consults @v/list while checking module deprecation, even for an
+        # exact module@version install. Expose only versions already pinned in
+        # the verified local proxy inputs; never discover latest versions.
+        version_list = proxy / module / '@v' / 'list'
+        version_list.write_text(''.join(version + '\n' for version in sorted(versions)))
     db_zip = downloads / 'vulndb.zip'
     fetch(lock['database'], db_zip)
     validate_zip(db_zip, max_files=5000, max_bytes=16 * 1024 * 1024)

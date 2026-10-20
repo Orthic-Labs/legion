@@ -608,6 +608,8 @@ mod native {
                 tool: &placeholder,
                 scratch: &scratch,
                 sandbox: SandboxPolicy::Required,
+                #[cfg(all(test, target_os = "macos"))]
+                dotnet_qualification_loopback: false,
                 search_path: None,
                 plan_digest: &plan_digest,
                 inventory_digest: &inventory_digest,

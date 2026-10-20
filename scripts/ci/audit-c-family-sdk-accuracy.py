@@ -233,6 +233,7 @@ def validate_record(root, record, live=False):
     enrollment_bytes = raw_bytes(record['toolchainEnrollmentRawBytes'])
     require(digest(enrollment_bytes) == record['toolchainEnrollmentDigest'] and parsed(enrollment_bytes) == record['toolchainEnrollment'], 'actual original enrollment bytes')
     enrollment = runpy.run_path(str(root / BOOTSTRAP))['verify_enrollment'](record['toolchainEnrollment'], live=live)
+    require(enrollment['tools']['make']['path'] == '/usr/bin/make' and enrollment['runtimeFiles'].get('/usr/bin/make') == enrollment['tools']['make']['digest'], 'fixed system make file closure differs')
     require(record['controls'] == list(CONTROLS) and [v['control'] for v in record['cases']] == list(CONTROLS), 'all five native operation/refusal controls')
     all_ids = set()
     for original_case in record['cases']:

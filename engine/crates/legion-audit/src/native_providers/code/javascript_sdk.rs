@@ -166,6 +166,11 @@ pub(super) fn plan(
         ));
         command.env.push(("CI", "true".into()));
         command.env.push(("COREPACK_ENABLE_NETWORK", "0".into()));
+        // This route seals source/tool bytes before & after execution; pnpm's
+        // pre-run dependency auto-install/check writer would mutate that closure.
+        command
+            .env
+            .push(("PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN", "false".into()));
         let value = json!({"schema":CONTEXT_SCHEMA,"cwd":command.cwd_rel,"files":files,"selected":selected});
         let bytes = serde_json::to_vec(&value).expect("serializable context");
         if missing || fs::write(context_path(scratch, &command.cwd_rel), &bytes).is_err() {

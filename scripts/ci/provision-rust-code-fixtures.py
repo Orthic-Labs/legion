@@ -74,6 +74,7 @@ def native_linker(repository, root):
         raise ValueError("driver trace does not prove selected linker/SDK")
     search_roots = [sdk / "usr/lib", sdk / "System/Library/Frameworks", resource / "lib/darwin"]
     search_inputs, seeds = {}, [Path(tool["path"]) for tool in tools.values()] + [xcrun]
+    loader_images = list(seeds)
     suffixes = (".tbd", ".a", ".dylib", ".o")
     # Bind every selectable library/stub in these fixed search roots, including
     # membership. Headers, docs, unrelated SDKs & whole Xcode trees are excluded.
@@ -116,7 +117,9 @@ def native_linker(repository, root):
     # Clang's LTO library may be loaded dynamically rather than through LC_LOAD_DYLIB.
     lto = Path(clang).parent.parent / "lib/libLTO.dylib"
     if lto.exists():
-        seeds.append(api["resolve_link_chain"](lto, aliases))
+        resolved_lto = api["resolve_link_chain"](lto, aliases)
+        seeds.append(resolved_lto)
+        loader_images.append(resolved_lto)
     else:
         api["resolve_link_chain"](lto, aliases, allow_missing=True)
         optional_absent.append(str(lto))
@@ -125,13 +128,15 @@ def native_linker(repository, root):
     for name, target in {**{name: item["path"] for name, item in tools.items()}, "cc": clang, "xcrun": str(xcrun)}.items():
         (native_bin / name).symlink_to(target)
     seeds.append(native_bin)
+    loader_images.append(native_bin)
     seeds = sorted(set(seeds), key=str)
     if len(seeds) > 15000 or sum(path.stat().st_size for path in seeds if path.is_file()) > 1024 * 1024 * 1024:
         raise ValueError("native fixture closure bound exceeded")
-    # Archives and object files are linker inputs, not loadable Mach-O images.
-    # Keep them in the enrolled roots below so their original bytes remain
-    # digest-bound; omit them only from dyld loader discovery.
-    loader_images = [path for path in seeds if path.suffix.lower() not in (".a", ".o")]
+    # Fixed pure-Rust fixtures have no native source, FFI, sanitizer or plugin
+    # options. Search libraries/stubs are linker data, not executable seeds.
+    # Every search input remains in seeds/searchInputs and the final snapshot;
+    # tools, xcrun and explicit libLTO still get recursive dyld discovery.
+    loader_images = sorted(set(loader_images), key=str)
     roots, loader_aliases, absent, discovery = api["native_dependency_closure"]([str(path) for path in loader_images], [], Path(clang))
     roots = sorted(set(roots) | {str(path) for path in seeds})
     absent = sorted(set(absent) | set(optional_absent))

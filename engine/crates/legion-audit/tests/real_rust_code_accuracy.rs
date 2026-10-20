@@ -1362,6 +1362,34 @@ fn verify_native_linker(native: &Value) -> Value {
         native["discoveryTool"]["digest"],
         digest(&fs::read("/usr/bin/xcrun").unwrap())
     );
+    let mut loader_seeds: BTreeSet<PathBuf> = native["tools"]
+        .as_object()
+        .unwrap()
+        .values()
+        .map(|tool| PathBuf::from(tool["path"].as_str().unwrap()))
+        .collect();
+    loader_seeds.insert(PathBuf::from("/usr/bin/xcrun"));
+    let lto = Path::new(native["tools"]["clang"]["path"].as_str().unwrap())
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("lib/libLTO.dylib");
+    if !runtime["absent"].as_array().unwrap().contains(&json!(lto)) {
+        let resolved = fs::canonicalize(&lto).unwrap();
+        bound(resolved.to_str().unwrap());
+        loader_seeds.insert(resolved);
+    }
+    let discovered: BTreeSet<PathBuf> = discovery["images"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|image| PathBuf::from(image["path"].as_str().unwrap()))
+        .collect();
+    assert!(
+        loader_seeds.is_subset(&discovered),
+        "native executable/libLTO seed omitted from dyld discovery"
+    );
     let bin = Path::new(native["bin"].as_str().unwrap());
     let actual_names: BTreeSet<String> = fs::read_dir(bin)
         .unwrap()

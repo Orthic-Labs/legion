@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared Homebrew Clang config stays inside explicit measured native closure."""
+"""Shared Clang config and standalone make stay inside measured native closure."""
 from pathlib import Path
 import runpy
 import tempfile
@@ -64,6 +64,36 @@ class CFamilyBootstrapTests(unittest.TestCase):
         (self.config / 'escape.cfg').symlink_to(outside)
         with self.assertRaisesRegex(ValueError, 'alias escapes enrolled roots'):
             API['tree'](self.selected_config(), [self.llvm, self.config])
+
+    def test_standalone_native_file_does_not_enroll_siblings(self):
+        selected = self.prefix / 'make'
+        selected.write_bytes(b'\xcf\xfa\xed\xfeactual native bytes')
+        (self.prefix / 'unrelated').write_bytes(b'not enrolled')
+        self.assertEqual(API['native_file'](selected), {
+            str(selected): API['digest'](selected.read_bytes())})
+
+    def test_standalone_file_alias_is_rejected(self):
+        selected = self.prefix / 'make'
+        selected.write_bytes(b'\xcf\xfa\xed\xfeactual native bytes')
+        alias = self.prefix / 'make-alias'
+        alias.symlink_to(selected)
+        with self.assertRaisesRegex(ValueError, 'canonical and regular'):
+            API['native_file'](alias)
+
+    def test_standalone_file_directory_and_script_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'canonical and regular'):
+            API['native_file'](self.prefix)
+        selected = self.prefix / 'make'
+        selected.write_bytes(b'#!/bin/sh\nexit 0\n')
+        with self.assertRaisesRegex(ValueError, 'actual native executable'):
+            API['native_file'](selected)
+
+    def test_standalone_native_file_bytes_remain_bound(self):
+        selected = self.prefix / 'make'
+        selected.write_bytes(b'\xcf\xfa\xed\xfeoriginal')
+        before = API['native_file'](selected)
+        selected.write_bytes(b'\xcf\xfa\xed\xfemodified')
+        self.assertNotEqual(API['native_file'](selected), before)
 
 
 if __name__ == '__main__':
