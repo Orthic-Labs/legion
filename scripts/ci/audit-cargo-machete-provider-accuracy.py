@@ -52,6 +52,11 @@ def load(path):
                       parse_constant=lambda _: require(False, "non-JSON number"))
 
 
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
+
+
 def source_files(root):
     result = {}
     for relative in ROOTS + FILES:
@@ -59,7 +64,7 @@ def source_files(root):
         require(base.exists() and not base.is_symlink(), "source binding missing/unsafe: " + relative)
         for path in base.rglob("*") if base.is_dir() else [base]:
             require(not path.is_symlink(), "symlink source binding")
-            if path.is_file():
+            if path.is_file() and not generated_session_provenance(path.relative_to(root).as_posix()):
                 result[path.relative_to(root).as_posix()] = digest(path.read_bytes())
     return result
 

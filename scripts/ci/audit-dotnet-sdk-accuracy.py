@@ -78,10 +78,32 @@ def live_tree(root):
     return rows
 
 
+def generated_session_provenance(relative):
+    return re.fullmatch(
+        r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json",
+        relative,
+    ) is not None
+
+
+def source_tree(repo, directory):
+    require(directory.is_dir() and not directory.is_symlink(), "source root missing/unsafe")
+    rows = {}
+    for path in directory.rglob("*"):
+        require(not path.is_symlink(), "source closure symlink")
+        if path.is_file():
+            relative = path.relative_to(repo).as_posix()
+            if generated_session_provenance(relative):
+                continue
+            rows[relative] = digest(path.read_bytes())
+        else:
+            require(path.is_dir(), "source closure special file")
+    return rows
+
+
 def source_binding(repo):
     rows = {}
     for directory in SOURCE_DIRS:
-        rows.update({directory + "/" + p: h for p, h in live_tree(repo / directory).items()})
+        rows.update(source_tree(repo, repo / directory))
     for name in SOURCE_FILES:
         path = repo / name
         require(path.is_file() and not path.is_symlink(), "source missing: " + name)

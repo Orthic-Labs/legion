@@ -78,24 +78,135 @@ fn registry_spec(id: &str) -> Value {
         .clone()
 }
 
+fn generated_session_provenance(relative: &Path) -> bool {
+    let Ok(tail) = relative
+        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance")
+    else {
+        return false;
+    };
+    let mut components = tail.components();
+    let Some(std::path::Component::Normal(name)) = components.next() else {
+        return false;
+    };
+    if components.next().is_some() {
+        return false;
+    }
+    name.to_str()
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|name| {
+            name.len() == 64
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+}
+
+fn source_binding_walk(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
+    assert!(!path.is_symlink(), "source binding refuses symlinks");
+    if path.is_file() && generated_session_provenance(path.strip_prefix(root).unwrap()) {
+        return;
+    }
+    if path.is_dir() {
+        for entry in fs::read_dir(path).unwrap() {
+            source_binding_walk(root, &entry.unwrap().path(), files);
+        }
+    } else {
+        files.insert(
+            path.strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/"),
+            digest(&fs::read(path).unwrap()),
+        );
+    }
+}
+
+#[test]
+fn source_binding_excludes_only_regular_generated_session_receipts() {
+    let base = std::env::var_os("RUNNER_TEMP")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/Volumes/D/scratch"));
+    let root = base.join(format!(
+        "legion-source-binding-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    let receipt = format!("{prefix}{}.json", "a".repeat(64));
+    let retained = [
+        "engine/crates/legion-audit/src/mod.rs".to_owned(),
+        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}{}.json", "a".repeat(65)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("{prefix}{}.json/child.rs", "b".repeat(64)),
+        format!("engine/crates/legion-audit/src/nested/.audit/arcane/receipts/session-provenance/{}.json", "a".repeat(64)),
+    ];
+    for relative in retained.iter().chain(std::iter::once(&receipt)) {
+        let path = root.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"original source\n").unwrap();
+    }
+    let source = root.join("engine/crates/legion-audit/src");
+    let collect = || {
+        let mut files = BTreeMap::new();
+        source_binding_walk(&root, &source, &mut files);
+        files
+    };
+    let before = collect();
+    assert!(!before.contains_key(&receipt));
+    for relative in &retained {
+        assert_eq!(
+            before.get(relative),
+            Some(&digest(b"original source\n")),
+            "{relative}"
+        );
+    }
+    fs::write(root.join(&receipt), b"changed generated receipt\n").unwrap();
+    assert_eq!(collect(), before);
+    for relative in &retained {
+        fs::write(root.join(relative), b"changed source\n").unwrap();
+        assert_ne!(collect().get(relative), before.get(relative), "{relative}");
+        fs::write(root.join(relative), b"original source\n").unwrap();
+    }
+    let excluded_name = root.join(&receipt);
+    fs::remove_file(&excluded_name).unwrap();
+    std::os::unix::fs::symlink(root.join(&retained[0]), &excluded_name).unwrap();
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| collect())).is_err());
+    fs::remove_file(&excluded_name).unwrap();
+    std::os::unix::fs::symlink(&source, &excluded_name).unwrap();
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| collect())).is_err());
+    fs::remove_file(&excluded_name).unwrap();
+    fs::write(&excluded_name, b"genuine generated receipt\n").unwrap();
+    assert!(!collect().contains_key(&receipt));
+    // On Unix these backslashes are filename bytes, not path separators.
+    let alias = source.join(format!(
+        r".audit\arcane\receipts\session-provenance\{}.json",
+        "a".repeat(64)
+    ));
+    assert!(!generated_session_provenance(
+        alias.strip_prefix(&root).unwrap()
+    ));
+    fs::write(&alias, b"literal-backslash source\n").unwrap();
+    let original_alias = digest(b"literal-backslash source\n");
+    assert_eq!(collect().get(&receipt), Some(&original_alias));
+    fs::write(&alias, b"changed literal-backslash source\n").unwrap();
+    assert_eq!(
+        collect().get(&receipt),
+        Some(&digest(b"changed literal-backslash source\n"))
+    );
+    assert_ne!(collect().get(&receipt), Some(&original_alias));
+    fs::remove_dir_all(&root).unwrap();
+}
+
 fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    fn walk(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
-        assert!(!path.is_symlink(), "source binding refuses symlinks");
-        if path.is_dir() {
-            for entry in fs::read_dir(path).unwrap() {
-                walk(root, &entry.unwrap().path(), files);
-            }
-        } else {
-            files.insert(
-                path.strip_prefix(root)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-                digest(&fs::read(path).unwrap()),
-            );
-        }
-    }
     let mut sources = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
@@ -116,7 +227,7 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
         SOURCE,
         FIXTURES,
     ] {
-        walk(&root, &root.join(path), &mut sources);
+        source_binding_walk(&root, &root.join(path), &mut sources);
     }
     let mut spec = registry_spec(id);
     spec.as_object_mut().unwrap().remove("benchmark");

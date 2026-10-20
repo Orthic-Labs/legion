@@ -60,6 +60,23 @@ def source(root, relative):
     return actual
 
 
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
+
+
+def source_inventory(root):
+    sources = {}
+    for tree in SOURCE_ROOTS:
+        require((root / tree).is_dir() and not (root / tree).is_symlink(), "source root absent/unsafe")
+        for path in (root / tree).rglob("*"):
+            require(not path.is_symlink(), "source closure symlink")
+            if path.is_file() and not generated_session_provenance(path.relative_to(root).as_posix()):
+                sources[path.relative_to(root).as_posix()] = digest(path.read_bytes())
+    sources.update({name: digest(source(root, name).read_bytes()) for name in SOURCE_FILES})
+    return sources
+
+
 def fixture(mode):
     if mode == "malformed-manifest":
         return {"package.json": "{\n"}
@@ -120,13 +137,7 @@ def validate_record(repository_root, record, live=False):
     binding = record["binding"]
     same(binding["providerSpec"], spec, "sanitized provider spec differs")
     require(record["providerVersion"] == spec["providerVersion"] and binding["providerSpecDigest"] == digest(encoded(spec)) and binding["fixture"] == HARNESS, "provider/harness binding differs")
-    sources = {}
-    for tree in SOURCE_ROOTS:
-        require((root / tree).is_dir() and not (root / tree).is_symlink(), "source root absent/unsafe")
-        for path in (root / tree).rglob("*"):
-            require(not path.is_symlink(), "source closure symlink")
-            if path.is_file(): sources[path.relative_to(root).as_posix()] = digest(path.read_bytes())
-    sources.update({name: digest(source(root, name).read_bytes()) for name in SOURCE_FILES})
+    sources = source_inventory(root)
     same(binding["sources"], sources, "source closure stale/incomplete")
     require(binding["sourcesDigest"] == digest(encoded(sources)), "source closure seal differs")
     manifest = parsed(source(root, MANIFEST).read_bytes())

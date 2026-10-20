@@ -70,6 +70,13 @@ def source_file(root, relative):
     return actual
 
 
+def generated_session_provenance(relative):
+    return re.fullmatch(
+        r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json",
+        relative,
+    ) is not None
+
+
 def source_files(root):
     files = set(SOURCE_FILES)
     for relative in SOURCE_ROOTS:
@@ -78,6 +85,8 @@ def source_files(root):
         for path in directory.rglob("*"):
             require(not path.is_symlink(), "source closure symlink")
             if path.is_file():
+                if generated_session_provenance(path.relative_to(root).as_posix()):
+                    continue
                 files.add(path.relative_to(root).as_posix())
     return sorted(files)
 

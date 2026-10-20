@@ -55,6 +55,11 @@ def source_file(root, relative):
     return path
 
 
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
+
+
 def sources(root):
     files = {}
     for relative in SOURCE_ROOTS:
@@ -62,7 +67,7 @@ def sources(root):
         require(path.is_dir() and not path.is_symlink(), "source closure root missing")
         for item in path.rglob("*"):
             require(not item.is_symlink(), "source closure symlink")
-            if item.is_file():
+            if item.is_file() and not generated_session_provenance(item.relative_to(root).as_posix()):
                 files[item.relative_to(root).as_posix()] = digest(item.read_bytes())
     for relative in SOURCE_FILES:
         files[relative] = digest(source_file(root, relative).read_bytes())

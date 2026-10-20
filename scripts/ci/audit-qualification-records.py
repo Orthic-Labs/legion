@@ -224,16 +224,18 @@ def closure_paths(root, entry):
     paths = {GATE, TEST, SCHEMA, ".github/workflows/ci.yml", "scripts/ci/right-git-ci.sh"}
     if family in VALIDATORS:
         paths.add(VALIDATORS[family])
-    if family == "supply-chain-native":
-        paths.update(helper("audit-supply-chain-native-accuracy.py")["source_files"](root))
-    elif family == "code-rust-sdk":
+    if family == "code-rust-sdk":
         paths.update(helper("audit-rust-code-sdk-accuracy.py")["source_files"](root))
         paths.update({"scripts/ci/audit-code-sdk-accuracy.py", "scripts/ci/schemas/audit-rust-code-sdk-accuracy.schema.json"})
     if family == "backend-source-facts":
         paths.update(helper("audit-backend-source-facts.py")["source_files"](root))
     elif family == "quality-test-native":
         paths.update(helper("audit-quality-test-accuracy.py")["source_files"](root))
-    if family == "compatibility-report":
+    if family == "supply-chain-native":
+        # Library-owned harness; no integration-test filename exists for this label.
+        paths.update(helper("audit-supply-chain-native-accuracy.py")["source_files"](root))
+        paths.add(VALIDATORS["shellcheck"])
+    elif family == "compatibility-report":
         paths.update(helper("validate-compatibility-report-accuracy.py")["source_manifest"](root))
     elif family == "code-c-family-sdk":
         paths.update(helper("audit-c-family-sdk-registration.py")["source_files"](root))
@@ -332,7 +334,7 @@ def closure_paths(root, entry):
             require(directory.is_dir() and not directory.is_symlink(), "missing/unsafe cargo-deny source root")
             for source in directory.rglob("*"):
                 require(not source.is_symlink(), "symlink in cargo-deny source closure")
-                if source.is_file():
+                if source.is_file() and not generated_session_provenance(source.relative_to(root).as_posix()):
                     paths.add(source.relative_to(root).as_posix())
     elif family == "cargo-audit-sdk":
         api = helper("audit-cargo-audit-provider-accuracy.py")
@@ -342,7 +344,7 @@ def closure_paths(root, entry):
             require(directory.is_dir() and not directory.is_symlink(), "missing/unsafe cargo-audit source root")
             for source in directory.rglob("*"):
                 require(not source.is_symlink(), "symlink in cargo-audit source closure")
-                if source.is_file():
+                if source.is_file() and not generated_session_provenance(source.relative_to(root).as_posix()):
                     paths.add(source.relative_to(root).as_posix())
     elif family == "cargo-geiger":
         api = helper("audit-cargo-geiger-accuracy.py")
@@ -351,7 +353,7 @@ def closure_paths(root, entry):
         for relative in api["SOURCE_ROOTS"]:
             for source in (root / relative).rglob("*"):
                 require(not source.is_symlink(), "symlink in cargo-geiger source closure")
-                if source.is_file():
+                if source.is_file() and not generated_session_provenance(source.relative_to(root).as_posix()):
                     paths.add(source.relative_to(root).as_posix())
     elif family == "license-checker":
         api = helper("audit-license-provider-accuracy.py")
@@ -359,7 +361,7 @@ def closure_paths(root, entry):
         for relative in api["SOURCE_ROOTS"]:
             for source in (root / relative).rglob("*"):
                 require(not source.is_symlink(), "symlink in license-checker source closure")
-                if source.is_file():
+                if source.is_file() and not generated_session_provenance(source.relative_to(root).as_posix()):
                     paths.add(source.relative_to(root).as_posix())
     elif family == "osv-artifact":
         paths.update({BASE + harness + ".rs", "engine/rust-toolchain.toml", ".rightgit.json", "package.json", "pnpm-lock.yaml"})

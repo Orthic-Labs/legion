@@ -658,6 +658,111 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["controls"](row, {**entry, "scope": "all-python-dependencies"})
 
+    def rust_receipt_closure_cases(self):
+        return (
+            ("cargo-deny", "legacy.security.rust-policy", "audit-cargo-deny-accuracy.py", "SOURCE_ROOTS", "SOURCE_FILES", "sources"),
+            ("cargo-geiger", "legacy.security.rust-unsafe", "audit-cargo-geiger-accuracy.py", "SOURCE_ROOTS", "SOURCE_FILES", "sources"),
+            ("cargo-audit-sdk", "legacy.security.rust-advisories", "audit-cargo-audit-provider-accuracy.py", "SOURCE_ROOTS", "SOURCE_FILES", "source_inventory"),
+            ("license-checker", "legacy.security.js-licenses", "audit-license-provider-accuracy.py", "SOURCE_ROOTS", "SOURCE_FILES", "source_inventory"),
+            ("harness-machete", "legacy.quality.rust-unused-deps", "audit-cargo-machete-provider-accuracy.py", "ROOTS", "FILES", "source_files"),
+        )
+
+    def test_rust_native_receipt_exclusion_preserves_all_other_bytes(self):
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        receipt = prefix + "a" * 64 + ".json"
+        retained = [
+            "engine/Cargo.toml", "engine/crates/legion-audit/src/mod.rs",
+            "engine/crates/legion-audit/src/nested/.audit/anything.rs",
+            prefix + "a" * 64 + ".rs", prefix + "A" * 64 + ".json",
+            prefix + "g" * 64 + ".json", prefix + "a" * 63 + ".json",
+            prefix + "a" * 65 + ".json", prefix + "nested/" + "a" * 64 + ".json",
+            prefix + "b" * 64 + ".json/child.rs",
+            "engine/crates/legion-audit/src/nested/.audit/arcane/receipts/session-provenance/" + "a" * 64 + ".json",
+        ]
+        for family, provider, script, roots_key, files_key, function in self.rust_receipt_closure_cases():
+            with self.subTest(family=family):
+                api = gate["helper"](script)
+                for relative in api[roots_key]:
+                    self.write(relative + "/binding-unit", "synthetic source\n")
+                for relative in api[files_key]:
+                    self.write(relative, "synthetic fixed source\n")
+                for relative in retained:
+                    self.write(relative, "before\n")
+                entry = {"provider": provider, "family": family, "stage": gate["ADAPTERS"][provider][2]}
+                for relative in gate["closure_paths"](self.root, entry):
+                    if not (self.root / relative).exists():
+                        self.write(relative, "synthetic gate source\n")
+
+                def snapshots():
+                    return (api[function](self.root),
+                            {name: gate["digest"]((self.root / name).read_bytes())
+                             for name in gate["closure_paths"](self.root, entry)})
+
+                before = snapshots()
+                self.write(receipt, "generated receipt one\n")
+                self.assertEqual(snapshots(), before)
+                self.write(receipt, "generated receipt two\n")
+                self.assertEqual(snapshots(), before)
+                for relative in retained:
+                    self.write(relative, "after\n")
+                    after = snapshots()
+                    for original, changed in zip(before, after):
+                        self.assertIn(relative, original)
+                        self.assertNotEqual(original[relative], changed[relative], relative)
+                    self.write(relative, "before\n")
+                (self.root / receipt).unlink()
+
+    def test_rust_native_receipt_exclusion_refuses_matching_name_symlinks(self):
+        prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
+        receipt = self.root / (prefix + "a" * 64 + ".json")
+        for family, provider, script, roots_key, files_key, function in self.rust_receipt_closure_cases():
+            with self.subTest(family=family):
+                api = gate["helper"](script)
+                for relative in api[roots_key]:
+                    self.write(relative + "/binding-unit", "synthetic source\n")
+                for relative in api[files_key]:
+                    self.write(relative, "synthetic fixed source\n")
+                entry = {"provider": provider, "family": family, "stage": gate["ADAPTERS"][provider][2]}
+                checks = (lambda: api[function](self.root),
+                          lambda: gate["closure_paths"](self.root, entry))
+                receipt.parent.mkdir(parents=True, exist_ok=True)
+                receipt.symlink_to(self.root / "engine/crates/legion-audit/src/unit.rs")
+                for check in checks:
+                    with self.assertRaises(AssertionError):
+                        check()
+                receipt.unlink()
+                receipt.symlink_to(self.root / "engine/crates/legion-audit/src", target_is_directory=True)
+                for check in checks:
+                    with self.assertRaises(AssertionError):
+                        check()
+                receipt.unlink()
+                # A symlinked receipt directory is unsafe before any file filter.
+                receipt.parent.rmdir()
+                receipt.parent.symlink_to(self.root / "engine/crates/legion-audit/src", target_is_directory=True)
+                for check in checks:
+                    with self.assertRaises(AssertionError):
+                        check()
+                receipt.parent.unlink()
+
+    def test_supply_chain_closure_uses_actual_library_owned_harness(self):
+        api = gate["helper"]("audit-supply-chain-native-accuracy.py")
+        entry = {"provider": api["ID"], "family": api["FAMILY"], "stage": "candidate"}
+        expected = set(api["source_files"](SOURCE_ROOT)) | {
+            gate["GATE"], gate["TEST"], gate["SCHEMA"], ".github/workflows/ci.yml",
+            "scripts/ci/right-git-ci.sh", gate["VALIDATORS"][api["FAMILY"]],
+            gate["VALIDATORS"]["shellcheck"],
+        }
+        paths = set(gate["closure_paths"](SOURCE_ROOT, entry))
+        self.assertEqual(paths, expected)
+        self.assertIn(api["HARNESS"], paths)
+        self.assertTrue(api["HARNESS"].startswith("engine/crates/legion-audit/src/"))
+        self.assertTrue(all((SOURCE_ROOT / name).is_file() for name in paths))
+        self.assertNotIn("engine/crates/legion-audit/tests/security-supply-chain-native.rs", paths)
+        self.assertEqual(gate["SUPPLY_CHAIN_HARNESS"], [
+            "audit_cargo_test", "--lib", gate["ADAPTERS"][api["ID"]][4],
+            "--", "--ignored", "--exact", "--nocapture", "--test-threads=1",
+        ])
+
     def test_new_native_source_closures_exclude_only_generated_receipts(self):
         cases = (("pip-audit", "legacy.security.python-dependencies", "audit-pip-audit-provider-accuracy.py", "ROOTS", "FILES", "source_files"),
                  ("semgrep-sdk", "legacy.security.sast", "audit-semgrep-provider-accuracy.py", "TREES", "FILES", "sources"),

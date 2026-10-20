@@ -72,6 +72,137 @@ fn registry() -> Value {
         .unwrap()
         .clone()
 }
+fn generated_session_provenance(relative: &Path) -> bool {
+    relative.parent()
+        == Some(Path::new(
+            "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance",
+        ))
+        && relative
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".json"))
+            .is_some_and(|name| {
+                name.len() == 64
+                    && name
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            })
+}
+
+fn bind_source_tree(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
+    assert!(!path.is_symlink(), "source binding refuses symlinks");
+    if path.is_file() && generated_session_provenance(path.strip_prefix(root).unwrap()) {
+        return;
+    }
+    if path.is_dir() {
+        for entry in fs::read_dir(path).unwrap() {
+            bind_source_tree(root, &entry.unwrap().path(), files);
+        }
+    } else {
+        files.insert(
+            path.strip_prefix(root)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .replace('\\', "/"),
+            sha(&fs::read(path).unwrap()),
+        );
+    }
+}
+
+#[test]
+fn source_binding_excludes_only_regular_generated_session_receipts() {
+    fn snapshot(root: &Path) -> BTreeMap<String, String> {
+        let mut files = BTreeMap::new();
+        bind_source_tree(root, root, &mut files);
+        files
+    }
+    struct Scratch(std::path::PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
+    let base = std::env::var_os("RUNNER_TEMP")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let scratch = Scratch(base.join(format!(
+        "legion-sdk-source-binding-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )));
+    let root = &scratch.0;
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    let source = root.join("engine/crates/legion-audit/src/mod.rs");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(&source, b"pub fn source() {}\n").unwrap();
+    let baseline = snapshot(root);
+    let receipt = root.join(format!("{prefix}{}.json", "0123456789abcdef".repeat(4)));
+    fs::create_dir_all(receipt.parent().unwrap()).unwrap();
+    fs::write(&receipt, b"generated receipt").unwrap();
+    assert_eq!(snapshot(root), baseline);
+    fs::write(&receipt, b"different host receipt").unwrap();
+    assert_eq!(snapshot(root), baseline);
+    fs::remove_file(&receipt).unwrap();
+    fs::create_dir(&receipt).unwrap();
+    fs::write(receipt.join("nested.rs"), b"retained child").unwrap();
+    assert_eq!(snapshot(root).len(), baseline.len() + 1);
+    fs::remove_dir_all(&receipt).unwrap();
+    for relative in [
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.JSON", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}{}.json", "a".repeat(65)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("nested/{prefix}{}.json", "a".repeat(64)),
+    ] {
+        let path = root.join(&relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, b"must remain bound").unwrap();
+        let before = snapshot(root);
+        assert_eq!(before.len(), baseline.len() + 1, "{relative}");
+        fs::write(&path, b"changed retained bytes").unwrap();
+        assert_ne!(snapshot(root), before, "{relative}");
+        fs::remove_file(path).unwrap();
+    }
+    // A Unix backslash is filename data, even when display normalization looks generated.
+    #[cfg(unix)]
+    for relative in [
+        format!(
+            r"engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance\{}.json",
+            "a".repeat(64)
+        ),
+        format!(
+            r"engine\crates/legion-audit/src/.audit/arcane/receipts/session-provenance/{}.json",
+            "a".repeat(64)
+        ),
+        format!(
+            r"engine\crates\legion-audit\src\.audit\arcane\receipts\session-provenance\{}.json",
+            "a".repeat(64)
+        ),
+    ] {
+        let path = root.join(&relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, b"literal backslash source").unwrap();
+        let before = snapshot(root);
+        assert_eq!(before.len(), baseline.len() + 1, "{relative}");
+        fs::write(&path, b"changed literal backslash source").unwrap();
+        assert_ne!(snapshot(root), before, "{relative}");
+        fs::remove_file(path).unwrap();
+    }
+    assert_eq!(snapshot(root), baseline);
+    fs::write(&source, b"pub fn changed_source() {}\n").unwrap();
+    assert_ne!(snapshot(root), baseline);
+    std::os::unix::fs::symlink(&source, &receipt).unwrap();
+    assert!(std::panic::catch_unwind(|| snapshot(root)).is_err());
+    fs::remove_file(receipt).unwrap();
+}
+
 fn binding() -> Value {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let mut files = BTreeMap::new();
@@ -83,16 +214,12 @@ fn binding() -> Value {
         "legion-rules",
     ] {
         let prefix = format!("engine/crates/{name}/src");
-        for (path, digest) in snapshot(&root.join(&prefix)) {
-            files.insert(format!("{prefix}/{path}"), digest);
-        }
+        bind_source_tree(&root, &root.join(&prefix), &mut files);
         let path = format!("engine/crates/{name}/Cargo.toml");
         files.insert(path.clone(), sha(&fs::read(root.join(path)).unwrap()));
     }
     for prefix in ["src/registry/rules", "src/registry/controls"] {
-        for (path, digest) in snapshot(&root.join(prefix)) {
-            files.insert(format!("{prefix}/{path}"), digest);
-        }
+        bind_source_tree(&root, &root.join(prefix), &mut files);
     }
     for path in [
         "engine/Cargo.toml",

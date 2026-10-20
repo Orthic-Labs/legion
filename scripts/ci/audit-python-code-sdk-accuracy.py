@@ -23,6 +23,13 @@ RECEIPT_FIELDS = _shared["RECEIPT_FIELDS"]
 SOURCE_ROOTS = ["engine/crates/" + c + "/src" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")] + ["src/registry/rules", "src/registry/controls", FIXTURES]
 SOURCE_FILES = ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", HARNESS, BOOTSTRAP, "scripts/ci/provision-python-qualification-tools.py", "scripts/ci/audit-pip-audit-provider-accuracy.py", "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.json", "scripts/ci/python-tool-locks/code-python-sdk-macos-arm64-cp314.txt"] + ["engine/crates/" + c + "/Cargo.toml" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")]
 
+def generated_session_provenance(relative):
+    return re.fullmatch(
+        r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json",
+        relative,
+    ) is not None
+
+
 def source_files(root):
     paths = set(SOURCE_FILES)
     for relative in SOURCE_ROOTS:
@@ -30,7 +37,10 @@ def source_files(root):
         require(p.is_dir() and not p.is_symlink(), "source closure root missing")
         for item in p.rglob("*"):
             require(not item.is_symlink(), "source closure symlink")
-            if item.is_file(): paths.add(item.relative_to(root).as_posix())
+            if item.is_file():
+                if generated_session_provenance(item.relative_to(root).as_posix()):
+                    continue
+                paths.add(item.relative_to(root).as_posix())
     return sorted(paths)
 
 def fixture(root, control):

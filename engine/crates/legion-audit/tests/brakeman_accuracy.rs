@@ -816,9 +816,18 @@ fn case(planted: bool) -> Value {
         "receiptRetentionLimit": "Actual SDK scan receipt & verified raw streams retained before assertions; reduced producer receipt & separate native version receipt retained."})
 }
 
-fn generated_session_provenance(relative: &str) -> bool {
+fn generated_session_provenance(relative: &Path) -> bool {
+    // Match actual filesystem components before display separator normalization.
+    if relative.parent()
+        != Some(Path::new(
+            "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance",
+        ))
+    {
+        return false;
+    }
     relative
-        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
+        .file_name()
+        .and_then(|name| name.to_str())
         .and_then(|name| name.strip_suffix(".json"))
         .is_some_and(|name| {
             name.len() == 64
@@ -833,15 +842,7 @@ fn bind_source_tree(root: &Path, path: &Path, files: &mut Vec<(String, String)>)
         !path.is_symlink(),
         "implementation binding refuses symlinks"
     );
-    if path.is_file()
-        && generated_session_provenance(
-            &path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/"),
-        )
-    {
+    if path.is_file() && generated_session_provenance(path.strip_prefix(root).unwrap()) {
         return;
     }
     if path.is_dir() {
@@ -913,6 +914,15 @@ fn source_binding_excludes_only_regular_generated_session_receipts() {
         format!("{prefix}{}.json", "a".repeat(65)),
         format!("{prefix}nested/{}.json", "a".repeat(64)),
         format!("nested/{prefix}{}.json", "a".repeat(64)),
+        // Unix backslashes are literal names, never receipt path separators.
+        format!(
+            "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance\\{}.json",
+            "a".repeat(64)
+        ),
+        format!(
+            "engine/crates/legion-audit/src/.audit\\arcane/receipts/session-provenance/{}.json",
+            "a".repeat(64)
+        ),
     ] {
         let path = root.join(&relative);
         fs::create_dir_all(path.parent().unwrap()).unwrap();

@@ -68,6 +68,11 @@ def live_file(path, expected):
     require(path.is_file() and not path.is_symlink() and path.read_bytes() == expected, f"live bytes differ: {path}")
 
 
+def generated_session_provenance(relative):
+    # Generated host evidence only; all other source-root files remain bound.
+    return re.fullmatch(r"engine/crates/legion-audit/src/\.audit/arcane/receipts/session-provenance/[0-9a-f]{64}\.json", relative) is not None
+
+
 def source_inventory(root):
     sources = {}
     for relative in SOURCE_ROOTS:
@@ -75,7 +80,7 @@ def source_inventory(root):
         require(directory.is_dir() and not directory.is_symlink(), "source closure root missing/symlink")
         for path in directory.rglob("*"):
             require(not path.is_symlink(), "source closure symlink")
-            if path.is_file():
+            if path.is_file() and not generated_session_provenance(path.relative_to(root).as_posix()):
                 sources[path.relative_to(root).as_posix()] = digest(path.read_bytes())
     for relative in SOURCE_FILES:
         sources[relative] = digest(source_file(root, relative).read_bytes())

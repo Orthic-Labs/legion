@@ -101,26 +101,27 @@ fn collect_source_bindings(
             );
         }
     } else if path.is_file() {
-        let relative = path
-            .strip_prefix(root)
-            .expect("workspace-relative source")
-            .to_string_lossy()
-            .replace('\\', "/");
-        // Only generated regular receipts are excluded; matching directories recurse.
-        let generated_receipt = relative
-            .strip_prefix(
-                "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/",
-            )
-            .and_then(|name| name.strip_suffix(".json"))
-            .is_some_and(|name| {
-                name.len() == 64
-                    && name
-                        .bytes()
-                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-            });
+        let source_relative = path.strip_prefix(root).expect("workspace-relative source");
+        // Match actual filesystem components before display separator normalization.
+        // Only regular receipts are excluded; matching directories still recurse.
+        let generated_receipt = source_relative.parent()
+            == Some(Path::new(
+                "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance",
+            ))
+            && source_relative
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_suffix(".json"))
+                .is_some_and(|name| {
+                    name.len() == 64
+                        && name
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                });
         if generated_receipt {
             return;
         }
+        let relative = source_relative.to_string_lossy().replace('\\', "/");
         let bytes = fs::read(path).expect("implementation source bytes");
         let bound_digest = if relative == "src/registry/providers.json" {
             let mut registry: Value = serde_json::from_slice(&bytes).expect("provider registry");
@@ -271,6 +272,35 @@ mod source_binding_tests {
             expected,
             "matching directory must recurse"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn literal_backslash_receipt_aliases_remain_bound() {
+        let fixture = Fixture::new("source-binding-backslash-alias");
+        fixture.write(SOURCE, b"retained source\n");
+        let baseline = fixture.bindings();
+        let hash = "a".repeat(64);
+        for relative in [
+            format!("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance\\{hash}.json"),
+            format!("engine/crates/legion-audit/src/.audit\\arcane/receipts/session-provenance/{hash}.json"),
+        ] {
+            fixture.write(&relative, b"retained literal-backslash bytes\n");
+            let before = fixture.bindings();
+            assert_eq!(before.len(), baseline.len() + 1, "{relative}");
+            let display_path = relative.replace('\\', "/");
+            assert_eq!(
+                before[&display_path],
+                digest(b"retained literal-backslash bytes\n"),
+                "literal name must retain actual file bytes"
+            );
+            fixture.write(&relative, b"changed literal-backslash bytes\n");
+            let after = fixture.bindings();
+            assert_ne!(before, after, "{relative}");
+            assert_eq!(after[&display_path], digest(b"changed literal-backslash bytes\n"));
+            fs::remove_file(fixture.0.join(&relative)).unwrap();
+            assert_eq!(fixture.bindings(), baseline);
+        }
     }
 
     #[cfg(unix)]
