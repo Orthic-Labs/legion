@@ -153,7 +153,8 @@ def expected_inventory(case_id, row, files):
 
 def expected_plan(spec, inventory, benchmark):
     entries = inventory["entries"]
-    denominator = digest(encoded([inventory["digest"], spec["selector"], entries]))
+    same(spec["selector"], {"op": "always"}, "original always selector differs")
+    denominator = inventory["digest"]
     fields = ("schemaVersion", "family", "consumes", "produces", "selector", "denominatorKind", "runner", "hostCapabilities",
               "execution", "reasoning", "controlIds", "scopes", "selectable")
     configuration = {key: spec[key] for key in fields}

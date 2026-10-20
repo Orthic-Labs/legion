@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[3]
 API = runpy.run_path(str(ROOT / "scripts/ci/audit-supply-chain-native-accuracy.py"))
 
 class SupplyChainNativeReplayTests(unittest.TestCase):
-    def documents(self, license="MIT", omit=None):
+    def documents(self, license="MIT", omit=None, spec_version="1.6"):
         names = [("direct", "1.0.0", "MIT"), ("transitive", "2.0.0", license), ("dev-only", "3.0.0", "Apache-2.0")]
         cdx, spdx = [], []
         for name, version, value in names:
@@ -18,7 +18,7 @@ class SupplyChainNativeReplayTests(unittest.TestCase):
             url = "pkg:npm/" + name + "@" + version
             cdx.append({"type": "library", "purl": url, "licenses": [{"license": {"id": value}}]})
             spdx.append({"externalRefs": [{"referenceType": "purl", "referenceLocator": url}], "licenseDeclared": value, "licenseConcluded": "NOASSERTION"})
-        return API["encoded"]({"bomFormat": "CycloneDX", "specVersion": "1.6", "components": cdx}), API["encoded"]({"spdxVersion": "SPDX-2.3", "SPDXID": "SPDXRef-DOCUMENT", "packages": spdx})
+        return API["encoded"]({"bomFormat": "CycloneDX", "specVersion": spec_version, "components": cdx}), API["encoded"]({"spdxVersion": "SPDX-2.3", "SPDXID": "SPDXRef-DOCUMENT", "packages": spdx})
 
     def test_full_constructed_lock_keeps_development_and_nested_packages(self):
         expected = API["lock_packages"](API["fixture_lock"]("MIT"))
@@ -44,6 +44,55 @@ class SupplyChainNativeReplayTests(unittest.TestCase):
             self.assertIsNotNone(API["sbom"]("cyclonedx", raw)[1])
         with self.assertRaises(AssertionError):
             API["parsed"]('{"x":1,"x":2}')
+
+    def test_cyclonedx_17_keeps_native_shapes_and_full_denominator(self):
+        expected = API["lock_packages"](API["fixture_lock"]("MIT"))
+        for version in ("1.5", "1.6", "1.7"):
+            cdx, spdx = map(json.loads, self.documents(spec_version=version))
+            # Real Syft emits non-package file/root rows alongside all dependencies.
+            cdx["components"].append({"type": "file", "name": "package-lock.json"})
+            spdx["packages"].append({"name": ".", "primaryPackagePurpose": "FILE", "licenseDeclared": "NOASSERTION"})
+            result = API["reconcile"](expected, API["encoded"](cdx), API["encoded"](spdx))
+            self.assertTrue(result["complete"])
+            self.assertEqual((result["expected"], result["examined"]), (3, 3))
+        missing = API["reconcile"](expected, *self.documents(omit="dev-only", spec_version="1.7"))
+        self.assertFalse(missing["complete"])
+        self.assertEqual((missing["expected"], missing["examined"]), (3, 2))
+        self.assertIn({"kind": "sbom-package-missing", "name": "pkg:npm/dev-only@3.0.0"}, missing["coverageGaps"])
+        denied = API["reconcile"](expected, *self.documents("GPL-3.0-only", spec_version="1.7"))
+        self.assertTrue(denied["complete"])
+        self.assertEqual(denied["findings"][0]["license"], "GPL-3.0-only")
+        unknown = API["reconcile"](expected, *self.documents("MIT OR GPL-3.0-only", spec_version="1.7"))
+        self.assertFalse(unknown["complete"])
+        self.assertEqual(unknown["coverageGaps"][0]["kind"], "supply-chain-license-undecided")
+
+    def test_cyclonedx_17_still_refuses_invalid_package_documents(self):
+        cdx = json.loads(self.documents(spec_version="1.7")[0])
+        cases = []
+        for version in ("1.4", "1.8", "1.7.0", ""):
+            invalid = copy.deepcopy(cdx)
+            invalid["specVersion"] = version
+            cases.append((invalid, "sbom-format-invalid"))
+        wrong_format = copy.deepcopy(cdx)
+        wrong_format["bomFormat"] = "SPDX"
+        missing_components = copy.deepcopy(cdx)
+        del missing_components["components"]
+        invalid_components = copy.deepcopy(cdx)
+        invalid_components["components"] = {}
+        duplicate = copy.deepcopy(cdx)
+        duplicate["components"].append(copy.deepcopy(duplicate["components"][0]))
+        unidentified = copy.deepcopy(cdx)
+        del unidentified["components"][0]["purl"]
+        invalid_purl = copy.deepcopy(cdx)
+        invalid_purl["components"][0]["purl"] = "not-a-purl"
+        empty = copy.deepcopy(cdx)
+        empty["components"] = []
+        invalid_license = copy.deepcopy(cdx)
+        invalid_license["components"][0]["licenses"] = [{}]
+        cases.extend(((wrong_format, "sbom-format-invalid"), (missing_components, "sbom-components-missing"), (invalid_components, "sbom-components-missing"), (duplicate, "sbom-package-duplicate"), (unidentified, "sbom-package-purl-missing"), (invalid_purl, "sbom-purl-invalid"), (empty, "sbom-package-inventory-empty"), (invalid_license, "sbom-license-invalid")))
+        for invalid, reason in cases:
+            with self.subTest(reason=reason, document=invalid):
+                self.assertEqual(API["sbom"]("cyclonedx", API["encoded"](invalid)), (None, reason))
 
     def test_only_qualification_metadata_is_normalized(self):
         registry = {"providers": [{"id": API["ID"], "selector": {"op": "always"}, "denominatorKind": "selected-scope", "benchmark": {"status": "unproven", "qualificationDigest": None, "requiredForCleanClaim": False}}]}

@@ -135,7 +135,7 @@ def sbom(format, raw):
         return None, "sbom-json-invalid"
     cdx = format == "cyclonedx"
     if cdx:
-        if doc.get("bomFormat") != "CycloneDX" or doc.get("specVersion") not in ("1.5", "1.6"):
+        if doc.get("bomFormat") != "CycloneDX" or doc.get("specVersion") not in ("1.5", "1.6", "1.7"):
             return None, "sbom-format-invalid"
         rows = doc.get("components")
     else:

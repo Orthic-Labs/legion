@@ -187,9 +187,10 @@ def validate_record(repository_root, record, live=False):
                 and plan["providers"][0]["version"] == spec["providerVersion"], "frozen original provider differs")
         configuration = plan["providers"][0]["configuration"]
         same(configuration["selector"], spec["selector"], "original selector replaced")
+        same(spec["selector"], {"op": "always"}, "original always selector differs")
         same(configuration["runner"], spec["runner"], "original native route replaced")
         require("input" not in configuration, "frozen provider surrogate input")
-        denominator = digest(encoded([inventory["digest"], configuration["selector"], entries]))
+        denominator = inventory["digest"]
         require(configuration["denominatorCount"] == len(entries) and configuration["denominatorDigest"] == denominator, "frozen denominator seal differs")
         result, selected = case["nativeResult"], expected["selected"]
         require(result["provider"] == ID and result["complete"] is False and result["degradation"] == [], "native generic-source result claimed complete/other contract")

@@ -720,8 +720,15 @@ fn case(base: &Path, control: &str) -> Value {
         );
         if control == "process-error" {
             assert_eq!(actual["exitCode"], 1);
+            // Accepted process completion retains Ok; coverage proves analysis incomplete.
+            assert_eq!(result.status, legion_contracts::ProviderStatus::Ok);
             assert!(!result.complete && candidates.is_empty());
-            assert!(!result.coverage_gaps.is_empty());
+            assert_eq!(
+                result.coverage_gaps,
+                vec!["legacy-tool-output-unparseable:cargo_unsafe"]
+            );
+            let coverage = result.coverage.as_ref().unwrap();
+            assert_eq!(coverage.gaps, result.coverage_gaps);
             assert!(result.details["findingsCount"].is_null());
             assert!(stdout.trim().is_empty());
             assert!(stderr.contains("LEGION_GEIGER_PROCESS_ERROR_CONTROL"));

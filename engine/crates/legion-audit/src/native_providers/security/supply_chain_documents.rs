@@ -235,7 +235,7 @@ pub fn parse_sbom(format: &str, raw: &[u8]) -> Result<BTreeMap<String, Package>,
     let (rows, cdx) = match format {
         "cyclonedx"
             if doc["bomFormat"] == "CycloneDX"
-                && matches!(doc["specVersion"].as_str(), Some("1.5" | "1.6")) =>
+                && matches!(doc["specVersion"].as_str(), Some("1.5" | "1.6" | "1.7")) =>
         {
             (
                 doc["components"]

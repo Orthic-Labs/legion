@@ -73,7 +73,6 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accura
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
 python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
-python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
 
 checks=(
   "check-canonical-names"
@@ -114,6 +113,7 @@ done
 # compile, test and installer validation stays on the Windows and macOS legs.
 if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
   (cd engine && cargo fmt --all -- --check)
+  python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
   exit 0
 fi
 
@@ -1367,6 +1367,9 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     printf '::error::npm outdated runtime binding failed (exit %s).\n' "$audit_node_status" >&2
   fi
 fi
+
+# Emit fresh native proof before asserting retained closures; stale closures still block delivery.
+run_audit_qualification python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
 
 if (( workspace_failures != 0 || audit_qualification_failures != 0 )); then
   printf 'CI checks failed: %s workspace command(s), %s Audit qualification command(s); refusing installer delivery.\n' \

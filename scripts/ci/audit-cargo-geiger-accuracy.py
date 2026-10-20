@@ -206,7 +206,8 @@ def validate_record(repository_root,row,live=False):
             same({k:v for k,v in item.items() if k!="raw"},projected[stream],"projected stream differs")
             if live:require((Path(run)/"artifacts"/item["path"]).read_bytes()==raw.encode(),"retained artifact changed")
         if failed:
-            require(result["complete"] is False and result["status"]=="partial" and result["coverage_gaps"] and result["details"]["findingsCount"] is None and candidates==[] and not case["actualStdout"].strip() and "LEGION_GEIGER_PROCESS_ERROR_CONTROL" in case["actualStderr"],"compiler failure became clean/findings")
+            # Accepted process completion retains ok; coverage proves analysis incomplete.
+            require(result["complete"] is False and result["status"]=="ok" and result["coverage_gaps"]==result["coverage"]["gaps"]==["legacy-tool-output-unparseable:cargo_unsafe"] and result["details"]["findingsCount"] is None and candidates==[] and case["actualToolReport"] is None and not case["actualStdout"].strip() and "LEGION_GEIGER_PROCESS_ERROR_CONTROL" in case["actualStderr"],"compiler failure became clean/findings")
         else:
             actual=parsed(case["actualStdout"]);same(case["actualToolReport"],actual,"raw full report differs");count=safety_report(actual);require(count==(1 if control=="positive" else 0),"actual unsafe positive/absence differs")
             require(result["complete"] is True and result["status"] in ["ok","complete"] and result["coverage_gaps"]==[] and result["degradation"]==[] and result["details"]["findingsCount"]==count,"native completion differs")

@@ -792,11 +792,10 @@ mod tests {
         )
         .await;
         assert!(evidence.findings.is_empty());
+        // The first enrollment refusal survives the later same-rank boundary failure.
         assert_eq!(
             evidence.outcomes.get("ruby-lint"),
-            Some(&Outcome::Failed(
-                "php-ruby-native-enrollment-boundary-failed".into()
-            ))
+            Some(&Outcome::Failed("php-ruby-enrollment-unavailable".into()))
         );
         assert_eq!(evidence.receipts.len(), 1);
         let boundary = &evidence.receipts[0];

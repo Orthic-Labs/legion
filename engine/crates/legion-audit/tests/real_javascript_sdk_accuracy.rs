@@ -1192,7 +1192,9 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
         } else {
             "test"
         };
-        let row = rows
+        let row = result["sdkExecutions"]
+            .as_array()
+            .unwrap()
             .iter()
             .find(|r| r["request"]["taskId"] == task)
             .unwrap();

@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import hmac
+import json
 from pathlib import Path
 import runpy
 import unittest
@@ -57,6 +58,33 @@ class BackendSourceReplayUnits(unittest.TestCase):
 
     def test_resealed_semantic_mutations_are_rejected(self):
         self.assertEqual(api["rejection_controls"](ROOT, self.record, self.raw), 20)
+
+    def test_always_denominator_uses_independent_inventory_seal(self):
+        def encoded(value):
+            return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+
+        rows = [json.loads(line) for line in self.raw.splitlines()]
+        for row in rows:
+            inventory = row["inventory"]
+            identity = [1, inventory["repositoryId"], inventory["generation"], inventory["entries"]]
+            seal = "sha256:" + hashlib.sha256(encoded(identity)).hexdigest()
+            configuration = row["frozenPlan"]["providers"][0]["configuration"]
+            self.assertEqual(configuration["selector"], {"op": "always"})
+            self.assertEqual(inventory["digest"], seal)
+            self.assertEqual(configuration["denominatorDigest"], seal)
+
+        row = rows[0]
+        inventory = row["inventory"]
+        configuration = row["frozenPlan"]["providers"][0]["configuration"]
+        wrong = "sha256:" + hashlib.sha256(encoded([inventory["digest"], configuration["selector"], inventory["entries"]])).hexdigest()
+        configuration["denominatorDigest"] = wrong
+        row["nativeResult"]["coverage"]["denominator_digest"] = wrong
+        raw_plan = encoded(row["frozenPlan"])
+        row["planDigest"] = "sha256:" + hashlib.sha256(raw_plan).hexdigest()
+        row["planSignature"] = "hmac-sha256:" + hmac.new(api["KEY"], raw_plan, hashlib.sha256).hexdigest()
+        row["dispatch"]["planDigest"] = row["planDigest"]
+        with self.assertRaisesRegex(AssertionError, "frozen original provider/selector/bounds altered"):
+            self.replay(rows)
 
     def replay(self, rows):
         corpus = api["contract"](ROOT)

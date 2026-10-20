@@ -558,3 +558,150 @@ fn frozen_lock_inventory_keeps_dev_nested_and_refuses_unresolved_syntax() {
         assert!(documents::parse_lock(path, text).is_err(), "{path}");
     }
 }
+
+// Constructed parser controls only; native eligibility still requires real Syft receipts.
+fn sbom_parser_documents(version: &str) -> (Value, Value) {
+    let mut cdx = Vec::new();
+    let mut spdx = Vec::new();
+    for (name, version, license) in [
+        ("direct", "1.0.0", "MIT"),
+        ("transitive", "2.0.0", "BSD-3-Clause"),
+        ("dev-only", "3.0.0", "Apache-2.0"),
+    ] {
+        let purl = format!("pkg:npm/{name}@{version}");
+        cdx.push(json!({"type":"library","name":name,"version":version,"purl":purl,"licenses":[{"license":{"id":license}}]}));
+        spdx.push(json!({"externalRefs":[{"referenceType":"purl","referenceLocator":purl}],"licenseConcluded":"NOASSERTION","licenseDeclared":license}));
+    }
+    // Match Syft's non-package file component & SPDX directory root.
+    cdx.push(json!({"type":"file","name":"package-lock.json"}));
+    spdx.push(json!({"name":".","primaryPackagePurpose":"FILE","licenseDeclared":"NOASSERTION"}));
+    (
+        json!({"bomFormat":"CycloneDX","specVersion":version,"components":cdx}),
+        json!({"spdxVersion":"SPDX-2.3","SPDXID":"SPDXRef-DOCUMENT","packages":spdx}),
+    )
+}
+
+#[test]
+fn cyclonedx_supported_versions_keep_full_package_and_license_controls() {
+    let expected = documents::parse_lock("package-lock.json", &lock("BSD-3-Clause")).unwrap();
+    for version in ["1.5", "1.6", "1.7"] {
+        let (cdx, spdx) = sbom_parser_documents(version);
+        let packages = documents::parse_sbom("cyclonedx", &canonical(&cdx)).unwrap();
+        assert_eq!(
+            packages
+                .keys()
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+        let result = documents::reconcile(
+            &expected,
+            &canonical(&cdx),
+            &canonical(&spdx),
+            &license_policy(),
+        );
+        assert_eq!(result["complete"], true, "{version}");
+        assert_eq!(result["expected"], 3);
+        assert_eq!(result["examined"], 3);
+        assert_eq!(result["findings"], json!([]));
+    }
+    let (cdx, spdx) = sbom_parser_documents("1.7");
+    let mut missing = cdx.clone();
+    missing["components"].as_array_mut().unwrap().remove(2);
+    let result = documents::reconcile(
+        &expected,
+        &canonical(&missing),
+        &canonical(&spdx),
+        &license_policy(),
+    );
+    assert_eq!(result["complete"], false);
+    assert_eq!(result["expected"], 3);
+    assert_eq!(result["examined"], 2);
+    assert!(result["coverageGaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(
+            |gap| gap["kind"] == "sbom-package-missing" && gap["name"] == "pkg:npm/dev-only@3.0.0"
+        ));
+    for (license, complete) in [("GPL-3.0-only", true), ("MIT OR GPL-3.0-only", false)] {
+        let mut left = cdx.clone();
+        let mut right = spdx.clone();
+        left["components"][1]["licenses"] = json!([{"expression":license}]);
+        right["packages"][1]["licenseDeclared"] = json!(license);
+        let result = documents::reconcile(
+            &expected,
+            &canonical(&left),
+            &canonical(&right),
+            &license_policy(),
+        );
+        assert_eq!(result["complete"], complete);
+        if complete {
+            assert_eq!(result["findings"][0]["license"], license);
+            assert_eq!(
+                result["findings"][0]["ruleId"],
+                "supply-chain.license-policy-denied"
+            );
+        } else {
+            assert!(result["coverageGaps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|gap| gap["kind"] == "supply-chain-license-undecided"));
+        }
+    }
+}
+
+#[test]
+fn cyclonedx_17_parser_still_refuses_invalid_package_documents() {
+    let (cdx, _) = sbom_parser_documents("1.7");
+    for version in ["1.4", "1.8", "1.7.0", ""] {
+        let mut invalid = cdx.clone();
+        invalid["specVersion"] = json!(version);
+        assert_eq!(
+            documents::parse_sbom("cyclonedx", &canonical(&invalid)).unwrap_err(),
+            "sbom-format-invalid"
+        );
+    }
+    let mut wrong_format = cdx.clone();
+    wrong_format["bomFormat"] = json!("SPDX");
+    let mut missing_components = cdx.clone();
+    missing_components
+        .as_object_mut()
+        .unwrap()
+        .remove("components");
+    let mut invalid_components = cdx.clone();
+    invalid_components["components"] = json!({});
+    let mut duplicate = cdx.clone();
+    let repeated = duplicate["components"][0].clone();
+    duplicate["components"]
+        .as_array_mut()
+        .unwrap()
+        .push(repeated);
+    let mut unidentified = cdx.clone();
+    unidentified["components"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("purl");
+    let mut invalid_purl = cdx.clone();
+    invalid_purl["components"][0]["purl"] = json!("not-a-purl");
+    let mut empty = cdx.clone();
+    empty["components"] = json!([]);
+    let mut invalid_license = cdx.clone();
+    invalid_license["components"][0]["licenses"] = json!([{}]);
+    for (invalid, reason) in [
+        (wrong_format, "sbom-format-invalid"),
+        (missing_components, "sbom-components-missing"),
+        (invalid_components, "sbom-components-missing"),
+        (duplicate, "sbom-package-duplicate"),
+        (unidentified, "sbom-package-purl-missing"),
+        (invalid_purl, "sbom-purl-invalid"),
+        (empty, "sbom-package-inventory-empty"),
+        (invalid_license, "sbom-license-invalid"),
+    ] {
+        assert_eq!(
+            documents::parse_sbom("cyclonedx", &canonical(&invalid)).unwrap_err(),
+            reason
+        );
+    }
+}
