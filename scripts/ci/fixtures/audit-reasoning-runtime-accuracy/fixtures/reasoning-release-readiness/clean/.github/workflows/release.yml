@@ -1,0 +1,59 @@
+name: release
+on:
+  workflow_call:
+    inputs:
+      unsigned-run-id:
+        required: true
+        type: number
+    secrets:
+      APPLE_SIGNING_ID: { required: true }
+      APPLE_CERT_BASE64: { required: true }
+      APPLE_CERT_PASSWORD: { required: true }
+      APPLE_ID: { required: true }
+      APPLE_PASSWORD: { required: true }
+      APPLE_TEAM_ID: { required: true }
+      WINDOWS_CERT_BASE64: { required: true }
+      WINDOWS_CERT_PASSWORD: { required: true }
+permissions:
+  contents: read
+  actions: read
+jobs:
+  sign:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: macos
+            app: unsigned/configtool.app
+          - os: windows-latest
+            target: windows
+            app: unsigned/configtool.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: ${{ matrix.target }}
+      APP: ${{ matrix.app }}
+      APPLE_SIGNING_ID: ${{ secrets.APPLE_SIGNING_ID }}
+      APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+      WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: unsigned-${{ matrix.target }}
+          path: unsigned
+          run-id: ${{ inputs.unsigned-run-id }}
+          github-token: ${{ github.token }}
+      - run: bash ./release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-${{ matrix.target }}
+          path: unsigned

@@ -898,17 +898,10 @@ impl<'a> Run<'a> {
         if rules.is_empty() {
             return unavailable("ruleset-missing:security.opengrep");
         }
-        let mut args: Vec<String> = [
-            "scan",
-            "--json",
-            "--quiet",
-            "--metrics",
-            "off",
-            "--disable-version-check",
-        ]
-        .iter()
-        .map(|s| (*s).to_owned())
-        .collect();
+        let mut args: Vec<String> = ["scan", "--json", "--quiet", "--disable-version-check"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
         for rule in &rules {
             args.push("--config".into());
             args.push(rule.clone());

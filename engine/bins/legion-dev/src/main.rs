@@ -4,6 +4,7 @@ mod audit_bench;
 mod audit_capsule;
 mod audit_security_controls;
 mod checks;
+mod ci_qualification_child;
 mod generators;
 mod native_cli_gate;
 mod repo;
@@ -24,6 +25,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Managed CI only: bound one native qualification leaf & its owned tree.
+    CiQualificationChild {
+        #[arg(long)]
+        sequence: u64,
+        #[arg(last = true, required = true)]
+        command: Vec<std::ffi::OsString>,
+    },
     /// Fail when a tracked file contains a developer-local path or username that is not allowlisted.
     CheckPortability {
         #[arg(long)]
@@ -281,6 +289,10 @@ fn main() -> ExitCode {
     };
 
     let ok = match cli.command {
+        Command::CiQualificationChild { sequence, command } => {
+            // Preserve native shell status rather than boolean check status.
+            return ExitCode::from(ci_qualification_child::run(sequence, &command));
+        }
         Command::CheckPortability { json } => checks::portability::run(&root, json),
         Command::CheckVersionParity { json, stable } => {
             checks::version_parity::run(&root, json, stable)

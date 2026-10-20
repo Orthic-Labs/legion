@@ -3522,8 +3522,22 @@
         "provider-result"
       ],
       "selector": {
-        "op": "sourceFilesAtLeast",
-        "count": 1
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          },
+          {
+            "op": "anyExtension",
+            "extensions": [
+              "md",
+              "mdx",
+              "rst",
+              "adoc"
+            ]
+          }
+        ]
       },
       "denominatorKind": "first-party-source-files",
       "runner": {
@@ -3948,8 +3962,24 @@
         "provider-result"
       ],
       "selector": {
-        "op": "sourceFilesAtLeast",
-        "count": 1
+        "op": "any",
+        "selectors": [
+          {
+            "op": "sourceFilesAtLeast",
+            "count": 1
+          },
+          {
+            "op": "anyExtension",
+            "extensions": [
+              "json",
+              "yaml",
+              "yml",
+              "proto",
+              "graphql",
+              "gql"
+            ]
+          }
+        ]
       },
       "denominatorKind": "first-party-source-files",
       "runner": {
@@ -6487,9 +6517,19 @@
         "producerSeparation": true
       },
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:058889f1f82fd6432b69a52df9adca53c84ec3a4ab80acf9e665db9c70b87eb0",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/secrets.current-history/83877570ad73a2f4b4b5c0edd29327b0334b8b992491f775bc1977d35ace759b.json",
+          "recordSha256": "sha256:66cc37f9db5880d4bdfdbaad3ea28cea29d13cbff2e6d0faa9bd5dd8c9e743c9",
+          "originalQualificationDigest": "sha256:83877570ad73a2f4b4b5c0edd29327b0334b8b992491f775bc1977d35ace759b",
+          "validationBasis": "native-family-validator",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases"
+        }
       },
       "cleanClaim": "evidence-only",
       "controlIds": [

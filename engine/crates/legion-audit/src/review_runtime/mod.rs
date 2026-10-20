@@ -7,6 +7,7 @@ mod model;
 mod native;
 mod partial;
 pub(crate) mod projection;
+pub mod qualification;
 mod tools;
 mod verification;
 use crate::{

@@ -1,0 +1,20 @@
+{
+  "shippedTargets": [
+    "macos",
+    "windows"
+  ],
+  "platforms": {
+    "macos": {
+      "signing": "release/signing/macos.sh",
+      "updater": "release/updater/macos.json",
+      "bundle": "release/bundles/macos.toml",
+      "attribution": "release/THIRD_PARTY_NOTICES.md"
+    },
+    "windows": {
+      "signing": "release/signing/windows.ps1",
+      "updater": null,
+      "bundle": "release/bundles/windows.toml",
+      "attribution": "release/THIRD_PARTY_NOTICES.md"
+    }
+  }
+}

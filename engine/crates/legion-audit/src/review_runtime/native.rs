@@ -589,7 +589,8 @@ fn decode_stream_with_schema(
         .filter(|line| !line.trim().is_empty())
     {
         let raw: Value = serde_json::from_str(line).map_err(|error| error.to_string())?;
-        repair_events_valid &= schema_repair_event_allowed(&raw);
+        let event_allowed = schema_repair_event_allowed(&raw);
+        repair_events_valid &= event_allowed;
         if let Some(model) = raw.pointer("/message/model").and_then(Value::as_str) {
             if !observation
                 .observed_models
@@ -685,6 +686,17 @@ fn decode_stream_with_schema(
                 AgentEvent::ToolUse { .. } | AgentEvent::SubagentStarted { .. } => {
                     protocol_error = Some("native tool/subagent use violates controlled boundary")
                 }
+                // The locked parser reports ui_invalidate as Unknown. Only
+                // already-qualified passive telemetry may cross that boundary;
+                // earlier order/session faults & all other unknowns stay fatal.
+                AgentEvent::Unknown { .. }
+                    if event_allowed
+                        && (raw["type"] == "rate_limit_event"
+                            || (raw["type"] == "system"
+                                && matches!(
+                                    raw["subtype"].as_str(),
+                                    Some("ui_invalidate" | "thinking_tokens")
+                                ))) => {}
                 AgentEvent::Unknown { .. } => {
                     protocol_error = Some("native host stream contains unsupported protocol event")
                 }
@@ -1128,6 +1140,11 @@ mod tests {
             json!({"type":"system","subtype":"error","message":"private-native-error"}),
             json!({"type":"rate_limit_event","rate_limit_info":{"status":"rejected","overageStatus":"rejected","errorCode":null}}),
             json!({"type":"rate_limit_event","rate_limit_info":{"status":"allowed","errorCode":"fault"}}),
+            json!({"type":"rate_limit_event","rate_limit_info":null}),
+            json!({"type":"rate_limit_event","rate_limit_info":{"status":true}}),
+            json!({"type":"rate_limit_event","rate_limit_info":{"status":"allowed","error":"fault"}}),
+            json!({"type":"system","subtype":"ui_invalidate","errorCode":"fault"}),
+            json!({"type":"system","subtype":"ui_invalidate","is_error":true}),
         ] {
             let mut lines = rejection_stream();
             lines.insert(3, fault);
@@ -1145,6 +1162,14 @@ mod tests {
             lines.insert(3, telemetry);
         }
         assert!(decode_fixture(&lines).schema_rejection.is_some());
+        let mut after_terminal = rejection_stream();
+        after_terminal.push(json!({"type":"system","subtype":"ui_invalidate","event":"ui.render"}));
+        let observation = decode_fixture(&after_terminal);
+        assert_eq!(
+            observation.error.as_deref(),
+            Some("native data after terminal result")
+        );
+        assert!(observation.schema_rejection.is_none());
     }
     #[test]
     fn schema_repair_denies_ambiguous_policy_tool_session_and_unknown_usage() {

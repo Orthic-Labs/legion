@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Observed native Claude Code capture; separate source-owned maintainer provenance required",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "host",
+    "binary",
+    "commands",
+    "exports",
+    "ledger",
+    "cases",
+    "packetPlan"
+  ],
+  "properties": {
+    "schema": {
+      "const": "legion-reasoning-native-host-capture/1"
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "runtime",
+        "sessionId"
+      ],
+      "properties": {
+        "platform": {
+          "const": "macos"
+        },
+        "runtime": {
+          "const": "claude-code"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "binary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "sourceCommit",
+        "artifactId",
+        "runId",
+        "runAttempt",
+        "jobId",
+        "repository"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "artifactId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "jobId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repository": {
+          "const": "Orthic-Labs/legion"
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "argv",
+          "cwd",
+          "environmentNames",
+          "exitCode",
+          "stdout",
+          "stderr",
+          "run"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "preflight",
+              "plan",
+              "dispatch",
+              "run",
+              "verify",
+              "export"
+            ]
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1
+          },
+          "environmentNames": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          },
+          "exitCode": {
+            "enum": [
+              0,
+              2
+            ]
+          },
+          "stdout": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          "stderr": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          "run": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "exports": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootRun",
+        "maxPhysicalAdmissions",
+        "perCallReservationTokens",
+        "reservationCeilingTokens",
+        "width",
+        "retries",
+        "reclaims",
+        "callIds",
+        "reservedTokens"
+      ],
+      "properties": {
+        "rootRun": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxPhysicalAdmissions": {
+          "const": 44
+        },
+        "perCallReservationTokens": {
+          "const": 10000
+        },
+        "reservationCeilingTokens": {
+          "const": 440000
+        },
+        "width": {
+          "const": 1
+        },
+        "retries": {
+          "const": 0
+        },
+        "reclaims": {
+          "const": 0
+        },
+        "callIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 44,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reservedTokens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "cases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "packetPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "provider",
+        "family",
+        "stage",
+        "scope",
+        "qualificationEligible",
+        "productionQualification",
+        "wholeProviderQualification",
+        "auditCleanClaim",
+        "cases",
+        "qualificationDigest"
+      ],
+      "properties": {
+        "schema": {
+          "const": "legion-reasoning-runtime-accuracy/1"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "family": {
+          "const": "reasoning-runtime"
+        },
+        "stage": {
+          "const": "finding"
+        },
+        "scope": {
+          "const": "known-answer-fixture-cases"
+        },
+        "qualificationEligible": {
+          "const": true
+        },
+        "productionQualification": {
+          "const": false
+        },
+        "wholeProviderQualification": {
+          "const": false
+        },
+        "auditCleanClaim": {
+          "const": false
+        },
+        "qualificationDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "caseId",
+              "requestId",
+              "run",
+              "matched",
+              "observedFindingIds"
+            ],
+            "properties": {
+              "caseId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "run": {
+                "type": "string"
+              },
+              "matched": {
+                "const": true
+              },
+              "observedFindingIds": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

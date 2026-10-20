@@ -556,6 +556,7 @@ fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &P
             "--offline",
             "--ignore-scripts",
             "--no-frozen-lockfile",
+            "--public-hoist-pattern=*",
         ])
         .current_dir(root)
         .env_clear()
@@ -573,7 +574,7 @@ fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &P
     }
     json!({
         "schema": "legion-javascript-pnpm-install/1",
-        "argv": [node, root.join("node_modules/pnpm/bin/pnpm.mjs"), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile"],
+        "argv": [node, root.join("node_modules/pnpm/bin/pnpm.mjs"), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"],
         "cwd": root,
         "nodeDigest": enrollment["node"]["digest"],
         "pnpmDigest": enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"],
@@ -957,6 +958,26 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
         .join(format!("{case_id}-install.json"));
     fs::create_dir_all(receipt_path.parent().unwrap()).unwrap();
     fs::write(&receipt_path, serde_json::to_vec_pretty(&install).unwrap()).unwrap();
+    assert!(
+        install["success"] == true,
+        "genuine pinned pnpm baseline install failed; stdout={} stderr={}",
+        String::from_utf8_lossy(
+            &install["stdout"]["rawBytes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n.as_u64().unwrap() as u8)
+                .collect::<Vec<_>>()
+        ),
+        String::from_utf8_lossy(
+            &install["stderr"]["rawBytes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n.as_u64().unwrap() as u8)
+                .collect::<Vec<_>>()
+        )
+    );
     let mut install_files = serde_json::Map::new();
     for path in [
         "node_modules/.bin/acorn",
@@ -971,7 +992,9 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
         "node_modules/.pnpm-workspace-state-v1.json",
     ] {
         let path_on_disk = root.join(path);
-        let metadata = fs::symlink_metadata(&path_on_disk).unwrap();
+        let metadata = fs::symlink_metadata(&path_on_disk).unwrap_or_else(|error| {
+            panic!("pinned pnpm installer output missing: {path}: {error}")
+        });
         assert!(
             metadata.is_file() && !metadata.file_type().is_symlink(),
             "installer output is not a regular file: {path}"
@@ -1005,26 +1028,6 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
         serde_json::to_vec_pretty(&preparation).unwrap(),
     )
     .unwrap();
-    assert!(
-        install["success"] == true,
-        "genuine pinned pnpm baseline install failed; stdout={} stderr={}",
-        String::from_utf8_lossy(
-            &install["stdout"]["rawBytes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|n| n.as_u64().unwrap() as u8)
-                .collect::<Vec<_>>()
-        ),
-        String::from_utf8_lossy(
-            &install["stderr"]["rawBytes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|n| n.as_u64().unwrap() as u8)
-                .collect::<Vec<_>>()
-        )
-    );
     let files = fixtures(control);
     let mut files = files;
     files.insert(

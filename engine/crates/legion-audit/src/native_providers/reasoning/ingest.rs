@@ -699,10 +699,14 @@ pub fn authenticated_runtime_evidence(
         ));
     }
     let (key, epoch) = load_epoch(run_dir)?;
-    Ok(json!({
+    let mut evidence = json!({
         "delivery": runtime_delivery(run_dir, request, &key, &epoch)?,
         "verification": runtime_verification(run_dir, request, &key, &epoch)?,
-    }))
+    });
+    if request.provider_id == ADJUDICATOR_PROVIDER_ID {
+        evidence["adjudication"] = json!(runtime_adjudication(run_dir, request, &key, &epoch)?);
+    }
+    Ok(evidence)
 }
 
 fn runtime_verification(

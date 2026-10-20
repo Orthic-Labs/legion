@@ -9,6 +9,24 @@ api = runpy.run_path(str(ROOT / "scripts/ci/audit-mobile-sdk-accuracy.py"))
 
 
 class MobileRetainedValidatorTests(unittest.TestCase):
+    def test_producer_seals_preserve_original_nested_order(self):
+        # Minimal serde_json::to_vec(Value) bytes, not native execution evidence.
+        original = b'{"schema":"unit","nested":{"z":1,"a":2},"cases":[]}'
+        row = api["parsed"](original)
+        self.assertEqual(api["producer_encoded"](row), original)
+        row["qualificationDigest"] = api["digest"](original)
+        self.assertEqual(api["record_digest"](row), row["qualificationDigest"])
+        sorted_row = api["parsed"](api["encoded"](row))
+        self.assertNotEqual(api["record_digest"](sorted_row), row["qualificationDigest"])
+        self.assertEqual(api["encoded"](row), api["encoded"](sorted_row))
+
+    def test_plan_seal_uses_producer_order_after_semantic_command_replay(self):
+        raw = b'{"inventory":"unit","commands":[{"tool":"compiler","argv":[],"programs":["swift"],"accepted":[0]}],"inputBinding":{"bindingDigest":"unit","inputs":{"z":1,"a":2}}}'
+        row = api["parsed"](raw)
+        self.assertEqual(api["plan_digest"](row["inventory"], row["commands"], row["inputBinding"]), api["digest"](raw))
+        reordered = api["parsed"](api["encoded"](row["commands"]))
+        self.assertNotEqual(api["plan_digest"](row["inventory"], reordered, row["inputBinding"]), api["digest"](raw))
+
     def test_duplicate_non_json_and_trailing_json_are_refused(self):
         for raw in (b'{"scope":1,"scope":2}', b'{"value":NaN}', b'{} {}', b'{'):
             with self.subTest(raw=raw), self.assertRaises((AssertionError, ValueError)):

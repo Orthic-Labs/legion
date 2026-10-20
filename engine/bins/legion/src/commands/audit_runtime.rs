@@ -161,3 +161,41 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
     }
     Ok(output)
 }
+
+/// Read-only export of existing authenticated reasoning evidence.
+#[derive(Debug, Clone, Args)]
+pub struct ExportReasoningArgs {
+    #[arg(long)]
+    pub run: PathBuf,
+}
+
+pub fn export(args: ExportReasoningArgs) -> CommandResult {
+    review_runtime::qualification::export_run(&args.run)
+        .map_err(|error| CommandError::integrity(error.to_string()))
+}
+
+/// Source-only fixture/packet contract checks; never prepares a model call.
+#[derive(Debug, Clone, Args)]
+pub struct CheckReasoningFixturesArgs {
+    #[arg(long)]
+    pub root: PathBuf,
+}
+
+pub fn check_fixtures(args: CheckReasoningFixturesArgs) -> CommandResult {
+    let read = |name: &str| {
+        review_runtime::read_plan_json(&args.root.join(name))
+            .map_err(|error| CommandError::integrity(error.to_string()))
+    };
+    review_runtime::qualification::preflight(
+        &args.root,
+        &read("cases.json")?,
+        &read("packet-plan.json")?,
+    )
+    .map_err(|error| CommandError::integrity(error.to_string()))
+}
+
+/// Validate a fresh frozen production dispatch without model admission.
+pub fn check_dispatch(args: ExportReasoningArgs) -> CommandResult {
+    review_runtime::qualification::preflight_run(&args.run)
+        .map_err(|error| CommandError::integrity(error.to_string()))
+}

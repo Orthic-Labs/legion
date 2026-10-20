@@ -1,0 +1,116 @@
+{
+  "schema": "legion-reasoning-runtime-packet-plan/1",
+  "packets": [
+    {
+      "packetId": "packet-01-correctness",
+      "caseIds": [
+        "reasoning-correctness-planted",
+        "reasoning-correctness-clean"
+      ],
+      "providerIds": [
+        "reasoning.correctness"
+      ]
+    },
+    {
+      "packetId": "packet-02-security",
+      "caseIds": [
+        "reasoning-security-planted",
+        "reasoning-security-clean",
+        "legacy-security-adjudication-planted",
+        "legacy-security-adjudication-clean",
+        "legacy-security-variant-analysis-planted",
+        "legacy-security-variant-analysis-clean"
+      ],
+      "providerIds": [
+        "reasoning.security",
+        "legacy.security.adjudication",
+        "legacy.security.variant-analysis"
+      ]
+    },
+    {
+      "packetId": "packet-03-docs-contracts",
+      "caseIds": [
+        "reasoning-doc-drift-planted",
+        "reasoning-doc-drift-clean",
+        "reasoning-schema-planted",
+        "reasoning-schema-clean"
+      ],
+      "providerIds": [
+        "reasoning.doc-drift",
+        "reasoning.schema"
+      ]
+    },
+    {
+      "packetId": "packet-04-architecture",
+      "caseIds": [
+        "reasoning-architecture-planted",
+        "reasoning-architecture-clean",
+        "reasoning-minimize-planted",
+        "reasoning-minimize-clean"
+      ],
+      "providerIds": [
+        "reasoning.architecture",
+        "reasoning.minimize"
+      ]
+    },
+    {
+      "packetId": "packet-05-quality",
+      "caseIds": [
+        "reasoning-naming-planted",
+        "reasoning-naming-clean",
+        "reasoning-dead-file-planted",
+        "reasoning-dead-file-clean"
+      ],
+      "providerIds": [
+        "reasoning.naming",
+        "reasoning.dead-file"
+      ]
+    },
+    {
+      "packetId": "packet-06-code-quality",
+      "caseIds": [
+        "reasoning-performance-planted",
+        "reasoning-performance-clean",
+        "reasoning-ai-slop-planted",
+        "reasoning-ai-slop-clean"
+      ],
+      "providerIds": [
+        "reasoning.performance",
+        "reasoning.ai-slop"
+      ]
+    },
+    {
+      "packetId": "packet-07-accessibility-data",
+      "caseIds": [
+        "reasoning-a11y-planted",
+        "reasoning-a11y-clean",
+        "reasoning-data-safety-planted",
+        "reasoning-data-safety-clean"
+      ],
+      "providerIds": [
+        "reasoning.a11y",
+        "reasoning.data-safety"
+      ]
+    },
+    {
+      "packetId": "packet-08-reliability-release",
+      "caseIds": [
+        "reasoning-resilience-planted",
+        "reasoning-resilience-clean",
+        "reasoning-platform-parity-planted",
+        "reasoning-platform-parity-clean",
+        "reasoning-release-readiness-planted",
+        "reasoning-release-readiness-clean"
+      ],
+      "providerIds": [
+        "reasoning.resilience",
+        "reasoning.platform-parity",
+        "reasoning.release-readiness"
+      ]
+    }
+  ],
+  "maxCalls": 44,
+  "maxTokens": 440000,
+  "perCallTokens": 10000,
+  "width": 1
+}

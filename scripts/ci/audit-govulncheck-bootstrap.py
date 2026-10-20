@@ -12,6 +12,7 @@ import os
 from pathlib import Path, PurePosixPath
 import platform
 import stat
+import sys
 import subprocess
 import time
 import tarfile
@@ -284,6 +285,18 @@ def provision(args):
         records.append(record)
         (output / 'bootstrap-processes.json').write_bytes(canonical(records) + b'\n')
         if result.returncode != 0:
+            # CI uploads only this QA root; tool output lives outside it.
+            failure = runner / 'legion-provider-qualification/provisioning-failures/govulncheck'
+            failure.mkdir(parents=True, exist_ok=True)
+            evidence = failure / 'bootstrap-processes.json'
+            evidence.write_bytes(canonical(records) + b'\n')
+            print('GOVULNCHECK_BOOTSTRAP_FAILURE ' + canonical({
+                'argv': record['argv'], 'exitCode': result.returncode,
+                'stderrPreview': result.stderr[:16384].decode('utf-8', 'replace'),
+                'stderrBytes': len(result.stderr), 'stderrDigest': digest(result.stderr),
+                'stdoutBytes': len(result.stdout), 'stdoutDigest': digest(result.stdout),
+                'retainedProcesses': str(evidence),
+            }).decode(), file=sys.stderr)
             raise ValueError('actual bootstrap command failed; retained raw process evidence')
         return record
 

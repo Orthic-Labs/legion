@@ -105,7 +105,7 @@ def package_provenance(lock, name, row, packages, failure_root):
 def project(extension):
     references = "".join(f'<PackageReference Include="{name}" Version="{version}" />' for name, version in PACKAGES.items())
     compile_items = '<Compile Include="Answer.fs" /><Compile Include="Tests.fs" />' if extension == "fsproj" else ""
-    return '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><GenerateProgramFile>false</GenerateProgramFile><EnableNETAnalyzers>true</EnableNETAnalyzers><AnalysisLevel>8.0</AnalysisLevel></PropertyGroup><ItemGroup>' + references + compile_items + '</ItemGroup></Project>\n'
+    return '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><EnableNETAnalyzers>true</EnableNETAnalyzers><AnalysisLevel>8.0</AnalysisLevel></PropertyGroup><ItemGroup>' + references + compile_items + '</ItemGroup></Project>\n'
 
 
 SOURCES = {

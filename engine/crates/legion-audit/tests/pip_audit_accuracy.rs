@@ -904,7 +904,18 @@ fn case(base: &Path, control: &str) -> Value {
     } else {
         assert!(!result.complete);
         assert!(!result.coverage_gaps.is_empty());
-        assert!(result.details["findingsCount"].is_null());
+        if control == "missing-tool" {
+            assert!(
+                !result.details.contains_key("findingsCount"),
+                "unavailable tool must not claim a findings count"
+            );
+        } else {
+            assert_eq!(
+                result.details.get("findingsCount"),
+                Some(&Value::Null),
+                "tool error must explicitly leave findings count unknown"
+            );
+        }
         if control == "error" {
             assert!(!stderr.is_empty());
             assert!(serde_json::from_slice::<Value>(&stdout).is_err());

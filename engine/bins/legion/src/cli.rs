@@ -172,6 +172,12 @@ enum AuditSubcommand {
     Continue(commands::audit::ContinueAuditArgs),
     /// Run the frozen reasoning plan in an existing audit run directory.
     RunReasoning(commands::audit_runtime::RunReasoningArgs),
+    /// Export existing authenticated native evidence without generation.
+    ExportReasoning(commands::audit_runtime::ExportReasoningArgs),
+    /// Inspect a fresh genuine production dispatch without generation.
+    CheckReasoningDispatch(commands::audit_runtime::ExportReasoningArgs),
+    /// Validate source-owned reasoning controls without generation.
+    CheckReasoningFixtures(commands::audit_runtime::CheckReasoningFixturesArgs),
 }
 #[derive(Clone, Debug, clap::Args)]
 struct M1ConfigArgs {
@@ -1638,6 +1644,13 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Audit(args) => match args.command {
             Some(AuditSubcommand::Continue(args)) => commands::audit::continue_command(args),
             Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
+            Some(AuditSubcommand::ExportReasoning(args)) => commands::audit_runtime::export(args),
+            Some(AuditSubcommand::CheckReasoningDispatch(args)) => {
+                commands::audit_runtime::check_dispatch(args)
+            }
+            Some(AuditSubcommand::CheckReasoningFixtures(args)) => {
+                commands::audit_runtime::check_fixtures(args)
+            }
             None => commands::audit::run(args.legacy, cancellation.clone()).await,
         },
         Command::Host(args) => commands::host_runtime::run(args),

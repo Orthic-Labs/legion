@@ -109,8 +109,6 @@ fn args() -> Vec<String> {
         "scan",
         "--json",
         "--quiet",
-        "--metrics",
-        "off",
         "--disable-version-check",
         "--config",
         ".semgrep.yml",

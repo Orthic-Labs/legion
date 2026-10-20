@@ -17,6 +17,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     fs,
+    io::Write,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -600,6 +601,16 @@ fn go_version_probe(policy: &Arc<ScopedPolicy>) -> Value {
 }
 
 fn case(planted: bool) -> Value {
+    let case_id = if planted {
+        "golangci-planted"
+    } else {
+        "golangci-clean"
+    };
+    println!(
+        "REAL_SCANNER_CASE_START {}",
+        json!({"providerId": PROVIDER, "caseId": case_id, "planted": planted})
+    );
+    std::io::stdout().flush().unwrap();
     let fixture = Fixture::new(planted);
     let root = fixture.0.join("source");
     let run = fixture.0.join("run");
@@ -608,11 +619,6 @@ fn case(planted: bool) -> Value {
     fs::write(root.join("main.go"), source).unwrap();
     let source_digest = digest(source.as_bytes());
     let module_digest = digest(MODULE.as_bytes());
-    let case_id = if planted {
-        "golangci-planted"
-    } else {
-        "golangci-clean"
-    };
     let inventory = FilesystemInventorySource::new(&root)
         .unwrap()
         .inventory(case_id)

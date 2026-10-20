@@ -323,6 +323,22 @@ def run_offline(arguments, environment, cwd, logs, label, timeout=600):
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
     (logs / (label + ".stdout")).write_bytes(result.stdout)
     (logs / (label + ".stderr")).write_bytes(result.stderr)
+    if result.returncode != 0:
+        # Preserve bounded original bytes under CI's existing uploaded QA root.
+        failure = Path(os.environ["RUNNER_TEMP"]) / "legion-provider-qualification/provisioning-failures/php-ruby" / label
+        failure.mkdir(parents=True, exist_ok=True)
+        record = {"argv": list(map(str, arguments)), "cwd": str(cwd), "exitCode": result.returncode}
+        for stream, data in (("stdout", result.stdout), ("stderr", result.stderr)):
+            retained = data[:65536]
+            path = failure / (stream + ".bin")
+            path.write_bytes(retained)
+            record[stream] = {"bytes": len(data), "digest": digest(data), "retainedBytes": len(retained),
+                "retainedDigest": digest(retained), "truncated": len(retained) != len(data), "path": str(path)}
+        evidence = failure / "process.json"
+        evidence.write_bytes(canonical(record) + b"\n")
+        print("PHP_RUBY_BOOTSTRAP_FAILURE " + canonical({"label": label, "exitCode": result.returncode,
+            "stderrPreview": result.stderr[:16384].decode("utf-8", "replace"),
+            "retainedProcess": str(evidence)}).decode(), file=sys.stderr)
     require(result.returncode == 0, "offline provisioning command failed: " + label)
     return result.stdout
 

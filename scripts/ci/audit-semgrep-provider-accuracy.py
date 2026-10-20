@@ -192,8 +192,8 @@ def validate_record(repository_root, row, *, live=False, receipts=None):
         environment = policy["environment"]
         scratch_paths = {"TMPDIR": "tmp", "TEMP": "tmp", "TMP": "tmp", "XDG_CACHE_HOME": "cache/xdg", "CARGO_TARGET_DIR": "cache/cargo-target", "npm_config_cache": "cache/npm", "RUFF_CACHE_DIR": "cache/ruff", "MYPY_CACHE_DIR": "cache/mypy", "PYTHONPYCACHEPREFIX": "cache/pycache", "GOCACHE": "cache/go-build"}
         expected_environment = {key: str(run / value) for key, value in scratch_paths.items()}
-        expected_environment.update({"HOME": str(source_root.parent.parent / "home"), "PATH": environment.get("PATH"), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1"})
-        require(environment == expected_environment and sorted(policy["environmentAllowlist"]) == sorted(["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE", *scratch_paths, "PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "GIT_CONFIG_NOSYSTEM"]), "isolated SDK environment differs")
+        expected_environment.update({"HOME": str(source_root.parent.parent / "home"), "PATH": environment.get("PATH"), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1", "SEMGREP_CORE_EXTRA": "-no_filter_irrelevant_rules"})
+        require(environment == expected_environment and sorted(policy["environmentAllowlist"]) == sorted(["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE", *scratch_paths, "PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "GIT_CONFIG_NOSYSTEM", "SEMGREP_CORE_EXTRA"]), "isolated SDK environment differs")
         require(isinstance(environment["PATH"], str) and (environment["PATH"] == "" if missing else environment["PATH"].split(":")[0] == str(PurePosixPath(enrolled["launcher"]["path"]).parent)), "tool resolution PATH differs")
         require(policy["timeoutMs"] == 120000 and policy["stdoutLimit"] == policy["stderrLimit"] == 8388608, "bounded SDK limits differ")
         require(policy["wrapper"]["path"] == "/usr/bin/sandbox-exec", "native wrapper absent")

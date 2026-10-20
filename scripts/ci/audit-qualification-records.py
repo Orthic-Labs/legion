@@ -186,6 +186,8 @@ def plan_for(root, provider):
 
 def adapter(root, entry):
     provider = entry["provider"]
+    if entry["family"] == "reasoning-runtime":
+        return helper("audit-reasoning-runtime-registration.py")["adapter"](entry)
     if entry["family"] == "code-php-ruby-sdk":
         require(provider == "code.php-ruby" and entry["stage"] == "finding", "PHP/Ruby SDK provider/stage differs")
         return "code-php-ruby-sdk", "real_php_ruby_code_command_accuracy", "canonical-json", "real_php_ruby_code_command_accuracy"
@@ -222,6 +224,8 @@ def adapter(root, entry):
 def closure_paths(root, entry):
     family, harness, _, _ = adapter(root, entry)
     paths = {GATE, TEST, SCHEMA, ".github/workflows/ci.yml", "scripts/ci/right-git-ci.sh"}
+    if family == "reasoning-runtime":
+        return sorted(paths | set(helper("audit-reasoning-runtime-registration.py")["source_files"](root)))
     if family in VALIDATORS:
         paths.add(VALIDATORS[family])
     if family == "code-rust-sdk":
@@ -397,7 +401,7 @@ def closure_paths(root, entry):
 
 def source_closure(root, entry):
     keys(entry["sourceClosure"], {"sources", "digest"})
-    source_digest = helper("audit-supply-chain-native-accuracy.py")["source_digest"] if entry["family"] == "supply-chain-native" else helper("validate-compatibility-report-accuracy.py")["source_digest"] if entry["family"] == "compatibility-report" else helper("audit-jvm-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-jvm-sdk" else helper("audit-mobile-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-mobile-sdk" else lambda base, path: digest(relative_file(base, path).read_bytes())
+    source_digest = helper("audit-reasoning-runtime-registration.py")["source_digest"] if entry["family"] == "reasoning-runtime" else helper("audit-supply-chain-native-accuracy.py")["source_digest"] if entry["family"] == "supply-chain-native" else helper("validate-compatibility-report-accuracy.py")["source_digest"] if entry["family"] == "compatibility-report" else helper("audit-jvm-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-jvm-sdk" else helper("audit-mobile-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-mobile-sdk" else lambda base, path: digest(relative_file(base, path).read_bytes())
     wanted = {path: source_digest(root, path) for path in closure_paths(root, entry)}
     same(entry["sourceClosure"]["sources"], wanted, "source closure stale/incomplete")
     require(entry["sourceClosure"]["digest"] == digest(encoded(wanted)), "source closure digest differs")
@@ -1406,6 +1410,8 @@ def qualification(entry):
             "recordSha256": entry["record"]["sha256"], "originalQualificationDigest": entry["record"]["qualificationDigest"],
             "validationBasis": "source-owned-harness-success" if entry["provider"] in HARNESS_CONTROLS or entry["family"] in ("bench-known-answer", "harness-quality") else "native-family-validator",
             "stage": entry["stage"], "scope": entry["scope"]}
+    if entry["family"] == "reasoning-runtime":
+        value.update(helper("audit-reasoning-runtime-registration.py")["qualification_fields"]())
     if entry["family"] == "supply-chain-native":
         value.update({"productionQualification": False, "wholeProviderQualification": False, "targetBuildProvenanceVerified": False,
                       "auditCleanClaim": False, "fixtureScope": entry["scope"], "requiredTargetGap": "supply-chain-provenance-invalid",
@@ -1659,6 +1665,14 @@ def check(root):
             claimed = row.pop("qualificationDigest")
             require(claimed == entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "original qualification digest changed")
             row["qualificationDigest"] = claimed
+        if entry["family"] == "reasoning-runtime":
+            retained.update(helper("audit-reasoning-runtime-registration.py")["validate"](root, entry, row))
+            retained.add(entry["record"]["path"])
+            benchmark = specs[provider]["benchmark"]
+            require(benchmark["status"] == "qualified", "indexed reasoning provider not registered")
+            same(benchmark["qualification"], qualification(entry), "reasoning registry qualification differs")
+            require(benchmark["qualificationDigest"] == digest(encoded(benchmark["qualification"])), "reasoning registry qualification digest differs")
+            continue
         if entry["family"] == "backend-source-facts":
             retained.update(backend_source_evidence(root, entry, row)[0])
         if entry["family"] == "javascript-sdk":

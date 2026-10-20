@@ -232,7 +232,8 @@ impl ScopedPolicy {
                 return false;
             };
             if !config.starts_with(&self.run)
-                || config.file_name().and_then(|name| name.to_str()) != Some("tflint-owned-config")
+                || config.file_name().and_then(|name| name.to_str())
+                    != Some("tflint-owned-config.hcl")
                 || fs::read(&config).ok().as_deref()
                     != Some(
                         owned_config(&config.parent().unwrap().join("empty-plugins")).as_bytes(),

@@ -1,0 +1,500 @@
+{
+  "schema": "legion-reasoning-runtime-cases/1",
+  "providers": [
+    "reasoning.correctness",
+    "reasoning.security",
+    "reasoning.doc-drift",
+    "reasoning.architecture",
+    "reasoning.ai-slop",
+    "reasoning.naming",
+    "reasoning.dead-file",
+    "reasoning.schema",
+    "reasoning.minimize",
+    "reasoning.performance",
+    "reasoning.a11y",
+    "reasoning.data-safety",
+    "reasoning.resilience",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness",
+    "legacy.security.adjudication",
+    "legacy.security.variant-analysis"
+  ],
+  "cases": [
+    {
+      "caseId": "reasoning-correctness-planted",
+      "providerIds": [
+        "reasoning.correctness"
+      ],
+      "fixtureRoot": "fixtures/reasoning-correctness/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "correctness.rs",
+            "line": 3,
+            "text": "    (total / values.len() as u64)"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-correctness-clean",
+      "providerIds": [
+        "reasoning.correctness"
+      ],
+      "fixtureRoot": "fixtures/reasoning-correctness/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-security-planted",
+      "providerIds": [
+        "reasoning.security"
+      ],
+      "fixtureRoot": "fixtures/reasoning-security/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "handler.rs",
+            "line": 3,
+            "text": "    std::process::Command::new(\"sh\").arg(\"-c\").arg(command).status().unwrap();"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-security-clean",
+      "providerIds": [
+        "reasoning.security"
+      ],
+      "fixtureRoot": "fixtures/reasoning-security/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-doc-drift-planted",
+      "providerIds": [
+        "reasoning.doc-drift"
+      ],
+      "fixtureRoot": "fixtures/reasoning-doc-drift/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "README.md",
+            "line": 2,
+            "text": "`limit` is inclusive: values equal to it are included."
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-doc-drift-clean",
+      "providerIds": [
+        "reasoning.doc-drift"
+      ],
+      "fixtureRoot": "fixtures/reasoning-doc-drift/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-architecture-planted",
+      "providerIds": [
+        "reasoning.architecture"
+      ],
+      "fixtureRoot": "fixtures/reasoning-architecture/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src/domain/order.rs",
+            "line": 2,
+            "text": "use crate::infra::postgres::repository::PgRepository;"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-architecture-clean",
+      "providerIds": [
+        "reasoning.architecture"
+      ],
+      "fixtureRoot": "fixtures/reasoning-architecture/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-ai-slop-planted",
+      "providerIds": [
+        "reasoning.ai-slop"
+      ],
+      "fixtureRoot": "fixtures/reasoning-ai-slop/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src/summary.rs",
+            "line": 1,
+            "text": "pub const SUMMARY: &str = \"Our robust, seamless, best-in-class platform delivers robust, seamless, best-in-class processing for every request.\";"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-ai-slop-clean",
+      "providerIds": [
+        "reasoning.ai-slop"
+      ],
+      "fixtureRoot": "fixtures/reasoning-ai-slop/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-naming-planted",
+      "providerIds": [
+        "reasoning.naming"
+      ],
+      "fixtureRoot": "fixtures/reasoning-naming/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "config.rs",
+            "line": 1,
+            "text": "fn f(x: u64, y: u64) -> u64 { let z = x + y; z }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-naming-clean",
+      "providerIds": [
+        "reasoning.naming"
+      ],
+      "fixtureRoot": "fixtures/reasoning-naming/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-dead-file-planted",
+      "providerIds": [
+        "reasoning.dead-file"
+      ],
+      "fixtureRoot": "fixtures/reasoning-dead-file/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src/orphan.rs",
+            "line": 2,
+            "text": "pub fn format_unused_record(id: u64) -> String { format!(\"record:{id}\") }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-dead-file-clean",
+      "providerIds": [
+        "reasoning.dead-file"
+      ],
+      "fixtureRoot": "fixtures/reasoning-dead-file/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-schema-planted",
+      "providerIds": [
+        "reasoning.schema"
+      ],
+      "fixtureRoot": "fixtures/reasoning-schema/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "schema.json",
+            "line": 1,
+            "text": "{\"type\":\"object\",\"required\":[\"count\"],\"properties\":{\"count\":{\"type\":\"string\"}}}"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-schema-clean",
+      "providerIds": [
+        "reasoning.schema"
+      ],
+      "fixtureRoot": "fixtures/reasoning-schema/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-minimize-planted",
+      "providerIds": [
+        "reasoning.minimize"
+      ],
+      "fixtureRoot": "fixtures/reasoning-minimize/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "format.rs",
+            "line": 1,
+            "text": "fn label(name: &str) -> String { let trimmed = name.trim(); format!(\"{}\", trimmed) }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-minimize-clean",
+      "providerIds": [
+        "reasoning.minimize"
+      ],
+      "fixtureRoot": "fixtures/reasoning-minimize/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-performance-planted",
+      "providerIds": [
+        "reasoning.performance"
+      ],
+      "fixtureRoot": "fixtures/reasoning-performance/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "lookup.rs",
+            "line": 3,
+            "text": "    wanted.iter().all(|w| items.iter().any(|item| item == w))"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-performance-clean",
+      "providerIds": [
+        "reasoning.performance"
+      ],
+      "fixtureRoot": "fixtures/reasoning-performance/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-a11y-planted",
+      "providerIds": [
+        "reasoning.a11y"
+      ],
+      "fixtureRoot": "fixtures/reasoning-a11y/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "button.html",
+            "line": 1,
+            "text": "<button><svg aria-hidden=\"true\"></svg></button>"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-a11y-clean",
+      "providerIds": [
+        "reasoning.a11y"
+      ],
+      "fixtureRoot": "fixtures/reasoning-a11y/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-data-safety-planted",
+      "providerIds": [
+        "reasoning.data-safety"
+      ],
+      "fixtureRoot": "fixtures/reasoning-data-safety/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "keychain.rs",
+            "line": 1,
+            "text": "fn save(path: &str, token: &str) { std::fs::write(path, token).unwrap(); }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-data-safety-clean",
+      "providerIds": [
+        "reasoning.data-safety"
+      ],
+      "fixtureRoot": "fixtures/reasoning-data-safety/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-resilience-planted",
+      "providerIds": [
+        "reasoning.resilience"
+      ],
+      "fixtureRoot": "fixtures/reasoning-resilience/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "worker.rs",
+            "line": 2,
+            "text": "fn process(job: Job) { handle(job).expect(\"job must succeed\"); }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-resilience-clean",
+      "providerIds": [
+        "reasoning.resilience"
+      ],
+      "fixtureRoot": "fixtures/reasoning-resilience/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-platform-parity-planted",
+      "providerIds": [
+        "reasoning.platform-parity"
+      ],
+      "fixtureRoot": "fixtures/reasoning-platform-parity/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src-tauri/path.rs",
+            "line": 3,
+            "text": "pub fn data_dir() -> PathBuf { PathBuf::from(\"/home/app/.local/share/app\") }"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-platform-parity-clean",
+      "providerIds": [
+        "reasoning.platform-parity"
+      ],
+      "fixtureRoot": "fixtures/reasoning-platform-parity/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "reasoning-release-readiness-planted",
+      "providerIds": [
+        "reasoning.release-readiness"
+      ],
+      "fixtureRoot": "fixtures/reasoning-release-readiness/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "release/surface.py",
+            "line": 18,
+            "text": "            \"updater\": None,"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "reasoning-release-readiness-clean",
+      "providerIds": [
+        "reasoning.release-readiness"
+      ],
+      "fixtureRoot": "fixtures/reasoning-release-readiness/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "legacy-security-adjudication-planted",
+      "providerIds": [
+        "legacy.security.adjudication"
+      ],
+      "fixtureRoot": "fixtures/legacy-security-adjudication/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src/handler.js",
+            "line": 10,
+            "text": "  fs.readFile(req.query.path, \"utf8\", (error, data) => { if (error) return res.sendStatus(404); res.type(\"text/plain\").send(data); });"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "legacy-security-adjudication-clean",
+      "providerIds": [
+        "legacy.security.adjudication"
+      ],
+      "fixtureRoot": "fixtures/legacy-security-adjudication/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    },
+    {
+      "caseId": "legacy-security-variant-analysis-planted",
+      "providerIds": [
+        "legacy.security.variant-analysis"
+      ],
+      "fixtureRoot": "fixtures/legacy-security-variant-analysis/planted",
+      "expected": {
+        "positive": [
+          {
+            "path": "src/config-export.js",
+            "line": 3,
+            "text": "  fs.readFile(req.params.name, \"utf8\", (error, data) => { if (error) return res.sendStatus(404); res.type(\"text/plain\").send(data); });"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "legacy-security-variant-analysis-clean",
+      "providerIds": [
+        "legacy.security.variant-analysis"
+      ],
+      "fixtureRoot": "fixtures/legacy-security-variant-analysis/clean",
+      "expected": {
+        "negative": {
+          "noFindings": true
+        }
+      }
+    }
+  ]
+}

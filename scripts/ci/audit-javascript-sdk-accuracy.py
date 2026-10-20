@@ -342,7 +342,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
         configs[path] = {"path": str(config_root / path), "digest": digest(data), "bytes": len(data), "rawBytes": list(data)}
     same(install["configInputsBefore"], configs, "install config bytes differ from empty isolated inputs")
     same(install["configInputsAfter"], configs, "install changed isolated config inputs")
-    same(install["argv"], [str(node), str(pnpm), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile"], "baseline installer argv differs")
+    same(install["argv"], [str(node), str(pnpm), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"], "baseline installer argv differs")
     require(install["cwd"] == str(cwd) and install["nodeDigest"] == enrollment["node"]["digest"]
             and install["pnpmDigest"] == enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"]
             and install["exitCode"] == 0 and install["success"] is True, "pinned baseline install did not succeed")
@@ -393,7 +393,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
         "injectWorkspacePackages": False, "linkWorkspacePackages": False,
         "minimumReleaseAge": 1440, "minimumReleaseAgeIgnoreMissingTime": True,
         "nodeLinker": "isolated", "optional": True, "peersSuffixMaxLength": 1000,
-        "preferWorkspacePackages": False, "production": True, "publicHoistPattern": [],
+        "preferWorkspacePackages": False, "production": True, "publicHoistPattern": ["*"],
         "workspacePackagePatterns": ["."]}
     same(state["settings"], default_settings, "pnpm workspace state differs from isolated pinned config projection")
     lock = raw_descriptor(prep["lockfile"], "generated lockfile")

@@ -171,26 +171,52 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   fi
 fi
 
+# Canonical checks above already built this exact legion-dev. Reuse it;
+# qualification adds no target, dependency or build admission.
+ci_target_root="$(cargo metadata --locked --no-deps --format-version 1 --manifest-path engine/Cargo.toml | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).target_directory.replace(/\\/g, "/")));')"
+ci_binary_root="${ci_target_root}${CARGO_BUILD_TARGET:+/${CARGO_BUILD_TARGET}}/debug"
+case "${RUNNER_OS:-}" in
+  macOS) ci_dev_helper="${ci_binary_root}/legion-dev" ;;
+  Windows) ci_dev_helper="${ci_binary_root}/legion-dev.exe" ;;
+  *) echo "Unsupported native helper retention platform: ${RUNNER_OS:-unset}" >&2; exit 1 ;;
+esac
+if [[ ! -f "$ci_dev_helper" ]]; then
+  echo "Compiled CI qualification owner helper missing: $ci_dev_helper" >&2
+  exit 1
+fi
+audit_native_command() {
+  "$ci_dev_helper" ci-qualification-child --sequence "${sequence:?qualification span missing}" -- "$@"
+}
+# Keep provisioning functions in this shell: their exports feed later controls.
+# Native leaves inside composed test functions use audit_native_command too.
+audit_qualification_dispatch() {
+  if declare -F "$1" >/dev/null; then
+    "$@"
+  else
+    audit_native_command "$@"
+  fi
+}
+
 audit_qualification_failures=0
 audit_qualification_sequence=0
 audit_cargo_bin="$(command -v cargo)"
 audit_cargo_test() {
   if [[ -n "${LEGION_DOTNET_CHILD_OUTPUT:-}" ]]; then
-    (cd engine && python3 "$GITHUB_WORKSPACE/scripts/ci/run-dotnet-sdk-qualification-child.py" \
+    (cd engine && audit_native_command python3 "$GITHUB_WORKSPACE/scripts/ci/run-dotnet-sdk-qualification-child.py" \
       --output-root "$LEGION_DOTNET_CHILD_OUTPUT" -- "$audit_cargo_bin" test --locked -p legion-audit "$@")
   else
-    (cd engine && "$audit_cargo_bin" test --locked -p legion-audit "$@")
+    (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-audit "$@")
   fi
 }
 # Build admission belongs to managed CI. Runner consumes only this exact prebuilt target.
 audit_compatibility_report_qualification() {
   local metadata="${RUNNER_TEMP}/legion-compatibility-report-build.jsonl"
   local output="${RUNNER_TEMP}/legion-provider-qualification/compatibility-report"
-  (cd engine && "$audit_cargo_bin" test --locked -p legion-audit --test compatibility_report_accuracy \
+  (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-audit --test compatibility_report_accuracy \
     --no-run --message-format=json > "$metadata") &&
-    python3 scripts/ci/audit-compatibility-report-accuracy.py --build-messages "$metadata" --output "$output"
+    audit_native_command python3 scripts/ci/audit-compatibility-report-accuracy.py --build-messages "$metadata" --output "$output"
 }
-audit_effects_test() { (cd engine && "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
+audit_effects_test() { (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
 # Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
 # A failed native prerequisite stops JVM commands; no network relaxation occurs.
 audit_jvm_qualification() {
@@ -201,14 +227,14 @@ audit_jvm_qualification() {
 }
 provision_jvm_sdk() {
   local output="${RUNNER_TEMP}/legion-jvm-sdk-tools"
-  python3 scripts/ci/provision-jvm-sdk.py --root "$output" || return "$?"
+  audit_native_command python3 scripts/ci/provision-jvm-sdk.py --root "$output" || return "$?"
   export LEGION_JVM_SDK_ENROLLMENT_JSON="${output}/enrollment.json"
 }
 
 # Provision source-pinned PHP/Ruby tools against existing observed managed runtimes.
 provision_php_ruby_sdk() {
   local output="${RUNNER_TEMP}/legion-php-ruby-sdk-tools"
-  python3 -I -S -B scripts/ci/audit-php-ruby-sdk-bootstrap.py \
+  audit_native_command python3 -I -S -B scripts/ci/audit-php-ruby-sdk-bootstrap.py \
     --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   test -f "$output/exports.sh" || return 1
   . "$output/exports.sh"
@@ -220,7 +246,7 @@ provision_js_sdk() {
   local output="${RUNNER_TEMP}/legion-js-sdk-tools"
   local node enrollment
   node="$(command -v node)" || return "$?"
-  enrollment="$(python3 scripts/ci/audit-javascript-sdk-bootstrap.py \
+  enrollment="$(audit_native_command python3 scripts/ci/audit-javascript-sdk-bootstrap.py \
     --repository-root "$GITHUB_WORKSPACE" \
     --output-root "$output" --node "$node")" || return "$?"
   if [[ "$enrollment" != "$output/enrollment.json" || ! -f "$enrollment" || -L "$enrollment" ]]; then
@@ -236,23 +262,23 @@ provision_license_checker() {
   local tool="${RUNNER_TEMP}/legion-license-checker-tool"
   local node node_dir
   # Remove prior official-entry alias before accepting any new provision.
-  rm -f "$tool/bin/license-checker" || return "$?"
-  mkdir -p "$tool/bin" "$LEGION_LICENSE_RECEIPTS/provision" || return "$?"
+  audit_native_command rm -f "$tool/bin/license-checker" || return "$?"
+  audit_native_command mkdir -p "$tool/bin" "$LEGION_LICENSE_RECEIPTS/provision" || return "$?"
   node="$(command -v node)" || return "$?"
-  node_dir="$(dirname "$node")" || return "$?"
-  curl --fail --location --retry 0 --max-time 120 \
+  node_dir="$(audit_native_command dirname "$node")" || return "$?"
+  audit_native_command curl --fail --location --retry 0 --max-time 120 \
     https://registry.npmjs.org/license-checker/-/license-checker-25.0.1.tgz \
     --output "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" || return "$?"
-  python3 - "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" <<'LICENSE_ASSET' || return "$?"
+  audit_native_command python3 - "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" <<'LICENSE_ASSET' || return "$?"
 import hashlib
 from pathlib import Path
 import sys
 assert hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() == "e0200853f53ff27b2418fe0e3497d50a4bb2a0978abe0ef6b86c80d92fc47363"
 LICENSE_ASSET
   printf '%s\n' '{"name":"legion-license-tool-provision","version":"1.0.0","private":true}' > "$tool/package.json" || return "$?"
-  pnpm --dir "$tool" add --ignore-scripts --save-exact \
+  audit_native_command pnpm --dir "$tool" add --ignore-scripts --save-exact \
     "$LEGION_LICENSE_RECEIPTS/provision/license-checker-25.0.1.tgz" || return "$?"
-  python3 - "$tool" <<'LICENSE_ALIAS' || return "$?"
+  audit_native_command python3 - "$tool" <<'LICENSE_ALIAS' || return "$?"
 from pathlib import Path
 import sys
 root = Path(sys.argv[1]).resolve()
@@ -284,11 +310,11 @@ provision_python_qualification_tool() {
   local tool="$1"
   case "$tool" in pip-audit|semgrep) ;; *) return 2 ;; esac
   local output="${RUNNER_TEMP}/legion-python-tools/${tool}"
-  python3 -I -S -B scripts/ci/provision-python-qualification-tools.py \
+  audit_native_command python3 -I -S -B scripts/ci/provision-python-qualification-tools.py \
     --tool "$tool" --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   export LEGION_PYTHON_TOOL_ENROLLMENT="${output}/enrollment.json"
   local launcher
-  launcher="$(python3 -I -S -B - "$LEGION_PYTHON_TOOL_ENROLLMENT" <<'PYTHON_LAUNCHER'
+  launcher="$(audit_native_command python3 -I -S -B - "$LEGION_PYTHON_TOOL_ENROLLMENT" <<'PYTHON_LAUNCHER'
 import json
 import sys
 from pathlib import Path
@@ -303,11 +329,11 @@ PYTHON_LAUNCHER
 }
 provision_code_sdk_vulnerability_tool() {
   local output="${RUNNER_TEMP}/legion-govulncheck"
-  python3 scripts/ci/audit-govulncheck-bootstrap.py \
+  audit_native_command python3 scripts/ci/audit-govulncheck-bootstrap.py \
     --repository-root "$GITHUB_WORKSPACE" --output-root "$output" \
     --go-root "$LEGION_GO_ROOT" --go-archive "$LEGION_GO_ARCHIVE" || return "$?"
   local values
-  values="$(python3 - "$output/enrollment.json" <<'CODE_SDK_ENV'
+  values="$(audit_native_command python3 - "$output/enrollment.json" <<'CODE_SDK_ENV'
 import json
 import sys
 from pathlib import Path
@@ -328,34 +354,34 @@ CODE_SDK_ENV
 provision_c_family_sdk() {
   [[ "${RUNNER_OS}" == "macOS" && "${CI}" == "true" ]] || return 2
   local llvm_root cmake_root sdk_root dependency prefix
-  llvm_root="$(brew --prefix llvm)" || return "$?"
-  cmake_root="$(brew --prefix cmake)" || return "$?"
-  sdk_root="$(xcrun --sdk macosx --show-sdk-path)" || return "$?"
+  llvm_root="$(audit_native_command brew --prefix llvm)" || return "$?"
+  cmake_root="$(audit_native_command brew --prefix cmake)" || return "$?"
+  sdk_root="$(audit_native_command xcrun --sdk macosx --show-sdk-path)" || return "$?"
   local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root" --runtime-root /usr/bin)
   local dependencies
-  dependencies="$(brew deps --installed --union llvm cmake)" || return "$?"
+  dependencies="$(audit_native_command brew deps --installed --union llvm cmake)" || return "$?"
   while IFS= read -r dependency; do
     [[ -n "$dependency" ]] || continue
-    prefix="$(brew --prefix "$dependency")" || return "$?"
+    prefix="$(audit_native_command brew --prefix "$dependency")" || return "$?"
     roots+=(--runtime-root "$prefix")
   done <<< "$dependencies"
   export LEGION_C_FAMILY_ENROLLMENT_JSON="${RUNNER_TEMP}/legion-provider-qualification/code-c-family-toolchain/enrollment.json"
-  python3 scripts/ci/audit-c-family-sdk-bootstrap.py \
+  audit_native_command python3 scripts/ci/audit-c-family-sdk-bootstrap.py \
     --cmake "$cmake_root/bin/cmake" --ctest "$cmake_root/bin/ctest" \
     --clang "$llvm_root/bin/clang" --clangxx "$llvm_root/bin/clang++" \
     --clang-tidy "$llvm_root/bin/clang-tidy" --make /usr/bin/make \
     "${roots[@]}" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
 }
 provision_dotnet_code_sdk() {
-  python3 scripts/ci/provision-dotnet-qualification-tools.py \
+  audit_native_command python3 scripts/ci/provision-dotnet-qualification-tools.py \
     --root "${RUNNER_TEMP}/legion-dotnet-code-sdk-tools"
 }
 provision_python_code_sdk() {
   local output="${RUNNER_TEMP}/legion-python-code-sdk-tools"
-  python3 scripts/ci/audit-python-sdk-bootstrap.py \
+  audit_native_command python3 scripts/ci/audit-python-sdk-bootstrap.py \
     --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   local values
-  values="$(python3 - "$output/enrollment.json" <<'PYTHON_CODE_SDK_ENV'
+  values="$(audit_native_command python3 - "$output/enrollment.json" <<'PYTHON_CODE_SDK_ENV'
 import json
 import sys
 from pathlib import Path
@@ -381,7 +407,7 @@ print("AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps(
     sort_keys=True, separators=(",", ":")))
 PY
   local status=0
-  if "$@"; then
+  if audit_qualification_dispatch "$@"; then
     status=0
   else
     status=$?
@@ -999,17 +1025,17 @@ PY_PIN
   # Fixed official OpenGrep binary; constructed SDK/artifact cases only.
   audit_provision_opengrep() {
     local opengrep_asset opengrep_sha
-    mkdir -p "$opengrep_tool_dir" || return $?
-    case "$(uname -m)" in
+    audit_native_command mkdir -p "$opengrep_tool_dir" || return $?
+    case "$(audit_native_command uname -m)" in
       arm64) opengrep_asset=opengrep_osx_arm64; opengrep_sha=035dd8fd2410fe68513916df0c2895257fffafcd5314b4a118484ce8db62bedb ;;
       x86_64) opengrep_asset=opengrep_osx_x86; opengrep_sha=2f0d0c7a41a3e48dc02c30dabc4851bc37c18f021b46c9ae54b15177ece088ee ;;
       *) return 1 ;;
     esac
-    curl --fail --location --proto '=https' --tlsv1.2 \
+    audit_native_command curl --fail --location --proto '=https' --tlsv1.2 \
       "https://github.com/opengrep/opengrep/releases/download/v1.31.0/${opengrep_asset}" \
       --output "${opengrep_tool_dir}/opengrep" || return $?
-    printf '%s  %s\n' "$opengrep_sha" "${opengrep_tool_dir}/opengrep" | shasum -a 256 -c - || return $?
-    chmod 0755 "${opengrep_tool_dir}/opengrep"
+    printf '%s  %s\n' "$opengrep_sha" "${opengrep_tool_dir}/opengrep" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command chmod 0755 "${opengrep_tool_dir}/opengrep"
   }
   opengrep_tool_dir="${RUNNER_TEMP}/legion-opengrep-native-v1.31.0"
   run_audit_qualification audit_provision_opengrep
@@ -1038,17 +1064,17 @@ PY_PIN
   # Official pinned OSV; one advisory offline SDK/artifact fixtures only.
   audit_provision_osv() {
     local osv_asset osv_sha
-    mkdir -p "$osv_tool_dir" || return $?
-    case "$(uname -m)" in
+    audit_native_command mkdir -p "$osv_tool_dir" || return $?
+    case "$(audit_native_command uname -m)" in
       arm64) osv_asset=osv-scanner_darwin_arm64; osv_sha=f1e1cc84b6e365b79b874cb9028a4f74ac64666094b542f1eb196b10f44b505e ;;
       x86_64) osv_asset=osv-scanner_darwin_amd64; osv_sha=5c2a2e2a686e34c0674e0a463aa626467df5d9fba0ed06870a2eb684dc434de3 ;;
       *) return 1 ;;
     esac
-    curl --fail --location --proto '=https' --tlsv1.2 \
+    audit_native_command curl --fail --location --proto '=https' --tlsv1.2 \
       "https://github.com/google/osv-scanner/releases/download/v2.2.2/${osv_asset}" \
       --output "${osv_tool_dir}/osv-scanner" || return $?
-    printf '%s  %s\n' "$osv_sha" "${osv_tool_dir}/osv-scanner" | shasum -a 256 -c - || return $?
-    chmod 0755 "${osv_tool_dir}/osv-scanner"
+    printf '%s  %s\n' "$osv_sha" "${osv_tool_dir}/osv-scanner" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command chmod 0755 "${osv_tool_dir}/osv-scanner"
   }
   osv_tool_dir="${RUNNER_TEMP}/legion-osv-native-v2.2.2"
   run_audit_qualification audit_provision_osv
@@ -1068,19 +1094,19 @@ PY_PIN
   # Pinned official cargo-audit; unchanged historical advisory subset, no freshness claim.
   audit_provision_cargo_audit() {
     local audit_target audit_sha audit_binary_sha
-    case "$(uname -m)" in
+    case "$(audit_native_command uname -m)" in
       arm64) audit_target=aarch64-apple-darwin; audit_sha=ec7ca4263769593df4d909be85b94a6b79efa2897be5d2bb8ebd516e823175af; audit_binary_sha=33fbe81adca1b794f4ffe98574d59b0ebe6fcfdb310976fafed98a094c795111 ;;
       x86_64) audit_target=x86_64-apple-darwin; audit_sha=847831323de932155b226ab60ee4a180e13e5d007a019f0d4b7b4d89a6de2ab2; audit_binary_sha=1a63bb3ab4f99a0220a8e4d8a677692afe5901cb44a949b2473c545a02028326 ;;
       *) return 1 ;;
     esac
-    mkdir -p "$cargo_audit_tool_dir" || return $?
-    curl --fail --location --proto '=https' --tlsv1.2 \
+    audit_native_command mkdir -p "$cargo_audit_tool_dir" || return $?
+    audit_native_command curl --fail --location --proto '=https' --tlsv1.2 \
       "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-${audit_target}-v0.22.2.tgz" \
       --output "$cargo_audit_tool_dir/tool.tgz" || return $?
-    printf '%s  %s\n' "$audit_sha" "$cargo_audit_tool_dir/tool.tgz" | shasum -a 256 -c - || return $?
-    tar -xzf "$cargo_audit_tool_dir/tool.tgz" -C "$cargo_audit_tool_dir" --strip-components=1 "cargo-audit-${audit_target}-v0.22.2/cargo-audit" || return $?
-    printf '%s  %s\n' "$audit_binary_sha" "$cargo_audit_tool_dir/cargo-audit" | shasum -a 256 -c - || return $?
-    chmod 0755 "$cargo_audit_tool_dir/cargo-audit"
+    printf '%s  %s\n' "$audit_sha" "$cargo_audit_tool_dir/tool.tgz" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command tar -xzf "$cargo_audit_tool_dir/tool.tgz" -C "$cargo_audit_tool_dir" --strip-components=1 "cargo-audit-${audit_target}-v0.22.2/cargo-audit" || return $?
+    printf '%s  %s\n' "$audit_binary_sha" "$cargo_audit_tool_dir/cargo-audit" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command chmod 0755 "$cargo_audit_tool_dir/cargo-audit"
   }
   cargo_audit_tool_dir="${RUNNER_TEMP}/legion-cargo-audit-native-v0.22.2"
   run_audit_qualification audit_provision_cargo_audit
@@ -1099,9 +1125,9 @@ PY_PIN
   # Dedicated full Rust SDK controls reuse already provisioned pinned scanner & managed Rust.
   provision_rust_code_sdk() {
     local output="${RUNNER_TEMP}/legion-rust-code-sdk-tools"
-    python3 scripts/ci/provision-rust-code-fixtures.py --root "$output" || return "$?"
+    audit_native_command python3 scripts/ci/provision-rust-code-fixtures.py --root "$output" || return "$?"
     local values
-    values="$(python3 - "$output/environment.json" <<'RUST_CODE_SDK_ENV'
+    values="$(audit_native_command python3 - "$output/environment.json" <<'RUST_CODE_SDK_ENV'
 import json
 import sys
 from pathlib import Path
@@ -1134,20 +1160,20 @@ RUST_CODE_SDK_ENV
   unset LEGION_CARGO_AUDIT_BIN LEGION_CARGO_AUDIT_RECEIPTS
   audit_provision_cargo_deny() {
     local deny_arch deny_archive_sha deny_binary_sha
-    mkdir -p "$cargo_deny_tool_dir" || return $?
-    case "$(uname -m)" in
+    audit_native_command mkdir -p "$cargo_deny_tool_dir" || return $?
+    case "$(audit_native_command uname -m)" in
       arm64) deny_arch=aarch64; deny_archive_sha=fe67d82a10d8597a3549364cb733a3f9cc1bfff9031b7ae46384a9f2a72090c3; deny_binary_sha=5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1 ;;
       x86_64) deny_arch=x86_64; deny_archive_sha=248da7f581724e470071990c088ffc55c811981715f4cbdb258621fb79f8b7a6; deny_binary_sha=325ae013000059dfa398557f7bc35659e1d73af6b0c39955dff633de164f9c1e ;;
       *) return 1 ;;
     esac
-    curl --fail --location --retry 3 \
+    audit_native_command curl --fail --location --retry 3 \
       "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-${deny_arch}-apple-darwin.tar.gz" \
       --output "${cargo_deny_tool_dir}/release.tar.gz" || return $?
-    printf '%s  %s\n' "$deny_archive_sha" "${cargo_deny_tool_dir}/release.tar.gz" | shasum -a 256 -c - || return $?
-    tar -xzf "${cargo_deny_tool_dir}/release.tar.gz" --strip-components=1 -C "$cargo_deny_tool_dir" \
+    printf '%s  %s\n' "$deny_archive_sha" "${cargo_deny_tool_dir}/release.tar.gz" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command tar -xzf "${cargo_deny_tool_dir}/release.tar.gz" --strip-components=1 -C "$cargo_deny_tool_dir" \
       "cargo-deny-0.20.2-${deny_arch}-apple-darwin/cargo-deny" || return $?
-    printf '%s  %s\n' "$deny_binary_sha" "${cargo_deny_tool_dir}/cargo-deny" | shasum -a 256 -c - || return $?
-    chmod 0755 "${cargo_deny_tool_dir}/cargo-deny"
+    printf '%s  %s\n' "$deny_binary_sha" "${cargo_deny_tool_dir}/cargo-deny" | audit_native_command shasum -a 256 -c - || return $?
+    audit_native_command chmod 0755 "${cargo_deny_tool_dir}/cargo-deny"
   }
   cargo_deny_tool_dir="${RUNNER_TEMP}/legion-cargo-deny-native-0.20.2"
   run_audit_qualification audit_provision_cargo_deny
@@ -1175,16 +1201,13 @@ fi
 # role_host_binding and canonical_mcp_schema; the enforce-phase native CLI
 # surface check in the list above was the only step not already in this gate.
 
+# Source-owned corpus checks never resolve a harness or authorize generation.
+run_audit_qualification audit_cargo_test --test reasoning_runtime_qualification \
+  reasoning_runtime_no_call_contract -- --exact --nocapture --test-threads=1
+
 # Assemble the exact CI candidate and smoke the installed native CLI.
 export CARGO_INCREMENTAL=1
 (cd engine && cargo build --locked --bins)
-ci_target_root="$(cargo metadata --locked --no-deps --format-version 1 --manifest-path engine/Cargo.toml | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).target_directory.replace(/\\/g, "/")));')"
-ci_binary_root="${ci_target_root}${CARGO_BUILD_TARGET:+/${CARGO_BUILD_TARGET}}/debug"
-case "${RUNNER_OS:-}" in
-  macOS) ci_dev_helper="${ci_binary_root}/legion-dev" ;;
-  Windows) ci_dev_helper="${ci_binary_root}/legion-dev.exe" ;;
-  *) echo "Unsupported native helper retention platform: ${RUNNER_OS:-unset}" >&2; exit 1 ;;
-esac
 ci_dev_helper_dir="${RUNNER_TEMP}/legion-provider-qualification/native-helper"
 ci_dev_helper_copy="${ci_dev_helper_dir}/$(basename "$ci_dev_helper")"
 mkdir -p "$ci_dev_helper_dir"
@@ -1217,6 +1240,35 @@ record = {
 }
 (destination.parent / "legion-dev.json").write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
 PY
+# Retain already-built CLI for authenticated native-host qualification; no new build.
+case "${RUNNER_OS:-}" in
+  macOS) ci_reasoning_cli="${ci_binary_root}/legion" ;;
+  Windows) ci_reasoning_cli="${ci_binary_root}/legion.exe" ;;
+esac
+ci_reasoning_dir="${RUNNER_TEMP}/legion-provider-qualification/reasoning-native-runner"
+mkdir -p "$ci_reasoning_dir"
+python3 - "$ci_reasoning_cli" "$ci_reasoning_dir" "$GITHUB_SHA" "$RUNNER_OS" "${RUNNER_ARCH:-unknown}" <<'REASONING_PY'
+import hashlib
+import json
+import shutil
+import stat
+import sys
+from pathlib import Path
+source, destination = Path(sys.argv[1]), Path(sys.argv[2])
+if source.is_symlink() or not source.is_file():
+    raise SystemExit("already-built native CLI is not a regular file")
+retained = destination / source.name
+shutil.copy2(source, retained)
+raw, copied = source.read_bytes(), retained.read_bytes()
+if raw != copied:
+    raise SystemExit("retained native CLI differs from exact build")
+record = {"schema": "legion-reasoning-native-runner/1", "sourceRevision": sys.argv[3],
+          "platform": {"os": sys.argv[4], "architecture": sys.argv[5]},
+          "binary": {"path": source.name, "sha256": "sha256:" + hashlib.sha256(copied).hexdigest(),
+                     "bytes": len(copied), "mode": stat.S_IMODE(source.stat().st_mode)},
+          "modelCalls": 0, "qualification": False}
+(destination / "runner.json").write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+REASONING_PY
 ci_xtask="${ci_binary_root}/xtask"
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   ci_xtask="${ci_xtask}.exe"

@@ -348,10 +348,11 @@ impl<'a> Run<'a> {
                 }
             }
         }
-        // kube-linter's Viper loader discovers supported extensions by config
-        // name; an extensionless owned YAML file is never loaded.
+        // Native config loaders require supported file extensions.
         let config_name = if tool == "kube-linter" {
             "kube-linter-owned-config.yaml".to_owned()
+        } else if tool == "tflint" {
+            "tflint-owned-config.hcl".to_owned()
         } else {
             format!("{tool}-owned-config")
         };

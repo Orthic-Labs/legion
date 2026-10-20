@@ -606,7 +606,8 @@
             "code-rust-sdk",
             "quality-test-native",
             "backend-source-facts",
-            "supply-chain-native"
+            "supply-chain-native",
+            "reasoning-runtime"
           ]
         },
         "record": {
@@ -648,7 +649,14 @@
           }
         },
         "provenance": {
-          "$ref": "#/$defs/provenance"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/provenance"
+            },
+            {
+              "$ref": "#/$defs/reasoningProvenance"
+            }
+          ]
         },
         "provenanceVerification": {
           "$ref": "#/$defs/reference"
@@ -998,6 +1006,35 @@
               ]
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "reasoning-runtime"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stage": {
+                "const": "finding"
+              },
+              "scope": {
+                "const": "known-answer-fixture-cases"
+              },
+              "provenance": {
+                "$ref": "#/$defs/reasoningProvenance"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "provenance": {
+                "$ref": "#/$defs/provenance"
+              }
+            }
+          }
         }
       ]
     },
@@ -1186,6 +1223,22 @@
       },
       "propertyNames": {
         "pattern": "^(code_rust\\.json|input-enrollment\\.json|environment\\.json|toolchain-runtime(-after)?\\.json|input-archives/smallvec-0\\.6\\.(9|10)\\.crate|cases/[a-z-]+/(child-execution\\.json|child\\.(stdout|stderr)\\.log|input-snapshots\\.json|case-observation\\.json|run/sdk-execution-[0-4]\\.json))$"
+      }
+    },
+    "reasoningProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture",
+        "binaryRetrievalVerification"
+      ],
+      "properties": {
+        "capture": {
+          "$ref": "#/$defs/reference"
+        },
+        "binaryRetrievalVerification": {
+          "$ref": "#/$defs/reference"
+        }
       }
     }
   }

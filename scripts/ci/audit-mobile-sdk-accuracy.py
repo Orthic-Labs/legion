@@ -29,6 +29,21 @@ def same(actual, expected, message):
     require(encoded(actual) == encoded(expected), message)
 
 
+def producer_encoded(value):
+    # These seals hash serde_json::to_vec(Value), with preserve_order enabled.
+    # Keep retained nested field order; enrollment seals remain canonical JSON.
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()
+
+
+def record_digest(row):
+    return digest(producer_encoded({key:value for key, value in row.items() if key != "qualificationDigest"}))
+
+
+def plan_digest(inventory, commands, binding):
+    # Match the producer's explicit json! field order, after command replay.
+    return digest(producer_encoded({"inventory":inventory, "commands":commands, "inputBinding":binding}))
+
+
 def keys(value, expected):
     require(isinstance(value, dict) and set(value) == set(expected), "object fields differ")
 
@@ -321,7 +336,7 @@ def derive_runs(case, enrollment, roots, live):
     same(inputs["sources"], {path:digest(text.encode()) for path, text in files.items()}, "frozen source closure differs")
     same(inputs["selected"], selected, "selected variant denominator differs")
     require(inputs["schema"] == "legion-mobile-inputs/1" and inputs["root"] == str(root) and inputs["stage"] == str(stage)
-            and binding["bindingDigest"] == digest(encoded(inputs)), "input binding/root digest differs")
+            and binding["bindingDigest"] == digest(producer_encoded(inputs)), "input binding/root digest differs")
     keys(inputs["platform"], ("os", "arch", "sdkRoot", "sdkSettings", "sdkSettingsDigest", "sdkSettingsValue"))
     same(inputs["platform"]["sdkSettingsValue"], parsed(bytes(enrollment["sdkSettingsRawBytes"])), "platform metadata differs from original SDK bytes")
     same(inputs["platform"]["os"], "macos", "platform OS differs")
@@ -329,7 +344,7 @@ def derive_runs(case, enrollment, roots, live):
     require(inputs["platform"]["sdkRoot"] == enrollment["sdkRoot"] and inputs["platform"]["sdkSettings"] == str(absolute(enrollment["sdkRoot"]) / "SDKSettings.json")
             and inputs["platform"]["sdkSettingsDigest"] == enrollment["roots"]["macosSdk"]["files"]["SDKSettings.json"]["digest"], "SDK metadata not enrolled")
     inventory = digest(encoded(files))
-    require(case["inventoryDigest"] == inventory and case["planDigest"] == digest(encoded({"inventory":inventory,"commands":expected_commands,"inputBinding":binding})), "frozen inventory/plan seal differs")
+    require(case["inventoryDigest"] == inventory and case["planDigest"] == plan_digest(inventory, case["plannedCommands"], binding), "frozen inventory/plan seal differs")
     runs, planned, raw = case["runs"], case["plannedRequests"], case["sdkExecutions"]
     require(len(runs) == len(planned) == len(expected_commands), "native run/request denominator differs")
     no_execution = control in ("missing-tool", "source-drift", "enrollment-drift")
@@ -472,7 +487,7 @@ def derive_runs(case, enrollment, roots, live):
 def validate_record(root, row, live=False, evidence=None):
     keys(row, ("schema", "family", "stage", "scope", "retainedRoot", "repositoryRoot", "modelCalls", "qualificationEligible", "productionQualification", "status", "sourceEnrollment", "compiledSourceBinding", "provider", "contract", "matrixState", "boundedMacosKnownAnswerEligible", "wholePlatformQualified", "productionOwnerAdmissionQualified", "admissionScope", "nativeEnrollment", "boundedScope", "outsideBoundedMacosScope", "cases", "qualificationDigest"))
     require(row["schema"] == "legion-mobile-sdk-controls/2" and row["provider"] == ID and row["family"] == FAMILY and row["stage"] == "finding" and row["scope"] == FAMILY_SCOPE, "dedicated mobile identity/scope differs")
-    require(row["qualificationDigest"] == digest(encoded({key:value for key, value in row.items() if key != "qualificationDigest"})), "mobile original record digest differs")
+    require(row["qualificationDigest"] == record_digest(row), "mobile original record digest differs")
     require(row["productionQualification"] is row["wholePlatformQualified"] is row["productionOwnerAdmissionQualified"] is False and row["modelCalls"] == 0 and type(row["modelCalls"]) is int
             and row["matrixState"] == "complete" and row["status"] == "observed-known-answer-controls", "mobile scope/terminal state differs")
     require(row["admissionScope"] == "constructed exact SDK admission; production owner admission remains denied" and row["boundedScope"] == "macOS host SwiftPM: Swift + Objective-C + Objective-C++, Foundation + XCTest; SwiftLint & clang analyzer", "native bounded admission/framework scope differs")
@@ -558,7 +573,7 @@ def rejection_controls(root, row, evidence):
     for edit in edits:
         modified = copy.deepcopy(row)
         edit(modified)
-        modified["qualificationDigest"] = digest(encoded({key:value for key, value in modified.items() if key != "qualificationDigest"}))
+        modified["qualificationDigest"] = record_digest(modified)
         try:
             validate_record(root, modified, evidence=evidence)
         except (AssertionError, KeyError, ValueError, TypeError, IndexError):

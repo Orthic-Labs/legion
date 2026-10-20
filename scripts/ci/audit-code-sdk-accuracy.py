@@ -52,6 +52,20 @@ def same(actual, expected, message):
     require(encoded(actual) == encoded(expected), message)
 
 
+def receipt_fields(receipt, owner_projection=False):
+    """Validate exact SDK fields, including the source-owned denial projection."""
+    owner = "audit-native-owner-admission-v1"
+    projected = owner_projection and isinstance(receipt, dict) and isinstance(receipt.get("policy"), dict) and receipt["policy"].get("id") == owner
+    keys(receipt, RECEIPT_FIELDS + (("executionPolicy", "executionPolicyIdentity") if projected else ()))
+    if projected:
+        policy = {"externalProcesses": "owner-admission-required", "admissionStatus": "unavailable", "effectiveMode": "deny-external"}
+        identity = {"id": owner, "version": 1, "digest": digest(encoded(policy))}
+        same(receipt["executionPolicy"], policy, "original owner-admission policy projection differs")
+        same(receipt["executionPolicyIdentity"], identity, "original owner-admission identity projection differs")
+        same(receipt["policy"], dict(identity, allowed=False, reason="native-owner-admission-unavailable"), "projected owner admission is not the original denial")
+        require(receipt["policyId"] == owner, "projected owner-admission policy ID differs")
+
+
 def parsed(data):
     def pairs(items):
         require(len(items) == len(dict(items)), "duplicate JSON field")

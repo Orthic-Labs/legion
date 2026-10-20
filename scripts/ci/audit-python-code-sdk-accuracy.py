@@ -17,7 +17,7 @@ CONTROLS = ("nonempty-clean", "lint-positive", "type-positive", "compile-error",
 TASKS = ("compile", "lint", "type", "test", "package", "package")
 # Reuse reviewed canonical JSON, safe-path, raw-artifact & original CONFIG readers.
 _shared = runpy.run_path(str(Path(__file__).resolve().parents[2] / COMMON))
-for _name in ("require", "keys", "encoded", "digest", "is_digest", "same", "parsed", "source_file", "absolute", "artifact", "required_contract"):
+for _name in ("require", "keys", "encoded", "digest", "is_digest", "same", "receipt_fields", "parsed", "source_file", "absolute", "artifact", "required_contract"):
     globals()[_name] = _shared[_name]
 RECEIPT_FIELDS = _shared["RECEIPT_FIELDS"]
 SOURCE_ROOTS = ["engine/crates/" + c + "/src" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")] + ["src/registry/rules", "src/registry/controls", FIXTURES]
@@ -96,7 +96,7 @@ def environment(policy, scratch, original, enrollment):
 def sdk(item, policy, control, plan, scratch, enrollment, commands, live):
     keys(item, ("request", "executionReceipt", "stdout", "stderr"))
     req, r = item["request"], item["executionReceipt"]
-    keys(r, RECEIPT_FIELDS)
+    receipt_fields(r, owner_projection=True)
     keys(req, ("schemaVersion", "requestId", "providerId", "planId", "policyId", "taskId", "executable", "args", "cwd", "origin", "shell", "expectedDigest", "acceptedExitCodes", "versionArgs", "skipVersionProbe", "versionRequirement", "environment", "environmentAllowlist", "sensitiveArgumentIndexes", "sensitiveEnvironmentNames", "requiresNetworkSandbox", "sandbox", "timeoutMs", "stdoutLimit", "stderrLimit"))
     task = req["taskId"]
     require(task in TASKS and re.fullmatch(r"legion-audit/[0-9a-f]{64}", req["requestId"] or ""), "actual SDK identity differs")

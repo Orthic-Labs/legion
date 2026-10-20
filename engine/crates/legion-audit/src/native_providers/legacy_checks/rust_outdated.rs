@@ -307,7 +307,11 @@ pub(super) fn prepare(
     if execution_root.starts_with(&source_root) {
         return Err("copy-root-inside-source".into());
     }
-    let cwd = execution_root.join(relative_cwd);
+    let cwd = if relative_cwd.as_os_str().is_empty() {
+        execution_root.clone()
+    } else {
+        execution_root.join(relative_cwd)
+    };
     // Cargo merges ancestor configuration. An unsealed configuration can
     // redirect caches, runtime tools or local sources outside this copy.
     cargo_config_absent(&cwd)?;

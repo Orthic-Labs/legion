@@ -1184,6 +1184,15 @@ impl NativeLegacyCheckExecutor {
             inventory.digest
         );
         let (mut environment, mut environment_allowlist) = audit_environment(&scratch);
+        if contract.check == "sast" {
+            // Pinned Semgrep core enables rule prefilters by default. Its
+            // supported extra flags are parsed after the Python CLI's -fast.
+            environment.insert(
+                "SEMGREP_CORE_EXTRA".into(),
+                "-no_filter_irrelevant_rules".into(),
+            );
+            environment_allowlist.insert("SEMGREP_CORE_EXTRA".into());
+        }
         let needs_sandbox = sandbox_required_check(contract.check);
         // Cargo uses 101 for denied lint diagnostics as well as launch/compiler
         // failures. Admit that raw exit only for the resolved frozen clippy

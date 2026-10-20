@@ -365,6 +365,11 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
     allowed.insert("PYTHONNOUSERSITE".into());
     env.insert("GIT_CONFIG_NOSYSTEM".into(), "1".into());
     allowed.insert("GIT_CONFIG_NOSYSTEM".into());
+    env.insert(
+        "SEMGREP_CORE_EXTRA".into(),
+        "-no_filter_irrelevant_rules".into(),
+    );
+    allowed.insert("SEMGREP_CORE_EXTRA".into());
     (env, allowed)
 }
 

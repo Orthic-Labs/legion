@@ -174,7 +174,7 @@ fn mobile_sdk_metadata_drift_and_nonzero_test_exit_are_not_passes() {
 mod native {
     use super::*;
     use legion_effects::{PolicyAuthorizer, PolicyDecision};
-    use std::sync::Mutex;
+    use std::{io::Write, sync::Mutex};
 
     fn source_binding() -> BTreeMap<&'static str, String> {
         [
@@ -540,6 +540,11 @@ mod native {
             "source-drift",
             "enrollment-drift",
         ] {
+            println!(
+                "REAL_SCANNER_CASE_START {}",
+                json!({"providerId":"code.mobile", "caseId":control, "control":control})
+            );
+            std::io::stdout().flush().unwrap();
             let root = base.join(control).join("source");
             std::fs::create_dir_all(&root).unwrap();
             let fixture = files(control);

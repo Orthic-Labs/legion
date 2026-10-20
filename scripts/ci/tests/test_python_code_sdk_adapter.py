@@ -25,6 +25,43 @@ class PythonSdkAdapterTests(unittest.TestCase):
         self.assertEqual(len(gate["ADAPTERS"]), 38)
 
 
+class PythonReceiptProjectionUnits(unittest.TestCase):
+    def receipt(self, owner=False):
+        row = dict.fromkeys(python["RECEIPT_FIELDS"])
+        row["policyId"] = "audit-native-owner-admission-v1" if owner else "constructed-fixture-policy"
+        row["policy"] = {"id": row["policyId"]}
+        if owner:
+            policy = {"externalProcesses":"owner-admission-required", "admissionStatus":"unavailable", "effectiveMode":"deny-external"}
+            identity = {"id":row["policyId"], "version":1, "digest":python["digest"](python["encoded"](policy))}
+            row.update(executionPolicy=policy, executionPolicyIdentity=identity,
+                       policy=dict(identity, allowed=False, reason="native-owner-admission-unavailable"))
+        return row
+
+    def test_source_owned_denial_projection_is_required_and_exact(self):
+        row = self.receipt(owner=True)
+        python["receipt_fields"](row, owner_projection=True)
+        for edit in (lambda r:r.pop("executionPolicy"), lambda r:r.pop("executionPolicyIdentity"),
+                     lambda r:r["executionPolicy"].update(effectiveMode="allow-external"),
+                     lambda r:r["executionPolicyIdentity"].update(digest="sha256:" + "0" * 64),
+                     lambda r:r["policy"].update(allowed=True), lambda r:r.update(policyId="foreign"),
+                     lambda r:r.update(unexpected="unbound")):
+            changed = copy.deepcopy(row)
+            edit(changed)
+            with self.subTest(row=changed), self.assertRaises(AssertionError):
+                python["receipt_fields"](changed, owner_projection=True)
+
+    def test_other_receipts_and_generic_keys_stay_strict(self):
+        row = self.receipt()
+        python["receipt_fields"](row, owner_projection=True)
+        for field in ("executionPolicy", "executionPolicyIdentity", "unexpected"):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                python["receipt_fields"](dict(row, **{field: {}}), owner_projection=True)
+        with self.assertRaises(AssertionError):
+            python["receipt_fields"](self.receipt(owner=True))
+        with self.assertRaises(AssertionError):
+            python["keys"](self.receipt(owner=True), python["RECEIPT_FIELDS"])
+
+
 class PythonFrozenDenominatorUnits(unittest.TestCase):
     def setUp(self):
         self.entries = [{"path": "fixture.py", "sourceFile": True, "symbols": [], "dependencies": [],

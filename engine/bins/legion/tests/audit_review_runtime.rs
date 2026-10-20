@@ -581,6 +581,17 @@ impl Fixture {
             .env("USERPROFILE", &self.home)
             .env("LOCALAPPDATA", self.home.join("AppData/Local"))
             .env("XDG_DATA_HOME", self.home.join(".local/share"))
+            // Child-only identity for this simulated Claude transport, never
+            // evidence that a real installed host or model was exercised.
+            .env("CLAUDECODE", "1")
+            .env(
+                "CLAUDE_CODE_SESSION_ID",
+                self.base.to_string_lossy().as_ref(),
+            )
+            .env("LEGION_HARNESS", "claude-code")
+            .env_remove("CODEX_THREAD_ID")
+            .env_remove("CODEX_SESSION_ID")
+            .env_remove("CLAUDE_SESSION_ID")
             .env_remove("AUDIT_PLAN_SIGNING_KEY")
             .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
             .args(["audit", "run-reasoning", "--run"])

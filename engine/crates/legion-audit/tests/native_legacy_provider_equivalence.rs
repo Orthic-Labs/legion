@@ -19,7 +19,7 @@ use std::{
 use async_trait::async_trait;
 use legion_audit::{
     native_providers::legacy_checks::{
-        resolve_request, spec, specs, CommandShape, LegacyCheckDispatcher,
+        resolve_request, spec, specs, CommandShape, LegacyCheckDispatcher, ResolveError,
     },
     AuditPlan, AuditProvider, InventoryEntry, InventoryEnvelope, NativeProviderRegistry,
     ProviderExecutor, ProviderKind,
@@ -373,6 +373,35 @@ fn write_tool(root: &std::path::Path, name: &str) {
     fs::write(path, format!("fixture executable: {name}\n")).unwrap();
 }
 
+// FakeTool supplies execution; these distinct local bytes provide only the
+// sealed identities required before the Cargo resolution copy is prepared.
+// They are never launched as a real Cargo toolchain.
+fn write_cargo_outdated_fixture_tools(root: &std::path::Path) {
+    for name in ["cargo-outdated", "cargo", "rustc"] {
+        write_tool(root, name);
+        let resolved = resolve_request(root, name, &[]).unwrap();
+        assert_eq!(
+            resolved.executable,
+            fs::canonicalize(root.join("node_modules/.bin").join(name)).unwrap()
+        );
+    }
+}
+
+// Cargo resolution copies every selected file, so only this check receives
+// a fully byte-bound inventory. Other checks retain their refusal controls.
+fn cargo_outdated_fixture_inventory(root: &std::path::Path) -> InventoryEnvelope {
+    let mut entries = inventory().entries;
+    for entry in &mut entries {
+        entry.digest = Some(format!(
+            "sha256:{}",
+            hex::encode(sha2::Sha256::digest(
+                fs::read(root.join(&entry.path)).unwrap()
+            ))
+        ));
+    }
+    InventoryEnvelope::new("legacy-equivalence", "generation-1", entries).unwrap()
+}
+
 fn inventory() -> InventoryEnvelope {
     let entries = [
         ("src/main.rs", true, Vec::<&str>::new(), Vec::<&str>::new()),
@@ -458,6 +487,22 @@ impl ExternalProjectTool for FakeTool {
         request: ExternalToolRequest,
         cancellation: CancellationToken,
     ) -> ExecutionReceipt {
+        if request.task_id.as_deref() == Some("cargo_outdated") {
+            let cwd = PathBuf::from(&request.cwd);
+            if cwd.file_name().and_then(|name| name.to_str()) != Some("source") {
+                if let Err(error) = resolve_request(&cwd, "cargo-outdated", &[]) {
+                    // Match the real adapter's missing-tool refusal; successful
+                    // fake output must not invent a prepared Cargo copy.
+                    let state = match &error {
+                        ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_) => {
+                            ExecutionState::MissingExecutable
+                        }
+                        ResolveError::Unavailable(_) => ExecutionState::Internal,
+                    };
+                    return ExecutionReceipt::failure(&request, state, error.message());
+                }
+            }
+        }
         let mut receipt = ExecutionReceipt::failure(&request, self.state, self.state.as_str());
         receipt.process_tree.started = self.state == ExecutionState::Completed;
         receipt.process_tree.terminated = receipt.process_tree.started;
@@ -943,6 +988,9 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     let records = node_registry();
     let inventory = inventory();
     let root = fixture_root();
+    write_cargo_outdated_fixture_tools(&root);
+    let cargo_inventory = cargo_outdated_fixture_inventory(&root);
+    let cargo_plan = plan_for(&records, &cargo_inventory);
     let plan = plan_for(&records, &inventory);
     let registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
@@ -968,6 +1016,11 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     let mut checked = 0;
     for record in records {
         let id = record["id"].as_str().unwrap();
+        let (plan, inventory) = if id == "legacy.stack.rust-outdated" {
+            (&cargo_plan, &cargo_inventory)
+        } else {
+            (&plan, &inventory)
+        };
         // `legacy.runtime.app` runs one browser invocation per surface and
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
@@ -1263,6 +1316,9 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
     let records = node_registry();
     let inventory = inventory();
     let root = fixture_root();
+    write_cargo_outdated_fixture_tools(&root);
+    let cargo_inventory = cargo_outdated_fixture_inventory(&root);
+    let cargo_plan = plan_for(&records, &cargo_inventory);
     let plan = plan_for(&records, &inventory);
     let invalid_registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
@@ -1279,6 +1335,11 @@ fn invalid_external_output_and_terminal_failure_stay_unproven_for_each_external_
     let mut checked = 0;
     for record in records {
         let id = record["id"].as_str().unwrap();
+        let (plan, inventory) = if id == "legacy.stack.rust-outdated" {
+            (&cargo_plan, &cargo_inventory)
+        } else {
+            (&plan, &inventory)
+        };
         // `legacy.runtime.app` runs one browser invocation per surface and
         // builds its own evidence; it is covered by
         // `native_legacy_runtime_capture.rs`.
