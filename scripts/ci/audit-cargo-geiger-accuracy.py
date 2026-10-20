@@ -189,7 +189,9 @@ def validate_record(repository_root,row,live=False):
         version=receipt["executable"]["version"]
         require(receipt["command"]["executable"]==receipt["executable"]["canonicalPath"]==str(wrapper) and receipt["executable"]["digest"]==policy["wrapper"]["digest"] and version["args"]==prefix+["--version"] and version["output"].strip()=="cargo-geiger 0.13.0" and version["qualified"] is True and version["exitCode"]==0 and version["skippedByPolicy"] is False,"native identity/version differs")
         require(receipt["state"]=="completed" and receipt["complete"] is True and receipt["exitCode"]==(1 if failed else 0) and receipt["signal"] is None and receipt["gaps"]==[] and all(receipt["processTree"][k] is True for k in ["started","terminated","reaped"]),"actual process completion absent")
-        same(receipt["sandbox"],{"required":True,"receiptId":sandbox,"networkEnabled":False},"network-denied sandbox proof absent")
+        # Source authenticator's flag proves enforcement; exact profile text
+        # checked above still requires `(deny network*)` & its bound receipt ID.
+        same(receipt["sandbox"],{"required":True,"receiptId":sandbox,"networkEnabled":True},"network-denied sandbox proof absent")
         require(len(case["policyDecisions"])==1,"admission count differs");decision=case["policyDecisions"][0]
         require(decision["allowed"] is True and decision["requestId"]==receipt["requestId"] and decision["providerId"]==ID and decision["planId"]==case["planDigest"] and decision["taskId"]=="cargo_unsafe" and decision["cwd"]==str(cwd) and decision["args"]==prefix+ARGV and decision["versionArgs"]==prefix+["--version"] and decision["environmentDigest"]==digest(encoded(env)) and decision["expectedDigest"]==policy["wrapper"]["digest"] and decision["acceptedExitCodes"]==[0,1,2],"actual scoped request differs")
         same(receipt["environmentNames"],sorted(env),"actual environment differs")

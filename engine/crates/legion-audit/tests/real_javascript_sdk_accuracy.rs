@@ -665,6 +665,20 @@ struct Recorder {
     rows: Arc<Mutex<Vec<Value>>>,
     requests: Arc<Mutex<Vec<ExternalToolRequest>>>,
 }
+
+struct SharedRecorder(Arc<Recorder>);
+
+#[async_trait::async_trait]
+impl ExternalProjectTool for SharedRecorder {
+    async fn execute(
+        &self,
+        request: ExternalToolRequest,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> ExecutionReceipt {
+        self.0.execute(request, cancellation).await
+    }
+}
+
 #[async_trait::async_trait]
 impl ExternalProjectTool for Recorder {
     async fn execute(
@@ -833,7 +847,9 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     } else {
         let native = NativeProviderRegistry::new(&root)
             .with_scratch(scratch.clone())
-            .with_external_project_tool(Arc::new(AuditExternalProjectTool::new(recorder.clone())))
+            .with_external_project_tool(Arc::new(AuditExternalProjectTool::new(SharedRecorder(
+                recorder.clone(),
+            ))))
             .with_code(
                 code::ProviderExecutorAdapter::new()
                     .with_root(&root)
@@ -1040,7 +1056,7 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
                 }
             }
             let emitted: BTreeMap<_, _> =
-                fs::read_dir(scratch.cache_dir().join("javascript-build"))
+                fs::read_dir(scratch.root().join("cache/javascript-build"))
                     .unwrap()
                     .map(|e| {
                         let p = e.unwrap().path();

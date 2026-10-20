@@ -319,6 +319,16 @@ async fn capture(
     )
     .await
     .unwrap();
+    // A logically current target is not necessarily foregrounded. Keep real
+    // animation-frame waits active for every capture, including headless tabs.
+    bounded(
+        &format!("{name}.foreground"),
+        OPERATION_TIMEOUT,
+        page.bring_to_front(),
+    )
+    .await
+    .unwrap();
+
     bounded(
         &format!("{name}.ready"),
         OPERATION_TIMEOUT,

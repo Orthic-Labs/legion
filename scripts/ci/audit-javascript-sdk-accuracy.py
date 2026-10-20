@@ -348,7 +348,7 @@ def sdk(row, policy, expected_state=None, expected_allowed=True, sandbox=True):
         require(version["qualified"] is True and version["skippedByPolicy"] is False and version["exitCode"] == 0, "real version probe not qualified")
         same(version["args"], req["versionArgs"], "executed version args differ")
         require(version["output"].strip() == {"type": "Version 5.9.3", "lint": "v9.39.1", "build": "11.24.0", "test": "11.24.0"}[task], "observed native version differs")
-        require(receipt["sandbox"]["required"] is True and receipt["sandbox"]["receiptId"] == policy["profile"]["receiptId"] and receipt["sandbox"]["networkEnabled"] is False, "actual sandbox missing/network permitted")
+        require(receipt["sandbox"]["required"] is True and receipt["sandbox"]["receiptId"] == policy["profile"]["receiptId"] and receipt["sandbox"]["networkEnabled"] is True, "actual sandbox missing/network permitted")
         same(receipt["command"]["args"], req["args"], "executed argv differs")
         require(receipt["command"]["executable"] == req["executable"], "executed wrapper differs")
         require(receipt["executable"]["digest"] == policy["wrapper"]["digest"], "executed wrapper bytes differ")

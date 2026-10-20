@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use legion_audit::native_providers::security::adapter::SecurityProviderExecutor;
-use legion_audit::native_providers::security::ast_grep::normalize_match;
+use legion_audit::native_providers::security::ast_grep::{normalize_match, normalize_stream};
 use legion_audit::AuditProvider;
 use serde_json::json;
 
@@ -57,6 +57,47 @@ fn ast_grep_normalize_match_has_no_stray_provider_field() {
         .collect::<Vec<_>>()
     );
     assert!(obj.get("provider").is_none());
+    assert_eq!(normalized["file"], "src/a.rs");
+}
+
+#[test]
+fn ast_grep_native_file_matches_reach_production_candidates() {
+    // Same one-based file/range shape passed by production producer after its
+    // raw scanner coordinate conversion; path remains a supported fallback.
+    let native = json!({
+        "file": "src/probe.ts",
+        "ruleId": "no-inner-html", "severity": "error",
+        "range": {"start": {"line": 4, "column": 2}, "end": {"line": 4, "column": 29}}
+    });
+    let fallback = json!({"path": "src/fallback.ts", "ruleId": "fallback", "line": 2});
+    let missing = json!({"ruleId": "missing-location"});
+    let normalized = normalize_stream(&[native.clone(), fallback, missing], "ast-grep.rule");
+    assert_eq!(
+        normalized.len(),
+        2,
+        "only missing-location rows may be dropped"
+    );
+    assert_eq!(normalized[0]["file"], "src/probe.ts");
+    assert_eq!(normalized[0]["ruleId"], native["ruleId"]);
+    assert_eq!(normalized[0]["range"], native["range"]);
+    assert_eq!(normalized[1]["file"], "src/fallback.ts");
+
+    let executor = SecurityProviderExecutor::new(BTreeMap::from([(
+        "structural.ast-grep".to_owned(),
+        json!({
+            "projection": {"files": ["src/probe.ts", "src/fallback.ts"]},
+            "artifacts": {
+                "astGrepTool": {"name": "ast-grep", "version": "0.51.0"},
+                "examinedPaths": ["src/probe.ts", "src/fallback.ts"],
+                "unsupportedGrammars": [],
+                "structuralMatches": normalized
+            }
+        }),
+    )]));
+    let result = executor.analyze(&provider("structural.ast-grep")).unwrap();
+    assert_eq!(result["complete"], true);
+    assert_eq!(result["coverageGaps"], json!([]));
+    assert_eq!(result["candidates"], json!(normalized));
 }
 
 // JS `analyze` for container-iac does `denominator.gaps.map((kind) => ({ kind }))`

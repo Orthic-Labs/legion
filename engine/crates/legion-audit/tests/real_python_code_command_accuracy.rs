@@ -936,12 +936,12 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
             SharedPolicy(policy.clone()),
         ))
     };
-    let recorder = Arc::new(Recorder {
+    let recorder = Recorder {
         inner: actual,
         scratch: scratch.clone(),
         rows: rows.clone(),
         requests: requests.clone(),
-    });
+    };
     let runtime = tokio::runtime::Runtime::new().unwrap();
     if control == "source-drift" {
         fs::write(

@@ -292,7 +292,7 @@ fn owned_literal(path: &str, name: &str) -> String {
         .into()
 }
 fn expected_inputs(policy: &ScopedPolicy, enrollment: &Value) -> Value {
-    let base = policy.scratch.tmp_dir().join("php-ruby-sdk");
+    let base = policy.scratch.root().join("tmp").join("php-ruby-sdk");
     let stage = base.join("source");
     let home = base.join("home");
     let output = base.join("output");
@@ -346,7 +346,7 @@ fn expected_commands(policy: &ScopedPolicy, enrollment: &Value, timeout: u64) ->
                    kind: Option<&str>| {
         commands.push(json!({"task":task,"tool":tool,"cwd":cwd,"args":policy.prefix(tool,&args),"versionArgs":policy.prefix(tool,&probe),"acceptedExitCodes":accepted,"environment":env,"environmentAllowlist":allow,"timeoutMs":timeout,"kind":kind}));
     };
-    let ruby_cwd = policy.scratch.tmp_dir().join("ruby-lint");
+    let ruby_cwd = policy.scratch.root().join("tmp").join("ruby-lint");
     for (n, _) in policy
         .fixtures
         .keys()
@@ -412,7 +412,7 @@ fn expected_commands(policy: &ScopedPolicy, enrollment: &Value, timeout: u64) ->
             None,
         );
     }
-    let base = policy.scratch.tmp_dir().join("php-ruby-sdk");
+    let base = policy.scratch.root().join("tmp").join("php-ruby-sdk");
     let stage = base.join("source");
     let home = base.join("home");
     let output = base.join("output");
@@ -643,7 +643,8 @@ fn expected_commands(policy: &ScopedPolicy, enrollment: &Value, timeout: u64) ->
         };
         let staged = policy
             .scratch
-            .tmp_dir()
+            .root()
+            .join("tmp")
             .join(format!("native-syntax-{n}.{extension}"));
         let args = if tool == "php" {
             vec!["-n".into(), "-l".into(), staged.to_str().unwrap().into()]
@@ -1259,13 +1260,13 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
             SharedPolicy(policy.clone()),
         ))
     };
-    let recorder = Arc::new(Recorder {
+    let recorder = Recorder {
         inner: actual,
         scratch: scratch.clone(),
         rows: rows.clone(),
         requests: requests.clone(),
         cancel_rake: control == "cancel",
-    });
+    };
     let runtime = tokio::runtime::Runtime::new().unwrap();
     if control == "source-drift" {
         fs::write(
@@ -1339,7 +1340,10 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
         serde_json::to_value(&report.results[0].result).unwrap()
     };
     let mut result = json!({"caseId":case_id,"control":control,"provider":PHP_RUBY,"scope":if control=="absent-sandbox"{"sdk-boundary-control"}else{"native-provider-known-answer-fixture"},"fixtureFiles":fixtures,"fixtureSources":before,"inventory":inventory,"planDigest":frozen.digest(),"frozenProvider":frozen.provider(PHP_RUBY).unwrap(),"nativeResult":native_result,"policyDefinition":policy.definition(),"policyDecisions":policy.decisions.lock().unwrap().clone(),"sdkExecutions":rows.lock().unwrap().clone(),"runtimeBefore":runtime_before,"matched":false});
-    let junit = scratch.tmp_dir().join("php-ruby-sdk/output/phpunit.xml");
+    let junit = scratch
+        .root()
+        .join("tmp")
+        .join("php-ruby-sdk/output/phpunit.xml");
     result["junitReport"] = if junit.is_file() {
         let raw = fs::read(&junit).unwrap();
         json!({"path":junit,"digest":digest(&raw),"bytes":raw.len(),"rawBytes":raw})

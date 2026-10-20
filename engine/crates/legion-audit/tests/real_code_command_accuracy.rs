@@ -549,6 +549,20 @@ struct Recorder {
     rows: Arc<Mutex<Vec<Value>>>,
     requests: Arc<Mutex<Vec<ExternalToolRequest>>>,
 }
+
+struct SharedRecorder(Arc<Recorder>);
+
+#[async_trait::async_trait]
+impl ExternalProjectTool for SharedRecorder {
+    async fn execute(
+        &self,
+        request: ExternalToolRequest,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> ExecutionReceipt {
+        self.0.execute(request, cancellation).await
+    }
+}
+
 #[async_trait::async_trait]
 impl ExternalProjectTool for Recorder {
     async fn execute(
@@ -751,7 +765,9 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
         };
         let native = NativeProviderRegistry::new(&root)
             .with_scratch(scratch.clone())
-            .with_external_project_tool(Arc::new(AuditExternalProjectTool::new(recorder)))
+            .with_external_project_tool(Arc::new(AuditExternalProjectTool::new(SharedRecorder(
+                recorder,
+            ))))
             .with_code(
                 code::ProviderExecutorAdapter::new()
                     .with_root(&root)

@@ -356,7 +356,7 @@ mod native {
     }
 
     fn files(control: &str) -> BTreeMap<String, String> {
-        let mut files = BTreeMap::from([
+        let mut files: BTreeMap<String, String> = BTreeMap::from([
             ("Package.swift".into(), "// swift-tools-version: 5.9\nimport PackageDescription\nlet package = Package(name: \"MobileSDK\", targets: [.target(name: \"MobileSDK\"), .target(name: \"ObjCBridge\", publicHeadersPath: \"include\"), .target(name: \"ObjCppBridge\", publicHeadersPath: \"include\"), .testTarget(name: \"MobileSDKTests\", dependencies: [\"MobileSDK\", \"ObjCBridge\", \"ObjCppBridge\"])])\n".into()),
             ("Sources/MobileSDK/Answer.swift".into(), "import Foundation\npublic func answer() -> Int { return NSNumber(value: 42).intValue }\n".into()),
             ("Tests/MobileSDKTests/AnswerTests.swift".into(), "import XCTest\n@testable import MobileSDK\nimport ObjCBridge\nimport ObjCppBridge\nfinal class AnswerTests: XCTestCase {\n    func testSwift() { XCTAssertEqual(answer(), 42) }\n    func testObjC() { XCTAssertEqual(mobile_objc_answer(), 42) }\n    func testObjCpp() { XCTAssertEqual(mobile_objcpp_answer(), 42) }\n}\n".into()),

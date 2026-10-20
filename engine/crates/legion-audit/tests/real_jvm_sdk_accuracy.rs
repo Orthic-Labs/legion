@@ -642,12 +642,12 @@ fn child(control: &str, base: &Path, retained: &Path) {
         ))
     };
     let rows = Arc::new(Mutex::new(Vec::new()));
-    let recorder = Arc::new(Recorder {
+    let recorder = Recorder {
         inner: actual,
         scratch: scratch.clone(),
         policy: policy.clone(),
         rows: rows.clone(),
-    });
+    };
     if control == "wrapper-drift" {
         fs::write(root.join("gradlew"), "#!/bin/sh\nexit 0\n").unwrap();
     }

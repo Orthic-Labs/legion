@@ -635,9 +635,9 @@ mod tests {
                 ArtifactWriter::new(&artifacts),
                 policy,
             );
-            let r = tokio::runtime::Runtime::new().unwrap().block_on(
-                executor.execute(request.clone(), tokio_util::sync::CancellationToken::new()),
-            );
+            let r = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(executor.execute(&request));
             let out = artifact(&artifacts, r.stdout.as_ref());
             let err = artifact(&artifacts, r.stderr.as_ref());
             let mut descendants = Vec::new();

@@ -644,13 +644,13 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, language: &str, contro
             Shared(policy.clone()),
         ))
     };
-    let recorder = Arc::new(Recorder {
+    let recorder = Recorder {
         inner: actual,
         scratch: scratch.clone(),
         rows: rows.clone(),
         requests: requests.clone(),
         drift: drift.clone(),
-    });
+    };
     let search = if control == "missing-tool" {
         let empty = base.join(&name).join("empty-bin");
         fs::create_dir(&empty).unwrap();

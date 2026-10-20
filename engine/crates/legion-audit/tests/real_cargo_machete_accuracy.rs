@@ -324,7 +324,7 @@ fn fixture_files(control: &str) -> BTreeMap<String, String> {
     };
     [
         ("Cargo.toml", manifest),
-        ("Cargo.lock", "# This file is manually generated for offline fixture metadata.\nversion = 3\n\n[[package]]\nname = \"machete-helper\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"machete-probe\"\nversion = \"0.1.0\"\ndependencies = [\n \"machete-helper\",\n]\n"),
+        ("Cargo.lock", "# This file is manually generated for offline fixture metadata.\nversion = 4\n\n[[package]]\nname = \"machete-helper\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"machete-probe\"\nversion = \"0.1.0\"\ndependencies = [\n \"machete-helper\",\n]\n"),
         (".cargo/config.toml", "[net]\noffline = true\n"), ("src/lib.rs", lib),
     ].into_iter().map(|(p,s)|(p.into(),s.into())).collect()
 }

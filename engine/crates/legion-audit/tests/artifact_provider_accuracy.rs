@@ -363,7 +363,58 @@ fn file_only_provider_accuracy_artifacts() {
     registry.security = registry
         .security
         .with_producer(ArtifactProducer::new(&root.0).with_search_path(Vec::new()));
-    let result = run(id, &frozen, &inventory, &registry, false);
+    // This is an exclusion control: no owner admitted Syft. Qualified file
+    // cases above still require available, fully examined native results.
+    let execution = execute(&frozen, &inventory, &registry).unwrap();
+    assert_eq!(execution.planned_providers, vec![id]);
+    assert_eq!(execution.results.len(), 1);
+    let entry = &execution.results[0];
+    assert_eq!(entry.provider, id);
+    assert!(!entry.skipped);
+    let result = &entry.result;
+    assert!(result.applicable);
+    assert!(!result.complete);
+    assert_eq!(
+        result.details["availability"],
+        json!({"state": "unavailable", "reason": legion_audit::execution_policy::ADMISSION_UNAVAILABLE})
+    );
+    let coverage = result.coverage.as_ref().expect("frozen exclusion coverage");
+    let provider = frozen.provider(id).unwrap();
+    assert_eq!(
+        coverage.denominator_digest,
+        provider.configuration["denominatorDigest"]
+            .as_str()
+            .unwrap()
+    );
+    assert_eq!(
+        coverage.expected,
+        provider.configuration["denominatorCount"].as_u64().unwrap()
+    );
+    assert!(coverage.expected > 0);
+    // Frozen source paths were observed; denied SBOM scans prove no license result.
+    assert_eq!(coverage.examined, coverage.expected);
+    assert!(!coverage.gaps.is_empty());
+    let receipts = result.details["executionReceipts"].as_array().unwrap();
+    assert_eq!(
+        receipts.len(),
+        2,
+        "both SBOM formats must request admission"
+    );
+    for receipt in receipts {
+        assert_eq!(receipt["providerId"], id);
+        assert_eq!(receipt["planId"], inventory.digest);
+        assert_eq!(receipt["taskId"], "syft");
+        assert_eq!(receipt["state"], "unauthorized_effect");
+        assert_eq!(receipt["policy"]["allowed"], false);
+        assert_eq!(
+            receipt["policy"]["reason"],
+            legion_audit::execution_policy::ADMISSION_UNAVAILABLE
+        );
+        assert_eq!(receipt["processTree"]["started"], false);
+        assert_eq!(receipt["executable"], Value::Null);
+        assert_eq!(receipt["stdout"], Value::Null);
+        assert_eq!(receipt["stderr"], Value::Null);
+    }
     assert_eq!(result.details["producer"]["mode"], "tool");
     assert!(result.details["analysis"]["coverageGaps"]
         .as_array()

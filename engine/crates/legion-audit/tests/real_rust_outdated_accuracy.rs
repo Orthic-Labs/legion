@@ -215,7 +215,7 @@ fn fixture_files(control: &str) -> BTreeMap<String, String> {
             "[package]\nname = \"outdated-probe\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[dependencies]\nvoid = \"=1.0.1\"\n"
         }
     };
-    let lock = format!("# This file is manually generated from registry package metadata.\nversion = 3\n\n[[package]]\nname = \"outdated-probe\"\nversion = \"0.1.0\"\ndependencies = [\n \"void\",\n]\n\n[[package]]\nname = \"void\"\nversion = \"{version}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"{checksum}\"\n");
+    let lock = format!("# This file is manually generated from registry package metadata.\nversion = 4\n\n[[package]]\nname = \"outdated-probe\"\nversion = \"0.1.0\"\ndependencies = [\n \"void\",\n]\n\n[[package]]\nname = \"void\"\nversion = \"{version}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"{checksum}\"\n");
     let mut files = BTreeMap::from([
         ("Cargo.toml".into(), root_manifest.into()),
         ("Cargo.lock".into(), lock),

@@ -29,7 +29,9 @@ pub fn normalize_match(
     provider: Option<&str>,
     severity: Option<&str>,
 ) -> Value {
-    let file = path(line);
+    // Native ast-grep JSON uses `file`; shared fixture inputs may use `path`.
+    // Preserve native locations before normalize_stream filters missing files.
+    let file = string(line.get("file")).or_else(|| path(line));
     let range = line.get("range").cloned().unwrap_or_else(|| json!({"start":{"line":line.get("line").or_else(||line.get("start").and_then(|v|v.get("line"))).and_then(Value::as_u64).unwrap_or(1),"column":line.get("column").or_else(||line.get("start").and_then(|v|v.get("column"))).and_then(Value::as_u64).unwrap_or(0)},"end":{"line":line.get("end").and_then(|v|v.get("line")).or_else(||line.get("line")).and_then(Value::as_u64).unwrap_or(1),"column":line.get("end").and_then(|v|v.get("column")).or_else(||line.get("column")).and_then(Value::as_u64).unwrap_or(0)}}));
     let effective_rule = string(line.get("ruleId")).unwrap_or_else(|| rule_id.into());
     let _ = provider; // JS normalizeMatch does not include `provider` in the returned object; kept as a param for call-site parity only.

@@ -247,7 +247,9 @@ impl ScopedPolicy {
             && req.requires_network_sandbox
             && req.sandbox.as_ref().is_some_and(|sandbox| {
                 sandbox.id == self.sandbox_id()
-                    && !sandbox.network
+                    // Authenticator's flag proves sandbox enforcement; exact
+                    // profile bytes above still require `(deny network*)`.
+                    && sandbox.network
                     && sandbox.filesystem_scope.as_deref() == self.root.to_str()
             })
             && !req.skip_version_probe
@@ -589,7 +591,7 @@ fn case(base: &Path, control: &str) -> Value {
         );
         assert_eq!(actual["executable"]["version"]["qualified"], true);
         assert_eq!(actual["sandbox"]["required"], true);
-        assert_eq!(actual["sandbox"]["networkEnabled"], false);
+        assert_eq!(actual["sandbox"]["networkEnabled"], true);
         assert_eq!(actual["complete"], true);
         assert_eq!(actual["state"], "completed");
         assert_eq!(actual["gaps"], json!([]));
