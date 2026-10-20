@@ -22,6 +22,7 @@ const SKIP_PREFIXES: &[&str] = &[
     ".cache/",
     "docs/foundation/",
     "node_modules/",
+    "qualification/provider-accuracy/logs/",
 ];
 const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
 const ROSTER_ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
