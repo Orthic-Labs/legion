@@ -433,7 +433,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
     assert_eq!(digest(&fs::read(&tool).unwrap()), pinned_digest());
     let wrapper = fs::canonicalize("/usr/bin/sandbox-exec").unwrap();
     let wrapper_digest = digest(&fs::read(&wrapper).unwrap());
-    let contract = opengrep::command_contract(
+    let mut contract = opengrep::command_contract(
         tool.to_string_lossy(),
         run.join("output.json").to_string_lossy(),
         run.join("output.sarif").to_string_lossy(),
@@ -442,6 +442,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
         root.to_string_lossy(),
         Some(&json!({"providerTimeoutMs":TIMEOUT,"maxOutputBytes":LIMIT})),
     );
+    contract.args.insert(1, "--no-rewrite-rule-ids".into());
     let environment: BTreeMap<String, String> = contract
         .environment_keys
         .iter()

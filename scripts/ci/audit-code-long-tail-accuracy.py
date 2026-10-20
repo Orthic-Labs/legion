@@ -109,6 +109,17 @@ def effective_limits(case):
     return out
 
 
+def validate_native_producer(actual, selected, successful, accounting, files, limits):
+    # The generic provider has no required contexts; native production emits an empty object.
+    producer = {"mode": "self-sourced", "filesExpected": len(selected), "filesRead": len(successful),
+                "sourceFilesExpected": len(selected), "sourceFilesRead": len(successful), "contextFilesExpected": 0,
+                "contextFilesRead": 0, "contextBytesRead": 0, "contextAccounting": None, "context": {},
+                "bytesRead": sum(len(files[path]) for path in successful), "rules": RULES, "sourceAccounting": accounting,
+                "limits": {key: limits[key] for key in ("maxFileBytes", "maxTotalBytes", "maxFindings")},
+                "toolDiscovery": [], "toolReceipts": [], "deferredCommands": []}
+    same(actual, producer, "native source accounting/rules/bounds differ")
+
+
 def verify_live(root, case, files):
     require(root.is_absolute() and not root.is_symlink() and root.is_dir(), "retained fixture root missing/unsafe")
     mode = case["mutation"]
@@ -234,13 +245,7 @@ def validate_record(repository_root, record, live=False):
             accounting.append(item)
         byte_count = sum(len(files[path]) for path in successful)
         limits = effective_limits(expected)
-        producer = {"mode": "self-sourced", "filesExpected": len(selected), "filesRead": len(successful),
-                    "sourceFilesExpected": len(selected), "sourceFilesRead": len(successful), "contextFilesExpected": 0,
-                    "contextFilesRead": 0, "contextBytesRead": 0, "contextAccounting": None, "bytesRead": byte_count,
-                    "rules": RULES, "sourceAccounting": accounting,
-                    "limits": {key: limits[key] for key in ("maxFileBytes", "maxTotalBytes", "maxFindings")},
-                    "toolDiscovery": [], "toolReceipts": [], "deferredCommands": []}
-        same(details["nativeProducer"], producer, "native source accounting/rules/bounds differ")
+        validate_native_producer(details["nativeProducer"], selected, successful, accounting, files, limits)
         analysis_gaps = [{"kind": "denominator-gap", "language": "generic"}] if not selected else unsupported_gaps
         analysis = {"schemaVersion": 1, "provider": "code.generic", "denominator": {"kind": "generic-files",
                     "expected": len(selected), "examined": len(successful), "variants": {"generic": len(selected)}},

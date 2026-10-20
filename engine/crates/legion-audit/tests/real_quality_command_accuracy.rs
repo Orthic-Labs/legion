@@ -16,7 +16,7 @@ use std::{
     fs,
     io::Write,
     os::unix::process::ExitStatusExt,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
 };
@@ -355,6 +355,93 @@ fn artifact(receipt: &Value, stream: &str, scratch: &AuditScratch) -> Vec<u8> {
     assert_eq!(item["digest"], digest(&bytes));
     assert_eq!(item["bytes"], bytes.len());
     bytes
+}
+
+fn retain_native_artifacts(record: &Value, retained: &Path) {
+    let provider = record["provider"].as_str().expect("quality provider id");
+    let provider_leaf = provider.replace('.', "_");
+    let artifact_root = retained.join("native-artifacts").join(&provider_leaf);
+    fs::create_dir_all(&artifact_root).unwrap();
+    let mut files = serde_json::Map::new();
+
+    for case in record["cases"].as_array().expect("quality cases") {
+        let case_id = case["caseId"].as_str().expect("quality case id");
+        let case_component = Path::new(case_id);
+        assert_eq!(case_component.components().count(), 1);
+        assert!(case_component
+            .components()
+            .all(|part| matches!(part, Component::Normal(_))));
+        let cwd = PathBuf::from(
+            case["executionReceipt"]["cwd"]
+                .as_str()
+                .expect("native receipt cwd"),
+        );
+        assert!(cwd.is_absolute());
+        let run = cwd.parent().expect("fixture source parent").join("run");
+        let artifact_root_source = run.join("artifacts");
+        let source_root = fs::canonicalize(&artifact_root_source).unwrap();
+        assert_eq!(source_root, artifact_root_source);
+
+        for stream in ["stdout", "stderr"] {
+            let item = &case["executionReceipt"][stream];
+            let original_path = item["path"].as_str().expect("native stream path");
+            assert!(!original_path.is_empty());
+            assert!(!original_path.contains('\\'));
+            assert!(!original_path.contains(':'));
+            assert!(!original_path.contains('\0'));
+            assert!(original_path
+                .split('/')
+                .all(|part| !part.is_empty() && part != "." && part != ".."));
+            let original_relative = Path::new(original_path);
+            assert!(!original_relative.is_absolute());
+            assert!(original_relative
+                .components()
+                .all(|part| matches!(part, Component::Normal(_))));
+            let original_reference = artifact_root_source.join(original_relative);
+            let mut source_path = source_root.clone();
+            for part in original_relative.components() {
+                source_path.push(part.as_os_str());
+                assert!(!fs::symlink_metadata(&source_path)
+                    .unwrap()
+                    .file_type()
+                    .is_symlink());
+            }
+            assert!(fs::metadata(&source_path).unwrap().is_file());
+            let original = fs::canonicalize(source_path).unwrap();
+            assert!(original.starts_with(&source_root));
+            let bytes = fs::read(&original).unwrap();
+            assert_eq!(item["digest"], digest(&bytes));
+            assert_eq!(item["bytes"].as_u64(), Some(bytes.len() as u64));
+
+            let local = PathBuf::from(case_id).join(stream);
+            let target = artifact_root.join(&local);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            assert!(!target.exists(), "native stream destination must be unique");
+            fs::write(&target, &bytes).unwrap();
+            files.insert(
+                original_reference
+                    .to_str()
+                    .expect("original POSIX stream path")
+                    .into(),
+                json!({
+                    "path": local.to_str().expect("relative POSIX stream path"),
+                    "sha256": digest(&bytes),
+                    "bytes": bytes.len()
+                }),
+            );
+        }
+    }
+
+    let manifest_path = retained.join(format!("{provider_leaf}-artifact-manifest.json"));
+    assert!(
+        !manifest_path.exists(),
+        "native artifact manifest must be unique"
+    );
+    fs::write(
+        manifest_path,
+        serde_json::to_vec_pretty(&json!({"files": files})).unwrap(),
+    )
+    .unwrap();
 }
 
 fn fixture_files(id: &str, control: &str) -> BTreeMap<String, String> {
@@ -762,9 +849,11 @@ fn real_quality_command_accuracy() {
             record["qualificationDigest"] = json!(digest(&canonical_bytes(&record)));
             if let Some(dir) = std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR") {
                 assert!(Path::new(&dir).is_absolute());
+                let dir = PathBuf::from(dir);
                 fs::create_dir_all(&dir).unwrap();
+                retain_native_artifacts(&record, &dir);
                 fs::write(
-                    PathBuf::from(dir).join(format!("{}.json", id.replace('.', "_"))),
+                    dir.join(format!("{}.json", id.replace('.', "_"))),
                     serde_json::to_vec_pretty(&record).unwrap(),
                 )
                 .unwrap();

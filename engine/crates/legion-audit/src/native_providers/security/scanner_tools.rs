@@ -392,7 +392,11 @@ impl<'a> Run<'a> {
                 gaps.push(json!({"kind":"scanner-deadline-exhausted","tool":tool,"paths":paths}));
                 continue;
             };
-            let cwd = self.root().join(&base);
+            let cwd = if base.is_empty() {
+                self.root().to_path_buf()
+            } else {
+                self.root().join(&base)
+            };
             let file_args: Vec<String> = paths.iter().map(|path| format!("./{path}")).collect();
             let config_args = ["--config".to_owned(), config.clone()];
             let mut args: Vec<String> = match tool {

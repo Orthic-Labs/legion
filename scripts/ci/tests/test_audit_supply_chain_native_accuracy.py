@@ -28,6 +28,31 @@ class SupplyChainNativeReplayTests(unittest.TestCase):
         self.assertEqual((result["expected"], result["examined"]), (3, 3))
         self.assertFalse(API["reconcile"](expected, *self.documents(omit="dev-only"))["complete"])
 
+    def test_always_selector_uses_full_inventory_digest_and_exact_fixture_binding(self):
+        inv = API["inventory"]("nonempty-clean", API["fixture_lock"]("BSD-3-Clause"))
+        spec = {"providerVersion": "1.0.0"}
+        provider = {"id": API["ID"], "version": spec["providerVersion"], "cleanClaim": "evidence-only", "benchmarkRequiredForCleanClaim": False, "configuration": {"selector": {"op": "always"}, "denominatorCount": 1, "denominatorDigest": inv["digest"], "supplyChainLicensePolicy": copy.deepcopy(API["LICENSE_POLICY"])}}
+        API["validate_fixture_provider"](provider, spec, inv)
+        config = provider["configuration"]
+        subset_digest = API["digest"](API["encoded"]([inv["digest"], config["selector"], inv["entries"]]))
+        self.assertNotEqual(subset_digest, inv["digest"])
+        mutations = [
+            ("id", lambda item: item.update(id="other-provider")),
+            ("version", lambda item: item.update(version="2.0.0")),
+            ("clean-claim", lambda item: item.update(cleanClaim="clean")),
+            ("benchmark", lambda item: item.update(benchmarkRequiredForCleanClaim=True)),
+            ("selector", lambda item: item["configuration"].update(selector={"op": "paths", "paths": ["package-lock.json"]})),
+            ("count", lambda item: item["configuration"].update(denominatorCount=0)),
+            ("subset-digest", lambda item: item["configuration"].update(denominatorDigest=subset_digest)),
+            ("foreign-inventory", lambda item: item["configuration"].update(denominatorDigest=API["inventory"]("other", API["fixture_lock"]("BSD-3-Clause"))["digest"])),
+            ("policy", lambda item: item["configuration"]["supplyChainLicensePolicy"].update(deny=[])),
+        ]
+        for name, mutate in mutations:
+            changed = copy.deepcopy(provider)
+            mutate(changed)
+            with self.subTest(name=name), self.assertRaisesRegex(AssertionError, "frozen fixture provider/denominator/policy differs"):
+                API["validate_fixture_provider"](changed, spec, inv)
+
     def test_explicit_whole_license_policy_and_unknown_refusal(self):
         expected = API["lock_packages"](API["fixture_lock"]("MIT"))
         denied = API["reconcile"](expected, *self.documents("GPL-3.0-only"))

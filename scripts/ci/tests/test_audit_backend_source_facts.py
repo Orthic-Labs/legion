@@ -59,6 +59,41 @@ class BackendSourceReplayUnits(unittest.TestCase):
     def test_resealed_semantic_mutations_are_rejected(self):
         self.assertEqual(api["rejection_controls"](ROOT, self.record, self.raw), 20)
 
+    def test_ktor_inventory_matches_literal_gradle_dependency_and_native_seal(self):
+        corpus = api["contract"](ROOT)
+        row, _, files, _ = api["fixed_case"](corpus, "ktor-positive")
+        # Independent known answer from FilesystemInventorySource's Gradle coordinate contract.
+        expected = {"schemaVersion": 1, "repositoryId": "ktor-positive",
+            "generation": "filesystem:sha256:dbf31705bb2a8b0538176bdffe6d9536f4541fbdaac3b29ea40f019386d64405",
+            "entries": [
+                {"path": "build.gradle.kts", "sourceFile": True, "symbols": [],
+                 "dependencies": ["io.ktor:ktor-server-core"], "packageScripts": [],
+                 "digest": "sha256:5c810080c82ba42a9a06ddae5fa9760d7956227fe0ff30b5b1dca7e8df326980"},
+                {"path": "src/Routes.kt", "sourceFile": True, "symbols": [], "dependencies": [], "packageScripts": [],
+                 "digest": "sha256:8ffe2d73ab1fd5a4d882fa6eb5eb5a5ea915d74d7feb8b000f1cc76b71a3033d"}],
+            "digest": "sha256:3a05b6ccbb2889a63c799d7b516368ed342683f1db43e250dfd4610b8e7aeb2d"}
+        self.assertEqual(api["expected_inventory"]("ktor-positive", row, files), expected)
+
+    def test_resealed_ktor_inventory_cannot_omit_or_replace_declared_dependency(self):
+        for dependencies in ([], ["io.ktor:other-module"]):
+            rows = [json.loads(line) for line in self.raw.splitlines()]
+            row = next(item for item in rows if item["caseId"] == "ktor-positive")
+            inventory = row["inventory"]
+            inventory["entries"][0]["dependencies"] = dependencies
+            inventory["generation"] = "filesystem:" + api["digest"](api["encoded"](inventory["entries"]))
+            inventory["digest"] = api["digest"](api["encoded"](
+                [1, inventory["repositoryId"], inventory["generation"], inventory["entries"]]))
+            plan = row["frozenPlan"]
+            plan.update(inventoryDigest=inventory["digest"], inventoryGeneration=inventory["generation"])
+            plan["providers"][0]["configuration"]["denominatorDigest"] = inventory["digest"]
+            raw_plan = api["encoded"](plan)
+            row["planDigest"] = api["digest"](raw_plan)
+            row["planSignature"] = "hmac-sha256:" + hmac.new(api["KEY"], raw_plan, hashlib.sha256).hexdigest()
+            row["dispatch"].update(planDigest=row["planDigest"], inventoryDigest=inventory["digest"])
+            row["nativeResult"]["coverage"]["denominator_digest"] = inventory["digest"]
+            with self.subTest(dependencies=dependencies), self.assertRaisesRegex(AssertionError, "filesystem inventory/denominator altered"):
+                self.replay(rows)
+
     def test_always_denominator_uses_independent_inventory_seal(self):
         def encoded(value):
             return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()

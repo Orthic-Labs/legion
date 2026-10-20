@@ -680,9 +680,18 @@ fn execute_case(base: &Path, mode: &str) -> Value {
         .unwrap_or_else(|| json!([]));
     if missing {
         assert!(!result.complete);
-        assert!(!result.coverage_gaps.is_empty());
+        assert!(result.coverage_gaps.is_empty());
+        assert!(result.degradation.is_empty());
+        assert_eq!(
+            result.details["capabilityAbsence"],
+            json!({"tool":"license-checker","note":"capability-absent:license-checker","blocking":false,"substitute":null})
+        );
         assert_eq!(receipt["state"], "missing_executable");
         assert_eq!(receipt["complete"], false);
+        assert_eq!(
+            receipt["gaps"],
+            json!(["missing executable: license-checker"])
+        );
         assert_eq!(receipt["processTree"]["started"], false);
         assert!(decisions.is_empty());
         assert_eq!(candidates, json!([]));

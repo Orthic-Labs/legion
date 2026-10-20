@@ -102,7 +102,7 @@ def inspect_case(case, rules, *, live):
             and re.fullmatch(r"sha256:[0-9a-f]{64}", policy["wrapper"]["digest"]) is not None, "native wrapper identity differs")
     if live:
         require(digest(Path(wrapper).read_bytes()) == policy["wrapper"]["digest"], "live native wrapper bytes differ")
-    args = ["scan", "--json-output", str(run / "output.json"), "--sarif-output", str(run / "output.sarif"), "--disable-version-check", "-f", str(run / "legion-core.yml"), "app.py"]
+    args = ["scan", "--no-rewrite-rule-ids", "--json-output", str(run / "output.json"), "--sarif-output", str(run / "output.sarif"), "--disable-version-check", "-f", str(run / "legion-core.yml"), "app.py"]
     require(policy["args"] == args and policy["id"] == POLICY and policy["version"] == 1 and policy["provider"] == PROVIDER and policy["scope"] == SCOPE, "policy contract differs")
     require(policy["planDigest"] == case["planDigest"] and policy["inventoryDigest"] == inventory["digest"] and policy["sourceDigest"] == digest(source.encode()) and policy["rulesDigest"] == digest(rules), "policy source identity differs")
     require(policy["timeoutMs"] == 30000 and policy["outputLimit"] == 4194304 and policy["sandbox"] == "native-macos-deny-network-deny-project-write", "policy bounds differ")

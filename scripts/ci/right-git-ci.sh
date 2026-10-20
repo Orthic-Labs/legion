@@ -69,6 +69,8 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accu
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_code_long_tail_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'

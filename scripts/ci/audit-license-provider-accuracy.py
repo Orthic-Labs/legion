@@ -179,7 +179,8 @@ def validate_record(repository_root, record, live=False):
         require(receipt["schemaVersion"] == 1 and receipt["providerId"] == ID and receipt["planId"] == case["planDigest"] and receipt["taskId"] == "js_licenses", "SDK identity differs")
         candidates = result["details"].get("candidates", [])
         if missing:
-            require(result["complete"] is False and result["coverage_gaps"] and candidates == [] and receipt["state"] == "missing_executable" and receipt["complete"] is False and receipt["processTree"]["started"] is False and case["policyDecisions"] == [] and case["runtimeIdentityDigest"] is None and case["policyDefinition"] is None, "missing executable became clean/ran a process")
+            require(result["complete"] is False and candidates == [] and receipt["state"] == "missing_executable" and receipt["complete"] is False and receipt["processTree"]["started"] is False and case["policyDecisions"] == [] and case["runtimeIdentityDigest"] is None and case["policyDefinition"] is None, "missing executable became clean/ran a process")
+            require(result["coverage_gaps"] == [] and result["degradation"] == [] and result["details"]["capabilityAbsence"] == {"tool": "license-checker", "note": "capability-absent:license-checker", "blocking": False, "substitute": None} and receipt["gaps"] == ["missing executable: license-checker"], "missing informational tool absence differs")
             require(receipt["stdout"] is None and receipt["stderr"] is None and case["actualStdout"] == case["actualStderr"] == "", "missing tool invented output artifacts")
             continue
         require(case["runtimeIdentityDigest"] == digest(encoded(identity)), "runtime closure changed across controls")

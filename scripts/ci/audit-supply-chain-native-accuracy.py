@@ -294,6 +294,11 @@ def inventory(name, raw):
     generation = "filesystem:" + digest(encoded(entries))
     return {"schemaVersion": 1, "repositoryId": name, "generation": generation, "entries": entries, "digest": digest(encoded([1, name, generation, entries]))}
 
+def validate_fixture_provider(provider, spec, inv):
+    config = provider["configuration"]
+    # InventoryEnvelope uses the full inventory digest for the always selector.
+    require(provider["id"] == ID and provider["version"] == spec["providerVersion"] and provider["cleanClaim"] == "evidence-only" and provider["benchmarkRequiredForCleanClaim"] is False and config["selector"] == {"op": "always"} and config["denominatorCount"] == 1 and config["denominatorDigest"] == inv["digest"] and config["supplyChainLicensePolicy"] == LICENSE_POLICY, "frozen fixture provider/denominator/policy differs")
+
 def native_receipt(case, request, diagnostic, toolchain, live):
     receipt = diagnostic["record"]["receipt"]
     data = diagnostic["record"]
@@ -422,8 +427,7 @@ def validate_record(repository_root, row, live=False):
         raw = "{ malformed lock\n" if name == "malformed-lock" else fixture_lock(license)
         inv = inventory(name, raw)
         same(case["inventory"], inv, "full frozen native fixture inventory differs")
-        config = case["provider"]["configuration"]
-        require(case["provider"]["id"] == ID and case["provider"]["version"] == spec["providerVersion"] and case["provider"]["cleanClaim"] == "evidence-only" and case["provider"]["benchmarkRequiredForCleanClaim"] is False and config["selector"] == {"op": "always"} and config["denominatorCount"] == 1 and config["denominatorDigest"] == digest(encoded([inv["digest"], config["selector"], inv["entries"]])) and config["supplyChainLicensePolicy"] == LICENSE_POLICY, "frozen fixture provider/denominator/policy differs")
+        validate_fixture_provider(case["provider"], spec, inv)
         input = case["input"]
         same(input["plan"], {"binding": {"repositoryRevision": inv["generation"], "digest": inv["digest"]}, "repositoryBinding": {"revision": inv["generation"], "root": str(source)}, "denominator": {"pathCount": 1}}, "frozen native source plan differs")
         same(input["projection"], {"files": [{"path": "package-lock.json"}]}, "selected paths narrowed")

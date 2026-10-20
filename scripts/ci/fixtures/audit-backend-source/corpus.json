@@ -248,7 +248,9 @@
       "manifest": {
         "path": "build.gradle.kts",
         "body": "dependencies {\n  implementation(\"io.ktor:ktor-server-core:1.0\")\n}\n",
-        "inventoryDependencies": [],
+        "inventoryDependencies": [
+          "io.ktor:ktor-server-core"
+        ],
         "sourceFile": true
       },
       "source": {
