@@ -1,4 +1,2161 @@
 {
   "schema": "legion-provider-accuracy-index/1",
-  "entries": []
+  "entries": [
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/architecture.core/358f1a73a19bc1d073d78ddb30af1324601cd1107486c797e7b5f5ee9ed591ce.json",
+        "sha256": "sha256:8503edc48482347bad968dfb592375ed9b318fa9893fcc5cf24f9aa9830ad430"
+      },
+      "provider": "architecture.core",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/architecture.core/358f1a73a19bc1d073d78ddb30af1324601cd1107486c797e7b5f5ee9ed591ce.json",
+        "qualificationDigest": "sha256:358f1a73a19bc1d073d78ddb30af1324601cd1107486c797e7b5f5ee9ed591ce",
+        "sha256": "sha256:10d5c54f30b3405d8261f9d37dcf0182f54a5c7f1a472c283e9f8b27ccf0ba67"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/docs.contract/a0e79cf2e423f205b1fd8d3071282461cc13a90525859c78cb461ba019e23af2.json",
+        "sha256": "sha256:b4afed90633bfe985441dc7c1d3bdc52f97bf9607cd0f47cf23b51b0556ac69c"
+      },
+      "provider": "docs.contract",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/docs.contract/a0e79cf2e423f205b1fd8d3071282461cc13a90525859c78cb461ba019e23af2.json",
+        "qualificationDigest": "sha256:a0e79cf2e423f205b1fd8d3071282461cc13a90525859c78cb461ba019e23af2",
+        "sha256": "sha256:388e4a262dfb8ebc23b6cba7585069d44105634455df0b542b16077d2a1eac62"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/framework.data/ae2a848c285eec0dacf1c8666eaeced81d185aa0ba475e1eba16e85948bf9483.json",
+        "sha256": "sha256:532c7f3bb63f4e3eeba2dc22495d3c402b1aa418a14d03ad302ca2fab370afda"
+      },
+      "provider": "framework.data",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/framework.data/ae2a848c285eec0dacf1c8666eaeced81d185aa0ba475e1eba16e85948bf9483.json",
+        "qualificationDigest": "sha256:ae2a848c285eec0dacf1c8666eaeced81d185aa0ba475e1eba16e85948bf9483",
+        "sha256": "sha256:7fa4ecb16e427809a4f705df935fc486a6ac4232bfffb1d1f57294073056cf93"
+      },
+      "scope": "constructed verifier acceptance & rejection controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "outcome"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/framework.frontend/dbc7f19891d2cd372a91bc32d6cd2bdf316091a169e639b47056a81f5bbffb18.json",
+        "sha256": "sha256:d2795e17725281df1574c4d6fae023f6da03cd4c097e6af3ac496739bda3d93b"
+      },
+      "provider": "framework.frontend",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/framework.frontend/dbc7f19891d2cd372a91bc32d6cd2bdf316091a169e639b47056a81f5bbffb18.json",
+        "qualificationDigest": "sha256:dbc7f19891d2cd372a91bc32d6cd2bdf316091a169e639b47056a81f5bbffb18",
+        "sha256": "sha256:57a57669f2d36564e65461af33fbb05267df7d11a1529a46a245f8c6f69577f7"
+      },
+      "scope": "constructed verifier acceptance & rejection controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "outcome"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/governance.policy/d71cd74644ebe7636e7de7f7dcdfe5fafdf666cc1b2ee8f57e694033f42b7dc0.json",
+        "sha256": "sha256:e25b6d01d8afbb4b3eb1a65647a54376bc1d5af9640e16abd8ff73a6ffd4f745"
+      },
+      "provider": "governance.policy",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/governance.policy/d71cd74644ebe7636e7de7f7dcdfe5fafdf666cc1b2ee8f57e694033f42b7dc0.json",
+        "qualificationDigest": "sha256:d71cd74644ebe7636e7de7f7dcdfe5fafdf666cc1b2ee8f57e694033f42b7dc0",
+        "sha256": "sha256:025cae9c9000d7aa0ed9201645d5244a0c04ffd06a940ecfe72b68d539cf4db3"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:a8348fca7d4d01c73e52df87f30e76f408f450e0f0b1bafca5cb8100ceba76fe",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs": "sha256:861fdd0c4d82c54702f4fa4af8e35a6c6d54ce7e5596820bd4439905c36b0077",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/imported.sarif/fe6e7e7b2551d0cef61cf98762612ef9fb016d9abbbf2bdadbe9dc8e9219f496.json",
+        "sha256": "sha256:455baf0e439302cba51d33ac42911086e9b09da34c3d9aff711487d6c9d7115c"
+      },
+      "provider": "imported.sarif",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/imported.sarif/fe6e7e7b2551d0cef61cf98762612ef9fb016d9abbbf2bdadbe9dc8e9219f496.json",
+        "qualificationDigest": "sha256:fe6e7e7b2551d0cef61cf98762612ef9fb016d9abbbf2bdadbe9dc8e9219f496",
+        "sha256": "sha256:ad6f956bd37b0ed6a8a07b74fa39ef253a81f00a858f42d2b44ed3a728932621"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:a8348fca7d4d01c73e52df87f30e76f408f450e0f0b1bafca5cb8100ceba76fe",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs": "sha256:861fdd0c4d82c54702f4fa4af8e35a6c6d54ce7e5596820bd4439905c36b0077",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.accessibility.internal-suite/8dd9546514151b06e06f1f432b651daae3fdb87add9a2d6cdd6be1a2445ae9a1.json",
+        "sha256": "sha256:40d9d19259b9dc38a19eabe0916dba5dd97b2adb310c6ec3cead417c1b0a4924"
+      },
+      "provider": "legacy.accessibility.internal-suite",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.accessibility.internal-suite/8dd9546514151b06e06f1f432b651daae3fdb87add9a2d6cdd6be1a2445ae9a1.json",
+        "qualificationDigest": "sha256:8dd9546514151b06e06f1f432b651daae3fdb87add9a2d6cdd6be1a2445ae9a1",
+        "sha256": "sha256:28280648da7a2f27c38ad63e806ff921c5f489d6ec5790ffc390fa50362c7236"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4dfe7e389dae0795e93635684a63c2736347abd2327a846d0c75f92b37b43e1f",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/suite_provider_accuracy.rs": "sha256:0913696c63f8d423f7b58d972286b5aa123e2bd3781147e1e8fdc3f0d26e56d3",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.apple.platform/f73f1be5d217eb8c61d2cbc088af7028b03e36e614c6463dc70fc5639fa1497f.json",
+        "sha256": "sha256:c3019f9c30926404916bd5b4293c7956f2468bbdba7a5f66fa3431bf796f7cd6"
+      },
+      "provider": "legacy.apple.platform",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.apple.platform/f73f1be5d217eb8c61d2cbc088af7028b03e36e614c6463dc70fc5639fa1497f.json",
+        "qualificationDigest": "sha256:f73f1be5d217eb8c61d2cbc088af7028b03e36e614c6463dc70fc5639fa1497f",
+        "sha256": "sha256:cc80607e9264a5f1a86490a90ccf716127f0b9fa957e59541b719098b45d4223"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.architecture.decomposition/ded07b422b71a04bde51e1c74552ec488df067ad6388d4c0cd10ef344cfd4476.json",
+        "sha256": "sha256:a68bd694808c85278b0387bc9b1a338d7f9e2b4d1724e91934106b80fb0a6dc7"
+      },
+      "provider": "legacy.architecture.decomposition",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.architecture.decomposition/ded07b422b71a04bde51e1c74552ec488df067ad6388d4c0cd10ef344cfd4476.json",
+        "qualificationDigest": "sha256:ded07b422b71a04bde51e1c74552ec488df067ad6388d4c0cd10ef344cfd4476",
+        "sha256": "sha256:3b21366c9429d1cf46b23e89190e512a7874b813d93662052dfca34e4ec04ff4"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.data.internal-suite/15cc37526635d11be236808a37ea459593a82cc1d155ff8ef6ed73d31d66d74f.json",
+        "sha256": "sha256:ccd02ad8f36242159075dc1097df479c67a816dc959517b590bc2258fed96f28"
+      },
+      "provider": "legacy.data.internal-suite",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.data.internal-suite/15cc37526635d11be236808a37ea459593a82cc1d155ff8ef6ed73d31d66d74f.json",
+        "qualificationDigest": "sha256:15cc37526635d11be236808a37ea459593a82cc1d155ff8ef6ed73d31d66d74f",
+        "sha256": "sha256:c5111f78ddfe3dacc27b32f7f5fc171acba53e5bd8b0d03eb5d650be4ab751f8"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4dfe7e389dae0795e93635684a63c2736347abd2327a846d0c75f92b37b43e1f",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/suite_provider_accuracy.rs": "sha256:0913696c63f8d423f7b58d972286b5aa123e2bd3781147e1e8fdc3f0d26e56d3",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.framework.major-suite/bdaa624beee2cbd60f6af77979f5929f70859e6208110b58db35327df05a5255.json",
+        "sha256": "sha256:4990a6fd4ac57f578c5c49b8cc5775f52bcd0d7e5184bc29dfcdd7dd9f047dfe"
+      },
+      "provider": "legacy.framework.major-suite",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.framework.major-suite/bdaa624beee2cbd60f6af77979f5929f70859e6208110b58db35327df05a5255.json",
+        "qualificationDigest": "sha256:bdaa624beee2cbd60f6af77979f5929f70859e6208110b58db35327df05a5255",
+        "sha256": "sha256:71d3c7791516731f76c6ab9bc81707043ed611cfff860006a9714a03c25217ee"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4dfe7e389dae0795e93635684a63c2736347abd2327a846d0c75f92b37b43e1f",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/suite_provider_accuracy.rs": "sha256:0913696c63f8d423f7b58d972286b5aa123e2bd3781147e1e8fdc3f0d26e56d3",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.infrastructure.internal-suite/d21b17ce52c9f99d3557b5dc55a9d8422d4606de59f3c5d6f3fec0bae8622630.json",
+        "sha256": "sha256:30bb7d9a21b4616d77b979bf43e728e5050046e49b9c0e968cc8d12e22f731b2"
+      },
+      "provider": "legacy.infrastructure.internal-suite",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.infrastructure.internal-suite/d21b17ce52c9f99d3557b5dc55a9d8422d4606de59f3c5d6f3fec0bae8622630.json",
+        "qualificationDigest": "sha256:d21b17ce52c9f99d3557b5dc55a9d8422d4606de59f3c5d6f3fec0bae8622630",
+        "sha256": "sha256:f8f28faf4af09196d6ea6961a8a5b93c46f82a54daeb0fc5b34fc85f02c4acc5"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4dfe7e389dae0795e93635684a63c2736347abd2327a846d0c75f92b37b43e1f",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/suite_provider_accuracy.rs": "sha256:0913696c63f8d423f7b58d972286b5aa123e2bd3781147e1e8fdc3f0d26e56d3",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.quality.negative-space/7f121a8271f2e7959a357b7b3db96cfb6d1be67bd9a648a175b09e3c06269cc4.json",
+        "sha256": "sha256:9a2822646415968f3979f2f648fcc311b2349a82d9f11246da094cf4801bfe7c"
+      },
+      "provider": "legacy.quality.negative-space",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.quality.negative-space/7f121a8271f2e7959a357b7b3db96cfb6d1be67bd9a648a175b09e3c06269cc4.json",
+        "qualificationDigest": "sha256:7f121a8271f2e7959a357b7b3db96cfb6d1be67bd9a648a175b09e3c06269cc4",
+        "sha256": "sha256:6ba770624ce68d8589a1ed46df5039c4a952a489e18f0c06483b7cdc0482cf05"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.quality.tool-coverage/d3ed9537003a216bd181e6ca734f4ac463ee7ab59b9003d5456ef03b4546ad09.json",
+        "sha256": "sha256:7b43a36ea5695f52ef7e98868361f2674284226864fb06badeffc314c2b7efa9"
+      },
+      "provider": "legacy.quality.tool-coverage",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.quality.tool-coverage/d3ed9537003a216bd181e6ca734f4ac463ee7ab59b9003d5456ef03b4546ad09.json",
+        "qualificationDigest": "sha256:d3ed9537003a216bd181e6ca734f4ac463ee7ab59b9003d5456ef03b4546ad09",
+        "sha256": "sha256:7c85d3158dc69ab97aee61b2c8604cc9c45323c9e09a5556e38bc6ec3230abdb"
+      },
+      "scope": "exact native fact output on named constructed controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "fact-output"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.react.hooks-config/78cad81b2962f5567de14b9fdb598835efb650bf8baf30b48e80a5277530c901.json",
+        "sha256": "sha256:5b266c5c15f493140445ece301d97f0132608764ca684658bcbf4bc5fb13d9cc"
+      },
+      "provider": "legacy.react.hooks-config",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.react.hooks-config/78cad81b2962f5567de14b9fdb598835efb650bf8baf30b48e80a5277530c901.json",
+        "qualificationDigest": "sha256:78cad81b2962f5567de14b9fdb598835efb650bf8baf30b48e80a5277530c901",
+        "sha256": "sha256:befcbf57d8103125611359c9fe7456e6dc7a3bd514068b3b779a56d370e54e30"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.security.binary-pins/090189f7210847eaf49fc77b9a28749d609553f336cd00f4ce5705baa2832cb4.json",
+        "sha256": "sha256:2060335a37ec0d371f677c91ffd77858112179b949290ea40e7d9fbafb93c89f"
+      },
+      "provider": "legacy.security.binary-pins",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.security.binary-pins/090189f7210847eaf49fc77b9a28749d609553f336cd00f4ce5705baa2832cb4.json",
+        "qualificationDigest": "sha256:090189f7210847eaf49fc77b9a28749d609553f336cd00f4ce5705baa2832cb4",
+        "sha256": "sha256:bcecaea269ab8e8eec623527ce66bee6593b2d1c555eb5f4d547d89841cfe6e7"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.security.dependency-pinning/9edbef623227426078a55b4993605abeb2133e68c7a3ec0f6053a34c1b202d0b.json",
+        "sha256": "sha256:d46b6fe21ff57fd7ac2783e266aab4cc6dfa713e398cb8bf028eda613e6862ec"
+      },
+      "provider": "legacy.security.dependency-pinning",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.security.dependency-pinning/9edbef623227426078a55b4993605abeb2133e68c7a3ec0f6053a34c1b202d0b.json",
+        "qualificationDigest": "sha256:9edbef623227426078a55b4993605abeb2133e68c7a3ec0f6053a34c1b202d0b",
+        "sha256": "sha256:f01e66345258a0935987cab68a56a79b6229bff0178de029070044f97aa6b691"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.security.vendored-dependencies/8275eeb021666ef779a2a21f32bf375164ee2245c6ce8d9fd69e06d3c3fbab28.json",
+        "sha256": "sha256:55fb5d40ce3f64de58ea21cb36998b66a38b8cb36c54345681dd1133f08ea101"
+      },
+      "provider": "legacy.security.vendored-dependencies",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.security.vendored-dependencies/8275eeb021666ef779a2a21f32bf375164ee2245c6ce8d9fd69e06d3c3fbab28.json",
+        "qualificationDigest": "sha256:8275eeb021666ef779a2a21f32bf375164ee2245c6ce8d9fd69e06d3c3fbab28",
+        "sha256": "sha256:added957a5b45e0d2f41907042c02e978139d46d2ca7286882896b5eb3ee5143"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.tauri.capabilities/9037adccf4b64978a105b4d9117e35f4a31dcb8196dcbbbe952e4a526b996091.json",
+        "sha256": "sha256:a84dc457d9849149ece97e2cf12a36c9026a2be21ce9a210d1f0db6345ee0ff7"
+      },
+      "provider": "legacy.tauri.capabilities",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.tauri.capabilities/9037adccf4b64978a105b4d9117e35f4a31dcb8196dcbbbe952e4a526b996091.json",
+        "qualificationDigest": "sha256:9037adccf4b64978a105b4d9117e35f4a31dcb8196dcbbbe952e4a526b996091",
+        "sha256": "sha256:ae7bbbdf2f61b675ac40ec01246a6c44a093aee0802ab91f26ea8e1a7f04b21e"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/legacy.tauri.contract-mirror/52894b5f521a5787eb4650d3520555a55e5e659d3d86ec34e62706539d6ebadb.json",
+        "sha256": "sha256:e6d8eddc6c1b4924ac1601f0b6344e1e19b5798f3dbfae76a08682b7395dbf51"
+      },
+      "provider": "legacy.tauri.contract-mirror",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/legacy.tauri.contract-mirror/52894b5f521a5787eb4650d3520555a55e5e659d3d86ec34e62706539d6ebadb.json",
+        "qualificationDigest": "sha256:52894b5f521a5787eb4650d3520555a55e5e659d3d86ec34e62706539d6ebadb",
+        "sha256": "sha256:cf7a32c02bd3fcac8cbfd0132c8e80e8739c53ef9565aa6d73b6882de7386d22"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:4bdf06c51e6ec18721b11be555edf184fa38cfd743a38fd0cdd6f7a96db1a919",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/legacy_file_accuracy.rs": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/requirements.traceability/417f44e113b6ad9b12f17586faeb27bd1118aa183fbbea24de1891836be54ad1.json",
+        "sha256": "sha256:568760ff4a5566defc720cfe1e2e9b8dfa62aef7e41c0f207bb640991f65c4ee"
+      },
+      "provider": "requirements.traceability",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/requirements.traceability/417f44e113b6ad9b12f17586faeb27bd1118aa183fbbea24de1891836be54ad1.json",
+        "qualificationDigest": "sha256:417f44e113b6ad9b12f17586faeb27bd1118aa183fbbea24de1891836be54ad1",
+        "sha256": "sha256:279e730fec356c56b9abbf58436d364300abee35d14ee900a2a93101e7883c8c"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.agent-skill-mcp/ebfc63e815ed32af2ae46080f53407c321ea2de10dad10e9164fd613272579c3.json",
+        "sha256": "sha256:3aab03cd9a28b4ecdbbfb46d678a33b6ca0a2d618c5d5831a76ae534f9f1ce47"
+      },
+      "provider": "security.agent-skill-mcp",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.agent-skill-mcp/ebfc63e815ed32af2ae46080f53407c321ea2de10dad10e9164fd613272579c3.json",
+        "qualificationDigest": "sha256:ebfc63e815ed32af2ae46080f53407c321ea2de10dad10e9164fd613272579c3",
+        "sha256": "sha256:99df20684e6d5251ba78d25059c939e709f16f3e2264e33d768d50a2c2ee1b7c"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1e91100c953123c399d51f0267e60ce847f0214b67f9cc134609bea6cf465a3d",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/security_packs.rs": "sha256:85e6f1b8c432f6a0746e2e7ad568e9cd08fb4c7998ef79cbfe761ffc0880a9c0",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.agentic-ci/2db09d3ab53adc296305ef33efb6267bdd7b9145cbcee5c1bbab44c9535f967a.json",
+        "sha256": "sha256:738e0604f0725bbf7e58e609d04ea3bbdfdacd41511a0d26ce5d98bd5ceb6a19"
+      },
+      "provider": "security.agentic-ci",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.agentic-ci/2db09d3ab53adc296305ef33efb6267bdd7b9145cbcee5c1bbab44c9535f967a.json",
+        "qualificationDigest": "sha256:2db09d3ab53adc296305ef33efb6267bdd7b9145cbcee5c1bbab44c9535f967a",
+        "sha256": "sha256:8a95e4acfa2cff3b206b718ca1f10f69fe4323e1d0630327dfd1f474cd46a57c"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1e91100c953123c399d51f0267e60ce847f0214b67f9cc134609bea6cf465a3d",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/security_packs.rs": "sha256:85e6f1b8c432f6a0746e2e7ad568e9cd08fb4c7998ef79cbfe761ffc0880a9c0",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.credentials/296b3279746b196e5535a9ab44938df865071df9310615cd5026a90728acad55.json",
+        "sha256": "sha256:43ca725d14b53733a5026a56a9796b713a830d0343b42b755434620a632c1c12"
+      },
+      "provider": "security.credentials",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.credentials/296b3279746b196e5535a9ab44938df865071df9310615cd5026a90728acad55.json",
+        "qualificationDigest": "sha256:296b3279746b196e5535a9ab44938df865071df9310615cd5026a90728acad55",
+        "sha256": "sha256:15872eac386c8bbe8f5f085b6c66ac1b199b268819cb433211d040e033cae6f3"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1e91100c953123c399d51f0267e60ce847f0214b67f9cc134609bea6cf465a3d",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/security_packs.rs": "sha256:85e6f1b8c432f6a0746e2e7ad568e9cd08fb4c7998ef79cbfe761ffc0880a9c0",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.insecure-defaults/a92e8b0325075aa314c02ca24bbd079a07934bfb15c1ce9cd11471b0c9b0214f.json",
+        "sha256": "sha256:985a2cc1ad16ce6eca992a4994ad4c03d44a12ac2eb3f8e16068042561ebaa95"
+      },
+      "provider": "security.insecure-defaults",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.insecure-defaults/a92e8b0325075aa314c02ca24bbd079a07934bfb15c1ce9cd11471b0c9b0214f.json",
+        "qualificationDigest": "sha256:a92e8b0325075aa314c02ca24bbd079a07934bfb15c1ce9cd11471b0c9b0214f",
+        "sha256": "sha256:19d849828d55c4e8dd503af5119f41f65977849261b11c6328bc4dbf74296120"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1e91100c953123c399d51f0267e60ce847f0214b67f9cc134609bea6cf465a3d",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/security_packs.rs": "sha256:85e6f1b8c432f6a0746e2e7ad568e9cd08fb4c7998ef79cbfe761ffc0880a9c0",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.misuse-resistance/1f7f4f2af6e5c71c2a892942772a6ec9826e42ecc18c75101e7f5482c2612744.json",
+        "sha256": "sha256:9720451cbd1ec6547a48d5fa630eec04a5d96642f2369a24f5d0d9faa2e1fe93"
+      },
+      "provider": "security.misuse-resistance",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.misuse-resistance/1f7f4f2af6e5c71c2a892942772a6ec9826e42ecc18c75101e7f5482c2612744.json",
+        "qualificationDigest": "sha256:1f7f4f2af6e5c71c2a892942772a6ec9826e42ecc18c75101e7f5482c2612744",
+        "sha256": "sha256:332b9f23782c4a358facd61c4b442d07dc1dcc48ed6bdaa6ff280beffbe36ae2"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1e91100c953123c399d51f0267e60ce847f0214b67f9cc134609bea6cf465a3d",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/security_packs.rs": "sha256:85e6f1b8c432f6a0746e2e7ad568e9cd08fb4c7998ef79cbfe761ffc0880a9c0",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/security.suppression-changes/a6260081b2d84acd091e7170167c553d02b816ace8f56e71a7d844eeabfae98b.json",
+        "sha256": "sha256:0f893e012ec92e6a69c5859ce2dc76d0ba40818f95373db4accf2c8f8b4bf7b9"
+      },
+      "provider": "security.suppression-changes",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/security.suppression-changes/a6260081b2d84acd091e7170167c553d02b816ace8f56e71a7d844eeabfae98b.json",
+        "qualificationDigest": "sha256:a6260081b2d84acd091e7170167c553d02b816ace8f56e71a7d844eeabfae98b",
+        "sha256": "sha256:70ed2f31fd2f491c3d31d0cb4ce3234f431ab0c0de3d85a16ee4ced1217ef133"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:a8348fca7d4d01c73e52df87f30e76f408f450e0f0b1bafca5cb8100ceba76fe",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/artifact_provider_accuracy.rs": "sha256:861fdd0c4d82c54702f4fa4af8e35a6c6d54ce7e5596820bd4439905c36b0077",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "candidate"
+    },
+    {
+      "family": "file",
+      "provenance": {
+        "command": {
+          "harness": [
+            "audit_cargo_test",
+            "--test",
+            "security_packs",
+            "--test",
+            "architecture_input_producer",
+            "--test",
+            "code_provider_accuracy",
+            "--test",
+            "suite_provider_accuracy",
+            "--test",
+            "legacy_file_accuracy",
+            "--test",
+            "artifact_provider_accuracy",
+            "file_only_provider_accuracy",
+            "--",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "validator": [
+            "python3",
+            "scripts/ci/audit-provider-accuracy.py",
+            "--root",
+            "/Users/runner/work/legion/legion",
+            "--receipts",
+            "/Users/runner/work/_temp/legion-provider-qualification/legion-provider-accuracy"
+          ]
+        },
+        "commit": "688ae77bfad616d13920941cb7e3910f3a7f1392",
+        "jobConclusion": "failure",
+        "jobId": 118403262065,
+        "jobName": "ci (macos-15, 22.23.2)",
+        "log": {
+          "path": "qualification/provider-accuracy/logs/39353599942-macos-118403262065.log",
+          "sha256": "sha256:441c30b7b8d86eaa949039446eb779bafc866aef949bc0232ab71cf518ba2c30"
+        },
+        "platform": "macos-15",
+        "repository": "Orthic-Labs/legion",
+        "runAttempt": 1,
+        "runId": 39353599942,
+        "validator": {
+          "path": "scripts/ci/audit-provider-accuracy.py",
+          "sha256": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6"
+        },
+        "workflow": ".github/workflows/ci.yml"
+      },
+      "provenanceVerification": {
+        "path": "qualification/provider-accuracy/verification/test-quality.core/11c75fa8389c323c671741127af72e5d23a571171ec36d41cfa736124cede22c.json",
+        "sha256": "sha256:e8364004dae88b935bce36243e6ae078a7a9d39e35718873859f746a7f7c3c93"
+      },
+      "provider": "test-quality.core",
+      "record": {
+        "encoding": "canonical-json",
+        "path": "qualification/provider-accuracy/records/test-quality.core/11c75fa8389c323c671741127af72e5d23a571171ec36d41cfa736124cede22c.json",
+        "qualificationDigest": "sha256:11c75fa8389c323c671741127af72e5d23a571171ec36d41cfa736124cede22c",
+        "sha256": "sha256:b7d70ef50d6139279e2a32437390dc338ef2a136472e8ad866af3f55c67417f7"
+      },
+      "scope": "constructed planted & clean controls; not a population accuracy estimate",
+      "sourceClosure": {
+        "digest": "sha256:1d3b35cc22b1c0f7effa716a506883d823e7968b66b05b6a9e0293b0d9a93b32",
+        "sources": {
+          ".github/workflows/ci.yml": "sha256:95d7de7bd50a00b4e8a6b00a4ff848ecbdd489a6b942b10a99d80cf860b3c25b",
+          "bench/provider-accuracy-plan.json": "sha256:be14bec6a7ee0a82f81b770989715025a02496b7271ef9ce058af25ad1cb0ad2",
+          "engine/crates/legion-audit/tests/architecture_input_producer.rs": "sha256:474eac60ec8e3ac5a21a9a24b8a4ed8012240f05a17bf6316b5996df285c2961",
+          "qualification/provider-accuracy/schema.json": "sha256:592fe04e55f9db2861a1faa352386873d8f82f6260b1a0909b390586e20536cf",
+          "scripts/ci/audit-provider-accuracy.py": "sha256:d10f75431430005c70a401f934b5f575ab90f46fe0052f7e5255a7840a9456b6",
+          "scripts/ci/audit-qualification-records.py": "sha256:f0146be91ea89afc270894a0dc984aae772216cb34303ec684340a987c83e612",
+          "scripts/ci/right-git-ci.sh": "sha256:4f9241f5f4890f1208b7181f219e634f13f73e75909b23f8d8bbf22102431745",
+          "scripts/ci/tests/test_audit_qualification_records.py": "sha256:eb7ac42b851ad5f3eaae6dc2ea115afdde1a6199a4fee02b652dc736eaea6c32"
+        }
+      },
+      "stage": "finding"
+    }
+  ]
 }
