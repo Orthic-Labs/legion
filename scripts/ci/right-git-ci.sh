@@ -636,7 +636,7 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3 php@8.4
+  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3 php@8.4 llvm cmake
   # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
   # default gem directory because native scanner execution scrubs GEM_HOME.
   export PATH="$(brew --prefix ruby@3.3)/bin:$PATH"
@@ -1349,13 +1349,37 @@ print("deterministic audit-behavior selected-provider A/A × 2 assertions passed
 PY
 fi
 
+# Node's bundled npm rewrites Windows command files to LF; qualification binds
+# exact published npm package bytes, including CRLF files. Reprovision that same
+# pinned npm version in shared Node prefix before taking immutable runtime hashes.
+provision_node_outdated_npm() {
+  local archive="$LEGION_NODE_OUTDATED_RECEIPTS/npm-10.9.8.tgz"
+  local node_prefix
+  node_prefix="$(python3 - <<'NPM_PREFIX'
+from pathlib import Path
+import shutil
+node = Path(shutil.which("node")).resolve(strict=True)
+npm = Path(shutil.which("npm")).resolve(strict=True)
+prefix = node.parent.parent
+assert npm == prefix / "lib/node_modules/npm/bin/npm-cli.js"
+print(prefix)
+NPM_PREFIX
+)" || return
+  curl --fail --location https://registry.npmjs.org/npm/-/npm-10.9.8.tgz \
+    --output "$archive" || return
+  printf '%s  %s\n' 3e68f9b5fcaf1a94ba0e37e6a565c920b2be6bd98998c50970385d6a692af780 "$archive" \
+    | shasum -a 256 --check || return
+  "$node_prefix/bin/node" "$node_prefix/lib/node_modules/npm/bin/npm-cli.js" install \
+    --global --prefix "$node_prefix" --ignore-scripts --no-audit --no-fund --offline "$archive"
+}
 # npm completion controls use shared pinned CI Node/npm; audited fixtures are never installed.
 if [[ "$(uname -s)" == "Darwin" ]]; then
   export LEGION_NODE_OUTDATED_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/node-outdated"
   export LEGION_NODE_OUTDATED_PROVISION="$LEGION_NODE_OUTDATED_RECEIPTS/provision.json"
   mkdir -p "$LEGION_NODE_OUTDATED_RECEIPTS"
-  if python3 scripts/ci/provision-audit-node-outdated.py --root "$GITHUB_WORKSPACE" \
-    --receipts "$LEGION_NODE_OUTDATED_RECEIPTS"; then
+  if provision_node_outdated_npm &&
+    python3 scripts/ci/provision-audit-node-outdated.py --root "$GITHUB_WORKSPACE" \
+      --receipts "$LEGION_NODE_OUTDATED_RECEIPTS"; then
     while IFS= read -r audit_npm_runtime; do
       export "$audit_npm_runtime"
     done < "$LEGION_NODE_OUTDATED_RECEIPTS/runtime.env"

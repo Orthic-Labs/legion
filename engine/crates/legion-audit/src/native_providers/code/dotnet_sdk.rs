@@ -511,7 +511,7 @@ fn plan_inner(
             match *task {
                 "restore" => args.extend([
                     "--locked-mode".into(),
-                    "--no-http-cache".into(),
+                    "--no-cache".into(),
                     "--disable-parallel".into(),
                     "--configfile".into(),
                     config.to_string_lossy().into_owned(),

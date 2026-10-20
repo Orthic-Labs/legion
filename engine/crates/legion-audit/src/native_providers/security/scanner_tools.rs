@@ -542,6 +542,12 @@ impl<'a> Run<'a> {
                         .into_owned(),
                 ),
             ];
+            if tool == "golangci-lint" {
+                // Match exact scanner admission without inheriting host Git or
+                // Python user configuration into the Go toolchain process tree.
+                env.push(("GIT_CONFIG_NOSYSTEM", "1".into()));
+                env.push(("PYTHONNOUSERSITE", "1".into()));
+            }
             if tool == "tflint" {
                 // The producer pins a fresh owned IPC TMPDIR after merging
                 // these values. This empty PATH forbids plugin executables;

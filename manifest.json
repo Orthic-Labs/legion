@@ -164,7 +164,7 @@
         "naming",
         "correctness"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.tool-coverage",
@@ -256,7 +256,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.github-actions-lint",
@@ -268,7 +268,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.js-licenses",
@@ -317,7 +317,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.rust-policy",
@@ -636,7 +636,7 @@
         "kind": "runtime-script",
         "module": "dependency.osv"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -666,7 +666,7 @@
         "kind": "runtime-script",
         "module": "framework.backend"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -985,7 +985,7 @@
         "kind": "legacy-check",
         "check": "swift_lint"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1330,7 +1330,7 @@
         "kind": "legacy-check",
         "check": "docker"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1345,7 +1345,7 @@
         "kind": "legacy-check",
         "check": "ci_lint"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1405,7 +1405,7 @@
         "kind": "legacy-check",
         "check": "cargo_audit"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1615,7 +1615,7 @@
         "kind": "runtime-script",
         "module": "security.opengrep"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1750,7 +1750,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-squawk"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1840,7 +1840,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-brakeman"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,

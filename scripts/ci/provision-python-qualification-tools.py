@@ -308,13 +308,57 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
     def system(path):
         return any(within(Path(os.path.normpath(str(path))), root) for root in SYSTEM_LIBRARY_ROOTS)
 
+    def retained_stream(raw):
+        # Retain exact bytes for ordinary inspector output; oversized output is
+        # explicit, digest-bound & never mistaken for a complete stream.
+        return {"rawBytes": list(raw[:65536]), "bytes": len(raw),
+                "digest": digest_bytes(raw), "complete": len(raw) <= 65536}
+
+    def inspection_identity(path):
+        with path.open("rb") as stream:
+            header = stream.read(4096)
+        return {"path": str(path), "digest": digest_file(path),
+                "bytes": path.stat().st_size, "mode": path.stat().st_mode & 0o7777, "headerBytes": list(header),
+                "inspector": {"path": str(inspector), "digest": digest_file(inspector)}}
+
+    def inspect_output(path, option):
+        args = [str(inspector), "-arch", "arm64", option, str(path)]
+        try:
+            result = subprocess.run(args, check=True, env=environment, stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        except subprocess.CalledProcessError as error:
+            # Preserve actual failed inspection & file identity for fresh CI;
+            # never substitute another architecture or admit an uninspected file.
+            evidence = {**inspection_identity(path), "argv": args, "exitCode": error.returncode,
+                        "stdout": retained_stream(error.stdout), "stderr": retained_stream(error.stderr)}
+            print("NATIVE_MACHO_INSPECTION_FAILURE " + canonical(evidence).decode(), file=sys.stderr, flush=True)
+            raise
+        return result.stdout.decode("utf-8")
+
     def inspect(path):
         if path in cache:
             return cache[path]
-        header = subprocess.run([str(inspector), "-arch", "arm64", "-hv", str(path)], check=True, env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30).stdout
-        require(re.search(r"\b(?:EXECUTE|DYLIB|BUNDLE)\b", header) is not None, "unsupported Mach-O file type: " + str(path))
-        executable = re.search(r"\bEXECUTE\b", header) is not None
-        output = subprocess.run([str(inspector), "-arch", "arm64", "-l", str(path)], check=True, env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30).stdout
+        header = inspect_output(path, "-hv")
+        # Read otool's filetype column, never a type-looking token in a filename
+        # or flags. One requested arm64 slice must yield exactly one header row.
+        lines = header.splitlines()
+        columns = ["magic", "cputype", "cpusubtype", "caps", "filetype", "ncmds", "sizeofcmds", "flags"]
+        rows = [lines[index + 1].split() for index, line in enumerate(lines[:-1]) if line.split() == columns]
+        require(len(rows) == 1 and len(rows[0]) >= len(columns), "ambiguous/malformed Mach-O header: " + str(path))
+        filetype = rows[0][4]
+        if filetype == "OBJECT":
+            require(path.stat().st_mode & 0o111 == 0, "executable-marked Mach-O object refused: " + str(path))
+            # MH_OBJECT is a relocatable linker input, not a dyld image. Keep its
+            # original bytes in the unchanged runtime snapshot, outside this queue.
+            evidence = {**inspection_identity(path), "filetype": filetype,
+                        "argv": [str(inspector), "-arch", "arm64", "-hv", str(path)],
+                        "stdout": retained_stream(header.encode("utf-8"))}
+            print("NATIVE_MACHO_OBJECT_INPUT " + canonical(evidence).decode(), flush=True)
+            cache[path] = (None, [], [])
+            return cache[path]
+        require(filetype in ("EXECUTE", "DYLIB", "BUNDLE"), "unsupported Mach-O file type: " + str(path))
+        executable = filetype == "EXECUTE"
+        output = inspect_output(path, "-l")
         loads, rpaths, command = [], [], None
         for line in output.splitlines():
             match = re.fullmatch(r"\s*cmd (LC_\S+)\s*", line)
@@ -351,7 +395,8 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
     # Python extension modules use the isolated launcher interpreter context;
     # bundled executable images (e.g. semgrep-core) use their own context.
     python_rpaths = tuple(str(expand(value, python_executable, python_executable)) for value in inspect(python_executable)[2])
-    queue = [(path, path if inspect(path)[0] else python_executable, () if inspect(path)[0] else python_rpaths) for path in seeds]
+    queue = [(path, path if inspect(path)[0] else python_executable, () if inspect(path)[0] else python_rpaths)
+             for path in seeds if inspect(path)[0] is not None]
     seen, choices = set(), {}
     while queue:
         loader, executable, inherited = queue.pop(0)
@@ -391,6 +436,7 @@ def native_dependency_closure(initial_roots, exclusions, python_executable):
             if not exempt:
                 roots.add(str(resolved))
                 require(is_arm64_macho(resolved), "non-arm64-Mach-O native dependency")
+                require(inspect(resolved)[0] is not None, "native load command resolved to relocatable object")
                 queue.append((resolved, executable, stack))
         images.append({"path": str(loader), "executable": str(executable), "rpathStack": list(stack), "dependencies": resolved_loads})
     # A candidate found in another context cannot also be claimed absent.

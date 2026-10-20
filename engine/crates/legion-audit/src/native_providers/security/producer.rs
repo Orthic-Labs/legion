@@ -659,19 +659,27 @@ impl<'a> Run<'a> {
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
-        if matches!(tool.as_str(), "brakeman" | "kube-linter" | "trivy")
-            || self.provider.id == "security.opengrep"
+        // Preserve potentially live IPC even when diagnostic retention fails.
+        let ipc_cleanup_error = ipc_namespace.as_mut().and_then(|namespace| {
+            namespace
+                .retain_if_process_tree_unconfirmed(&receipt)
+                .then(|| {
+                    format!(
+                        "sandbox-ipc-cleanup-unconfirmed:{primary}:{}",
+                        namespace.path().display()
+                    )
+                })
+        });
+        if matches!(
+            tool.as_str(),
+            "brakeman" | "kube-linter" | "trivy" | "tflint" | "golangci-lint"
+        ) || self.provider.id == "security.opengrep"
             || self.provider.id == "supply-chain.license-sbom-provenance"
         {
             self.retain_scanner_diagnostic(&receipt)?;
         }
-        if let Some(namespace) = ipc_namespace.as_mut() {
-            if namespace.retain_if_process_tree_unconfirmed(&receipt) {
-                return Err(format!(
-                    "sandbox-ipc-cleanup-unconfirmed:{primary}:{}",
-                    namespace.path().display()
-                ));
-            }
+        if let Some(error) = ipc_cleanup_error {
+            return Err(error);
         }
         if self.provider.id != "secrets.current-history" {
             match receipt.state {

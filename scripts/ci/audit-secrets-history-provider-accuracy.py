@@ -486,6 +486,35 @@ def validate_case(case, scanner, snapshot=False):
     require(TOKEN not in encoded(result).decode(), "normalized result leaked synthetic secret")
     return rows, graph, files
 
+def snapshot_files(manifest, store, selected_files):
+    """Replay selected + deleted changed base files through retained Git objects."""
+    scope = manifest["scope"]
+    require(scope["spec"] == {"kind":"committed"} and scope["changedPaths"] == ["deleted.txt"], "snapshot fixture scope differs")
+    sides = {}
+    for side, entries_name in (("files", "selectedEntries"), ("baseFiles", "baselineEntries")):
+        rows, entries = manifest[side], scope[entries_name]
+        require(set(rows) == set(entries), "snapshot file/entry path set differs")
+        files = {}
+        for path, metadata in rows.items():
+            require(safe_path(path), "snapshot file path unsafe")
+            entry = entries[path]
+            keys(entry, {"mode", "oid"})
+            require(entry["mode"] in ("100644", "100755") and entry["oid"] in store
+                    and store[entry["oid"]][0] == "blob", "snapshot file object differs")
+            body = store[entry["oid"]][1]
+            require(metadata == {"digest":digest(body), "bytes":len(body), "mode":entry["mode"]}, "snapshot file seal differs")
+            files[path] = body
+        sides[side] = files
+    require(sides["files"] == selected_files, "snapshot selected source differs")
+    require(sides["baseFiles"] == {**selected_files, "deleted.txt":('token = "' + TOKEN + '"\n').encode()},
+            "snapshot deleted baseline source differs")
+    files = dict(sides["files"])
+    for path in scope["changedPaths"]:
+        if path not in files and path in sides["baseFiles"]:
+            files[path] = sides["baseFiles"][path]
+    return files
+
+
 def validate_record(root, row, live=False):
     root = Path(root).resolve()
     keys(row, {"schema", "family", "provider", "stage", "status", "claimScope", "productionQualification", "installedCliAdmission", "admissionScope", "modelCalls", "harness", "repositoryRoot", "evidenceRoot", "sources", "scanner", "cases", "controls", "snapshot", "signature", "qualificationDigest"})
@@ -533,7 +562,7 @@ def validate_record(root, row, live=False):
     snapshot_manifest = parsed(raw_manifest)
     _, _, sf = validate_case(snapshot["case"],scanner, snapshot=True)
     sm = snapshot["case"]["manifest"]["manifest"]
-    require(sm["snapshotDigest"] == digest(encoded(snapshot_manifest, sort=False)) and sm["scopeDigest"] == digest(encoded(snapshot_manifest["scope"], sort=False)) and snapshot["selectedOid"] == sm["selectedOid"] and snapshot["excludedBranch"] not in sm["tips"] and sf == planted[2], "snapshot scope/source binding differs")
+    require(sm["snapshotDigest"] == digest(encoded(snapshot_manifest, sort=False)) and sm["scopeDigest"] == digest(encoded(snapshot_manifest["scope"], sort=False)) and snapshot["selectedOid"] == sm["selectedOid"] and snapshot["excludedBranch"] not in sm["tips"] and sf == snapshot_files(snapshot_manifest, object_store(snapshot["case"]["objects"]), planted[2]), "snapshot scope/source binding differs")
     # Raw manifest is authenticated separately from public per-case history proof.
     require(snapshot_manifest["executionRoot"] == sm["executionRoot"] and snapshot_manifest["scope"]["sourceRoot"] == sm["sourceRoot"], "snapshot original source differs")
     keys(row["controls"], REJECTIONS | INCOMPLETE)

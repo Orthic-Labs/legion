@@ -572,10 +572,27 @@ fn case(planted: bool) -> Value {
     assert_eq!(entry.provider, PROVIDER);
     assert!(!entry.skipped);
     let result = &entry.result;
+    // Preserve original reduced failures & actual SDK receipt/stream artifacts
+    // before assertions unwind Fixture and delete its private run directory.
+    let mut diagnostics = Vec::<Value>::new();
+    if let Ok(files) = fs::read_dir(run.join("native-diagnostics")) {
+        for file in files {
+            let file = file.unwrap();
+            let bytes = fs::read(file.path()).unwrap();
+            diagnostics.push(serde_json::from_slice(&bytes).unwrap());
+            if let Some(directory) = std::env::var_os("LEGION_PROVIDER_BENCHMARK_DIR") {
+                let target = PathBuf::from(directory).join("native-diagnostics");
+                fs::create_dir_all(&target).unwrap();
+                fs::write(target.join(file.file_name()), &bytes).unwrap();
+            }
+        }
+    }
     eprintln!(
         "REAL_SCANNER_CASE_DIAGNOSTIC {}",
         serde_json::to_string(&json!({
-            "providerId": PROVIDER, "planted": planted, "actualProviderResult": result
+            "providerId": PROVIDER, "planted": planted, "actualProviderResult": result,
+            "policyDecisions": policy.decisions.lock().unwrap().clone(),
+            "nativeDiagnostics": diagnostics
         }))
         .unwrap()
     );

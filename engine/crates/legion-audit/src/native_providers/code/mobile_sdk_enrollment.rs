@@ -273,9 +273,7 @@ pub(super) fn source_snapshot(root: &Path) -> Result<Value, String> {
                             benchmark.remove(name);
                         }
                     }
-                    sha256_text(
-                        &serde_json::to_vec(&value).map_err(|_| "source-registry-serialization")?,
-                    )
+                    canonical_digest(&value, "source-registry-serialization")?
                 } else {
                     sha256_text(&raw)
                 };

@@ -309,7 +309,17 @@ pub(super) fn case(
             .unwrap();
     let files: BTreeMap<_, _> = selected
         .iter()
-        .map(|path| (path.clone(), hex(&fs::read(root.join(path)).unwrap())))
+        .map(|path| {
+            // Snapshot inventory includes deleted changed paths from its sealed base side.
+            let bytes = if producer.snapshot_manifest.is_some() {
+                crate::snapshot::FrozenSnapshot::source_for_root(root, path, 512 * 1024 * 1024)
+                    .unwrap()
+                    .0
+            } else {
+                fs::read(root.join(path)).unwrap()
+            };
+            (path.clone(), hex(&bytes))
+        })
         .collect();
     let runs = producer.retained_secret_runs.lock().unwrap();
     assert_eq!(runs.len(), 2);

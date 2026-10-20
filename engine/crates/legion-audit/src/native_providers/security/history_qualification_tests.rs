@@ -422,6 +422,10 @@ fn native_current_history_qualification() {
         .iter()
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
+    assert!(!snapshot.manifest.files.contains_key("deleted.txt"));
+    assert!(snapshot.manifest.base_files.contains_key("deleted.txt"));
+    assert!(snapshot_paths.iter().any(|path| path == "deleted.txt"));
+    assert!(!snapshot_root.join("deleted.txt").exists());
     record::failure(
         &mut controls,
         "snapshot-without-manifest",
