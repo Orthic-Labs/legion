@@ -67,6 +67,7 @@ fi
 
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
+python3 -m unittest discover -s scripts/ci/tests -p test_semgrep_raw_record_digest.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py

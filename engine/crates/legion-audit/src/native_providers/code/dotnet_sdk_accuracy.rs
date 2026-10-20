@@ -32,6 +32,19 @@ fn qualification_applies(opt_in: bool, provider: &str, task: &str) -> bool {
     opt_in && provider == ID && task == "test"
 }
 
+pub(super) fn apply_qualification_environment(
+    opt_in: bool,
+    provider: &str,
+    task: &str,
+    environment: &mut BTreeMap<String, String>,
+    allowlist: &mut BTreeSet<String>,
+) {
+    if qualification_applies(opt_in, provider, task) {
+        environment.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into(), "1".into());
+        allowlist.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into());
+    }
+}
+
 #[test]
 fn loopback_admission_requires_explicit_dotnet_test_opt_in() {
     for opt_in in [false, true] {
@@ -41,6 +54,24 @@ fn loopback_admission_requires_explicit_dotnet_test_opt_in() {
                     qualification_applies(opt_in, provider, task),
                     opt_in && provider == ID && task == "test"
                 );
+                let mut environment = BTreeMap::from([("EXISTING".into(), "value".into())]);
+                let mut allowlist = BTreeSet::from(["EXISTING".into()]);
+                apply_qualification_environment(
+                    opt_in,
+                    provider,
+                    task,
+                    &mut environment,
+                    &mut allowlist,
+                );
+                let mut expected_environment =
+                    BTreeMap::from([("EXISTING".into(), "value".into())]);
+                let mut expected_allowlist = BTreeSet::from(["EXISTING".into()]);
+                if opt_in && provider == ID && task == "test" {
+                    expected_environment.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into(), "1".into());
+                    expected_allowlist.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into());
+                }
+                assert_eq!(environment, expected_environment);
+                assert_eq!(allowlist, expected_allowlist);
             }
         }
     }
@@ -529,6 +560,10 @@ impl ExactPolicy {
         for (key, value) in values {
             env.insert(key.into(), value);
             allowed.insert(key.into());
+        }
+        if task == "test" {
+            env.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into(), "1".into());
+            allowed.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into());
         }
         for (key, path) in [
             ("HOME", "home"),

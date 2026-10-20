@@ -97,6 +97,67 @@ class DotnetPackageHashTests(unittest.TestCase):
 
 
 class DotnetSdkAdapterTests(unittest.TestCase):
+    def environment_request(self, scratch, enrollment, language, task):
+        control = scratch / "cache/dotnet-control"
+        environment = {
+            "PATH": enrollment["sdkRoot"], "NO_COLOR": "1", "CARGO_NET_OFFLINE": "true",
+            "CARGO_TERM_COLOR": "never", "DOTNET_ROOT": enrollment["sdkRoot"],
+            "DOTNET_MULTILEVEL_LOOKUP": "0", "DOTNET_ROLL_FORWARD": "LatestPatch",
+            "DOTNET_CLI_TELEMETRY_OPTOUT": "1", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+            "DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE": "true", "DOTNET_NOLOGO": "1",
+            "MSBUILDDISABLENODEREUSE": "1", "MSBuildEnableWorkloadResolver": "false",
+            "NUGET_PACKAGES": enrollment["packagesRoot"],
+            "NUGET_HTTP_CACHE_PATH": str(control / "http-cache"),
+            "DOTNET_CLI_HOME": str(control / "home"),
+            "LEGION_DOTNET_INPUT_MANIFEST": str(control / "inputs.json"),
+            "LEGION_DOTNET_FRAMEWORKS": "net8.0",
+            "LEGION_DOTNET_TEST_RESULTS": str(control / "test-results-0"),
+            "HOME": str(control / "home"), "USERPROFILE": str(control / "home"),
+            "XDG_CONFIG_HOME": str(control / "home/.config"),
+            "MSBuildUserExtensionsPath": str(control / "home/msbuild"),
+            "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1", "GIT_CONFIG_NOSYSTEM": "1",
+        }
+        for name, path in (("TMPDIR", "tmp"), ("TEMP", "tmp"), ("TMP", "tmp"),
+                           ("XDG_CACHE_HOME", "cache/xdg"), ("CARGO_TARGET_DIR", "cache/cargo-target"),
+                           ("npm_config_cache", "cache/npm"), ("RUFF_CACHE_DIR", "cache/ruff"),
+                           ("MYPY_CACHE_DIR", "cache/mypy"), ("PYTHONPYCACHEPREFIX", "cache/pycache"),
+                           ("GOCACHE", "cache/go-build")):
+            environment[name] = str(scratch / path)
+        if language == "fsharp" and task == "analyzer":
+            environment["LEGION_DOTNET_FSHARP_FILES"] = '["fsharp/Answer.fs","fsharp/Tests.fs"]'
+        if task == "test":
+            environment["DOTNET_SYSTEM_NET_DISABLEIPV6"] = "1"
+        allowed = set(environment) | {"PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"}
+        return {"environment": environment, "environmentAllowlist": sorted(allowed)}
+
+    def test_ipv6_override_is_exact_and_test_only(self):
+        scratch = PurePosixPath("/native/scratch")
+        enrollment = {"sdkRoot": "/sdk", "packagesRoot": "/sdk/packages"}
+        name = "DOTNET_SYSTEM_NET_DISABLEIPV6"
+        for language in ("csharp", "fsharp", "visualBasic"):
+            for task in validator["TASKS"]:
+                request = self.environment_request(scratch, enrollment, language, task)
+                validator["environment"](request, scratch, enrollment, language, task)
+                if task == "test":
+                    for value in (None, "0", "true", 1):
+                        changed = copy.deepcopy(request)
+                        if value is None:
+                            changed["environment"].pop(name)
+                        else:
+                            changed["environment"][name] = value
+                        with self.subTest(language=language, value=value), self.assertRaisesRegex(AssertionError, "SDK environment differs"):
+                            validator["environment"](changed, scratch, enrollment, language, task)
+                    changed = copy.deepcopy(request)
+                    changed["environmentAllowlist"].remove(name)
+                    with self.subTest(language=language, field="allowlist"), self.assertRaisesRegex(AssertionError, "SDK environment allowlist differs"):
+                        validator["environment"](changed, scratch, enrollment, language, task)
+                else:
+                    changed = copy.deepcopy(request)
+                    changed["environment"][name] = "1"
+                    changed["environmentAllowlist"] = sorted(set(changed["environmentAllowlist"]) | {name})
+                    with self.subTest(language=language, task=task), self.assertRaisesRegex(AssertionError, "unbound environment name"):
+                        validator["environment"](changed, scratch, enrollment, language, task)
+
     def test_vstest_diagnostics_bind_exact_case_control_path_for_test_only(self):
         scratch = PurePosixPath("/native/qualification case")
         enrollment = {"packagesRoot": "/sdk/packages",

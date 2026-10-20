@@ -184,6 +184,8 @@ def environment(req, scratch, enrollment, language, task):
     for name, path in (("TMPDIR", "tmp"), ("TEMP", "tmp"), ("TMP", "tmp"), ("XDG_CACHE_HOME", "cache/xdg"), ("CARGO_TARGET_DIR", "cache/cargo-target"), ("npm_config_cache", "cache/npm"), ("RUFF_CACHE_DIR", "cache/ruff"), ("MYPY_CACHE_DIR", "cache/mypy"), ("PYTHONPYCACHEPREFIX", "cache/pycache"), ("GOCACHE", "cache/go-build")):
         expected[name] = str(scratch / path)
     optional = {"PATHEXT", "SystemRoot", "COMSPEC", "CARGO_HOME", "RUSTUP_HOME", "GOPATH", "GOROOT", "GOMODCACHE"}
+    if task == "test":
+        expected["DOTNET_SYSTEM_NET_DISABLEIPV6"] = "1"
     if language == "fsharp" and task == "analyzer":
         expected["LEGION_DOTNET_FSHARP_FILES"] = json.dumps(["fsharp/Answer.fs", "fsharp/Tests.fs"], separators=(",", ":"))
     require(set(actual) - set(expected) <= optional, "unbound environment name")

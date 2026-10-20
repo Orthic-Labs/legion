@@ -23,6 +23,8 @@ const SKIP_PREFIXES: &[&str] = &[
     "docs/foundation/",
     "node_modules/",
     "qualification/provider-accuracy/logs/",
+    "qualification/provider-accuracy/evidence/",
+    "qualification/provider-accuracy/records/*/evidence/",
 ];
 const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
 const ROSTER_ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
@@ -485,12 +487,24 @@ pub fn check_canonical_names(root: &Path) -> Result<Report, String> {
 fn tracked_files_naming(root: &Path) -> Result<Vec<String>, String> {
     Ok(tracked_files(root)?
         .into_iter()
-        .filter(|p| {
-            !SKIP_PREFIXES
-                .iter()
-                .any(|prefix| format!("{p}/").starts_with(prefix))
-        })
+        .filter(|p| !skipped_naming_path(p))
         .collect())
+}
+
+fn skipped_naming_path(path: &str) -> bool {
+    let path = format!("{path}/");
+    SKIP_PREFIXES.iter().any(|prefix| {
+        if let Some((parent, child)) = prefix.split_once("*/") {
+            // A wildcard covers exactly one provider directory, never its siblings.
+            path.strip_prefix(parent)
+                .and_then(|relative| relative.split_once('/'))
+                .is_some_and(|(provider, relative)| {
+                    !provider.is_empty() && relative.starts_with(child)
+                })
+        } else {
+            path.starts_with(prefix)
+        }
+    })
 }
 
 pub fn run(root: &Path, json: bool) -> bool {
@@ -537,4 +551,39 @@ pub fn run(root: &Path, json: bool) -> bool {
         }
     }
     report.status == "pass"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::skipped_naming_path;
+
+    #[test]
+    fn immutable_qualification_evidence_is_skipped_for_every_provider() {
+        for path in [
+            "qualification/provider-accuracy/logs/run.log",
+            "qualification/provider-accuracy/evidence/framework.backend/native-results.jsonl",
+            "qualification/provider-accuracy/records/code.mobile/evidence/digest/mobile-native-after.json",
+            "qualification/provider-accuracy/records/code.rust/evidence/digest/cases/positive/receipt.json",
+            "qualification/provider-accuracy/records/future.provider/evidence/payload.json",
+        ] {
+            assert!(skipped_naming_path(path), "{path}");
+        }
+    }
+
+    #[test]
+    fn active_sources_and_evidence_lookalikes_remain_scanned() {
+        for path in [
+            "src/registry/providers.json",
+            "src/config/naming-registry.json",
+            "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs",
+            "qualification/provider-accuracy/index.json",
+            "qualification/provider-accuracy/records/code.mobile/record.json",
+            "qualification/provider-accuracy/records/code.mobile/evidence-extra/payload.json",
+            "qualification/provider-accuracy/records/code.mobile/nested/evidence/payload.json",
+            "qualification/provider-accuracy/evidence-extra/payload.json",
+            "qualification/provider-accuracy/records//evidence/payload.json",
+        ] {
+            assert!(!skipped_naming_path(path), "{path}");
+        }
+    }
 }

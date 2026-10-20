@@ -1224,14 +1224,23 @@ async fn run_one(
                 )
             };
             #[cfg(all(test, target_os = "macos"))]
-            let authentication = dotnet_sdk_accuracy::authenticate_qualification_sandbox(
-                ctx,
-                command.tool,
-                &executable_text,
-                &command.args,
-                &cwd_text,
-            )
-            .unwrap_or_else(authenticate);
+            let authentication = {
+                dotnet_sdk_accuracy::apply_qualification_environment(
+                    ctx.dotnet_qualification_loopback,
+                    ctx.provider_id,
+                    command.tool,
+                    &mut environment,
+                    &mut allowlist,
+                );
+                dotnet_sdk_accuracy::authenticate_qualification_sandbox(
+                    ctx,
+                    command.tool,
+                    &executable_text,
+                    &command.args,
+                    &cwd_text,
+                )
+                .unwrap_or_else(authenticate)
+            };
             #[cfg(not(all(test, target_os = "macos")))]
             let authentication = authenticate();
             match authentication {
