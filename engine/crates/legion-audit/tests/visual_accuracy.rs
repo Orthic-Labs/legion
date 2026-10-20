@@ -617,7 +617,7 @@ fn case(root: &Path, baselines: &Path, capture: &Value, baseline: &Value, plante
         diff["mean_channel_delta"],
         if planted { 127.5 } else { 0.0 }
     );
-    assert_eq!(diff["channel_threshold"], 0);
+    assert_eq!(diff["channel_threshold"], 0.0);
     assert_eq!(diff["max_changed_ratio"], 0.0);
     assert_eq!(diff["masks"], json!([]));
     let findings = analysis["findings"].as_array().unwrap();

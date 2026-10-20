@@ -35,7 +35,9 @@ const HELP: &str = "SIMULATED Claude: --tools --strict-mcp-config --mcp-config -
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|arg| arg == "--help") {
+    if args.first().map(String::as_str) == Some("--simulation-contender") {
+        simulate_contender(&args);
+    } else if args.iter().any(|arg| arg == "--help") {
         let help = if std::env::current_dir()
             .unwrap()
             .join("simulation-no-effort")
@@ -67,6 +69,25 @@ fn main() {
         live_runtime_lock_excludes_another_controller();
         println!("SIMULATION PASS: Audit native host integration (no real model call)");
     }
+}
+
+// Exercise the direct controller in a separate simulated host process. The
+// full Audit CLI also rewrites reports after refusal, which would race the live
+// lock holder & obscure the controller's exclusion guarantee.
+fn simulate_contender(args: &[String]) {
+    assert_eq!(args.len(), 2, "simulation contender requires one run path");
+    let error = review_runtime::run(
+        Path::new(&args[1]),
+        &RuntimeOptions {
+            claude: Some(std::env::current_exe().unwrap()),
+            ..Default::default()
+        },
+    )
+    .expect_err("simulation contender acquired a live controller's run");
+    println!(
+        "{}",
+        json!({"kind":"simulation-runtime-contender","error":error.to_string()})
+    );
 }
 
 fn install_simulation_diagnostics() {
@@ -574,8 +595,8 @@ impl Fixture {
             &json!({"schemaVersion":1,"kind":"audit-provider-plan","repository":repository,"reviewContext":context,"snapshotManifest":snapshot.manifest_path,"nativePlan":{"schemaVersion":1,"digest":plan.digest(),"signature":plan.signature(),"plan":plan.plan()},"binding":{"repositoryRevision":execution.generation,"inventoryDigest":execution.inventory_digest},"seal":{"digest":plan.digest(),"signature":plan.signature(),"authenticity":"hmac-sha256"},"providers":execution.planned_providers,"epoch":{"digest":epoch,"keyFile":EPOCH_KEY_FILE}}),
         );
     }
-    fn command(&self) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_legion"));
+    fn configured_command(&self, executable: &Path) -> Command {
+        let mut command = Command::new(executable);
         command
             .current_dir(&self.repo)
             .env("HOME", &self.home)
@@ -594,7 +615,12 @@ impl Fixture {
             .env_remove("CODEX_SESSION_ID")
             .env_remove("CLAUDE_SESSION_ID")
             .env_remove("AUDIT_PLAN_SIGNING_KEY")
-            .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+            .env_remove("LEGION_NATIVE_APPLICATION_CONFIG");
+        command
+    }
+    fn command(&self) -> Command {
+        let mut command = self.configured_command(Path::new(env!("CARGO_BIN_EXE_legion")));
+        command
             .args(["audit", "run-reasoning", "--run"])
             .arg(&self.run)
             .arg("--claude")
@@ -1095,17 +1121,32 @@ fn live_runtime_lock_excludes_another_controller() {
         .spawn()
         .unwrap();
     wait_for(&fixture.run.join("runtime-host/simulation-ready"));
-    let contender = review_runtime::run(
-        &fixture.run,
-        &RuntimeOptions {
-            claude: Some(std::env::current_exe().unwrap()),
-            ..Default::default()
-        },
+    let contender = fixture
+        .configured_command(&std::env::current_exe().unwrap())
+        .arg("--simulation-contender")
+        .arg(&fixture.run)
+        .output()
+        .unwrap();
+    assert!(
+        contender.status.success(),
+        "simulation contender failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&contender.stdout),
+        String::from_utf8_lossy(&contender.stderr)
     );
-    assert!(contender
-        .unwrap_err()
-        .to_string()
-        .contains("runtime-already-active"));
+    let refusal: Value = serde_json::from_slice(&contender.stdout).unwrap_or_else(|error| {
+        panic!(
+            "simulation contender response invalid:{error}; stdout={} stderr={}",
+            String::from_utf8_lossy(&contender.stdout),
+            String::from_utf8_lossy(&contender.stderr)
+        )
+    });
+    assert_eq!(refusal["kind"], "simulation-runtime-contender");
+    assert!(
+        refusal["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("runtime-already-active")),
+        "simulation contender returned unexpected refusal: {refusal}"
+    );
     fs::write(
         fixture.run.join("runtime-host/simulation-release"),
         b"release",

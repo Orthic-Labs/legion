@@ -645,7 +645,7 @@ fn shipped_registry_qualifies_bench_providers_and_never_requires_an_unqualified_
                     "record": entry["record"]["path"],
                     "recordSha256": entry["record"]["sha256"],
                     "originalQualificationDigest": entry["record"]["qualificationDigest"],
-                    "validationBasis": "source-owned-harness-success",
+                    "validationBasis": "native-family-validator",
                     "stage": "outcome",
                     "scope": "known-answer-fixture-cases",
                     "productionQualification": false,
