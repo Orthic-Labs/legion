@@ -15,9 +15,9 @@ use std::{
 };
 
 pub(super) const VERSION: &str = "v1.9.0";
-const DB_FILES: usize = 4616;
-const DB_DIGEST: &str = "sha256:a79c70ba57625f5f164cc7b96f99c0adb231308bd311817aa768b532b7314901";
-const DB_MODIFIED: &str = "2026-10-08T22:31:09Z";
+const DB_FILES: usize = 4712;
+const DB_DIGEST: &str = "sha256:b3842157f9d3565c2a6bb486f6ebdf1f331339725e8065238f5a2d8e85f37056";
+const DB_MODIFIED: &str = "2026-10-20T00:20:56Z";
 const MAX_FILES: usize = 20000;
 const MAX_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_NODES: usize = MAX_FILES * 2;

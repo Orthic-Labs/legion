@@ -1024,14 +1024,14 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                 );
                 assert_eq!(
                     snapshots["before"]["databaseDigest"],
-                    "sha256:a79c70ba57625f5f164cc7b96f99c0adb231308bd311817aa768b532b7314901"
+                    "sha256:b3842157f9d3565c2a6bb486f6ebdf1f331339725e8065238f5a2d8e85f37056"
                 );
                 assert_eq!(
                     snapshots["before"]["databaseFiles"]
                         .as_object()
                         .unwrap()
                         .len(),
-                    4616
+                    4712
                 );
                 let scanner_row = rows
                     .iter()
