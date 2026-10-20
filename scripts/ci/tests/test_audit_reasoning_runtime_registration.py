@@ -1,5 +1,6 @@
 """Checker units; synthetic values never establish runtime provenance."""
 from pathlib import Path
+import errno
 import hashlib
 import json
 import runpy
@@ -17,6 +18,9 @@ class ThreeMemberCapture:
     its packet, accounting, staged, variant, command or provenance checks.
     """
     def __init__(self, root):
+        # Match runner canonicalization before freezing any absolute binding.
+        # macOS tempfile paths can alias /private/var through /var.
+        root = Path(root).resolve()
         self.root = root
         self.corpus = root / API["FIXTURES"]
         shutil.copytree(Path(__file__).resolve().parents[1] / "fixtures/audit-reasoning-runtime-accuracy", self.corpus)
@@ -320,9 +324,38 @@ class ThreeMemberCapture:
 class ReasoningRegistrationBoundaryTests(unittest.TestCase):
     def test_complete_three_member_capture_validates_all_seventeen_records(self):
         with tempfile.TemporaryDirectory() as temporary:
-            fixture = ThreeMemberCapture(Path(temporary))
+            # Force a noncanonical caller spelling on every host, rather than
+            # relying on CI's macOS /var -> /private/var tempfile alias.
+            detour = Path(temporary) / "detour"
+            detour.mkdir()
+            caller_root = detour / ".." / "capture-root"
+            fixture = ThreeMemberCapture(caller_root)
+            self.assertNotEqual(str(caller_root), str(fixture.root))
+            self.assertEqual(fixture.root, caller_root.resolve())
             self.assertEqual(len(fixture.record_cases), 34)
             self.assertEqual(len(fixture.capture["exports"]), 4)  # Three roots + retained variant child shape.
+            for provider in sorted(API["PROVIDERS"]):
+                with self.subTest(provider=provider):
+                    entry, record = fixture.entry(provider)
+                    retained = API["validate"](fixture.root, entry, record)
+                    self.assertIn(entry["provenanceVerification"]["path"], retained)
+
+    def test_symlink_root_capture_validates_all_seventeen_records(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary).resolve() / "real-root"
+            target.mkdir()
+            alias = target.parent / "root-alias"
+            try:
+                alias.symlink_to(target, target_is_directory=True)
+            except NotImplementedError as error:
+                self.skipTest(f"directory symlinks unsupported: {error}")
+            except OSError as error:
+                if error.errno not in {errno.EACCES, errno.EPERM, errno.ENOSYS, errno.ENOTSUP} and getattr(error, "winerror", None) != 1314:
+                    raise
+                self.skipTest(f"directory symlink unavailable: {error}")
+            fixture = ThreeMemberCapture(alias)
+            self.assertEqual(fixture.root, target)
+            self.assertNotEqual(str(alias), str(fixture.root))
             for provider in sorted(API["PROVIDERS"]):
                 with self.subTest(provider=provider):
                     entry, record = fixture.entry(provider)

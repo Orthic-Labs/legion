@@ -4,7 +4,7 @@ import copy
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import runpy
 import tempfile
 import unittest
@@ -98,7 +98,8 @@ class DotnetPackageHashTests(unittest.TestCase):
 
 class DotnetSdkAdapterTests(unittest.TestCase):
     def sandbox_policy(self):
-        scratch = Path("/native/scratch")
+        # Retained SDK records use macOS POSIX paths even when parsed on Windows.
+        scratch = PurePosixPath("/native/scratch")
         stage = scratch / "cache/dotnet-source"
         profiles = validator["qualification_profiles"](stage)
         requests = []
@@ -123,11 +124,12 @@ class DotnetSdkAdapterTests(unittest.TestCase):
                                ("analyzer", "(deny network*)", "(allow network*)")):
             changed = copy.deepcopy(original)
             changed["profiles"][task] = changed["profiles"][task].replace(old, new)
-            with self.subTest(task=task, replacement=new), self.assertRaises(AssertionError):
+            with self.subTest(task=task, replacement=new), self.assertRaisesRegex(AssertionError, "sandbox task profiles differ"):
                 validator["sandbox_policy"](changed, stage)
 
     def test_qualification_policy_rejects_profile_hash_rebinding(self):
         stage, original = self.sandbox_policy()
+        validator["sandbox_policy"](original, stage)
         for field in ("args", "versionArgs", "sandbox"):
             changed = copy.deepcopy(original)
             request = changed["requests"][-1]
@@ -135,7 +137,40 @@ class DotnetSdkAdapterTests(unittest.TestCase):
                 request[field]["id"] = "sandbox:macos:" + "0" * 64
             else:
                 request[field][1] = "/native/scratch/sandbox/audit-" + "0" * 64 + ".sb"
-            with self.subTest(field=field), self.assertRaises(AssertionError):
+            message = {"args": "sandbox command profile hash differs", "versionArgs": "sandbox version profile hash differs",
+                       "sandbox": "sandbox receipt profile hash differs"}[field]
+            with self.subTest(field=field), self.assertRaisesRegex(AssertionError, message):
+                validator["sandbox_policy"](changed, stage)
+
+    def test_retained_path_parser_accepts_only_canonical_posix_absolute_strings(self):
+        for value in ("/", "/native/scratch", "/native/scratch space", "/native/évidence"):
+            with self.subTest(value=value):
+                self.assertEqual(validator["absolute"](value), PurePosixPath(value))
+        invalid = ("", "native/scratch", "./native/scratch", "../native/scratch",
+                   "/native/../scratch", "/native/./scratch", "/native//scratch", "/native/scratch/",
+                   str(PureWindowsPath("/native/scratch")), str(PureWindowsPath("C:/native/scratch")),
+                   "C:/native/scratch", str(PureWindowsPath("//server/share/scratch")), "//server/share/scratch",
+                   "/native\\scratch", "/native/\0scratch", "/native/\nscratch", "/native/\rscratch",
+                   PurePosixPath("/native/scratch"), PureWindowsPath("C:/native/scratch"))
+        for value in invalid:
+            with self.subTest(value=repr(value)), self.assertRaises(AssertionError):
+                validator["absolute"](value)
+
+    def test_policy_rejects_host_native_reinterpretation_of_retained_paths(self):
+        stage, original = self.sandbox_policy()
+        validator["sandbox_policy"](original, stage)
+        for field in ("scratch", "args", "versionArgs", "filesystemScope"):
+            changed = copy.deepcopy(original)
+            if field == "scratch":
+                changed[field] = str(PureWindowsPath(changed[field]))
+            elif field == "filesystemScope":
+                changed["requests"][-1]["sandbox"][field] = str(PureWindowsPath(stage))
+            else:
+                changed["requests"][-1][field][1] = str(PureWindowsPath(changed["requests"][-1][field][1]))
+            message = {"scratch": "invalid absolute path", "args": "sandbox command profile hash differs",
+                       "versionArgs": "sandbox version profile hash differs",
+                       "filesystemScope": "sandbox receipt profile hash differs"}[field]
+            with self.subTest(field=field), self.assertRaisesRegex(AssertionError, message):
                 validator["sandbox_policy"](changed, stage)
 
     def test_approval_and_confinement_scope_are_digest_bound_and_exact(self):
