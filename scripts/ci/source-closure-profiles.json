@@ -1,0 +1,40 @@
+{
+  "schema": "legion-provider-source-closure-profiles/1",
+  "profiles": {
+    "reasoning-runtime-production/v1": {
+      "family": "reasoning-runtime",
+      "basis": "historical-source-map-projection",
+      "claim": "selected-producing-source-equivalence",
+      "authentication": "original-capture-and-authenticated-binary-retrieval-unchanged",
+      "productionQualification": false,
+      "rationale": "Freshness compares selected producing-source equivalence only. Original CI job/source/binary authentication, full historical capture map & digest, retrieval & host proof remain immutable. This does not claim a current-built binary or installed-production qualification.",
+      "exclusions": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "role": "ci-orchestration",
+          "rationale": "CI scheduling & artifact transport; original job, commit, binary & retrieval authentication remain bound."
+        },
+        {
+          "path": "qualification/provider-accuracy/schema.json",
+          "role": "registration-index-schema",
+          "rationale": "Index format for retained qualification evidence; native capture schema remains included."
+        },
+        {
+          "path": "scripts/ci/audit-qualification-records.py",
+          "role": "registration-consumer",
+          "rationale": "Offline enrollment consumer; does not produce native reasoning outputs."
+        },
+        {
+          "path": "scripts/ci/right-git-ci.sh",
+          "role": "ci-orchestration",
+          "rationale": "CI dispatch & unrelated qualification orchestration; native reasoning runner remains included."
+        },
+        {
+          "path": "scripts/ci/tests/test_audit_qualification_records.py",
+          "role": "registration-consumer-tests",
+          "rationale": "Pure enrollment checker tests; do not execute native reasoning production."
+        }
+      ]
+    }
+  }
+}

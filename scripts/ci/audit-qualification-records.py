@@ -20,6 +20,14 @@ GATE = "scripts/ci/audit-qualification-records.py"
 TEST = "scripts/ci/tests/test_audit_qualification_records.py"
 VERSION = "legion-provider-accuracy-index/1"
 VERIFY_VERSION = "legion-provider-accuracy-provenance-verification/2"
+SOURCE_CLOSURE_PROFILES = "scripts/ci/source-closure-profiles.json"
+REASONING_FRESHNESS_EXCLUSIONS = {
+    "scripts/ci/audit-qualification-records.py": "registration-consumer",
+    "scripts/ci/tests/test_audit_qualification_records.py": "registration-consumer-tests",
+    "qualification/provider-accuracy/schema.json": "registration-index-schema",
+    ".github/workflows/ci.yml": "ci-orchestration",
+    "scripts/ci/right-git-ci.sh": "ci-orchestration",
+}
 BENCH = {"legacy.security.secrets": "secret", "legacy.security.node-dependencies": "dependency_cve",
          "legacy.quality.dead-code": "dead_code", "legacy.quality.duplication": "duplication", "legacy.quality.types": "type_error"}
 BENCH_MANIFEST = "engine/crates/legion-audit/tests/fixtures/bench/manifest.json"
@@ -454,9 +462,56 @@ def closure_paths(root, entry):
     return sorted(paths)
 
 
+def reasoning_freshness_exclusions(root):
+    # Current verification policy, never a new input retroactively added to capture.
+    policy = load(relative_file(root, SOURCE_CLOSURE_PROFILES))
+    keys(policy, {"schema", "profiles"})
+    require(policy["schema"] == "legion-provider-source-closure-profiles/1", "unknown source closure policy version")
+    keys(policy["profiles"], {"reasoning-runtime-production/v1"})
+    profile = policy["profiles"]["reasoning-runtime-production/v1"]
+    keys(profile, {"family", "basis", "claim", "authentication", "productionQualification", "rationale", "exclusions"})
+    require(profile["family"] == "reasoning-runtime" and profile["basis"] == "historical-source-map-projection"
+            and profile["claim"] == "selected-producing-source-equivalence"
+            and profile["authentication"] == "original-capture-and-authenticated-binary-retrieval-unchanged"
+            and profile["productionQualification"] is False, "reasoning freshness policy identity/claim differs")
+    require(isinstance(profile["rationale"], str) and 0 < len(profile["rationale"].strip()) <= 2000,
+            "reasoning freshness policy rationale absent")
+    rows = profile["exclusions"]
+    require(isinstance(rows, list) and len(rows) == len(REASONING_FRESHNESS_EXCLUSIONS), "reasoning freshness exclusions differ")
+    excluded = {}
+    for row in rows:
+        keys(row, {"path", "role", "rationale"})
+        require(isinstance(row["path"], str) and row["path"] in REASONING_FRESHNESS_EXCLUSIONS
+                and row["path"] not in excluded, "unknown/duplicate reasoning freshness exclusion")
+        require(row["role"] == REASONING_FRESHNESS_EXCLUSIONS[row["path"]]
+                and isinstance(row["rationale"], str) and 0 < len(row["rationale"].strip()) <= 2000,
+                "reasoning freshness exclusion role/rationale differs")
+        excluded[row["path"]] = row["role"]
+    same(excluded, REASONING_FRESHNESS_EXCLUSIONS, "reasoning freshness exclusion set differs")
+    return set(excluded)
+
+
 def source_closure(root, entry):
     keys(entry["sourceClosure"], {"sources", "digest"})
-    source_digest = helper("audit-reasoning-runtime-registration.py")["source_digest"] if entry["family"] == "reasoning-runtime" else helper("audit-supply-chain-native-accuracy.py")["source_digest"] if entry["family"] == "supply-chain-native" else helper("validate-compatibility-report-accuracy.py")["source_digest"] if entry["family"] == "compatibility-report" else helper("audit-jvm-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-jvm-sdk" else helper("audit-mobile-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-mobile-sdk" else lambda base, path: digest(relative_file(base, path).read_bytes())
+    if entry["family"] == "reasoning-runtime":
+        historical = entry["sourceClosure"]["sources"]
+        require(isinstance(historical, dict) and historical, "reasoning historical source map malformed")
+        for path, value in historical.items():
+            require(isinstance(path, str) and 0 < len(path) <= 240 and "\\" not in path and ":" not in path
+                    and is_digest(value), "reasoning historical source map malformed")
+            relative = PurePosixPath(path)
+            require(relative.parts and not relative.is_absolute() and str(relative) == path
+                    and len(relative.parts) <= 12 and all(part not in (".", "..") for part in relative.parts),
+                    "reasoning historical source path unsafe")
+        require(entry["sourceClosure"]["digest"] == digest(encoded(historical)), "source closure digest differs")
+        excluded = reasoning_freshness_exclusions(root)
+        require(excluded <= set(historical), "reasoning historical capture exclusion paths missing")
+        api = helper("audit-reasoning-runtime-registration.py")
+        wanted = {path: api["source_digest"](root, path) for path in closure_paths(root, entry) if path not in excluded}
+        same({path: value for path, value in historical.items() if path not in excluded}, wanted,
+             "reasoning producer source closure stale/incomplete")
+        return
+    source_digest = helper("audit-supply-chain-native-accuracy.py")["source_digest"] if entry["family"] == "supply-chain-native" else helper("validate-compatibility-report-accuracy.py")["source_digest"] if entry["family"] == "compatibility-report" else helper("audit-jvm-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-jvm-sdk" else helper("audit-mobile-sdk-accuracy.py")["source_digest"] if entry["family"] == "code-mobile-sdk" else lambda base, path: digest(relative_file(base, path).read_bytes())
     wanted = {path: source_digest(root, path) for path in closure_paths(root, entry)}
     same(entry["sourceClosure"]["sources"], wanted, "source closure stale/incomplete")
     require(entry["sourceClosure"]["digest"] == digest(encoded(wanted)), "source closure digest differs")
@@ -543,7 +598,7 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
         require(start < evidence_line < end and status == 0, "qualification command failed/cancelled or evidence outside span")
         paired_native = role == "harness" and (command in (BENCH_HARNESS, QUALITY_HARNESS, ["audit_tflint_qualification"])
             or command[:3] in [["audit_cargo_test", "--test", ADAPTERS[provider][1]] for provider in HARNESS_CONTROLS])
-        if summary_line is None or paired_native or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "backend_source_facts"], ["audit_cargo_test", "--test", "real_rust_code_accuracy"], ["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
+        if summary_line is None or paired_native or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "ownership_native_accuracy"], ["audit_cargo_test", "--test", "backend_source_facts"], ["audit_cargo_test", "--test", "real_rust_code_accuracy"], ["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             outcomes = re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span)
             expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[2]] if command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS) else [command[3]]
@@ -553,6 +608,15 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
             for test in expected_tests:
                 require(len(re.findall(r"\btest (?:[A-Za-z0-9_]+::)*" + re.escape(test) + r" \.\.\.", span)) == expected_runs,
                         "required harness test name missing/duplicated")
+        if role == "harness" and command[:3] == ["audit_cargo_test", "--test", "ownership_native_accuracy"]:
+            # --nocapture can place native JSON between named prefix & final ok.
+            native_span = re.sub(r"(?m)^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z[ \t]+", "", span)
+            named = re.search(r"(?m)^test (?:[A-Za-z0-9_]+::)*ownership_native_sdk_known_answers \.\.\.", native_span)
+            summary = re.search(r"(?m)^test result: ok\.", native_span)
+            require(named is not None and summary is not None and named.end() < summary.start(),
+                    "ownership native named test/summary order differs")
+            statuses = re.findall(r"(?m)^[ \t]*(ok|FAILED|ignored)(?:[ \t].*)?$", native_span[named.end():summary.start()])
+            require(statuses == ["ok"], "ownership native named test did not pass exactly once")
         if role == "harness" and command == ["audit_compatibility_report_qualification"]:
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             require(re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span) == [("1", "0", "0")],

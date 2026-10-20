@@ -2,8 +2,10 @@
 
 import copy
 import json
+import os
 from pathlib import Path, PurePosixPath
 import runpy
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -1642,6 +1644,356 @@ class RegistrationGateTests(unittest.TestCase):
         path.symlink_to(target)
         with self.assertRaises(AssertionError):
             gate["check"](self.root)
+
+
+class ReasoningSourceClosureProfileTests(unittest.TestCase):
+    """Pure source/provenance checker controls; no qualification execution."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="reasoning-closure-unit-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        self.api = gate["helper"]("audit-reasoning-runtime-registration.py")
+        self.policy = json.loads((SOURCE_ROOT / gate["SOURCE_CLOSURE_PROFILES"]).read_text())
+        self.policy_path = self.root / gate["SOURCE_CLOSURE_PROFILES"]
+        self.policy_path.parent.mkdir(parents=True)
+        self.write_policy(self.policy)
+        self.producers = {
+            "scripts/ci/audit-reasoning-runtime-registration.py", "scripts/ci/run-reasoning-native-qualification.py",
+            "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/cases.json",
+            "engine/crates/legion-audit/src/review_runtime/mod.rs", "engine/crates/legion-audit/src/next.rs",
+            "engine/crates/legion-audit/src/snapshot.rs", "engine/crates/legion-audit/src/plan.rs",
+            "engine/crates/legion-audit/src/integrity.rs", "engine/crates/legion-effects/src/receipt.rs",
+            "engine/Cargo.lock", "src/registry/providers.json",
+        }
+        self.paths = self.producers | set(gate["REASONING_FRESHNESS_EXCLUSIONS"])
+        for relative in self.paths:
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"providers": []}\n' if relative == "src/registry/providers.json" else "original source\n")
+        self.entry = {"family": "reasoning-runtime"}
+        self.entry["sourceClosure"] = {"sources": {path: self.api["source_digest"](self.root, path) for path in self.paths}}
+        self.reseal()
+        current_paths = lambda root, entry: sorted(self.paths)
+        patched = patch.dict(gate["source_closure"].__globals__, {"closure_paths": current_paths})
+        patched.start()
+        self.addCleanup(patched.stop)
+
+    def write_policy(self, policy):
+        self.policy_path.write_text(json.dumps(policy))
+
+    def reseal(self):
+        self.entry["sourceClosure"]["digest"] = gate["digest"](gate["encoded"](self.entry["sourceClosure"]["sources"]))
+
+    def check(self):
+        gate["source_closure"](self.root, self.entry)
+
+    def test_five_consumer_edits_preserve_full_capture_map_and_original_digest(self):
+        original = copy.deepcopy(self.entry)
+        retrieval = {"sourceClosureDigest": self.entry["sourceClosure"]["digest"]}
+        host_proof = copy.deepcopy(retrieval)
+        self.check()
+        for relative in gate["REASONING_FRESHNESS_EXCLUSIONS"]:
+            (self.root / relative).write_text("unrelated consumer change\n")
+            self.check()
+        self.assertEqual(self.entry, original)
+        self.assertEqual(retrieval["sourceClosureDigest"], self.entry["sourceClosure"]["digest"])
+        self.assertEqual(host_proof, retrieval)
+        self.assertNotIn(gate["SOURCE_CLOSURE_PROFILES"], self.entry["sourceClosure"]["sources"])
+
+    def test_every_retained_producer_change_stales_reasoning(self):
+        for relative in self.producers:
+            path = self.root / relative
+            original = path.read_bytes()
+            path.write_bytes(b'{"providers": [{"id":"changed"}]}\n' if relative.endswith("providers.json") else b"changed producer\n")
+            with self.subTest(path=relative), self.assertRaisesRegex(AssertionError, "producer source closure stale"):
+                self.check()
+            path.write_bytes(original)
+
+    def test_missing_historical_producer_and_new_current_producer_reject(self):
+        relative = next(iter(self.producers))
+        captured = self.entry["sourceClosure"]["sources"].pop(relative)
+        self.reseal()
+        with self.assertRaisesRegex(AssertionError, "producer source closure stale"):
+            self.check()
+        self.entry["sourceClosure"]["sources"][relative] = captured
+        self.reseal()
+        new = "engine/crates/legion-runtime/src/new-production-dependency.rs"
+        path = self.root / new
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("new producer\n")
+        self.paths.add(new)
+        with self.assertRaisesRegex(AssertionError, "producer source closure stale"):
+            self.check()
+
+    def test_deleted_current_producer_and_missing_file_reject(self):
+        relative = "engine/crates/legion-audit/src/review_runtime/mod.rs"
+        (self.root / relative).unlink()
+        with self.assertRaisesRegex(AssertionError, "missing reasoning evidence/source"):
+            self.check()
+        self.paths.remove(relative)
+        with self.assertRaisesRegex(AssertionError, "producer source closure stale"):
+            self.check()
+
+    def test_full_historical_digest_checked_before_current_policy(self):
+        self.entry["sourceClosure"]["sources"]["scripts/ci/right-git-ci.sh"] = "sha256:" + "0" * 64
+        with patch.dict(gate["source_closure"].__globals__, {
+                "reasoning_freshness_exclusions": lambda _: self.fail("policy read before full capture digest validation")}):
+            with self.assertRaisesRegex(AssertionError, "source closure digest differs"):
+                self.check()
+
+    def test_unsafe_historical_path_or_malformed_hash_rejects(self):
+        sources = self.entry["sourceClosure"]["sources"]
+        for relative in ["../escape", "/absolute", "x//noncanonical", "x/./noncanonical"]:
+            sources[relative] = "sha256:" + "0" * 64
+            self.reseal()
+            with self.subTest(path=relative), self.assertRaisesRegex(AssertionError, "historical source path unsafe"):
+                self.check()
+            sources.pop(relative)
+        sources["scripts/ci/right-git-ci.sh"] = "not-a-digest"
+        self.reseal()
+        with self.assertRaisesRegex(AssertionError, "historical source map malformed"):
+            self.check()
+
+    def test_capture_cannot_drop_excluded_historical_keys(self):
+        self.entry["sourceClosure"]["sources"].pop("scripts/ci/right-git-ci.sh")
+        self.reseal()
+        with self.assertRaisesRegex(AssertionError, "historical capture exclusion paths missing"):
+            self.check()
+
+    def test_missing_or_symlink_policy_refuses_projection(self):
+        self.policy_path.unlink()
+        with self.assertRaisesRegex(AssertionError, "missing source/record"):
+            self.check()
+        outside = self.root / "policy-alias.json"
+        outside.write_text(json.dumps(self.policy))
+        self.policy_path.symlink_to(outside)
+        with self.assertRaisesRegex(AssertionError, "symlink refused"):
+            self.check()
+
+    def test_other_families_keep_exact_full_map_freshness(self):
+        self.entry["family"] = "file"
+        self.entry["sourceClosure"]["sources"] = {path: gate["digest"]((self.root / path).read_bytes()) for path in self.paths}
+        self.reseal()
+        self.check()
+        (self.root / "scripts/ci/right-git-ci.sh").write_text("unrelated consumer change\n")
+        with self.assertRaisesRegex(AssertionError, "source closure stale/incomplete"):
+            self.check()
+
+    def test_unknown_malformed_or_expanded_policy_rejects(self):
+        def profile(policy):
+            return policy["profiles"]["reasoning-runtime-production/v1"]
+        edits = [lambda p: p.update(schema="unknown/2"),
+                 lambda p: p["profiles"].update({"unknown/2": profile(p)}),
+                 lambda p: profile(p).update(family="other"),
+                 lambda p: profile(p).update(productionQualification=True),
+                 lambda p: profile(p).pop("rationale"),
+                 lambda p: profile(p)["exclusions"][0].pop("rationale"),
+                 lambda p: profile(p)["exclusions"][0].update(rationale=" "),
+                 lambda p: profile(p)["exclusions"][0].update(role="native-producer"),
+                 lambda p: profile(p)["exclusions"].append({"path": "engine/crates/legion-audit/src/review_runtime/mod.rs", "role": "ci-orchestration", "rationale": "unsafe extra"}),
+                 lambda p: profile(p)["exclusions"][0].update(path="../escaping"),
+                 lambda p: profile(p)["exclusions"].pop(),
+                 lambda p: profile(p)["exclusions"].__setitem__(0, profile(p)["exclusions"][1])]
+        for edit in edits:
+            changed = copy.deepcopy(self.policy)
+            edit(changed)
+            self.write_policy(changed)
+            with self.subTest(policy=changed), self.assertRaises(AssertionError):
+                self.check()
+        self.policy_path.write_text('{"schema":"legion-provider-source-closure-profiles/1","schema":"duplicate","profiles":{}}')
+        with self.assertRaisesRegex(AssertionError, "duplicate JSON key"):
+            self.check()
+
+    def test_provider_benchmark_normalization_remains_native_owned(self):
+        path = self.root / "src/registry/providers.json"
+        path.write_text('{"providers": [{"id":"unit", "benchmark":{"status":"old"}}]}')
+        self.entry["sourceClosure"]["sources"]["src/registry/providers.json"] = self.api["source_digest"](self.root, "src/registry/providers.json")
+        self.reseal()
+        path.write_text('{"providers": [{"id":"unit", "benchmark":{"status":"new"}}]}')
+        self.check()
+        path.write_text('{"providers": [{"id":"different", "benchmark":{"status":"new"}}]}')
+        with self.assertRaisesRegex(AssertionError, "producer source closure stale"):
+            self.check()
+
+    def test_original_retrieval_and_host_proof_digests_stay_strict(self):
+        native_units = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/tests/test_audit_reasoning_runtime_registration.py"))
+        fixture = native_units["ThreeMemberCapture"](self.root / "strict-capture")
+        entry, record = fixture.entry("reasoning.correctness")
+        self.api["validate"](fixture.root, entry, record)
+        original = copy.deepcopy(entry)
+        retrieval_ref = entry["provenance"]["binaryRetrievalVerification"]
+        retrieval = json.loads(self.api["reference"](fixture.root, retrieval_ref, "verification").read_text())
+        retrieval["sourceClosureDigest"] = "sha256:" + "0" * 64
+        entry["provenance"]["binaryRetrievalVerification"] = fixture.retain("altered-retrieval.json", retrieval, "verification")
+        with self.assertRaisesRegex(AssertionError, "CI retrieval source binding absent"):
+            self.api["validate"](fixture.root, entry, record)
+        entry = copy.deepcopy(original)
+        proof = json.loads(self.api["reference"](fixture.root, entry["provenanceVerification"], "verification").read_text())
+        proof["sourceClosureDigest"] = "sha256:" + "0" * 64
+        entry["provenanceVerification"] = fixture.retain("altered-host-proof.json", proof, "verification")
+        with self.assertRaisesRegex(AssertionError, "missing source-owned maintainer observation/readback"):
+            self.api["validate"](fixture.root, entry, record)
+
+
+class OwnershipNativeCiTests(unittest.TestCase):
+    """Pure gate/parser units; mock commands never execute native owners."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="ownership-ci-unit-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        self.owner = self.root / "owner"
+        self.owner.write_text("#!/bin/sh\nexit 99\n")
+        self.owner.chmod(0o700)
+        self.identities = self.root / "identities.json"
+        # Placeholder bytes test path gating only; actual schema stays native-owned.
+        self.identities.write_text("{}\n")
+        shell = (SOURCE_ROOT / "scripts/ci/right-git-ci.sh").read_text()
+        self.block = shell.split("# BEGIN ownership native qualification.\n", 1)[1].split(
+            "# END ownership native qualification.", 1)[0]
+
+    def observed_gate(self, configured=None, failed_command="", platform="macOS"):
+        env = {key: value for key, value in os.environ.items() if not key.startswith("LEGION_OWNERSHIP_")}
+        env.update(RUNNER_OS=platform, RUNNER_TEMP=str(self.root / "retained"),
+                   GITHUB_WORKSPACE=str(SOURCE_ROOT), MOCK_CALLS=str(self.root / "calls"),
+                   MOCK_FAILED_COMMAND=failed_command)
+        env.update(configured or {})
+        mock = """set -euo pipefail
+ audit_qualification_failures=0
+ run_audit_qualification() {
+   printf '%s\\n' "$*" >> "$MOCK_CALLS"
+   printf '%s|%s|%s\\n' "$LEGION_OWNERSHIP_NATIVE_OWNER" "$LEGION_OWNERSHIP_FIXTURE_IDENTITIES" "$LEGION_OWNERSHIP_ACCURACY_OUTPUT" >> "$MOCK_CALLS"
+   if [[ "$1" == "$MOCK_FAILED_COMMAND" ]]; then
+     audit_qualification_failures=$((audit_qualification_failures + 1))
+   fi
+ }
+"""
+        result = subprocess.run(["bash", "-c", mock + self.block + '\nprintf "FAILURES=%s\\n" "$audit_qualification_failures"\n'],
+                                env=env, text=True, capture_output=True, check=False, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = (self.root / "calls").read_text().splitlines() if (self.root / "calls").exists() else []
+        return result.stdout + result.stderr, calls
+
+    def configured(self):
+        return {"LEGION_OWNERSHIP_NATIVE_OWNER": str(self.owner),
+                "LEGION_OWNERSHIP_FIXTURE_IDENTITIES": str(self.identities)}
+
+    def test_unset_skips_without_calls_or_enrollment(self):
+        output, calls = self.observed_gate()
+        self.assertIn("OWNERSHIP_NATIVE_UNAVAILABLE", output)
+        self.assertIn("FAILURES=0", output)
+        self.assertEqual(calls, [])
+        self.assertFalse((self.root / "retained").exists())
+
+    def test_partial_empty_and_invalid_paths_fail_without_native_calls(self):
+        for config in ({"LEGION_OWNERSHIP_NATIVE_OWNER": str(self.owner)},
+                       {"LEGION_OWNERSHIP_FIXTURE_IDENTITIES": str(self.identities)},
+                       {"LEGION_OWNERSHIP_NATIVE_OWNER": "", "LEGION_OWNERSHIP_FIXTURE_IDENTITIES": ""},
+                       {**self.configured(), "LEGION_OWNERSHIP_NATIVE_OWNER": "relative-owner"},
+                       {**self.configured(), "LEGION_OWNERSHIP_FIXTURE_IDENTITIES": str(self.root / "missing")}):
+            with self.subTest(config=config):
+                output, calls = self.observed_gate(config)
+                self.assertIn("FAILURES=1", output)
+                self.assertNotIn("OWNERSHIP_NATIVE_UNAVAILABLE", output)
+                self.assertEqual(calls, [])
+
+    def test_symlink_owner_or_identity_path_fails_without_calls(self):
+        for key, source in [("LEGION_OWNERSHIP_NATIVE_OWNER", self.owner),
+                            ("LEGION_OWNERSHIP_FIXTURE_IDENTITIES", self.identities)]:
+            link = self.root / (source.name + "-link")
+            link.symlink_to(source)
+            output, calls = self.observed_gate({**self.configured(), key: str(link)})
+            self.assertIn("FAILURES=1", output)
+            self.assertEqual(calls, [])
+
+    def test_configured_wrong_platform_fails_without_calls(self):
+        output, calls = self.observed_gate(self.configured(), platform="Windows")
+        self.assertIn("FAILURES=1", output)
+        self.assertEqual(calls, [])
+
+    def test_valid_paths_run_once_then_separate_validator_preserving_inputs(self):
+        output, calls = self.observed_gate(self.configured())
+        retained = self.root / "retained/legion-provider-qualification/ownership-native"
+        self.assertIn("FAILURES=0", output)
+        self.assertEqual(calls[0], "audit_cargo_test --test ownership_native_accuracy ownership_native_sdk_known_answers -- --ignored --exact --nocapture --test-threads=1")
+        self.assertEqual(calls[2], f"python3 scripts/ci/validate-ownership-native-accuracy.py --root {SOURCE_ROOT} --receipts {retained}")
+        self.assertEqual(calls[1::2], [f"{self.owner}|{self.identities}|{retained}/controls"] * 2)
+        self.assertEqual(len(calls), 4)
+        self.assertEqual({item.name for item in retained.iterdir()}, {"harness.log", "validator.log"})
+
+    def test_existing_evidence_is_preserved_without_native_calls(self):
+        retained = self.root / "retained/legion-provider-qualification/ownership-native"
+        retained.mkdir(parents=True)
+        original = retained / "harness.log"
+        original.write_text("original bytes")
+        output, calls = self.observed_gate(self.configured())
+        self.assertIn("FAILURES=1", output)
+        self.assertEqual(calls, [])
+        self.assertEqual(original.read_text(), "original bytes")
+
+    def test_native_or_validator_refusal_remains_visible(self):
+        for command in ["audit_cargo_test", "python3"]:
+            with self.subTest(command=command):
+                # Each subcase needs fresh retained evidence & call capture.
+                if (self.root / "calls").exists():
+                    (self.root / "calls").unlink()
+                retained = self.root / "retained/legion-provider-qualification/ownership-native"
+                if retained.exists():
+                    for path in retained.iterdir():
+                        path.unlink()
+                output, calls = self.observed_gate(self.configured(), failed_command=command)
+                self.assertIn("FAILURES=1", output)
+                self.assertEqual(len(calls), 4)
+
+    def test_ownership_requires_exact_ordered_named_test_and_successful_terminals(self):
+        command = ["audit_cargo_test", "--test", "ownership_native_accuracy", "ownership_native_sdk_known_answers",
+                   "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
+        validator = ["python3", "scripts/ci/validate-ownership-native-accuracy.py", "--root", str(SOURCE_ROOT),
+                     "--receipts", str(self.root / "legion-provider-qualification/ownership-native")]
+        proof = {"command": {"harness": command, "validator": validator}}
+        native = "test ownership_native_sdk_known_answers ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;"
+        path = self.root / "terminal.log"
+
+        def observed(result, harness_status=0, validator_status=0, reordered=False, repeated=False):
+            first = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command}),
+                     result, "original", f"AUDIT_QUALIFICATION_COMMAND_END 1 {harness_status}"]
+            second = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": validator}),
+                      "summary", f"AUDIT_QUALIFICATION_COMMAND_END 2 {validator_status}"]
+            pieces = second + first if reordered else first + second
+            if repeated:
+                pieces += ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 3, "argv": command}),
+                           "AUDIT_QUALIFICATION_COMMAND_END 3 0"]
+            lines = "\n".join(pieces).splitlines()
+            path.write_text("\n".join(lines) + "\n")
+            return gate["terminal_checks"](path, proof, {"sha256": "unit-only"}, "unit-summary",
+                                           lines.index("original") + 1, lines.index("summary") + 1)
+
+        self.assertEqual([item["role"] for item in observed(native)], ["harness", "validator"])
+        interrupted = native.replace("... ok", "... OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}\nok")
+        def timestamped(value):
+            return "\n".join("2026-10-20T10:11:12.1234567Z " + line for line in value.splitlines())
+        self.assertEqual([item["role"] for item in observed(interrupted)], ["harness", "validator"])
+        for result in [native, interrupted]:
+            self.assertEqual([item["role"] for item in observed(timestamped(result))], ["harness", "validator"])
+        for result in ("", native + "\n" + native, native.replace("1 passed", "0 passed"),
+                       native.replace("0 ignored", "1 ignored"), native.replace("0 failed", "1 failed"),
+                       native.replace("test result: ok.", "test result: FAILED."),
+                       native.replace("... ok", "... FAILED"), native.replace("... ok", "... ignored"),
+                       interrupted.replace("... OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}", "... FAILED"),
+                       interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed"),
+                       "ok\n" + interrupted.replace("\nok", ""),
+                       interrupted.replace("\nok", "") + "\nok",
+                       timestamped(native.replace("... ok", "... FAILED")),
+                       timestamped(native.replace("... ok", "... ignored")),
+                       timestamped(interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed")),
+                       native.replace("ownership_native_sdk_known_answers", "different_test"),
+                       native + "\ntest ownership_native_sdk_known_answers ... ok"):
+            with self.subTest(result=result), self.assertRaises(AssertionError):
+                observed(result)
+        for options in ({"harness_status": 1}, {"validator_status": 1}, {"reordered": True}, {"repeated": True}):
+            with self.subTest(options=options), self.assertRaises(AssertionError):
+                observed(native, **options)
 
 
 if __name__ == "__main__":

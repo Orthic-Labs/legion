@@ -451,6 +451,66 @@ run_audit_qualification python3 scripts/ci/validate-compatibility-report-accurac
   --root "$GITHUB_WORKSPACE" \
   --record "${RUNNER_TEMP}/legion-provider-qualification/compatibility-report/controls/compatibility.core.json"
 
+# BEGIN ownership native qualification.
+# Owner supplies canonical executable & committed fixture identities; trust remains
+# verified by actual owner calls, native controls & separate strict validator.
+if [[ ! ${LEGION_OWNERSHIP_NATIVE_OWNER+x} && ! ${LEGION_OWNERSHIP_FIXTURE_IDENTITIES+x} ]]; then
+  printf 'OWNERSHIP_NATIVE_UNAVAILABLE: owner executable & fixture identities are unset; no qualification enrolled\n'
+elif [[ "${RUNNER_OS:-}" != "macOS" ]]; then
+  printf '::error::Configured ownership native qualification requires macOS\n' >&2
+  audit_qualification_failures=$((audit_qualification_failures + 1))
+else
+  ownership_accuracy_dir="${RUNNER_TEMP}/legion-provider-qualification/ownership-native"
+  if python3 - "${LEGION_OWNERSHIP_NATIVE_OWNER-}" "${LEGION_OWNERSHIP_FIXTURE_IDENTITIES-}" \
+      "$GITHUB_WORKSPACE" "$ownership_accuracy_dir" <<'OWNERSHIP_PREREQUISITES'
+import os
+from pathlib import Path
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+try:
+    for value in sys.argv[1:3]:
+        require(bool(value), "ownership prerequisite is empty or partially configured")
+        path = Path(value)
+        require(path.is_absolute() and str(path) == value and path.resolve(strict=True) == path
+                and path.is_file(), "ownership prerequisite must be an absolute canonical file")
+    require(os.access(sys.argv[1], os.X_OK), "native ownership owner must be executable")
+    source = Path(sys.argv[3]).resolve(strict=True)
+    output = Path(sys.argv[4])
+    resolved = output.resolve()
+    require(output.is_absolute() and resolved != source and source not in resolved.parents,
+            "ownership retained output must stay outside repository")
+    require(not output.is_symlink() and (not output.exists() or (output.is_dir() and not any(output.iterdir()))),
+            "ownership retained output must be new or empty")
+    output.mkdir(parents=True, exist_ok=True)
+except (ValueError, OSError) as error:
+    print("::error::Ownership native prerequisites refused: " + str(error), file=sys.stderr)
+    sys.exit(1)
+OWNERSHIP_PREREQUISITES
+  then
+    export LEGION_OWNERSHIP_NATIVE_OWNER LEGION_OWNERSHIP_FIXTURE_IDENTITIES
+    export LEGION_OWNERSHIP_ACCURACY_OUTPUT="$ownership_accuracy_dir/controls"
+    run_audit_qualification audit_cargo_test \
+      --test ownership_native_accuracy ownership_native_sdk_known_answers \
+      -- --ignored --exact --nocapture --test-threads=1 \
+      > "$ownership_accuracy_dir/harness.log" 2>&1
+    cat "$ownership_accuracy_dir/harness.log"
+    run_audit_qualification python3 scripts/ci/validate-ownership-native-accuracy.py \
+      --root "$GITHUB_WORKSPACE" --receipts "$ownership_accuracy_dir" \
+      > "$ownership_accuracy_dir/validator.log" 2>&1
+    cat "$ownership_accuracy_dir/validator.log"
+    unset LEGION_OWNERSHIP_ACCURACY_OUTPUT
+  else
+    audit_qualification_failures=$((audit_qualification_failures + 1))
+  fi
+fi
+# END ownership native qualification.
+
 # Existing explicit visual provider: real pinned shared Chrome & retained PNGs.
 # This is separate from file-only controls; no model or system Chrome fallback.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
