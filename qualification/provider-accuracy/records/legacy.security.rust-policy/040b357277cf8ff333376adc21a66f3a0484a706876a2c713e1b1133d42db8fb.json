@@ -1,0 +1,3060 @@
+{
+  "schema": "legion-cargo-deny-sdk-accuracy/1",
+  "provider": "legacy.security.rust-policy",
+  "stage": "candidate",
+  "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+  "productionQualification": false,
+  "qualificationEligible": true,
+  "status": "pass",
+  "modelCalls": 0,
+  "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim",
+  "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+  "binding": {
+    "providerSpec": {
+      "schemaVersion": 2,
+      "id": "legacy.security.rust-policy",
+      "providerVersion": "2.0.0",
+      "family": "security",
+      "lensIds": [
+        "security",
+        "stack"
+      ],
+      "role": "candidate-generator",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "security-candidates"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "**/Cargo.toml",
+          "**/*.rs"
+        ]
+      },
+      "denominatorKind": "Cargo.toml",
+      "runner": {
+        "kind": "legacy-check",
+        "check": "cargo_deny",
+        "tool": "cargo-deny",
+        "requiredWhen": "optional",
+        "applies": "Cargo.toml",
+        "parallel": true,
+        "backs": [
+          "security",
+          "stack"
+        ]
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "candidate",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "selectable": true,
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ]
+    },
+    "providerSpecDigest": "sha256:1f4d2a18b4ebb96a3d0f5c46a7a592c459eeb910708a9f81c6f8e9e68002f933",
+    "sources": {
+      "engine/Cargo.lock": "sha256:fbc70413eb37e77ce85c1061a31d377bea3f311026cb4a35225ecc54d2d13538",
+      "engine/Cargo.toml": "sha256:9c5aa090ccefe103cd28e5da41fbf3b921938d2e65b6046adcdd9625d23136c9",
+      "engine/crates/legion-audit/Cargo.toml": "sha256:6bfe6faa70fcc742a26a647afcabe615984a35d0c10d36a1c062a9ee7c2b2127",
+      "engine/crates/legion-audit/src/continuation.rs": "sha256:97f7cdc62ec094d83b119dd2733a53c1e68b1d5248439b73813724797c4ccf21",
+      "engine/crates/legion-audit/src/dag.rs": "sha256:3a81aeed750c34d796589bfbd054e481a39bc3a3de025307a3352bcee4f02bd9",
+      "engine/crates/legion-audit/src/error.rs": "sha256:61f1eeeb6ac1dbf3328bddd1fc4e52c51314006110a4c1bf4b61fbdecdb8001d",
+      "engine/crates/legion-audit/src/execution.rs": "sha256:1e2bb667feea26dc35eb6ba6b86ef8cbc477b35604da5e5ed1011c84c5dd9d40",
+      "engine/crates/legion-audit/src/execution_policy.rs": "sha256:a5b38006b444caa15c005fbb4c65926490e4bd2c0de004384bca786c29082b03",
+      "engine/crates/legion-audit/src/graph_context.rs": "sha256:cea099880dba0945aa1c036a35f57b872e98c24268680702c98378bf9bb3ca5b",
+      "engine/crates/legion-audit/src/integrity.rs": "sha256:af95401d7d3a08af2aa61bf2e587ed39acad5c980f301697c5242eaf160f43c5",
+      "engine/crates/legion-audit/src/inventory.rs": "sha256:eac665dda016a1a7eb72ad0e9287a01ec41df480bb3f40003d8f6d446958c417",
+      "engine/crates/legion-audit/src/lib.rs": "sha256:7afdc6202b9f2ac51229535dcb79a165511a620dd419efe2f9bff76c17fa69c3",
+      "engine/crates/legion-audit/src/native_providers/architecture/backend.rs": "sha256:9bf2df2b0640648d018e798e2bb3570fb003c86cb4c85251ecc79a1755b44b3d",
+      "engine/crates/legion-audit/src/native_providers/architecture/common.rs": "sha256:35dbfb8ea455b7856b58d093129425a1941cd594f1c9bdca73ee09098ef21b18",
+      "engine/crates/legion-audit/src/native_providers/architecture/compatibility.rs": "sha256:2d9892eb9367a7f1c80f7db9a6823e8e56aabebbe6260c9a0e5160790f3ee8f8",
+      "engine/crates/legion-audit/src/native_providers/architecture/core.rs": "sha256:b79d701e4df5947ac1f037a7ce8cd84a159e331b3ea752371920d56019dbd425",
+      "engine/crates/legion-audit/src/native_providers/architecture/data.rs": "sha256:3646e96467019dd1fda53e6f9b8807d245d1a5eed919ffb35fd414d27929c506",
+      "engine/crates/legion-audit/src/native_providers/architecture/docs.rs": "sha256:e414bc1fcde2cdd2601ab88a2686c16de74defdb9051eba81341192105f3534c",
+      "engine/crates/legion-audit/src/native_providers/architecture/docs_contract.rs": "sha256:4f16bb9fcba4f381062d6caf4ea73f45861127a914e8369339aa4502cf223a3d",
+      "engine/crates/legion-audit/src/native_providers/architecture/evidence.rs": "sha256:dcaf12e998201aa9cf2e6d4070b54e7a7d651b92185de55ed1f117690da527ce",
+      "engine/crates/legion-audit/src/native_providers/architecture/framework.rs": "sha256:e464045efbe2b0aa815be1bb475c3dc1c7a230ef0025365a85ea5aed1f288833",
+      "engine/crates/legion-audit/src/native_providers/architecture/frontend.rs": "sha256:12e915ffd0821e6ed6094b593289d412d2591c04574afb9dfbc1c243900bae91",
+      "engine/crates/legion-audit/src/native_providers/architecture/mod.rs": "sha256:5db110ffb3a532f11e499463e24ac2dba27b82f80336da90e15788681b47da27",
+      "engine/crates/legion-audit/src/native_providers/architecture/producer.rs": "sha256:d466d44fc9a5577bd7866b943518de8851b08e714eb9fe52536b256b1d52e65f",
+      "engine/crates/legion-audit/src/native_providers/architecture/report_compatibility.rs": "sha256:29e429c84d55bbb6449c0148ff9a9e68995cc84ebfe8213131a2a7d515f8067e",
+      "engine/crates/legion-audit/src/native_providers/architecture/requirements.rs": "sha256:b5247d3d311985516665b7bcbb1bbe336662b1b613ca36bab0eacda08e33974a",
+      "engine/crates/legion-audit/src/native_providers/architecture/test_quality.rs": "sha256:92de8a35ec11886383881bb11fdcc8cf90584f084ec80c3b266f44079d13a686",
+      "engine/crates/legion-audit/src/native_providers/availability.rs": "sha256:c90ffbbcfb608635bece768238beeb88f9f3331a3d626d592570146b85581409",
+      "engine/crates/legion-audit/src/native_providers/code/applicability.rs": "sha256:360661e8c206e9335c265feabefc8da472b7ce0f780a031f38d27b842d19d1d6",
+      "engine/crates/legion-audit/src/native_providers/code/c_family.rs": "sha256:f31f8decca48ce7a24bd0da354148584b27272d7293666c32a9aeb0c02bc7dfc",
+      "engine/crates/legion-audit/src/native_providers/code/c_family_native.rs": "sha256:63de6b29161268133bc7c482beb23d9b6d0b5e5bbfedd1267708e983c1c5027c",
+      "engine/crates/legion-audit/src/native_providers/code/common.rs": "sha256:51d4e8e2d1bae78a8530a4908c36c6e94883170610f38d12c0c73e6cc24e36f6",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet.rs": "sha256:6ac0a77b4bb2b752b361478ab63ca8522d967afe4c78ab211dfaeb7a5119f72b",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk.rs": "sha256:3deb140e5b49ffcbb62d0a43ac6dadaa850eda3a15d2ac6458856ed8c64b0773",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk_accuracy.rs": "sha256:4ca5dcf3552f46e9f07d019dc85dcc6ba885aefdcebb5fd7ef3e878558c4016d",
+      "engine/crates/legion-audit/src/native_providers/code/evidence.rs": "sha256:5643e37a8b84b28fe3312fe7d9f781519a3b893d15e12b8e280a7456c5743940",
+      "engine/crates/legion-audit/src/native_providers/code/go.rs": "sha256:09584b27339e3977492708e4c88494264934a1ea8fba4baacd34c154e53c4ef1",
+      "engine/crates/legion-audit/src/native_providers/code/govulncheck.rs": "sha256:8a22144647d51ee049a51cdd918ab783bbb993c14d8d29540dbb414214629379",
+      "engine/crates/legion-audit/src/native_providers/code/javascript.rs": "sha256:dd2b45a96de425b08b383637d4250e090f7664071c31e342f97fdf34ec04f5aa",
+      "engine/crates/legion-audit/src/native_providers/code/javascript_sdk.rs": "sha256:d8cce4dcc942f25311a3edd42bfe636f3da1d6ccf1f3669cbc956c3dac332886",
+      "engine/crates/legion-audit/src/native_providers/code/jvm.rs": "sha256:384bd369d06a064e07753de0e3410910600750d2cd8270024519f32fccbe6e07",
+      "engine/crates/legion-audit/src/native_providers/code/jvm_sdk.rs": "sha256:b665d77e52e92058c84fbb7f1c2be93dc949f0d63a2f2c0a5ee702e2efe04c25",
+      "engine/crates/legion-audit/src/native_providers/code/long_tail.rs": "sha256:11651548a89a8607e80e9a312c585cd785210e3428345f9d3115afc69f5a2601",
+      "engine/crates/legion-audit/src/native_providers/code/mobile.rs": "sha256:fba81a0b349469a3d6f6c106a0709bc09fb4048a67168aab0fd8c9210e022308",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs": "sha256:8c5711dd3f9f1f40b2ed8ec846e7ddab9ed6b35e65e3d9185b06ca63cbee75b4",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_enrollment.rs": "sha256:2c5395da88349a8a1d668d2652394ba7178391527962581d1553daa87837fbaa",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_tests.rs": "sha256:85a27cfa59196ad0cd93edd1071ac11d18de0a831f2429469229429f3133852f",
+      "engine/crates/legion-audit/src/native_providers/code/mod.rs": "sha256:36ac6967cc44ff19e22dd0c7b208b24d1b361e924fcc8ad3d83b3bba9dcacabf",
+      "engine/crates/legion-audit/src/native_providers/code/native_commands.rs": "sha256:761a9b5bc05ebf78a783b674ff312b93f0d2c03497615422a527d4d9cc9150d1",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby.rs": "sha256:3a8704b8578d190bb61c9236faaf0ab267cf91b8094ea55ef7f7bdfae4d7183e",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby_commands.rs": "sha256:74fb89178d986d9a9e6ee3dfa6cf472b22587c424216af1b93da0ee4dfe2f9fa",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby_enrollment.rs": "sha256:d15a4bf12150ee00ff640e58756f4b0fbb7dc79438b70ca19a2ddd2606b91a5b",
+      "engine/crates/legion-audit/src/native_providers/code/python.rs": "sha256:4ef9a4806a98d864ad8ead33d8bb2230c9868ad12b28b5091498b31fdb413898",
+      "engine/crates/legion-audit/src/native_providers/code/python_commands.rs": "sha256:a15113ed829fbdb18b83e3bcd2e50c3c630e8f193e8d7ea50d2685fad6230293",
+      "engine/crates/legion-audit/src/native_providers/code/rubocop.rs": "sha256:c8e27119732be8e5b5d1578b160c84c5c0e7aeebe7433e865dfdb9a7e301b26e",
+      "engine/crates/legion-audit/src/native_providers/code/rust.rs": "sha256:86dcf2a2ac57b90b749946f133229185b050f05dc280166a4d191437ab71411e",
+      "engine/crates/legion-audit/src/native_providers/code/rust_dependency.rs": "sha256:1420aa6cb678cafaf7e370f4937e44424abe0bacc58e7b29ff1a4973ec543d30",
+      "engine/crates/legion-audit/src/native_providers/code/tools.rs": "sha256:69c0a2344213a44bbde8e1f389d0feb05430374095bca8f78a3a51d4e576cf27",
+      "engine/crates/legion-audit/src/native_providers/legacy/accessibility.rs": "sha256:ae4aa30fe70c4eafe13c2b89104162ecc1b8143474d278853c9d8be71af3827c",
+      "engine/crates/legion-audit/src/native_providers/legacy/accessibility_internal_suite.rs": "sha256:01afa70076575dcdcd5ee6ed4404101b4abf8aced615594e0c5857236dc9df7f",
+      "engine/crates/legion-audit/src/native_providers/legacy/adapter.rs": "sha256:065cd7d3ade34dd7f6834036154e4bff39e8703b1ab8d6a17d7c4858e41a176d",
+      "engine/crates/legion-audit/src/native_providers/legacy/candidate_suites.rs": "sha256:6b1511be41f81f56667cb6ff2f262527a09e6c96f1940fff9c9151e571745022",
+      "engine/crates/legion-audit/src/native_providers/legacy/common.rs": "sha256:14e7d946fcc0308d55b51b7f4f20c218b496dfb48048e85a74538b3bc1c6b93a",
+      "engine/crates/legion-audit/src/native_providers/legacy/framework.rs": "sha256:ebca74953cec365107b928d784867d3d341e0e16ae3c59de8b712a1e9c307736",
+      "engine/crates/legion-audit/src/native_providers/legacy/framework_major_suite.rs": "sha256:2e5bc0bac9eeec9d2692edd0fbfd9c2561e3c9b5acb5787bbe2b23cdf144fe60",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance.rs": "sha256:bfb7b7ee39379128412bf8c2cc307c75673e2addd794cf4c8b848072189106e9",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance_ownership.rs": "sha256:259e42f08cd385609f49f23293205e5191693fb9cdaf1175dd868e1a83d70001",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance_policy.rs": "sha256:c3160732ac76f1c5aa40013a474123d345164112d4e74a5ee3860c498ad4ca77",
+      "engine/crates/legion-audit/src/native_providers/legacy/mod.rs": "sha256:d0f5287e0280d9cddd77134e7db10b86ce69ebdecc80f9390bd4daea2394f215",
+      "engine/crates/legion-audit/src/native_providers/legacy/ownership_sdk.rs": "sha256:44d725ba6129abe13b12b69f4c3ae556fd2026326d819e1fc5da150d94028466",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual.rs": "sha256:3e22ef41dfbe41371f6fb2281b10de8287e3af11b3d01b1eb2b12fe8a4c166b9",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual_core.rs": "sha256:064afe0a5bb6acee921f9c00d67993718e5a7a66915627c7e673729a6673875d",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual_png.rs": "sha256:e5a8260b9006a7aaa8998d9e627cc74ec0920daacb4500a2dca835dd3812fab0",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/attested_runs.rs": "sha256:ef21ca12a37e6520b986dd9d6e00f0295e3426c682aaf0b9cb6c0b36d606dbaf",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/contracts.rs": "sha256:97b208006b883bed73710c2213a3660afd4831a08785ca8f4001d2566724300d",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/disposable_copy.rs": "sha256:e73b77b9d680bcf787f9538a47d1b354254e115d8283e37d399e279404d764e3",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/mod.rs": "sha256:a7606303a2318555184296a896d7cebde97349f45f40fc1a9fdb4131e12a0036",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/node_outdated.rs": "sha256:3375a0bcdae5cc7ab1e3136ee5fa96409cfe3c54b4aac19c0a849a4ef277f126",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/parsers.rs": "sha256:7faa8cbd650b3f737f561896773e7d1e3651149be73e86aefa2d33a7e5e2c7a4",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/python_requirements.rs": "sha256:4c0b54b384195ab635638a438e053076a269ea85667189efc8ea108dc7038a9e",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/registry.rs": "sha256:3d661c3ee297e0d034a80667cf48c05fa77fc2d22b708b22dab218ebe9a7249f",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/resolver.rs": "sha256:d8a98b7239c7b87828af54314d898729c2231a168a784edbbe6216dd7e1b6dcb",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture.rs": "sha256:6b759fe2c1616907cfa041562910e1d0dfeb2738009e6f262091fe5eda6b8f03",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture_load_tests.rs": "sha256:df35ecbe68bbfec83fa967bc0ca8edbe58f948ce7ee4170c69dfa7370b1f7bbd",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/rust_outdated.rs": "sha256:127e613fa7d79f2bcabe095b8e289d1cfa8993f4364d394e13f086f7098f6022",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/semgrep.rs": "sha256:a6e0ecd7bb0276a61a18722d534d953a7cb7e69c179e1fe70ccfd68f6d7ad4d3",
+      "engine/crates/legion-audit/src/native_providers/mod.rs": "sha256:d344922f848c5632d38a0c6a9c7f8e55c0894517e61c078faf345067a9b89329",
+      "engine/crates/legion-audit/src/native_providers/p11d_quality/mod.rs": "sha256:456b88b0cd963297c64f1e550a1baf08becadd893b4f3e2c2f6ec29707f05d8b",
+      "engine/crates/legion-audit/src/native_providers/p11d_quality/security_suite.rs": "sha256:f3790148fdbbec532a01b6a4b0b1159609a461163a46f54f63a08f496b296b9d",
+      "engine/crates/legion-audit/src/native_providers/reasoning/candidate_routing.rs": "sha256:0e5fb1ec270dee8736b19854688c3d5fd5e08bb6f739ff6d528b5ff2c4752d0b",
+      "engine/crates/legion-audit/src/native_providers/reasoning/coverage_plan.rs": "sha256:0d70ce39823385bb43f61434abaa22e936c25e79458c1be07addce5199cfd8f9",
+      "engine/crates/legion-audit/src/native_providers/reasoning/coverage_regressions.rs": "sha256:fe6fc264fb9d3a9a637d3a9623edfe2a8d9982e3c160d1ee6f5146b762a6ebb5",
+      "engine/crates/legion-audit/src/native_providers/reasoning/excerpts.rs": "sha256:1cd2f75ac0206d28405f8f07383ba18cb0f16d34ad7878f13a1fef61017b13f0",
+      "engine/crates/legion-audit/src/native_providers/reasoning/followup.rs": "sha256:50c673baf0436bd220397f15da737b64798da8e32a8c61b1b840b261c8103431",
+      "engine/crates/legion-audit/src/native_providers/reasoning/ingest.rs": "sha256:57c3f5ae098f0161eeb36d3b81a77a6037a236daaf4b89aac35b42fd6cf50849",
+      "engine/crates/legion-audit/src/native_providers/reasoning/lens_plan.rs": "sha256:f0c69350cef66c9718ba2e9f929d2199b1e85fae306c908fce393dded84505b6",
+      "engine/crates/legion-audit/src/native_providers/reasoning/lens_schemas.rs": "sha256:cebdb63ab97eb08f010ccf07d30d47c5d72a40bb29a41b456e91d97fd5290e7d",
+      "engine/crates/legion-audit/src/native_providers/reasoning/mod.rs": "sha256:4aae405d92f502e88ef790e8cba663bb455d0486ed861d88871cf05e2e085839",
+      "engine/crates/legion-audit/src/native_providers/reasoning/packet_context.rs": "sha256:76aafeeb385112b0316a1f75c9cde54ad11fe48fa2510412d7d69b7f0aeb38e2",
+      "engine/crates/legion-audit/src/native_providers/reasoning/pattern_cards.rs": "sha256:2316578b00dee580d09713572bc64e072721ee6d442348ff95d52b289d55ceb0",
+      "engine/crates/legion-audit/src/native_providers/reasoning/security_adjudication.rs": "sha256:44ada45d993ea0d874164ab4e26ca4216a5b461e62af191fc6ff5eb0ed72c791",
+      "engine/crates/legion-audit/src/native_providers/reasoning/triggers.rs": "sha256:36ec6b1aa9db6e3e2fb674293d373962129a73ca9bb1b4184877d815e23ce808",
+      "engine/crates/legion-audit/src/native_providers/security/adapter.rs": "sha256:610554aaca2d8f2a4b559b8bac5f743a5872ecf5f1cd13ae3af0bf3c50517b5b",
+      "engine/crates/legion-audit/src/native_providers/security/ast_grep.rs": "sha256:739d00ac70a0500dd8753e82cd5ae61fe23c4fd2f1d16aa5a006922d6e4e46fc",
+      "engine/crates/legion-audit/src/native_providers/security/common.rs": "sha256:bf9efe6361366114f2e73a20b39587011eec66b4d370903e913884b3ce8e668b",
+      "engine/crates/legion-audit/src/native_providers/security/container_iac.rs": "sha256:0e471e43779e02143c30e7746b6de347b564fd000f65bf17ea9a8922fd556968",
+      "engine/crates/legion-audit/src/native_providers/security/dependency_osv.rs": "sha256:9aa883f9d1bd6b3a2db9d58e86af709bad0391049be5f8358ea8f0a8d5cb05c7",
+      "engine/crates/legion-audit/src/native_providers/security/history.rs": "sha256:70958be337dc662d8a2630de0e807850bf781a057c212041cee71d936a1010bc",
+      "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs": "sha256:90fe27a2243a7e388ab58a9c3121acf56e2b9277681032ad3a36542baddc248c",
+      "engine/crates/legion-audit/src/native_providers/security/history_qualification_tests.rs": "sha256:7ab10af58bb76419a44064609acd487faed267b8474ed1202b75af50be03698b",
+      "engine/crates/legion-audit/src/native_providers/security/imported_sarif.rs": "sha256:1033fc9e5e29c622d81606f72709bef9a83bbc4f6eede1cdc9d559fc53e0f562",
+      "engine/crates/legion-audit/src/native_providers/security/mod.rs": "sha256:382ac076dff108f6dfa13106193494ae49f3c2a92d1ce4f0bd978c3f0e7f2674",
+      "engine/crates/legion-audit/src/native_providers/security/opengrep.rs": "sha256:3107dbb12643b88e5c5d6eb4e6c2a5ac9c24d6d5ba3c5a68b6bd3344c6fbbdab",
+      "engine/crates/legion-audit/src/native_providers/security/packs.rs": "sha256:25ffd3ca1ce9c20275f2b0137d9c64986411f68b4d8392e65ebb2f954f0ad0b4",
+      "engine/crates/legion-audit/src/native_providers/security/producer.rs": "sha256:9a288034e23ed72e6db420ee78e3fb21a9676dc984587a239fbbd3a341fb2818",
+      "engine/crates/legion-audit/src/native_providers/security/scanner_tools.rs": "sha256:7f58fcc3edbc3f0dd6d895c7faa4c131cd3ad523068e26ed4737988f21d6eff2",
+      "engine/crates/legion-audit/src/native_providers/security/scanners.rs": "sha256:c7cc2f05a0a6353c6d28fb39eb2bf2e2697cc54a6f4476caa7bd161e7b229aa5",
+      "engine/crates/legion-audit/src/native_providers/security/secrets.rs": "sha256:9ef6d8a78c28f60c64d681990187167f98adca1b3864f908ac2ce81fec4f63dd",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain.rs": "sha256:468f7f22485d3e6d2e3f41d24527ab7fab80c18b360d57c868f9b8f36a4f6d4f",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain_documents.rs": "sha256:85a8def28fb897d41d15a02fb820b5df491d18d96d0b36e49794f5b851584142",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain_qualification_tests.rs": "sha256:e12317cbe9443093d0f6ea39055aa22290d3661fc0cf7a6511b2dc8912c50f93",
+      "engine/crates/legion-audit/src/native_providers/security/suppressions.rs": "sha256:7e2b0409d8bdf80b7744966be2aa7df3579e00fe154f269f6821de9ef2107d63",
+      "engine/crates/legion-audit/src/next.rs": "sha256:99c3e6e581499d35c47d1500364481ae1181ce6ff8785979ea8ecf278c930259",
+      "engine/crates/legion-audit/src/normalize.rs": "sha256:522c320ac951a9979e85da7533d377d07a9d1c703a03b04f6f0bec6bb491722f",
+      "engine/crates/legion-audit/src/p12_pipeline/mod.rs": "sha256:9be8d40810c841645438cb71b764d037be5f4af6aa89aeddfa47b55bdc6b5877",
+      "engine/crates/legion-audit/src/p12_pipeline/store.rs": "sha256:6c02fbc071e7ae5ac96ef9222a2933ed4f6c98282517ab995738d32c6c743f13",
+      "engine/crates/legion-audit/src/plan.rs": "sha256:f6ef9313c81c49aafa9e03f37a6706aa6de3cd7be9919d76ab734806360f7a7d",
+      "engine/crates/legion-audit/src/report.rs": "sha256:691564b76011c2c7badfa42b3d8686a5ea1a901ec7998ed5503fe8fd83945a7c",
+      "engine/crates/legion-audit/src/review_runtime/batch.rs": "sha256:b1827a59f2233c05397c27eb1efbeb3e74894a4f07806e000dcaee832306d29c",
+      "engine/crates/legion-audit/src/review_runtime/cost.rs": "sha256:46ece3568b9199e5b2a23401237453fd69d952043354c84d93b5a8026fea04a2",
+      "engine/crates/legion-audit/src/review_runtime/gather.rs": "sha256:92eb6ccbe8f2e65125b73aa29645c02a3d5f606c593dcbe1bb4b71a31b3e34b2",
+      "engine/crates/legion-audit/src/review_runtime/mod.rs": "sha256:51d9c4d7c5c3e4ac8355a2d8e088b03fefed4ad0a7be57568e613ce0a6001531",
+      "engine/crates/legion-audit/src/review_runtime/model.rs": "sha256:99c72385abc7d4df6d5c4b84b1227fbf5ed392362951de54393a07ce82c48c88",
+      "engine/crates/legion-audit/src/review_runtime/native.rs": "sha256:65e241ee30464b9156d9d7054f7c3da60d38febab7c7106927d9d2a2290c6caf",
+      "engine/crates/legion-audit/src/review_runtime/partial.rs": "sha256:506c918a2b0c1a1d4cf2a8b22f682e73f44abad7f2829f8b510215d7e7ff2eeb",
+      "engine/crates/legion-audit/src/review_runtime/projection.rs": "sha256:8f8db69ed091de89edb5806edc413c37d09e372709e1b448a8484232eb6ebf3b",
+      "engine/crates/legion-audit/src/review_runtime/qualification.rs": "sha256:47719d618f1c01352702d15118ad62766803130fb53005d68b21074f8d6bd6ef",
+      "engine/crates/legion-audit/src/review_runtime/tools.rs": "sha256:d8845f3b929a0cd0478d5729dc4b34bcba06ed8255061eba31c145d457d4887a",
+      "engine/crates/legion-audit/src/review_runtime/verification.rs": "sha256:926d4b5c544851a5264bd1f68c89d4435cc7b20f09bb8f3413e33007ce99411c",
+      "engine/crates/legion-audit/src/scope.rs": "sha256:e7b1923a25349d897491d4d30f6df2b37455578b9aae44d9be2e63917fe46f4e",
+      "engine/crates/legion-audit/src/snapshot.rs": "sha256:c2f2c486363f79659994261a62764fa7831e6fdfaf87ca25bd535299085aad54",
+      "engine/crates/legion-audit/src/source_cache.rs": "sha256:2f19a2f403bcaf9759239e92fc45d1dc919d77512d437ee63b8871058edc2ff0",
+      "engine/crates/legion-audit/src/verify.rs": "sha256:ab18d127f95c25e282a1138fbe2f6f5a9076ab203c573b7bef2aab9d184448cd",
+      "engine/crates/legion-audit/src/wf_port/mod.rs": "sha256:c1d7c0c75c91ecc2c91c87d7c6f5adb5c634866a3da8bb039a67b184d5690fc8",
+      "engine/crates/legion-audit/src/wf_port/wf010/external_process.rs": "sha256:6694b9349064f5ae6efbbb82b28418d38c23cddbdbfe76e81ac156f1bd5da8b2",
+      "engine/crates/legion-audit/src/wf_port/wf010/mod.rs": "sha256:3ee7bfc79fea3211371d0773a2d41f162382d55daf0beb0c8c9888140282d006",
+      "engine/crates/legion-audit/src/wf_port/wf010/provider_executor.rs": "sha256:f0a9e1a79753954cf2f5b01ee5b56b41a77693c313de4172eb5e5fd6e4b4e902",
+      "engine/crates/legion-audit/src/wf_port/wf010/provider_registry.rs": "sha256:6581524507c6c2418cc6fa3b5f35ef13f62f24a27e38543752ee12933331501f",
+      "engine/crates/legion-audit/src/wf_port/wf010/registry.rs": "sha256:4ee050f63a9f6b0d62ab100b7929cd9304ea53b9f02dc49f3a267312c01d4362",
+      "engine/crates/legion-audit/src/wf_port/wf010/runtime_module.rs": "sha256:7b04c57a71c9e5db9e890ffbb7c603226bf38d0b5956c61fe62c572492530397",
+      "engine/crates/legion-audit/src/wf_port/wf010/tool_identity.rs": "sha256:59b3d627fc38367f0d68e0e1549bd9f080405b06339c19eb7b5e6dcc05e59491",
+      "engine/crates/legion-audit/src/wf_port/wf064/common.rs": "sha256:148e38739ca11b2c9964132711f34d55a7890ae384fa05998af812ed147e63a7",
+      "engine/crates/legion-audit/src/wf_port/wf064/complete.rs": "sha256:f67efc6c35bebf6d611f8baf58718aa60a69738cd0f5cf6dacbbcf56fa288e18",
+      "engine/crates/legion-audit/src/wf_port/wf064/finalize.rs": "sha256:7255caa7c479888072c8f2791df103bcacf50b15f5d527bfc45a2b0212186451",
+      "engine/crates/legion-audit/src/wf_port/wf064/mod.rs": "sha256:ca8ce920a3bf34e396ed5c57aaf75446b84dd850bdf94ccc6f44cfa2b9131bb7",
+      "engine/crates/legion-audit/src/wf_port/wf064/plan.rs": "sha256:9757e9b3d9807facd5e98c19db104c6cc158b05a43effad5c4ab6d79de5d9656",
+      "engine/crates/legion-audit/src/wf_port/wf064/run.rs": "sha256:c34bdda47390f3691439817e973a7859c2a0399c6da4020a92b614412c92a028",
+      "engine/crates/legion-audit/src/wf_port/wf064/runtime.rs": "sha256:1b8935f8d9d1df02d0974e71357456d451db1300ae56f37c3d0e4ca142f05600",
+      "engine/crates/legion-audit/src/worktree.rs": "sha256:52874241dea2e44d700f0f7012a21488f5b6f9c2277188e8c8b6bbf6a6aff971",
+      "engine/crates/legion-audit/tests/cargo_deny_accuracy.rs": "sha256:936cd7fbdf038196ef1b9ec44ce8487f965ce8df1353655a53693672a53c9b88",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/RUSTSEC-2021-0145.md": "sha256:89cc90b1a89167c07aa2461ae037595652e177f7ee338269de93f0dcfcd5a22d",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/absence.toml": "sha256:f20de00742ed59051007ffa2373b147800a5b04d55a467ecdd88f6c31a034ec0",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/positive.toml": "sha256:b5eca61ff29c93f0ba478e19f212a8f667004e9b1f787480a02f9fbe3a029f98",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a",
+      "engine/crates/legion-audit/tests/fixtures/cargo-deny/upstream.json": "sha256:e110e4c1163f6d6d46ff1bdcc495086c4559a233e5287bcbd355bde405aba6b4",
+      "engine/crates/legion-contracts/Cargo.toml": "sha256:e303c05c6e383cbc177d814cefa96bbc531177f32400283b6c20b2c01905a023",
+      "engine/crates/legion-contracts/src/agent.rs": "sha256:72707bfed5300f9381163fa033d6990b7ffdd565675ec3919af23899c4b6b311",
+      "engine/crates/legion-contracts/src/canonical.rs": "sha256:555633148a589760c83b25e0a7637ab7d543ac741f2d0a9f23c3c22d28dc2aa3",
+      "engine/crates/legion-contracts/src/enums.rs": "sha256:f7fd5152e6ce77e6c5d27567e03c300b12be28c533de3a4f2d5a9d36014bfcc8",
+      "engine/crates/legion-contracts/src/host.rs": "sha256:47a1d038a6f0afd0b6b166e40d75548cb3af5b8dee5404aafe5ed6e660d644d9",
+      "engine/crates/legion-contracts/src/id.rs": "sha256:42f46af58b90619e729aa64a6fba3932280169499a542673d59e203959722b65",
+      "engine/crates/legion-contracts/src/l2_port/enums.rs": "sha256:1a013706899aa61537e6ad751b435a073824a0ae066595b221276ef94c11453c",
+      "engine/crates/legion-contracts/src/l2_port/executable.rs": "sha256:c6ab509588da71c5cf0e903fe166a743be82d614a6f9e228900832e32a10e779",
+      "engine/crates/legion-contracts/src/l2_port/mod.rs": "sha256:cd8b2396ac68477ec1f0ba383ec6f0fc0866026329e1c64d346a0edf49ec356d",
+      "engine/crates/legion-contracts/src/l2_port/schema_names.rs": "sha256:77df8be112fbd2d520de2b5b589e8a237ebe31fb792c110edc8397c21aa8e01b",
+      "engine/crates/legion-contracts/src/lib.rs": "sha256:dde92ce03f09b1f1717a9a91010481d2999e7d7ac950d1bf169c5a54673c27df",
+      "engine/crates/legion-contracts/src/plan.rs": "sha256:da830b1bfd84fb6ff96d77d039d098c15d480c4c29e3af9142b452ef829c7110",
+      "engine/crates/legion-contracts/src/policy.rs": "sha256:d3213e609c16f5145f654d1c167f3f4f017729043015155bee9ac0fdeb8b591f",
+      "engine/crates/legion-contracts/src/provider.rs": "sha256:0f0f56a8491e57b5a182922e2304f9b2684c108404d5c8143ec5cbef22989057",
+      "engine/crates/legion-contracts/src/provider_result.rs": "sha256:20968234a70e50a7e2d998c5027643993a4fa8ad5887a4c3a39ac2beef4a134c",
+      "engine/crates/legion-contracts/src/receipt.rs": "sha256:65626770c4aab475c2144973214ff629e6be28f764dbacf437d1bc70174491ef",
+      "engine/crates/legion-contracts/src/report.rs": "sha256:79e302b5fcc308504f8a9554b3f81c8c67d101c22b5e5f32423dac64b73a6b9e",
+      "engine/crates/legion-contracts/src/state_root.rs": "sha256:7e9b238494db42942333c684222b5f88f60fb47738b9c987373772704c2059a1",
+      "engine/crates/legion-contracts/src/task.rs": "sha256:92f69a1e00a915abc6fc83cc55f790dd3013562f3a9c57597ef0ceac05a14bc4",
+      "engine/crates/legion-contracts/src/trace.rs": "sha256:8739098333ec9bc66971e431041df4c0e33dccf846373ebd451413af4386189f",
+      "engine/crates/legion-effects/Cargo.toml": "sha256:b0bfab4c589db448d7afbdd8e8edda58d432fc5a7c0cf3da4d023c0380da2fd2",
+      "engine/crates/legion-effects/src/artifact.rs": "sha256:5339c21ce35adc6690fac53f4ee31aea74aae7554721393c5ab134f802b908fd",
+      "engine/crates/legion-effects/src/credential.rs": "sha256:20bfa4858c8d602fec28e90912663a79bec2e91f7ae756cd3a351c2dcc8da774",
+      "engine/crates/legion-effects/src/environment.rs": "sha256:ef8ce22c40a9b43728595e01ab34f1522a2946901e39b0b197c9c5202ffc5ed3",
+      "engine/crates/legion-effects/src/error.rs": "sha256:25787cb6d29e961b78c909f4177881f7a725dc3e812959d2c8f8347f097f0f2d",
+      "engine/crates/legion-effects/src/executable.rs": "sha256:9d5fd18d328d39054f7d519592a496c350a4f6a94f0b7bdef0aa614a9956f21f",
+      "engine/crates/legion-effects/src/executor.rs": "sha256:3a69f7d22745aee63a4523e859178ff8729a8a27e62cd9b14fafd10081e15d1d",
+      "engine/crates/legion-effects/src/gradle_sandbox.rs": "sha256:d1a2b0a069ca49144402c28d3481bae334a77777220cd8918a4c6f6fb57b52c6",
+      "engine/crates/legion-effects/src/lib.rs": "sha256:5453468d02a9c4dd550ee2aa5e6a4ac1e0147601d57d9a326be0719ad519cbae",
+      "engine/crates/legion-effects/src/platform.rs": "sha256:d5cbd5580bde8a4a4fad0a0402bf67b9b72a05cf2e40d9b1ec4f6b85c102e87d",
+      "engine/crates/legion-effects/src/receipt.rs": "sha256:1d6ed4a9ee440c001f16fe80f2f8d1cf027cb537933004e55b7d3c2ec2832330",
+      "engine/crates/legion-effects/src/request.rs": "sha256:0a0d9f820109d8d988121efa50ed24c90cc1da4620694e3d1c123a92a1696f55",
+      "engine/crates/legion-effects/src/sandbox.rs": "sha256:fb78d5c18574a36e6f21c3830e558601b4f5ebe7d75aa8ad84cdc95a99adda20",
+      "engine/crates/legion-effects/src/unix.rs": "sha256:d67bcfbacc606637b562aea4b9dd98c7526a5eec3492f1f4d9aa733a5974a171",
+      "engine/crates/legion-effects/src/windows.rs": "sha256:a16a7d6d5fc55b814f2be403a613ec1142049df9416efef626038d004608f647",
+      "engine/crates/legion-provider-sdk/Cargo.toml": "sha256:5111c851c4c67a6955d92135a5ef5abb6b1bb7b60cf7dba8b1e5457565f10b98",
+      "engine/crates/legion-provider-sdk/src/auth.rs": "sha256:1e5cdfd3fe9abe368b9b1ae5214bf5d8be8dad997d3c885f205c6a414eddbd82",
+      "engine/crates/legion-provider-sdk/src/context.rs": "sha256:429d6a5f2f081b38b0d918aa576d0da010538692963982f1a2bfcd1f0a6cdca7",
+      "engine/crates/legion-provider-sdk/src/coverage.rs": "sha256:5c8a5ee408fb42d74229878af1cc28be53c178f7c922dff28596b480334eb8a2",
+      "engine/crates/legion-provider-sdk/src/error.rs": "sha256:065850a387f9e36f70ef6b173f688da8c1cbafaa57d7961a484a4629615afb31",
+      "engine/crates/legion-provider-sdk/src/external_project_tool.rs": "sha256:f5e48107508b70a35cb0ca4bb83dde1429ffcd25e679a793826002c50178c205",
+      "engine/crates/legion-provider-sdk/src/http_client.rs": "sha256:b97b88c630d13e7dfe9b88347c973cf49ee00fdc1eb742ff2f0a26c8a9181413",
+      "engine/crates/legion-provider-sdk/src/inference.rs": "sha256:d6d6e72b0c8e13265acff9a00d76857001546ba36d1944a8abe12485fa35ec3c",
+      "engine/crates/legion-provider-sdk/src/lib.rs": "sha256:d90a42c20c503ecb8e561a28245145b6461d53b3101da17dd490cf1ed2956a3a",
+      "engine/crates/legion-provider-sdk/src/provider.rs": "sha256:ae2523964411d7c45628bccd69776b6d3f7be2cb827e29f35d02bb56e2d2b3e3",
+      "engine/crates/legion-provider-sdk/src/registry.rs": "sha256:cf28d45688879ae297aef28fe7ba00f6218a9d0ced67daf63f2c53304ec80f88",
+      "engine/crates/legion-provider-sdk/src/result.rs": "sha256:73e6d8ca91f1e48bb302a6cea21b7d865b31df07ead16bfcf6a41e81e6ea831e",
+      "engine/crates/legion-provider-sdk/src/retry.rs": "sha256:d43c4d2b11eae4e0fb5afab03850537513a8c9b5f6728a94032951eda15eec80",
+      "engine/crates/legion-provider-sdk/src/stream.rs": "sha256:4a659b1fab4b12fbb716e7183641bfe925787f0c26a33e8f53f8ed6f8477c720",
+      "engine/crates/legion-provider-sdk/src/testkit.rs": "sha256:4daa713abb02d27c7c777487ee64f1f11894843b51d55a9678f528bba07dba3a",
+      "engine/crates/legion-provider-sdk/src/wf_port/mod.rs": "sha256:887e25964e16c69a65d3f2b896ed1fa5f196858d4c001337e875137f753b5454",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/canonical.rs": "sha256:a66e764791ea4b3eaeda85d0d0219adeaee244b04f1a26fdef05a95dd69c81ca",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/contracts.rs": "sha256:bb3cc63faeaea9bffe8d4f6d1293dca729a3a25638c74379c462196b12f12a4b",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/dag.rs": "sha256:97077ac70858c2a22507ff4235dc73ee21552f38dd31d0680a6b415f4eb03855",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/mod.rs": "sha256:979d34cfe9e5fb1e0c02cd029a48228be76b959d601140f695cb2f51f5e87e8a",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/testkit.rs": "sha256:666974aae250d8ea9a784be6f8027e226d711a556956b67be5dabc7baab063d5",
+      "engine/crates/legion-rules/Cargo.toml": "sha256:019d452373a12aa0f3cd6761432a24d2e9e6daf90a9d0feee9f63c104d0bdae9",
+      "engine/crates/legion-rules/src/compiler.rs": "sha256:f43f964c476d7ccc2953c9400696880bb940833c06618589471c7f88dcb1bfaf",
+      "engine/crates/legion-rules/src/error.rs": "sha256:549975c3f0e7df2dce4b4e8adb16b8fc3603f6b8b443ff81bc25086ec7445fb2",
+      "engine/crates/legion-rules/src/evidence.rs": "sha256:7eece66e56c61fac488d3dcc6a2292f0d8877917b66ec0f31e72e78c828b9fd7",
+      "engine/crates/legion-rules/src/lexical.rs": "sha256:0902d42bef5fb5e3a1480bb1dda616a9645bae36a9305bb90d243ac51b267505",
+      "engine/crates/legion-rules/src/lib.rs": "sha256:e44d6302852cd37e15f58f40862f7e4c4ff6a4dfcb8d0c91df138fdd9a2f32fb",
+      "engine/crates/legion-rules/src/schema.rs": "sha256:593931c1d5961029a07f9e20fc2a6c2f772df423088766559bb4434b5fc9e7bc",
+      "engine/crates/legion-rules/src/structural.rs": "sha256:70afb945abcf8c5d2996f70d81f35da0864164ade5bd57cdf0a3b1e3d5443006",
+      "engine/crates/legion-rules/src/wf_port/mod.rs": "sha256:fcdbdc6dcaf8025ed9b8133d407eb56f031912e3e7367c9a19eab84a9d20a859",
+      "engine/crates/legion-rules/src/wf_port/u06/mod.rs": "sha256:ef1cf2039b6f4aa4acd8cb7db5a881e3cb62854358cec5295ef1b890bc3ac5e7",
+      "engine/rust-toolchain.toml": "sha256:e879701472a698533f43f54989bbf5f3101eb0503472159d32633f3bb8a13fdf",
+      "src/registry/controls/controls/conditional/core.json": "sha256:cfde06b08552cb115dd74463d4ab61a77ea8da6badf8617f5cb7fff3b75b2d46",
+      "src/registry/controls/controls/desktop/core.json": "sha256:0e5dd518ad202b6a3a3bdb852734b1497f121b2eac94a34653d740d125131184",
+      "src/registry/controls/controls/developer-tools/core.json": "sha256:a9cef8924878bdac7b55b3eff36a2950276f960579d6cf15cbd8ebba11ac4ea4",
+      "src/registry/controls/controls/infrastructure-release/core.json": "sha256:08868e50fc49f8f54eba219a841ed78c0ec0351fd2bd6b0a18bce94e3b248380",
+      "src/registry/controls/controls/mobile/core.json": "sha256:d6867105a18f2e3521f73cd701402c7c961682c2f4b0b6911b8812059d6fccd3",
+      "src/registry/controls/controls/service-data/core.json": "sha256:623d5c8f91af05bc601d8d204ec5ad6187b990e25a08218a57c2e443d21a35db",
+      "src/registry/controls/controls/universal/core.json": "sha256:bca072dfcab9578895df1b9dab5132e0a512eba33ebbafcaebb7aa05313924bb",
+      "src/registry/controls/controls/web/core.json": "sha256:e23533415459c2d3f74324e75bcb1b039c93200e8b19ee8e345cee26782698c1",
+      "src/registry/controls/packs/components/infrastructure-release/core.json": "sha256:1377862b6f498d9619beda5a31e07791f9fcbcdc87eeb54666b89ade6808f17b",
+      "src/registry/controls/packs/components/service-data/core.json": "sha256:c899ea9983d0b8e16a40c585f956efd37d6e5a5607fa5825bd3d21caa5f6903b",
+      "src/registry/controls/packs/conditional/core.json": "sha256:37196e5013a2e62cbd760d6b50270f30bd307ad1df8d95c507ced95ee411c1e8",
+      "src/registry/controls/packs/index.json": "sha256:64ecf19696bddb93307069e7515fd1242f58dfc68fbfd2b607e9824967d4db7e",
+      "src/registry/controls/packs/targets/desktop/core.json": "sha256:ed8b07527d504e8382167ffe32f8dfb579755383d94282707b80056ee3b1dc30",
+      "src/registry/controls/packs/targets/developer-tools/core.json": "sha256:4af9527e06d6f562bde4c6a6002c88273b569e2b3e5d0f68f87ef78941ed3578",
+      "src/registry/controls/packs/targets/mobile/core.json": "sha256:c1fc787a0cab635c8d164b01d877aa91bab24c7890ae9fe3550aede6a8353b5e",
+      "src/registry/controls/packs/targets/service/core.json": "sha256:6bac6f16cb00164c99990ab200a5f6ede7c0205504074a2d4e1487ba28d1dd81",
+      "src/registry/controls/packs/targets/web/core.json": "sha256:61baad5c05205c70c8f53977bbf8dd7602cf4dfaba264c30f19ae8f68803e76d",
+      "src/registry/controls/packs/universal/core.json": "sha256:90d650f5e0b3167a578f55958738e94bafa7279ff9258a64b817cf1d117c5da7",
+      "src/registry/controls/sources/catalogue.json": "sha256:455292338c81e6cc48d63d0a7ab5d0595cacba9c185b2923d469b66be1e9847f",
+      "src/registry/controls/sources/creator-audits-v1.json": "sha256:7bdf16db0434312a3a9b1793071f4a8ba1c879d1f2efd6df96eb145875a70542",
+      "src/registry/controls/sources/platform-checklists-v1.json": "sha256:5305e70aa75759e191ed5d5dac9a4645a303912325cfbe55d25adb030d7be518",
+      "src/registry/rules/ast-grep/structural-core.json": "sha256:1f5b0b038bd516210a8ed8bcbdf2cca0d5b7527b9e91401435624ad1e545a63d",
+      "src/registry/rules/code/architecture/core.json": "sha256:0d9e567f3b5605733367b51cfc51ed43810ae4f0be9395c4d3208376d685b634",
+      "src/registry/rules/code/ast-grep/core.json": "sha256:f78d5b142a59df8973fe7969244d51fc61835c428f5edbf7805cadedb34258cf",
+      "src/registry/rules/code/docs-contract/core.json": "sha256:0fa5af5b059e3e8be6c22c1a295969dbcb60414f606498cbd274b1e5492465e1",
+      "src/registry/rules/code/maintainability/core.json": "sha256:0818af2376833df9e870ee21f22d03b9a557915224044cd30073e1c025397025",
+      "src/registry/rules/code/test-quality/core.json": "sha256:6cfc4ead2c42db8a8814834203c4ea6fa03469af43ee581f8a2f380f3750b781",
+      "src/registry/rules/compatibility/core.json": "sha256:00f939a0734f29fe66fb15b5d48e21ec8dc3b1838581f3218c0747fec4eb4a85",
+      "src/registry/rules/copy/anti-slop.json": "sha256:48c6ac7f4d7135975c4323bd19e308dfbd33965c064722a91a6e6b052c17c9c3",
+      "src/registry/rules/copy/clarity.json": "sha256:95e201e18d4c788521da382a187c1aaef0a09649364e3c6151b773fade74176e",
+      "src/registry/rules/copy/core.json": "sha256:5fe1f41dd0aec352bdd621126055f75a7433f5f97174916d8ce774b155612aaf",
+      "src/registry/rules/copy/documentation.json": "sha256:165a127d6c38720b7f48434fdc2b21d9ba231962ceec11564343133fdf1aa0ae",
+      "src/registry/rules/data-integrity/core.json": "sha256:57c3adbb4c979277110df3f1865e0e01ca7ae357a199adb78f5c5d7cb98f3a85",
+      "src/registry/rules/discoverability/core.json": "sha256:287a19af1a41bceda7ad107068135a3d4fa1bdf77d8b88e3d641a92c93db664e",
+      "src/registry/rules/governance/core.json": "sha256:2d8889259ed08316a77c7b516891037ffded95c21d956f82528e52051c0fff0a",
+      "src/registry/rules/narrative/chronology.json": "sha256:0b46e3909f7de8a4f48dfa9eb1bc2dff7febe6db1c1168d09fe37c969245ddaa",
+      "src/registry/rules/opengrep/legion-core.yml": "sha256:2ceaa81ea4513ffbd1f982b178ffc30a18d47766c1c026346fb6b62a16afad58",
+      "src/registry/rules/privacy/core.json": "sha256:d835c9f56e5520d19b07d285d0d26def71bcba012ff19dfb757279cd179a1988",
+      "src/registry/rules/requirements/core.json": "sha256:0c5cf852895b7c5270c1165a4343d02e0eac73aa336c2bb45c9b54f96564f27a",
+      "src/registry/rules/safety/hazards.json": "sha256:0651353148ded0e467b55a20ea5e28d59894e7efa467dcdd2c020adc4f27ea26",
+      "src/registry/rules/security/abuse-observability.json": "sha256:e17e5de6988fbf49a3d1fa08b20ce986019b1b50d670b1ef082928bdf0b107ef",
+      "src/registry/rules/security/ai.json": "sha256:6739e6660d03c92dab156bc23ffbecdd89fee9712a68b9d0ab38f41bb4fa5949",
+      "src/registry/rules/security/boundaries.json": "sha256:932d26f26e7cd822e23a3ace60aded36f6d7459302b2b292aedda1b877601c15",
+      "src/registry/rules/security/browser-http.json": "sha256:7d93b23816cafa4ed79e32a91c9e2a2305502dba040c57eb350388401ee43543",
+      "src/registry/rules/security/creator-derived.json": "sha256:139c7533b4f708e98faccc39321188fd0f082ea467467e168cd63865fe018e4c",
+      "src/registry/rules/security/crypto-data-privacy.json": "sha256:fc1c8db27b2c1b2af459aff17d3c9c1da50485acf2937e5f618bc41b9baf0e9e",
+      "src/registry/rules/security/enums.json": "sha256:3d4e987c66dc6f9ec10f9d17f92094201c81c53e87d0951a102e5c86d2711922",
+      "src/registry/rules/security/injection-output.json": "sha256:0694a8088fb4578b0645e9bd5d6b1006fc27289e614d8e9fb5e3a4b29e283705",
+      "src/registry/rules/security/opengrep/core.json": "sha256:be5241d3951648e74dbecab2300f2c793b1b810d6ef0e5b67fe6fa020ac2250c",
+      "src/registry/rules/security/specialist.json": "sha256:c1ae5f295f696d1dab285e19c3e1db48350c9ea5c3ee6335d64237a1ec609ae0",
+      "src/registry/rules/security/supply-developer-machine.json": "sha256:42f8680e8e3849a2bd41789cdfc6169058e77ca477e3eefaa86a59f8f346c09e",
+      "src/registry/rules/ux/designer-derived.json": "sha256:b3913a1de6ab1f449fc0a5b1387f3c8157396f26cbcf26f9ea8059f33c2b14e9",
+      "src/registry/rules/visual/designer-derived.json": "sha256:f7760a27443f476a3a2cb73cb7862fe01a7360ff1725951285d66db02f905fb1"
+    },
+    "sourcesDigest": "sha256:f9ad45ff29b5ee52af12ebdb61147d15c0e97244b4ae9b827869b9a372fc0080",
+    "fixtureSources": {
+      "absence/Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+      "absence/Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+      "absence/deny.toml": "sha256:d86d73b2a9eb6ecd6314e173dce9b6d62f8a577198cceb7fec0deb9e7ccd6b69",
+      "absence/dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+      "absence/dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+      "absence/src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a",
+      "missing-database/Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+      "missing-database/Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+      "missing-database/deny.toml": "sha256:858961352f6908cdbe72ff234d5357e27d24bbcbc8aec6981c2c049c823ca395",
+      "missing-database/dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+      "missing-database/dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+      "missing-database/src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a",
+      "positive/Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+      "positive/Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+      "positive/deny.toml": "sha256:fe6a5ba3475799c87cff45fbbd7743086332b7cc81b4c47351fefd808654d72a",
+      "positive/dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+      "positive/dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+      "positive/src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+    },
+    "fixtureSourcesDigest": "sha256:f470e384884253c83dda89c685b23c836b9a8766c573c8c8f87526981b015e9e",
+    "fixture": "engine/crates/legion-audit/tests/cargo_deny_accuracy.rs"
+  },
+  "cases": [
+    {
+      "provider": "legacy.security.rust-policy",
+      "control": "positive",
+      "matched": true,
+      "fixtureSources": {
+        "Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+        "Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+        "deny.toml": "sha256:fe6a5ba3475799c87cff45fbbd7743086332b7cc81b4c47351fefd808654d72a",
+        "dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+        "dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+        "src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+      },
+      "configTemplate": "positive.toml",
+      "root": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source",
+      "run": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run",
+      "database": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/database",
+      "gitSetup": [
+        {
+          "args": [
+            "init",
+            "--quiet"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "add",
+            "--",
+            "crates/atty/RUSTSEC-2021-0145.md"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "commit",
+            "--quiet",
+            "-m",
+            "Constructed official advisory subset fixture"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "show",
+            "-s",
+            "--format=%H%n%cI",
+            "HEAD"
+          ],
+          "exitCode": 0,
+          "stdout": "9ecdaea7028b3e2ce246f6fcf0e6f6487f366af2\n2026-10-20T12:13:25+00:00\n",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "ls-tree",
+            "-r",
+            "HEAD"
+          ],
+          "exitCode": 0,
+          "stdout": "100644 blob ece6c8d047039102f74c206a92f4d1eb98c4e613\tcrates/atty/RUSTSEC-2021-0145.md\n",
+          "stderr": ""
+        }
+      ],
+      "metadataToolchain": {
+        "bin": "/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin",
+        "cargoDigest": "sha256:1de2e84c15443b70444eecfa959ff9099dd8c1a5606b6d9ef5bc0ea9c25bc7f9",
+        "rustcDigest": "sha256:a11618eca0956a8aa4372c2bc898690b513cbdfa2cb9125b2a5301e360ed5b49",
+        "cargoVersion": "cargo 1.98.0 (797e8a9bc 2026-08-05)\n",
+        "rustcVersion": "rustc 1.98.0 (88d9e12ae 2026-08-18)\n"
+      },
+      "inventory": {
+        "schemaVersion": 1,
+        "repositoryId": "positive",
+        "generation": "filesystem:sha256:b0a746adcc0ea057e4fd38a4a6b2c16c034849e3def3ad71caf56e2755a74de0",
+        "entries": [
+          {
+            "path": "Cargo.lock",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0"
+          },
+          {
+            "path": "Cargo.toml",
+            "symbols": [],
+            "dependencies": [
+              "legion-policy-dep"
+            ],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707"
+          },
+          {
+            "path": "deny.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:fe6a5ba3475799c87cff45fbbd7743086332b7cc81b4c47351fefd808654d72a"
+          },
+          {
+            "path": "dependency/Cargo.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17"
+          },
+          {
+            "path": "dependency/src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7"
+          },
+          {
+            "path": "src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+          }
+        ],
+        "digest": "sha256:50ca9a7ba4d0a57e35b91244656308f2649bfbf8f959ade6aafb8255cc2e8720"
+      },
+      "frozenProvider": {
+        "id": "legacy.security.rust-policy",
+        "version": "2.0.0",
+        "role": "candidate-generator",
+        "phase": "source",
+        "lensIds": [
+          "security",
+          "stack"
+        ],
+        "dependencies": [],
+        "kind": "typed-external-project-tool",
+        "configuration": {
+          "benchmark": {
+            "status": "qualified",
+            "requiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "qualification": {
+              "basis": "retained-provider-accuracy",
+              "index": "qualification/provider-accuracy/index.json",
+              "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+              "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+              "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+              "validationBasis": "native-family-validator",
+              "stage": "candidate",
+              "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "productionQualification": false,
+              "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+              "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+            }
+          },
+          "consumes": [
+            "blueprint-packet"
+          ],
+          "controlIds": [
+            "security.source-assurance"
+          ],
+          "denominatorCount": 4,
+          "denominatorDigest": "sha256:c79f9e459fa834ef40f0628bfad3672ab5c925a805962a7050547a14c5f3cec7",
+          "denominatorKind": "Cargo.toml",
+          "execution": {
+            "scheduleClass": "parallel-safe",
+            "resourceClaims": {
+              "cpu": 1,
+              "memoryMb": 256,
+              "io": 1,
+              "projectExecution": 0,
+              "browser": 0,
+              "nativeSurface": 0,
+              "virtualMachine": 0,
+              "simulator": 0,
+              "physicalDevice": 0,
+              "externalSystem": 0,
+              "reviewer": 0,
+              "signer": 0
+            },
+            "concurrencyKey": null,
+            "maxParallelism": null,
+            "orderSensitive": false,
+            "interruptible": true,
+            "cachePolicy": "content-addressed",
+            "failurePolicy": "block-dependents"
+          },
+          "family": "security",
+          "hostCapabilities": [],
+          "produces": [
+            "security-candidates"
+          ],
+          "reasoning": {
+            "requirement": "review",
+            "trigger": "candidate",
+            "subjectKind": "provider-result",
+            "freshContext": true,
+            "producerSeparation": true
+          },
+          "runner": {
+            "kind": "legacy-check",
+            "check": "cargo_deny",
+            "tool": "cargo-deny",
+            "requiredWhen": "optional",
+            "applies": "Cargo.toml",
+            "parallel": true,
+            "backs": [
+              "security",
+              "stack"
+            ]
+          },
+          "runnerClass": "typed-external-project-tool",
+          "schemaVersion": 2,
+          "scopes": [
+            "family:security"
+          ],
+          "selectable": true,
+          "selector": {
+            "op": "anyPath",
+            "patterns": [
+              "**/Cargo.toml",
+              "**/*.rs"
+            ]
+          },
+          "sourceSides": {}
+        },
+        "bounds": {
+          "cleanClaim": "evidence-only",
+          "required": true
+        },
+        "cleanClaim": "evidence-only",
+        "benchmarkStatus": "qualified",
+        "benchmarkRequiredForCleanClaim": false,
+        "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+        "required": true
+      },
+      "planDigest": "sha256:3e8a3173d12a83762891e58192f9ec45a870f2dadf76208c9de7b9a878277127",
+      "frozenPlan": {
+        "schemaVersion": 1,
+        "repositoryId": "positive",
+        "inventoryGeneration": "filesystem:sha256:b0a746adcc0ea057e4fd38a4a6b2c16c034849e3def3ad71caf56e2755a74de0",
+        "inventoryDigest": "sha256:50ca9a7ba4d0a57e35b91244656308f2649bfbf8f959ade6aafb8255cc2e8720",
+        "providers": [
+          {
+            "id": "legacy.security.rust-policy",
+            "version": "2.0.0",
+            "role": "candidate-generator",
+            "phase": "source",
+            "lensIds": [
+              "security",
+              "stack"
+            ],
+            "dependencies": [],
+            "kind": "typed-external-project-tool",
+            "configuration": {
+              "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": false,
+                "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+                "qualification": {
+                  "basis": "retained-provider-accuracy",
+                  "index": "qualification/provider-accuracy/index.json",
+                  "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+                  "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+                  "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+                  "validationBasis": "native-family-validator",
+                  "stage": "candidate",
+                  "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "productionQualification": false,
+                  "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+                  "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+                }
+              },
+              "consumes": [
+                "blueprint-packet"
+              ],
+              "controlIds": [
+                "security.source-assurance"
+              ],
+              "denominatorCount": 4,
+              "denominatorDigest": "sha256:c79f9e459fa834ef40f0628bfad3672ab5c925a805962a7050547a14c5f3cec7",
+              "denominatorKind": "Cargo.toml",
+              "execution": {
+                "scheduleClass": "parallel-safe",
+                "resourceClaims": {
+                  "cpu": 1,
+                  "memoryMb": 256,
+                  "io": 1,
+                  "projectExecution": 0,
+                  "browser": 0,
+                  "nativeSurface": 0,
+                  "virtualMachine": 0,
+                  "simulator": 0,
+                  "physicalDevice": 0,
+                  "externalSystem": 0,
+                  "reviewer": 0,
+                  "signer": 0
+                },
+                "concurrencyKey": null,
+                "maxParallelism": null,
+                "orderSensitive": false,
+                "interruptible": true,
+                "cachePolicy": "content-addressed",
+                "failurePolicy": "block-dependents"
+              },
+              "family": "security",
+              "hostCapabilities": [],
+              "produces": [
+                "security-candidates"
+              ],
+              "reasoning": {
+                "requirement": "review",
+                "trigger": "candidate",
+                "subjectKind": "provider-result",
+                "freshContext": true,
+                "producerSeparation": true
+              },
+              "runner": {
+                "kind": "legacy-check",
+                "check": "cargo_deny",
+                "tool": "cargo-deny",
+                "requiredWhen": "optional",
+                "applies": "Cargo.toml",
+                "parallel": true,
+                "backs": [
+                  "security",
+                  "stack"
+                ]
+              },
+              "runnerClass": "typed-external-project-tool",
+              "schemaVersion": 2,
+              "scopes": [
+                "family:security"
+              ],
+              "selectable": true,
+              "selector": {
+                "op": "anyPath",
+                "patterns": [
+                  "**/Cargo.toml",
+                  "**/*.rs"
+                ]
+              },
+              "sourceSides": {}
+            },
+            "bounds": {
+              "cleanClaim": "evidence-only",
+              "required": true
+            },
+            "cleanClaim": "evidence-only",
+            "benchmarkStatus": "qualified",
+            "benchmarkRequiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "required": true
+          }
+        ],
+        "bounds": {
+          "executionPolicy": {
+            "externalProcesses": "owner-admission-required",
+            "admissionStatus": "unavailable",
+            "effectiveMode": "deny-external"
+          },
+          "executionPolicyIdentity": {
+            "id": "audit-native-owner-admission-v1",
+            "version": 1,
+            "digest": "sha256:e24e47a3757b26a14c512083a15a31f89500112c79b81c904d084d1faf153ac8"
+          }
+        },
+        "excludedConditionalProviders": []
+      },
+      "planSignature": "hmac-sha256:cb9a6baa7d582fd246b6947cde99660559cc3189de375f652fac1188a569ce46",
+      "nativeResult": {
+        "schema_version": 1,
+        "provider": "legacy.security.rust-policy",
+        "applicable": true,
+        "required": true,
+        "status": "ok",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:c79f9e459fa834ef40f0628bfad3672ab5c925a805962a7050547a14c5f3cec7",
+          "expected": 4,
+          "examined": 4,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "candidates": [
+            {
+              "id": "sha256:eff284bd066f18200ec14f8139e579b1fb527f60bb5505391bdde2ac81bdc9de",
+              "ruleId": "legacy.cargo_deny.cargo-deny",
+              "role": "candidate-generator",
+              "claim": "cargo_deny reported 1 finding(s)",
+              "severityHint": "high",
+              "evidence": [
+                {
+                  "file": "Cargo.toml",
+                  "line": 1
+                }
+              ],
+              "evidenceStrength": "candidate",
+              "verdict": "UNADJUDICATED",
+              "adjudicationRequired": true
+            }
+          ],
+          "check": "cargo_deny",
+          "commandShape": "named",
+          "executionReceipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+            "requestId": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+            "providerId": "legacy.security.rust-policy",
+            "planId": "sha256:3e8a3173d12a83762891e58192f9ec45a870f2dadf76208c9de7b9a878277127",
+            "policyId": "legion-cargo-deny-offline-fixture-v1",
+            "policy": {
+              "id": "legion-cargo-deny-offline-fixture-v1",
+              "version": 1,
+              "digest": "sha256:02416bb00b716e19fa80bc2f987c9ed8025f054f0c6da9b7d9e04bf288814946",
+              "allowed": true,
+              "reason": "exact constructed cargo-deny fixture admission"
+            },
+            "taskId": "cargo_deny",
+            "state": "completed",
+            "complete": true,
+            "executable": {
+              "requestedPath": "/usr/bin/sandbox-exec",
+              "canonicalPath": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "digestState": "sealed",
+              "signature": "unknown",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                  "--version"
+                ],
+                "output": "cargo-deny 0.20.2\n",
+                "exitCode": 0,
+                "qualified": true
+              }
+            },
+            "command": {
+              "executable": "/usr/bin/sandbox-exec",
+              "args": [
+                "-f",
+                "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+                "--",
+                "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                "--format",
+                "json",
+                "--offline",
+                "check"
+              ],
+              "environmentNames": [
+                "CARGO_TARGET_DIR",
+                "GIT_CONFIG_NOSYSTEM",
+                "GOCACHE",
+                "HOME",
+                "MYPY_CACHE_DIR",
+                "PATH",
+                "PYTHONDONTWRITEBYTECODE",
+                "PYTHONNOUSERSITE",
+                "PYTHONPYCACHEPREFIX",
+                "RUFF_CACHE_DIR",
+                "TEMP",
+                "TMP",
+                "TMPDIR",
+                "XDG_CACHE_HOME",
+                "npm_config_cache"
+              ],
+              "redactedArgumentIndexes": [],
+              "redactedEnvironmentNames": []
+            },
+            "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source",
+            "environmentNames": [
+              "CARGO_TARGET_DIR",
+              "GIT_CONFIG_NOSYSTEM",
+              "GOCACHE",
+              "HOME",
+              "MYPY_CACHE_DIR",
+              "PATH",
+              "PYTHONDONTWRITEBYTECODE",
+              "PYTHONNOUSERSITE",
+              "PYTHONPYCACHEPREFIX",
+              "RUFF_CACHE_DIR",
+              "TEMP",
+              "TMP",
+              "TMPDIR",
+              "XDG_CACHE_HOME",
+              "npm_config_cache"
+            ],
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792498406233,
+              "completedAtMs": 1792498406419,
+              "durationMs": 186
+            },
+            "exitCode": 2,
+            "signal": null,
+            "stdout": {
+              "path": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d/stdout",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true
+            },
+            "stderr": {
+              "path": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d/stderr",
+              "digest": "sha256:9d5c53cec5521afe3f448de488d06a984552a63f152a47684677114b1c505ca4",
+              "bytes": 616,
+              "immutable": true
+            },
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": [],
+            "requestArgs": [
+              "--format",
+              "json",
+              "--offline",
+              "check"
+            ],
+            "testCommandSource": null,
+            "reportSource": "stderr",
+            "report": null
+          },
+          "exitCode": 2,
+          "findingsCount": 1,
+          "processState": "completed",
+          "receiptId": "receipt:legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+          "stderrBytes": 616,
+          "stdoutBytes": 0,
+          "tool": "cargo-deny"
+        }
+      },
+      "policyDefinition": {
+        "id": "legion-cargo-deny-offline-fixture-v1",
+        "version": 1,
+        "provider": "legacy.security.rust-policy",
+        "task": "cargo_deny",
+        "plan": "sha256:3e8a3173d12a83762891e58192f9ec45a870f2dadf76208c9de7b9a878277127",
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source",
+        "artifactRequestId": "legion-audit/<64 lowercase hex>; one admission only",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "digest": "sha256:5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "profile": {
+          "path": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+          "text": "(version 1)\n(allow default)\n(allow network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source\"))\n",
+          "digest": "sha256:443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a",
+          "receiptId": "sandbox:macos:443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a"
+        },
+        "args": [
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "wrappedArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "versionArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--version"
+        ],
+        "environment": {
+          "CARGO_TARGET_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/cargo-target",
+          "GIT_CONFIG_NOSYSTEM": "1",
+          "GOCACHE": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/go-build",
+          "HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/home",
+          "MYPY_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/mypy",
+          "PATH": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2:/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin:/Users/runner/work/_temp/legion-scanners:/opt/homebrew/lib/ruby/gems/3.3.0/gems/brakeman-8.1.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/hostedtoolcache/sccache/0.16.0/arm64:/Users/runner/setup-pnpm/node_modules/.bin/bin:/Users/runner/setup-pnpm/node_modules/.bin:/Users/runner/hostedtoolcache/node/22.23.2/arm64/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/runner/.cargo/bin:/usr/local/opt/curl/bin:/usr/local/bin:/usr/local/sbin:/Users/runner/bin:/Users/runner/.yarn/bin:/Users/runner/Library/Android/sdk/tools:/Users/runner/Library/Android/sdk/platform-tools:/Library/Frameworks/Python.framework/Versions/Current/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/usr/bin:/bin:/usr/sbin:/sbin:/Users/runner/.dotnet/tools",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONNOUSERSITE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/pycache",
+          "RUFF_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/ruff",
+          "TEMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/tmp",
+          "TMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/tmp",
+          "TMPDIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/tmp",
+          "XDG_CACHE_HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/xdg",
+          "npm_config_cache": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/cache/npm"
+        },
+        "environmentAllowlist": [
+          "CARGO_TARGET_DIR",
+          "COMSPEC",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PATHEXT",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "SystemRoot",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "USERPROFILE",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "timeoutMs": 120000,
+        "stdoutLimit": 8388608,
+        "stderrLimit": 8388608,
+        "sandbox": "native-macos-allow-network-deny-project-write-cargo-deny-contract",
+        "acceptedExitCodes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+          "providerId": "legacy.security.rust-policy",
+          "planId": "sha256:3e8a3173d12a83762891e58192f9ec45a870f2dadf76208c9de7b9a878277127",
+          "taskId": "cargo_deny",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source",
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "environmentDigest": "sha256:8f36d14919543719ae8c22d31b148f6aada83268114e1406b067f95034357284",
+          "timeoutMs": 120000,
+          "stdoutLimit": 8388608,
+          "stderrLimit": 8388608,
+          "acceptedExitCodes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "requiresNetworkSandbox": true,
+          "sandbox": {
+            "id": "sandbox:macos:443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a",
+            "network": true,
+            "filesystemScope": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source"
+          }
+        }
+      ],
+      "actualSdkReceipt": {
+        "schemaVersion": 1,
+        "receiptId": "receipt:legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+        "requestId": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d",
+        "providerId": "legacy.security.rust-policy",
+        "planId": "sha256:3e8a3173d12a83762891e58192f9ec45a870f2dadf76208c9de7b9a878277127",
+        "policyId": "legion-cargo-deny-offline-fixture-v1",
+        "policy": {
+          "id": "legion-cargo-deny-offline-fixture-v1",
+          "version": 1,
+          "digest": "sha256:02416bb00b716e19fa80bc2f987c9ed8025f054f0c6da9b7d9e04bf288814946",
+          "allowed": true,
+          "reason": "exact constructed cargo-deny fixture admission"
+        },
+        "taskId": "cargo_deny",
+        "state": "completed",
+        "complete": true,
+        "executable": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "digestState": "sealed",
+          "signature": "unknown",
+          "version": {
+            "args": [
+              "-f",
+              "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+              "--",
+              "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+              "--version"
+            ],
+            "output": "cargo-deny 0.20.2\n",
+            "exitCode": 0,
+            "qualified": true,
+            "skippedByPolicy": false
+          }
+        },
+        "command": {
+          "executable": "/usr/bin/sandbox-exec",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/run/sandbox/audit-443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "redactedArgumentIndexes": [],
+          "redactedEnvironmentNames": []
+        },
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/positive/source",
+        "environmentNames": [
+          "CARGO_TARGET_DIR",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:443d097b11f077ab9609925761086c0466f244b600b9f7326a0894bc3a4f411a",
+          "networkEnabled": true
+        },
+        "processTree": {
+          "started": true,
+          "terminated": true,
+          "hardKilled": false,
+          "reaped": true,
+          "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+        },
+        "timing": {
+          "startedAtMs": 1792498406233,
+          "completedAtMs": 1792498406419,
+          "durationMs": 186
+        },
+        "exitCode": 2,
+        "signal": null,
+        "stdout": {
+          "path": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d/stdout",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "immutable": true,
+          "raw": ""
+        },
+        "stderr": {
+          "path": "legion-audit/8d406944575f2a188b54f1bd5582abd943dbc808ca9183c3d8ad3d881454029d/stderr",
+          "digest": "sha256:9d5c53cec5521afe3f448de488d06a984552a63f152a47684677114b1c505ca4",
+          "bytes": 616,
+          "immutable": true,
+          "raw": "{\"fields\":{\"code\":\"banned\",\"graphs\":[{\"Krate\":{\"name\":\"legion-policy-dep\",\"version\":\"0.0.0\"},\"parents\":[{\"Krate\":{\"name\":\"legion-policy-fixture\",\"version\":\"0.0.0\"}}]}],\"labels\":[{\"column\":19,\"line\":7,\"message\":\"banned here\",\"span\":\"legion-policy-dep\"}],\"message\":\"crate 'legion-policy-dep = 0.0.0' is explicitly banned\",\"severity\":\"error\"},\"type\":\"diagnostic\"}\n{\"fields\":{\"advisories\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"bans\":{\"errors\":1,\"helps\":0,\"notes\":0,\"warnings\":0},\"licenses\":{\"errors\":0,\"helps\":2,\"notes\":0,\"warnings\":0},\"sources\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0}},\"type\":\"summary\"}\n"
+        },
+        "parser": {
+          "attempted": false,
+          "succeeded": false,
+          "error": null
+        },
+        "gaps": []
+      },
+      "actualStdout": "",
+      "actualStderr": "{\"fields\":{\"code\":\"banned\",\"graphs\":[{\"Krate\":{\"name\":\"legion-policy-dep\",\"version\":\"0.0.0\"},\"parents\":[{\"Krate\":{\"name\":\"legion-policy-fixture\",\"version\":\"0.0.0\"}}]}],\"labels\":[{\"column\":19,\"line\":7,\"message\":\"banned here\",\"span\":\"legion-policy-dep\"}],\"message\":\"crate 'legion-policy-dep = 0.0.0' is explicitly banned\",\"severity\":\"error\"},\"type\":\"diagnostic\"}\n{\"fields\":{\"advisories\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"bans\":{\"errors\":1,\"helps\":0,\"notes\":0,\"warnings\":0},\"licenses\":{\"errors\":0,\"helps\":2,\"notes\":0,\"warnings\":0},\"sources\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0}},\"type\":\"summary\"}\n",
+      "actualToolReport": [
+        {
+          "fields": {
+            "code": "banned",
+            "graphs": [
+              {
+                "Krate": {
+                  "name": "legion-policy-dep",
+                  "version": "0.0.0"
+                },
+                "parents": [
+                  {
+                    "Krate": {
+                      "name": "legion-policy-fixture",
+                      "version": "0.0.0"
+                    }
+                  }
+                ]
+              }
+            ],
+            "labels": [
+              {
+                "column": 19,
+                "line": 7,
+                "message": "banned here",
+                "span": "legion-policy-dep"
+              }
+            ],
+            "message": "crate 'legion-policy-dep = 0.0.0' is explicitly banned",
+            "severity": "error"
+          },
+          "type": "diagnostic"
+        },
+        {
+          "fields": {
+            "advisories": {
+              "errors": 0,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            },
+            "bans": {
+              "errors": 1,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            },
+            "licenses": {
+              "errors": 0,
+              "helps": 2,
+              "notes": 0,
+              "warnings": 0
+            },
+            "sources": {
+              "errors": 0,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            }
+          },
+          "type": "summary"
+        }
+      ],
+      "locatorPrecision": "native aggregate candidate anchored at denominator entry; no package/source diagnostic localization claim"
+    },
+    {
+      "provider": "legacy.security.rust-policy",
+      "control": "absence",
+      "matched": true,
+      "fixtureSources": {
+        "Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+        "Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+        "deny.toml": "sha256:d86d73b2a9eb6ecd6314e173dce9b6d62f8a577198cceb7fec0deb9e7ccd6b69",
+        "dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+        "dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+        "src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+      },
+      "configTemplate": "absence.toml",
+      "root": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source",
+      "run": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run",
+      "database": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/database",
+      "gitSetup": [
+        {
+          "args": [
+            "init",
+            "--quiet"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "add",
+            "--",
+            "crates/atty/RUSTSEC-2021-0145.md"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "commit",
+            "--quiet",
+            "-m",
+            "Constructed official advisory subset fixture"
+          ],
+          "exitCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "show",
+            "-s",
+            "--format=%H%n%cI",
+            "HEAD"
+          ],
+          "exitCode": 0,
+          "stdout": "cdfafd39512086ba2e09dc43dd87ef8c3a374e93\n2026-10-20T12:13:26+00:00\n",
+          "stderr": ""
+        },
+        {
+          "args": [
+            "ls-tree",
+            "-r",
+            "HEAD"
+          ],
+          "exitCode": 0,
+          "stdout": "100644 blob ece6c8d047039102f74c206a92f4d1eb98c4e613\tcrates/atty/RUSTSEC-2021-0145.md\n",
+          "stderr": ""
+        }
+      ],
+      "metadataToolchain": {
+        "bin": "/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin",
+        "cargoDigest": "sha256:1de2e84c15443b70444eecfa959ff9099dd8c1a5606b6d9ef5bc0ea9c25bc7f9",
+        "rustcDigest": "sha256:a11618eca0956a8aa4372c2bc898690b513cbdfa2cb9125b2a5301e360ed5b49",
+        "cargoVersion": "cargo 1.98.0 (797e8a9bc 2026-08-05)\n",
+        "rustcVersion": "rustc 1.98.0 (88d9e12ae 2026-08-18)\n"
+      },
+      "inventory": {
+        "schemaVersion": 1,
+        "repositoryId": "absence",
+        "generation": "filesystem:sha256:8ece5c22b8b8b6c84d7bedc8c30c8aa7f0b070cf86623bb8a08b31bd2be173c9",
+        "entries": [
+          {
+            "path": "Cargo.lock",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0"
+          },
+          {
+            "path": "Cargo.toml",
+            "symbols": [],
+            "dependencies": [
+              "legion-policy-dep"
+            ],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707"
+          },
+          {
+            "path": "deny.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:d86d73b2a9eb6ecd6314e173dce9b6d62f8a577198cceb7fec0deb9e7ccd6b69"
+          },
+          {
+            "path": "dependency/Cargo.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17"
+          },
+          {
+            "path": "dependency/src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7"
+          },
+          {
+            "path": "src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+          }
+        ],
+        "digest": "sha256:c5b76ad0b6ac9b0c2a456a7b082793c383b7a676c641d2440486457115287882"
+      },
+      "frozenProvider": {
+        "id": "legacy.security.rust-policy",
+        "version": "2.0.0",
+        "role": "candidate-generator",
+        "phase": "source",
+        "lensIds": [
+          "security",
+          "stack"
+        ],
+        "dependencies": [],
+        "kind": "typed-external-project-tool",
+        "configuration": {
+          "benchmark": {
+            "status": "qualified",
+            "requiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "qualification": {
+              "basis": "retained-provider-accuracy",
+              "index": "qualification/provider-accuracy/index.json",
+              "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+              "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+              "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+              "validationBasis": "native-family-validator",
+              "stage": "candidate",
+              "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "productionQualification": false,
+              "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+              "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+            }
+          },
+          "consumes": [
+            "blueprint-packet"
+          ],
+          "controlIds": [
+            "security.source-assurance"
+          ],
+          "denominatorCount": 4,
+          "denominatorDigest": "sha256:ece03d2211eb49156227c00bcac0f8ff7653d705a634a781f6908136aea3a339",
+          "denominatorKind": "Cargo.toml",
+          "execution": {
+            "scheduleClass": "parallel-safe",
+            "resourceClaims": {
+              "cpu": 1,
+              "memoryMb": 256,
+              "io": 1,
+              "projectExecution": 0,
+              "browser": 0,
+              "nativeSurface": 0,
+              "virtualMachine": 0,
+              "simulator": 0,
+              "physicalDevice": 0,
+              "externalSystem": 0,
+              "reviewer": 0,
+              "signer": 0
+            },
+            "concurrencyKey": null,
+            "maxParallelism": null,
+            "orderSensitive": false,
+            "interruptible": true,
+            "cachePolicy": "content-addressed",
+            "failurePolicy": "block-dependents"
+          },
+          "family": "security",
+          "hostCapabilities": [],
+          "produces": [
+            "security-candidates"
+          ],
+          "reasoning": {
+            "requirement": "review",
+            "trigger": "candidate",
+            "subjectKind": "provider-result",
+            "freshContext": true,
+            "producerSeparation": true
+          },
+          "runner": {
+            "kind": "legacy-check",
+            "check": "cargo_deny",
+            "tool": "cargo-deny",
+            "requiredWhen": "optional",
+            "applies": "Cargo.toml",
+            "parallel": true,
+            "backs": [
+              "security",
+              "stack"
+            ]
+          },
+          "runnerClass": "typed-external-project-tool",
+          "schemaVersion": 2,
+          "scopes": [
+            "family:security"
+          ],
+          "selectable": true,
+          "selector": {
+            "op": "anyPath",
+            "patterns": [
+              "**/Cargo.toml",
+              "**/*.rs"
+            ]
+          },
+          "sourceSides": {}
+        },
+        "bounds": {
+          "cleanClaim": "evidence-only",
+          "required": true
+        },
+        "cleanClaim": "evidence-only",
+        "benchmarkStatus": "qualified",
+        "benchmarkRequiredForCleanClaim": false,
+        "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+        "required": true
+      },
+      "planDigest": "sha256:c4170dfb82ccae791dac9aa9a22869c148de7c8dded92a5c89393c82c5c4bedd",
+      "frozenPlan": {
+        "schemaVersion": 1,
+        "repositoryId": "absence",
+        "inventoryGeneration": "filesystem:sha256:8ece5c22b8b8b6c84d7bedc8c30c8aa7f0b070cf86623bb8a08b31bd2be173c9",
+        "inventoryDigest": "sha256:c5b76ad0b6ac9b0c2a456a7b082793c383b7a676c641d2440486457115287882",
+        "providers": [
+          {
+            "id": "legacy.security.rust-policy",
+            "version": "2.0.0",
+            "role": "candidate-generator",
+            "phase": "source",
+            "lensIds": [
+              "security",
+              "stack"
+            ],
+            "dependencies": [],
+            "kind": "typed-external-project-tool",
+            "configuration": {
+              "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": false,
+                "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+                "qualification": {
+                  "basis": "retained-provider-accuracy",
+                  "index": "qualification/provider-accuracy/index.json",
+                  "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+                  "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+                  "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+                  "validationBasis": "native-family-validator",
+                  "stage": "candidate",
+                  "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "productionQualification": false,
+                  "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+                  "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+                }
+              },
+              "consumes": [
+                "blueprint-packet"
+              ],
+              "controlIds": [
+                "security.source-assurance"
+              ],
+              "denominatorCount": 4,
+              "denominatorDigest": "sha256:ece03d2211eb49156227c00bcac0f8ff7653d705a634a781f6908136aea3a339",
+              "denominatorKind": "Cargo.toml",
+              "execution": {
+                "scheduleClass": "parallel-safe",
+                "resourceClaims": {
+                  "cpu": 1,
+                  "memoryMb": 256,
+                  "io": 1,
+                  "projectExecution": 0,
+                  "browser": 0,
+                  "nativeSurface": 0,
+                  "virtualMachine": 0,
+                  "simulator": 0,
+                  "physicalDevice": 0,
+                  "externalSystem": 0,
+                  "reviewer": 0,
+                  "signer": 0
+                },
+                "concurrencyKey": null,
+                "maxParallelism": null,
+                "orderSensitive": false,
+                "interruptible": true,
+                "cachePolicy": "content-addressed",
+                "failurePolicy": "block-dependents"
+              },
+              "family": "security",
+              "hostCapabilities": [],
+              "produces": [
+                "security-candidates"
+              ],
+              "reasoning": {
+                "requirement": "review",
+                "trigger": "candidate",
+                "subjectKind": "provider-result",
+                "freshContext": true,
+                "producerSeparation": true
+              },
+              "runner": {
+                "kind": "legacy-check",
+                "check": "cargo_deny",
+                "tool": "cargo-deny",
+                "requiredWhen": "optional",
+                "applies": "Cargo.toml",
+                "parallel": true,
+                "backs": [
+                  "security",
+                  "stack"
+                ]
+              },
+              "runnerClass": "typed-external-project-tool",
+              "schemaVersion": 2,
+              "scopes": [
+                "family:security"
+              ],
+              "selectable": true,
+              "selector": {
+                "op": "anyPath",
+                "patterns": [
+                  "**/Cargo.toml",
+                  "**/*.rs"
+                ]
+              },
+              "sourceSides": {}
+            },
+            "bounds": {
+              "cleanClaim": "evidence-only",
+              "required": true
+            },
+            "cleanClaim": "evidence-only",
+            "benchmarkStatus": "qualified",
+            "benchmarkRequiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "required": true
+          }
+        ],
+        "bounds": {
+          "executionPolicy": {
+            "externalProcesses": "owner-admission-required",
+            "admissionStatus": "unavailable",
+            "effectiveMode": "deny-external"
+          },
+          "executionPolicyIdentity": {
+            "id": "audit-native-owner-admission-v1",
+            "version": 1,
+            "digest": "sha256:e24e47a3757b26a14c512083a15a31f89500112c79b81c904d084d1faf153ac8"
+          }
+        },
+        "excludedConditionalProviders": []
+      },
+      "planSignature": "hmac-sha256:d5a6be05e2013dc671691a0de2d7ac19bdd1762fd039e28b62c6801d2beef65d",
+      "nativeResult": {
+        "schema_version": 1,
+        "provider": "legacy.security.rust-policy",
+        "applicable": true,
+        "required": true,
+        "status": "ok",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:ece03d2211eb49156227c00bcac0f8ff7653d705a634a781f6908136aea3a339",
+          "expected": 4,
+          "examined": 4,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "candidates": [],
+          "check": "cargo_deny",
+          "commandShape": "named",
+          "executionReceipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+            "requestId": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+            "providerId": "legacy.security.rust-policy",
+            "planId": "sha256:c4170dfb82ccae791dac9aa9a22869c148de7c8dded92a5c89393c82c5c4bedd",
+            "policyId": "legion-cargo-deny-offline-fixture-v1",
+            "policy": {
+              "id": "legion-cargo-deny-offline-fixture-v1",
+              "version": 1,
+              "digest": "sha256:476008014d5accf40c95e164a59c0f2fe7e880169305c85008bd9527d96471c9",
+              "allowed": true,
+              "reason": "exact constructed cargo-deny fixture admission"
+            },
+            "taskId": "cargo_deny",
+            "state": "completed",
+            "complete": true,
+            "executable": {
+              "requestedPath": "/usr/bin/sandbox-exec",
+              "canonicalPath": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "digestState": "sealed",
+              "signature": "unknown",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                  "--version"
+                ],
+                "output": "cargo-deny 0.20.2\n",
+                "exitCode": 0,
+                "qualified": true
+              }
+            },
+            "command": {
+              "executable": "/usr/bin/sandbox-exec",
+              "args": [
+                "-f",
+                "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+                "--",
+                "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                "--format",
+                "json",
+                "--offline",
+                "check"
+              ],
+              "environmentNames": [
+                "CARGO_TARGET_DIR",
+                "GIT_CONFIG_NOSYSTEM",
+                "GOCACHE",
+                "HOME",
+                "MYPY_CACHE_DIR",
+                "PATH",
+                "PYTHONDONTWRITEBYTECODE",
+                "PYTHONNOUSERSITE",
+                "PYTHONPYCACHEPREFIX",
+                "RUFF_CACHE_DIR",
+                "TEMP",
+                "TMP",
+                "TMPDIR",
+                "XDG_CACHE_HOME",
+                "npm_config_cache"
+              ],
+              "redactedArgumentIndexes": [],
+              "redactedEnvironmentNames": []
+            },
+            "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source",
+            "environmentNames": [
+              "CARGO_TARGET_DIR",
+              "GIT_CONFIG_NOSYSTEM",
+              "GOCACHE",
+              "HOME",
+              "MYPY_CACHE_DIR",
+              "PATH",
+              "PYTHONDONTWRITEBYTECODE",
+              "PYTHONNOUSERSITE",
+              "PYTHONPYCACHEPREFIX",
+              "RUFF_CACHE_DIR",
+              "TEMP",
+              "TMP",
+              "TMPDIR",
+              "XDG_CACHE_HOME",
+              "npm_config_cache"
+            ],
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792498407095,
+              "completedAtMs": 1792498407246,
+              "durationMs": 151
+            },
+            "exitCode": 0,
+            "signal": null,
+            "stdout": {
+              "path": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a/stdout",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true
+            },
+            "stderr": {
+              "path": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a/stderr",
+              "digest": "sha256:050eebb5c49b6aeed16b8bd5f65dc577b94bc25bc4b498c2a580a3eb2d05ef21",
+              "bytes": 255,
+              "immutable": true
+            },
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": [],
+            "requestArgs": [
+              "--format",
+              "json",
+              "--offline",
+              "check"
+            ],
+            "testCommandSource": null,
+            "reportSource": "stderr",
+            "report": null
+          },
+          "exitCode": 0,
+          "findingsCount": 0,
+          "processState": "completed",
+          "receiptId": "receipt:legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+          "stderrBytes": 255,
+          "stdoutBytes": 0,
+          "tool": "cargo-deny"
+        }
+      },
+      "policyDefinition": {
+        "id": "legion-cargo-deny-offline-fixture-v1",
+        "version": 1,
+        "provider": "legacy.security.rust-policy",
+        "task": "cargo_deny",
+        "plan": "sha256:c4170dfb82ccae791dac9aa9a22869c148de7c8dded92a5c89393c82c5c4bedd",
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source",
+        "artifactRequestId": "legion-audit/<64 lowercase hex>; one admission only",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "digest": "sha256:5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "profile": {
+          "path": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+          "text": "(version 1)\n(allow default)\n(allow network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source\"))\n",
+          "digest": "sha256:644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849",
+          "receiptId": "sandbox:macos:644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849"
+        },
+        "args": [
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "wrappedArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "versionArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--version"
+        ],
+        "environment": {
+          "CARGO_TARGET_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/cargo-target",
+          "GIT_CONFIG_NOSYSTEM": "1",
+          "GOCACHE": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/go-build",
+          "HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/home",
+          "MYPY_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/mypy",
+          "PATH": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2:/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin:/Users/runner/work/_temp/legion-scanners:/opt/homebrew/lib/ruby/gems/3.3.0/gems/brakeman-8.1.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/hostedtoolcache/sccache/0.16.0/arm64:/Users/runner/setup-pnpm/node_modules/.bin/bin:/Users/runner/setup-pnpm/node_modules/.bin:/Users/runner/hostedtoolcache/node/22.23.2/arm64/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/runner/.cargo/bin:/usr/local/opt/curl/bin:/usr/local/bin:/usr/local/sbin:/Users/runner/bin:/Users/runner/.yarn/bin:/Users/runner/Library/Android/sdk/tools:/Users/runner/Library/Android/sdk/platform-tools:/Library/Frameworks/Python.framework/Versions/Current/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/usr/bin:/bin:/usr/sbin:/sbin:/Users/runner/.dotnet/tools",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONNOUSERSITE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/pycache",
+          "RUFF_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/ruff",
+          "TEMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/tmp",
+          "TMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/tmp",
+          "TMPDIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/tmp",
+          "XDG_CACHE_HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/xdg",
+          "npm_config_cache": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/cache/npm"
+        },
+        "environmentAllowlist": [
+          "CARGO_TARGET_DIR",
+          "COMSPEC",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PATHEXT",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "SystemRoot",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "USERPROFILE",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "timeoutMs": 120000,
+        "stdoutLimit": 8388608,
+        "stderrLimit": 8388608,
+        "sandbox": "native-macos-allow-network-deny-project-write-cargo-deny-contract",
+        "acceptedExitCodes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+          "providerId": "legacy.security.rust-policy",
+          "planId": "sha256:c4170dfb82ccae791dac9aa9a22869c148de7c8dded92a5c89393c82c5c4bedd",
+          "taskId": "cargo_deny",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source",
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "environmentDigest": "sha256:06c4d47ea944ef123e3e43bb2f039c77829b1036208d900c5b0c290b3f08b8fc",
+          "timeoutMs": 120000,
+          "stdoutLimit": 8388608,
+          "stderrLimit": 8388608,
+          "acceptedExitCodes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "requiresNetworkSandbox": true,
+          "sandbox": {
+            "id": "sandbox:macos:644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849",
+            "network": true,
+            "filesystemScope": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source"
+          }
+        }
+      ],
+      "actualSdkReceipt": {
+        "schemaVersion": 1,
+        "receiptId": "receipt:legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+        "requestId": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a",
+        "providerId": "legacy.security.rust-policy",
+        "planId": "sha256:c4170dfb82ccae791dac9aa9a22869c148de7c8dded92a5c89393c82c5c4bedd",
+        "policyId": "legion-cargo-deny-offline-fixture-v1",
+        "policy": {
+          "id": "legion-cargo-deny-offline-fixture-v1",
+          "version": 1,
+          "digest": "sha256:476008014d5accf40c95e164a59c0f2fe7e880169305c85008bd9527d96471c9",
+          "allowed": true,
+          "reason": "exact constructed cargo-deny fixture admission"
+        },
+        "taskId": "cargo_deny",
+        "state": "completed",
+        "complete": true,
+        "executable": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "digestState": "sealed",
+          "signature": "unknown",
+          "version": {
+            "args": [
+              "-f",
+              "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+              "--",
+              "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+              "--version"
+            ],
+            "output": "cargo-deny 0.20.2\n",
+            "exitCode": 0,
+            "qualified": true,
+            "skippedByPolicy": false
+          }
+        },
+        "command": {
+          "executable": "/usr/bin/sandbox-exec",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/run/sandbox/audit-644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "redactedArgumentIndexes": [],
+          "redactedEnvironmentNames": []
+        },
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/absence/source",
+        "environmentNames": [
+          "CARGO_TARGET_DIR",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:644e040b0f31804403614a2adb30b6056bb978474251c7f9b311c36542cf6849",
+          "networkEnabled": true
+        },
+        "processTree": {
+          "started": true,
+          "terminated": true,
+          "hardKilled": false,
+          "reaped": true,
+          "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+        },
+        "timing": {
+          "startedAtMs": 1792498407095,
+          "completedAtMs": 1792498407246,
+          "durationMs": 151
+        },
+        "exitCode": 0,
+        "signal": null,
+        "stdout": {
+          "path": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a/stdout",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "immutable": true,
+          "raw": ""
+        },
+        "stderr": {
+          "path": "legion-audit/b6664e4f94a3c5d95c57343261ffffa7ae78bea3ffbb8b0dd15f628674fba97a/stderr",
+          "digest": "sha256:050eebb5c49b6aeed16b8bd5f65dc577b94bc25bc4b498c2a580a3eb2d05ef21",
+          "bytes": 255,
+          "immutable": true,
+          "raw": "{\"fields\":{\"advisories\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"bans\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"licenses\":{\"errors\":0,\"helps\":2,\"notes\":0,\"warnings\":0},\"sources\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0}},\"type\":\"summary\"}\n"
+        },
+        "parser": {
+          "attempted": false,
+          "succeeded": false,
+          "error": null
+        },
+        "gaps": []
+      },
+      "actualStdout": "",
+      "actualStderr": "{\"fields\":{\"advisories\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"bans\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0},\"licenses\":{\"errors\":0,\"helps\":2,\"notes\":0,\"warnings\":0},\"sources\":{\"errors\":0,\"helps\":0,\"notes\":0,\"warnings\":0}},\"type\":\"summary\"}\n",
+      "actualToolReport": [
+        {
+          "fields": {
+            "advisories": {
+              "errors": 0,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            },
+            "bans": {
+              "errors": 0,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            },
+            "licenses": {
+              "errors": 0,
+              "helps": 2,
+              "notes": 0,
+              "warnings": 0
+            },
+            "sources": {
+              "errors": 0,
+              "helps": 0,
+              "notes": 0,
+              "warnings": 0
+            }
+          },
+          "type": "summary"
+        }
+      ],
+      "locatorPrecision": "native aggregate candidate anchored at denominator entry; no package/source diagnostic localization claim"
+    },
+    {
+      "provider": "legacy.security.rust-policy",
+      "control": "missing-database",
+      "matched": true,
+      "fixtureSources": {
+        "Cargo.lock": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+        "Cargo.toml": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+        "deny.toml": "sha256:858961352f6908cdbe72ff234d5357e27d24bbcbc8aec6981c2c049c823ca395",
+        "dependency/Cargo.toml": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+        "dependency/src/lib.rs": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+        "src/lib.rs": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+      },
+      "configTemplate": "absence.toml",
+      "root": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source",
+      "run": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run",
+      "database": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database",
+      "gitSetup": [],
+      "metadataToolchain": {
+        "bin": "/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin",
+        "cargoDigest": "sha256:1de2e84c15443b70444eecfa959ff9099dd8c1a5606b6d9ef5bc0ea9c25bc7f9",
+        "rustcDigest": "sha256:a11618eca0956a8aa4372c2bc898690b513cbdfa2cb9125b2a5301e360ed5b49",
+        "cargoVersion": "cargo 1.98.0 (797e8a9bc 2026-08-05)\n",
+        "rustcVersion": "rustc 1.98.0 (88d9e12ae 2026-08-18)\n"
+      },
+      "inventory": {
+        "schemaVersion": 1,
+        "repositoryId": "missing-database",
+        "generation": "filesystem:sha256:ff637e35e72a7612c85e09b4c822ff505ab5b829af30d1372f3928fd6eba60cd",
+        "entries": [
+          {
+            "path": "Cargo.lock",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0"
+          },
+          {
+            "path": "Cargo.toml",
+            "symbols": [],
+            "dependencies": [
+              "legion-policy-dep"
+            ],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707"
+          },
+          {
+            "path": "deny.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:858961352f6908cdbe72ff234d5357e27d24bbcbc8aec6981c2c049c823ca395"
+          },
+          {
+            "path": "dependency/Cargo.toml",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": false,
+            "digest": "sha256:2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17"
+          },
+          {
+            "path": "dependency/src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7"
+          },
+          {
+            "path": "src/lib.rs",
+            "symbols": [],
+            "dependencies": [],
+            "packageScripts": [],
+            "sourceFile": true,
+            "digest": "sha256:05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
+          }
+        ],
+        "digest": "sha256:3f6065cba9ab58b92b789a54962c293ccd5c3afbc92e3417d77c77d29752824b"
+      },
+      "frozenProvider": {
+        "id": "legacy.security.rust-policy",
+        "version": "2.0.0",
+        "role": "candidate-generator",
+        "phase": "source",
+        "lensIds": [
+          "security",
+          "stack"
+        ],
+        "dependencies": [],
+        "kind": "typed-external-project-tool",
+        "configuration": {
+          "benchmark": {
+            "status": "qualified",
+            "requiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "qualification": {
+              "basis": "retained-provider-accuracy",
+              "index": "qualification/provider-accuracy/index.json",
+              "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+              "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+              "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+              "validationBasis": "native-family-validator",
+              "stage": "candidate",
+              "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "productionQualification": false,
+              "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+              "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+              "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+            }
+          },
+          "consumes": [
+            "blueprint-packet"
+          ],
+          "controlIds": [
+            "security.source-assurance"
+          ],
+          "denominatorCount": 4,
+          "denominatorDigest": "sha256:75ca5004677f12eaa7acefa71607bac5a536c5db7dda9fe8000f16b2f94798fd",
+          "denominatorKind": "Cargo.toml",
+          "execution": {
+            "scheduleClass": "parallel-safe",
+            "resourceClaims": {
+              "cpu": 1,
+              "memoryMb": 256,
+              "io": 1,
+              "projectExecution": 0,
+              "browser": 0,
+              "nativeSurface": 0,
+              "virtualMachine": 0,
+              "simulator": 0,
+              "physicalDevice": 0,
+              "externalSystem": 0,
+              "reviewer": 0,
+              "signer": 0
+            },
+            "concurrencyKey": null,
+            "maxParallelism": null,
+            "orderSensitive": false,
+            "interruptible": true,
+            "cachePolicy": "content-addressed",
+            "failurePolicy": "block-dependents"
+          },
+          "family": "security",
+          "hostCapabilities": [],
+          "produces": [
+            "security-candidates"
+          ],
+          "reasoning": {
+            "requirement": "review",
+            "trigger": "candidate",
+            "subjectKind": "provider-result",
+            "freshContext": true,
+            "producerSeparation": true
+          },
+          "runner": {
+            "kind": "legacy-check",
+            "check": "cargo_deny",
+            "tool": "cargo-deny",
+            "requiredWhen": "optional",
+            "applies": "Cargo.toml",
+            "parallel": true,
+            "backs": [
+              "security",
+              "stack"
+            ]
+          },
+          "runnerClass": "typed-external-project-tool",
+          "schemaVersion": 2,
+          "scopes": [
+            "family:security"
+          ],
+          "selectable": true,
+          "selector": {
+            "op": "anyPath",
+            "patterns": [
+              "**/Cargo.toml",
+              "**/*.rs"
+            ]
+          },
+          "sourceSides": {}
+        },
+        "bounds": {
+          "cleanClaim": "evidence-only",
+          "required": true
+        },
+        "cleanClaim": "evidence-only",
+        "benchmarkStatus": "qualified",
+        "benchmarkRequiredForCleanClaim": false,
+        "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+        "required": true
+      },
+      "planDigest": "sha256:df993af4a76d7526e9715b79bfedd177513b4ac4c45151eed4aafefe8455a6dd",
+      "frozenPlan": {
+        "schemaVersion": 1,
+        "repositoryId": "missing-database",
+        "inventoryGeneration": "filesystem:sha256:ff637e35e72a7612c85e09b4c822ff505ab5b829af30d1372f3928fd6eba60cd",
+        "inventoryDigest": "sha256:3f6065cba9ab58b92b789a54962c293ccd5c3afbc92e3417d77c77d29752824b",
+        "providers": [
+          {
+            "id": "legacy.security.rust-policy",
+            "version": "2.0.0",
+            "role": "candidate-generator",
+            "phase": "source",
+            "lensIds": [
+              "security",
+              "stack"
+            ],
+            "dependencies": [],
+            "kind": "typed-external-project-tool",
+            "configuration": {
+              "benchmark": {
+                "status": "qualified",
+                "requiredForCleanClaim": false,
+                "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+                "qualification": {
+                  "basis": "retained-provider-accuracy",
+                  "index": "qualification/provider-accuracy/index.json",
+                  "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e.json",
+                  "recordSha256": "sha256:2ca4dfc96d5d1abb6635100777ec754d23b4e3c8d9cd824ece6aa4b2f37d279f",
+                  "originalQualificationDigest": "sha256:6fed4aa4d3b30f35f3b99426a16bf6108c8a498f3fa92171b27470af56b2a85e",
+                  "validationBasis": "native-family-validator",
+                  "stage": "candidate",
+                  "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "productionQualification": false,
+                  "fixtureScope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
+                  "databaseScope": "official-advisory-subset fixture; no full/current RustSec database or advisory-detection claim",
+                  "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+                }
+              },
+              "consumes": [
+                "blueprint-packet"
+              ],
+              "controlIds": [
+                "security.source-assurance"
+              ],
+              "denominatorCount": 4,
+              "denominatorDigest": "sha256:75ca5004677f12eaa7acefa71607bac5a536c5db7dda9fe8000f16b2f94798fd",
+              "denominatorKind": "Cargo.toml",
+              "execution": {
+                "scheduleClass": "parallel-safe",
+                "resourceClaims": {
+                  "cpu": 1,
+                  "memoryMb": 256,
+                  "io": 1,
+                  "projectExecution": 0,
+                  "browser": 0,
+                  "nativeSurface": 0,
+                  "virtualMachine": 0,
+                  "simulator": 0,
+                  "physicalDevice": 0,
+                  "externalSystem": 0,
+                  "reviewer": 0,
+                  "signer": 0
+                },
+                "concurrencyKey": null,
+                "maxParallelism": null,
+                "orderSensitive": false,
+                "interruptible": true,
+                "cachePolicy": "content-addressed",
+                "failurePolicy": "block-dependents"
+              },
+              "family": "security",
+              "hostCapabilities": [],
+              "produces": [
+                "security-candidates"
+              ],
+              "reasoning": {
+                "requirement": "review",
+                "trigger": "candidate",
+                "subjectKind": "provider-result",
+                "freshContext": true,
+                "producerSeparation": true
+              },
+              "runner": {
+                "kind": "legacy-check",
+                "check": "cargo_deny",
+                "tool": "cargo-deny",
+                "requiredWhen": "optional",
+                "applies": "Cargo.toml",
+                "parallel": true,
+                "backs": [
+                  "security",
+                  "stack"
+                ]
+              },
+              "runnerClass": "typed-external-project-tool",
+              "schemaVersion": 2,
+              "scopes": [
+                "family:security"
+              ],
+              "selectable": true,
+              "selector": {
+                "op": "anyPath",
+                "patterns": [
+                  "**/Cargo.toml",
+                  "**/*.rs"
+                ]
+              },
+              "sourceSides": {}
+            },
+            "bounds": {
+              "cleanClaim": "evidence-only",
+              "required": true
+            },
+            "cleanClaim": "evidence-only",
+            "benchmarkStatus": "qualified",
+            "benchmarkRequiredForCleanClaim": false,
+            "qualificationDigest": "sha256:5eab94b0b258fe5665e4cd589807cd89a550c8baf8bf1cc05ab269d5dc724b34",
+            "required": true
+          }
+        ],
+        "bounds": {
+          "executionPolicy": {
+            "externalProcesses": "owner-admission-required",
+            "admissionStatus": "unavailable",
+            "effectiveMode": "deny-external"
+          },
+          "executionPolicyIdentity": {
+            "id": "audit-native-owner-admission-v1",
+            "version": 1,
+            "digest": "sha256:e24e47a3757b26a14c512083a15a31f89500112c79b81c904d084d1faf153ac8"
+          }
+        },
+        "excludedConditionalProviders": []
+      },
+      "planSignature": "hmac-sha256:19b2170ad2259079e403ae95d48033de6c7cdac615c282d18a8d38e764aa7fb2",
+      "nativeResult": {
+        "schema_version": 1,
+        "provider": "legacy.security.rust-policy",
+        "applicable": true,
+        "required": true,
+        "status": "partial",
+        "complete": false,
+        "coverage": {
+          "denominator_digest": "sha256:75ca5004677f12eaa7acefa71607bac5a536c5db7dda9fe8000f16b2f94798fd",
+          "expected": 4,
+          "examined": 4,
+          "gaps": [
+            "cargo-deny-completion-unproven"
+          ]
+        },
+        "findings": [],
+        "coverage_gaps": [
+          "cargo-deny-completion-unproven"
+        ],
+        "degradation": [],
+        "details": {
+          "candidates": [],
+          "check": "cargo_deny",
+          "commandShape": "named",
+          "executionReceipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+            "requestId": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+            "providerId": "legacy.security.rust-policy",
+            "planId": "sha256:df993af4a76d7526e9715b79bfedd177513b4ac4c45151eed4aafefe8455a6dd",
+            "policyId": "legion-cargo-deny-offline-fixture-v1",
+            "policy": {
+              "id": "legion-cargo-deny-offline-fixture-v1",
+              "version": 1,
+              "digest": "sha256:651fdb3708b952305735858222bbcea3c98ad2b7ce533a53e393c50c06f165c4",
+              "allowed": true,
+              "reason": "exact constructed cargo-deny fixture admission"
+            },
+            "taskId": "cargo_deny",
+            "state": "completed",
+            "complete": true,
+            "executable": {
+              "requestedPath": "/usr/bin/sandbox-exec",
+              "canonicalPath": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "digestState": "sealed",
+              "signature": "unknown",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                  "--version"
+                ],
+                "output": "cargo-deny 0.20.2\n",
+                "exitCode": 0,
+                "qualified": true
+              }
+            },
+            "command": {
+              "executable": "/usr/bin/sandbox-exec",
+              "args": [
+                "-f",
+                "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+                "--",
+                "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+                "--format",
+                "json",
+                "--offline",
+                "check"
+              ],
+              "environmentNames": [
+                "CARGO_TARGET_DIR",
+                "GIT_CONFIG_NOSYSTEM",
+                "GOCACHE",
+                "HOME",
+                "MYPY_CACHE_DIR",
+                "PATH",
+                "PYTHONDONTWRITEBYTECODE",
+                "PYTHONNOUSERSITE",
+                "PYTHONPYCACHEPREFIX",
+                "RUFF_CACHE_DIR",
+                "TEMP",
+                "TMP",
+                "TMPDIR",
+                "XDG_CACHE_HOME",
+                "npm_config_cache"
+              ],
+              "redactedArgumentIndexes": [],
+              "redactedEnvironmentNames": []
+            },
+            "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source",
+            "environmentNames": [
+              "CARGO_TARGET_DIR",
+              "GIT_CONFIG_NOSYSTEM",
+              "GOCACHE",
+              "HOME",
+              "MYPY_CACHE_DIR",
+              "PATH",
+              "PYTHONDONTWRITEBYTECODE",
+              "PYTHONNOUSERSITE",
+              "PYTHONPYCACHEPREFIX",
+              "RUFF_CACHE_DIR",
+              "TEMP",
+              "TMP",
+              "TMPDIR",
+              "XDG_CACHE_HOME",
+              "npm_config_cache"
+            ],
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792498407803,
+              "completedAtMs": 1792498407946,
+              "durationMs": 143
+            },
+            "exitCode": 1,
+            "signal": null,
+            "stdout": {
+              "path": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d/stdout",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true
+            },
+            "stderr": {
+              "path": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d/stderr",
+              "digest": "sha256:1602f1f86ac5db406f8af0791e67de64666ff842e4468dc3aed4bd3e63e696e3",
+              "bytes": 521,
+              "immutable": true
+            },
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": [],
+            "requestArgs": [
+              "--format",
+              "json",
+              "--offline",
+              "check"
+            ],
+            "testCommandSource": null,
+            "reportSource": "stderr",
+            "report": null
+          },
+          "exitCode": 1,
+          "findingsCount": null,
+          "processState": "completed",
+          "receiptId": "receipt:legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+          "stderrBytes": 521,
+          "stdoutBytes": 0,
+          "tool": "cargo-deny"
+        }
+      },
+      "policyDefinition": {
+        "id": "legion-cargo-deny-offline-fixture-v1",
+        "version": 1,
+        "provider": "legacy.security.rust-policy",
+        "task": "cargo_deny",
+        "plan": "sha256:df993af4a76d7526e9715b79bfedd177513b4ac4c45151eed4aafefe8455a6dd",
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source",
+        "artifactRequestId": "legion-audit/<64 lowercase hex>; one admission only",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "digest": "sha256:5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "profile": {
+          "path": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+          "text": "(version 1)\n(allow default)\n(allow network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source\"))\n",
+          "digest": "sha256:4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279",
+          "receiptId": "sandbox:macos:4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279"
+        },
+        "args": [
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "wrappedArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--format",
+          "json",
+          "--offline",
+          "check"
+        ],
+        "versionArgs": [
+          "-f",
+          "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+          "--",
+          "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+          "--version"
+        ],
+        "environment": {
+          "CARGO_TARGET_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/cargo-target",
+          "GIT_CONFIG_NOSYSTEM": "1",
+          "GOCACHE": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/go-build",
+          "HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/home",
+          "MYPY_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/mypy",
+          "PATH": "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2:/Users/runner/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin:/Users/runner/work/_temp/legion-scanners:/opt/homebrew/lib/ruby/gems/3.3.0/gems/brakeman-8.1.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/hostedtoolcache/sccache/0.16.0/arm64:/Users/runner/setup-pnpm/node_modules/.bin/bin:/Users/runner/setup-pnpm/node_modules/.bin:/Users/runner/hostedtoolcache/node/22.23.2/arm64/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/opt/ruby@3.3/bin:/Users/runner/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/runner/.cargo/bin:/usr/local/opt/curl/bin:/usr/local/bin:/usr/local/sbin:/Users/runner/bin:/Users/runner/.yarn/bin:/Users/runner/Library/Android/sdk/tools:/Users/runner/Library/Android/sdk/platform-tools:/Library/Frameworks/Python.framework/Versions/Current/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/usr/bin:/bin:/usr/sbin:/sbin:/Users/runner/.dotnet/tools",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONNOUSERSITE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/pycache",
+          "RUFF_CACHE_DIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/ruff",
+          "TEMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/tmp",
+          "TMP": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/tmp",
+          "TMPDIR": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/tmp",
+          "XDG_CACHE_HOME": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/xdg",
+          "npm_config_cache": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/cache/npm"
+        },
+        "environmentAllowlist": [
+          "CARGO_TARGET_DIR",
+          "COMSPEC",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PATHEXT",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "SystemRoot",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "USERPROFILE",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "timeoutMs": 120000,
+        "stdoutLimit": 8388608,
+        "stderrLimit": 8388608,
+        "sandbox": "native-macos-allow-network-deny-project-write-cargo-deny-contract",
+        "acceptedExitCodes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+          "providerId": "legacy.security.rust-policy",
+          "planId": "sha256:df993af4a76d7526e9715b79bfedd177513b4ac4c45151eed4aafefe8455a6dd",
+          "taskId": "cargo_deny",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source",
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "environmentDigest": "sha256:139d5a64f806524f533959fa61d4e7d927af293d9e6200c8ce78e3c9f75a8a54",
+          "timeoutMs": 120000,
+          "stdoutLimit": 8388608,
+          "stderrLimit": 8388608,
+          "acceptedExitCodes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "requiresNetworkSandbox": true,
+          "sandbox": {
+            "id": "sandbox:macos:4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279",
+            "network": true,
+            "filesystemScope": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source"
+          }
+        }
+      ],
+      "actualSdkReceipt": {
+        "schemaVersion": 1,
+        "receiptId": "receipt:legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+        "requestId": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d",
+        "providerId": "legacy.security.rust-policy",
+        "planId": "sha256:df993af4a76d7526e9715b79bfedd177513b4ac4c45151eed4aafefe8455a6dd",
+        "policyId": "legion-cargo-deny-offline-fixture-v1",
+        "policy": {
+          "id": "legion-cargo-deny-offline-fixture-v1",
+          "version": 1,
+          "digest": "sha256:651fdb3708b952305735858222bbcea3c98ad2b7ce533a53e393c50c06f165c4",
+          "allowed": true,
+          "reason": "exact constructed cargo-deny fixture admission"
+        },
+        "taskId": "cargo_deny",
+        "state": "completed",
+        "complete": true,
+        "executable": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "digestState": "sealed",
+          "signature": "unknown",
+          "version": {
+            "args": [
+              "-f",
+              "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+              "--",
+              "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+              "--version"
+            ],
+            "output": "cargo-deny 0.20.2\n",
+            "exitCode": 0,
+            "qualified": true,
+            "skippedByPolicy": false
+          }
+        },
+        "command": {
+          "executable": "/usr/bin/sandbox-exec",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/run/sandbox/audit-4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-cargo-deny-native-0.20.2/cargo-deny",
+            "--format",
+            "json",
+            "--offline",
+            "check"
+          ],
+          "environmentNames": [
+            "CARGO_TARGET_DIR",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "HOME",
+            "MYPY_CACHE_DIR",
+            "PATH",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONNOUSERSITE",
+            "PYTHONPYCACHEPREFIX",
+            "RUFF_CACHE_DIR",
+            "TEMP",
+            "TMP",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "npm_config_cache"
+          ],
+          "redactedArgumentIndexes": [],
+          "redactedEnvironmentNames": []
+        },
+        "cwd": "/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/source",
+        "environmentNames": [
+          "CARGO_TARGET_DIR",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "HOME",
+          "MYPY_CACHE_DIR",
+          "PATH",
+          "PYTHONDONTWRITEBYTECODE",
+          "PYTHONNOUSERSITE",
+          "PYTHONPYCACHEPREFIX",
+          "RUFF_CACHE_DIR",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "XDG_CACHE_HOME",
+          "npm_config_cache"
+        ],
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:4ec6d2a5e7fe75d9d54ea8e5ee274e16be7ce0d6e3e2f3512b229350cc0d8279",
+          "networkEnabled": true
+        },
+        "processTree": {
+          "started": true,
+          "terminated": true,
+          "hardKilled": false,
+          "reaped": true,
+          "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+        },
+        "timing": {
+          "startedAtMs": 1792498407803,
+          "completedAtMs": 1792498407946,
+          "durationMs": 143
+        },
+        "exitCode": 1,
+        "signal": null,
+        "stdout": {
+          "path": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d/stdout",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "immutable": true,
+          "raw": ""
+        },
+        "stderr": {
+          "path": "legion-audit/0f41e6befa9a8c16a972b82f244ef490e091386ab95735aa18a071cf9813082d/stderr",
+          "digest": "sha256:1602f1f86ac5db406f8af0791e67de64666ff842e4468dc3aed4bd3e63e696e3",
+          "bytes": 521,
+          "immutable": true,
+          "raw": "{\"fields\":{\"level\":\"ERROR\",\"message\":\"failed to get 'FETCH_HEAD' metadata: failed to get HEAD timestamp: [\\\"-C\\\", \\\"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691\\\", \\\"show\\\", \\\"-s\\\", \\\"--format=%cI\\\", \\\"HEAD\\\"]\\nfatal: cannot change to '/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691': No such file or directory\\n\",\"timestamp\":\"2026-10-20T12:13:27.945599Z\"},\"type\":\"log\"}\n"
+        },
+        "parser": {
+          "attempted": false,
+          "succeeded": false,
+          "error": null
+        },
+        "gaps": []
+      },
+      "actualStdout": "",
+      "actualStderr": "{\"fields\":{\"level\":\"ERROR\",\"message\":\"failed to get 'FETCH_HEAD' metadata: failed to get HEAD timestamp: [\\\"-C\\\", \\\"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691\\\", \\\"show\\\", \\\"-s\\\", \\\"--format=%cI\\\", \\\"HEAD\\\"]\\nfatal: cannot change to '/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691': No such file or directory\\n\",\"timestamp\":\"2026-10-20T12:13:27.945599Z\"},\"type\":\"log\"}\n",
+      "actualToolReport": [
+        {
+          "fields": {
+            "level": "ERROR",
+            "message": "failed to get 'FETCH_HEAD' metadata: failed to get HEAD timestamp: [\"-C\", \"/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691\", \"show\", \"-s\", \"--format=%cI\", \"HEAD\"]\nfatal: cannot change to '/Users/runner/work/_temp/legion-provider-qualification/cargo-deny/missing-database/database/advisory-db-3157b0e258782691': No such file or directory\n",
+            "timestamp": "2026-10-20T12:13:27.945599Z"
+          },
+          "type": "log"
+        }
+      ],
+      "locatorPrecision": "native aggregate candidate anchored at denominator entry; no package/source diagnostic localization claim"
+    }
+  ],
+  "metrics": {
+    "cases": 3,
+    "matched": 3,
+    "mismatched": 0
+  },
+  "tool": {
+    "version": "0.20.2",
+    "digest": "sha256:5f65c07c459c9514f0c97cc2e2fb6b120daef2d95aee31062cab4816cf027eb1",
+    "source": "https://github.com/EmbarkStudios/cargo-deny/releases/tag/0.20.2"
+  },
+  "advisory": {
+    "commit": "999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b",
+    "path": "engine/crates/legion-audit/tests/fixtures/cargo-deny/RUSTSEC-2021-0145.md",
+    "digest": "sha256:89cc90b1a89167c07aa2461ae037595652e177f7ee338269de93f0dcfcd5a22d"
+  },
+  "qualificationDigest": "sha256:040b357277cf8ff333376adc21a66f3a0484a706876a2c713e1b1133d42db8fb"
+}

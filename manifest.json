@@ -305,7 +305,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.rust-advisories",
@@ -390,7 +390,7 @@
       "backs": [
         "stack"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "stack.rust-outdated",
@@ -402,7 +402,7 @@
       "backs": [
         "stack"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "tauri.capabilities",
@@ -1390,7 +1390,7 @@
         "kind": "legacy-check",
         "check": "py_deps_cve"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1510,7 +1510,7 @@
         "kind": "legacy-check",
         "check": "outdated"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1525,7 +1525,7 @@
         "kind": "legacy-check",
         "check": "cargo_outdated"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1795,7 +1795,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-tflint"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1855,7 +1855,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-golangci-lint"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
