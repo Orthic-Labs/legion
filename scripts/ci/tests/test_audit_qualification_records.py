@@ -669,7 +669,8 @@ class RegistrationGateTests(unittest.TestCase):
 
     def test_rust_native_receipt_exclusion_preserves_all_other_bytes(self):
         prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/"
-        receipt = prefix + "a" * 64 + ".json"
+        # Keep receipt distinct from uppercase near-match on case-insensitive hosts.
+        receipt = prefix + "c" * 64 + ".json"
         retained = [
             "engine/Cargo.toml", "engine/crates/legion-audit/src/mod.rs",
             "engine/crates/legion-audit/src/nested/.audit/anything.rs",
