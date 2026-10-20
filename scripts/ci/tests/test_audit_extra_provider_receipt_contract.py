@@ -15,7 +15,7 @@ class ExtraProviderReceiptContractTests(unittest.TestCase):
         base = {"args": ["--version"], "output": "scanner 1.0", "exitCode": 0, "qualified": True}
         for changed in ({**base, "skippedByPolicy": True}, {**base, "skippedByPolicy": 0},
                         {**base, "skippedByPolicy": "false"}, {"args": ["--version"], "exitCode": 0, "qualified": True}):
-            with self.subTest(receipt=changed), self.assertRaises(ValueError):
+            with self.subTest(receipt=changed), self.assertRaises(AssertionError):
                 API["require_not_skipped_by_policy"](changed)
 
 
