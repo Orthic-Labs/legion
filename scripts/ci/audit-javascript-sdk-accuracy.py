@@ -316,6 +316,14 @@ def raw_descriptor(value, reason):
     return data
 
 
+def preparation_config_root(case):
+    case_id = case["caseId"]
+    require(isinstance(case_id, str) and re.fullmatch(r"javascript-[a-z0-9-]+", case_id), "preparation case identity differs")
+    cwd = absolute(case["policyDefinition"]["cwd"])
+    require(cwd.name == "source" and cwd.parent.name == case_id, "preparation fixture root differs")
+    return cwd.parent.parent / "preparations" / (case_id + "-config")
+
+
 def validate_preparation(case, enrollment, root, expected_files, control):
     prep = case.get("enrollmentPreparation")
     require(isinstance(prep, dict) and set(prep) == {"install", "enrolledRuntime", "postInstallRuntime", "generatedFiles", "lockfile"}, "genuine install preparation missing/incomplete")
@@ -325,8 +333,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
     cwd = absolute(case["policyDefinition"]["cwd"])
     node = absolute(enrollment["node"]["path"])
     pnpm = cwd / "node_modules/pnpm/bin/pnpm.mjs"
-    scratch = absolute(case["policyDefinition"]["profile"]["path"]).parent.parent
-    config_root = scratch.parent.parent / "preparations" / (case["caseId"] + "-config")
+    config_root = preparation_config_root(case)
     require(not config_root.is_relative_to(cwd), "install config escaped external preparation scope")
     environment = {"PATH": str(node.parent) + ":/usr/bin:/bin", "CI": "true",
         "PNPM_CONFIG_IGNORE_PNPMFILE": "true", "PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE": "false",

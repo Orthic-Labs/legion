@@ -610,7 +610,7 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
                         "required harness test name missing/duplicated")
         if role == "harness" and command[:3] == ["audit_cargo_test", "--test", "ownership_native_accuracy"]:
             # --nocapture can place native JSON between named prefix & final ok.
-            native_span = re.sub(r"(?m)^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z[ \t]+", "", span)
+            native_span = re.sub(r"(?m)^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z[ \t]+", "", span.replace("\r\n", "\n"))
             named = re.search(r"(?m)^test (?:[A-Za-z0-9_]+::)*ownership_native_sdk_known_answers \.\.\.", native_span)
             summary = re.search(r"(?m)^test result: ok\.", native_span)
             require(named is not None and summary is not None and named.end() < summary.start(),

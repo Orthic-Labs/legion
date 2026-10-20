@@ -5,7 +5,9 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import runpy
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -1855,11 +1857,22 @@ class OwnershipNativeCiTests(unittest.TestCase):
 
     def observed_gate(self, configured=None, failed_command="", platform="macOS"):
         env = {key: value for key, value in os.environ.items() if not key.startswith("LEGION_OWNERSHIP_")}
-        env.update(RUNNER_OS=platform, RUNNER_TEMP=str(self.root / "retained"),
-                   GITHUB_WORKSPACE=str(SOURCE_ROOT), MOCK_CALLS=str(self.root / "calls"),
-                   MOCK_FAILED_COMMAND=failed_command)
+        env.update(RUNNER_OS=platform, RUNNER_TEMP=(self.root / "retained").as_posix(),
+                   GITHUB_WORKSPACE=SOURCE_ROOT.as_posix(), MOCK_CALLS=(self.root / "calls").as_posix(),
+                   MOCK_PYTHON=Path(sys.executable).as_posix(), MOCK_FAILED_COMMAND=failed_command)
         env.update(configured or {})
+        # Windows' bare bash may resolve to WSL instead of CI's Git Bash.
+        if os.name == "nt":
+            git = shutil.which("git")
+            self.assertIsNotNone(git, "Git Bash is required for ownership shell units")
+            git_dir = Path(git).resolve().parent
+            bash = next((path for path in (git_dir / "bash.exe", git_dir.parent / "bin/bash.exe",
+                                           git_dir.parent / "usr/bin/bash.exe") if path.is_file()), None)
+        else:
+            bash = shutil.which("bash")
+        self.assertIsNotNone(bash, "Bash is required for ownership shell units")
         mock = """set -euo pipefail
+ python3() { "$MOCK_PYTHON" "$@"; }
  audit_qualification_failures=0
  run_audit_qualification() {
    printf '%s\\n' "$*" >> "$MOCK_CALLS"
@@ -1869,9 +1882,9 @@ class OwnershipNativeCiTests(unittest.TestCase):
    fi
  }
 """
-        result = subprocess.run(["bash", "-c", mock + self.block + '\nprintf "FAILURES=%s\\n" "$audit_qualification_failures"\n'],
+        result = subprocess.run([str(bash), "-c", mock + self.block + '\nprintf "FAILURES=%s\\n" "$audit_qualification_failures"\n'],
                                 env=env, text=True, capture_output=True, check=False, timeout=10)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         calls = (self.root / "calls").read_text().splitlines() if (self.root / "calls").exists() else []
         return result.stdout + result.stderr, calls
 
@@ -1917,8 +1930,8 @@ class OwnershipNativeCiTests(unittest.TestCase):
         retained = self.root / "retained/legion-provider-qualification/ownership-native"
         self.assertIn("FAILURES=0", output)
         self.assertEqual(calls[0], "audit_cargo_test --test ownership_native_accuracy ownership_native_sdk_known_answers -- --ignored --exact --nocapture --test-threads=1")
-        self.assertEqual(calls[2], f"python3 scripts/ci/validate-ownership-native-accuracy.py --root {SOURCE_ROOT} --receipts {retained}")
-        self.assertEqual(calls[1::2], [f"{self.owner}|{self.identities}|{retained}/controls"] * 2)
+        self.assertEqual(calls[2], f"python3 scripts/ci/validate-ownership-native-accuracy.py --root {SOURCE_ROOT.as_posix()} --receipts {retained.as_posix()}")
+        self.assertEqual(calls[1::2], [f"{self.owner}|{self.identities}|{retained.as_posix()}/controls"] * 2)
         self.assertEqual(len(calls), 4)
         self.assertEqual({item.name for item in retained.iterdir()}, {"harness.log", "validator.log"})
 
@@ -1955,7 +1968,7 @@ class OwnershipNativeCiTests(unittest.TestCase):
         native = "test ownership_native_sdk_known_answers ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;"
         path = self.root / "terminal.log"
 
-        def observed(result, harness_status=0, validator_status=0, reordered=False, repeated=False):
+        def observed(result, harness_status=0, validator_status=0, reordered=False, repeated=False, newline="\n"):
             first = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command}),
                      result, "original", f"AUDIT_QUALIFICATION_COMMAND_END 1 {harness_status}"]
             second = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": validator}),
@@ -1965,35 +1978,38 @@ class OwnershipNativeCiTests(unittest.TestCase):
                 pieces += ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 3, "argv": command}),
                            "AUDIT_QUALIFICATION_COMMAND_END 3 0"]
             lines = "\n".join(pieces).splitlines()
-            path.write_text("\n".join(lines) + "\n")
+            path.write_bytes((newline.join(lines) + newline).encode("utf-8"))
             return gate["terminal_checks"](path, proof, {"sha256": "unit-only"}, "unit-summary",
                                            lines.index("original") + 1, lines.index("summary") + 1)
 
-        self.assertEqual([item["role"] for item in observed(native)], ["harness", "validator"])
         interrupted = native.replace("... ok", "... OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}\nok")
+
         def timestamped(value):
             return "\n".join("2026-10-20T10:11:12.1234567Z " + line for line in value.splitlines())
-        self.assertEqual([item["role"] for item in observed(interrupted)], ["harness", "validator"])
-        for result in [native, interrupted]:
-            self.assertEqual([item["role"] for item in observed(timestamped(result))], ["harness", "validator"])
-        for result in ("", native + "\n" + native, native.replace("1 passed", "0 passed"),
-                       native.replace("0 ignored", "1 ignored"), native.replace("0 failed", "1 failed"),
-                       native.replace("test result: ok.", "test result: FAILED."),
-                       native.replace("... ok", "... FAILED"), native.replace("... ok", "... ignored"),
-                       interrupted.replace("... OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}", "... FAILED"),
-                       interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed"),
-                       "ok\n" + interrupted.replace("\nok", ""),
-                       interrupted.replace("\nok", "") + "\nok",
-                       timestamped(native.replace("... ok", "... FAILED")),
-                       timestamped(native.replace("... ok", "... ignored")),
-                       timestamped(interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed")),
-                       native.replace("ownership_native_sdk_known_answers", "different_test"),
-                       native + "\ntest ownership_native_sdk_known_answers ... ok"):
-            with self.subTest(result=result), self.assertRaises(AssertionError):
-                observed(result)
-        for options in ({"harness_status": 1}, {"validator_status": 1}, {"reordered": True}, {"repeated": True}):
-            with self.subTest(options=options), self.assertRaises(AssertionError):
-                observed(native, **options)
+
+        for newline in ("\n", "\r\n"):
+            for result in [native, interrupted, timestamped(native), timestamped(interrupted)]:
+                with self.subTest(newline=repr(newline), result=result):
+                    self.assertEqual([item["role"] for item in observed(result, newline=newline)],
+                                     ["harness", "validator"])
+            for result in ("", native + "\n" + native, native.replace("1 passed", "0 passed"),
+                           native.replace("0 ignored", "1 ignored"), native.replace("0 failed", "1 failed"),
+                           native.replace("test result: ok.", "test result: FAILED."),
+                           native.replace("... ok", "... FAILED"), native.replace("... ok", "... ignored"),
+                           interrupted.replace("... OWNERSHIP_NATIVE_PROVIDER_ACCURACY {}", "... FAILED"),
+                           interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed"),
+                           "ok\n" + interrupted.replace("\nok", ""),
+                           interrupted.replace("\nok", "") + "\nok",
+                           timestamped(native.replace("... ok", "... FAILED")),
+                           timestamped(native.replace("... ok", "... ignored")),
+                           timestamped(interrupted.replace("\nok", "\nthread 'ownership_native_sdk_known_answers' panicked: fs::write failed")),
+                           native.replace("ownership_native_sdk_known_answers", "different_test"),
+                           native + "\ntest ownership_native_sdk_known_answers ... ok"):
+                with self.subTest(newline=repr(newline), result=result), self.assertRaises(AssertionError):
+                    observed(result, newline=newline)
+            for options in ({"harness_status": 1}, {"validator_status": 1}, {"reordered": True}, {"repeated": True}):
+                with self.subTest(newline=repr(newline), options=options), self.assertRaises(AssertionError):
+                    observed(native, newline=newline, **options)
 
 
 if __name__ == "__main__":

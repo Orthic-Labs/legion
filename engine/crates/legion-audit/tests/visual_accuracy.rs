@@ -853,7 +853,7 @@ fn real_browser_accuracy_visual_regression() {
             terminal.clone(),
         );
         fs::write(
-            output.join("visual-lifecycle.json"),
+            root.join("visual-lifecycle.json"),
             serde_json::to_vec_pretty(&terminal).unwrap(),
         )
         .unwrap();

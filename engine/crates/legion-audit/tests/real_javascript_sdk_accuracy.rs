@@ -955,9 +955,7 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     let install = install_fixture_dependencies(
         enrollment,
         &root,
-        &retained
-            .join("preparations")
-            .join(format!("{case_id}-config")),
+        &base.join("preparations").join(format!("{case_id}-config")),
     );
     let receipt_path = retained
         .join("preparations")
