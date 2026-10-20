@@ -12,8 +12,8 @@ use legion_audit::{
 };
 use legion_contracts::{ProviderSpec, ProviderStatus};
 use rightkit_browser::{
-    chrome_for_testing_path, ActionKind, AdmissionHook, BrowserRequest, BrowserSession, Decision,
-    LaunchOptions, NetworkPolicy, PolicyDecision, ProfileSpec,
+    chrome_for_testing_path, ActionKind, AdmissionHook, BrowserPage, BrowserRequest,
+    BrowserSession, Decision, LaunchOptions, NetworkPolicy, PolicyDecision, ProfileSpec,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -28,6 +28,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
+    task::Poll,
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -41,7 +42,8 @@ const CHROME_ARCHIVE_SHA256: &str =
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 48;
 const READY: &str = "document.readyState === 'complete'";
-const ANIMATION_FRAMES: &str = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()";
+const START_ANIMATION_FRAMES: &str = "(() => { const state = {rafAvailable: typeof window.requestAnimationFrame === 'function', frameCallbacks: 0, frameProbeComplete: false}; window.__legionVisualFrames = state; if (state.rafAvailable) requestAnimationFrame(() => { state.frameCallbacks += 1; requestAnimationFrame(() => { state.frameCallbacks += 1; state.frameProbeComplete = true; }); }); return true; })()";
+const ANIMATION_STATE: &str = "Object.assign({}, window.__legionVisualFrames, {visibilityState: document.visibilityState, readyState: document.readyState, hasFocus: document.hasFocus()})";
 const HIGH_ENTROPY_UA: &str =
     "(async () => await navigator.userAgentData.getHighEntropyValues(['fullVersionList']))()";
 const OBSERVE_DOM: &str = "({ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent})";
@@ -87,22 +89,94 @@ async fn bounded_until<T, E: std::fmt::Display>(
 ) -> Result<T, String> {
     let remaining = deadline.saturating_duration_since(Instant::now());
     lifecycle(stage, "begin", json!({"timeoutMs": remaining.as_millis()}));
-    let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-        let error = format!("{stage}: shared observation deadline exceeded before operation");
-        lifecycle(stage, "fail", json!({"error": error}));
-        return Err(error);
-    };
-    let result = match tokio::time::timeout(remaining, operation).await {
-        Ok(Ok(value)) if Instant::now() < deadline => {
-            lifecycle(stage, "pass", json!({}));
-            return Ok(value);
+    tokio::pin!(operation);
+    // Tokio timeout polls its inner future before testing expiry. Guard every
+    // poll so a ready or resumed renderer operation cannot begin after expiry.
+    let guarded = std::future::poll_fn(|cx| {
+        if Instant::now() >= deadline {
+            return Poll::Ready(Err(format!(
+                "{stage}: shared observation deadline exceeded before operation"
+            )));
         }
-        Ok(Ok(_)) => format!("{stage}: shared observation deadline exceeded on completion"),
-        Ok(Err(error)) => format!("{stage}: {error}"),
-        Err(_) => format!("{stage}: shared observation deadline exceeded"),
-    };
+        match operation.as_mut().poll(cx) {
+            Poll::Ready(_) if Instant::now() >= deadline => Poll::Ready(Err(format!(
+                "{stage}: shared observation deadline exceeded on completion"
+            ))),
+            Poll::Ready(result) => Poll::Ready(result.map_err(|error| format!("{stage}: {error}"))),
+            Poll::Pending => Poll::Pending,
+        }
+    });
+    let result =
+        match tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), guarded).await {
+            Ok(Ok(value)) => {
+                lifecycle(stage, "pass", json!({}));
+                return Ok(value);
+            }
+            Ok(Err(error)) => error,
+            Err(_) => format!("{stage}: shared observation deadline exceeded"),
+        };
     lifecycle(stage, "fail", json!({"error": result}));
     Err(result)
+}
+
+async fn animation_frames(
+    page: &BrowserPage,
+    name: &str,
+    deadline: Instant,
+) -> Result<Value, String> {
+    // Schedule actual renderer callbacks without keeping a CDP awaitPromise
+    // request open across frame scheduling. Poll only synchronous observations.
+    bounded_until(
+        &format!("{name}.animation-start"),
+        deadline,
+        page.eval(START_ANIMATION_FRAMES),
+    )
+    .await?;
+    loop {
+        let state = bounded_until(
+            &format!("{name}.animation-frames"),
+            deadline,
+            page.eval(ANIMATION_STATE),
+        )
+        .await?;
+        lifecycle(
+            &format!("{name}.animation-frames"),
+            "observed",
+            state.clone(),
+        );
+        if state["rafAvailable"] != true {
+            return Err(format!(
+                "{name}: renderer requestAnimationFrame unavailable"
+            ));
+        }
+        if state["frameCallbacks"] == 2 && state["frameProbeComplete"] == true {
+            return Ok(state);
+        }
+        tokio::time::sleep_until(tokio::time::Instant::from_std(
+            (Instant::now() + Duration::from_millis(50)).min(deadline),
+        ))
+        .await;
+    }
+}
+
+#[test]
+fn expired_observation_never_polls_ready_renderer_operation() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let polled = AtomicBool::new(false);
+    let operation = async {
+        polled.store(true, Ordering::SeqCst);
+        Ok::<_, String>(true)
+    };
+    let result = runtime.block_on(bounded_until(
+        "expired-control",
+        Instant::now() - Duration::from_millis(1),
+        operation,
+    ));
+    assert!(result.is_err());
+    assert!(
+        !polled.load(Ordering::SeqCst),
+        "expired renderer operation must remain unpolled"
+    );
 }
 
 async fn stop_browser(session: &BrowserSession, cancel: bool) -> Result<(), String> {
@@ -366,13 +440,9 @@ async fn capture(
     .await
     .unwrap();
     let observe_deadline = Instant::now() + OPERATION_TIMEOUT;
-    bounded_until(
-        &format!("{name}.animation-frames"),
-        observe_deadline,
-        page.eval(ANIMATION_FRAMES),
-    )
-    .await
-    .unwrap();
+    let frames = animation_frames(&page, name, observe_deadline)
+        .await
+        .unwrap();
     let user_agent = bounded_until(
         &format!("{name}.high-entropy-user-agent"),
         observe_deadline,
@@ -388,6 +458,7 @@ async fn capture(
     .await
     .unwrap();
     observed["fullVersionList"] = user_agent["fullVersionList"].clone();
+    observed["animationFrames"] = frames;
     assert_eq!(observed["ready"], "complete");
     assert_eq!(
         observed["background"],
@@ -651,7 +722,8 @@ fn real_browser_accuracy_visual_regression() {
                     matches!(
                         request.detail.as_deref(),
                         Some(READY)
-                            | Some(ANIMATION_FRAMES)
+                            | Some(START_ANIMATION_FRAMES)
+                            | Some(ANIMATION_STATE)
                             | Some(HIGH_ENTROPY_UA)
                             | Some(OBSERVE_DOM)
                     )
@@ -806,7 +878,11 @@ fn real_browser_accuracy_visual_regression() {
     assert_eq!(stopped["pid"], started["pid"]);
     assert!(started["ts_ms"].as_u64().unwrap() <= stopped["ts_ms"].as_u64().unwrap());
     let admissions = admissions.lock().unwrap().clone();
-    assert_eq!(admissions.len(), 9);
+    assert!(admissions
+        .iter()
+        .all(|admission| [&baseline, &clean, &planted]
+            .iter()
+            .any(|captured| admission["pageId"] == captured["pageId"])));
     assert!(admissions.iter().all(|a| a["allowed"] == true));
     assert!(admissions.iter().all(|a| a["sessionId"] == session_id));
     assert_ne!(baseline["pageId"], clean["pageId"]);
@@ -826,7 +902,12 @@ fn real_browser_accuracy_visual_regression() {
             .iter()
             .filter(|a| a["pageId"] == captured["pageId"])
             .collect();
-        assert_eq!(page_admissions.len(), 5);
+        let frame_polls = page_admissions
+            .iter()
+            .filter(|a| a["action"] == "Eval" && a["detail"] == ANIMATION_STATE)
+            .count();
+        assert!(frame_polls > 0);
+        assert_eq!(page_admissions.len(), 5 + frame_polls);
         assert!(page_admissions.iter().all(|a| a["url"] == captured["url"]));
         assert_eq!(
             page_admissions
@@ -835,7 +916,7 @@ fn real_browser_accuracy_visual_regression() {
                 .count(),
             1
         );
-        for expression in [READY, ANIMATION_FRAMES, HIGH_ENTROPY_UA, OBSERVE_DOM] {
+        for expression in [READY, START_ANIMATION_FRAMES, HIGH_ENTROPY_UA, OBSERVE_DOM] {
             assert_eq!(
                 page_admissions
                     .iter()

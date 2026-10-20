@@ -9,6 +9,17 @@ API = runpy.run_path(str(Path(__file__).resolve().parents[1] / "audit-reasoning-
 
 
 class ReasoningRegistrationBoundaryTests(unittest.TestCase):
+    def test_isolated_source_must_match_native_plan_and_fresh_capture_root(self):
+        source = "/scratch/capture/fixture-source"
+        run = "/scratch/capture/native-run"
+        API["isolated_source_evidence"](source, run, {"reviewContext": {"sourceRepository": source}})
+        for incorrect_source, incorrect_plan in (
+                ("/source/corpus/fixtures", {"reviewContext": {"sourceRepository": "/source/corpus/fixtures"}}),
+                (source, {"reviewContext": {"sourceRepository": "/unrelated"}}),
+                (source, {})):
+            with self.assertRaises(AssertionError):
+                API["isolated_source_evidence"](incorrect_source, run, incorrect_plan)
+
     def test_budget_state_binds_exact_pretty_dispatch_bytes_not_canonical_json(self):
         # Native next-state stores SHA-256 of original file bytes as bare hex.
         raw = '{\n  "seats": [{"packets": ["correctness.json"]}],\n  "requiredSeats": 1\n}'

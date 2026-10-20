@@ -14,6 +14,13 @@ def out = file(System.getenv('LEGION_JVM_BUILD'))
 layout.buildDirectory.set(out)
 def javaBin = jdk + '/bin/java'
 def javacBin = jdk + '/bin/javac'
+// Pin command-line javac so JavaCompile needs no compiler-worker socket.
+allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.fork = true
+        options.forkOptions.executable = javacBin
+    }
+}
 def kotlinLib = kotlin + '/lib/kotlin-stdlib.jar'
 def scalaLib = scala + '/lib/scala-library.jar'
 def kotlinCompiler = [javaBin, '-Dkotlin.home=' + kotlin, '-cp', kotlin + '/lib/*', 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler']

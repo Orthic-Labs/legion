@@ -144,6 +144,9 @@ struct State {
     terminal_status: Option<String>,
     #[serde(default)]
     budget_blocked: Vec<String>,
+    /// Seat-local context exhaustion never closes sibling admission.
+    #[serde(default)]
+    context_limited: BTreeSet<String>,
     /// Digest of the explicit linked continuation; never present in legacy runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     continuation_digest: Option<String>,
@@ -171,6 +174,7 @@ impl State {
             reservations: BTreeMap::new(),
             terminal_status: None,
             budget_blocked: Vec::new(),
+            context_limited: BTreeSet::new(),
             continuation_digest: None,
             historical_terminal_status: None,
         }
@@ -491,6 +495,9 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
             continue;
         }
         lens_unmet += 1;
+        if state.context_limited.contains(&seat.id) {
+            continue;
+        }
         if item_status(state, &seat.id, now_ms) == ItemStatus::Exhausted {
             exhausted.push((seat.id.clone(), "attempts".to_owned()));
             continue;
@@ -663,10 +670,13 @@ fn decide(snapshot: &Snapshot, state: &mut State, now_ms: u64, lease_ms: u64) ->
 
     let status = if !returned.is_empty() {
         "wave".to_owned()
-    } else if lens_unmet == 0 && !adjudication_unmet {
+    } else if lens_unmet == 0 && !adjudication_unmet && state.context_limited.is_empty() {
         "done".to_owned()
     } else {
         let mut reasons: Vec<String> = Vec::new();
+        for seat in &state.context_limited {
+            reasons.push(format!("context-call-limit:{seat}"));
+        }
         if !exhausted.is_empty() {
             reasons.push("retry-exhausted".to_owned());
         }
@@ -1499,6 +1509,7 @@ fn budget_summary(state: &State) -> Value {
             "invoiceChargeUsd": null,
         },
         "terminalStatus": state.terminal_status,
+        "contextLimitedSeats": state.context_limited,
         "historicalTerminalStatus": state.historical_terminal_status,
         "continuationDigest": state.continuation_digest,
         "leaseAttempts": state.lease_issuances(),
@@ -1533,6 +1544,9 @@ pub fn persisted_budget_report(run_dir: &Path) -> Result<Option<Value>, AuditErr
     }
     if let Some(status) = &state.historical_terminal_status {
         gaps.push(format!("reasoning-budget-history:{status}"));
+    }
+    for seat in &state.context_limited {
+        gaps.push(format!("incomplete:context-call-limit:{seat}"));
     }
     if state.issuances > state.reservations.len() as u64 {
         gaps.push("reasoning-budget-usage-unknown:legacy-issuances".into());
@@ -1670,8 +1684,6 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
     let reserved = previous.max(budget.per_call);
     let additional = reserved.saturating_sub(previous);
     if (new_call && !state.budget_blocked.is_empty())
-        || tokens
-            > crate::native_providers::reasoning::ingest::physical_planning_limit(budget.per_call)
         || reserved > budget.per_call
         || !budget_allows_tokens(budget, &state, &call.tier, additional, new_call)
     {
@@ -1682,6 +1694,12 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
         save_state(run_dir, &state)?;
         return Ok(
             json!({"authorized": false, "status": "budget-exhausted", "complete": false, "callId": call.call_id, "budget": budget_summary(&state)}),
+        );
+    }
+    if tokens > crate::native_providers::reasoning::ingest::physical_planning_limit(budget.per_call)
+    {
+        return Ok(
+            json!({"authorized":false,"status":"incomplete:context-call-limit","complete":false,"callId":call.call_id,"budget":budget_summary(&state)}),
         );
     }
     // Physical calls already obey maxSeats & full per-call token admission.
@@ -1718,6 +1736,32 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
         "requestByteBasis":"serialized-host-envelope", "modelVisibleInputBytes":call.model_input_bytes,
         "modelVisibleInputBasis":"canonical-prompt-utf8+system-utf8+schema-json-utf8-once", "budget": budget_summary(&state)}),
     )
+}
+
+/// Retire only this author seat. Unused lease admission can be released because
+/// no transport was authorized; paid calls & their receipts remain immutable.
+pub(crate) fn stop_context_seat(run_dir: &Path, seat_id: &str) -> Result<(), AuditError> {
+    let _lock = StateLock::acquire(run_dir)?;
+    let loaded = load(run_dir)?;
+    if !loaded.snapshot.seats.iter().any(|seat| seat.id == seat_id) {
+        return Err(invalid("context-limited seat missing from frozen dispatch"));
+    }
+    let mut state = load_state(run_dir, &loaded.dispatch_digest)?;
+    state.context_limited.insert(seat_id.to_owned());
+    if let Some(lease) = state.leases.get(seat_id) {
+        let id = reservation_id(&state.dispatch_digest, seat_id, lease.attempts);
+        if state
+            .reservations
+            .get(&id)
+            .is_some_and(|entry| !entry.transport_authorized && entry.usage.is_none())
+        {
+            let unused = state.reservations.remove(&id).expect("checked reservation");
+            let spent = state.spent.entry(unused.tier).or_insert(0);
+            *spent = spent.saturating_sub(unused.reserved_tokens);
+            state.issuances = state.issuances.saturating_sub(1);
+        }
+    }
+    save_state(run_dir, &state)
 }
 
 /// Keep one full fresh verifier call available while collecting authors.
@@ -3105,6 +3149,67 @@ mod tests {
             reserve_call(&run, &call("beyond-physical-cap")).unwrap()["authorized"],
             false
         );
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn context_overflow_retires_only_author_seat_and_preserves_paid_evidence() {
+        let run = budget_run_with_limits("context-siblings", 10000, 1000, 10);
+        let mut dispatch = read_json(&run.join(DISPATCH_FILE)).unwrap();
+        dispatch["limits"] = json!({"waveWidth":1});
+        write_value(&run.join(DISPATCH_FILE), &dispatch);
+        let first = next_author_phase(&run, &options(0), &BTreeSet::new()).unwrap();
+        let mut paid = call("seat-001:author:1");
+        paid.reservation_id = Some(first["seats"][0]["reservationId"].as_str().unwrap().into());
+        assert_eq!(reserve_call(&run, &paid).unwrap()["authorized"], true);
+        let evidence = run.join("partial-findings.json");
+        write_value(&evidence, &json!({"findings":[{"id":"paid-finding"}]}));
+        let retained = fs::read(&evidence).unwrap();
+        let before = fs::read(run.join(STATE_FILE)).unwrap();
+        let mut overflow = call("seat-001:author:2");
+        overflow.rendered_request_bytes = 4000;
+        overflow.model_input_bytes = 4000;
+        let refused = reserve_call(&run, &overflow).unwrap();
+        assert_eq!(refused["status"], "incomplete:context-call-limit");
+        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
+        stop_context_seat(&run, "seat-001").unwrap();
+        let second = next_author_phase(&run, &options(1), &BTreeSet::new()).unwrap();
+        assert_eq!(second["seats"][0]["seatId"], "seat-002");
+        let mut sibling = call("seat-002:author:1");
+        sibling.reservation_id = Some(second["seats"][0]["reservationId"].as_str().unwrap().into());
+        assert_eq!(reserve_call(&run, &sibling).unwrap()["authorized"], true);
+        let authored = BTreeSet::from(["reasoning.b.json".to_owned()]);
+        assert_eq!(
+            next_author_phase(&run, &options(2), &authored).unwrap()["status"],
+            "incomplete:context-call-limit:seat-001"
+        );
+        let loaded = load(&run).unwrap();
+        let state = load_state(&run, &loaded.dispatch_digest).unwrap();
+        assert!(state.terminal_status.is_none());
+        assert!(state.budget_blocked.is_empty());
+        assert!(state
+            .reservations
+            .values()
+            .any(|entry| entry.call_id == paid.call_id && entry.transport_authorized));
+        assert_eq!(fs::read(evidence).unwrap(), retained);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn stopping_context_releases_only_unused_seat_admission_idempotently() {
+        let run = budget_run_with_limits("unused-context-reserve", 10000, 1000, 10);
+        let first = next(&run, &options(0)).unwrap();
+        let id = first["seats"][0]["reservationId"].as_str().unwrap();
+        let loaded = load(&run).unwrap();
+        let before = load_state(&run, &loaded.dispatch_digest).unwrap();
+        let unused = before.reservations[id].reserved_tokens;
+        stop_context_seat(&run, "seat-001").unwrap();
+        let after = load_state(&run, &loaded.dispatch_digest).unwrap();
+        assert!(!after.reservations.contains_key(id));
+        assert_eq!(after.spent["judgment"], before.spent["judgment"] - unused);
+        assert_eq!(after.issuances, before.issuances - 1);
+        stop_context_seat(&run, "seat-001").unwrap();
+        assert_eq!(load_state(&run, &loaded.dispatch_digest).unwrap(), after);
         let _ = fs::remove_dir_all(run);
     }
 

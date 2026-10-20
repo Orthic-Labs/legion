@@ -11,6 +11,14 @@ api = runpy.run_path(str(ROOT / "scripts/ci/audit-jvm-sdk-accuracy.py"))
 
 
 class JvmSdkAdapterTests(unittest.TestCase):
+    def test_sandbox_admission_requires_verbatim_binding(self):
+        api["validate_admission"]({"sandboxAdmission": api["SANDBOX_ADMISSION"]})
+        for value in ({}, {"sandboxAdmission": None},
+                      {"sandboxAdmission": api["SANDBOX_ADMISSION"].replace("*:*", "*:0")},
+                      {"sandboxAdmission": api["SANDBOX_ADMISSION"].replace("remain denied", "are admitted")}):
+            with self.assertRaisesRegex(AssertionError, "JVM sandbox admission differs"):
+                api["validate_admission"](value)
+
     def test_jvm_family_keeps_exact_provider_stage_and_native_prerequisite(self):
         entry = {"provider": "code.jvm", "family": "code-jvm-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, entry), ("code-jvm-sdk", "real_jvm_sdk_accuracy", "canonical-json", "real_jvm_sdk_accuracy"))

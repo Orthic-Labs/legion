@@ -31,6 +31,41 @@ def load(path):
                       parse_constant=lambda _: require(False, "non-JSON number"))
 
 
+def prepare_fixture_repository(original, source, output):
+    """Copy exact source bytes into fresh Git top-level required by Audit."""
+    require(not source.exists(), "fixture source output must be fresh")
+    source.mkdir()
+    files = set()
+    for path in sorted(original.rglob("*")):
+        require(not path.is_symlink(), "fixture source refuses symlinks")
+        relative = path.relative_to(original)
+        require(relative.parts[0] not in {".git", ".audit"}, "fixture source includes runtime state")
+        copied = source / relative
+        if path.is_dir():
+            copied.mkdir(parents=True, exist_ok=True)
+        else:
+            require(path.is_file(), "fixture source must be regular")
+            copied.parent.mkdir(parents=True, exist_ok=True)
+            raw = path.read_bytes()
+            copied.write_bytes(raw)
+            require(copied.read_bytes() == raw, "isolated fixture source bytes differ")
+            files.add(relative.as_posix())
+    require(files, "fixture source is empty")
+    git_environment = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+    for index, args in enumerate((
+            ["init", "-q"], ["add", "--all"],
+            ["commit", "-q", "-m", "source-owned reasoning controls"])):
+        with (output / f"source-git-{index:02}.stdout.log").open("wb") as stdout, (output / f"source-git-{index:02}.stderr.log").open("wb") as stderr:
+            done = subprocess.run([
+                "git", "-c", "core.hooksPath=", "-c", "commit.gpgsign=false",
+                "-c", "core.autocrlf=false",
+                "-c", "user.name=Reasoning no-call control",
+                "-c", "user.email=reasoning-no-call@example.invalid", *args],
+                cwd=source, env=git_environment, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr, check=False)
+        require(done.returncode == 0, "isolated fixture Git preparation failed; original streams retained")
+    return files
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
@@ -50,8 +85,8 @@ def main():
     require(not args.binary.is_symlink() and args.binary.is_file(), "CI binary must be regular")
     binary = args.binary.resolve()
     corpus = args.corpus.resolve()
-    source = corpus / "fixtures"
-    require(source.is_dir() and not source.is_symlink(), "source-only fixture tree missing")
+    original_source = corpus / "fixtures"
+    require(original_source.is_dir() and not original_source.is_symlink(), "source-only fixture tree missing")
     prefix = PurePosixPath(args.archive_prefix)
     require(str(prefix) == args.archive_prefix and ".." not in prefix.parts
             and args.archive_prefix.startswith("qualification/provider-accuracy/evidence/"),
@@ -72,6 +107,7 @@ def main():
     args.output.mkdir(parents=True)
     output = args.output.resolve()
     run = output / "native-run"
+    source = output / "fixture-source"
     budget = {"schema": "legion-reasoning-qualification-budget/1",
               "maxPhysicalAdmissions": 44, "perCallReservationTokens": 10000,
               "reservationCeilingTokens": 440000, "width": 1,
@@ -124,6 +160,7 @@ def main():
         return load(stdout), stdout
 
     try:
+        source_files = prepare_fixture_repository(original_source, source, output)
         cases = load(corpus / "cases.json")
         command("preflight", ["audit", "check-reasoning-fixtures", "--root", str(corpus)], run)
         providers = cases["providers"] + ["security.misuse-resistance"]
@@ -137,12 +174,7 @@ def main():
         require(Path(plan["reviewContext"]["sourceRepository"]).resolve() == source.resolve(),
                 "native audited source includes material outside fixtures")
         snapshot = load(Path(plan["reviewContext"]["snapshotManifest"]))
-        actual_sources = set()
-        for path in source.rglob("*"):
-            require(not path.is_symlink(), "fixture source refuses symlinks")
-            if path.is_file():
-                actual_sources.add(path.relative_to(source).as_posix())
-        require(set(snapshot["files"]) == actual_sources,
+        require(set(snapshot["files"]) == source_files,
                 "frozen snapshot must contain exactly fixture source, excluding answer keys")
         checked, _ = command("dispatch", ["audit", "check-reasoning-dispatch", "--run", str(run)], run)
         require(checked["productionDispatchValidated"] is True and checked["modelCalls"] == 0,

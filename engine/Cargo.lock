@@ -2208,6 +2208,7 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 name = "legion"
 version = "0.3.23"
 dependencies = [
+ "async-trait",
  "clap",
  "hex",
  "hmac 0.13.0",

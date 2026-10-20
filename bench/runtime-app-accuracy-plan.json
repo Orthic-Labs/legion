@@ -1,0 +1,18 @@
+{
+  "schema": "legion-runtime-app-sdk-accuracy-plan/1",
+  "issue": "https://github.com/Orthic-Labs/legion/issues/93",
+  "provider": "legacy.runtime.app",
+  "scope": "Constructed live URL/surface SDK controls via explicit attested fixture executable mapping; not production admission, unmodified resolver identity or whole-provider clean",
+  "productionQualification": false,
+  "platform": "macos-arm64",
+  "viewport": {"width": 640, "height": 480},
+  "browser": {"version": "155.0.8059.39", "platform": "mac-arm64", "archiveUrl": "https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.39/mac-arm64/chrome-mac-arm64.zip", "archiveSha256": "529a71bd61aaa2ef266a4d4bd300ae9572ba6a3468a8d55c3023ffeffb5b6b4e"},
+  "axe": {"path": "engine/crates/legion-audit/assets/axe-core-4.14.0.min.js", "version": "4.14.0", "tags": ["wcag2a", "wcag2aa"]},
+  "capture": {"route": ["script", "qa/qa-functional"], "actions": ["navigation-check", "viewport-screenshot", "performance", "axe"], "timeoutMs": 120000, "stdoutLimit": 8388608, "stderrLimit": 8388608},
+  "cases": [
+    {"id": "clean", "fixture": "bench/fixtures/runtime-app/clean.html", "surfaces": ["entry", "secondary"], "consoleErrors": [], "axeRuleIds": [], "httpStatus": 200},
+    {"id": "planted", "fixture": "bench/fixtures/runtime-app/planted.html", "surfaces": ["entry", "secondary"], "consoleErrors": ["legion-runtime-planted"], "axeRuleIds": ["image-alt"], "httpStatus": 200},
+    {"id": "http-failure", "fixture": null, "surfaces": ["entry"], "httpStatus": 404},
+    {"id": "owner-denied", "fixture": "bench/fixtures/runtime-app/clean.html", "surfaces": ["entry"], "admission": "native-owner-admission-unavailable"}
+  ]
+}

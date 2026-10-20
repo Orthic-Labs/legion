@@ -607,6 +607,7 @@
             "quality-test-native",
             "backend-source-facts",
             "supply-chain-native",
+            "runtime-app-sdk",
             "reasoning-runtime"
           ]
         },

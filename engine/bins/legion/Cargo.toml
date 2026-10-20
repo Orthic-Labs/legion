@@ -44,3 +44,6 @@ toml.workspace = true
 sha2.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true

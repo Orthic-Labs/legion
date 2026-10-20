@@ -491,6 +491,154 @@ fn final_pretty_envelope_refinement_preserves_every_selected_home() {
 }
 
 #[test]
+fn tracked_oversize_source_survives_snapshot_inventory_and_planning_as_a_gap() {
+    let root = std::env::temp_dir().join(format!(
+        "audit-oversize-planning-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
+    ));
+    std::fs::create_dir_all(&root).unwrap();
+    let result = (|| {
+        let oversized_path = "src/parser.c";
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "pub fn stable() {}\n").unwrap();
+        std::fs::File::create(root.join(oversized_path))
+            .unwrap()
+            .set_len(37_337_414)
+            .unwrap();
+        fn git(root: &Path, args: &[&str]) {
+            let mut command = rightkit_child_process::OwnedCommand::new("git");
+            command
+                .command_mut()
+                .current_dir(root)
+                .args(args)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            let mut child = command.spawn().unwrap();
+            assert!(child
+                .wait_timeout(std::time::Duration::from_secs(30))
+                .unwrap()
+                .unwrap()
+                .success());
+        }
+        git(&root, &["init", "-q"]);
+        git(&root, &["config", "user.name", "Audit Test"]);
+        git(&root, &["config", "user.email", "audit@example.invalid"]);
+        git(&root, &["add", "src/lib.rs", oversized_path]);
+        git(&root, &["commit", "-qm", "fixture"]);
+
+        let live_inventory = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("oversize-live-inventory-regression")
+            .unwrap();
+        assert!(live_inventory.paths().any(|path| path == oversized_path));
+        assert!(live_inventory
+            .denominator_entries(&json!({"op":"always"}))
+            .unwrap()
+            .entries
+            .iter()
+            .all(|entry| entry.path != oversized_path));
+
+        let resolved =
+            crate::scope::ResolvedScope::resolve(&root, crate::scope::ScopeSpec::Repo, None)
+                .unwrap();
+        let snapshot = crate::snapshot::FrozenSnapshot::capture(resolved).unwrap();
+        let gap = format!("oversize:{oversized_path}");
+        assert!(snapshot.manifest.gaps.contains(&gap));
+        let uncovered = snapshot
+            .uncovered_metadata(oversized_path, crate::snapshot::SnapshotSide::Selected)
+            .unwrap();
+        assert_eq!(uncovered.bytes, 37_337_414);
+        assert_eq!(
+            uncovered.digest,
+            crate::snapshot::uncovered_file_digest(oversized_path, uncovered.bytes)
+        );
+        assert!(!snapshot.manifest.files.contains_key(oversized_path));
+
+        let execution_root = snapshot.manifest.execution_root.clone();
+        let inventory = FilesystemInventorySource::new(&execution_root)
+            .unwrap()
+            .inventory("oversize-planning-regression")
+            .unwrap();
+        let entry = inventory
+            .entries
+            .iter()
+            .find(|entry| entry.path == oversized_path)
+            .unwrap();
+        let expected_digest = format!("oversize:{}:{}", uncovered.bytes, uncovered.digest);
+        assert_eq!(entry.digest.as_deref(), Some(expected_digest.as_str()));
+        assert!(inventory.paths().any(|path| path == oversized_path));
+        assert_eq!(
+            inventory
+                .denominator_entries(&json!({"op":"always"}))
+                .unwrap()
+                .entries
+                .iter()
+                .map(|entry| entry.path.as_str())
+                .collect::<Vec<_>>(),
+            ["src/lib.rs"]
+        );
+
+        let plan = AuditPlan::compile_with_root(
+            Some(&execution_root),
+            &inventory,
+            &[spec("reasoning.performance", json!({"op":"always"}))],
+        )
+        .unwrap()
+        .freeze(Some(b"oversize-planning-regression-key"))
+        .unwrap();
+        let facts =
+            super::coverage_plan::gather_facts(&execution_root, &inventory, &BTreeSet::new());
+        assert_eq!(facts[oversized_path].size, 37_337_414);
+        let work = pending_lens_work(&execution_root, &plan, &inventory).unwrap();
+        assert!(!work.is_empty());
+        for item in work {
+            assert!(!item.request.packet["excerptCoverage"]["selectedPaths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|path| path.as_str() == Some(oversized_path)));
+            assert!(!item.request.packet["excerpts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|excerpt| excerpt["path"] == oversized_path));
+        }
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(root.join(oversized_path))
+            .unwrap()
+            .set_len(1)
+            .unwrap();
+        let partial_change = crate::snapshot::FrozenSnapshot::capture(
+            crate::scope::ResolvedScope::resolve(&root, crate::scope::ScopeSpec::Uncommitted, None)
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(partial_change
+            .manifest
+            .scope
+            .changed_paths
+            .contains(oversized_path));
+        assert!(partial_change
+            .uncovered_metadata(oversized_path, crate::snapshot::SnapshotSide::Base)
+            .is_some());
+        assert!(partial_change
+            .changed_source(oversized_path, 2 * 1024 * 1024)
+            .unwrap_err()
+            .to_string()
+            .contains("unavailable:oversize"));
+        Ok::<(), crate::AuditError>(())
+    })();
+    let _ = std::fs::remove_dir_all(&root);
+    result.unwrap();
+}
+
+#[test]
 fn tiny_run_defers_large_mandatory_source_and_keeps_affordable_raw_review() {
     let paths = vec!["src/auth.rs".to_owned(), "src/auth/small.rs".to_owned()];
     let facts = paths

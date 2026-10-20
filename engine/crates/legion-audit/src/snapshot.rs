@@ -24,6 +24,50 @@ fn io(error: impl std::fmt::Display) -> AuditError {
 fn hash(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
+pub(crate) fn uncovered_file_digest(path: &str, bytes: u64) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"legion-audit-oversize-v1\0");
+    hasher.update(bytes.to_be_bytes());
+    hasher.update([0]);
+    hasher.update(path.as_bytes());
+    format!("sha256:{}", hex::encode(hasher.finalize()))
+}
+fn oversize_gap(path: &str) -> String {
+    format!("oversize:{path}")
+}
+fn snapshot_key(
+    scope: &ResolvedScope,
+    files: &BTreeMap<String, SnapshotFile>,
+    base_files: &BTreeMap<String, SnapshotFile>,
+    uncovered_files: &BTreeMap<String, UncoveredSnapshotFile>,
+    dirty_digest: &str,
+    gaps: &[String],
+) -> Result<String, AuditError> {
+    if uncovered_files.is_empty() {
+        // Preserve identity of existing schema-v1 snapshots that predate the
+        // optional uncovered-file metadata map.
+        crate::digest(&(
+            1u32,
+            scope,
+            files,
+            base_files,
+            dirty_digest,
+            gaps,
+            "read-only-no-project-execution",
+        ))
+    } else {
+        crate::digest(&(
+            1u32,
+            scope,
+            files,
+            base_files,
+            uncovered_files,
+            dirty_digest,
+            gaps,
+            "read-only-no-project-execution",
+        ))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -44,6 +88,21 @@ pub struct SnapshotFile {
     pub bytes: usize,
     pub mode: String,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UncoveredFileMetadata {
+    pub bytes: u64,
+    pub digest: String,
+    pub mode: String,
+}
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UncoveredSnapshotFile {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected: Option<UncoveredFileMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base: Option<UncoveredFileMetadata>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SnapshotManifest {
@@ -52,6 +111,8 @@ pub struct SnapshotManifest {
     pub key: String,
     pub files: BTreeMap<String, SnapshotFile>,
     pub base_files: BTreeMap<String, SnapshotFile>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub uncovered_files: BTreeMap<String, UncoveredSnapshotFile>,
     pub execution_root: PathBuf,
     pub baseline_root: PathBuf,
     pub gaps: Vec<String>,
@@ -284,6 +345,35 @@ fn add_bytes(
     objects.insert(digest, bytes);
     Ok(())
 }
+fn record_uncovered(
+    path: &str,
+    bytes: u64,
+    mode: &str,
+    selected: bool,
+    uncovered: &mut BTreeMap<String, UncoveredSnapshotFile>,
+    gaps: &mut Vec<String>,
+) {
+    let metadata = UncoveredFileMetadata {
+        bytes,
+        digest: uncovered_file_digest(path, bytes),
+        mode: mode.into(),
+    };
+    let row = uncovered.entry(path.into()).or_default();
+    if selected {
+        row.selected = Some(metadata);
+    } else {
+        row.base = Some(metadata);
+    }
+    gaps.push(oversize_gap(path));
+}
+fn blob_size(git: &GitRunner, oid: &str) -> Result<u64, AuditError> {
+    let raw = git.run(&["cat-file", "-s", oid])?;
+    std::str::from_utf8(&raw)
+        .map_err(|_| invalid("Git blob size was not UTF-8"))?
+        .trim()
+        .parse()
+        .map_err(|_| invalid("Git blob size was invalid"))
+}
 impl FrozenSnapshot {
     pub fn capture(scope: ResolvedScope) -> Result<Self, AuditError> {
         let git = GitRunner::new(scope.object_root.as_deref().unwrap_or(&scope.source_root));
@@ -301,6 +391,7 @@ impl FrozenSnapshot {
         }
         let mut files = BTreeMap::new();
         let mut base_files = BTreeMap::new();
+        let mut uncovered_files = BTreeMap::new();
         let mut objects = BTreeMap::new();
         let mut gaps = Vec::new();
         let mut total = 0;
@@ -331,11 +422,27 @@ impl FrozenSnapshot {
                     gaps.push(format!("scope-symlink-unavailable:{path}"));
                     continue;
                 }
+                if meta.len() > MAX_FILE_BYTES as u64 {
+                    record_uncovered(
+                        &path,
+                        meta.len(),
+                        mode,
+                        true,
+                        &mut uncovered_files,
+                        &mut gaps,
+                    );
+                    continue;
+                }
                 source_cache
                     .verified_source(&read_safe(&scope.source_root, &path, MAX_FILE_BYTES)?)
                     .map_err(io)?
             } else {
                 let entry = entry.ok_or_else(|| invalid("selected Git blob missing"))?;
+                let size = blob_size(&git, &entry.oid)?;
+                if size > MAX_FILE_BYTES as u64 {
+                    record_uncovered(&path, size, mode, true, &mut uncovered_files, &mut gaps);
+                    continue;
+                }
                 source_cache
                     .immutable_blob(
                         &format!(
@@ -354,9 +461,6 @@ impl FrozenSnapshot {
                     )
                     .map_err(io)?
             };
-            if bytes.len() > MAX_FILE_BYTES {
-                return Err(invalid(format!("scope file exceeds byte cap:{path}")));
-            }
             add_bytes(
                 &path,
                 mode,
@@ -370,6 +474,18 @@ impl FrozenSnapshot {
         for (path, entry) in &scope.baseline_entries {
             if entry.mode == "120000" || entry.mode == "160000" {
                 gaps.push(format!("scope-base-special-file-unavailable:{path}"));
+                continue;
+            }
+            let size = blob_size(&git, &entry.oid)?;
+            if size > MAX_FILE_BYTES as u64 {
+                record_uncovered(
+                    path,
+                    size,
+                    &entry.mode,
+                    false,
+                    &mut uncovered_files,
+                    &mut gaps,
+                );
                 continue;
             }
             let bytes = source_cache
@@ -389,9 +505,6 @@ impl FrozenSnapshot {
                     },
                 )
                 .map_err(io)?;
-            if bytes.len() > MAX_FILE_BYTES {
-                return Err(invalid(format!("scope base file exceeds byte cap:{path}")));
-            }
             add_bytes(
                 path,
                 &entry.mode,
@@ -424,17 +537,29 @@ impl FrozenSnapshot {
                     )));
                 }
             }
+            for (path, file) in &uncovered_files {
+                let Some(selected) = &file.selected else {
+                    continue;
+                };
+                let size = std::fs::symlink_metadata(scope.source_root.join(path))
+                    .map_err(io)?
+                    .len();
+                if size != selected.bytes {
+                    return Err(AuditError::SourceDrift(format!(
+                        "worktree oversized file changed during snapshot capture:{path}"
+                    )));
+                }
+            }
         }
         let dirty_digest = crate::digest(&(&files, &scope.index_digest, &scope.status_digest))?;
-        let key = crate::digest(&(
-            1u32,
+        let key = snapshot_key(
             &scope,
             &files,
             &base_files,
+            &uncovered_files,
             &dirty_digest,
             &gaps,
-            "read-only-no-project-execution",
-        ))?;
+        )?;
         let cache = StateDir::create(&cache_root.join("audit-snapshots")).map_err(io)?;
         // Unique immutable run object. No speculative reuse or writable shared
         // cache lease; RightKit cache integration can deduplicate this contract.
@@ -473,6 +598,7 @@ impl FrozenSnapshot {
             key,
             files,
             base_files,
+            uncovered_files,
             execution_root: directory_location(selected_dir.path())?,
             baseline_root: directory_location(base_dir.path())?,
             gaps,
@@ -696,20 +822,41 @@ impl FrozenSnapshot {
                 .or_default() += 1;
         });
         let m = &self.manifest;
-        let key = crate::digest(&(
-            1u32,
+        let key = snapshot_key(
             &m.scope,
             &m.files,
             &m.base_files,
+            &m.uncovered_files,
             &m.dirty_digest,
             &m.gaps,
-            "read-only-no-project-execution",
-        ))?;
+        )?;
         if key != m.key {
             return Err(invalid("snapshot identity mismatch"));
         }
         if m.execution_policy != "read-only-no-project-execution-without-host-isolation" {
             return Err(invalid("snapshot execution policy changed"));
+        }
+        for (path, uncovered) in &m.uncovered_files {
+            scope::safe_path(path)?;
+            for (metadata, side_files) in [
+                (uncovered.selected.as_ref(), &m.files),
+                (uncovered.base.as_ref(), &m.base_files),
+            ] {
+                let Some(metadata) = metadata else { continue };
+                if metadata.bytes <= MAX_FILE_BYTES as u64
+                    || metadata.digest != uncovered_file_digest(path, metadata.bytes)
+                    || !matches!(metadata.mode.as_str(), "100644" | "100755")
+                    || side_files.contains_key(path)
+                    || !m.gaps.contains(&oversize_gap(path))
+                {
+                    return Err(invalid(format!(
+                        "invalid uncovered snapshot metadata:{path}"
+                    )));
+                }
+            }
+            if uncovered.selected.is_none() && uncovered.base.is_none() {
+                return Err(invalid(format!("empty uncovered snapshot entry:{path}")));
+            }
         }
         for root in [&m.execution_root, &m.baseline_root] {
             let pinned = StateDir::open(root).map_err(io)?;
@@ -798,6 +945,17 @@ impl FrozenSnapshot {
         }
         Ok(bytes)
     }
+    pub fn uncovered_metadata(
+        &self,
+        path: &str,
+        side: SnapshotSide,
+    ) -> Option<&UncoveredFileMetadata> {
+        let file = self.manifest.uncovered_files.get(path)?;
+        match side {
+            SnapshotSide::Selected => file.selected.as_ref(),
+            SnapshotSide::Base => file.base.as_ref(),
+        }
+    }
     /// Exact before/after source for changed paths, including deletion/addition.
     /// No synthesized live Git diff, config interpretation or lossy text conversion.
     pub fn changed_source(
@@ -807,6 +965,13 @@ impl FrozenSnapshot {
     ) -> Result<SnapshotChange, AuditError> {
         if !self.manifest.scope.changed_paths.contains(path) {
             return Err(invalid("denied:path-not-in-frozen-change-set"));
+        }
+        if self.uncovered_metadata(path, SnapshotSide::Base).is_some()
+            || self
+                .uncovered_metadata(path, SnapshotSide::Selected)
+                .is_some()
+        {
+            return Err(invalid(format!("unavailable:oversize:{path}")));
         }
         let before = if self.manifest.base_files.contains_key(path) {
             Some(self.read(path, SnapshotSide::Base, max_bytes)?)
@@ -851,6 +1016,18 @@ impl FrozenSnapshot {
                 if hash(&read_safe(&m.scope.source_root, path, MAX_FILE_BYTES)?) != file.digest {
                     return Err(AuditError::SourceDrift(format!(
                         "resume dirty bytes changed:{path}"
+                    )));
+                }
+            }
+            for (path, file) in &m.uncovered_files {
+                let Some(selected) = &file.selected else {
+                    continue;
+                };
+                let metadata =
+                    std::fs::symlink_metadata(m.scope.source_root.join(path)).map_err(io)?;
+                if !metadata.file_type().is_file() || metadata.len() != selected.bytes {
+                    return Err(AuditError::SourceDrift(format!(
+                        "resume oversized file changed:{path}"
                     )));
                 }
             }

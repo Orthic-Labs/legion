@@ -386,7 +386,7 @@ impl ExactPolicy {
                 .unwrap(),
         )
         .join("bin/java");
-        let profile=format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{}\"))\n(allow network-bind (local udp \"*:0\"))\n",stage.to_string_lossy().replace('\\',"\\\\").replace('"',"\\\""));
+        let profile=format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{}\"))\n(allow network-bind (local udp \"*:*\"))\n",stage.to_string_lossy().replace('\\',"\\\\").replace('"',"\\\""));
         let sha = digest(profile.as_bytes());
         let profile_path = self
             .scratch
@@ -495,7 +495,7 @@ impl ExactPolicy {
         }
     }
     fn definition(&self) -> Value {
-        json!({"id":POLICY,"version":1,"provider":"code.jvm","planDigest":self.plan,"control":self.control,"projectFiles":self.files,"enrollment":self.enrollment,"tasks":TASKS,"timeoutMs":120000,"stdoutLimit":33554432,"stderrLimit":33554432,"scope":"exact constructed JVM/v1 project; no production admission"})
+        json!({"id":POLICY,"version":1,"provider":"code.jvm","planDigest":self.plan,"control":self.control,"projectFiles":self.files,"enrollment":self.enrollment,"tasks":TASKS,"timeoutMs":120000,"stdoutLimit":33554432,"stderrLimit":33554432,"sandboxAdmission":legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION,"scope":"exact constructed JVM/v1 project; no production admission"})
     }
 }
 fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<String>) {
@@ -940,6 +940,10 @@ fn real_jvm_sdk_accuracy() {
     assert_eq!(confinement["schema"], "legion-gradle-bind-confinement/1");
     assert_eq!(confinement["complete"], true);
     assert_eq!(
+        confinement["sandboxAdmission"],
+        legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION
+    );
+    assert_eq!(
         confinement["sourceDigest"],
         digest(include_bytes!("../../legion-effects/src/gradle_sandbox.rs"))
     );
@@ -1011,6 +1015,7 @@ fn real_jvm_sdk_accuracy() {
         && cases.iter().all(|c| c["matched"] == true)
         && child_executions.iter().all(|c| c["success"] == true);
     let mut record = json!({"schema":"legion-jvm-sdk-accuracy/1","provider":"code.jvm","operationContract":"jvm/v1","harness":HARNESS,"qualificationEligible":eligible,"productionQualification":false,"scope":"constructed frozen Gradle JVM/v1 controls on macOS arm64; compiler diagnostic lint only; no arbitrary-project or production owner-admission claim","providerSpec":spec(),"originalContract":{"extensions":code::jvm::CONFIG.extensions,"variants":code::jvm::CONFIG.variants,"tools":code::jvm::CONFIG.tools,"context":code::jvm::CONFIG.required_context},"sourceClosure":source_before,"sourceUnchanged":unchanged,"confinement":{"file":"confinement.json","digest":digest(&confinement_bytes),"bytes":confinement_bytes.len()},"enrollment":{"file":"enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},"controls":CONTROLS,"cases":cases,"childExecutions":child_executions});
+    record["sandboxAdmission"] = json!(legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION);
     record["qualificationDigest"] = json!(digest(&canonical(&record)));
     let bytes = serde_json::to_vec_pretty(&record).unwrap();
     fs::write(retained.join("code_jvm.json"), &bytes).unwrap();

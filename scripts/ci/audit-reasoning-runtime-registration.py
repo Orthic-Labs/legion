@@ -61,6 +61,12 @@ def dispatch_state_evidence(state, artifact):
             "budget state/frozen dispatch bytes differ")
 
 
+def isolated_source_evidence(source_root, run, plan):
+    require(Path(source_root) == Path(run).parent / "fixture-source"
+            and plan.get("reviewContext", {}).get("sourceRepository") == source_root,
+            "native isolated fixture source/plan differs")
+
+
 def parsed(raw):
     def pairs(items):
         require(len(items) == len(dict(items)), "duplicate reasoning JSON key")
@@ -391,7 +397,6 @@ def validate(root, entry, record):
     require([row["role"] for row in capture["commands"][:4]] == ["preflight", "plan", "dispatch", "run"]
             and all(row["role"] in {"verify", "export"} for row in capture["commands"][4:]), "native source/plan/dispatch must precede first generation")
     executable = capture["commands"][0]["argv"][0]
-    corpus_root = capture["commands"][0]["argv"][-1]
     for command in capture["commands"]:
         keys(command, {"role", "argv", "cwd", "environmentNames", "exitCode", "stdout", "stderr", "run"})
         role, argv = command["role"], command["argv"]
@@ -407,9 +412,11 @@ def validate(root, entry, record):
         if role == "preflight":
             require(len(argv) == 5 and argv[1:4] == ["audit", "check-reasoning-fixtures", "--root"], "native source preflight selector differs")
         if role == "plan":
-            require(len(argv) == 52 and argv[1] == "audit" and Path(argv[2]) == Path(corpus_root) / "fixtures"
+            require(len(argv) == 52 and argv[1] == "audit"
                     and argv[3:16] == ["--json", "--coverage", "exhaustive", "--seat-token-budget", "10000", "--run-token-budget", "440000", "--max-total-seats", "44", "--max-lens-seats", "1", "--out", command["run"]]
                     and argv[16::2] == ["--only"] * 18 and set(argv[17::2]) == PROVIDERS | {"security.misuse-resistance"}, "native frozen planner selector differs")
+            require(command["run"] == ledger["rootRun"], "native initial plan/accounting root differs")
+            isolated_source_evidence(argv[2], command["run"], runs[ledger["rootRun"]]["plan"])
         if role == "dispatch":
             preflight = parsed(reference(root, command["stdout"]).read_bytes())
             dispatch_preflight_evidence(preflight, dispatch)

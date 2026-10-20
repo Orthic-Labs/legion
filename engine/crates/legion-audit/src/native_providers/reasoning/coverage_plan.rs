@@ -427,15 +427,33 @@ pub fn gather_facts(
             let size = snapshot
                 .as_ref()
                 .and_then(|(snapshot, side)| {
-                    let files = if *side == crate::snapshot::SnapshotSide::Base
+                    let use_base = *side == crate::snapshot::SnapshotSide::Base
                         || !snapshot.manifest.files.contains_key(&entry.path)
-                            && snapshot.manifest.scope.changed_paths.contains(&entry.path)
-                    {
+                            && snapshot
+                                .uncovered_metadata(
+                                    &entry.path,
+                                    crate::snapshot::SnapshotSide::Selected,
+                                )
+                                .is_none()
+                            && snapshot.manifest.scope.changed_paths.contains(&entry.path);
+                    let source_side = if use_base {
+                        crate::snapshot::SnapshotSide::Base
+                    } else {
+                        crate::snapshot::SnapshotSide::Selected
+                    };
+                    let files = if use_base {
                         &snapshot.manifest.base_files
                     } else {
                         &snapshot.manifest.files
                     };
-                    files.get(&entry.path).map(|file| file.bytes as u64)
+                    files
+                        .get(&entry.path)
+                        .map(|file| file.bytes as u64)
+                        .or_else(|| {
+                            snapshot
+                                .uncovered_metadata(&entry.path, source_side)
+                                .map(|file| file.bytes)
+                        })
                 })
                 .unwrap_or_else(|| {
                     std::fs::metadata(root.join(&entry.path))

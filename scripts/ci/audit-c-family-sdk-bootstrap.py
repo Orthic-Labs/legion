@@ -46,6 +46,24 @@ def file_digest(path):
     return 'sha256:' + value.hexdigest()
 
 
+def homebrew_clang_config_root(clang, homebrew_prefix, runtime_roots):
+    """Enroll only selected Homebrew LLVM's expected shared config directory."""
+    prefix = Path(homebrew_prefix)
+    if not prefix.is_absolute() or prefix.resolve(strict=True) != prefix:
+        raise ValueError('Homebrew prefix must be canonical')
+    llvm = Path(clang).parent.parent.resolve(strict=True)
+    cellar = prefix / 'Cellar' / 'llvm'
+    if llvm.parent != cellar or llvm not in runtime_roots:
+        raise ValueError('selected LLVM must belong to enrolled Homebrew formula root')
+    source = llvm / 'etc' / 'clang'
+    target = prefix / 'etc' / 'clang'
+    if (source.parent.resolve(strict=True) != source.parent or not source.is_symlink()
+            or not target.is_dir() or target.resolve(strict=True) != target
+            or source.resolve(strict=True) != target):
+        raise ValueError('unexpected Homebrew LLVM shared clang config target')
+    return target
+
+
 def tree(root, allowed_roots=None):
     """Full regular-file tree, including explicit aliases; bounded & no execution."""
     root = Path(root)
@@ -156,12 +174,15 @@ def main():
     for name in TOOLS:
         parser.add_argument('--' + name.replace('++', 'xx'), type=Path, required=True)
     parser.add_argument('--runtime-root', type=Path, action='append', required=True)
+    parser.add_argument('--homebrew-prefix', type=Path, required=True)
     parser.add_argument('--sdk-root', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     if os.environ.get('CI') != 'true' or platform.system() != 'Darwin':
         raise ValueError('explicit managed macOS CI required')
     roots = list(dict.fromkeys(p.resolve(strict=True) for p in args.runtime_root + [args.sdk_root]))
+    config_root = homebrew_clang_config_root(args.clang, args.homebrew_prefix, roots)
+    roots = list(dict.fromkeys(roots + [config_root]))
     snapshots = [tree(root, roots) for root in roots]
     files = dict(sorted((p, d) for part in snapshots for p, d in part['files'].items()))
     sdk_snapshot = next(part for part in snapshots if part['root'] == str(args.sdk_root.resolve(strict=True)))

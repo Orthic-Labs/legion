@@ -50,6 +50,7 @@ fn main() {
         install_simulation_diagnostics();
         simulate_native(&args);
     } else {
+        invalid_execution_prerequisites_preserve_all_run_state_without_host_calls();
         completes_after_host_tool_round_and_recovers_stale_lock_file();
         completes_with_large_compact_control_plan();
         rejects_invalid_control_inputs_before_generation();
@@ -697,6 +698,78 @@ fn completes_with_large_compact_control_plan() {
     assert_eq!(restored["nativePlan"], native_plan);
     assert_eq!(restored["seal"], seal);
     assert_eq!(restored["binding"], binding);
+}
+
+fn invalid_execution_prerequisites_preserve_all_run_state_without_host_calls() {
+    fn inventory(root: &Path) -> std::collections::BTreeMap<PathBuf, Option<Vec<u8>>> {
+        fn visit(
+            root: &Path,
+            path: &Path,
+            rows: &mut std::collections::BTreeMap<PathBuf, Option<Vec<u8>>>,
+        ) {
+            assert!(!path.is_symlink());
+            let bytes = if path.is_dir() {
+                None
+            } else {
+                Some(fs::read(path).unwrap())
+            };
+            rows.insert(path.strip_prefix(root).unwrap().to_owned(), bytes);
+            if path.is_dir() {
+                for entry in fs::read_dir(path).unwrap() {
+                    visit(root, &entry.unwrap().path(), rows);
+                }
+            }
+        }
+        let mut rows = std::collections::BTreeMap::new();
+        visit(root, root, &mut rows);
+        rows
+    }
+    for prior_admission in [false, true] {
+        for mutation in ["plan-only", "malformed", "misbound"] {
+            let fixture = Fixture::new("success");
+            if prior_admission {
+                let wave = legion_audit::next::next(
+                    &fixture.run,
+                    &legion_audit::next::NextOptions::now(legion_audit::next::DEFAULT_LEASE_MS),
+                )
+                .unwrap();
+                assert_eq!(wave["status"], "wave");
+                assert!(fixture.run.join("next-state.json").is_file());
+            }
+            let execution = fixture.run.join("execution.json");
+            match mutation {
+                "plan-only" => fs::remove_file(&execution).unwrap(),
+                "malformed" => fs::write(&execution, b"{").unwrap(),
+                "misbound" => {
+                    let mut value = read_json(&execution);
+                    value["planDigest"] = json!("sha256:wrong-execution");
+                    write_json(&execution, &value);
+                }
+                _ => unreachable!(),
+            }
+            let before = inventory(&fixture.run);
+            // Direct controller entry: no simulated identity, binary resolution
+            // or subprocess is needed to reject these invalid persisted inputs.
+            let error = review_runtime::run(&fixture.run, &RuntimeOptions::default())
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains(if mutation == "misbound" {
+                    "execution seal"
+                } else {
+                    "execution.json"
+                }),
+                "{mutation}: {error}"
+            );
+            assert_eq!(
+                inventory(&fixture.run),
+                before,
+                "{mutation}; prior admission={prior_admission}"
+            );
+            assert!(fixture.calls().is_empty());
+            assert!(!fixture.run.join("review-runtime.lock").exists());
+        }
+    }
 }
 
 fn rejects_invalid_control_inputs_before_generation() {

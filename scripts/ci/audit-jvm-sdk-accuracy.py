@@ -15,6 +15,7 @@ FIXTURES = "scripts/ci/fixtures/audit-code-jvm-sdk"
 INPUTS = "scripts/ci/audit-jvm-sdk-inputs.json"
 SCOPE = "constructed frozen Gradle JVM/v1 controls on macOS arm64; compiler diagnostic lint only; no arbitrary-project or production owner-admission claim"
 POLICY = "legion-jvm-sdk-known-answer-v1"
+SANDBOX_ADMISSION = 'in engine/crates/legion-effects/src/gradle_sandbox.rs profile_text only, allow (network-bind (local udp "*:*")) for the JVM harness process tree; network-outbound and all inbound accept remain denied'
 TASKS = ("wrapper", "compile", "lint", "test", "dependency")
 CONTROLS = ("positive", "nonempty-clean", "compile-error", "test-failure", "no-op-test", "missing-dependency", "wrapper-drift", "source-drift", "dependency-drift", "enrollment-drift", "unsupported-variant", "missing-tool", "rejected-admission", "absent-sandbox", "request-mutation")
 SOURCE_ROOTS = ["engine/crates/" + c + "/src" for c in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")] + ["src/registry/rules", "src/registry/controls", FIXTURES]
@@ -25,6 +26,10 @@ ORIGINAL = {"extensions": ["java", "kt", "kts", "scala"], "variants": [["java", 
 def require(value, message):
     if not value:
         raise AssertionError(message)
+
+
+def validate_admission(value):
+    require(value.get("sandboxAdmission") == SANDBOX_ADMISSION, "JVM sandbox admission differs")
 
 
 def encoded(value):
@@ -140,7 +145,7 @@ def native_request(row, case, enrollment, retained, live):
         daemon_args = "-Xmx512m -Xms256m -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.language=en -Duser.country=US -Duser.variant= -Djava.io.tmpdir=" + str(temp)
         out = ["-Xmx512m", "-Xms256m", "-XX:MaxMetaspaceSize=384m", "-XX:+HeapDumpOnOutOfMemoryError", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US", "-Duser.variant=", "-Djava.io.tmpdir=" + str(temp), "-javaagent:" + str(agent), "-Dgradle.user.home=" + str(home), "-cp", str(stage / "gradle/wrapper/gradle-wrapper.jar"), "org.gradle.wrapper.GradleWrapperMain", "-Dorg.gradle.jvmargs=" + daemon_args, "--offline", "--no-daemon", "--console=plain", "--no-configuration-cache", "--gradle-user-home", str(home), "--project-cache-dir", str(scratch / "cache/jvm-owned/project")]
         return out + (["--version"] if task == "wrapper" else ["--rerun-tasks", {"compile": "legionCompile", "lint": "legionLint", "test": "legionTest", "dependency": "legionDependency"}[task]])
-    profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(stage).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:0"))\n'
+    profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(stage).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:*"))\n'
     sha = digest(profile_text.encode()).removeprefix("sha256:")
     prefix = ["-f", str(scratch / "sandbox" / ("audit-gradle-" + sha + ".sb")), "--", str(java)]
     expected_args = prefix + args(task)
@@ -185,6 +190,7 @@ def validate_confinement(record, root, retained, live):
     raw = safe_file(retained, descriptor["file"]).read_bytes()
     require(len(raw) == descriptor["bytes"] and digest(raw) == descriptor["digest"], "confinement record drift")
     proof = parsed(raw)
+    validate_admission(proof)
     require(proof["schema"] == "legion-gradle-bind-confinement/1" and proof["complete"] is True, "native confinement incomplete")
     require(proof["sourceDigest"] == digest(safe_file(root, "engine/crates/legion-effects/src/gradle_sandbox.rs").read_bytes()), "confinement compiled source differs")
     require([r["mode"] for r in proof["controls"]] == ["confinement", "hang", "orphan"], "native confinement/lifecycle denominator changed")
@@ -192,7 +198,7 @@ def validate_confinement(record, root, retained, live):
         mode, req, receipt = row["mode"], row["request"], row["receipt"]
         project = absolute(req["cwd"])
         require(project.name == "project" and project.parent.name == "gradle-native-control", "native confinement project differs")
-        profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(project).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:0"))\n'
+        profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(project).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:*"))\n'
         sha = digest(profile_text.encode())
         require(row["profile"] == profile_text and row["profileDigest"] == sha, "bind-only owner profile differs")
         require(req["executable"] == "/usr/bin/sandbox-exec" and req["args"][:3] == ["-f", str(project.parent / "profiles" / ("audit-gradle-" + sha[7:] + ".sb")), "--"], "native control not wrapped")
@@ -206,10 +212,12 @@ def validate_confinement(record, root, retained, live):
         require(all(type(p["pid"]) is int and p["pid"] > 1 and p["stopped"] is True for p in row["descendants"]), "native descendants remain live")
         require([p["role"] for p in row["descendants"]] == ([mode] if mode == "confinement" else [mode, "grandchild"]), "native descendant denominator differs")
         if mode == "confinement":
-            require(all("LEGION_NATIVE_DENIALS|ipv" + f + "|assigned-bind,udp-send,udp-receive,inherited-send,inherited-receive,tcp-bind,tcp-connect" in stdout for f in ("4", "6")) and "LEGION_NATIVE_DENIALS|external|udp,tcp,inherited-tcp-send,inherited-tcp-receive,project-write" in stdout and "LEGION_GRADLE_BIND_ONLY_CONFINEMENT|pass" in stdout, "native denial/readiness controls missing")
+            require(all("LEGION_NATIVE_ADMISSIONS|ipv" + f + "|ephemeral-udp-bind,assigned-udp-bind" in stdout for f in ("4", "6")), "admitted native UDP bindings missing")
+            require(all("LEGION_NATIVE_DENIALS|ipv" + f + "|udp-send,udp-receive,assigned-udp-send,assigned-udp-receive,inherited-send,inherited-receive,tcp-bind,tcp-connect" in stdout for f in ("4", "6")) and "LEGION_NATIVE_DENIALS|external|udp,tcp,inherited-tcp-send,inherited-tcp-receive,project-write" in stdout and "LEGION_GRADLE_BIND_ONLY_CONFINEMENT|pass" in stdout, "native denial/readiness controls missing")
 
 
 def validate(record, root, retained, live=False):
+    validate_admission(record)
     require(record["schema"] == "legion-jvm-sdk-accuracy/1" and record["provider"] == "code.jvm" and record["operationContract"] == "jvm/v1" and record["harness"] == HARNESS, "record route differs")
     original = dict(record)
     q = original.pop("qualificationDigest")
@@ -254,6 +262,7 @@ def validate(record, root, retained, live=False):
         complete = control in ("positive", "nonempty-clean")
         require(native["complete"] is complete, "negative became clean or positive incomplete")
         require(case["provider"] == native["provider"] == "code.jvm", "provider changed")
+        validate_admission(case["policyDefinition"])
         require(case["policyDefinition"]["id"] == POLICY and case["policyDefinition"]["projectFiles"] == case["fixtureSources"] and case["policyDefinition"]["planDigest"] == case["planDigest"] and case["policyDefinition"]["tasks"] == list(TASKS), "exact SDK policy closure differs")
         rows = case["sdkExecutions"]
         expected_count = 0 if control in ("wrapper-drift", "unsupported-variant", "missing-tool", "enrollment-drift") else 1 if control == "source-drift" else 5

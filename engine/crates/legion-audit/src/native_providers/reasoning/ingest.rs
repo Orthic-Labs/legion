@@ -5126,6 +5126,26 @@ pub fn write_lens_packets(
     Ok(items)
 }
 
+/// Validate persisted execution prerequisites without acquiring a budget lock,
+/// creating state, or issuing work. A plan-only directory is not an execution.
+pub(crate) fn validate_runtime_prerequisites(
+    run_dir: &Path,
+    plan: &Value,
+) -> Result<(), AuditError> {
+    let execution_json = read_json(&run_dir.join("execution.json"))
+        .map_err(|error| invalid(format!("execution.json prerequisite: {error}")))?;
+    let execution: ExecutionReport = serde_json::from_value(execution_json)
+        .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
+    let stored: ReportV1 =
+        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+            .map(|report| report.v1_core())
+            .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
+    crate::verify::validate_effect_artifacts(run_dir, plan, &stored, &execution)?;
+    let native_plan = verify_persisted_native_plan(plan, &execution, run_dir)?;
+    verify_provider_selection_claim(plan, &stored, &execution, native_plan.as_ref(), run_dir)?;
+    Ok(())
+}
+
 /// Rebuilds the run verdict. Reasoning lenses count as ran only when a lens
 /// receipt verifies (MAC, epoch, plan binding, result digest); everything else
 /// stays exactly as the original execution reported it.

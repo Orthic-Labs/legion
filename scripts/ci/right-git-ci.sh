@@ -76,6 +76,10 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
+python3 -m unittest discover -s scripts/ci/tests -p test_c_family_sdk_bootstrap.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
 
 checks=(
@@ -207,6 +211,10 @@ audit_cargo_test() {
   else
     (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-audit "$@")
   fi
+}
+audit_runtime_app_qualification() {
+  audit_native_command "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
+    --test runtime_app_accuracy real_runtime_app_accuracy -- --ignored --exact --nocapture --test-threads=1
 }
 # Build admission belongs to managed CI. Runner consumes only this exact prebuilt target.
 audit_compatibility_report_qualification() {
@@ -353,7 +361,8 @@ CODE_SDK_ENV
 # installed LLVM/CMake dependency roots; missing native tools fail this lane.
 provision_c_family_sdk() {
   [[ "${RUNNER_OS}" == "macOS" && "${CI}" == "true" ]] || return 2
-  local llvm_root cmake_root sdk_root dependency prefix
+  local llvm_root cmake_root sdk_root homebrew_prefix dependency prefix
+  homebrew_prefix="$(audit_native_command brew --prefix)" || return "$?"
   llvm_root="$(audit_native_command brew --prefix llvm)" || return "$?"
   cmake_root="$(audit_native_command brew --prefix cmake)" || return "$?"
   sdk_root="$(audit_native_command xcrun --sdk macosx --show-sdk-path)" || return "$?"
@@ -370,7 +379,7 @@ provision_c_family_sdk() {
     --cmake "$cmake_root/bin/cmake" --ctest "$cmake_root/bin/ctest" \
     --clang "$llvm_root/bin/clang" --clangxx "$llvm_root/bin/clang++" \
     --clang-tidy "$llvm_root/bin/clang-tidy" --make /usr/bin/make \
-    "${roots[@]}" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
+    "${roots[@]}" --homebrew-prefix "$homebrew_prefix" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
 }
 provision_dotnet_code_sdk() {
   audit_native_command python3 scripts/ci/provision-dotnet-qualification-tools.py \
@@ -744,6 +753,14 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   gitleaks version; knip --version; jscpd --version; tsc --version
   run_audit_qualification audit_cargo_test --test bench_recall \
     bench_recall_qualification_receipt -- --ignored --exact --nocapture --test-threads=1
+  bench_receipts="${RUNNER_TEMP}/legion-provider-qualification/bench"
+  mkdir -p "$bench_receipts"
+  bench_source="$GITHUB_WORKSPACE/engine/crates/legion-audit/target/bench-receipts/bench_recall_receipt.json"
+  if [[ -f "$bench_source" ]]; then
+    cp "$bench_source" "$bench_receipts/bench_recall_receipt.json"
+  fi
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$bench_receipts" --group bench
   export LEGION_REAL_SCANNER_SCRATCH="${RUNNER_TEMP}/legion-real-scanner-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-external-provider-accuracy"
   mkdir -p "$LEGION_REAL_SCANNER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
@@ -771,10 +788,14 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-tflint-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_tflint_qualification
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group tflint
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-kubeconform-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test kubeconform_accuracy \
     real_scanner_accuracy_kubeconform -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group kubeconform
   unset LEGION_KUBECONFORM_SCHEMA_DIR
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-golangci-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
@@ -782,6 +803,8 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
     run_audit_qualification audit_cargo_test --test golangci_accuracy \
       real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group golangci
   # Actual PHP/Ruby SDK controls retain original selected-scope gaps.
   run_audit_qualification provision_php_ruby_sdk
   export LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-php-ruby-code-command-fixtures"
@@ -828,15 +851,21 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT LEGION_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
   # Real CMake objects/link, clang-tidy/analyzer & normal/instrumented CTest.
   run_audit_qualification provision_c_family_sdk
-  if [[ -f "${LEGION_C_FAMILY_ENROLLMENT_JSON:-/missing-c-family-enrollment}" ]]; then
   export LEGION_C_FAMILY_SCRATCH="${RUNNER_TEMP}/legion-provider-qualification/code-c-family"
   mkdir -p "$LEGION_C_FAMILY_SCRATCH"
-  run_audit_qualification audit_cargo_test --test c_family_sdk_accuracy \
-    c_family_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
+  if [[ -f "${LEGION_C_FAMILY_ENROLLMENT_JSON:-/missing-c-family-enrollment}" ]]; then
+    run_audit_qualification audit_cargo_test --test c_family_sdk_accuracy \
+      c_family_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
+  fi
   run_audit_qualification python3 scripts/ci/audit-c-family-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_C_FAMILY_SCRATCH"
-  fi
   unset LEGION_C_FAMILY_SCRATCH LEGION_C_FAMILY_ENROLLMENT_JSON
+  export LEGION_RUNTIME_APP_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/runtime-app"
+  mkdir -p "$LEGION_RUNTIME_APP_RECEIPTS"
+  run_audit_qualification audit_runtime_app_qualification
+  run_audit_qualification python3 scripts/ci/audit-runtime-app-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_RUNTIME_APP_RECEIPTS"
+  unset LEGION_RUNTIME_APP_RECEIPTS
   # Pin official Python wheels before network-denied SDK commands & retain original enrollment.
   run_audit_qualification provision_python_code_sdk
   export LEGION_PYTHON_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-python-code-command-fixtures"
@@ -906,6 +935,8 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test trivy_iac_accuracy \
     real_scanner_accuracy_trivy_iac -- --ignored --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group trivy-iac
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-brakeman-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test brakeman_accuracy \
@@ -980,6 +1011,8 @@ PY_PIN
   mkdir -p "$LEGION_QUALITY_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test real_quality_command_accuracy \
     real_quality_command_accuracy -- --ignored --exact --nocapture --test-threads=1
+  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
+    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group quality
   unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_QUALITY_COMMAND_SCRATCH
   # Real attested test qualification requires separately provisioned native owner pins.
   # Never replace absent trust/admission with a local fake broker or signing key.
@@ -1204,6 +1237,9 @@ fi
 # Source-owned corpus checks never resolve a harness or authorize generation.
 run_audit_qualification audit_cargo_test --test reasoning_runtime_qualification \
   reasoning_runtime_no_call_contract -- --exact --nocapture --test-threads=1
+run_audit_qualification "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
+  --test reasoning_runtime_qualification reasoning_runtime_production_no_call_contract \
+  -- --exact --nocapture --test-threads=1
 
 # Assemble the exact CI candidate and smoke the installed native CLI.
 export CARGO_INCREMENTAL=1

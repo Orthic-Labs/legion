@@ -147,6 +147,21 @@ impl InventorySource for FilesystemInventorySource {
             {
                 continue;
             }
+            if frozen.is_none() && !file_type.is_symlink() {
+                let size = entry
+                    .metadata()
+                    .map_err(|error| {
+                        AuditError::Invalid(format!(
+                            "could not inspect inventory file {}: {error}",
+                            entry.path().display()
+                        ))
+                    })?
+                    .len();
+                if size > 32 * 1024 * 1024 {
+                    entries.push(oversize_inventory_entry(path, size));
+                    continue;
+                }
+            }
             let bytes = if let Some((snapshot, side)) = &frozen {
                 snapshot.read(&path, *side, 32 * 1024 * 1024)?
             } else if file_type.is_symlink() {
@@ -170,16 +185,43 @@ impl InventorySource for FilesystemInventorySource {
             };
             entries.push(inventory_entry(path, &bytes));
         }
+        if let Some((snapshot, side)) = &frozen {
+            for (path, metadata) in &snapshot.manifest.uncovered_files {
+                let uncovered = match side {
+                    SnapshotSide::Selected => metadata.selected.as_ref(),
+                    SnapshotSide::Base => metadata.base.as_ref(),
+                };
+                if let Some(uncovered) = uncovered {
+                    if self
+                        .only_paths
+                        .as_ref()
+                        .is_none_or(|only| only.contains(path))
+                    {
+                        entries.push(oversize_inventory_entry(path.clone(), uncovered.bytes));
+                    }
+                }
+            }
+        }
         if let Some((snapshot, SnapshotSide::Selected)) = &frozen {
             let selected = &snapshot.manifest.files;
             for path in &snapshot.manifest.scope.changed_paths {
                 if selected.contains_key(path)
+                    || snapshot
+                        .uncovered_metadata(path, SnapshotSide::Selected)
+                        .is_some()
                     || !snapshot.manifest.base_files.contains_key(path)
+                        && snapshot
+                            .uncovered_metadata(path, SnapshotSide::Base)
+                            .is_none()
                     || self
                         .only_paths
                         .as_ref()
                         .is_some_and(|only| !only.contains(path))
                 {
+                    continue;
+                }
+                if let Some(uncovered) = snapshot.uncovered_metadata(path, SnapshotSide::Base) {
+                    entries.push(oversize_inventory_entry(path.clone(), uncovered.bytes));
                     continue;
                 }
                 let bytes = snapshot.read(path, SnapshotSide::Base, 32 * 1024 * 1024)?;
@@ -255,7 +297,13 @@ pub(crate) fn snapshot_source_sides(
     if let Some((snapshot, SnapshotSide::Selected)) = frozen_snapshot(root)? {
         for path in &snapshot.manifest.scope.changed_paths {
             if !snapshot.manifest.files.contains_key(path)
-                && snapshot.manifest.base_files.contains_key(path)
+                && snapshot
+                    .uncovered_metadata(path, SnapshotSide::Selected)
+                    .is_none()
+                && (snapshot.manifest.base_files.contains_key(path)
+                    || snapshot
+                        .uncovered_metadata(path, SnapshotSide::Base)
+                        .is_some())
             {
                 sides.insert(path.clone(), "base".into());
             }
@@ -292,6 +340,40 @@ fn inventory_entry(path: String, bytes: &[u8]) -> InventoryEntry {
         source_file,
         digest: Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes)))),
     }
+}
+
+fn oversize_inventory_entry(path: String, bytes: u64) -> InventoryEntry {
+    let digest = crate::snapshot::uncovered_file_digest(&path, bytes);
+    InventoryEntry {
+        source_file: is_source_path(Path::new(&path)),
+        path,
+        symbols: Vec::new(),
+        dependencies: Vec::new(),
+        package_scripts: Vec::new(),
+        digest: Some(format!("oversize:{bytes}:{digest}")),
+    }
+}
+
+fn is_oversize_entry(entry: &InventoryEntry) -> bool {
+    let Some(value) = entry
+        .digest
+        .as_deref()
+        .and_then(|value| value.strip_prefix("oversize:"))
+    else {
+        return false;
+    };
+    let Some((bytes, digest)) = value.split_once(':') else {
+        return false;
+    };
+    let Ok(bytes) = bytes.parse::<u64>() else {
+        return false;
+    };
+    bytes > 32 * 1024 * 1024
+        && digest
+            == format!(
+                "{}",
+                crate::snapshot::uncovered_file_digest(&entry.path, bytes)
+            )
 }
 
 /// Dependency names declared by a recognised manifest (`Cargo.toml`,
@@ -1123,6 +1205,10 @@ impl InventoryEnvelope {
                 )))
             }
         };
+        let selected = selected
+            .into_iter()
+            .filter(|entry| !is_oversize_entry(entry))
+            .collect::<Vec<_>>();
         let digest = if op == "always" {
             self.digest.clone()
         } else {

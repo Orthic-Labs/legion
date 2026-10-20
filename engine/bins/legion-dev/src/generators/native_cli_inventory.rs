@@ -104,6 +104,12 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
     // `match args.command` expression as unknown.
     let nested_match_re = Regex::new(r"Command::([A-Za-z]+)\([^)]*\) => match [^{]+\{").unwrap();
     let handler_start_re = Regex::new(r"^\s*(commands::[a-z_]+::[a-z_]+)\s*\(").unwrap();
+    // A match arm may wrap a single handler call in a block. Accept only a
+    // one-call block; arbitrary block logic must remain unclassified.
+    let block_handler_re = Regex::new(
+        r"^\{\s*(commands::[a-z_]+::[a-z_]+)\([A-Za-z_][A-Za-z0-9_.]*\)(?:\.await)?;?\s*\}$",
+    )
+    .unwrap();
     for cap in nested_match_re.captures_iter(&body) {
         let variant = kebab(&cap[1]);
         let open_at = cap.get(0).unwrap().end() - 1; // opening `{`
@@ -130,8 +136,10 @@ fn rust_dispatch_map(source: &str) -> Result<BTreeMap<String, String>, String> {
             let handlers: Option<Vec<&str>> = arms
                 .iter()
                 .map(|arm| {
+                    let arm = arm.trim().trim_end_matches(',').trim_end();
                     handler_start_re
                         .captures(arm)
+                        .or_else(|| block_handler_re.captures(arm))
                         .map(|handler| handler.get(1).unwrap().as_str())
                 })
                 .collect();
@@ -156,7 +164,7 @@ fn top_level_match_arms(source: &str) -> Vec<&str> {
     while i < bytes.len() {
         if braces == 0 && parens == 0 && brackets == 0 && bytes[i..].starts_with(b"=>") {
             if let Some(start) = expression_start.replace(i + 2) {
-                arms.push(&source[start..i]);
+                arms.push(expression_before_next_arm(&source[start..i]));
             }
             i += 2;
             continue;
@@ -173,9 +181,65 @@ fn top_level_match_arms(source: &str) -> Vec<&str> {
         i += 1;
     }
     if let Some(start) = expression_start {
-        arms.push(&source[start..]);
+        arms.push(expression_before_next_arm(&source[start..]));
     }
     arms
+}
+
+/// Remove a separator plus following match pattern from a prior arm slice.
+/// A block-bodied Rust arm may omit its comma, so use its closing brace only
+/// when remaining text is itself a recognized pattern (`Some(...)`, `None`,
+/// or `_`).
+fn expression_before_next_arm(source: &str) -> &str {
+    let bytes = source.as_bytes();
+    let (mut braces, mut parens, mut brackets) = (0i32, 0i32, 0i32);
+    for (i, byte) in bytes.iter().enumerate() {
+        if parens == 0 && brackets == 0 {
+            if braces == 0 && *byte == b',' {
+                return &source[..i];
+            }
+            if braces == 1 && *byte == b'}' && is_next_arm_pattern(&source[i + 1..]) {
+                return &source[..=i];
+            }
+        }
+        match byte {
+            b'{' => braces += 1,
+            b'}' => braces -= 1,
+            b'(' => parens += 1,
+            b')' => parens -= 1,
+            b'[' => brackets += 1,
+            b']' => brackets -= 1,
+            _ => {}
+        }
+    }
+    source
+}
+
+fn is_next_arm_pattern(source: &str) -> bool {
+    let pattern = source.trim();
+    if matches!(pattern, "None" | "_") {
+        return true;
+    }
+    let Some(inner) = pattern
+        .strip_prefix("Some(")
+        .and_then(|value| value.strip_suffix(')'))
+    else {
+        return false;
+    };
+    let mut depth = 0i32;
+    for byte in inner.bytes() {
+        match byte {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0
 }
 
 /// Return the kebab-case variant names of a typed clap enum. A missing enum,
@@ -897,6 +961,13 @@ async fn dispatch(cli: Cli) {
         Command::Audit(args) => match args.command {
             Some(AuditSubcommand::Continue(args)) => commands::audit::continue_command(args),
             Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
+            Some(AuditSubcommand::ExportReasoning(args)) => commands::audit_runtime::export(args),
+            Some(AuditSubcommand::CheckReasoningDispatch(args)) => {
+                commands::audit_runtime::check_dispatch(args)
+            }
+            Some(AuditSubcommand::CheckReasoningFixtures(args)) => {
+                commands::audit_runtime::check_fixtures(args)
+            }
             None => commands::audit::run(args.legacy, cancellation.clone()).await,
         },
         Command::Unknown(args) => match args.command {
@@ -910,7 +981,7 @@ async fn dispatch(cli: Cli) {
         assert_eq!(
             dispatch.get("audit").map(String::as_str),
             Some(
-                "commands::audit::continue_command | commands::audit_runtime::run | commands::audit::run"
+                "commands::audit::continue_command | commands::audit_runtime::run | commands::audit_runtime::export | commands::audit_runtime::check_dispatch | commands::audit_runtime::check_fixtures | commands::audit::run"
             )
         );
         assert_eq!(classify_rust(dispatch.get("audit").unwrap()).tier, "native");
@@ -935,5 +1006,27 @@ async fn dispatch(cli: Cli) {
         let mixed = dispatch.get("mixed").unwrap();
         assert_eq!(mixed, "match args.command {");
         assert_eq!(classify_rust(mixed).tier, "unknown");
+    }
+
+    #[test]
+    fn dispatch_map_keeps_multi_statement_nested_blocks_unknown() {
+        let source = r#"
+async fn dispatch(cli: Cli) {
+    let result: CommandResult = match command {
+        Command::Audit(args) => match args.command {
+            Some(AuditSubcommand::RunReasoning(args)) => {
+                record_dispatch();
+                commands::audit_runtime::run(args).await
+            }
+            None => commands::audit::run(args.legacy, cancellation.clone()).await,
+        },
+    };
+}
+"#;
+
+        let dispatch = rust_dispatch_map(source).unwrap();
+        let audit = dispatch.get("audit").unwrap();
+        assert_eq!(audit, "match args.command {");
+        assert_eq!(classify_rust(audit).tier, "unknown");
     }
 }

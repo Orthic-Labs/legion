@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 import runpy
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SOURCE_ROOT = Path(__file__).resolve().parents[3]
 gate = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/audit-qualification-records.py"))
@@ -498,7 +499,7 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 38)
+        self.assertEqual(len(gate["ADAPTERS"]), 39)
 
     def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
         api = gate["helper"]("audit-javascript-sdk-accuracy.py")
@@ -566,15 +567,102 @@ class RegistrationGateTests(unittest.TestCase):
             api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 38)
+        self.assertEqual(len(gate["ADAPTERS"]), 39)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             if provider == "compatibility.core":
                 entry["scope"] = gate["helper"]("validate-compatibility-report-accuracy.py")["SCOPE"]
+            if provider == "legacy.runtime.app":
+                entry["scope"] = gate["helper"]("audit-runtime-app-accuracy.py")["SCOPE"]
             self.assertEqual(gate["adapter"](self.root, entry)[2], mode)
             entry["stage"] = "outcome"
             with self.assertRaises(AssertionError):
                 gate["adapter"](self.root, entry)
+
+    def test_runtime_app_adapter_requires_dedicated_fixture_scope(self):
+        scope = gate["helper"]("audit-runtime-app-accuracy.py")["SCOPE"]
+        entry = {"provider": "legacy.runtime.app", "family": "runtime-app-sdk", "stage": "finding", "scope": scope}
+        self.assertEqual(gate["ADAPTERS"][entry["provider"]],
+                         ("runtime-app-sdk", "runtime_app_accuracy", "finding", "canonical-json", "real_runtime_app_accuracy"))
+        self.assertEqual(gate["adapter"](self.root, entry),
+                         ("runtime-app-sdk", "runtime_app_accuracy", "canonical-json", "real_runtime_app_accuracy"))
+        for changed in ({"family": "file"}, {"stage": "candidate"}, {"scope": "whole provider clean"}):
+            with self.subTest(changed=changed), self.assertRaises(AssertionError):
+                gate["adapter"](self.root, {**entry, **changed})
+
+    def test_runtime_app_controls_never_promote_constructed_mapping(self):
+        scope = gate["helper"]("audit-runtime-app-accuracy.py")["SCOPE"]
+        entry = {"provider": "legacy.runtime.app", "family": "runtime-app-sdk", "stage": "finding", "scope": scope,
+                 "record": {"path": "unit.json", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
+        row = {"schema": "legion-runtime-app-sdk-accuracy/1", "provider": "legacy.runtime.app", "family": "runtime-app-sdk",
+               "stage": "finding", "scope": scope, "productionQualification": False, "wholeProviderQualified": False,
+               "unmodifiedResolverQualified": False, "productionAdmissionQualified": False,
+               "qualificationEligible": True, "status": "pass", "modelCalls": 0}
+        gate["controls"](row, entry)
+        for flag in ("productionQualification", "wholeProviderQualified", "unmodifiedResolverQualified", "productionAdmissionQualified"):
+            self.assertIs(gate["qualification"](entry)[flag], False)
+            with self.subTest(flag=flag), self.assertRaises(AssertionError):
+                gate["controls"]({**row, flag: True}, entry)
+        for changed in ({"modelCalls": True}, {"modelCalls": 1}, {"scope": "whole provider clean"}, {"qualificationEligible": False}):
+            with self.subTest(changed=changed), self.assertRaises(AssertionError):
+                gate["controls"]({**row, **changed}, entry)
+
+    def test_runtime_app_closure_includes_real_qa_owner_and_source_plan(self):
+        scope = gate["helper"]("audit-runtime-app-accuracy.py")["SCOPE"]
+        entry = {"provider": "legacy.runtime.app", "family": "runtime-app-sdk", "stage": "finding", "scope": scope}
+        paths = set(gate["closure_paths"](SOURCE_ROOT, entry))
+        self.assertTrue({"engine/bins/legion/tests/runtime_app_accuracy.rs", "scripts/ci/audit-runtime-app-accuracy.py",
+                         "bench/runtime-app-accuracy-plan.json", "bench/fixtures/runtime-app/clean.html",
+                         "bench/fixtures/runtime-app/planted.html", "engine/bins/legion/src/commands/script.rs",
+                         "engine/crates/legion-runtime/src/wf_port/r54/actions.rs",
+                         "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture.rs"} <= paths)
+
+    def test_runtime_app_requires_exact_ordered_native_and_validator_terminals(self):
+        command = ["audit_runtime_app_qualification"]
+        validator = ["python3", "scripts/ci/audit-runtime-app-accuracy.py"]
+        self.assertEqual(gate["RUNTIME_APP_HARNESS"], command)
+        path = self.root / "runtime-terminal-checker.log"
+        proof = {"command": {"harness": command, "validator": validator}}
+        native = "test real_runtime_app_accuracy ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;"
+
+        def observed(result, status=0, reordered=False, repeated=False):
+            first = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command}),
+                     result, "original", "AUDIT_QUALIFICATION_COMMAND_END 1 0"]
+            second = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": validator}),
+                      "summary", f"AUDIT_QUALIFICATION_COMMAND_END 2 {status}"]
+            pieces = second + first if reordered else first + second
+            if repeated:
+                pieces += ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 3, "argv": command}),
+                           "AUDIT_QUALIFICATION_COMMAND_END 3 0"]
+            lines = "\n".join(pieces).splitlines()
+            path.write_text("\n".join(lines) + "\n")
+            return gate["terminal_checks"](path, proof, {"sha256": "checker-unit"}, "summary-digest",
+                                           lines.index("original") + 1, lines.index("summary") + 1)
+
+        self.assertEqual([item["role"] for item in observed(native)], ["harness", "validator"])
+        for result in ("", native + "\n" + native, native.replace("1 passed", "0 passed"),
+                       native.replace("0 ignored", "1 ignored"), native.replace("real_runtime_app_accuracy", "different_test")):
+            with self.subTest(result=result), self.assertRaises(AssertionError):
+                observed(result)
+        for options in ({"status": 1}, {"reordered": True}, {"repeated": True}):
+            with self.subTest(options=options), self.assertRaises(AssertionError):
+                observed(native, **options)
+
+    def test_runtime_app_log_binds_exact_original_and_validator_projection(self):
+        row = {"provider": "legacy.runtime.app", "observed": "checker unit"}
+        validated = {"provider": "legacy.runtime.app", "recordSha256": "unit-only"}
+        summary = {"records": [validated], "modelCalls": 0}
+        original = "RUNTIME_APP_SDK_ACCURACY " + json.dumps(row) + "\n"
+        validation = "RUNTIME_APP_SDK_ACCURACY_SUMMARY " + json.dumps(summary) + "\n"
+        path = self.root / "runtime-emission-checker.log"
+        path.write_text(original + validation)
+        self.assertEqual(gate["log_evidence"](path, row, validated, "runtime-app-sdk"),
+                         (gate["digest"](gate["encoded"](summary)), 1, 2))
+        for text in (original, original * 2 + validation, original + validation * 2,
+                     original + validation.replace("unit-only", "changed")):
+            with self.subTest(text=text), self.assertRaises(AssertionError):
+                path.write_text(text)
+                gate["log_evidence"](path, row, validated, "runtime-app-sdk")
 
     def test_ownership_adapter_uses_native_sdk_controls(self):
         entry = {"provider": "governance.capability-ownership", "family": "ownership-native", "stage": "finding"}
@@ -1020,6 +1108,114 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["adapter"](self.root, {"provider": "legacy.quality.test", "family": "harness-quality", "stage": "finding"})
 
+    def test_paired_harness_groups_cover_exact_eleven_providers(self):
+        providers = [provider for group in gate["PAIRED_HARNESS_GROUPS"].values() for provider in group]
+        self.assertEqual(len(providers), 11)
+        self.assertEqual(set(providers), set(gate["BENCH"]) | set(gate["HARNESS_CONTROLS"]) |
+                         {"legacy.quality.build", "legacy.quality.lint"})
+        self.assertEqual(len(providers), len(set(providers)))
+        for provider in providers:
+            entry = gate["paired_harness_entry"](provider, {"scope": "checker-unit"})
+            self.assertEqual(gate["VALIDATORS"][entry["family"]], gate["PAIRED_HARNESS_VALIDATOR"])
+            self.assertIn(provider, gate["PAIRED_HARNESS_GROUPS"][gate["paired_harness_group"](provider)])
+
+    def test_paired_entrypoint_delegates_to_original_semantic_checks(self):
+        # Synthetic envelopes prove dispatch/refusal only, never qualification.
+        function = gate["validate_paired_harness_record"]
+        namespace = function.__globals__
+        for providers in gate["PAIRED_HARNESS_GROUPS"].values():
+            for provider in providers:
+                entry = gate["paired_harness_entry"](provider, {"scope": "checker-unit"})
+                row = {"provider": provider, "qualificationDigest": "unused"}
+                _, _, mode, _ = gate["adapter"](self.root, entry)
+                row["qualificationDigest"] = gate["digest"](gate["encoded"]({"provider": provider}, mode))
+                raw = gate["encoded"](row, mode)
+                semantic = "validate_bench_record" if provider in gate["BENCH"] else "validate_quality_record" if entry["family"] == "harness-quality" else "validate_harness_record"
+                with self.subTest(provider=provider), patch.dict(namespace, {
+                    "controls": lambda *_: None,
+                    "helper": lambda *_: {"sources": lambda *_: []},
+                }), patch.dict(namespace, {semantic: lambda *_: (_ for _ in ()).throw(AssertionError("semantic sentinel"))}):
+                    with self.assertRaisesRegex(AssertionError, "semantic sentinel"):
+                        function(self.root, entry, row, {}, raw)
+                    changed = dict(row, provider="changed")
+                    with self.assertRaisesRegex(AssertionError, "original native receipt bytes differ"):
+                        function(self.root, entry, changed, {}, raw)
+                    changed = dict(row, qualificationDigest="sha256:" + "0" * 64)
+                    with self.assertRaisesRegex(AssertionError, "original qualification digest changed"):
+                        function(self.root, entry, changed, {}, gate["encoded"](changed, mode))
+
+    def test_all_paired_harness_provenance_refuses_native_only_commands(self):
+        for providers in gate["PAIRED_HARNESS_GROUPS"].values():
+            for provider in providers:
+                entry = gate["paired_harness_entry"](provider, {"scope": "checker-unit"})
+                entry.update({"record": {}, "provenance": {
+                    "repository": "Orthic-Labs/legion", "runId": 1, "runAttempt": 1, "jobId": 1,
+                    "jobName": "ci (macos-15, checker)", "jobConclusion": "failure",
+                    "workflow": ".github/workflows/ci.yml", "commit": "a" * 40, "platform": "macos-15",
+                    "command": {"harness": ["checker-unit"]}, "validator": None, "log": {},
+                }})
+                with self.subTest(provider=provider), self.assertRaisesRegex(AssertionError, "object fields differ"):
+                    gate["provenance"](self.root, entry, {}, None)
+
+    def test_paired_harness_log_requires_exact_validator_projection_for_all_eleven(self):
+        path = self.root / "paired-harness-checker.log"
+        for group, providers in gate["PAIRED_HARNESS_GROUPS"].items():
+            for provider in providers:
+                entry = gate["paired_harness_entry"](provider, {"scope": "checker-unit"})
+                family = entry["family"]
+                row = {} if group == "bench" else {"provider": provider}
+                summary = {"records": [{"provider": provider, "recordSha256": "checker-unit"}], "modelCalls": 0}
+                original = "LEGION_BENCH_KNOWN_ANSWER_RECORD" if group == "bench" else "QUALITY_COMMAND_SDK_ACCURACY" if group == "quality" else "EXTERNAL_PROVIDER_ACCURACY"
+                emission = original + " " + json.dumps(row) + "\n"
+                validator = "HARNESS_PROVIDER_ACCURACY_SUMMARY " + json.dumps(summary) + "\n"
+                with self.subTest(provider=provider):
+                    path.write_text(emission + validator)
+                    result = gate["log_evidence"](path, row, summary["records"][0], family, provider=provider)
+                    self.assertEqual(result[1:], (1, 2))
+                    self.assertEqual(result[0], gate["digest"](gate["encoded"](summary)))
+                    for text in (emission, emission + validator * 2,
+                                 emission + validator.replace("checker-unit", "changed")):
+                        path.write_text(text)
+                        with self.assertRaises(AssertionError):
+                            gate["log_evidence"](path, row, summary["records"][0], family, provider=provider)
+
+    def test_paired_harness_native_counts_remain_required_with_validator_span(self):
+        commands = [(gate["BENCH_HARNESS"], ["bench_recall_qualification_receipt"]),
+                    (gate["QUALITY_HARNESS"], ["real_quality_command_accuracy"]),
+                    (["audit_tflint_qualification"], gate["TFLINT_TESTS"])]
+        for provider in gate["HARNESS_CONTROLS"]:
+            if provider == "security.scanner-tflint":
+                continue
+            _, harness, _, _, selector = gate["ADAPTERS"][provider]
+            commands.append((["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"], [selector]))
+        path = self.root / "paired-terminal-checker.log"
+        for command, names in commands:
+            validator = ["python3", gate["PAIRED_HARNESS_VALIDATOR"]]
+            proof = {"command": {"harness": command, "validator": validator}}
+            results = [f"test {name} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;" for name in names]
+
+            def observed(parts, status=0, validator_before=False):
+                native = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command}),
+                          *parts, "original", "AUDIT_QUALIFICATION_COMMAND_END 1 0"]
+                paired = ["AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 2, "argv": validator}),
+                          "summary", f"AUDIT_QUALIFICATION_COMMAND_END 2 {status}"]
+                lines = "\n".join(paired + native if validator_before else native + paired).splitlines()
+                path.write_text("\n".join(lines) + "\n")
+                return gate["terminal_checks"](path, proof, {"sha256": "checker-unit"}, "summary-digest",
+                                               lines.index("original") + 1, lines.index("summary") + 1)
+
+            with self.subTest(command=command):
+                self.assertEqual([check["role"] for check in observed(results)], ["harness", "validator"])
+                for parts in ([], results[:-1], results + results,
+                              [text.replace("0 ignored", "1 ignored") for text in results],
+                              [text.replace(names[-1], "wrong_test") for text in results]):
+                    with self.assertRaises(AssertionError):
+                        observed(parts)
+                with self.assertRaises(AssertionError):
+                    observed(results, status=1)
+                with self.assertRaises(AssertionError):
+                    observed(results, validator_before=True)
+
     def test_quality_metadata_preserves_constructed_scope(self):
         entry = {"provider": "legacy.quality.build", "family": "harness-quality", "stage": "finding", "scope": "known-answer-fixture-cases",
                  "record": {"path": "synthetic", "sha256": "sha256:" + "a" * 64, "qualificationDigest": "sha256:" + "b" * 64}}
@@ -1027,7 +1223,7 @@ class RegistrationGateTests(unittest.TestCase):
         self.assertIs(value["productionQualification"], False)
         self.assertEqual(value["fixtureScope"], "known-answer-fixture-cases")
         self.assertEqual(value["admissionScope"], "explicit constructed SDK authorizer; no production CLI owner-admission claim")
-        self.assertEqual(value["validationBasis"], "source-owned-harness-success")
+        self.assertEqual(value["validationBasis"], "native-family-validator")
         self.assertNotIn("qualificationEligible", value)
 
     def test_quality_record_cannot_claim_production_qualification(self):

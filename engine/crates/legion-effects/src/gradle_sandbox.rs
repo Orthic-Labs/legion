@@ -1,5 +1,6 @@
 //! Gradle 9.2.1's uncontended cache lock opens wildcard UDP port 0.
-//! This capability permits that bind operation only. DenyNetwork is unchanged;
+//! JVM qualification admits UDP binding on all local addresses/ports.
+//! This capability permits bind operations only. DenyNetwork is unchanged;
 //! inbound, outbound, TCP & project writes remain denied, including descendants.
 //! Native confinement controls must establish platform behavior before use is
 //! counted as qualification; profile syntax alone proves no confinement.
@@ -22,6 +23,8 @@ pub struct GradleBindOnlySandbox {
 }
 
 const DIST: &str = "home/wrapper/dists/gradle-9.2.1-bin/2t0n5ozlw9xmuyvbp7dnzaxug/gradle-9.2.1";
+/// Verbatim admission scope from workspace decisions.md, 2026-10-20 (#79).
+pub const QUALIFICATION_ADMISSION: &str = r#"in engine/crates/legion-effects/src/gradle_sandbox.rs profile_text only, allow (network-bind (local udp "*:*")) for the JVM harness process tree; network-outbound and all inbound accept remain denied"#;
 fn gap(detail: impl std::fmt::Display) -> SandboxGap {
     SandboxGap::IpcNamespaceInvalid(format!("gradle-bind-only: {detail}"))
 }
@@ -243,7 +246,7 @@ impl GradleBindOnlySandbox {
 #[cfg(target_os = "macos")]
 fn profile(project: &str) -> String {
     let project = project.replace('\\', "\\\\").replace('"', "\\\"");
-    format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{project}\"))\n(allow network-bind (local udp \"*:0\"))\n")
+    format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{project}\"))\n(allow network-bind (local udp \"*:*\"))\n")
 }
 
 #[cfg(target_os = "macos")]
@@ -399,6 +402,24 @@ mod tests {
     }
 
     #[test]
+    fn gradle_udp_bind_admission_keeps_traffic_denied() {
+        let text = profile("/owned/jvm-project");
+        let network = text
+            .lines()
+            .filter(|line| line.contains("network"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            network,
+            [
+                "(deny network*)",
+                "(allow network-bind (local udp \"*:*\"))"
+            ]
+        );
+        assert!(text.contains("(deny file-write* (subpath \"/owned/jvm-project\"))"));
+        assert!(!text.contains("*:0"));
+    }
+
+    #[test]
     #[ignore = "helper process for Gradle native confinement driver"]
     fn gradle_bind_only_worker() {
         let Ok(mode) = std::env::var("LEGION_GRADLE_NATIVE_MODE") else {
@@ -444,16 +465,22 @@ mod tests {
                 .unwrap()
                 .parse()
                 .unwrap();
-            denied(
-                UdpSocket::bind(std::net::SocketAddr::new(
-                    socket.local_addr().unwrap().ip(),
-                    std::env::var(format!("LEGION_GRADLE_ASSIGNED{family}"))
-                        .unwrap()
-                        .parse()
-                        .unwrap(),
-                ))
-                .unwrap_err(),
-            );
+            let assigned_port = std::env::var(format!("LEGION_GRADLE_ASSIGNED{family}"))
+                .unwrap()
+                .parse()
+                .unwrap();
+            let assigned = UdpSocket::bind(std::net::SocketAddr::new(
+                socket.local_addr().unwrap().ip(),
+                assigned_port,
+            ))
+            .expect("assigned UDP bind is explicitly admitted");
+            assert_eq!(assigned.local_addr().unwrap().port(), assigned_port);
+            println!("LEGION_NATIVE_ADMISSIONS|ipv{family}|ephemeral-udp-bind,assigned-udp-bind");
+            denied(assigned.send_to(b"forbidden", target).unwrap_err());
+            assigned
+                .set_read_timeout(Some(Duration::from_millis(200)))
+                .unwrap();
+            denied(assigned.recv_from(&mut [0u8; 16]).unwrap_err());
             denied(socket.send_to(b"forbidden", target).unwrap_err());
             socket
                 .set_read_timeout(Some(Duration::from_millis(200)))
@@ -475,7 +502,7 @@ mod tests {
                 .unwrap();
             denied(TcpListener::bind(std::net::SocketAddr::new(tcp.ip(), 0)).unwrap_err());
             denied(TcpStream::connect_timeout(&tcp, Duration::from_millis(200)).unwrap_err());
-            println!("LEGION_NATIVE_DENIALS|ipv{family}|assigned-bind,udp-send,udp-receive,inherited-send,inherited-receive,tcp-bind,tcp-connect");
+            println!("LEGION_NATIVE_DENIALS|ipv{family}|udp-send,udp-receive,assigned-udp-send,assigned-udp-receive,inherited-send,inherited-receive,tcp-bind,tcp-connect");
         }
         let raw = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0) };
         assert!(raw >= 0);
@@ -505,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "real macOS Seatbelt bind-only, inherited sockets & process-tree controls"]
+    #[ignore = "real macOS Seatbelt UDP-bind admission, traffic denial & process-tree controls"]
     fn gradle_bind_only_native_confinement() {
         let output = PathBuf::from(
             std::env::var_os("LEGION_JVM_CONFINEMENT_RECORD")
@@ -652,7 +679,7 @@ mod tests {
                 }
             }
             rows.push(json!({"mode":mode,"request":request_value(&request),"profile":profile(project.to_str().unwrap()),"profileDigest":hash(profile(project.to_str().unwrap()).as_bytes()),"receipt":receipt(&r),"stdout":out,"stderr":err,"descendants":descendants}));
-            fs::write(&output,serde_json::to_vec_pretty(&json!({"schema":"legion-gradle-bind-confinement/1","sourceDigest":hash(include_bytes!("gradle_sandbox.rs")),"complete":false,"controls":rows})).unwrap()).unwrap();
+            fs::write(&output,serde_json::to_vec_pretty(&json!({"schema":"legion-gradle-bind-confinement/1","sandboxAdmission":QUALIFICATION_ADMISSION,"sourceDigest":hash(include_bytes!("gradle_sandbox.rs")),"complete":false,"controls":rows})).unwrap()).unwrap();
             assert_eq!(
                 r.state,
                 if mode == "hang" {
@@ -689,6 +716,6 @@ mod tests {
                 );
             }
         }
-        fs::write(&output,serde_json::to_vec_pretty(&json!({"schema":"legion-gradle-bind-confinement/1","sourceDigest":hash(include_bytes!("gradle_sandbox.rs")),"complete":true,"controls":rows})).unwrap()).unwrap();
+        fs::write(&output,serde_json::to_vec_pretty(&json!({"schema":"legion-gradle-bind-confinement/1","sandboxAdmission":QUALIFICATION_ADMISSION,"sourceDigest":hash(include_bytes!("gradle_sandbox.rs")),"complete":true,"controls":rows})).unwrap()).unwrap();
     }
 }

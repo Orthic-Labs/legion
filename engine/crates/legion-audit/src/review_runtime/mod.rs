@@ -953,7 +953,16 @@ impl Controller<'_> {
         apply_schema_repair_budget(&mut call, repair_of);
         let authorization = next::reserve_call(budget_run, &call)?;
         if authorization["authorized"] != true {
-            return Err(AuditError::BoundExceeded("budget-exhausted".into()));
+            let status = authorization["status"]
+                .as_str()
+                .unwrap_or("budget-exhausted");
+            return Err(AuditError::BoundExceeded(
+                if status == "incomplete:context-call-limit" {
+                    format!("{status}:{seat_id}")
+                } else {
+                    status.to_owned()
+                },
+            ));
         }
         let reservation = authorization["reservationId"]
             .as_str()
@@ -1213,7 +1222,6 @@ fn reservation_available(run: &Path, id: &str) -> bool {
 /// Runs frozen Audit dispatch to its explicit terminal state. Every physical
 /// model attempt is budget-authorized; no unmetered correction/retry exists.
 pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError> {
-    model::validate_options(options)?;
     if options.max_calls_per_packet == 0
         || options.max_calls_per_packet > 32
         || options.call_timeout_seconds == 0
@@ -1222,7 +1230,15 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         return Err(invalid("runtime bounds outside supported limits"));
     }
     let run = fs::canonicalize(run_dir).map_err(|error| invalid(error.to_string()))?;
+    // Refuse missing, malformed or misbound execution before lock files,
+    // accounting reconciliation, host setup, leases or reservations can change.
+    let plan = read_plan_json(&run.join("plan.json"))?;
+    ingest::validate_runtime_prerequisites(&run, &plan)?;
+    let snapshot = prepared_snapshot(&run, &plan)?;
+    model::validate_options(options)?;
     let _guard = lock(&run)?;
+    // A prior controller may have completed while these read-only checks ran.
+    ingest::validate_runtime_prerequisites(&run, &plan)?;
     model::enforce_prior_receipts(&run)?;
     enforce_strict_policy(&run, options.strict_no_retry)?;
     if let Some(budget_run) = options
@@ -1233,8 +1249,6 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
         enforce_strict_policy(budget_run, options.strict_no_retry)?;
     }
     next::enforce_native_accounting(options.budget_run.as_deref().unwrap_or(&run))?;
-    let plan = read_plan_json(&run.join("plan.json"))?;
-    let snapshot = prepared_snapshot(&run, &plan)?;
     let cwd = run.join("runtime-host");
     fs::create_dir_all(&cwd).map_err(|error| invalid(error.to_string()))?;
     let binary = match native::resolve(options, &cwd) {
@@ -1293,7 +1307,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
             final_status = "incomplete:no-ready-work".into();
             break;
         }
-        for seat in seats {
+        'seats: for seat in seats {
             let paths = seat["packetPaths"]
                 .as_array()
                 .ok_or_else(|| invalid("packet paths missing"))?;
@@ -1365,6 +1379,20 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                                 }
                             }
                             if !batch_gaps.is_empty() {
+                                if batch_gaps
+                                    .iter()
+                                    .all(|gap| gap.contains("incomplete:context-call-limit"))
+                                {
+                                    next::stop_context_seat(
+                                        &run,
+                                        seat["seatId"]
+                                            .as_str()
+                                            .ok_or_else(|| invalid("seat ID missing"))?,
+                                    )?;
+                                    failures
+                                        .push(json!({"seatId":seat["seatId"],"errors":batch_gaps}));
+                                    continue 'seats;
+                                }
                                 final_status = if batch_gaps
                                     .iter()
                                     .any(|gap| gap.contains("budget-exhausted"))
@@ -1381,6 +1409,16 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                         Err(error) if error.to_string().contains("shared-seat-split-required") => {}
                         Err(error) => {
                             let error = error.to_string();
+                            if error.contains("incomplete:context-call-limit") {
+                                next::stop_context_seat(
+                                    &run,
+                                    seat["seatId"]
+                                        .as_str()
+                                        .ok_or_else(|| invalid("seat ID missing"))?,
+                                )?;
+                                failures.push(json!({"seatId":seat["seatId"],"error":error}));
+                                continue 'seats;
+                            }
                             final_status = if error.contains("budget-exhausted") {
                                 "budget-exhausted".into()
                             } else {
@@ -1530,6 +1568,17 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                     Ok(artifact) => artifacts.push(artifact),
                     Err(error) => {
                         let error = error.to_string();
+                        if error.contains("incomplete:context-call-limit") {
+                            next::stop_context_seat(
+                                &run,
+                                seat["seatId"]
+                                    .as_str()
+                                    .ok_or_else(|| invalid("seat ID missing"))?,
+                            )?;
+                            failures
+                                .push(json!({"seatId":seat["seatId"],"packet":path,"error":error}));
+                            continue 'seats;
+                        }
                         final_status = if error.contains("budget-exhausted") {
                             "budget-exhausted".into()
                         } else {

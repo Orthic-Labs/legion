@@ -27,7 +27,10 @@ FILES = ["engine/Cargo.lock", "engine/Cargo.toml", "engine/crates/legion-audit/C
          "engine/crates/legion-effects/Cargo.toml", "engine/crates/legion-rules/Cargo.toml", SOURCE]
 SCOPE = "Two flat-color constructed controls; explicit sealed PNG comparison only, not UI quality, runtime capture, population accuracy or production admission"
 READY = "document.readyState === 'complete'"
-OBSERVE = "(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); const ua = await navigator.userAgentData.getHighEntropyValues(['fullVersionList']); return {ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent,fullVersionList:ua.fullVersionList}; })()"
+START_ANIMATION_FRAMES = "(() => { const state = {rafAvailable: typeof window.requestAnimationFrame === 'function', frameCallbacks: 0, frameProbeComplete: false}; window.__legionVisualFrames = state; if (state.rafAvailable) requestAnimationFrame(() => { state.frameCallbacks += 1; requestAnimationFrame(() => { state.frameCallbacks += 1; state.frameProbeComplete = true; }); }); return true; })()"
+ANIMATION_STATE = "Object.assign({}, window.__legionVisualFrames, {visibilityState: document.visibilityState, readyState: document.readyState, hasFocus: document.hasFocus()})"
+HIGH_ENTROPY_UA = "(async () => await navigator.userAgentData.getHighEntropyValues(['fullVersionList']))()"
+OBSERVE = "({ready:document.readyState,background:getComputedStyle(document.documentElement).backgroundColor,width:innerWidth,height:innerHeight,devicePixelRatio:devicePixelRatio,userAgent:navigator.userAgent})"
 
 
 def require(ok, message):
@@ -93,6 +96,24 @@ def html(planted):
     return ('<!doctype html><html style="background:rgb(' + rgb + ');width:100%;height:100%;margin:0"><head><meta charset="utf-8"><link rel="icon" href="data:,"></head><body style="margin:0"></body></html>').encode()
 
 
+def frame_completion(observed):
+    frames = observed.get("animationFrames")
+    require(isinstance(frames, dict) and frames.get("rafAvailable") is True
+            and type(frames.get("frameCallbacks")) is int and frames["frameCallbacks"] == 2
+            and frames.get("frameProbeComplete") is True and frames.get("readyState") == "complete",
+            "two actual renderer animation callbacks not observed")
+
+
+def capture_admissions(captured, admissions, session):
+    polls = sum(a["action"] == "Eval" and a["detail"] == ANIMATION_STATE for a in admissions)
+    require(polls > 0 and len(admissions) == 5 + polls
+            and all(a["allowed"] is True and a["sessionId"] == session and a["url"] == captured["url"] for a in admissions)
+            and sum(a["action"] == "Navigate" for a in admissions) == 1
+            and all(sum(a["action"] == "Eval" and a["detail"] == expression for a in admissions) == 1
+                    for expression in (READY, START_ANIMATION_FRAMES, HIGH_ENTROPY_UA, OBSERVE)),
+            "exact admission actions differ")
+
+
 def capture(captured, name, planted, session, artifacts=None):
     rgba = bytes([255, 0, 0, 255] if planted else [0, 0, 255, 255]) * (64 * 48)
     require(captured["captureId"] == "viewport" and captured["sourcePath"] == "index.html"
@@ -101,6 +122,7 @@ def capture(captured, name, planted, session, artifacts=None):
             and captured["sessionId"] == session and isinstance(captured["pageId"], str) and captured["pageId"], "capture/control binding differs")
     require(re.fullmatch(r"http://127\.0\.0\.1:[1-9][0-9]*/" + name + r"/index\.html", captured["url"]) is not None, "fixture URL differs")
     observed = captured["rendererObservation"]
+    frame_completion(observed)
     require(observed["ready"] == "complete" and observed["background"] == ("rgb(255, 0, 0)" if planted else "rgb(0, 0, 255)")
             and observed["width"] == 64 and observed["height"] == 48 and observed["devicePixelRatio"] == 1
             and "HeadlessChrome/155." in observed["userAgent"]
@@ -170,13 +192,13 @@ def validate_record(root, row, live=True, receipts=None):
     baseline = evidence["baseline"]
     captures = [("baseline", baseline, False)] + [(c["caseId"], c["capture"], c["caseId"] == "planted") for c in cases]
     require(len({c["pageId"] for _, c, _ in captures}) == 3, "capture page reused")
-    require(len(evidence["admissionDecisions"]) == 9 and len(evidence["servedRequests"]) == 3, "admission/request count differs")
+    require(len(evidence["servedRequests"]) == 3
+            and all(a["pageId"] in {c["pageId"] for _, c, _ in captures} for a in evidence["admissionDecisions"]),
+            "admission/request inventory differs")
     for name, captured, planted in captures:
         capture(captured, name, planted, session, artifacts)
         admissions = [a for a in evidence["admissionDecisions"] if a["pageId"] == captured["pageId"]]
-        require(len(admissions) == 3 and all(a["allowed"] is True and a["sessionId"] == session and a["url"] == captured["url"] for a in admissions)
-                and sum(a["action"] == "Navigate" for a in admissions) == 1
-                and all(sum(a["action"] == "Eval" and a["detail"] == expression for a in admissions) == 1 for expression in (READY, OBSERVE)), "exact admission actions differ")
+        capture_admissions(captured, admissions, session)
         served = [r for r in evidence["servedRequests"] if r["path"] == f"/{name}/index.html"]
         require(len(served) == 1 and served[0]["method"] == "GET" and served[0]["accepted"] is True and served[0]["bodyDigest"] == captured["sourceDigest"] and served[0]["bytes"] == len(html(planted)), "actual fixture response differs")
         require(any(n["allowed"] is True and n["url"] == captured["url"] for n in evidence["networkDecisions"]), "admitted network request missing")
