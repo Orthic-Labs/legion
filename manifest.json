@@ -576,7 +576,7 @@
         "kind": "runtime-script",
         "module": "code.python"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,

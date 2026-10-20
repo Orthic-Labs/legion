@@ -1,0 +1,8 @@
+
+running 1 test
+test real_python_code_command_accuracy has been running for over 60 seconds
+PYTHON_CODE_COMMAND_SDK_ACCURACY_ARTIFACT {"schema":"legion-python-code-command-sdk-artifact/1","provider":"code.python","file":"code_python.json","digest":"sha256:b77bdbade580ec56dcaf771f51152b95cb7143f7ecf8829240c577f7aa11b0cd","bytes":4302875,"qualificationDigest":"sha256:b9ff9843e2bce5b853fc8d3477f02012d537b6b623793fdd696934c137f20a19","qualificationEligible":true,"productionQualification":false}
+test real_python_code_command_accuracy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 111.10s
+
