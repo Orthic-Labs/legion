@@ -750,7 +750,13 @@ def backend_source_evidence(root, entry, row):
     return {ref["path"]}, path.read_bytes()
 
 
-def record_binding(root, entry, path, row, registry):
+def validate_semgrep_record_digest(raw_record, indexed_digest):
+    actual = helper("audit-semgrep-provider-accuracy.py")["record_digest"](raw_record)
+    require(actual == indexed_digest, "original Semgrep qualification digest differs")
+    return actual
+
+
+def record_binding(root, entry, path, row, registry, raw_record=None):
     provider = entry["provider"]
     family, _, _, _ = adapter(root, entry)
     if family == "runtime-app-sdk":
@@ -846,7 +852,9 @@ def record_binding(root, entry, path, row, registry):
     if family == "osv-artifact":
         return helper("audit-osv-artifact-accuracy.py")["validate_record"](root, row, live=False)
     if family == "semgrep-sdk":
-        return helper("audit-semgrep-provider-accuracy.py")["validate_record"](root, row, live=False)
+        require(isinstance(raw_record, bytes), "original Semgrep record bytes absent")
+        return helper("audit-semgrep-provider-accuracy.py")["validate_record_bytes"](
+            root, raw_record, expected_row=row, live=False)
     if family == "opengrep-artifact":
         return helper("audit-opengrep-artifact-accuracy.py")["validate_record"](root, row, live=False)
     if family == "visual":
@@ -1759,12 +1767,17 @@ def check(root):
         source_closure(root, entry)
         path = reference(root, entry["record"], "records", original=True)
         require(path.parent.name == provider, "record directory must name provider")
-        row = load(path)
+        raw_record = path.read_bytes() if entry["family"] == "semgrep-sdk" else None
+        row = parsed(raw_record, path) if raw_record is not None else load(path)
         _, _, mode, _ = adapter(root, entry)
         require(entry["record"]["encoding"] == mode, "original digest encoding differs")
         if entry["family"] == "harness-ast-grep":
             require("qualificationDigest" not in row, "ast-grep receipt must not invent a digest field")
             require(entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "ast-grep canonical receipt digest changed")
+        elif entry["family"] == "semgrep-sdk":
+            claimed = row.get("qualificationDigest")
+            require(claimed == entry["record"]["qualificationDigest"], "original Semgrep qualification digest differs")
+            validate_semgrep_record_digest(raw_record, entry["record"]["qualificationDigest"])
         else:
             claimed = row.pop("qualificationDigest")
             require(claimed == entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "original qualification digest changed")
@@ -1801,7 +1814,7 @@ def check(root):
             retained.update(code_sdk_evidence(root, entry, row))
         controls(row, entry)
         require(row.get("claimScope") == entry["scope"] if entry["family"] in ("code-php-ruby-sdk", "quality-test-native", "dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
-        validated = record_binding(root, entry, path, row, specs)
+        validated = record_binding(root, entry, path, row, specs, raw_record=raw_record)
         retained.add(entry["record"]["path"])
         retained.update(provenance(root, entry, row, validated))
         benchmark = specs[provider]["benchmark"]

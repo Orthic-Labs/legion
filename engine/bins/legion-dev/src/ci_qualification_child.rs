@@ -12,7 +12,7 @@ const CLEANUP_TIMEOUT: Duration = Duration::from_secs(3);
 
 fn command_timeout(argv: &[OsString]) -> Duration {
     // Run39394355495 macOS seq44 completed in816.08s (snapshot SHA56fb2...).
-    // Only this complete source-owned selector gets1200s; native calls stay120s.
+    // Only complete source-owned selectors get matrix deadlines; native calls stay120s.
     let mobile = [
         "test",
         "--locked",
@@ -26,20 +26,121 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         "--nocapture",
         "--test-threads=1",
     ];
+    let javascript = [
+        "test",
+        "--locked",
+        "-p",
+        "legion-audit",
+        "--test",
+        "real_javascript_sdk_accuracy",
+        "real_javascript_sdk_accuracy",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1",
+    ];
+    let rust = [
+        "test",
+        "--locked",
+        "-p",
+        "legion-audit",
+        "--test",
+        "real_rust_code_accuracy",
+        "real_rust_code_accuracy",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1",
+    ];
     let cargo = argv
         .first()
         .and_then(|value| Path::new(value).file_name())
         .is_some_and(|name| name == "cargo" || name == "cargo.exe");
-    if cargo
-        && argv.len() == mobile.len() + 1
-        && argv[1..]
-            .iter()
-            .zip(mobile)
-            .all(|(value, expected)| value == expected)
-    {
-        Duration::from_secs(1200)
-    } else {
-        Duration::from_secs(300)
+    if cargo {
+        for (selector, seconds) in [
+            (mobile.as_slice(), 1200),
+            (javascript.as_slice(), 1800),
+            (rust.as_slice(), 2400),
+        ] {
+            if argv.len() == selector.len() + 1
+                && argv[1..]
+                    .iter()
+                    .zip(selector)
+                    .all(|(value, expected)| value == *expected)
+            {
+                return Duration::from_secs(seconds);
+            }
+        }
+    }
+    Duration::from_secs(300)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::command_timeout;
+    use std::{ffi::OsString, time::Duration};
+
+    fn matrix_commands() -> Vec<(Vec<OsString>, u64)> {
+        [
+            (
+                "--lib",
+                "native_providers::code::tools::mobile_sdk::tests::native::native_mobile_sdk_controls",
+                1200,
+            ),
+            ("--test", "real_javascript_sdk_accuracy", 1800),
+            ("--test", "real_rust_code_accuracy", 2400),
+        ]
+        .into_iter()
+        .map(|(kind, target, seconds)| {
+            let mut argv = vec!["cargo", "test", "--locked", "-p", "legion-audit", kind, target];
+            if kind == "--test" {
+                argv.push(target);
+            }
+            argv.extend(["--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]);
+            (argv.into_iter().map(OsString::from).collect(), seconds)
+        })
+        .collect()
+    }
+
+    #[test]
+    fn exact_matrix_commands_get_only_their_declared_deadlines() {
+        for (mut argv, seconds) in matrix_commands() {
+            for executable in [
+                "cargo",
+                "cargo.exe",
+                "/toolchain/bin/cargo",
+                "/toolchain/bin/cargo.exe",
+            ] {
+                argv[0] = executable.into();
+                assert_eq!(
+                    command_timeout(&argv),
+                    Duration::from_secs(seconds),
+                    "{argv:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn matrix_command_near_misses_keep_default_deadline() {
+        let default = Duration::from_secs(300);
+        assert_eq!(command_timeout(&[]), default);
+        for (argv, _) in matrix_commands() {
+            // Every token matters, including executable, target, & inner controls.
+            for index in 0..argv.len() {
+                let mut changed = argv.clone();
+                changed[index].push("-near-miss");
+                assert_eq!(command_timeout(&changed), default, "{changed:?}");
+                let mut missing = argv.clone();
+                missing.remove(index);
+                assert_eq!(command_timeout(&missing), default, "{missing:?}");
+            }
+            let mut extended = argv;
+            extended.push("--extra".into());
+            assert_eq!(command_timeout(&extended), default, "{extended:?}");
+        }
     }
 }
 

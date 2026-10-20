@@ -11,7 +11,113 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+#[derive(Clone)]
+struct TestedBinary {
+    path: PathBuf,
+    sha256: String,
+    bytes: u64,
+    runner: Option<Value>,
+}
+
+impl TestedBinary {
+    fn prepare() -> Self {
+        let source = PathBuf::from(env!("CARGO_BIN_EXE_legion"));
+        let metadata = fs::symlink_metadata(&source).unwrap();
+        assert!(metadata.is_file() && !metadata.file_type().is_symlink());
+        let original = fs::read(&source).unwrap();
+        let mut binary = Self {
+            path: source.clone(),
+            sha256: digest(&original),
+            bytes: original.len() as u64,
+            runner: None,
+        };
+        if let Some(directory) = std::env::var_os("LEGION_REASONING_NATIVE_RUNNER_DIR") {
+            let directory = PathBuf::from(directory);
+            assert!(
+                directory.is_absolute(),
+                "retained runner path must be absolute"
+            );
+            // Fresh output & rename-only admission: EXDEV or any other move
+            // failure stops this proof, never falls back to a partial copy.
+            fs::create_dir(&directory).expect("retained runner directory must be fresh");
+            let retained = directory.join(source.file_name().unwrap());
+            fs::rename(&source, &retained)
+                .expect("exact built CLI must move atomically on the same filesystem");
+            binary.path = retained;
+            binary.assert_identity();
+            let revision = std::env::var("GITHUB_SHA").expect("CI source revision required");
+            assert!(
+                revision.len() == 40
+                    && revision
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            );
+            let platform = std::env::var("RUNNER_OS").expect("CI platform required");
+            assert_eq!(
+                platform,
+                if cfg!(target_os = "macos") {
+                    "macOS"
+                } else if cfg!(windows) {
+                    "Windows"
+                } else {
+                    panic!("unsupported retained runner platform")
+                }
+            );
+            let architecture = std::env::var("RUNNER_ARCH").expect("CI architecture required");
+            assert_eq!(
+                architecture,
+                match std::env::consts::ARCH {
+                    "aarch64" => "ARM64",
+                    "x86_64" => "X64",
+                    _ => panic!("unsupported retained runner architecture"),
+                }
+            );
+            #[cfg(unix)]
+            let mode = {
+                use std::os::unix::fs::PermissionsExt;
+                fs::metadata(&binary.path).unwrap().permissions().mode() & 0o777
+            };
+            #[cfg(windows)]
+            let mode = if fs::metadata(&binary.path).unwrap().permissions().readonly() {
+                0o555
+            } else {
+                0o777
+            };
+            binary.runner = Some(
+                json!({"schema":"legion-reasoning-native-runner/1","sourceRevision":revision,
+                "platform":{"os":platform,"architecture":architecture},
+                "binary":{"path":binary.path.file_name().unwrap().to_str().unwrap(),"sha256":binary.sha256,"bytes":binary.bytes,"mode":mode},
+                "modelCalls":0,"qualification":false}),
+            );
+        }
+        binary.assert_identity();
+        binary
+    }
+
+    fn assert_identity(&self) {
+        let metadata = fs::symlink_metadata(&self.path).expect("tested CLI missing");
+        assert!(
+            metadata.is_file() && !metadata.file_type().is_symlink(),
+            "tested CLI must stay regular"
+        );
+        let actual = fs::read(&self.path).unwrap();
+        assert_eq!(actual.len() as u64, self.bytes, "tested CLI length changed");
+        assert_eq!(digest(&actual), self.sha256, "tested CLI bytes changed");
+    }
+
+    fn publish(&self) {
+        self.assert_identity();
+        if let Some(record) = &self.runner {
+            let directory = self.path.parent().unwrap();
+            let pending = directory.join("runner.json.pending");
+            fs::write(&pending, serde_json::to_vec(record).unwrap()).unwrap();
+            fs::rename(pending, directory.join("runner.json")).unwrap();
+        }
+    }
+}
+
 struct Fixture {
+    binary: TestedBinary,
     base: PathBuf,
     corpus: PathBuf,
     source: PathBuf,
@@ -37,7 +143,7 @@ fn copy_source(from: &Path, to: &Path) {
 }
 
 impl Fixture {
-    fn new(member_index: usize) -> Self {
+    fn new(member_index: usize, binary: &TestedBinary) -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let base = fs::canonicalize(std::env::temp_dir())
             .unwrap()
@@ -48,6 +154,7 @@ impl Fixture {
             ));
         assert!(!base.exists(), "production no-call output must be fresh");
         let fixture = Self {
+            binary: binary.clone(),
             corpus: base.join("corpus"),
             source: base.join("fixture-source"),
             run: base.join("run"),
@@ -140,7 +247,8 @@ impl Fixture {
     }
 
     fn command(&self, args: &[String]) -> Output {
-        Command::new(env!("CARGO_BIN_EXE_legion"))
+        self.binary.assert_identity();
+        let output = Command::new(&self.binary.path)
             .current_dir(&self.corpus)
             .env("GIT_CEILING_DIRECTORIES", &self.base)
             .env("HOME", &self.home)
@@ -157,7 +265,9 @@ impl Fixture {
             .env_remove("CLAUDE_CODE_SESSION_ID")
             .args(args)
             .output()
-            .unwrap()
+            .unwrap();
+        self.binary.assert_identity();
+        output
     }
 }
 
@@ -169,9 +279,10 @@ impl Drop for Fixture {
 
 #[test]
 fn reasoning_runtime_production_no_call_contract() {
+    let binary = TestedBinary::prepare();
     let mut author_seats = 0;
     for member_index in 0..MEMBER_PROVIDERS.len() {
-        let fixture = Fixture::new(member_index);
+        let fixture = Fixture::new(member_index, &binary);
         let mut args: Vec<String> = [
             "audit".into(),
             fixture.source.to_string_lossy().into_owned(),
@@ -221,13 +332,8 @@ fn reasoning_runtime_production_no_call_contract() {
         let seats = dispatch["seats"]
             .as_array()
             .expect("production seat inventory");
-        let binary_sha256 = format!(
-            "sha256:{}",
-            Sha256::digest(fs::read(env!("CARGO_BIN_EXE_legion")).unwrap())
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
-        );
+        fixture.binary.assert_identity();
+        let binary_sha256 = &binary.sha256;
         println!(
             "REASONING_RUNTIME_PRODUCTION_DISPATCH {}",
             json!({"requiredSeats":seats.len(),"bundles":dispatch["bundles"],"withinLimits":dispatch["withinLimits"],"binarySha256":binary_sha256})
@@ -303,8 +409,31 @@ fn reasoning_runtime_production_no_call_contract() {
         author_seats + 3 <= 44,
         "authors plus one native fresh batch verifier per member must fit shared quota"
     );
+    // Commit metadata only after every production/member/cumulative assertion.
+    binary.publish();
     println!(
         "REASONING_RUNTIME_CUMULATIVE_NO_CALL {}",
         json!({"members":3,"plannedAuthorSeats":author_seats,"plannedFreshBatchVerifierAdmissions":3,"expectedVerifierItems":[6,6,5],"physicalAdmissionCap":44,"modelCalls":0,"qualification":false})
+    );
+}
+
+#[test]
+fn tested_binary_rejects_same_length_replacement() {
+    let path = std::env::temp_dir().join(format!("legion-tested-binary-{}", std::process::id()));
+    assert!(!path.exists());
+    fs::write(&path, b"original").unwrap();
+    let binary = TestedBinary {
+        path: path.clone(),
+        sha256: digest(b"original"),
+        bytes: 8,
+        runner: None,
+    };
+    binary.assert_identity();
+    fs::write(&path, b"mutated!").unwrap();
+    let rejected = std::panic::catch_unwind(|| binary.assert_identity()).is_err();
+    fs::remove_file(path).unwrap();
+    assert!(
+        rejected,
+        "same-length replacement must invalidate tested binary identity"
     );
 }

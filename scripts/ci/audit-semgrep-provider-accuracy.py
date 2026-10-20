@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import hmac
 import json
+import math
 from pathlib import Path, PurePosixPath
 import re
 import runpy
@@ -37,6 +38,51 @@ def encoded(value):
 
 def digest(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+class _JsonNumber:
+    """Preserve original numeric token while hashing Rust-issued JSON bytes."""
+    def __init__(self, token, floating=False):
+        self.token = token
+        self.floating = floating
+        if floating:
+            require(math.isfinite(float(token)), "non-finite JSON number")
+
+
+def _raw_pairs(items):
+    require(len(items) == len(dict(items)), "duplicate JSON key")
+    return dict(items)
+
+
+def _raw_json_value(raw):
+    return json.loads(raw, object_pairs_hook=_raw_pairs,
+                      parse_int=lambda token: _JsonNumber(token),
+                      parse_float=lambda token: _JsonNumber(token, floating=True),
+                      parse_constant=lambda _: require(False, "non-JSON number"))
+
+
+def _canonical_raw_value(value):
+    if isinstance(value, _JsonNumber):
+        return value.token
+    if isinstance(value, dict):
+        return "{" + ",".join(json.dumps(key, ensure_ascii=False) + ":" +
+                               _canonical_raw_value(value[key]) for key in sorted(value)) + "}"
+    if isinstance(value, list):
+        return "[" + ",".join(_canonical_raw_value(item) for item in value) + "]"
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+
+
+def record_digest(raw_record):
+    """Hash canonical key order while retaining Rust-issued numeric spellings."""
+    parsed = _raw_json_value(raw_record)
+    require(isinstance(parsed, dict) and "qualificationDigest" in parsed,
+            "Semgrep record digest field absent")
+    claimed = parsed.pop("qualificationDigest")
+    require(isinstance(claimed, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", claimed),
+            "Semgrep record digest shape differs")
+    actual = digest(_canonical_raw_value(parsed).encode())
+    require(claimed == actual, "record digest differs")
+    return actual
 
 def load(path):
     def pairs(items):
@@ -133,11 +179,41 @@ def enrollment(value, root, *, live):
         observed = helper["snapshot"](runtime["roots"], runtime["exclusions"], runtime["links"], runtime["absent"])
         require(observed == runtime, "live complete runtime closure differs")
 
-def validate_record(repository_root, row, *, live=False, receipts=None):
+def _ordinary_json(value):
+    if isinstance(value, _JsonNumber):
+        return float(value.token) if value.floating else int(value.token)
+    if isinstance(value, dict):
+        return {key: _ordinary_json(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_ordinary_json(item) for item in value]
+    return value
+
+
+def _semantic_record(raw_record):
+    parsed = _raw_json_value(raw_record)
+    require(isinstance(parsed, dict), "Semgrep record must be an object")
+    return _ordinary_json(parsed)
+
+
+def validate_record_bytes(repository_root, raw_record, *, expected_row=None, live=False, receipts=None):
+    """Validate one original Rust-issued record without losing number spellings."""
+    row = _semantic_record(raw_record)
+    if expected_row is not None:
+        require(row == expected_row, "raw Semgrep record differs from semantic row")
+    record_digest(raw_record)
+    return validate_record(repository_root, row, live=live, receipts=receipts, raw_record=raw_record)
+
+
+def validate_record(repository_root, row, *, live=False, receipts=None, raw_record=None):
     root = Path(repository_root).resolve()
+    if raw_record is not None:
+        require(row == _semantic_record(raw_record), "raw bytes differ from supplied semantic row")
     require(row["schema"] == "legion-semgrep-provider-accuracy/1" and row["provider"] == ID and row["stage"] == "candidate" and row["scope"] == FAMILY_SCOPE and row["productionQualification"] is False, "fixture claim scope differs")
     require(row["qualificationEligible"] is True and row["status"] == "pass" and type(row["modelCalls"]) is int and row["modelCalls"] == 0, "fixture record unsuccessful")
-    require(row["qualificationDigest"] == digest(encoded({k: v for k, v in row.items() if k != "qualificationDigest"})), "record digest differs")
+    if raw_record is None:
+        require(row["qualificationDigest"] == digest(encoded({k: v for k, v in row.items() if k != "qualificationDigest"})), "record digest differs")
+    else:
+        require(record_digest(raw_record) == row["qualificationDigest"], "record digest differs")
     child_logs = row["childLogs"]
     require([log["control"] for log in child_logs] == ["controls", "missing-tool"], "child raw log controls differ")
     for log in child_logs:
@@ -259,7 +335,8 @@ def main():
     p.add_argument("--root", type=Path, required=True)
     p.add_argument("--receipts", type=Path, required=True)
     a = p.parse_args()
-    summary = validate_record(a.root, load(a.receipts / "legacy_security_sast.json"), live=True, receipts=a.receipts)
+    raw_record = (a.receipts / "legacy_security_sast.json").read_bytes()
+    summary = validate_record_bytes(a.root, raw_record, live=True, receipts=a.receipts)
     print("SEMGREP_PROVIDER_ACCURACY_SUMMARY " + json.dumps({"records": [summary], "modelCalls": 0}, separators=(",", ":")))
 
 if __name__ == "__main__":

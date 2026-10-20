@@ -200,7 +200,8 @@ def execution(item, policy, control, plan, scratch, toolchain, enrollment, live)
         stage = scratch / "cache" / "govulncheck" / hashlib.sha256(b"").hexdigest()
         home = stage.parent / ("home-" + hashlib.sha256(b"").hexdigest())
         db_url = "file://" + quote(str(absolute(enrollment["database"]["root"])), safe="/-._~:") + "/"
-        argv = ["-C", str(stage), "-mode=source", "-scan=symbol", "-test", "-json", "-db", db_url, "./..."]
+        # Root-module source.join("") retains its trailing POSIX separator.
+        argv = ["-C", str(stage) + "/", "-mode=source", "-scan=symbol", "-test", "-json", "-db", db_url, "./..."]
         version = prefix + [str(tools["govulncheck"][0]), "-db", db_url, "-version"]
         env = dict(env, GOWORK="off", GOFLAGS="-mod=readonly", CGO_ENABLED="0", HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), APPDATA=str(home / "AppData/Roaming"))
         allowlist = sorted(set(allowlist) | set(env))

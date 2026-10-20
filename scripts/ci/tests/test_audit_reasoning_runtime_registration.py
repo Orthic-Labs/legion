@@ -7,6 +7,9 @@ import runpy
 import unittest
 import shutil
 import tempfile
+import stat
+import subprocess
+import sys
 
 API = runpy.run_path(str(Path(__file__).resolve().parents[1] / "audit-reasoning-runtime-registration.py"))
 
@@ -629,6 +632,54 @@ class ReasoningRegistrationBoundaryTests(unittest.TestCase):
     def test_non_json_numeric_usage_refused(self):
         with self.assertRaises(AssertionError):
             API["parsed"]('{"inputTokens":NaN}')
+
+
+class RetainedNoCallBinaryGuardTests(unittest.TestCase):
+    """Exercise source-owned post-build guard; no native execution or provenance."""
+    def run_guard(self, root):
+        shell = (Path(__file__).resolve().parents[1] / "right-git-ci.sh").read_text()
+        marker = "<<'REASONING_PY'\n"
+        self.assertEqual(shell.count(marker), 1)
+        guard = shell.split(marker, 1)[1].split("\nREASONING_PY", 1)[0]
+        return subprocess.run([sys.executable, "-", str(root), "a" * 40, "macOS", "ARM64"],
+                              input=guard, text=True, capture_output=True, check=False)
+
+    def write_control(self, root):
+        binary = root / "legion"
+        binary.write_bytes(b"original")
+        record = {"schema": "legion-reasoning-native-runner/1", "sourceRevision": "a" * 40,
+                  "platform": {"os": "macOS", "architecture": "ARM64"},
+                  "binary": {"path": "legion", "sha256": "sha256:" + hashlib.sha256(binary.read_bytes()).hexdigest(),
+                             "bytes": binary.stat().st_size, "mode": stat.S_IMODE(binary.stat().st_mode)},
+                  "modelCalls": 0, "qualification": False}
+        (root / "runner.json").write_text(json.dumps(record))
+        return binary, record
+
+    def test_exact_retained_bytes_pass_post_build_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_control(root)
+            result = self.run_guard(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_same_length_binary_mutation_fails_post_build_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary, _ = self.write_control(root)
+            binary.write_bytes(b"mutated!")
+            result = self.run_guard(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("retained CLI differs from bytes exercised", result.stderr)
+
+    def test_source_revision_drift_fails_post_build_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            _, record = self.write_control(root)
+            record["sourceRevision"] = "b" * 40
+            (root / "runner.json").write_text(json.dumps(record))
+            result = self.run_guard(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("retained no-call runner source/platform differs", result.stderr)
 
 
 if __name__ == "__main__":

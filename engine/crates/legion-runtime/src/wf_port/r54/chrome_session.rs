@@ -53,7 +53,7 @@ impl ChromeSession {
         // request/response CDP calls.
         let console_errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let sink = console_errors.clone();
-        let _ = tab.add_event_listener(Arc::new(
+        tab.add_event_listener(Arc::new(
             move |event: &headless_chrome::protocol::cdp::types::Event| match event {
                 headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
                     let level = format!("{:?}", ev.params.Type).to_lowercase();
@@ -76,7 +76,12 @@ impl ChromeSession {
                 }
                 _ => {}
             },
-        ));
+        ))
+        .map_err(|e| format!("Runtime event listener registration failed: {e}"))?;
+        // Runtime events are opt-in. Register before enabling the domain so
+        // console errors & exceptions are observed from the first navigation.
+        tab.enable_runtime()
+            .map_err(|e| format!("Runtime.enable failed: {e}"))?;
         Ok(ChromeSession {
             tab,
             console_errors,

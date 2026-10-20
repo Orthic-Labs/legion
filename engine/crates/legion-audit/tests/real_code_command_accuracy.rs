@@ -482,7 +482,8 @@ impl ScopedPolicy {
         if task == "vulnerability" {
             vec![
                 "-C".into(),
-                self.source_stage().to_str().unwrap().into(),
+                // Match production source.join("") for root-module argv.
+                self.source_stage().join("").to_str().unwrap().into(),
                 "-mode=source".into(),
                 "-scan=symbol".into(),
                 "-test".into(),

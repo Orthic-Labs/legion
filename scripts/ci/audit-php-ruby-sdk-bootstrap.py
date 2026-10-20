@@ -484,7 +484,8 @@ def main():
     for name, version in (("bundle","2.6.9"), ("rubocop","1.80.2")):
         launcher = out / "gems/bin" / name
         require(launcher.is_file() and not launcher.is_symlink(), "real installed launcher absent")
-        arguments = [tools["ruby"]["path"], launcher, "--version"]
+        selector = ["_" + version + "_"] if name == "bundle" else []
+        arguments = [tools["ruby"]["path"], launcher, *selector, "--version"]
         result = run_offline(arguments, env, out, logs, name + "-version", return_result=True)
         output = result.stdout.decode("utf-8", "replace").strip()
         expected = "Bundler version " + version if name == "bundle" else version
