@@ -314,7 +314,7 @@ def positive_finding(case, sources, raw):
     language = case["language"]
     rule = "fsharplint:FL0014" if language == "fsharp" else "dotnet:CA1822"
     stage = absolute(case["policyDefinition"]["scratch"]) / "cache/dotnet-source"
-    pattern = r"(?m)^(.+?)\((\d+),\d+,\d+,\d+\):FSharpLint warning FL0014: (.+)$" if language == "fsharp" else r"(?m)^\s*(.+?)\((\d+)(?:,\d+)?\): warning CA1822: (.+)$"
+    pattern = r"(?m)^(?:\d+>)?(.+?)\((\d+),\d+,\d+,\d+\):FSharpLint warning FL0014: (.+)$" if language == "fsharp" else r"(?m)^\s*(?:\d+>)?(.+?)\((\d+)(?:,\d+)?\): warning CA1822: (.+)$"  # MSBuild node prefix
     observed = []
     details = case["nativeResult"]["details"]
     refs = case["nativeResult"]["findings"]
@@ -393,7 +393,7 @@ def validate(repo, record, live=False):
             if language == "visualBasic":
                 answer, tests = answer.replace("Public Function DoubleValue", "Public Shared Function DoubleValue"), tests.replace("New Answer().DoubleValue", "Answer.DoubleValue")
         if control == "test-failure":
-            tests = tests.replace("AreEqual(4,", "AreEqual(5,")
+            tests = tests.replace("IsTrue(4 =", "IsTrue(5 =") if language == "fsharp" else tests.replace("AreEqual(4,", "AreEqual(5,")
         if control == "malformed":
             answer += "\nTHIS IS INVALID SOURCE !!!\n"
         require(sources[language + "/Answer." + source_extension].decode() == answer and sources[language + "/Tests." + source_extension].decode() == tests, "planted known-answer source differs")

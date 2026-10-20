@@ -803,7 +803,12 @@ fn source_fixture(enrollment: &Value, language: &str, control: &str) -> BTreeMap
         }
     }
     if control == "test-failure" {
-        modify(&mut rows, &tests, "AreEqual(4,", "AreEqual(5,");
+        // F# asserts with IsTrue: MSTest 3.8's IEquatable<'T> overloads make AreEqual ambiguous there.
+        if language == "fsharp" {
+            modify(&mut rows, &tests, "IsTrue(4 =", "IsTrue(5 =");
+        } else {
+            modify(&mut rows, &tests, "AreEqual(4,", "AreEqual(5,");
+        }
     }
     if control == "malformed" {
         rows.get_mut(&answer)
@@ -960,7 +965,11 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, language: &str, contro
             let diagnostics = scratch.cache_dir().join("dotnet-control/vstest.log");
             assert!(!diagnostics.is_symlink());
             assert!(!fs::read(diagnostics).unwrap().is_empty());
-            assert_eq!(result["complete"], true);
+            assert_eq!(
+                result["complete"], true,
+                "incomplete native result; gaps: {}",
+                result["coverage_gaps"]
+            );
             for row in &executions {
                 assert_eq!(row["executionReceipt"]["state"], "completed");
                 assert_eq!(row["executionReceipt"]["complete"], true);

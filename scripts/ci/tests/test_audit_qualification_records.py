@@ -1866,8 +1866,11 @@ class OwnershipNativeCiTests(unittest.TestCase):
             git = shutil.which("git")
             self.assertIsNotNone(git, "Git Bash is required for ownership shell units")
             git_dir = Path(git).resolve().parent
-            bash = next((path for path in (git_dir / "bash.exe", git_dir.parent / "bin/bash.exe",
-                                           git_dir.parent / "usr/bin/bash.exe") if path.is_file()), None)
+            # git may resolve to <Git>/cmd, <Git>/bin or <Git>/mingw64/bin; Git Bash lives in <Git>/bin.
+            candidates = [git_dir / "bash.exe", git_dir.parent / "bin/bash.exe", git_dir.parent / "usr/bin/bash.exe",
+                          git_dir.parent.parent / "bin/bash.exe", git_dir.parent.parent / "usr/bin/bash.exe",
+                          Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"]
+            bash = next((path for path in candidates if path.is_file()), None)
         else:
             bash = shutil.which("bash")
         self.assertIsNotNone(bash, "Bash is required for ownership shell units")

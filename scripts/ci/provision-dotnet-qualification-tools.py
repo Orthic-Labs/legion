@@ -111,7 +111,7 @@ def project(extension):
 SOURCES = {
     "csharp": ("csproj", "cs", "public class Answer { public int Double(int value) { return value * 2; } }\n", "using Microsoft.VisualStudio.TestTools.UnitTesting;\n[TestClass] public class AnswerTests { [TestMethod] public void Doubles() { Assert.AreEqual(4, new Answer().Double(2)); } }\n"),
     "visualBasic": ("vbproj", "vb", "Public Class Answer\n Public Function DoubleValue(value As Integer) As Integer\n  Return value * 2\n End Function\nEnd Class\n", "Imports Microsoft.VisualStudio.TestTools.UnitTesting\n<TestClass> Public Class AnswerTests\n <TestMethod> Public Sub Doubles()\n  Assert.AreEqual(4, New Answer().DoubleValue(2))\n End Sub\nEnd Class\n"),
-    "fsharp": ("fsproj", "fs", "namespace Fixture\ntype Answer() =\n member _.Double(value: int) = value * 2\n", "namespace Fixture\nopen Microsoft.VisualStudio.TestTools.UnitTesting\n[<TestClass>]\ntype AnswerTests() =\n [<TestMethod>]\n member _.Doubles() = Assert.AreEqual(4, Answer().Double(2))\n"),
+    "fsharp": ("fsproj", "fs", "namespace Fixture\ntype Answer() =\n member _.Double(value: int) = value * 2\n", "namespace Fixture\nopen Microsoft.VisualStudio.TestTools.UnitTesting\n[<TestClass>]\ntype AnswerTests() =\n [<TestMethod>]\n member _.Doubles() = Assert.IsTrue(4 = Answer().Double(2), \"doubles\")\n"),
 }
 
 

@@ -293,7 +293,7 @@ def validate_record(repository_root, row, *, live=False, receipts=None, raw_reco
         require(receipt["sandbox"] == {"required": True, "receiptId": profile["receiptId"], "networkEnabled": True}, "native sandbox receipt differs")
         require(receipt["processTree"]["terminated"] is True and receipt["processTree"]["reaped"] is True, "native cleanup unproven")
         version = receipt["executable"]["version"]
-        require(version["args"] == policy["versionArgs"] == argv[:4] + ["--version"] and version["qualified"] is True and version["exitCode"] == 0 and version["output"].strip() == "1.141.0", "tool version differs")
+        require(version["args"] == policy["versionArgs"] == argv[:4] + ["--version"] and version["qualified"] is True and version["exitCode"] == 0 and version["output"].strip().splitlines()[:1] == ["1.141.0"], "tool version differs")  # interpreter warnings (e.g. Python 3.14 SyntaxWarning from glom) may follow the version line
         require(receipt["executable"]["digest"] == policy["wrapper"]["digest"] and receipt["executable"]["canonicalPath"] == "/usr/bin/sandbox-exec", "wrapper identity differs")
         require(receipt["policy"]["allowed"] is True and receipt["policy"]["id"] == policy["id"] and receipt["policy"]["digest"] == digest(encoded(policy)), "actual SDK authorization differs")
         require(receipt["environmentNames"] == sorted(environment), "actual SDK environment names differ")

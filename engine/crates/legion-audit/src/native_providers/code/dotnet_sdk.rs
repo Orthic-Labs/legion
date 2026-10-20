@@ -862,9 +862,10 @@ pub(super) fn parse(
         {
             return Err("fsharp-analysis-incomplete".into());
         }
-        let located =
-            Regex::new(r"(?m)^(.+?)\((\d+),\d+,\d+,\d+\):FSharpLint warning (FL\d+): (.+)$")
-                .map_err(|_| "fsharp-diagnostic-parser")?;
+        let located = Regex::new(
+            r"(?m)^(?:\d+>)?(.+?)\((\d+),\d+,\d+,\d+\):FSharpLint warning (FL\d+): (.+)$",
+        )
+        .map_err(|_| "fsharp-diagnostic-parser")?;
         let mut diagnostics = Vec::new();
         for row in located.captures_iter(&combined) {
             let path = Path::new(&row[1])
@@ -894,8 +895,9 @@ pub(super) fn parse(
         }
         return Ok(diagnostics);
     }
+    // MSBuild prefixes rows with the project node (`1>`) under normal verbosity.
     let located =
-        Regex::new(r"(?m)^\s*(.+?)\((\d+)(?:,\d+)?\): (error|warning) ([A-Z]+\d+): (.+)$")
+        Regex::new(r"(?m)^\s*(?:\d+>)?(.+?)\((\d+)(?:,\d+)?\): (error|warning) ([A-Z]+\d+): (.+)$")
             .map_err(|_| "diagnostic-parser")?;
     let stage = Path::new(&command.cwd_rel);
     let mut diagnostics = Vec::new();
