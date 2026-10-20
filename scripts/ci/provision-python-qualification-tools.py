@@ -330,11 +330,19 @@ def arm64_macho_architecture(path):
     if not arm64:
         return None
     # CPU_SUBTYPE_MASK removes capability bits, including pointer-auth ABI.
-    # Refuse unknown or multiple ARM64 slices instead of guessing host grading.
-    names = {0: "arm64", 2: "arm64e"}
-    require(len(arm64) == 1 and arm64[0] in names,
+    # Refuse unknown subtypes. A universal file with several ARM64 slices (macOS 26+
+    # system binaries ship arm64e and arm64e.x1) resolves to the slice the host kernel
+    # reports as its own subtype (hw.cpusubtype); never retry with another architecture.
+    names = {0: "arm64", 2: "arm64e", 12: "arm64e.x1"}
+    subtypes = sorted(set(arm64))
+    require(subtypes and all(value in names for value in subtypes),
             "unsupported/ambiguous ARM64 Mach-O subtype: " + str(path))
-    return names[arm64[0]]
+    if len(subtypes) > 1:
+        host = int(subprocess.run(["/usr/sbin/sysctl", "-n", "hw.cpusubtype"], check=True, stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10).stdout.decode().strip()) & 0x00FFFFFF
+        require(host in subtypes, "host ARM64 subtype absent from universal Mach-O: " + str(path))
+        return names[host]
+    return names[subtypes[0]]
 
 
 def is_arm64_macho(path):

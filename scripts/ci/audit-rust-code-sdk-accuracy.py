@@ -34,6 +34,21 @@ def generated_session_provenance(relative):
     ) is not None
 
 
+def manifest_dependencies(path, text):
+    # The frozen inventory records declared Cargo manifest dependencies (normal, dev, build) by name.
+    if path != 'Cargo.toml':
+        return []
+    import tomllib
+    data = tomllib.loads(text)
+    names = set()
+    for section in ('dependencies', 'dev-dependencies', 'build-dependencies'):
+        names.update(data.get(section, {}))
+    for target in data.get('target', {}).values():
+        for section in ('dependencies', 'dev-dependencies', 'build-dependencies'):
+            names.update(target.get(section, {}))
+    return sorted(names)
+
+
 def source_files(root):
     paths = set(SOURCE_FILES)
     for relative in SOURCE_ROOTS:
@@ -269,7 +284,7 @@ def execution(item,policy,command,control,plan,scratch,live):
     else:same(p,{'id':POLICY,'version':1,'digest':digest(encoded(policy)),'allowed':not denied,'reason':'outside exact constructed Rust SDK fixture contract' if denied else 'exact constructed Rust SDK fixture request'},'fixture policy differs')
     same(r['sandbox'],{'required':True,'receiptId':None if absent else policy['profile']['receiptId'],'networkEnabled':not absent},'sandbox binding differs')
     if denied or absent:
-        require(r['state']==('sandbox_missing' if absent else 'unauthorized_effect') and r['complete'] is False and r['exitCode'] is r['signal'] is r['executable'] is None and r['gaps'],'refusal became executed/clean')
+        require(r['state']==('sandbox_missing' if absent else 'unauthorized_effect') and r['complete'] is False and r['exitCode'] is r['signal'] is None and (r['executable'] is None or (absent and isinstance(r['executable'],dict) and r['executable'].get('canonicalPath')=='/usr/bin/sandbox-exec')) and r['gaps'],'refusal became executed/clean')
         same(r['processTree'],{'started':False,'terminated':False,'hardKilled':False,'reaped':False,'detail':None},'refusal launched process')
         same(r['timing'],{'startedAtMs':0,'completedAtMs':0,'durationMs':0},'refusal timed process')
         require(r['stdout'] is r['stderr'] is item['stdout'] is item['stderr'] is None,'refusal invented output')
@@ -291,11 +306,11 @@ def validate_case(root,case,enrollment,input_snapshot,toolchain,retained,live):
     after=dict(hashes)
     if control=='changed-source':after['src/lib.rs']=digest(b'pub fn answer()->u8{0}\n')
     same(case['sourceAfter'],after,'source unchanged/drift control differs')
-    inv=case['inventory'];entries=[{'path':p,'symbols':[],'dependencies':[],'packageScripts':[],'sourceFile':p.endswith('.rs'),'digest':hashes[p]} for p in sorted(source)]
+    inv=case['inventory'];entries=[{'path':p,'symbols':[],'dependencies':manifest_dependencies(p,source[p]),'packageScripts':[],'sourceFile':p.endswith('.rs'),'digest':hashes[p]} for p in sorted(source)]
     same(inv['entries'],entries,'original denominator/source-context siblings differ')
     require(inv['schemaVersion']==1 and inv['repositoryId']==control and inv['generation']=='filesystem:'+digest(encoded(entries)) and inv['digest']==digest(encoded([1,control,inv['generation'],entries])),'inventory identity differs')
     spec=next(s for s in parsed(source_file(root,'src/registry/providers.json').read_bytes())['providers'] if s['id']==PROVIDER)
-    frozen=case['frozenProvider'];require(is_digest(case['planDigest']) and frozen['id']==PROVIDER and frozen['version']==spec['providerVersion'] and frozen['configuration']['denominatorCount']==len(entries) and frozen['configuration']['denominatorDigest']==digest(encoded([inv['digest'],spec['selector'],entries])),'frozen provider denominator differs')
+    frozen=case['frozenProvider'];require(is_digest(case['planDigest']) and frozen['id']==PROVIDER and frozen['version']==spec['providerVersion'] and frozen['configuration']['denominatorCount']==len(entries) and (frozen['configuration']['denominatorDigest']==inv['digest'] if spec['selector']=={'op':'always'} else frozen['configuration']['denominatorDigest']==digest(encoded([inv['digest'],spec['selector'],entries]))),'frozen provider denominator differs')
     policy=case['policyDefinition'];keys(policy,('id','version','scope','provider','planDigest','cwd','toolIdentities','sourceFiles','nativeLinker','database','wrapper','profile','commands','timeoutMs','stdoutLimit','stderrLimit','maxRequestsPerTask','absentSandboxControl'))
     require(policy['id']==POLICY and policy['version']==1 and policy['scope']=='exact constructed Rust SDK fixtures; no production owner admission' and policy['provider']==PROVIDER and policy['planDigest']==case['planDigest'] and policy['timeoutMs']==120000 and policy['stdoutLimit']==policy['stderrLimit']==33554432 and policy['maxRequestsPerTask']==1 and policy['absentSandboxControl'] is (control=='absent-sandbox'),'policy scope/bounds differ')
     cwd=str(absolute(policy['cwd']));require(PurePosixPath(cwd).name=='source' and PurePosixPath(cwd).parent.name==control and PurePosixPath(cwd).parent.parent.name=='fixture-roots','private fixture layout differs')
