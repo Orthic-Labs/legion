@@ -29,6 +29,7 @@ const ADVISORY_DIGEST: &str =
     "sha256:3060fadb9a686e5041d53fe5c20c7844b2a0a49ce8d7b3d89d70703be02ec4f1";
 const ADVISORY_URL: &str = "https://raw.githubusercontent.com/github/advisory-database/95c688698ee6767a611e157d7329d11f3e0a1f4b/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json";
 const POLICY: &str = "legion-osv-sdk-offline-artifact-fixture-v1";
+const VERSION_REQUIREMENT: &str = "exact-tool:osv-scanner:2.2.2";
 const TIMEOUT: u64 = 30_000;
 const LIMIT: usize = 4 * 1024 * 1024;
 // Requires separate reviewed producer prerequisite: clean packages are absent
@@ -351,7 +352,7 @@ impl ScopedPolicy {
             "planDigest":self.plan,"inventoryDigest":self.inventory,"root":self.root,"run":self.run,
             "sourceDigest":self.source_digest,"databaseArchive":self.database,"databaseDigest":self.database_digest,
             "tool":{"path":self.tool,"digest":pin(),"version":"2.2.2"},"wrapper":{"path":self.wrapper,"digest":self.wrapper_digest},
-            "args":self.args,"environment":self.environment,"timeoutMs":TIMEOUT,"outputLimit":LIMIT,
+            "args":self.args,"versionRequirement":VERSION_REQUIREMENT,"environment":self.environment,"timeoutMs":TIMEOUT,"outputLimit":LIMIT,
             "profile":self.profile_definition()})
     }
     fn profile_definition(&self) -> Value {
@@ -375,7 +376,7 @@ impl ScopedPolicy {
             || r.shell
             || !r.requires_network_sandbox
             || r.skip_version_probe
-            || r.version_requirement.as_deref() != Some("exact:2.2.2")
+            || r.version_requirement.as_deref() != Some(VERSION_REQUIREMENT)
             || r.timeout_ms != TIMEOUT
             || r.stdout_limit != LIMIT
             || r.stderr_limit != LIMIT
@@ -437,7 +438,7 @@ impl PolicyAuthorizer for ScopedPolicy {
         let allowed = self.permits(r);
         self.decisions.lock().unwrap().push(
             json!({"allowed":allowed,"requestId":r.request_id,"providerId":r.provider_id,
-            "planId":r.plan_id,"policyId":r.policy_id,"args":r.args,"versionArgs":r.version_args}),
+            "planId":r.plan_id,"policyId":r.policy_id,"args":r.args,"versionArgs":r.version_args,"versionRequirement":r.version_requirement}),
         );
         PolicyDecision {
             allowed,
@@ -610,7 +611,7 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         cwd: root.to_string_lossy().into_owned(),
         origin: ToolOrigin::System,
         expected_digest: Some(wrapper_digest),
-        version_requirement: Some("exact:2.2.2".into()),
+        version_requirement: Some(VERSION_REQUIREMENT.into()),
         environment_allowlist: environment.keys().cloned().collect(),
         environment,
         accepted_exit_codes: [0, 1].into_iter().collect(),

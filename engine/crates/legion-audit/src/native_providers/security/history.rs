@@ -3,7 +3,7 @@
 use super::common::{digest, digest_json};
 use crate::{
     scope::{safe_path, valid_oid, GitRunner},
-    snapshot::{FrozenSnapshot, SnapshotAdmission, SnapshotSide},
+    snapshot::{FrozenSnapshot, SnapshotAdmission},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -149,9 +149,9 @@ fn read_current(
     path: &str,
 ) -> Result<Vec<u8>, String> {
     safe_path(path).map_err(gap)?;
-    if let Some(snapshot) = snapshot {
-        return snapshot
-            .read(path, SnapshotSide::Selected, MAX_BYTES)
+    if snapshot.is_some() {
+        return FrozenSnapshot::source_for_root(root, path, MAX_BYTES)
+            .map(|(bytes, _side)| bytes)
             .map_err(gap);
     }
     let path = root.join(path);

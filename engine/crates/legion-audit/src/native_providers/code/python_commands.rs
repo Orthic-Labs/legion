@@ -10,6 +10,14 @@ fn file_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
+fn package_root(stage: &Path, dir: &str) -> PathBuf {
+    if dir.is_empty() {
+        stage.to_path_buf()
+    } else {
+        stage.join(dir)
+    }
+}
+
 fn relative(path: &str) -> bool {
     !path.is_empty()
         && Path::new(path)
@@ -313,7 +321,7 @@ pub(super) fn extend(
                 .insert("package", "python-package-root-limit");
             break;
         }
-        let root = stage.join(&dir);
+        let root = package_root(stage, &dir);
         let parsed = file(
             stage,
             &if dir.is_empty() {
@@ -413,6 +421,21 @@ pub(super) fn extend(
             Parser::PythonWheel,
             &[0],
         ));
+    }
+}
+
+#[cfg(test)]
+mod package_root_tests {
+    use super::*;
+
+    #[test]
+    fn package_root_preserves_empty_and_nested_roots() {
+        let stage = Path::new("/tmp/python/source");
+        assert_eq!(package_root(stage, ""), stage.to_path_buf());
+        assert_eq!(
+            package_root(stage, "packages/widget"),
+            stage.join("packages/widget")
+        );
     }
 }
 

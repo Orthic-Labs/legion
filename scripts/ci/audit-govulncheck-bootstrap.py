@@ -157,6 +157,47 @@ def validate_zip(path, max_files=40000, max_bytes=128 * 1024 * 1024):
         return archive.namelist()
 
 
+def retain_rejected_download(row, data, failure_root):
+    """Retain bounded raw response and facts without treating it as an archive."""
+    failure_root = Path(failure_root)
+    failure_root.mkdir(parents=True, exist_ok=True)
+    key = digest(row['url'].encode()).removeprefix('sha256:')
+    raw_path = failure_root / (key + '.response.bin')
+    metadata_path = failure_root / (key + '.json')
+    may_be_truncated = len(data) == row['bytes'] + 1
+    raw_path.write_bytes(data)
+    metadata = {
+        'schema': 'legion-govulncheck-rejected-download/1',
+        'url': row['url'],
+        'expectedBytes': row['bytes'],
+        'expectedDigest': 'sha256:' + row['sha256'],
+        'observedBytes': len(data),
+        'observedDigest': digest(data),
+        'readLimitBytes': row['bytes'] + 1,
+        'responseMayBeTruncated': may_be_truncated,
+        'rawResponseFile': raw_path.name,
+        'rawResponseDigest': digest(data),
+    }
+    metadata_path.write_bytes(canonical(metadata) + b'\n')
+    return metadata
+
+
+def account_download_response(row, data, downloaded, failure_root):
+    """Reject mismatched/budget-exceeding bytes after retaining exact bounded evidence."""
+    total = downloaded + len(data)
+    reasons = []
+    if len(data) != row['bytes']:
+        reasons.append('size-mismatch')
+    if digest(data) != 'sha256:' + row['sha256']:
+        reasons.append('hash-mismatch')
+    if total > MAX_NETWORK_BYTES:
+        reasons.append('network-budget-exceeded')
+    if reasons:
+        retain_rejected_download(row, data, failure_root)
+        raise ValueError('official source rejected; retained bounded response evidence: ' + ','.join(reasons))
+    return total
+
+
 def provision(args):
     if os.environ.get('GITHUB_ACTIONS') != 'true' or not os.environ.get('RUNNER_TEMP'):
         raise ValueError('bootstrap requires managed GitHub CI')
@@ -176,6 +217,7 @@ def provision(args):
     proxy = output / 'module-proxy'
     downloads = output / 'downloads'
     downloads.mkdir()
+    failure_root = runner / 'legion-provider-qualification' / 'downloads' / 'govulncheck-failure-evidence'
     started = time.monotonic()
     downloaded = 0
 
@@ -189,9 +231,7 @@ def provision(args):
             if final.scheme != 'https' or final.hostname not in ('proxy.golang.org', 'vuln.go.dev', 'storage.googleapis.com'):
                 raise ValueError('unexpected official source redirect')
             data = response.read(row['bytes'] + 1)
-        downloaded += len(data)
-        if len(data) != row['bytes'] or downloaded > MAX_NETWORK_BYTES or digest(data) != 'sha256:' + row['sha256']:
-            raise ValueError('official source size/hash mismatch')
+        downloaded = account_download_response(row, data, downloaded, failure_root)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 

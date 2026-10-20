@@ -59,6 +59,13 @@ pub struct ExternalToolRequest {
     pub skip_version_probe: bool,
     /// Plain values retain substring qualification; `exact:<version>` opts
     /// into exact version-token matching before the main command is launched.
+    /// `exact-tool:osv-scanner:<version>` requires exactly four ordered lines:
+    /// `osv-scanner version: <version>`, `osv-scalibr version: <version>`,
+    /// `commit: <40 lowercase hex digits>`, `built at: <YYYY-MM-DDTHH:MM:SSZ>`.
+    /// Versions are stable numeric triplets without leading zeros; only the
+    /// primary version must equal the requested value. Build time must be a
+    /// valid UTC date/time (seconds 00..59). LF/CRLF & an optional final newline are
+    /// accepted. Missing, duplicate, extra or unknown lines/tools fail closed.
     pub version_requirement: Option<String>,
     pub environment: BTreeMap<String, String>,
     pub environment_allowlist: BTreeSet<String>,

@@ -864,8 +864,93 @@ fn runtime_closure(enrollment: &Value) -> Value {
         .iter()
         .map(|v| PathBuf::from(v.as_str().unwrap()))
         .collect();
+    fn resolve(
+        path: &Path,
+        sealed: &BTreeMap<String, String>,
+        excluded: &[PathBuf],
+        allow_missing: bool,
+        observed: &mut BTreeMap<String, String>,
+    ) -> PathBuf {
+        let mut pending: std::collections::VecDeque<String> = path
+            .to_str()
+            .unwrap()
+            .split('/')
+            .map(str::to_owned)
+            .collect();
+        let mut current = PathBuf::from("/");
+        let mut hops = 0;
+        while let Some(part) = pending.pop_front() {
+            match part.as_str() {
+                "" | "." => continue,
+                ".." => {
+                    assert!(current.pop(), "runtime path escapes filesystem root");
+                    continue;
+                }
+                _ => current.push(&part),
+            }
+            assert!(
+                !excluded.iter().any(|path| current.starts_with(path)),
+                "runtime symlink enters global packages"
+            );
+            let meta = match fs::symlink_metadata(&current) {
+                Ok(meta) => meta,
+                Err(error) if allow_missing && error.kind() == std::io::ErrorKind::NotFound => {
+                    return current
+                }
+                Err(error) => panic!("runtime path unavailable: {error}"),
+            };
+            if meta.file_type().is_symlink() {
+                hops += 1;
+                assert!(hops <= 40, "runtime symlink cycle");
+                let key = current
+                    .strip_prefix("/")
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
+                let target = fs::read_link(&current)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
+                assert_eq!(
+                    sealed.get(&key),
+                    Some(&target),
+                    "unsealed runtime alias hop: candidate={path:?} alias={key:?} target={target:?} hops={observed:?}"
+                );
+                observed.insert(key, target.clone());
+                current.pop();
+                if target.starts_with('/') {
+                    current = PathBuf::from("/");
+                }
+                for item in target.split('/').rev() {
+                    pending.push_front(item.to_owned());
+                }
+            }
+        }
+        assert_eq!(fs::canonicalize(path).unwrap(), current);
+        current
+    }
+    let sealed: BTreeMap<String, String> =
+        serde_json::from_value(expected["links"].clone()).unwrap();
+    let absent: Vec<String> = serde_json::from_value(expected["absent"].clone()).unwrap();
+    assert!(absent.windows(2).all(|pair| pair[0] < pair[1]));
+    let mut absent_hops = BTreeMap::new();
+    for candidate in &absent {
+        assert!(Path::new(candidate).is_absolute());
+        assert!(
+            fs::symlink_metadata(candidate)
+                .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound),
+            "loader candidate appeared: {candidate}"
+        );
+        resolve(
+            Path::new(candidate),
+            &sealed,
+            &excluded,
+            true,
+            &mut absent_hops,
+        );
+    }
     let mut files = BTreeMap::new();
-    let mut links = BTreeMap::new();
+    let mut links = absent_hops.clone();
     let mut count = 0usize;
     fn walk(
         path: &Path,
@@ -925,28 +1010,38 @@ fn runtime_closure(enrollment: &Value) -> Value {
     }
     for root in &roots {
         assert!(root.is_absolute());
-        assert_eq!(fs::canonicalize(root).unwrap(), *root);
+        assert_eq!(resolve(root, &sealed, &excluded, false, &mut links), *root);
         walk(root, &excluded, &mut files, &mut links, &mut count, 0)
     }
-    for (rel, target) in expected["links"].as_object().unwrap() {
+    for (rel, target) in &sealed {
+        assert!(
+            !rel.starts_with('/')
+                && Path::new(rel)
+                    .components()
+                    .all(|p| matches!(p, std::path::Component::Normal(_)))
+        );
         let path = Path::new("/").join(rel);
         assert!(path.is_symlink());
         assert_eq!(
             fs::read_link(&path).unwrap().to_str().unwrap(),
-            target.as_str().unwrap()
+            target.as_str()
         );
-        let resolved = fs::canonicalize(&path).unwrap();
+        let witnessed = absent_hops.get(rel) == Some(target);
+        let resolved = resolve(&path, &sealed, &excluded, witnessed, &mut links);
         assert!(!excluded.iter().any(|p| resolved.starts_with(p)));
         let key = resolved.strip_prefix("/").unwrap().to_str().unwrap();
-        assert!(
-            files.contains_key(key) || files.keys().any(|p| p.starts_with(&format!("{key}/"))),
-            "alias target bytes retained"
-        );
-        links.insert(rel.clone(), target.as_str().unwrap().to_owned());
-    }
-    for absent in expected["absent"].as_array().unwrap() {
-        assert!(fs::symlink_metadata(absent.as_str().unwrap())
-            .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound));
+        let inside = roots.iter().any(|root| resolved.starts_with(root));
+        let retained = files.contains_key(key)
+            || files
+                .keys()
+                .any(|p| Path::new("/").join(p).starts_with(&resolved));
+        if roots.iter().any(|root| path.starts_with(root)) {
+            assert!(inside, "walked runtime alias escapes roots");
+        } else {
+            assert!(inside || retained || witnessed,
+                "alias has no retained target or exact absent hop: candidate={absent:?} alias={rel:?} target={target:?} hops={absent_hops:?}");
+        }
+        links.insert(rel.clone(), target.clone());
     }
     assert_eq!(json!(files), expected["files"]);
     assert_eq!(json!(links), expected["links"]);

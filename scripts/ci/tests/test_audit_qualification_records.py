@@ -9,6 +9,44 @@ import unittest
 
 SOURCE_ROOT = Path(__file__).resolve().parents[3]
 gate = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/audit-qualification-records.py"))
+govuln = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/audit-govulncheck-bootstrap.py"))
+
+
+class GovulncheckDownloadFailureTests(unittest.TestCase):
+    def test_rejected_bounded_response_is_retained_and_never_accounted_as_download(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-download-unit-") as temp:
+            root = Path(temp)
+            failure_root = root / "uploaded" / "downloads" / "govulncheck-failure-evidence"
+            expected = b"abc"
+            row = {"url": "https://proxy.golang.org/unit/@v/1.zip", "bytes": len(expected),
+                   "sha256": "0" * 64}
+            rejected = expected + b"x"
+            with self.assertRaisesRegex(ValueError, "retained bounded response evidence"):
+                govuln["account_download_response"](row, rejected, 0, failure_root)
+            key = govuln["digest"](row["url"].encode()).removeprefix("sha256:")
+            raw = failure_root / (key + ".response.bin")
+            metadata = json.loads((failure_root / (key + ".json")).read_text())
+            self.assertEqual(raw.read_bytes(), rejected)
+            self.assertEqual(metadata["url"], row["url"])
+            self.assertEqual(metadata["expectedBytes"], len(expected))
+            self.assertEqual(metadata["expectedDigest"], "sha256:" + row["sha256"])
+            self.assertEqual(metadata["observedBytes"], len(rejected))
+            self.assertEqual(metadata["observedDigest"], govuln["digest"](rejected))
+            self.assertTrue(metadata["responseMayBeTruncated"])
+            self.assertFalse((root / "downloads").exists())
+
+    def test_exact_size_hash_rejection_records_complete_bounded_response(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-download-unit-") as temp:
+            root = Path(temp)
+            data = b"abc"
+            row = {"url": "https://vuln.go.dev/unit.zip", "bytes": len(data), "sha256": "f" * 64}
+            failure_root = root / "uploaded"
+            with self.assertRaisesRegex(ValueError, "hash-mismatch"):
+                govuln["account_download_response"](row, data, 0, failure_root)
+            key = govuln["digest"](row["url"].encode()).removeprefix("sha256:")
+            metadata = json.loads((failure_root / (key + ".json")).read_text())
+            self.assertEqual(metadata["observedBytes"], row["bytes"])
+            self.assertFalse(metadata["responseMayBeTruncated"])
 
 
 class RegistrationGateTests(unittest.TestCase):

@@ -7,6 +7,11 @@ pub(super) const ENV: &str = "LEGION_MOBILE_SDK_ENROLLMENT";
 const MAX_NODES: usize = 500_000;
 const MAX_BYTES: u64 = 32 * 1024 * 1024 * 1024;
 
+fn canonical_digest(value: &impl serde::Serialize, error: &'static str) -> Result<String, String> {
+    let bytes = legion_contracts::canonical_json_bytes(value).map_err(|_| error)?;
+    Ok(sha256_text(&bytes))
+}
+
 fn file_digest(path: &Path, total: &mut u64) -> Result<String, String> {
     let size = std::fs::metadata(path)
         .map_err(|_| "native-closure-metadata")?
@@ -136,11 +141,8 @@ pub(super) fn capture(sdk: &Path, swiftlint: &Path, audited_root: &Path) -> Resu
         }
         let mut files = BTreeMap::new();
         walk(path, path, &mut files, &mut total)?;
-        let raw = serde_json::to_vec(&files).map_err(|_| "native-closure-serialization")?;
-        trees.insert(
-            name,
-            json!({"root":path,"files":files,"digest":sha256_text(&raw)}),
-        );
+        let digest = canonical_digest(&files, "native-closure-serialization")?;
+        trees.insert(name, json!({"root":path,"files":files,"digest":digest}));
     }
     // Refuse dangling/out-of-enrollment links unless target belongs to Apple's
     // system runtime boundary, which is identified by enrolled osBuild bytes.
@@ -329,6 +331,25 @@ pub(super) fn source_snapshot(root: &Path) -> Result<Value, String> {
     Ok(
         json!({"schema":"legion-mobile-source-enrollment/1", "root":root,
         "registryRawDigest":sha256_text(&std::fs::read(root.join("src/registry/providers.json")).map_err(|_| "source-registry-read")?),
-        "digest":sha256_text(&serde_json::to_vec(&files).map_err(|_| "source-enrollment-serialization")?), "files":files}),
+        "digest":canonical_digest(&files, "source-enrollment-serialization")?, "files":files}),
     )
+}
+
+#[cfg(test)]
+mod canonical_digest_tests {
+    use super::*;
+
+    #[test]
+    fn canonical_digest_ignores_nested_object_insertion_order() {
+        let first: Value = serde_json::from_str(r#"{"outer":{"b":2,"a":1}}"#).unwrap();
+        let reordered: Value = serde_json::from_str(r#"{"outer":{"a":1,"b":2}}"#).unwrap();
+        assert_ne!(
+            sha256_text(&serde_json::to_vec(&first).unwrap()),
+            sha256_text(&serde_json::to_vec(&reordered).unwrap())
+        );
+        assert_eq!(
+            canonical_digest(&first, "test-canonicalization").unwrap(),
+            canonical_digest(&reordered, "test-canonicalization").unwrap()
+        );
+    }
 }

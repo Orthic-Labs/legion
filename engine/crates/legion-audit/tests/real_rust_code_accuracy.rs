@@ -1175,6 +1175,7 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
         sealed: &BTreeMap<String, String>,
         excluded: &[PathBuf],
         allow_missing: bool,
+        observed: &mut BTreeMap<String, String>,
     ) -> PathBuf {
         let mut pending: std::collections::VecDeque<String> = path
             .to_str()
@@ -1219,8 +1220,9 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
                 assert_eq!(
                     sealed.get(&key),
                     Some(&target),
-                    "unsealed runtime alias hop"
+                    "unsealed runtime alias hop: candidate={path:?} alias={key:?} target={target:?} hops={observed:?}"
                 );
+                observed.insert(key, target.clone());
                 current.pop();
                 if target.starts_with('/') {
                     current = PathBuf::from("/");
@@ -1255,14 +1257,15 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
     sorted_absent.sort();
     sorted_absent.dedup();
     assert_eq!(absent, sorted_absent);
+    let mut absent_hops = BTreeMap::new();
     for path in &absent {
         assert!(Path::new(path).is_absolute());
         assert_eq!(
             fs::symlink_metadata(path).unwrap_err().kind(),
             std::io::ErrorKind::NotFound,
-            "loader candidate appeared"
+            "loader candidate appeared: {path}"
         );
-        resolve(Path::new(path), &sealed, &excluded, true);
+        resolve(Path::new(path), &sealed, &excluded, true, &mut absent_hops);
     }
     let mut files = BTreeMap::new();
     let mut links = BTreeMap::new();
@@ -1288,7 +1291,8 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
             target.as_str()
         );
         links.insert(relative.clone(), target.clone());
-        let final_path = resolve(&path, &sealed, &excluded, false);
+        let witnessed = absent_hops.get(relative) == Some(target);
+        let final_path = resolve(&path, &sealed, &excluded, witnessed, &mut links);
         let inside = roots.iter().any(|root| final_path.starts_with(root));
         let retained_ancestor = files
             .keys()
@@ -1297,8 +1301,8 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
             assert!(inside, "walked runtime link escapes declared roots");
         } else {
             assert!(
-                inside || retained_ancestor,
-                "external alias has no retained runtime target"
+                inside || retained_ancestor || witnessed,
+                "external alias has no retained runtime target or exact absent hop: candidate={absent:?} alias={relative:?} target={target:?} hops={absent_hops:?}"
             );
         }
     }

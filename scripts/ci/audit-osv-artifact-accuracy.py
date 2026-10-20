@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fixed constructed OSV SDK/artifact controls; never qualifies production admission."""
 import argparse
+from datetime import datetime
 import hashlib
 import hmac
 import io
@@ -15,6 +16,7 @@ FIXTURES = "engine/crates/legion-audit/tests/fixtures/osv"
 HARNESS = "engine/crates/legion-audit/tests/osv_accuracy.rs"
 ARGV = ["scan", "source", "--offline", "--format", "json", "--all-packages", "-r", "."]
 POLICY = "legion-osv-sdk-offline-artifact-fixture-v1"
+VERSION_REQUIREMENT = "exact-tool:osv-scanner:2.2.2"
 PINS = {"sha256:f1e1cc84b6e365b79b874cb9028a4f74ac64666094b542f1eb196b10f44b505e", "sha256:5c2a2e2a686e34c0674e0a463aa626467df5d9fba0ed06870a2eb684dc434de3"}
 ADVISORY = "GHSA-35jh-r3h4-6jhm"
 ADVISORY_DIGEST = "sha256:3060fadb9a686e5041d53fe5c20c7844b2a0a49ce8d7b3d89d70703be02ec4f1"
@@ -31,6 +33,28 @@ def generated_session_provenance(relative):
 def require(value, message):
     if not value:
         raise AssertionError(message)
+
+
+def osv_scanner_version_matches(output, exact):
+    # Match legion-effects' opt-in exact-tool:osv-scanner grammar, including
+    # every metadata line, rather than searching arbitrary text for a version.
+    stable = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    if not isinstance(output, str) or re.fullmatch(stable, exact) is None:
+        return False
+    banner = re.fullmatch(
+        r"osv-scanner version: " + re.escape(exact) + r"\r?\n"
+        r"osv-scalibr version: " + stable + r"\r?\n"
+        r"commit: [0-9a-f]{40}\r?\n"
+        r"built at: (?P<built>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)(?:\r?\n)?",
+        output,
+    )
+    if banner is None:
+        return False
+    try:
+        datetime.strptime(banner["built"], "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return False
+    return True
 
 
 def encoded(value, canonical=False):
@@ -197,10 +221,12 @@ def validate_record(repository_root, record, live=False):
                 and environment["HOME"] == str(run / "home") and environment["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"] == str(retained_root / case_id / "database"), "exact offline cache environment differs")
         require(policy["id"] == POLICY and policy["version"] == 1 and policy["provider"] == ID and policy["scope"] == "constructed-native-sdk-offline-artifact-fixture"
                 and policy["planDigest"] == case["planDigest"] and policy["inventoryDigest"] == inventory["digest"] and policy["args"] == ARGV
+                and policy["versionRequirement"] == VERSION_REQUIREMENT
                 and policy["timeoutMs"] == 30000 and policy["outputLimit"] == 4194304, "exact scoped policy differs")
         prefix = ["-f", str(profile_path), "--", str(native)]
         decisions = case["policyDecisions"]
-        require(len(decisions) == 1 and decisions[0]["allowed"] is True, "exact SDK admission missing/duplicated")
+        require(len(decisions) == 1 and decisions[0]["allowed"] is True
+                and decisions[0]["versionRequirement"] == VERSION_REQUIREMENT, "exact SDK admission missing/duplicated")
         decision = decisions[0]
         require(receipt["schemaVersion"] == 1 and receipt["requestId"] == decision["requestId"] and re.fullmatch(r"legion-audit/[0-9a-f]{64}", receipt["requestId"])
                 and receipt["receiptId"] == "receipt:" + receipt["requestId"] and receipt["providerId"] == decision["providerId"] == ID
@@ -214,7 +240,7 @@ def validate_record(repository_root, record, live=False):
                 and command["redactedArgumentIndexes"] == command["redactedEnvironmentNames"] == [], "executed argv/environment differs")
         version = executable["version"]
         require(version["args"] == decision["versionArgs"] == prefix + ["--version"] and version["qualified"] is True and version["skippedByPolicy"] is False and version["exitCode"] == 0
-                and re.search(r"(?<![0-9.])v?2\.2\.2(?![0-9A-Za-z.+_-])", version["output"]), "actual native OSV version probe differs")
+                and osv_scanner_version_matches(version["output"], "2.2.2"), "actual native OSV version probe differs")
         identities.append((policy["tool"], policy["wrapper"], version["output"]))
         same(receipt["sandbox"], {"required": True, "receiptId": sandbox_id, "networkEnabled": True}, "actual deny-network sandbox differs")
         require(all(receipt["processTree"][key] is True for key in ("started", "terminated", "reaped")) and receipt["processTree"]["hardKilled"] is False and receipt["signal"] is None, "actual process lifecycle incomplete")

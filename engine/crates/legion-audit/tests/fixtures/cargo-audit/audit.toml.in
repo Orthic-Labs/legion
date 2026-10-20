@@ -1,5 +1,6 @@
 [database]
 path = @DATABASE@
 fetch = false
+stale = false
 [yanked]
 enabled = false

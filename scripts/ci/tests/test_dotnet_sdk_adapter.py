@@ -1,4 +1,6 @@
 """Dedicated .NET registration boundaries; these units grant no qualification."""
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,6 +11,88 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 gate = runpy.run_path(str(ROOT / "scripts/ci/audit-qualification-records.py"))
 validator = runpy.run_path(str(ROOT / "scripts/ci/audit-dotnet-sdk-accuracy.py"))
+provisioner = runpy.run_path(str(ROOT / "scripts/ci/provision-dotnet-qualification-tools.py"))
+
+
+class DotnetPackageHashTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory(dir=os.environ.get("RUNNER_TEMP", "/Volumes/D/scratch"))
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.packages = self.root / "packages"
+        self.cache = self.packages / "example.package/1.0.0"
+        self.cache.mkdir(parents=True)
+        self.filename = "example.package.1.0.0.nupkg"
+        # Synthetic bytes exercise hash domains only; no signed-package claim.
+        self.archive = b"archive including signature bytes"
+        self.archive_hash = base64.b64encode(hashlib.sha512(self.archive).digest()).decode()
+        self.content_hash = base64.b64encode(hashlib.sha512(b"unsigned content").digest()).decode()
+        self.row = {"type": "Direct", "resolved": "1.0.0", "contentHash": self.content_hash}
+        self.lock = self.root / "packages.lock.json"
+        self.lock.write_text(json.dumps({"version": 1, "dependencies": {"net8.0": {"Example.Package": self.row}}}))
+        (self.cache / self.filename).write_bytes(self.archive)
+        (self.cache / (self.filename + ".sha512")).write_text(self.archive_hash + "\n")
+        (self.cache / ".nupkg.metadata").write_text(json.dumps({"version": 2, "contentHash": self.content_hash, "source": "https://api.nuget.org/v3/index.json"}))
+        self.failure = self.root / "code-dotnet-sdk/provisioning-failure"
+
+    def provision(self):
+        return provisioner["package_provenance"](self.lock, "Example.Package", self.row, self.packages, self.failure)
+
+    def test_distinct_archive_and_content_hashes_remain_separate_in_provenance(self):
+        result = self.provision()
+        self.assertNotEqual(self.archive_hash, self.content_hash)
+        self.assertEqual(result["archiveSha512"], self.archive_hash)
+        self.assertEqual(result["contentHash"], self.content_hash)
+        self.assertEqual(result["url"], "https://api.nuget.org/v3-flatcontainer/example.package/1.0.0/" + self.filename)
+        self.assertFalse(self.failure.exists())
+
+    def test_archive_mismatch_retains_exact_originals_and_both_comparisons(self):
+        (self.cache / self.filename).write_bytes(self.archive + b"changed")
+        with self.assertRaises(ValueError):
+            self.provision()
+        for filename in (self.filename, self.filename + ".sha512", ".nupkg.metadata"):
+            self.assertEqual((self.failure / filename).read_bytes(), (self.cache / filename).read_bytes())
+        self.assertEqual((self.failure / "packages.lock.json").read_bytes(), self.lock.read_bytes())
+        report = json.loads((self.failure / "comparison.json").read_bytes())
+        self.assertEqual((report["id"], report["version"]), ("Example.Package", "1.0.0"))
+        self.assertFalse(report["archiveMatchesSidecar"])
+        self.assertTrue(report["metadataMatchesLock"])
+        self.assertEqual(report["archiveSha512"], base64.b64encode(hashlib.sha512(self.archive + b"changed").digest()).decode())
+
+    def test_metadata_lock_mismatch_cannot_fall_back_to_archive_hash(self):
+        (self.cache / ".nupkg.metadata").write_text(json.dumps({"contentHash": self.archive_hash}))
+        with self.assertRaises(ValueError):
+            self.provision()
+        report = json.loads((self.failure / "comparison.json").read_bytes())
+        self.assertTrue(report["archiveMatchesSidecar"])
+        self.assertFalse(report["metadataMatchesLock"])
+        self.assertEqual(report["lockContentHash"], self.content_hash)
+        self.assertEqual(report["metadataContentHash"], self.archive_hash)
+
+    def test_missing_metadata_retains_available_inputs_and_error(self):
+        (self.cache / ".nupkg.metadata").unlink()
+        with self.assertRaises(ValueError):
+            self.provision()
+        report = json.loads((self.failure / "comparison.json").read_bytes())
+        self.assertIn(".nupkg.metadata", report["inputErrors"])
+        self.assertFalse(report["metadataMatchesLock"])
+        self.assertEqual((self.failure / self.filename).read_bytes(), self.archive)
+
+    def test_malformed_metadata_fails_closed(self):
+        (self.cache / ".nupkg.metadata").write_bytes(b"{malformed metadata")
+        with self.assertRaises(ValueError):
+            self.provision()
+        self.assertEqual((self.failure / ".nupkg.metadata").read_bytes(), b"{malformed metadata")
+
+    def test_first_failure_evidence_cannot_be_overwritten(self):
+        (self.cache / (self.filename + ".sha512")).write_text(self.content_hash)
+        with self.assertRaises(ValueError):
+            self.provision()
+        original = (self.failure / "comparison.json").read_bytes()
+        (self.cache / self.filename).write_bytes(b"later corruption")
+        with self.assertRaises(FileExistsError):
+            self.provision()
+        self.assertEqual((self.failure / "comparison.json").read_bytes(), original)
 
 
 class DotnetSdkAdapterTests(unittest.TestCase):

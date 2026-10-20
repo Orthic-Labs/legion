@@ -44,6 +44,14 @@ def same(actual, expected, message):
     require(canonical(actual) == canonical(expected), message)
 
 
+def require_not_skipped_by_policy(version):
+    # Native serde defaults an omitted skippedByPolicy bool to false.
+    require(isinstance(version, dict) and {"args", "output", "exitCode", "qualified"} <= version.keys(),
+            "version receipt fields missing")
+    skipped = version.get("skippedByPolicy", False)
+    require(type(skipped) is bool and skipped is False, "version probe skipped by policy")
+
+
 def safe_absolute(value):
     path = PurePosixPath(value)
     require(path.is_absolute() and not value.startswith("//") and ".." not in path.parts and str(path) == value, "noncanonical retained path")
@@ -210,7 +218,8 @@ def scanner_case(case, provider, positive, live=True):
             and probe["providerId"] == provider and probe["planId"] == case["inventoryDigest"] and probe["taskId"] == tool + "-version-probe"
             and probe["cwd"] == str(root) and probe["exitCode"] == 0 and probe["signal"] is None
             and probe["executable"]["path"] == str(wrapper) and probe["executable"]["digest"] == policy["wrapper"]["digest"]
-            and probe["executable"]["version"]["args"] == decisions[0]["args"] and probe["executable"]["version"]["skippedByPolicy"] is False, "scanner version receipt differs")
+            and probe["executable"]["version"]["args"] == decisions[0]["args"], "scanner version receipt differs")
+    require_not_skipped_by_policy(probe["executable"]["version"])
     for stream in ("stdout", "stderr"):
         artifact(probe[stream], probe[stream]["raw"])
     out, err = probe["stdout"]["raw"], probe["stderr"]["raw"]
@@ -340,8 +349,9 @@ def linter_case(case, provider, positive, live=True):
             and receipt["command"]["executable"] == receipt["executable"]["canonicalPath"] == decision["executable"] == str(wrapper)
             and receipt["executable"]["digest"] == decision["expectedDigest"] == policy["wrapper"]["digest"]
             and receipt["executable"]["version"]["args"] == decision["versionArgs"] == version_args
-            and receipt["executable"]["version"]["skippedByPolicy"] is False and receipt["signal"] is None
+            and receipt["signal"] is None
             and receipt["exitCode"] == (0 if not positive else 2 if provider == SWIFT else 1), "linter native admission linkage differs")
+    require_not_skipped_by_policy(receipt["executable"]["version"])
     require(decision["requiresNetworkSandbox"] is True and decision["acceptedExitCodes"] == [0, 1, 2]
             and decision["timeoutMs"] == 120000 and decision["stdoutLimit"] == decision["stderrLimit"] == 8388608
             and decision["environmentNames"] == sorted(environment) and decision["environmentDigest"] == digest(canonical(environment)), "linter native bounds/environment differ")

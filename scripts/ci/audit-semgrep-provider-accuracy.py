@@ -105,6 +105,11 @@ def enrollment(value, root, *, live):
     for name, target in runtime["links"].items():
         relative = PurePosixPath(name)
         require(not relative.is_absolute() and str(relative) == name and ".." not in relative.parts and isinstance(target, str) and target, "invalid sealed runtime link")
+    helper = runpy.run_path(str(root / PROVISIONER))
+    try:
+        helper["validate_runtime_aliases"](runtime)
+    except ValueError as error:
+        require(False, str(error))
     discovery = value["nativeDiscovery"]
     require(discovery["digest"] == digest(encoded({k: v for k, v in discovery.items() if k != "digest"})) and discovery["systemExemptions"] == ["/usr/lib", "/System/Library"], "native dependency discovery differs")
     require(discovery["inspector"]["path"] == "/usr/bin/otool" and re.fullmatch(r"sha256:[0-9a-f]{64}", discovery["inspector"]["digest"]), "native dependency inspector differs")
@@ -125,7 +130,6 @@ def enrollment(value, root, *, live):
     if live:
         require(digest(Path("/usr/bin/otool").read_bytes()) == discovery["inspector"]["digest"], "native inspector identity differs")
     if live:
-        helper = runpy.run_path(str(root / PROVISIONER))
         observed = helper["snapshot"](runtime["roots"], runtime["exclusions"], runtime["links"], runtime["absent"])
         require(observed == runtime, "live complete runtime closure differs")
 

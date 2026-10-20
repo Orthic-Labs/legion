@@ -54,6 +54,54 @@ def fetch(url, destination):
     return destination.read_bytes()
 
 
+def package_provenance(lock, name, row, packages, failure_root):
+    version = row["resolved"].lower()
+    identity = name.lower() + "/" + version
+    cache = packages / name.lower() / version
+    filename = name.lower() + "." + version + ".nupkg"
+    originals = {"packages.lock.json": lock.read_bytes()}
+    errors = {}
+    for filename_part in (filename, filename + ".sha512", ".nupkg.metadata"):
+        try:
+            originals[filename_part] = (cache / filename_part).read_bytes()
+        except OSError as error:
+            errors[filename_part] = str(error)
+    archive_hash = (base64.b64encode(hashlib.sha512(originals[filename]).digest()).decode()
+                    if filename in originals else None)
+    cache_hash = content_hash = None
+    try:
+        cache_hash = originals.get(filename + ".sha512", b"").decode("utf-8").strip()
+    except UnicodeError as error:
+        errors[filename + ".sha512"] = str(error)
+    try:
+        metadata = json.loads(originals.get(".nupkg.metadata", b""))
+        if not isinstance(metadata, dict):
+            raise ValueError("NuGet metadata must be an object")
+        content_hash = metadata.get("contentHash")
+    except (ValueError, UnicodeError) as error:
+        errors.setdefault(".nupkg.metadata", str(error))
+    expected = row.get("contentHash")
+    # NuGet.Client c754078, PackageExtractor.cs:434-445: signed archive hash
+    # goes to .sha512; unsigned content hash goes to .nupkg.metadata & locks.
+    archive_matches = archive_hash is not None and cache_hash == archive_hash
+    lock_matches = isinstance(expected, str) and bool(expected) and content_hash == expected
+    if errors or not archive_matches or not lock_matches:
+        failure_root.mkdir(parents=True, exist_ok=False)
+        for original_name, data in originals.items():
+            (failure_root / original_name).write_bytes(data)
+        comparison = {"schema": "legion-dotnet-provisioning-failure/1", "id": name,
+                      "version": version, "lockPath": str(lock), "cachePath": str(cache),
+                      "lockContentHash": expected, "metadataContentHash": content_hash,
+                      "archiveSha512": archive_hash, "cacheArchiveSha512": cache_hash,
+                      "archiveMatchesSidecar": archive_matches, "metadataMatchesLock": lock_matches,
+                      "inputErrors": errors}
+        (failure_root / "comparison.json").write_bytes(canonical(comparison))
+        raise ValueError("expanded NuGet input hash mismatch for " + identity + "; retained " + str(failure_root))
+    return {"id": name, "version": version, "contentHash": content_hash,
+            "archiveSha512": archive_hash,
+            "url": "https://api.nuget.org/v3-flatcontainer/" + identity + "/" + filename}
+
+
 def project(extension):
     references = "".join(f'<PackageReference Include="{name}" Version="{version}" />' for name, version in PACKAGES.items())
     compile_items = '<Compile Include="Answer.fs" /><Compile Include="Tests.fs" />' if extension == "fsproj" else ""
@@ -161,19 +209,20 @@ def main():
         if result.returncode:
             raise ValueError("external package provisioning failed for " + language)
     provenance = {}
+    # CI exports the child output only after provisioning; derive its uploaded
+    # location here too, so first failing original inputs survive provisioning.
+    failure_root = Path(os.environ.get("LEGION_DOTNET_CHILD_OUTPUT") or
+                        (str(Path(ci_scratch) / "legion-provider-qualification/code-dotnet-sdk")
+                         if ci_scratch else str(root / "code-dotnet-sdk"))) / "provisioning-failure"
+    if not any(failure_root.resolve().is_relative_to(path) for path in allowed):
+        raise ValueError("provisioning failure evidence must remain under approved scratch or CI RUNNER_TEMP")
     for lock in seeds.rglob("packages.lock.json"):
         for dependencies in json.loads(lock.read_text())["dependencies"].values():
             for name, row in dependencies.items():
                 if row["type"] not in ("Direct", "Transitive"):
                     raise ValueError("unexpected package lock dependency type")
-                version = row["resolved"].lower()
-                identity = name.lower() + "/" + version
-                cache = packages / name.lower() / version
-                nupkg = cache / (name.lower() + "." + version + ".nupkg")
-                actual = base64.b64encode(hashlib.sha512(nupkg.read_bytes()).digest()).decode()
-                if actual != row["contentHash"] or (cache / (nupkg.name + ".sha512")).read_text().strip() != actual:
-                    raise ValueError("expanded NuGet input does not match lock content hash")
-                provenance[identity] = {"id": name, "version": version, "contentHash": actual, "url": "https://api.nuget.org/v3-flatcontainer/" + identity + "/" + nupkg.name}
+                package = package_provenance(lock, name, row, packages, failure_root)
+                provenance[name.lower() + "/" + package["version"]] = package
     sdk_files, package_files = tree(sdk), tree(packages)
     enrollment = {"schema": "legion-dotnet-sdk-enrollment/1", "sdkVersion": SDK, "runtimeVersion": RUNTIME, "sdkRoot": str(sdk), "sdkDigest": digest(canonical(sdk_files)), "sdkFiles": sdk_files, "packagesRoot": str(packages), "packagesDigest": digest(canonical(package_files)), "packageFiles": package_files, "sdkProvenance": {"metadataUrl": METADATA, "metadataDigest": digest(metadata_bytes), "archiveUrl": SDK_URL, "archiveSha512": SDK_SHA512, "version": SDK, "rid": "osx-arm64"}, "packageProvenance": sorted(provenance.values(), key=lambda row: row["id"].lower()), "fixturesRoot": str(seeds), "fixtureFiles": tree(seeds)}
     enrollment["fsharpAnalyzer"] = {"id": "dotnet-fsharplint", "version": FSHARP_VERSION, "root": str(fsharp_root), "digest": digest(canonical(tree(fsharp_root))), "files": tree(fsharp_root), "entrypoint": "tools/net8.0/any/dotnet-fsharplint.dll", "catalogUrl": FSHARP_CATALOG, "catalogDigest": digest(catalog_bytes), "archiveUrl": fsharp_url, "archiveSha512": FSHARP_HASH, "sourceCommit": FSHARP_COMMIT, "knownRule": "FL0014"}

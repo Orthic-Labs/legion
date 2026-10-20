@@ -609,6 +609,16 @@ impl<'a> Run<'a> {
             }
         };
 
+        // Pin the actual launch executable before the adapter resolves it again.
+        // Sandboxed requests launch the authenticated wrapper, not the scanner.
+        let launch_digest = if launch_executable == executable_text {
+            executable_digest.clone()
+        } else {
+            digest(
+                &fs::read(&launch_executable)
+                    .map_err(|_| format!("sandbox-missing:{primary}:wrapper-unreadable"))?,
+            )
+        };
         let request = ExternalToolRequest {
             request_id: if matches!(
                 self.provider.id.as_str(),
@@ -636,7 +646,7 @@ impl<'a> Run<'a> {
             cwd: root_text.clone(),
             origin: legion_effects::ToolOrigin::System,
             shell: false,
-            expected_digest: None,
+            expected_digest: Some(launch_digest),
             accepted_exit_codes: accepted.iter().copied().collect(),
             environment,
             environment_allowlist: allowlist,

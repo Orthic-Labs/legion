@@ -181,8 +181,17 @@ impl ScopedPolicy {
         format!("(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"{root}\"))\n(deny file-write* (subpath \"{root}\"))\n")
     }
     fn permits(&self, request: &ExternalToolRequest) -> bool {
+        let id_ok = request
+            .request_id
+            .strip_prefix("legion-audit/")
+            .is_some_and(|id| {
+                id.len() == 64
+                    && id
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            });
         if request.schema_version != ExternalToolRequest::default().schema_version
-            || request.request_id != format!("security-producer:{PROVIDER}:{}", self.inventory)
+            || !id_ok
             || request.provider_id != PROVIDER
             || request.plan_id != self.inventory
             || request.policy_id != legion_audit::execution_policy::POLICY_ID
@@ -190,7 +199,7 @@ impl ScopedPolicy {
             || request.cwd != self.root.to_string_lossy().as_ref()
             || request.origin != ToolOrigin::System
             || request.shell
-            || request.expected_digest.is_some()
+            || request.expected_digest.as_deref() != Some(self.wrapper_digest.as_str())
             || request.version_requirement.is_some()
             || request.skip_version_probe
             || !request.requires_network_sandbox
@@ -276,7 +285,8 @@ impl PolicyAuthorizer for ScopedPolicy {
         self.decisions.lock().unwrap().push(
             json!({"allowed":allowed,"requestId":request.request_id,
             "providerId":request.provider_id,"planId":request.plan_id,"policyId":request.policy_id,
-            "executable":request.executable,"args":request.args,"versionArgs":request.version_args,
+            "executable":request.executable,"expectedDigest":request.expected_digest,
+            "args":request.args,"versionArgs":request.version_args,
             "cwd":request.cwd,"environment":request.environment,"profile":self.profile()}),
         );
         PolicyDecision {
@@ -571,8 +581,12 @@ fn run_case(
                     && value["inventoryDigest"] == inventory.digest
                     && receipt["providerId"] == PROVIDER
                     && receipt["planId"] == inventory.digest
-                    && receipt["requestId"]
-                        == format!("security-producer:{PROVIDER}:{}", inventory.digest)
+                    && receipt["taskId"] == "opengrep"
+                    && decisions.first().is_some_and(|decision| {
+                        decision["allowed"] == true
+                            && receipt["requestId"] == decision["requestId"]
+                            && decision["expectedDigest"] == policy.wrapper_digest
+                    })
                     && receipt["state"] == "completed"
                     && receipt["complete"] == true
                     && receipt["processTree"]["started"] == true
@@ -593,6 +607,7 @@ fn run_case(
                         .as_str()
                         .is_some_and(|v| v.split_whitespace().any(|token| token == "1.31.0"))
                     && receipt["sandbox"]["required"] == true
+                    && receipt["sandbox"]["networkEnabled"] == true
                     && matches!(receipt["exitCode"].as_i64(), Some(0 | 1))
                     && projection.is_some_and(|p| {
                         p["receiptId"] == receipt["receiptId"]
@@ -604,9 +619,19 @@ fn run_case(
             require(
                 &mut problems,
                 decisions.first().is_some_and(|decision| {
-                    receipt["command"]["args"] == decision["args"]
+                    receipt["command"]["executable"] == decision["executable"]
+                        && receipt["command"]["args"] == decision["args"]
                         && receipt["executable"]["version"]["args"] == decision["versionArgs"]
                 }) && receipt["cwd"] == root.to_string_lossy().as_ref()
+                    && receipt["environmentNames"]
+                        == json!(policy.environment.keys().collect::<Vec<_>>())
+                    && receipt["command"]["environmentNames"] == receipt["environmentNames"]
+                    && receipt["command"]["redactedArgumentIndexes"]
+                        .as_array()
+                        .is_some_and(Vec::is_empty)
+                    && receipt["command"]["redactedEnvironmentNames"]
+                        .as_array()
+                        .is_some_and(Vec::is_empty)
                     && receipt["sandbox"]["receiptId"]
                         == format!(
                             "sandbox:macos:{}",

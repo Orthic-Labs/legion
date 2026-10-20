@@ -128,7 +128,11 @@ def native_linker(repository, root):
     seeds = sorted(set(seeds), key=str)
     if len(seeds) > 15000 or sum(path.stat().st_size for path in seeds if path.is_file()) > 1024 * 1024 * 1024:
         raise ValueError("native fixture closure bound exceeded")
-    roots, loader_aliases, absent, discovery = api["native_dependency_closure"]([str(path) for path in seeds if path.suffix != ".o"], [], Path(clang))
+    # Archives and object files are linker inputs, not loadable Mach-O images.
+    # Keep them in the enrolled roots below so their original bytes remain
+    # digest-bound; omit them only from dyld loader discovery.
+    loader_images = [path for path in seeds if path.suffix.lower() not in (".a", ".o")]
+    roots, loader_aliases, absent, discovery = api["native_dependency_closure"]([str(path) for path in loader_images], [], Path(clang))
     roots = sorted(set(roots) | {str(path) for path in seeds})
     absent = sorted(set(absent) | set(optional_absent))
     for key, value in loader_aliases.items():

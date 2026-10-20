@@ -71,6 +71,8 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_rep
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_code_long_tail_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_extra_provider_receipt_contract.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact_contract.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
@@ -331,7 +333,7 @@ provision_c_family_sdk() {
   sdk_root="$(xcrun --sdk macosx --show-sdk-path)" || return "$?"
   local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root" --runtime-root /usr/bin)
   local dependencies
-  dependencies="$(brew deps --installed --recursive llvm cmake)" || return "$?"
+  dependencies="$(brew deps --installed --union llvm cmake)" || return "$?"
   while IFS= read -r dependency; do
     [[ -n "$dependency" ]] || continue
     prefix="$(brew --prefix "$dependency")" || return "$?"

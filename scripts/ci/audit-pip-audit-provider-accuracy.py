@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
-import stat
+import runpy
 
 PROVIDER = "legacy.security.python-dependencies"
 SOURCE = "engine/crates/legion-audit/tests/pip_audit_accuracy.rs"
@@ -109,75 +109,21 @@ def runtime_closure(closure, live):
     require(isinstance(excluded, list), "runtime exclusion declaration absent")
     def inside(path):
         return any(path == PurePosixPath(root) or PurePosixPath(root) in path.parents for root in roots)
-    def excluded_path(path):
-        return any(path == PurePosixPath(item) or PurePosixPath(item) in path.parents for item in excluded)
     for key, value in {**files, **links}.items():
         require(not key.startswith("/") and str(PurePosixPath(key)) == key and ".." not in PurePosixPath(key).parts,
                 "unsafe runtime file key")
         if key in files:
             require(inside(PurePosixPath("/") / key) and is_digest(value), "runtime file outside roots/digest absent")
         else: require(isinstance(value, str) and value, "runtime link target absent")
-    def resolve(path, allow_missing=False):
-        pending = path.split("/")
-        current, hops = [], 0
-        while pending:
-            part = pending.pop(0)
-            if part in ("", "."): continue
-            if part == "..":
-                require(bool(current), "runtime path escapes filesystem root")
-                current.pop(); continue
-            current.append(part)
-            node = "/" + "/".join(current)
-            require(not excluded_path(PurePosixPath(node)), "runtime alias enters global packages")
-            relative = node[1:]
-            if live:
-                try: mode = Path(node).lstat().st_mode
-                except FileNotFoundError:
-                    require(allow_missing, "runtime path missing")
-                    return None
-                if stat.S_ISLNK(mode):
-                    require(relative in links and str(Path(node).readlink()) == links[relative], "unsealed runtime alias hop")
-            if relative in links:
-                if live: require(Path(node).is_symlink(), "sealed alias is no longer a symlink")
-                hops += 1; require(hops <= 40, "runtime alias cycle")
-                target = links[relative]
-                current.pop()
-                if target.startswith("/"): current = []
-                pending = target.split("/") + pending
-        result = PurePosixPath("/", *current)
-        if live: require(Path(path).resolve(strict=True) == Path(str(result)), "runtime alias resolution differs")
-        return result
-    for key in links:
-        path = PurePosixPath("/") / key
-        resolved = resolve(str(path))
-        relative = str(resolved).lstrip("/")
-        retained = relative in files or any(item.startswith(relative + "/") for item in files)
-        require(retained, "runtime alias target omitted")
-        require(inside(resolved) if inside(path) else inside(resolved) or retained, "runtime alias escapes closure")
     require(closure.get("digest") == sha(encoded({"absent":absent,"files":files,"links":links,"roots":roots})), "runtime closure digest differs")
+    helper = runpy.run_path(str(Path(__file__).with_name("provision-python-qualification-tools.py")))
+    try:
+        helper["validate_runtime_aliases"](closure)
+    except ValueError as error:
+        require(False, str(error))
     if live:
-        actual_files, actual_links = {}, {}
-        def walk(path):
-            if str(path) in excluded: return
-            if path.is_symlink(): actual_links[path.relative_to("/").as_posix()] = str(path.readlink())
-            elif path.is_dir():
-                for child in path.iterdir(): walk(child)
-            else:
-                require(path.is_file(), "runtime special file")
-                actual_files[path.relative_to("/").as_posix()] = sha(path.read_bytes())
-        for root in roots:
-            require(Path(root).resolve(strict=True) == Path(root), "runtime root is not canonical")
-            walk(Path(root))
-        for key, target in links.items():
-            path = Path("/") / key
-            require(path.is_symlink() and str(path.readlink()) == target, "retained alias changed")
-            actual_links[key] = target
-        for path in absent:
-            try: Path(path).lstat()
-            except FileNotFoundError: pass
-            else: require(False, "loader candidate appeared")
-            resolve(path, allow_missing=True)
-        require(actual_files == files and actual_links == links, "live runtime closure changed")
+        observed = helper["snapshot"](roots, excluded, links, absent)
+        require(observed == closure, "live runtime closure changed")
 
 
 def validate_record(repository_root, record, live=False):

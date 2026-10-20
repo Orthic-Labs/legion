@@ -585,6 +585,8 @@ fn verify_enrollment(value: &Value) {
         path: &Path,
         links: &BTreeMap<String, String>,
         allow_missing: bool,
+        exclusions: &[PathBuf],
+        observed: &mut BTreeMap<String, String>,
     ) -> PathBuf {
         use std::{collections::VecDeque, path::Component};
         assert!(path.is_absolute());
@@ -604,6 +606,10 @@ fn verify_enrollment(value: &Value) {
                 }
                 Component::Normal(_) => {
                     resolved.push(&part);
+                    assert!(
+                        !exclusions.iter().any(|p| resolved.starts_with(p)),
+                        "runtime alias enters excluded path"
+                    );
                     let metadata = match fs::symlink_metadata(&resolved) {
                         Ok(metadata) => metadata,
                         Err(e) if allow_missing && e.kind() == std::io::ErrorKind::NotFound => {
@@ -623,8 +629,9 @@ fn verify_enrollment(value: &Value) {
                         assert_eq!(
                             links.get(&key).map(String::as_str),
                             Some(target.to_str().unwrap()),
-                            "unsealed runtime symlink hop"
+                            "unsealed runtime symlink hop: candidate={path:?} alias={key:?} target={target:?} hops={observed:?}"
                         );
+                        observed.insert(key, target.to_str().unwrap().to_owned());
                         resolved.pop();
                         for component in target.components().rev() {
                             pending.push_front(component.as_os_str().to_os_string());
@@ -655,7 +662,7 @@ fn verify_enrollment(value: &Value) {
         if path.is_symlink() {
             assert!(roots
                 .iter()
-                .any(|r| resolve_sealed(path, sealed, false).starts_with(r)));
+                .any(|r| resolve_sealed(path, sealed, false, exclusions, links).starts_with(r)));
             links.insert(
                 name,
                 fs::read_link(path).unwrap().to_string_lossy().into_owned(),
@@ -677,10 +684,25 @@ fn verify_enrollment(value: &Value) {
             panic!("unsupported runtime entry");
         }
     }
+    let absent: Vec<String> = serde_json::from_value(runtime["absent"].clone()).unwrap();
+    assert!(absent.windows(2).all(|pair| pair[0] < pair[1]));
+    let mut absent_hops = BTreeMap::new();
+    for candidate in &absent {
+        let path = Path::new(candidate);
+        assert!(path.is_absolute());
+        assert!(
+            fs::symlink_metadata(path).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound),
+            "loader candidate appeared: {candidate}"
+        );
+        resolve_sealed(path, &sealed_links, true, &exclusions, &mut absent_hops);
+    }
     let mut observed_files = BTreeMap::new();
-    let mut observed_links = BTreeMap::new();
+    let mut observed_links = absent_hops.clone();
     for root in &roots {
-        assert_eq!(resolve_sealed(root, &sealed_links, false), *root);
+        assert_eq!(
+            resolve_sealed(root, &sealed_links, false, &exclusions, &mut observed_links),
+            *root
+        );
         walk(
             root,
             &roots,
@@ -704,23 +726,24 @@ fn verify_enrollment(value: &Value) {
             fs::read_link(&path).unwrap().to_str(),
             Some(target.as_str())
         );
-        let final_path = resolve_sealed(&path, &sealed_links, false);
+        let witnessed = absent_hops.get(name) == Some(target);
+        let final_path = resolve_sealed(
+            &path,
+            &sealed_links,
+            witnessed,
+            &exclusions,
+            &mut observed_links,
+        );
         assert!(
             roots.iter().any(|r| final_path.starts_with(r))
                 || (final_path.is_dir()
                     && observed_files
                         .keys()
                         .any(|p| Path::new("/").join(p).starts_with(&final_path)))
+                || (witnessed && !roots.iter().any(|r| path.starts_with(r))),
+            "external alias has no retained target or exact absent hop: candidate={absent:?} alias={name:?} target={target:?} hops={absent_hops:?}"
         );
         observed_links.insert(name.clone(), target.clone());
-    }
-    let absent: Vec<String> = serde_json::from_value(runtime["absent"].clone()).unwrap();
-    assert!(absent.windows(2).all(|pair| pair[0] < pair[1]));
-    for path in absent {
-        let path = Path::new(&path);
-        assert!(path.is_absolute());
-        assert!(fs::symlink_metadata(path).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound));
-        resolve_sealed(path, &sealed_links, true);
     }
     assert_eq!(json!(observed_files), runtime["files"]);
     assert_eq!(json!(observed_links), runtime["links"]);
@@ -928,6 +951,18 @@ fn run_case(
     assert_eq!(report.results.len(), 1);
     let result = &report.results[0].result;
     let receipt = &result.details["executionReceipt"];
+    let failure_witness = json!({"schema":"legion-semgrep-provider-failure-witness/1","qualificationEligible":false,
+        "caseId":name,"nativeResult":result,"executionReceipt":receipt,
+        "policyDefinition":policy.definition(),"policyDecisions":policy.decisions.lock().unwrap().clone()});
+    fs::write(
+        scratch.root().join("original-provider-observation.json"),
+        serde_json::to_vec_pretty(&failure_witness).unwrap(),
+    )
+    .unwrap();
+    println!(
+        "SEMGREP_ORIGINAL_PROVIDER_OBSERVATION {}",
+        serde_json::to_string(&failure_witness).unwrap()
+    );
     let failed = missing || name == "operational-error";
     assert_eq!(result.complete, !failed, "{:?}", result.coverage_gaps);
     assert!(result.findings.is_empty());

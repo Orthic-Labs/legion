@@ -178,9 +178,14 @@ fn locked_cache(bytes: &[u8], packages: &Path) -> Result<(), String> {
                 &root.join(format!("{name}.{version}.nupkg")),
                 MAX_SOURCE_BYTES,
             )?;
-            if hash.trim() != expected
-                || base64(&Sha512::digest(&archive)) != expected
-                || !root.join(".nupkg.metadata").is_file()
+            let metadata: Value =
+                serde_json::from_slice(&read(&root.join(".nupkg.metadata"), MAX_TEXT_BYTES)?)
+                    .map_err(|_| "package-cache-metadata-malformed")?;
+            // NuGet.Client c754078 PackageExtractor.cs:434-445 records archive
+            // SHA512 in .sha512 & unsigned contentHash in metadata/lock files.
+            if hash.trim() != base64(&Sha512::digest(&archive))
+                || expected.is_empty()
+                || metadata.get("contentHash").and_then(Value::as_str) != Some(expected)
             {
                 return Err("package-cache-missing-or-hash-mismatch".into());
             }
@@ -930,6 +935,61 @@ pub(super) fn parse(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn locked_cache_checks_archive_and_lock_content_hashes_independently() {
+        let scratch = AuditScratch::create(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let packages = scratch.cache_dir().join("packages");
+        let cache = packages.join("example.package/1.0.0");
+        fs::create_dir_all(&cache).unwrap();
+        let packages = fs::canonicalize(&packages).unwrap();
+        let cache = packages.join("example.package/1.0.0");
+        let archive_path = cache.join("example.package.1.0.0.nupkg");
+        let sidecar_path = cache.join("example.package.1.0.0.nupkg.sha512");
+        let metadata_path = cache.join(".nupkg.metadata");
+        // Synthetic inputs test domain separation, never SDK qualification.
+        let archive = b"archive including signature bytes";
+        let archive_hash = base64(&Sha512::digest(archive));
+        let content_hash = base64(&Sha512::digest(b"unsigned content"));
+        assert_ne!(archive_hash, content_hash);
+        let lock = json!({"version":1,"dependencies":{"net8.0":{"Example.Package":{
+            "type":"Direct","resolved":"1.0.0","contentHash":content_hash
+        }}}});
+        let lock = serde_json::to_vec(&lock).unwrap();
+        fs::write(&archive_path, archive).unwrap();
+        fs::write(&sidecar_path, format!("{archive_hash}\n")).unwrap();
+        let metadata =
+            serde_json::to_vec(&json!({"version":2,"contentHash":content_hash})).unwrap();
+        fs::write(&metadata_path, &metadata).unwrap();
+        assert!(locked_cache(&lock, &packages).is_ok());
+
+        fs::write(&sidecar_path, &content_hash).unwrap();
+        assert!(locked_cache(&lock, &packages).is_err());
+        fs::write(&sidecar_path, &archive_hash).unwrap();
+        fs::write(&archive_path, b"changed archive").unwrap();
+        assert!(locked_cache(&lock, &packages).is_err());
+        fs::write(&archive_path, archive).unwrap();
+        for metadata in [
+            format!(r#"{{"contentHash":"{archive_hash}"}}"#),
+            "{}".to_owned(),
+            r#"{"contentHash":null}"#.to_owned(),
+            "malformed metadata".to_owned(),
+        ] {
+            fs::write(&metadata_path, metadata).unwrap();
+            assert!(locked_cache(&lock, &packages).is_err());
+        }
+        fs::remove_file(&metadata_path).unwrap();
+        assert!(locked_cache(&lock, &packages).is_err());
+        // Unsigned packages can share both hashes; equality is permitted.
+        let unsigned_lock = json!({"version":1,"dependencies":{"net8.0":{"Example.Package":{
+            "type":"Direct","resolved":"1.0.0","contentHash":archive_hash
+        }}}});
+        fs::write(
+            &metadata_path,
+            serde_json::to_vec(&json!({"contentHash":archive_hash})).unwrap(),
+        )
+        .unwrap();
+        assert!(locked_cache(&serde_json::to_vec(&unsigned_lock).unwrap(), &packages).is_ok());
+    }
     #[test]
     fn v1_keeps_each_language_and_refuses_external_msbuild_semantics() {
         for ext in ["csproj", "fsproj", "vbproj"] {

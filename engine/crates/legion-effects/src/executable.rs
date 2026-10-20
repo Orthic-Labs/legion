@@ -107,12 +107,87 @@ impl ExecutableIdentity {
                             && versions.len() == 1
                             && (versions[0] == exact
                                 || versions[0].strip_prefix('v') == Some(exact))
+                    } else if let Some(tool_version) = required.strip_prefix("exact-tool:") {
+                        tool_version
+                            .strip_prefix("osv-scanner:")
+                            .is_some_and(|exact| osv_scanner_version_matches(output, exact))
                     } else {
                         output.contains(required)
                     }
                 })
             })
     }
+}
+
+// OSV's primary version is distinct from its embedded SCALIBR version. Keep
+// this opt-in grammar closed: every line must match the known ordered banner.
+fn osv_scanner_version_matches(output: &str, exact: &str) -> bool {
+    if !stable_version(exact) {
+        return false;
+    }
+    let mut lines = output.lines();
+    let primary = lines
+        .next()
+        .and_then(|line| line.strip_prefix("osv-scanner version: "));
+    let scalibr = lines
+        .next()
+        .and_then(|line| line.strip_prefix("osv-scalibr version: "));
+    let commit = lines.next().and_then(|line| line.strip_prefix("commit: "));
+    let built = lines
+        .next()
+        .and_then(|line| line.strip_prefix("built at: "));
+    primary == Some(exact)
+        && scalibr.is_some_and(stable_version)
+        && commit.is_some_and(|commit| {
+            commit.len() == 40
+                && commit
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+        && built.is_some_and(utc_build_timestamp)
+        && lines.next().is_none()
+}
+
+fn stable_version(version: &str) -> bool {
+    let parts = version.split('.').collect::<Vec<_>>();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+                && (part.len() == 1 || !part.starts_with('0'))
+        })
+}
+
+fn utc_build_timestamp(timestamp: &str) -> bool {
+    let bytes = timestamp.as_bytes();
+    if bytes.len() != 20
+        || bytes.iter().enumerate().any(|(index, byte)| match index {
+            4 | 7 => *byte != b'-',
+            10 => *byte != b'T',
+            13 | 16 => *byte != b':',
+            19 => *byte != b'Z',
+            _ => !byte.is_ascii_digit(),
+        })
+    {
+        return false;
+    }
+    // ASCII was checked before indexing, so every slice is a character boundary.
+    let number = |start, end| timestamp[start..end].parse::<u32>().unwrap();
+    let year = number(0, 4);
+    let month = number(5, 7);
+    let day = number(8, 10);
+    let days = match month {
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        _ => return false,
+    };
+    year > 0
+        && (1..=days).contains(&day)
+        && number(11, 13) < 24
+        && number(14, 16) < 60
+        && number(17, 19) < 60
 }
 
 fn hex_digest(bytes: &[u8]) -> String {
@@ -158,5 +233,71 @@ mod tests {
         assert!(!identity("pnpm 19.1.0, expected 9.1.0").version_qualified(Some("exact:9.1.0")));
         assert!(!identity("pnpm 19.1.0").version_qualified(Some("exact:")));
         assert!(identity("pnpm 19.1.0").version_qualified(Some("9.1.0")));
+    }
+
+    // Exact CI 39367156023 native v2.2.2 receipt banner (SHA-256
+    // c119923cf4845a7bf772facdc8de9fe6176d8542a3067ef8b1428877c96c0ce9).
+    const OSV_BANNER: &str = "osv-scanner version: 2.2.2\nosv-scalibr version: 0.3.1\ncommit: 16ed4529c0d0cc1ddf1bed2fb08deba187339673\nbuilt at: 2025-08-27T02:52:51Z\n";
+    const OSV_REQUIREMENT: &str = "exact-tool:osv-scanner:2.2.2";
+
+    #[test]
+    fn exact_osv_tool_mode_accepts_primary_version_with_ordered_metadata() {
+        assert!(identity(OSV_BANNER).version_qualified(Some(OSV_REQUIREMENT)));
+        assert!(
+            identity(OSV_BANNER.trim_end_matches('\n')).version_qualified(Some(OSV_REQUIREMENT))
+        );
+        assert!(
+            identity(&OSV_BANNER.replace('\n', "\r\n")).version_qualified(Some(OSV_REQUIREMENT))
+        );
+        // Generic exact retains its one-version rule, even for OSV banners.
+        assert!(!identity(OSV_BANNER).version_qualified(Some("exact:2.2.2")));
+        let mut unqualified = identity(OSV_BANNER);
+        unqualified.version.qualified = false;
+        assert!(!unqualified.version_qualified(Some(OSV_REQUIREMENT)));
+    }
+
+    #[test]
+    fn exact_osv_tool_mode_rejects_forged_or_ambiguous_banners() {
+        for banner in [
+            OSV_BANNER.replace("osv-scanner version: 2.2.2", "osv-scanner version: 12.2.2"),
+            OSV_BANNER.replace(
+                "osv-scanner version: 2.2.2",
+                "osv-scanner version: 2.2.2-rc.1",
+            ),
+            OSV_BANNER.replace("osv-scanner version: 2.2.2", "other-scanner version: 2.2.2"),
+            OSV_BANNER.replace("osv-scalibr version: 0.3.1", "osv-scanner version: 2.2.2"),
+            OSV_BANNER.replace(
+                "osv-scalibr version: 0.3.1",
+                "osv-scalibr version: 0.3.1 extra 2.2.2",
+            ),
+            OSV_BANNER.replace("osv-scalibr version: 0.3.1\n", ""),
+            OSV_BANNER.replace(
+                "osv-scalibr version: 0.3.1\ncommit: 16ed4529c0d0cc1ddf1bed2fb08deba187339673",
+                "commit: 16ed4529c0d0cc1ddf1bed2fb08deba187339673\nosv-scalibr version: 0.3.1",
+            ),
+            OSV_BANNER.replace(
+                "commit: 16ed4529c0d0cc1ddf1bed2fb08deba187339673",
+                "commit: 16ed4529c0d0cc1ddf1bed2fb08deba187339673 extra",
+            ),
+            OSV_BANNER.replace("2025-08-27T02:52:51Z", "2025-02-29T02:52:51Z"),
+            OSV_BANNER.replace("2025-08-27T02:52:51Z", "2025-08-27T24:52:51Z"),
+            format!("{OSV_BANNER}osv-scanner version: 2.2.2\n"),
+            format!("{OSV_BANNER}unknown: 2.2.2\n"),
+            format!("{OSV_BANNER}\n"),
+            format!("\n{OSV_BANNER}"),
+        ] {
+            assert!(
+                !identity(&banner).version_qualified(Some(OSV_REQUIREMENT)),
+                "{banner:?}"
+            );
+        }
+        for requirement in [
+            "exact-tool:osv-scanner:2.2.3",
+            "exact-tool:osv-scanner:02.2.2",
+            "exact-tool:osv-scanner:",
+            "exact-tool:unknown:2.2.2",
+        ] {
+            assert!(!identity(OSV_BANNER).version_qualified(Some(requirement)));
+        }
     }
 }

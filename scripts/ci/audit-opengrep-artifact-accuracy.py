@@ -74,7 +74,26 @@ def artifact(item):
     require(type(item["bytes"]) is int and item["bytes"] == len(raw) and item["digest"] == digest(raw), "artifact bytes differ")
     return raw
 
-def inspect_case(case, rules, *, live):
+
+def selector_denominator(inventory, selector):
+    count = selector.get("count", 1) if isinstance(selector, dict) else None
+    require(isinstance(selector, dict) and selector.get("op") == "sourceFilesAtLeast"
+            and type(count) is int and count >= 0, "unsupported frozen source denominator selector")
+    selected = [entry for entry in inventory["entries"] if entry["sourceFile"] is True]
+    if len(selected) < count:
+        selected = []
+    return digest(canonical([inventory["digest"], selector, selected])), selected
+
+
+def require_not_skipped_by_policy(version):
+    # Native serde defaults an omitted skippedByPolicy bool to false.
+    require(isinstance(version, dict) and {"args", "output", "exitCode", "qualified"} <= version.keys(),
+            "version receipt fields missing")
+    skipped = version.get("skippedByPolicy", False)
+    require(type(skipped) is bool and skipped is False, "version probe skipped by policy")
+
+
+def inspect_case(case, rules, selector, *, live):
     source, expected = FIXTURES[case["caseId"]]
     require(case["source"] == {"path": "app.py", "bytes": source, "digest": digest(source.encode())}, "fixed source control differs")
     require(case["productionQualification"] is False and case["executionPath"] == "native-sdk-command-contract-to-frozen-registry-artifact", "scope expanded")
@@ -87,7 +106,9 @@ def inspect_case(case, rules, *, live):
     require(case["planSignature"] == "hmac-sha256:" + hmac.new(b"opengrep-sdk-artifact-fixture-key", canonical(plan), hashlib.sha256).hexdigest(), "fixture plan HMAC differs")
     require(plan["inventoryDigest"] == inventory["digest"] and plan["inventoryGeneration"] == inventory["generation"] and len(plan["providers"]) == 1 and plan["providers"][0]["id"] == PROVIDER, "plan context differs")
     config = case["providerConfiguration"]
-    require(config == plan["providers"][0]["configuration"] and config["selector"] == {"op": "always"} and config["denominatorCount"] == 1 and config["denominatorDigest"] == inventory["digest"], "frozen selector differs")
+    denominator_digest, selected = selector_denominator(inventory, selector)
+    require(config == plan["providers"][0]["configuration"] and config["selector"] == selector
+            and config["denominatorCount"] == len(selected) == 1 and config["denominatorDigest"] == denominator_digest, "frozen selector differs")
     policy = case["policy"]
     root, run = absolute(policy["root"]), absolute(policy["runDirectory"])
     require(root.name == "source" and run == root.parent / "run", "fixture root/run differ")
@@ -124,7 +145,8 @@ def inspect_case(case, rules, *, live):
     require(sandbox == {"required": True, "receiptId": "sandbox:macos:" + digest(profile.encode()).removeprefix("sha256:"), "networkEnabled": True}, "sandbox identity differs")
     require(exe["requestedPath"] == exe["canonicalPath"] == str(wrapper) and exe["digest"] == policy["wrapper"]["digest"] and exe["digestState"] == "sealed", "executable receipt differs")
     version = exe["version"]
-    require(version["qualified"] is True and version["skippedByPolicy"] is False and version["exitCode"] == 0 and version["args"] == argv[:4] + ["--version"] and re.search(r"(?<![\w.])v?1\.31\.0(?![\w.])", version["output"]), "native version unproven")
+    require(version["qualified"] is True and version["exitCode"] == 0 and version["args"] == argv[:4] + ["--version"] and re.search(r"(?<![\w.])v?1\.31\.0(?![\w.])", version["output"]), "native version unproven")
+    require_not_skipped_by_policy(version)
     for stream in ("stdout", "stderr"):
         artifact(receipt[stream])
     require(len(case["policyDecisions"]) == 1 and case["policyDecisions"][0] == {"allowed": True, "requestId": receipt["requestId"], "args": argv, "versionArgs": version["args"], "planId": case["planDigest"], "providerId": PROVIDER, "policyId": POLICY}, "observed policy request differs")
@@ -138,7 +160,7 @@ def inspect_case(case, rules, *, live):
     evidence = input_["artifacts"]["opengrep"]
     bound = {"repositoryRevision": inventory["generation"], "digest": inventory["digest"]}
     require(input_["projection"] == {"files": [{"path": "app.py"}]} and input_["plan"]["denominator"] == {"pathCount": 1}, "artifact source projection differs")
-    require(evidence["binding"] == input_["plan"]["binding"] == bound and evidence["denominator"] == {"digest": inventory["digest"], "expected": 1, "examined": 1}, "artifact authority differs")
+    require(evidence["binding"] == input_["plan"]["binding"] == bound and evidence["denominator"] == {"digest": denominator_digest, "expected": 1, "examined": 1}, "artifact authority differs")
     augmented = dict(receipt)
     augmented["tool"] = {"name": "opengrep", "version": version["output"], "executableDigest": policy["tool"]["digest"]}
     augmented["stdoutArtifact"] = receipt["stdout"]
@@ -148,7 +170,7 @@ def inspect_case(case, rules, *, live):
     candidates = evidence["candidates"]
     require(len(candidates) == len(expected), "candidate count differs")
     for candidate, raw in zip(candidates, output["results"]):
-        require(candidate["provider"] == PROVIDER and candidate["providerVersion"] == version["output"] and candidate["ruleId"] == raw["check_id"] and candidate["claim"] == raw["extra"]["message"] and candidate["denominatorDigest"] == inventory["digest"] and candidate["verdict"] == "UNADJUDICATED" and candidate["adjudicationRequired"] is True, "candidate meaning differs")
+        require(candidate["provider"] == PROVIDER and candidate["providerVersion"] == version["output"] and candidate["ruleId"] == raw["check_id"] and candidate["claim"] == raw["extra"]["message"] and candidate["denominatorDigest"] == denominator_digest and candidate["verdict"] == "UNADJUDICATED" and candidate["adjudicationRequired"] is True, "candidate meaning differs")
         # Native JSON's optional extra.dataflow_trace is not admitted by this
         # normalizer. This corpus qualifies rule/path/line pattern candidates;
         # it does not qualify trace extraction or interfile reachability.
@@ -158,7 +180,7 @@ def inspect_case(case, rules, *, live):
         require(candidate["binding"] is None and candidate["candidateClass"] == "sast" and candidate["evidenceRefs"] == [] and candidate["uncertainty"] == ["A pattern match is never a vulnerability by itself; adjudication is required."], "candidate assurance scope differs")
     result = case["actualProviderResult"]
     require(result["provider"] == PROVIDER and result["applicable"] is True and result["complete"] is True and result["findings"] == result["coverage_gaps"] == result["degradation"] == [], "native provider incomplete")
-    require(result["coverage"] == {"denominator_digest": inventory["digest"], "expected": 1, "examined": 1, "gaps": []}, "provider frozen coverage differs")
+    require(result["coverage"] == {"denominator_digest": denominator_digest, "expected": 1, "examined": 1, "gaps": []}, "provider frozen coverage differs")
     require(result["details"]["candidates"] == candidates and result["details"]["executionReceipt"] == augmented and "availability" not in result["details"], "native artifact route differs")
     missing = case["missingContextProviderResult"]
     require(missing["complete"] is False and missing["findings"] == [] and missing["details"]["analysis"]["coverageGaps"] == [{"kind": "opengrep-evidence-missing"}], "missing context incorrectly complete")
@@ -181,7 +203,7 @@ def validate_record(root, row, *, live=True):
     require(bound["rules"] == {"path": RULE, "bytes": rules.decode(), "digest": digest(rules)}, "rules source differs")
     require([case["caseId"] for case in row["cases"]] == list(FIXTURES), "case inventory differs")
     for case in row["cases"]:
-        inspect_case(case, rules, live=live)
+        inspect_case(case, rules, spec["selector"], live=live)
     return {"provider": PROVIDER, "stage": "candidate", "scope": SCOPE, "status": "pass",
             "productionQualification": False, "selfProducerQualification": False,
             "qualificationDigest": row["qualificationDigest"], "metrics": row["metrics"]}

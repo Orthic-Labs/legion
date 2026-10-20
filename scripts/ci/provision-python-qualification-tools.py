@@ -8,9 +8,10 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import platform
 import re
+import tempfile
 import stat
 import struct
 import subprocess
@@ -50,7 +51,7 @@ def within(path, root):
     return path == root or root in path.parents
 
 
-def resolve_link_chain(path, observed, allow_missing=False):
+def resolve_link_chain(path, observed, allow_missing=False, exclusions=()):
     """Resolve components & seal every link hop, including parent aliases."""
     require(path.is_absolute(), "absolute runtime path required")
     current = Path("/")
@@ -64,6 +65,7 @@ def resolve_link_chain(path, observed, allow_missing=False):
             current = current.parent
             continue
         current = current / part
+        require(not any(within(current, root) for root in exclusions), "runtime alias enters excluded path: " + str(current))
         try:
             mode = current.lstat().st_mode
         except FileNotFoundError:
@@ -87,13 +89,40 @@ def resolve_link_chain(path, observed, allow_missing=False):
 
 
 def snapshot(roots, exclusions, sealed_links=None, absent=None):
+    witness = {"qualificationEligible": False, "candidates": absent or [], "enrolledLinks": sealed_links or {}, "hops": {}}
+    try:
+        return _snapshot(roots, exclusions, sealed_links, absent, witness)
+    except (ValueError, OSError) as error:
+        witness["error"] = str(error)
+        print("RUNTIME_CLOSURE_FAILURE_WITNESS " + canonical(witness).decode(), file=sys.stderr)
+        raise
+
+
+def _snapshot(roots, exclusions, sealed_links, absent, witness):
     """Complete files, every link hop, & absent native search candidates."""
     files, links = {}, {}
     declared = [Path(p) for p in roots]
     omitted = [Path(p) for p in exclusions]
+    replay = sealed_links is not None
     sealed_links = {} if sealed_links is None else sealed_links
     absent = [] if absent is None else absent
     require(absent == sorted(set(absent)), "noncanonical absent-path list")
+
+    # Only hops traversed by explicitly enrolled, still-absent candidates may
+    # justify external aliases without retained descendants. Prefixes grant nothing.
+    absent_hops = {}
+    for name in absent:
+        path = Path(name)
+        require(path.is_absolute() and not os.path.lexists(path), "native search candidate appeared: " + name)
+        candidate_hops = {}
+        witness["candidate"] = name
+        witness["hops"][name] = candidate_hops
+        resolve_link_chain(path, candidate_hops, allow_missing=True, exclusions=omitted)
+        for key, raw in candidate_hops.items():
+            require(not replay or sealed_links.get(key) == raw,
+                    "absent candidate alias changed: " + canonical({"candidate": name, "alias": key, "target": raw, "hops": candidate_hops}).decode())
+            absent_hops[key] = raw
+        links.update(candidate_hops)
 
     def visit(path):
         if any(within(path, p) for p in omitted):
@@ -101,7 +130,7 @@ def snapshot(roots, exclusions, sealed_links=None, absent=None):
         mode = path.lstat().st_mode
         key = path.relative_to("/").as_posix()
         if stat.S_ISLNK(mode):
-            target = resolve_link_chain(path, links)
+            target = resolve_link_chain(path, links, exclusions=omitted)
             require(any(within(target, root) for root in declared), "runtime symlink escapes bound runtime: " + str(path))
             require(not any(within(target, p) for p in omitted), "runtime symlink enters excluded global packages: " + str(path))
         elif stat.S_ISREG(mode):
@@ -113,25 +142,133 @@ def snapshot(roots, exclusions, sealed_links=None, absent=None):
             raise ValueError("unsupported runtime entry: " + str(path))
 
     for root in declared:
-        require(root.is_absolute() and resolve_link_chain(root, links) == root, "runtime root must be canonical: " + str(root))
+        require(root.is_absolute() and resolve_link_chain(root, links, exclusions=omitted) == root, "runtime root must be canonical: " + str(root))
         visit(root)
     # Native load commands can name aliases outside canonical runtime roots.
     # Seal these nodes too; no intermediate directory alias remains unobserved.
     for key, raw in sealed_links.items():
+        witness.update(alias=key, target=raw)
         path = Path("/") / key
         require(path.is_symlink() and os.readlink(path) == raw, "sealed runtime alias changed: " + str(path))
-        target = resolve_link_chain(path, links)
-        require(any(within(target, root) for root in declared) or (target.is_dir() and any(within(Path("/") / name, target) for name in files)), "runtime alias target has no bound descendant: " + str(path))
-    for name in absent:
-        path = Path(name)
-        require(path.is_absolute() and not os.path.lexists(path), "native search candidate appeared: " + name)
-        resolve_link_chain(path, links, allow_missing=True)
+        witnessed = absent_hops.get(key) == raw
+        target = resolve_link_chain(path, links, allow_missing=witnessed, exclusions=omitted)
+        retained = any(within(target, root) for root in declared) or (target.is_dir() and any(within(Path("/") / name, target) for name in files))
+        require(retained or (witnessed and not any(within(path, root) for root in declared)),
+                "runtime alias target has no bound descendant or exact absent hop: " + canonical({"alias": key, "target": raw, "hops": absent_hops, "candidates": absent}).decode())
     # A caller replays this function with the full returned map. Exact equality
     # then detects a new, removed, or retargeted intermediate hop.
     for key, raw in sealed_links.items():
         require(links.get(key) == raw, "sealed alias omitted")
+    require(not replay or links == sealed_links, "runtime alias closure changed")
     value = {"absent": absent, "files": dict(sorted(files.items())), "links": dict(sorted(links.items())), "roots": roots}
     return dict(value, digest=digest_bytes(canonical(value)), root="/", exclusions=exclusions)
+
+
+def validate_runtime_aliases(runtime):
+    """Check retained manifest topology without consulting unrelated host paths."""
+    roots = [PurePosixPath(root) for root in runtime["roots"]]
+    exclusions = [PurePosixPath(root) for root in runtime["exclusions"]]
+    links, files, absent = runtime["links"], runtime["files"], runtime["absent"]
+    require(absent == sorted(set(absent)), "noncanonical absent-path list")
+
+    def resolve(name, observed):
+        current, pending, hops = PurePosixPath("/"), name.split("/"), 0
+        while pending:
+            part = pending.pop(0)
+            if part in ("", "."): continue
+            if part == "..":
+                require(current != PurePosixPath("/"), "runtime alias escapes filesystem root")
+                current = current.parent; continue
+            current /= part
+            require(not any(within(current, root) for root in exclusions), "runtime alias enters excluded path")
+            key = current.relative_to("/").as_posix()
+            if key in links:
+                hops += 1; require(hops <= 40, "runtime alias cycle")
+                raw = links[key]
+                observed[key] = raw
+                current = PurePosixPath("/") if raw.startswith("/") else current.parent
+                pending = raw.split("/") + pending
+        return current
+
+    for key, raw in links.items():
+        require(key and not key.startswith("/") and str(PurePosixPath(key)) == key and ".." not in PurePosixPath(key).parts and isinstance(raw, str) and raw, "invalid runtime alias")
+    absent_hops = {}
+    for name in absent:
+        require(PurePosixPath(name).is_absolute(), "relative absent candidate")
+        final = resolve(name, absent_hops)
+        require(final.relative_to("/").as_posix() not in files, "absent candidate names retained file")
+    for key, raw in links.items():
+        path = PurePosixPath("/") / key
+        final = resolve(str(path), {})
+        inside = any(within(final, root) for root in roots)
+        retained = any(within(PurePosixPath("/") / name, final) for name in files)
+        witnessed = absent_hops.get(key) == raw
+        require(inside if any(within(path, root) for root in roots) else inside or retained or witnessed,
+                "runtime alias has no retained target or exact absent hop: " + canonical({"candidates": absent, "alias":key,"target":raw,"hops":absent_hops}).decode())
+    return absent_hops
+
+
+def absent_alias_controls(private_root):
+    """Bounded filesystem controls, invoked only by managed CI provisioning."""
+    require(os.environ.get("GITHUB_ACTIONS") == "true", "absent alias controls are CI-only")
+    with tempfile.TemporaryDirectory(prefix="absent-alias-controls-", dir=private_root) as directory:
+        base = Path(directory).resolve(strict=True)
+        require(within(base, private_root) and base != private_root, "control escaped private root")
+        retained, host = base / "retained", base / "host"
+        retained.mkdir(); host.mkdir()
+        (retained / "bound").write_bytes(b"retained\n")
+        destination, alternate = host / "unbound", host / "alternate"
+        destination.mkdir(); alternate.mkdir()
+        first, second = host / "first", host / "second"
+        first.symlink_to("second", target_is_directory=True)
+        second.symlink_to("unbound", target_is_directory=True)
+        candidate = str(first / "missing.dylib")
+        roots, absent = [str(retained)], [candidate]
+        baseline = snapshot(roots, [], absent=absent)
+        first_key, second_key = (p.relative_to("/").as_posix() for p in (first, second))
+        require(baseline["links"] == {first_key: "second", second_key: "unbound"}, "control did not traverse exactly two hops")
+        require(snapshot(roots, [], baseline["links"], absent) == baseline, "two-hop absent replay differs")
+        require(validate_runtime_aliases(baseline) == baseline["links"], "manifest two-hop replay differs")
+        rows = [{"control": "two-hop-absent", "matched": True}]
+
+        def refusal(name, links=None):
+            declared = baseline["links"] if links is None else links
+            try:
+                snapshot(roots, [], declared, absent)
+            except (ValueError, OSError) as error:
+                if links is not None:
+                    altered = dict(baseline, links=declared)
+                    try:
+                        validate_runtime_aliases(altered)
+                    except ValueError:
+                        pass
+                    else:
+                        raise ValueError("manifest alias negative control accepted: " + name)
+                rows.append({"control": name, "matched": True, "error": str(error), "candidate": candidate,
+                             "hops": declared, "qualificationEligible": False})
+            else:
+                raise ValueError("absent alias negative control accepted: " + name)
+
+        for name, alias in [("unrelated-alias", host / "unrelated"), ("prefix-neighbor-alias", host / "first-neighbor")]:
+            alias.symlink_to("unbound", target_is_directory=True)
+            refusal(name, dict(baseline["links"], **{alias.relative_to("/").as_posix(): "unbound"}))
+            alias.unlink()
+        first.unlink()
+        refusal("removed-hop")
+        first.symlink_to("second", target_is_directory=True)
+        omitted = dict(baseline["links"]); del omitted[first_key]
+        refusal("omitted-enrolled-hop", omitted)
+        destination.rmdir(); destination.symlink_to("alternate", target_is_directory=True)
+        refusal("inserted-hop")
+        destination.unlink(); destination.mkdir()
+        second.unlink(); second.symlink_to("alternate", target_is_directory=True)
+        refusal("retargeted-hop")
+        second.unlink(); second.symlink_to("unbound", target_is_directory=True)
+        (destination / "missing.dylib").write_bytes(b"appeared\n")
+        refusal("candidate-appearance")
+        (destination / "missing.dylib").unlink()
+        require(snapshot(roots, [], baseline["links"], absent) == baseline, "restored control differs")
+        print("ABSENT_RUNTIME_ALIAS_CONTROLS " + canonical({"qualificationEligible": False, "controls": rows}).decode())
 
 
 MACHO_MAGICS = {bytes.fromhex(x) for x in ("feedface", "cefaedfe", "feedfacf", "cffaedfe", "cafebabe", "bebafeca", "cafebabf", "bfbafeca")}
@@ -319,6 +456,7 @@ def main():
     tool = next(w for w in wheels if w["name"] == args.tool)
     require(tool["version"] == VERSIONS[args.tool], "unpinned tool")
     requested.mkdir(parents=True, mode=0o700)
+    absent_alias_controls(requested)
     wheelhouse = requested / "wheels"
     wheelhouse.mkdir(mode=0o700)
     for wheel in wheels:
