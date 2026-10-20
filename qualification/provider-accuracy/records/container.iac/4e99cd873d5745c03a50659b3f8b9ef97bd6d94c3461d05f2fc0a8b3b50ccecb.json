@@ -1,0 +1,1021 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "container.iac",
+  "stage": "finding",
+  "outputKind": "findings",
+  "scope": "Constructed missing non-root USER & clean Dockerfile controls; actual Trivy config observations, not deployment rendering; no image/runtime/container-escape or population-accuracy claim; not production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:335b23b3a8570469200a2103f384d2455c5101605553215e0e0cb787858eba2e",
+    "harnessPath": "engine/crates/legion-audit/tests/trivy_iac_accuracy.rs",
+    "harnessDigest": "sha256:c99d9cbdc2446a9304da3128f8a1305a5383b1bab04f5081ba4c4df39b62b23b",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 277,
+      "digest": "sha256:a08c5c80b16494ae9623403f1233a8a4e8c5a8d69ea81f41f03567431b1d5824"
+    },
+    "embeddedChecks": {
+      "trivyVersion": "0.69.3",
+      "trivySource": "https://github.com/aquasecurity/trivy/tree/v0.69.3",
+      "officialRelease": {
+        "url": "https://github.com/aquasecurity/trivy/releases/tag/v0.69.3",
+        "macOS-ARM64": {
+          "archive": "trivy_0.69.3_macOS-ARM64.tar.gz",
+          "digest": "sha256:a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5"
+        },
+        "macOS-64bit": {
+          "archive": "trivy_0.69.3_macOS-64bit.tar.gz",
+          "digest": "sha256:fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e"
+        },
+        "provisioningScope": "Host verifies official archive before provisioning; actual executable digest is measured separately"
+      },
+      "goMod": {
+        "url": "https://raw.githubusercontent.com/aquasecurity/trivy/v0.69.3/go.mod",
+        "digest": "sha256:425a4f4d49b480d35b043639b3ee6a8e0ae9e9d3916e75e33e6ab5c37ccf8f19",
+        "bytes": 27232
+      },
+      "checksModule": "github.com/aquasecurity/trivy-checks",
+      "checksCommit": "79d27547baf5b14407d99ff3d90a46b235ed96dd",
+      "checksVersion": "v1.12.2-0.20251219190323-79d27547baf5",
+      "controlRules": [
+        {
+          "path": "checks/docker/root_user.rego",
+          "ruleId": "DS-0002",
+          "avdId": "AVD-DS-0002",
+          "digest": "sha256:ffc33d1985ef79c30d2e74858a5955231007536b597a8cac75d94da03d86926d",
+          "bytes": 1893
+        },
+        {
+          "path": "checks/docker/no_healthcheck_instruction.rego",
+          "ruleId": "DS-0026",
+          "avdId": "AVD-DS-0026",
+          "digest": "sha256:c9b7059fb85ada3b2bd6ac8835fdd0bb065a2a81a7888c643c9f9ce877552461",
+          "bytes": 810
+        },
+        {
+          "path": "checks/docker/latest_tag.rego",
+          "ruleId": "DS-0001",
+          "avdId": "AVD-DS-0001",
+          "digest": "sha256:363a828451f00d364c53db583fb3973d9415adbb0f44d1018307ad157b5bd7f0",
+          "bytes": 3629
+        }
+      ],
+      "identityLimit": "Official release executable digest plus pinned source identities; native databaseDigest is version-derived, not an extracted bundle hash"
+    }
+  },
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "trivy-iac-planted",
+      "source": {
+        "path": "Dockerfile",
+        "bytes": "FROM alpine:3.21\nHEALTHCHECK CMD [\"/bin/true\"]\nCMD [\"/bin/true\"]\n",
+        "digest": "sha256:c24b11155f47660615dbe5d90786a67a2bcc2f8b6f17cde324d82656cd1b8b58"
+      },
+      "expected": [
+        "DS-0002|Dockerfile"
+      ],
+      "actual": [
+        "DS-0002|Dockerfile"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "coverage": {
+        "denominator_digest": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "planDigest": "sha256:8a744eabfc60441bcec941b11a0a83d1810f60e1e1b1359145d18a213ed2ae9b",
+      "inventoryDigest": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+      "embeddedChecks": {
+        "trivyVersion": "0.69.3",
+        "trivySource": "https://github.com/aquasecurity/trivy/tree/v0.69.3",
+        "officialRelease": {
+          "url": "https://github.com/aquasecurity/trivy/releases/tag/v0.69.3",
+          "macOS-ARM64": {
+            "archive": "trivy_0.69.3_macOS-ARM64.tar.gz",
+            "digest": "sha256:a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5"
+          },
+          "macOS-64bit": {
+            "archive": "trivy_0.69.3_macOS-64bit.tar.gz",
+            "digest": "sha256:fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e"
+          },
+          "provisioningScope": "Host verifies official archive before provisioning; actual executable digest is measured separately"
+        },
+        "goMod": {
+          "url": "https://raw.githubusercontent.com/aquasecurity/trivy/v0.69.3/go.mod",
+          "digest": "sha256:425a4f4d49b480d35b043639b3ee6a8e0ae9e9d3916e75e33e6ab5c37ccf8f19",
+          "bytes": 27232
+        },
+        "checksModule": "github.com/aquasecurity/trivy-checks",
+        "checksCommit": "79d27547baf5b14407d99ff3d90a46b235ed96dd",
+        "checksVersion": "v1.12.2-0.20251219190323-79d27547baf5",
+        "controlRules": [
+          {
+            "path": "checks/docker/root_user.rego",
+            "ruleId": "DS-0002",
+            "avdId": "AVD-DS-0002",
+            "digest": "sha256:ffc33d1985ef79c30d2e74858a5955231007536b597a8cac75d94da03d86926d",
+            "bytes": 1893
+          },
+          {
+            "path": "checks/docker/no_healthcheck_instruction.rego",
+            "ruleId": "DS-0026",
+            "avdId": "AVD-DS-0026",
+            "digest": "sha256:c9b7059fb85ada3b2bd6ac8835fdd0bb065a2a81a7888c643c9f9ce877552461",
+            "bytes": 810
+          },
+          {
+            "path": "checks/docker/latest_tag.rego",
+            "ruleId": "DS-0001",
+            "avdId": "AVD-DS-0001",
+            "digest": "sha256:363a828451f00d364c53db583fb3973d9415adbb0f44d1018307ad157b5bd7f0",
+            "bytes": 3629
+          }
+        ],
+        "identityLimit": "Official release executable digest plus pinned source identities; native databaseDigest is version-derived, not an extracted bundle hash"
+      },
+      "expectedNativeDatabaseLabel": {
+        "digest": "sha256:02edb6672ab5df20e844a59c431137fb3d681a4e84d7470a20007a0d64bf075d",
+        "kind": "shipped-producer-formula-version-derived-not-extracted-bundle-hash"
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/trivy",
+        "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+        "version": {
+          "rawVersionOutput": "Version: 0.69.3\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/5abef245dfe047bfe90352f16f34f46e29eba824a1e63137401098fc2052d417",
+            "requestId": "legion-audit/5abef245dfe047bfe90352f16f34f46e29eba824a1e63137401098fc2052d417",
+            "providerId": "container.iac",
+            "planId": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+            "taskId": "trivy-version-probe",
+            "policyId": "legion-real-trivy-iac-benchmark-v1",
+            "policy": {
+              "id": "legion-real-trivy-iac-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:d0b08402f267842a6fc8b897fad49704ae668f019f4d1d0c9f346b9eba4bf69b",
+              "allowed": true,
+              "reason": "exact real Trivy IaC fixture"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run/version-sandbox/audit-df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/trivy",
+                  "--version"
+                ],
+                "output": "Version: 0.69.3\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792482810031,
+              "completedAtMs": 1792482810108,
+              "durationMs": 77
+            },
+            "stdout": {
+              "path": "legion-audit/5abef245dfe047bfe90352f16f34f46e29eba824a1e63137401098fc2052d417/stdout",
+              "digest": "sha256:ea3524df63e27041d6b4a85932a889aba8e3cd3cc2ee01404822111bb673e17c",
+              "bytes": 16,
+              "immutable": true,
+              "raw": "Version: 0.69.3\n"
+            },
+            "stderr": {
+              "path": "legion-audit/5abef245dfe047bfe90352f16f34f46e29eba824a1e63137401098fc2052d417/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-real-trivy-iac-benchmark-v1",
+        "version": 1,
+        "provider": "container.iac",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run",
+        "inventoryDigest": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/trivy",
+          "digest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "config",
+          "--format",
+          "json",
+          "--quiet",
+          "--skip-check-update",
+          "--skip-version-check",
+          "."
+        ],
+        "versionArgv": [
+          "--version"
+        ],
+        "embeddedChecks": {
+          "trivyVersion": "0.69.3",
+          "trivySource": "https://github.com/aquasecurity/trivy/tree/v0.69.3",
+          "officialRelease": {
+            "url": "https://github.com/aquasecurity/trivy/releases/tag/v0.69.3",
+            "macOS-ARM64": {
+              "archive": "trivy_0.69.3_macOS-ARM64.tar.gz",
+              "digest": "sha256:a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5"
+            },
+            "macOS-64bit": {
+              "archive": "trivy_0.69.3_macOS-64bit.tar.gz",
+              "digest": "sha256:fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e"
+            },
+            "provisioningScope": "Host verifies official archive before provisioning; actual executable digest is measured separately"
+          },
+          "goMod": {
+            "url": "https://raw.githubusercontent.com/aquasecurity/trivy/v0.69.3/go.mod",
+            "digest": "sha256:425a4f4d49b480d35b043639b3ee6a8e0ae9e9d3916e75e33e6ab5c37ccf8f19",
+            "bytes": 27232
+          },
+          "checksModule": "github.com/aquasecurity/trivy-checks",
+          "checksCommit": "79d27547baf5b14407d99ff3d90a46b235ed96dd",
+          "checksVersion": "v1.12.2-0.20251219190323-79d27547baf5",
+          "controlRules": [
+            {
+              "path": "checks/docker/root_user.rego",
+              "ruleId": "DS-0002",
+              "avdId": "AVD-DS-0002",
+              "digest": "sha256:ffc33d1985ef79c30d2e74858a5955231007536b597a8cac75d94da03d86926d",
+              "bytes": 1893
+            },
+            {
+              "path": "checks/docker/no_healthcheck_instruction.rego",
+              "ruleId": "DS-0026",
+              "avdId": "AVD-DS-0026",
+              "digest": "sha256:c9b7059fb85ada3b2bd6ac8835fdd0bb065a2a81a7888c643c9f9ce877552461",
+              "bytes": 810
+            },
+            {
+              "path": "checks/docker/latest_tag.rego",
+              "ruleId": "DS-0001",
+              "avdId": "AVD-DS-0001",
+              "digest": "sha256:363a828451f00d364c53db583fb3973d9415adbb0f44d1018307ad157b5bd7f0",
+              "bytes": 3629
+            }
+          ],
+          "identityLimit": "Official release executable digest plus pinned source identities; native databaseDigest is version-derived, not an extracted bundle hash"
+        },
+        "scanEnvironmentNames": [
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE"
+        ],
+        "scanEnvironmentDigest": "sha256:7f3c77c42f6bf4ed738e54c3d8cd89f34579f33e9acc50fc543f67d0768df2c1",
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/5abef245dfe047bfe90352f16f34f46e29eba824a1e63137401098fc2052d417",
+          "providerId": "container.iac",
+          "planId": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+          "taskId": "trivy-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run/version-sandbox/audit-df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run/version-sandbox/audit-df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/dbe13f569d72746f03d8d56864ecb6bc17f0b7fd7a08e6236fee43b5a7e9ec80",
+          "providerId": "container.iac",
+          "planId": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+          "taskId": "trivy",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run/legion-audit-security-93489-1792482810116162000-0/sandbox/audit-df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "config",
+            "--format",
+            "json",
+            "--quiet",
+            "--skip-check-update",
+            "--skip-version-check",
+            "."
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/run/legion-audit-security-93489-1792482810116162000-0/sandbox/audit-df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-true-93489-1792482806363598000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": "trivy",
+        "version": "Version: 0.69.3",
+        "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+        "argv": [
+          "trivy",
+          "config",
+          "--format",
+          "json",
+          "--quiet",
+          "--skip-check-update",
+          "--skip-version-check",
+          "."
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/dbe13f569d72746f03d8d56864ecb6bc17f0b7fd7a08e6236fee43b5a7e9ec80",
+        "policyId": "legion-real-trivy-iac-benchmark-v1",
+        "stdoutDigest": "sha256:a48dc55d824c97ca73b50795b9a7ec4491bc7339097dcd45b62cbc0a99476d25",
+        "stdoutBytes": 1559,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE"
+        ],
+        "evidence": "tool",
+        "mode": "tool"
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "container.iac",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [
+          {
+            "id": "sha256:d67ed14721c504a950dfa31df08073cf3378590ee0adc6d7d76fbd6ccaf7245e",
+            "severity": "HIGH"
+          }
+        ],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "fail",
+            "complete": true,
+            "denominator": {
+              "kind": "infrastructure-resources",
+              "expected": 2,
+              "examined": 2
+            },
+            "sourceCoverage": {
+              "selectedCount": 1,
+              "validatedPaths": [
+                "Dockerfile"
+              ],
+              "complete": true,
+              "frozenDenominatorDigest": "sha256:4d0dd961863b5894bb688a4aae0274fbf592118cea232190b709d7182fa91976",
+              "frozenDenominatorCount": 1
+            },
+            "configObservationCount": 1,
+            "findings": [
+              {
+                "schemaVersion": 1,
+                "kind": "legion-iac-finding",
+                "provider": "container-iac.trivy",
+                "providerVersion": "Version: 0.69.3",
+                "ruleId": "DS-0002",
+                "severity": "HIGH",
+                "target": "Dockerfile",
+                "resource": null,
+                "message": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
+                "toolDb": null,
+                "evidenceRefs": []
+              }
+            ],
+            "coverageGaps": []
+          },
+          "candidates": [],
+          "findingEvidence": {
+            "sha256:d67ed14721c504a950dfa31df08073cf3378590ee0adc6d7d76fbd6ccaf7245e": {
+              "provider": "container.iac",
+              "ruleId": "DS-0002",
+              "path": "Dockerfile",
+              "line": 1,
+              "excerptDigest": "sha256:50c5bd96f5754399a161c0d10003fd86b58e76cc346d1332d33b79d26810d316",
+              "redacted": true
+            }
+          },
+          "findingLocations": {
+            "sha256:d67ed14721c504a950dfa31df08073cf3378590ee0adc6d7d76fbd6ccaf7245e": [
+              "Dockerfile:1"
+            ]
+          },
+          "findingMessages": {
+            "sha256:d67ed14721c504a950dfa31df08073cf3378590ee0adc6d7d76fbd6ccaf7245e": "container.iac reported DS-0002 at Dockerfile:1"
+          },
+          "findingTitles": {
+            "sha256:d67ed14721c504a950dfa31df08073cf3378590ee0adc6d7d76fbd6ccaf7245e": "DS-0002"
+          },
+          "producer": {
+            "tool": "trivy",
+            "version": "Version: 0.69.3",
+            "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+            "argv": [
+              "trivy",
+              "config",
+              "--format",
+              "json",
+              "--quiet",
+              "--skip-check-update",
+              "--skip-version-check",
+              "."
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/dbe13f569d72746f03d8d56864ecb6bc17f0b7fd7a08e6236fee43b5a7e9ec80",
+            "policyId": "legion-real-trivy-iac-benchmark-v1",
+            "stdoutDigest": "sha256:a48dc55d824c97ca73b50795b9a7ec4491bc7339097dcd45b62cbc0a99476d25",
+            "stdoutBytes": 1559,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:df3def19def6e321c53bab38252d0d3313cfe8800b18d2bbbea3179875978f14",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE"
+            ],
+            "evidence": "tool",
+            "mode": "tool"
+          }
+        }
+      },
+      "receiptRetentionLimit": "Qualification record retains reduced actual scan receipt, normalized findings & stdout digest. Full actual scan receipt & raw streams are separately retained in private native diagnostics before state checks. Full actual version receipt retained; no scanner line accuracy claim."
+    },
+    {
+      "caseId": "trivy-iac-clean",
+      "source": {
+        "path": "Dockerfile",
+        "bytes": "FROM alpine:3.21\nHEALTHCHECK CMD [\"/bin/true\"]\nUSER 1000\nCMD [\"/bin/true\"]\n",
+        "digest": "sha256:beff3a4e65855b3d5584656745c7e4147938de3e5588976d6526fbe16b2d79b7"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "coverage": {
+        "denominator_digest": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "planDigest": "sha256:65f3b5b65466a3d0913dfb373e095504083af0a19c8ede1e1252d8696cd5b8ce",
+      "inventoryDigest": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+      "embeddedChecks": {
+        "trivyVersion": "0.69.3",
+        "trivySource": "https://github.com/aquasecurity/trivy/tree/v0.69.3",
+        "officialRelease": {
+          "url": "https://github.com/aquasecurity/trivy/releases/tag/v0.69.3",
+          "macOS-ARM64": {
+            "archive": "trivy_0.69.3_macOS-ARM64.tar.gz",
+            "digest": "sha256:a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5"
+          },
+          "macOS-64bit": {
+            "archive": "trivy_0.69.3_macOS-64bit.tar.gz",
+            "digest": "sha256:fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e"
+          },
+          "provisioningScope": "Host verifies official archive before provisioning; actual executable digest is measured separately"
+        },
+        "goMod": {
+          "url": "https://raw.githubusercontent.com/aquasecurity/trivy/v0.69.3/go.mod",
+          "digest": "sha256:425a4f4d49b480d35b043639b3ee6a8e0ae9e9d3916e75e33e6ab5c37ccf8f19",
+          "bytes": 27232
+        },
+        "checksModule": "github.com/aquasecurity/trivy-checks",
+        "checksCommit": "79d27547baf5b14407d99ff3d90a46b235ed96dd",
+        "checksVersion": "v1.12.2-0.20251219190323-79d27547baf5",
+        "controlRules": [
+          {
+            "path": "checks/docker/root_user.rego",
+            "ruleId": "DS-0002",
+            "avdId": "AVD-DS-0002",
+            "digest": "sha256:ffc33d1985ef79c30d2e74858a5955231007536b597a8cac75d94da03d86926d",
+            "bytes": 1893
+          },
+          {
+            "path": "checks/docker/no_healthcheck_instruction.rego",
+            "ruleId": "DS-0026",
+            "avdId": "AVD-DS-0026",
+            "digest": "sha256:c9b7059fb85ada3b2bd6ac8835fdd0bb065a2a81a7888c643c9f9ce877552461",
+            "bytes": 810
+          },
+          {
+            "path": "checks/docker/latest_tag.rego",
+            "ruleId": "DS-0001",
+            "avdId": "AVD-DS-0001",
+            "digest": "sha256:363a828451f00d364c53db583fb3973d9415adbb0f44d1018307ad157b5bd7f0",
+            "bytes": 3629
+          }
+        ],
+        "identityLimit": "Official release executable digest plus pinned source identities; native databaseDigest is version-derived, not an extracted bundle hash"
+      },
+      "expectedNativeDatabaseLabel": {
+        "digest": "sha256:02edb6672ab5df20e844a59c431137fb3d681a4e84d7470a20007a0d64bf075d",
+        "kind": "shipped-producer-formula-version-derived-not-extracted-bundle-hash"
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/trivy",
+        "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+        "version": {
+          "rawVersionOutput": "Version: 0.69.3\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/764655b949a31d4f1061d85f898fdfc8f2067dfb0366ab9d7cb3fb51afa09e11",
+            "requestId": "legion-audit/764655b949a31d4f1061d85f898fdfc8f2067dfb0366ab9d7cb3fb51afa09e11",
+            "providerId": "container.iac",
+            "planId": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+            "taskId": "trivy-version-probe",
+            "policyId": "legion-real-trivy-iac-benchmark-v1",
+            "policy": {
+              "id": "legion-real-trivy-iac-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:c4bc549d1311c0aace944c001e6a34fd81a15c5e6a143f0fb8120504e648bda3",
+              "allowed": true,
+              "reason": "exact real Trivy IaC fixture"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run/version-sandbox/audit-16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/trivy",
+                  "--version"
+                ],
+                "output": "Version: 0.69.3\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792482816659,
+              "completedAtMs": 1792482816741,
+              "durationMs": 82
+            },
+            "stdout": {
+              "path": "legion-audit/764655b949a31d4f1061d85f898fdfc8f2067dfb0366ab9d7cb3fb51afa09e11/stdout",
+              "digest": "sha256:ea3524df63e27041d6b4a85932a889aba8e3cd3cc2ee01404822111bb673e17c",
+              "bytes": 16,
+              "immutable": true,
+              "raw": "Version: 0.69.3\n"
+            },
+            "stderr": {
+              "path": "legion-audit/764655b949a31d4f1061d85f898fdfc8f2067dfb0366ab9d7cb3fb51afa09e11/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-real-trivy-iac-benchmark-v1",
+        "version": 1,
+        "provider": "container.iac",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run",
+        "inventoryDigest": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/trivy",
+          "digest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "config",
+          "--format",
+          "json",
+          "--quiet",
+          "--skip-check-update",
+          "--skip-version-check",
+          "."
+        ],
+        "versionArgv": [
+          "--version"
+        ],
+        "embeddedChecks": {
+          "trivyVersion": "0.69.3",
+          "trivySource": "https://github.com/aquasecurity/trivy/tree/v0.69.3",
+          "officialRelease": {
+            "url": "https://github.com/aquasecurity/trivy/releases/tag/v0.69.3",
+            "macOS-ARM64": {
+              "archive": "trivy_0.69.3_macOS-ARM64.tar.gz",
+              "digest": "sha256:a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5"
+            },
+            "macOS-64bit": {
+              "archive": "trivy_0.69.3_macOS-64bit.tar.gz",
+              "digest": "sha256:fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e"
+            },
+            "provisioningScope": "Host verifies official archive before provisioning; actual executable digest is measured separately"
+          },
+          "goMod": {
+            "url": "https://raw.githubusercontent.com/aquasecurity/trivy/v0.69.3/go.mod",
+            "digest": "sha256:425a4f4d49b480d35b043639b3ee6a8e0ae9e9d3916e75e33e6ab5c37ccf8f19",
+            "bytes": 27232
+          },
+          "checksModule": "github.com/aquasecurity/trivy-checks",
+          "checksCommit": "79d27547baf5b14407d99ff3d90a46b235ed96dd",
+          "checksVersion": "v1.12.2-0.20251219190323-79d27547baf5",
+          "controlRules": [
+            {
+              "path": "checks/docker/root_user.rego",
+              "ruleId": "DS-0002",
+              "avdId": "AVD-DS-0002",
+              "digest": "sha256:ffc33d1985ef79c30d2e74858a5955231007536b597a8cac75d94da03d86926d",
+              "bytes": 1893
+            },
+            {
+              "path": "checks/docker/no_healthcheck_instruction.rego",
+              "ruleId": "DS-0026",
+              "avdId": "AVD-DS-0026",
+              "digest": "sha256:c9b7059fb85ada3b2bd6ac8835fdd0bb065a2a81a7888c643c9f9ce877552461",
+              "bytes": 810
+            },
+            {
+              "path": "checks/docker/latest_tag.rego",
+              "ruleId": "DS-0001",
+              "avdId": "AVD-DS-0001",
+              "digest": "sha256:363a828451f00d364c53db583fb3973d9415adbb0f44d1018307ad157b5bd7f0",
+              "bytes": 3629
+            }
+          ],
+          "identityLimit": "Official release executable digest plus pinned source identities; native databaseDigest is version-derived, not an extracted bundle hash"
+        },
+        "scanEnvironmentNames": [
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE"
+        ],
+        "scanEnvironmentDigest": "sha256:7f3c77c42f6bf4ed738e54c3d8cd89f34579f33e9acc50fc543f67d0768df2c1",
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/764655b949a31d4f1061d85f898fdfc8f2067dfb0366ab9d7cb3fb51afa09e11",
+          "providerId": "container.iac",
+          "planId": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+          "taskId": "trivy-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run/version-sandbox/audit-16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run/version-sandbox/audit-16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/35a5254e2d8389badc77442463322b4eae18e684e57a451036f116b0fce72aa8",
+          "providerId": "container.iac",
+          "planId": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+          "taskId": "trivy",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run/legion-audit-security-93489-1792482816751478000-1/sandbox/audit-16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "config",
+            "--format",
+            "json",
+            "--quiet",
+            "--skip-check-update",
+            "--skip-version-check",
+            "."
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/run/legion-audit-security-93489-1792482816751478000-1/sandbox/audit-16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/trivy",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-trivy-iac-false-93489-1792482813068424000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": "trivy",
+        "version": "Version: 0.69.3",
+        "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+        "argv": [
+          "trivy",
+          "config",
+          "--format",
+          "json",
+          "--quiet",
+          "--skip-check-update",
+          "--skip-version-check",
+          "."
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/35a5254e2d8389badc77442463322b4eae18e684e57a451036f116b0fce72aa8",
+        "policyId": "legion-real-trivy-iac-benchmark-v1",
+        "stdoutDigest": "sha256:2bb12c7e3ddcc51ef077f9e40223c262e14f173d6e2290f7c9a41f1395b88d0d",
+        "stdoutBytes": 417,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE"
+        ],
+        "evidence": "tool",
+        "mode": "tool"
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "container.iac",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "complete": true,
+            "denominator": {
+              "kind": "infrastructure-resources",
+              "expected": 2,
+              "examined": 2
+            },
+            "sourceCoverage": {
+              "selectedCount": 1,
+              "validatedPaths": [
+                "Dockerfile"
+              ],
+              "complete": true,
+              "frozenDenominatorDigest": "sha256:53053628a94507407e617ce36f3033aafd647d4517f4c3a2cd82a6c7bba9beea",
+              "frozenDenominatorCount": 1
+            },
+            "configObservationCount": 1,
+            "findings": [],
+            "coverageGaps": []
+          },
+          "candidates": [],
+          "producer": {
+            "tool": "trivy",
+            "version": "Version: 0.69.3",
+            "executableDigest": "sha256:bef08bfe2644873257d75585dd62e1409eb5c53403075c4bc83d54279dffd812",
+            "argv": [
+              "trivy",
+              "config",
+              "--format",
+              "json",
+              "--quiet",
+              "--skip-check-update",
+              "--skip-version-check",
+              "."
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/35a5254e2d8389badc77442463322b4eae18e684e57a451036f116b0fce72aa8",
+            "policyId": "legion-real-trivy-iac-benchmark-v1",
+            "stdoutDigest": "sha256:2bb12c7e3ddcc51ef077f9e40223c262e14f173d6e2290f7c9a41f1395b88d0d",
+            "stdoutBytes": 417,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:16d5055487a8937636b2b4cb285c2471213877bba1f2a89eb4145ef73adc4889",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE"
+            ],
+            "evidence": "tool",
+            "mode": "tool"
+          }
+        }
+      },
+      "receiptRetentionLimit": "Qualification record retains reduced actual scan receipt, normalized findings & stdout digest. Full actual scan receipt & raw streams are separately retained in private native diagnostics before state checks. Full actual version receipt retained; no scanner line accuracy claim."
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:4e99cd873d5745c03a50659b3f8b9ef97bd6d94c3461d05f2fc0a8b3b50ccecb"
+}
