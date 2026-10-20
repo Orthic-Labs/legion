@@ -119,7 +119,7 @@ def source_files(root):
 BUILD_SCRIPT = 'tsc --project tsconfig.build.json --outDir "$LEGION_AUDIT_JS_OUTPUT" --listEmittedFiles --pretty false --noCheck --sourceMap --inlineSources'
 TEST_SCRIPT = 'node --test --test-reporter=tap test.mjs'
 TEST_PREAMBLE = "import test from 'node:test';\nimport path from 'node:path';\nimport {pathToFileURL} from 'node:url';\nconst output = process.env.LEGION_AUDIT_JS_OUTPUT;\nif (!output || !path.isAbsolute(output)) throw new Error('explicit scratch output required');\n"
-TEST_BLOCK = re.compile(r"\{\n  const loaded = await import\(pathToFileURL\(path.join\(output, '([A-Za-z0-9_./-]+)'\)\).href\);\n  test\('([A-Za-z0-9_./-]+)', \{plan:1\}, \(t\) => \{\n    t.assert.strictEqual\(\(loaded.answer \|\| loaded.default.answer\)\(\),(-?[0-9]+)\);\n  \}\);\n\}\n")
+TEST_BLOCK = re.compile(r"\{\n  const loaded = await import\(pathToFileURL\(path.join\(output, '([A-Za-z0-9_./-]+)'\)\).href\);\n  test\('([A-Za-z0-9_./-]+)', \{plan:1\}, \((?:/\*\* @type \{import\('node:test'\)\.TestContext\} \*/ )?t\) => \{\n    t.assert.strictEqual\(\(loaded.answer \|\| loaded.default.answer\)\(\),(-?[0-9]+)\);\n  \}\);\n\}\n")
 
 
 def assertion_module(text):
@@ -357,7 +357,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
         raw_descriptor(install[key], "original install " + key)
     same(prep["enrolledRuntime"], enrollment["runtime"], "preinstall enrolled tree differs from verified enrollment")
     generated = prep["generatedFiles"]
-    same(set(generated), set(GENERATED_INSTALL_FILES), "installer generated-file set differs")
+    same(sorted(set(generated)), sorted(GENERATED_INSTALL_FILES), "installer generated-file set differs")
     pin = parsed(read(source(root, INPUTS), 16 * 1024 * 1024))
     declared_bins = {}
     for package_id, package in pin["packages"].items():
@@ -380,12 +380,12 @@ def validate_preparation(case, enrollment, root, expected_files, control):
             require(data == pinned_shim(cwd, target),
                     "pnpm shim bytes differ from pinned cmd-shim body/target")
     package_map = parsed(generated_raw["node_modules/.package-map.json"])
-    same(set(package_map), {"packages"}, "pnpm package map keys differ")
-    same(package_map["packages"], {".": {"url": "../..", "dependencies": {parsed(expected_files["package.json"].encode())["name"]: "."}}}, "pnpm package map includes unexpected package/dependency")
+    same(sorted(package_map), ["packages"], "pnpm package map keys differ")
+    same(package_map["packages"], {".": {"url": "..", "dependencies": {parsed(expected_files["package.json"].encode())["name"]: "."}}}, "pnpm package map includes unexpected package/dependency")
     state = parsed(generated_raw["node_modules/.pnpm-workspace-state-v1.json"])
     # ignorePnpmfile skips main's hook loader; pnpmfile/configDependencies remain
     # undefined & JSON.stringify omits both fields in the pinned state writer.
-    same(set(state), {"lastValidatedTimestamp", "projects", "settings", "filteredInstall"}, "pnpm workspace state keys differ")
+    same(sorted(state), sorted(["lastValidatedTimestamp", "projects", "settings", "filteredInstall"]), "pnpm workspace state keys differ")
     require(type(state["lastValidatedTimestamp"]) is int and state["lastValidatedTimestamp"] >= 0, "pnpm workspace timestamp malformed")
     manifest = parsed(expected_files["package.json"].encode())
     same(state["projects"], {str(cwd): {"name": manifest["name"], "version": manifest["version"]}}, "pnpm workspace projects differ")
@@ -487,7 +487,8 @@ def sdk(row, policy, expected_state=None, expected_allowed=True, sandbox=True):
     task = req["taskId"]
     request(policy, req, task, sandbox)
     require(receipt["requestId"] == req["requestId"] and receipt["planId"] == req["planId"]
-            and receipt["providerId"] == PROVIDER and receipt["policyId"] == "audit" and receipt["taskId"] == task,
+            and receipt["providerId"] == PROVIDER and policy["id"] == POLICY
+            and receipt["policyId"] in ({POLICY} if expected_allowed else {POLICY, "audit-native-owner-admission-v1"}) and receipt["taskId"] == task,
             "SDK receipt request binding differs")
     decision = receipt["policy"]
     require(decision["allowed"] is expected_allowed and decision["version"] == 1, "actual admission outcome differs")
@@ -572,7 +573,8 @@ def validate_record(root, row, enrollment=None, live=False):
         require(re.fullmatch(r"sha256:[0-9a-f]{64}", case["planDigest"])
                 and frozen["id"] == PROVIDER and frozen["version"] == spec["providerVersion"]
                 and frozen["configuration"]["denominatorCount"] == len(entries)
-                and frozen["configuration"]["denominatorDigest"] == digest(encoded([inventory["digest"], spec["selector"], entries])),
+                and (frozen["configuration"]["denominatorDigest"] == inventory["digest"] if spec["selector"] == {"op": "always"}
+                     else frozen["configuration"]["denominatorDigest"] == digest(encoded([inventory["digest"], spec["selector"], entries]))),
                 "original frozen provider denominator differs")
         policy = case["policyDefinition"]
         require(set(policy) == {"id", "version", "scope", "provider", "planDigest", "cwd", "node", "runtime", "wrapper", "profile", "environment", "environmentAllowlist", "absentSandboxControl", "commands", "timeoutMs", "stdoutLimit", "stderrLimit"}
@@ -600,10 +602,10 @@ def validate_record(root, row, enrollment=None, live=False):
             require(set(case["localRuntimeAfter"]["files"]) == set(baseline["files"]), "tamper changed file denominator")
             actual = case["localRuntimeAfter"]["files"][changed]
             raw = bytes(case["toolTamperBytes"])
-            suffix = b"\n// changed after official enrollment\n"
-            require(raw.endswith(suffix) and digest(raw[:-len(suffix)]) == baseline["files"][changed]["digest"]
+            tamper_suffix = b"\n// changed after official enrollment\n"
+            require(raw.endswith(tamper_suffix) and digest(raw[:-len(tamper_suffix)]) == baseline["files"][changed]["digest"]
                     and len(raw) == actual["bytes"] and digest(raw) == actual["digest"]
-                    and actual["bytes"] == baseline["files"][changed]["bytes"] + len(suffix), "tool tamper bytes differ")
+                    and actual["bytes"] == baseline["files"][changed]["bytes"] + len(tamper_suffix), "tool tamper bytes differ")
             after_runtime["files"][changed] = actual
         same(case["localRuntimeAfter"], after_runtime, "unexpected package writes")
         home = str(absolute(policy["profile"]["path"]).parent.parent / "cache/javascript-home")
@@ -706,10 +708,15 @@ def validate_record(root, row, enrollment=None, live=False):
                 local = snapshots["before"]["localPackages"]
                 require(local["root"] == str(cwd / "node_modules"), "local package root differs")
                 expected_local_files = {p.removeprefix("node_modules/"): {k: v[k] for k in ("digest", "bytes")} for p, v in enrollment["runtime"]["files"].items()}
+                # The sealed closure truthfully includes pnpm's generated install files (shims, package map,
+                # workspace state); their bytes are validated above against the pinned shim bodies.
+                generated_install = case["enrollmentPreparation"]["generatedFiles"]
+                require(set(generated_install) == set(GENERATED_INSTALL_FILES), "generated install closure differs")
+                expected_local_files.update({p.removeprefix("node_modules/"): {k: v[k] for k in ("digest", "bytes")} for p, v in generated_install.items()})
                 expected_local_links = {p.removeprefix("node_modules/"): v for p, v in enrollment["runtime"]["links"].items()}
                 same(local["files"], expected_local_files, "production package source closure differs")
                 same(local["links"], expected_local_links, "production package aliases differ")
-                expected_local_directories = sorted(p.removeprefix("node_modules/") if p != "node_modules" else "" for p in enrollment["runtime"]["directories"])
+                expected_local_directories = sorted({p.removeprefix("node_modules/") if p != "node_modules" else "" for p in enrollment["runtime"]["directories"]} | {".bin"})
                 same(local["directories"], expected_local_directories, "production package directory closure differs")
                 require(local["nodes"] == len(expected_local_files) + len(expected_local_links) + len(expected_local_directories)
                         and local["bytes"] == sum(v["bytes"] for v in expected_local_files.values()), "production package node/byte accounting differs")

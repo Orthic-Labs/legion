@@ -1525,7 +1525,9 @@ fn real_javascript_sdk_accuracy() {
             .collect();
         let mut record = json!({"schema":"legion-javascript-sdk-accuracy/1","kind":"javascript-sdk-known-answer","provider":JS,"providerVersion":registry_spec(JS)["providerVersion"],"productionQualification":false,"qualificationEligible":true,"claimScope":"known-answer-fixture-cases","executionPath":"native-sdk-frozen-plan-self-sourced-code","modelCalls":0,"admissionScope":"exact fixture policy only; genuine default-owner refusal control; no production owner admission","binding":binding(JS,&fixture_sources),"requiredContract":{"extensions":config.extensions,"variants":config.variants,"tools":config.tools,"requiredContext":config.required_context},"enrollment":{"file":"enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},"executedScope":["type","lint","build","test"],"cases":cases,"metrics":{"cases":CONTROLS.len(),"matched":CONTROLS.len(),"mismatched":0,"wholeProviderQualified":false,"boundedSdkAccuracyQualified":true},"runtimeLimitations":[{"scope":"package-manager","supported":"explicit pnpm@exact-version only; other/missing declarations remain gaps"},{"scope":"build","supported":"closed native tsc emit grammar; source maps bind every emitted selected input"},{"scope":"test","supported":"closed planned Node assertions over pure answer module forms; arbitrary sources/scripts remain gaps"},{"scope":"project-effects","mode":"authenticated deny-network; project writes allowed; default owner admission denied"}]});
         record["qualificationDigest"] = json!(digest(&canonical_bytes(&record)));
-        let bytes = serde_json::to_vec_pretty(&record).unwrap();
+        // Compact: the 24-case record embeds the sealed package closure per tool; pretty-printing
+        // pushed it past the validator's 256 MiB retained-input cap (417 MiB observed locally).
+        let bytes = serde_json::to_vec(&record).unwrap();
         fs::write(retained.join("code_javascript.json"), &bytes).unwrap();
         println!(
             "JAVASCRIPT_SDK_ACCURACY_ARTIFACT {}",

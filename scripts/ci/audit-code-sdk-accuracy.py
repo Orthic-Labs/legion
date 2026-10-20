@@ -492,7 +492,7 @@ def validate_case(root, case, toolchain, enrollment, live):
     frozen = case["frozenProvider"]
     require(is_digest(case["planDigest"]) and frozen["id"] == "code.go" and frozen["version"] == spec["providerVersion"]
             and frozen["configuration"]["denominatorCount"] == len(entries)
-            and frozen["configuration"]["denominatorDigest"] == digest(encoded([inv["digest"], spec["selector"], entries])), "original frozen provider denominator differs")
+            and (frozen["configuration"]["denominatorDigest"] == inv["digest"] if spec["selector"] == {"op": "always"} else frozen["configuration"]["denominatorDigest"] == digest(encoded([inv["digest"], spec["selector"], entries]))), "original frozen provider denominator differs")
     policy = case["policyDefinition"]
     keys(policy, ("id", "version", "scope", "provider", "planDigest", "cwd", "toolIdentities", "wrapper", "profile", "commands", "vulnerabilityCommand", "environment", "environmentAllowlist", "absentSandboxControl", "timeoutMs", "stdoutLimit", "stderrLimit"))
     cwd = absolute(policy["cwd"])
