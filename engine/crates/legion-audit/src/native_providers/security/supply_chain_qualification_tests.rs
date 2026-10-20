@@ -134,43 +134,56 @@ fn provider(inventory: &InventoryEnvelope) -> AuditProvider {
         .unwrap();
     serde_json::from_value(json!({"id":ID,"version":"1.0.0","role":"security","phase":"source","lensIds":[],"dependencies":[],"kind":"typed-external-project-tool","configuration":{"selector":{"op":"always"},"denominatorDigest":denominator.digest,"denominatorCount":denominator.entries.len(),"supplyChainLicensePolicy":license_policy()},"bounds":{},"cleanClaim":"evidence-only","benchmarkStatus":"unproven","benchmarkRequiredForCleanClaim":false,"qualificationDigest":null,"required":false})).unwrap()
 }
-fn sources(root: &Path) -> Value {
-    fn walk(root: &Path, path: &Path, out: &mut BTreeMap<String, String>) {
-        assert!(!path.is_symlink());
-        if path.is_dir() {
-            for row in fs::read_dir(path).unwrap() {
-                walk(root, &row.unwrap().path(), out);
-            }
-        } else {
-            let relative = path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/");
-            if relative.starts_with(
-                "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/",
-            ) && relative.ends_with(".json")
-            {
-                let name = path.file_stem().unwrap().to_string_lossy();
-                if name.len() == 64 && name.chars().all(|c| c.is_ascii_hexdigit()) {
-                    return;
-                }
-            }
-            let bytes = fs::read(path).unwrap();
-            let hash = if relative == "src/registry/providers.json" {
-                let mut registry: Value = serde_json::from_slice(&bytes).unwrap();
-                for spec in registry["providers"].as_array_mut().unwrap() {
-                    for key in ["status", "qualificationDigest", "qualification"] {
-                        spec["benchmark"].as_object_mut().unwrap().remove(key);
-                    }
-                }
-                digest(&canonical(&registry))
-            } else {
-                digest(&bytes)
-            };
-            out.insert(relative, hash);
-        }
+fn generated_session_provenance(relative: &Path) -> bool {
+    let Ok(tail) = relative
+        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance")
+    else {
+        return false;
+    };
+    let mut components = tail.components();
+    let Some(std::path::Component::Normal(name)) = components.next() else {
+        return false;
+    };
+    if components.next().is_some() {
+        return false;
     }
+    name.to_str()
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|name| {
+            name.len() == 64
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+}
+fn source_binding_walk(root: &Path, path: &Path, out: &mut BTreeMap<String, String>) {
+    assert!(!path.is_symlink());
+    if path.is_dir() {
+        for row in fs::read_dir(path).unwrap() {
+            source_binding_walk(root, &row.unwrap().path(), out);
+        }
+    } else {
+        let relative = path.strip_prefix(root).unwrap();
+        if path.is_file() && generated_session_provenance(relative) {
+            return;
+        }
+        let relative = relative.to_string_lossy().replace('\\', "/");
+        let bytes = fs::read(path).unwrap();
+        let hash = if relative == "src/registry/providers.json" {
+            let mut registry: Value = serde_json::from_slice(&bytes).unwrap();
+            for spec in registry["providers"].as_array_mut().unwrap() {
+                for key in ["status", "qualificationDigest", "qualification"] {
+                    spec["benchmark"].as_object_mut().unwrap().remove(key);
+                }
+            }
+            digest(&canonical(&registry))
+        } else {
+            digest(&bytes)
+        };
+        out.insert(relative, hash);
+    }
+}
+fn sources(root: &Path) -> Value {
     let mut files = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
@@ -196,9 +209,100 @@ fn sources(root: &Path) -> Value {
         "scripts/ci/right-git-ci.sh",
         ".github/workflows/ci.yml",
     ] {
-        walk(root, &root.join(path), &mut files);
+        source_binding_walk(root, &root.join(path), &mut files);
     }
     json!({"files":files,"digest":digest(&canonical(&json!(files))),"registryRawDigest":digest(&fs::read(root.join("src/registry/providers.json")).unwrap())})
+}
+#[test]
+fn source_collector_excludes_only_regular_exact_session_receipts() {
+    let base = std::env::var_os("RUNNER_TEMP")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("/Volumes/D/scratch"));
+    let root = base.join(format!(
+        "legion-supply-chain-source-receipts-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let source = "engine/crates/legion-audit/src";
+    let prefix = format!("{source}/.audit/arcane/receipts/session-provenance");
+    let receipt = format!("{prefix}/{}.json", "a".repeat(64));
+    let protected = [
+        format!("{source}/actual.rs"),
+        format!("{prefix}/{}.json", "C".repeat(64)),
+        format!("{prefix}/{}.json", "g".repeat(64)),
+        format!("{prefix}/{}.json", "a".repeat(63)),
+        format!("{prefix}/{}.json", "a".repeat(65)),
+        format!("{prefix}/{}.json.bak", "a".repeat(64)),
+        format!("{prefix}/nested/{}.json", "a".repeat(64)),
+        format!(
+            "{source}/nested/.audit/arcane/receipts/session-provenance/{}.json",
+            "a".repeat(64)
+        ),
+        format!("{prefix}/{}.json/child.rs", "b".repeat(64)),
+    ];
+    for relative in std::iter::once(&receipt).chain(protected.iter()) {
+        let path = root.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"original source\n").unwrap();
+    }
+    let collect = || {
+        let mut files = BTreeMap::new();
+        source_binding_walk(&root, &root.join(source), &mut files);
+        files
+    };
+    let before = collect();
+    assert!(!before.contains_key(&receipt));
+    for relative in &protected {
+        assert!(!generated_session_provenance(Path::new(relative)));
+        assert_eq!(before.get(relative), Some(&digest(b"original source\n")));
+    }
+    fs::write(root.join(&receipt), b"new generated receipt\n").unwrap();
+    assert_eq!(collect(), before);
+    for relative in &protected {
+        fs::write(root.join(relative), b"changed source\n").unwrap();
+        assert_eq!(collect().get(relative), Some(&digest(b"changed source\n")));
+        assert_ne!(collect().get(relative), before.get(relative));
+        fs::write(root.join(relative), b"original source\n").unwrap();
+    }
+    let alias = root.join(source).join(format!(
+        r".audit\arcane\receipts\session-provenance\{}.json",
+        "a".repeat(64)
+    ));
+    assert!(!generated_session_provenance(
+        alias.strip_prefix(&root).unwrap()
+    ));
+    fs::write(&alias, b"literal-backslash source\n").unwrap();
+    // Display keys retain existing normalization; exclusion uses actual components.
+    assert_eq!(
+        collect().get(&receipt),
+        Some(&digest(b"literal-backslash source\n"))
+    );
+    fs::write(&alias, b"changed literal-backslash source\n").unwrap();
+    assert_eq!(
+        collect().get(&receipt),
+        Some(&digest(b"changed literal-backslash source\n"))
+    );
+    assert_ne!(
+        collect().get(&receipt),
+        Some(&digest(b"literal-backslash source\n"))
+    );
+    fs::remove_file(&alias).unwrap();
+    let path = root.join(&receipt);
+    fs::remove_file(&path).unwrap();
+    for target in [
+        root.join(&protected[0]),
+        root.join(format!("{prefix}/{}.json", "b".repeat(64))),
+    ] {
+        std::os::unix::fs::symlink(target, &path).unwrap();
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| collect())).is_err());
+        fs::remove_file(&path).unwrap();
+    }
+    fs::write(&path, b"generated receipt restored\n").unwrap();
+    assert!(!collect().contains_key(&receipt));
+    fs::remove_dir_all(root).unwrap();
 }
 fn tools(tool: &Path, archive: &Path) -> Value {
     json!({"syft":{"path":tool,"digest":digest(&fs::read(tool).unwrap())},"launcher":{"path":"/usr/bin/sandbox-exec","digest":digest(&fs::read("/usr/bin/sandbox-exec").unwrap())},"archive":{"path":archive,"digest":digest(&fs::read(archive).unwrap())}})

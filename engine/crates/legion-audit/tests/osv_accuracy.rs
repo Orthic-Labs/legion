@@ -79,9 +79,18 @@ fn spec() -> (ProviderSpec, Value) {
 }
 // Generated host receipts are runtime evidence, never implementation inputs.
 // Match one exact repository-relative directory & lowercase SHA-256 JSON name.
-fn generated_session_provenance(relative: &str) -> bool {
+fn generated_session_provenance(relative: &Path) -> bool {
+    // Match filesystem components before display separator normalization.
+    if relative.parent()
+        != Some(Path::new(
+            "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance",
+        ))
+    {
+        return false;
+    }
     relative
-        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
+        .file_name()
+        .and_then(|name| name.to_str())
         .and_then(|name| name.strip_suffix(".json"))
         .is_some_and(|name| {
             name.len() == 64
@@ -94,10 +103,10 @@ fn generated_session_provenance(relative: &str) -> bool {
 #[test]
 fn source_binding_receipt_exclusion_is_exact() {
     let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
-    assert!(generated_session_provenance(&format!(
+    assert!(generated_session_provenance(Path::new(&format!(
         "{prefix}{}.json",
         "0123456789abcdef".repeat(4)
-    )));
+    ))));
     for relative in [
         "engine/crates/legion-audit/src/mod.rs".to_owned(),
         "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
@@ -109,31 +118,138 @@ fn source_binding_receipt_exclusion_is_exact() {
         format!("nested/{prefix}{}.json", "a".repeat(64)),
     ] {
         assert!(
-            !generated_session_provenance(&relative),
+            !generated_session_provenance(Path::new(&relative)),
             "unexpected exclusion: {relative}"
         );
     }
 }
 
-fn source_binding(root: &Path) -> BTreeMap<String, String> {
-    fn visit(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
-        assert!(!path.is_symlink());
-        if path.is_dir() {
-            for child in fs::read_dir(path).unwrap() {
-                visit(root, &child.unwrap().path(), files);
-            }
-        } else {
-            assert!(path.is_file());
-            let relative = path
-                .strip_prefix(root)
+fn source_binding_walk(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) {
+    assert!(!path.is_symlink(), "source binding refuses symlinks");
+    if path.is_file() && generated_session_provenance(path.strip_prefix(root).unwrap()) {
+        return;
+    }
+    if path.is_dir() {
+        for entry in fs::read_dir(path).unwrap() {
+            source_binding_walk(root, &entry.unwrap().path(), files);
+        }
+    } else {
+        assert!(path.is_file());
+        files.insert(
+            path.strip_prefix(root)
                 .unwrap()
                 .to_string_lossy()
-                .replace('\\', "/");
-            if !generated_session_provenance(&relative) {
-                files.insert(relative, digest(&fs::read(path).unwrap()));
-            }
+                .replace('\\', "/"),
+            digest(&fs::read(path).unwrap()),
+        );
+    }
+}
+
+#[test]
+fn source_binding_excludes_only_regular_generated_session_receipts() {
+    fn snapshot(root: &Path) -> BTreeMap<String, String> {
+        let mut files = BTreeMap::new();
+        source_binding_walk(
+            root,
+            &root.join("engine/crates/legion-audit/src"),
+            &mut files,
+        );
+        files
+    }
+    struct Scratch(PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).unwrap();
         }
     }
+    let base = std::env::var_os("RUNNER_TEMP")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/Volumes/D/scratch"));
+    let scratch = Scratch(base.join(format!(
+        "legion-source-binding-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )));
+    let root = &scratch.0;
+    let source = root.join("engine/crates/legion-audit/src/mod.rs");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(&source, b"original source\n").unwrap();
+    let baseline = snapshot(root);
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    let receipt = root.join(format!("{prefix}{}.json", "0123456789abcdef".repeat(4)));
+    fs::create_dir_all(receipt.parent().unwrap()).unwrap();
+    fs::write(&receipt, b"generated receipt\n").unwrap();
+    assert_eq!(snapshot(root), baseline);
+    fs::write(&receipt, b"changed generated receipt\n").unwrap();
+    assert_eq!(snapshot(root), baseline);
+
+    // A matching directory remains traversed; only regular files are excluded.
+    fs::remove_file(&receipt).unwrap();
+    fs::create_dir(&receipt).unwrap();
+    let nested = receipt.join("nested.rs");
+    fs::write(&nested, b"retained nested source\n").unwrap();
+    let nested_key = nested
+        .strip_prefix(root)
+        .unwrap()
+        .to_string_lossy()
+        .replace('\\', "/");
+    assert_eq!(
+        snapshot(root).get(&nested_key),
+        Some(&digest(b"retained nested source\n"))
+    );
+    fs::write(&nested, b"changed nested source\n").unwrap();
+    assert_eq!(
+        snapshot(root).get(&nested_key),
+        Some(&digest(b"changed nested source\n"))
+    );
+    fs::remove_dir_all(&receipt).unwrap();
+
+    for relative in [
+        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.JSON", "a".repeat(64)),
+        format!("{prefix}{}.json", "A".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}{}.json", "a".repeat(65)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("engine/crates/legion-audit/src/nested/.audit/arcane/receipts/session-provenance/{}.json", "a".repeat(64)),
+        // Unix backslashes are literal filesystem name bytes.
+        format!("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance\\{}.json", "a".repeat(64)),
+        format!("engine/crates/legion-audit/src/.audit\\arcane/receipts/session-provenance/{}.json", "a".repeat(64)),
+        format!(r"engine/crates/legion-audit/src/.audit\arcane\receipts\session-provenance\{}.json", "a".repeat(64)),
+    ] {
+        let path = root.join(&relative);
+        assert!(!generated_session_provenance(path.strip_prefix(root).unwrap()));
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, b"retained source\n").unwrap();
+        let key = relative.replace('\\', "/");
+        let before = snapshot(root);
+        assert_eq!(before.len(), baseline.len() + 1, "{relative}");
+        assert_eq!(before.get(&key), Some(&digest(b"retained source\n")), "{relative}");
+        fs::write(&path, b"changed retained source\n").unwrap();
+        let changed = snapshot(root);
+        assert_eq!(changed.get(&key), Some(&digest(b"changed retained source\n")), "{relative}");
+        assert_ne!(changed.get(&key), before.get(&key), "{relative}");
+        fs::remove_file(path).unwrap();
+    }
+    assert_eq!(snapshot(root), baseline);
+    fs::write(&source, b"changed implementation\n").unwrap();
+    assert_ne!(snapshot(root), baseline);
+
+    // Symlink refusal precedes even an exactly matching receipt filename.
+    std::os::unix::fs::symlink(&source, &receipt).unwrap();
+    assert!(std::panic::catch_unwind(|| snapshot(root)).is_err());
+    fs::remove_file(&receipt).unwrap();
+    std::os::unix::fs::symlink(source.parent().unwrap(), &receipt).unwrap();
+    assert!(std::panic::catch_unwind(|| snapshot(root)).is_err());
+    fs::remove_file(&receipt).unwrap();
+}
+
+fn source_binding(root: &Path) -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
@@ -153,7 +269,7 @@ fn source_binding(root: &Path) -> BTreeMap<String, String> {
         SOURCE,
         "engine/crates/legion-audit/tests/fixtures/osv",
     ] {
-        visit(root, &root.join(path), &mut files);
+        source_binding_walk(root, &root.join(path), &mut files);
     }
     files
 }

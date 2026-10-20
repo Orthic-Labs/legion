@@ -87,40 +87,21 @@ fn bound_file(root: &Path, path: &Path) -> Value {
 
 // Generated host receipts are runtime evidence, never implementation inputs.
 // Match one exact repository-relative directory & lowercase SHA-256 JSON name.
-fn generated_session_provenance(relative: &str) -> bool {
-    relative
-        .strip_prefix("engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/")
-        .and_then(|name| name.strip_suffix(".json"))
-        .is_some_and(|name| {
-            name.len() == 64
-                && name
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        })
-}
-
-#[test]
-fn source_binding_receipt_exclusion_is_exact() {
-    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
-    assert!(generated_session_provenance(&format!(
-        "{prefix}{}.json",
-        "0123456789abcdef".repeat(4)
-    )));
-    for relative in [
-        "engine/crates/legion-audit/src/mod.rs".to_owned(),
-        "engine/crates/legion-audit/src/nested/.audit/anything.rs".to_owned(),
-        format!("{prefix}{}.rs", "a".repeat(64)),
-        format!("{prefix}{}.json", "A".repeat(64)),
-        format!("{prefix}{}.json", "g".repeat(64)),
-        format!("{prefix}{}.json", "a".repeat(63)),
-        format!("{prefix}nested/{}.json", "a".repeat(64)),
-        format!("nested/{prefix}{}.json", "a".repeat(64)),
-    ] {
-        assert!(
-            !generated_session_provenance(&relative),
-            "unexpected exclusion: {relative}"
-        );
-    }
+fn generated_session_provenance(relative: &Path) -> bool {
+    relative.parent()
+        == Some(Path::new(
+            "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance",
+        ))
+        && relative
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".json"))
+            .is_some_and(|name| {
+                name.len() == 64
+                    && name
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            })
 }
 
 fn bind_tree(root: &Path, path: &Path, out: &mut Vec<Value>) {
@@ -130,18 +111,128 @@ fn bind_tree(root: &Path, path: &Path, out: &mut Vec<Value>) {
             !path.is_symlink(),
             "benchmark source binding refuses symlinks"
         );
+        if path.is_file() && generated_session_provenance(path.strip_prefix(root).unwrap()) {
+            continue;
+        }
         if path.is_dir() {
             bind_tree(root, &path, out);
         } else {
-            let relative = path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/");
-            if !generated_session_provenance(&relative) {
-                out.push(bound_file(root, &path));
-            }
+            out.push(bound_file(root, &path));
         }
+    }
+}
+
+#[test]
+fn source_binding_receipt_exclusion_preserves_other_bytes() {
+    struct Scratch(std::path::PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+    let scratch_base = std::env::var_os("RUNNER_TEMP")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(if cfg!(windows) {
+                r"D:\scratch"
+            } else {
+                "/Volumes/D/scratch"
+            })
+        });
+    let scratch = Scratch(scratch_base.join(format!(
+        "shared-bind-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )));
+    fs::create_dir(&scratch.0).unwrap();
+    let root = &scratch.0;
+    let snapshot = || {
+        let mut bound = Vec::new();
+        bind_tree(root, root, &mut bound);
+        bound.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
+        bound
+    };
+    let source = root.join("engine/crates/legion-audit/src/mod.rs");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(&source, "pub fn retained() {}\n").unwrap();
+    let baseline = snapshot();
+    assert_eq!(baseline.len(), 1);
+    let prefix = "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+    let receipt = root.join(format!("{prefix}{}.json", "a".repeat(64)));
+    fs::create_dir_all(receipt.parent().unwrap()).unwrap();
+    fs::write(&receipt, "generated receipt one").unwrap();
+    assert_eq!(snapshot(), baseline);
+    fs::write(&receipt, "generated receipt two").unwrap();
+    assert_eq!(snapshot(), baseline);
+
+    // A matching directory still contributes every descendant.
+    let matching_directory = root.join(format!("{prefix}{}.json", "b".repeat(64)));
+    fs::create_dir(&matching_directory).unwrap();
+    let child = matching_directory.join("retained.rs");
+    fs::write(&child, "directory child one").unwrap();
+    let directory_binding = snapshot();
+    assert_eq!(directory_binding.len(), baseline.len() + 1);
+    fs::write(&child, "directory child two").unwrap();
+    assert_ne!(snapshot(), directory_binding);
+    fs::remove_dir_all(&matching_directory).unwrap();
+    assert_eq!(snapshot(), baseline);
+
+    for relative in [
+        format!("{prefix}{}.rs", "a".repeat(64)),
+        format!("{prefix}{}.JSON", "c".repeat(64)),
+        format!("{prefix}{}.json", "C".repeat(64)),
+        format!("{prefix}{}.json", "g".repeat(64)),
+        format!("{prefix}{}.json", "a".repeat(63)),
+        format!("{prefix}{}.json", "a".repeat(65)),
+        format!("{prefix}nested/{}.json", "a".repeat(64)),
+        format!("nested/{prefix}{}.json", "a".repeat(64)),
+    ] {
+        let path = root.join(&relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "retained near-match one").unwrap();
+        let bound = snapshot();
+        assert_eq!(bound.len(), baseline.len() + 1, "{relative}");
+        fs::write(&path, "retained near-match two").unwrap();
+        assert_ne!(snapshot(), bound, "{relative}");
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[cfg(unix)]
+    for relative in [
+        format!(
+            r"engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance\{}.json",
+            "a".repeat(64)
+        ),
+        format!(
+            r"engine\crates/legion-audit/src/.audit/arcane/receipts/session-provenance/{}.json",
+            "a".repeat(64)
+        ),
+        format!(
+            r"engine\crates\legion-audit\src\.audit\arcane\receipts\session-provenance\{}.json",
+            "a".repeat(64)
+        ),
+    ] {
+        let path = root.join(&relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "literal backslash one").unwrap();
+        let bound = snapshot();
+        assert_eq!(bound.len(), baseline.len() + 1, "{relative}");
+        fs::write(&path, "literal backslash two").unwrap();
+        assert_ne!(snapshot(), bound, "{relative}");
+        fs::remove_file(&path).unwrap();
+    }
+
+    fs::write(&source, "pub fn retained_changed() {}\n").unwrap();
+    assert_ne!(snapshot(), baseline);
+    #[cfg(unix)]
+    {
+        fs::remove_file(&receipt).unwrap();
+        std::os::unix::fs::symlink(&source, &receipt).unwrap();
+        assert!(std::panic::catch_unwind(snapshot).is_err());
+        fs::remove_file(&receipt).unwrap();
     }
 }
 
