@@ -1,0 +1,91 @@
+{
+  "schema": "legion-file-provider-accuracy/1",
+  "provider": "legacy.quality.tool-coverage",
+  "providerVersion": "2.0.0",
+  "stage": "fact-output",
+  "scope": "exact native fact output on named constructed controls; not a population accuracy estimate",
+  "executionPath": "native-sdk-frozen-plan-file-only",
+  "modelCalls": 0,
+  "coverageState": "complete",
+  "measurementKind": "fact-output",
+  "measurementStatus": "pass",
+  "requiredDependencies": {
+    "productionDispatch": "exercised",
+    "positiveControl": "exercised",
+    "absenceControl": "exercised",
+    "scope": "named native facts; exact full object equality",
+    "externalExecution": "not-required"
+  },
+  "qualificationEligible": true,
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:d8895070a833892f3e3063491bf64cfb6b7398b90794afe5d84dbaa8819650de",
+    "implementationDigest": "sha256:552b3d969d65cd47578f921b7ad44eaea250ef61b28bafb3eb872d25e51fb131",
+    "implementationFileCount": 498,
+    "implementationRoots": [
+      "engine/crates/legion-audit/src",
+      "engine/crates/legion-audit/tests",
+      "engine/crates/legion-provider-sdk/src",
+      "engine/crates/legion-contracts/src",
+      "engine/crates/legion-rules/src",
+      "engine/crates/legion-effects/src",
+      "src/registry/rules",
+      "src/registry/controls"
+    ],
+    "fixtures": [
+      {
+        "path": "engine/crates/legion-audit/tests/legacy_file_accuracy.rs",
+        "digest": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933"
+      }
+    ]
+  },
+  "factCases": [
+    {
+      "caseId": "tool-coverage-cargo-manifest-and-source",
+      "controlKind": "positive",
+      "expected": {
+        "files": [
+          "Cargo.toml",
+          "src/lib.rs"
+        ],
+        "manifestCount": 1,
+        "sourceCount": 1
+      },
+      "actual": {
+        "files": [
+          "Cargo.toml",
+          "src/lib.rs"
+        ],
+        "manifestCount": 1,
+        "sourceCount": 1
+      },
+      "matched": true
+    },
+    {
+      "caseId": "tool-coverage-docs-only-zero-counts",
+      "controlKind": "absence",
+      "expected": {
+        "files": [
+          "README.md"
+        ],
+        "manifestCount": 0,
+        "sourceCount": 0
+      },
+      "actual": {
+        "files": [
+          "README.md"
+        ],
+        "manifestCount": 0,
+        "sourceCount": 0
+      },
+      "matched": true
+    }
+  ],
+  "metrics": {
+    "cases": 2,
+    "matched": 2,
+    "mismatched": 0
+  },
+  "status": "pass",
+  "qualificationDigest": "sha256:5818351669e579dbdced7f3ed8465408d905822880670022f32546be5994eb9c"
+}

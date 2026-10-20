@@ -1,0 +1,75 @@
+{
+  "schema": "legion-file-provider-accuracy/1",
+  "provider": "legacy.quality.negative-space",
+  "providerVersion": "2.0.0",
+  "stage": "finding",
+  "scope": "constructed planted & clean controls; not a population accuracy estimate",
+  "executionPath": "native-sdk-frozen-plan-file-only",
+  "modelCalls": 0,
+  "coverageState": "complete",
+  "measurementKind": "finding",
+  "measurementStatus": "pass",
+  "requiredDependencies": {
+    "productionDispatch": "exercised",
+    "positiveControl": "exercised",
+    "negativeControl": "exercised",
+    "scope": "named corpus; no claim about untested rules",
+    "externalExecution": "not-required"
+  },
+  "qualificationEligible": true,
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:0adc4e6f9a97cb8016ccf4f906ef9281ede0152dfe85560ec3dffb748b7c883f",
+    "implementationDigest": "sha256:552b3d969d65cd47578f921b7ad44eaea250ef61b28bafb3eb872d25e51fb131",
+    "implementationFileCount": 498,
+    "implementationRoots": [
+      "engine/crates/legion-audit/src",
+      "engine/crates/legion-audit/tests",
+      "engine/crates/legion-provider-sdk/src",
+      "engine/crates/legion-contracts/src",
+      "engine/crates/legion-rules/src",
+      "engine/crates/legion-effects/src",
+      "src/registry/rules",
+      "src/registry/controls"
+    ],
+    "fixtures": [
+      {
+        "path": "engine/crates/legion-audit/tests/legacy_file_accuracy.rs",
+        "digest": "sha256:4372414f1bfe4729aabbace14e72e83b7b2cc1956775fb5c0aaed74bcadcc933"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "caseId": "negative-space-empty-source",
+      "expected": [
+        "quality.empty-source-file|src/empty.ts|1"
+      ],
+      "actual": [
+        "quality.empty-source-file|src/empty.ts|1"
+      ],
+      "truePositives": 1,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    },
+    {
+      "caseId": "negative-space-populated-source",
+      "expected": [],
+      "actual": [],
+      "truePositives": 0,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    }
+  ],
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "status": "pass",
+  "qualificationDigest": "sha256:a36ff2a69215e11c60635a48f08adf77b33f09cc3e4b5acb46737646a5bdf52f"
+}
