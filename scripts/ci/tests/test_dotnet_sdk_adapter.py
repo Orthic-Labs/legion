@@ -97,6 +97,20 @@ class DotnetPackageHashTests(unittest.TestCase):
 
 
 class DotnetSdkAdapterTests(unittest.TestCase):
+    def test_vstest_diagnostics_bind_exact_case_control_path_for_test_only(self):
+        scratch = PurePosixPath("/native/qualification case")
+        enrollment = {"packagesRoot": "/sdk/packages",
+                      "fsharpAnalyzer": {"root": "/sdk/fsharplint"}}
+        for language in ("csharp", "fsharp", "visualBasic"):
+            for task in validator["TASKS"]:
+                args = validator["commands"](language, task, scratch, enrollment)
+                with self.subTest(language=language, task=task):
+                    if task == "test":
+                        self.assertEqual(args[-2:], ["--diag", "/native/qualification case/cache/dotnet-control/vstest.log"])
+                        self.assertEqual(args.count("--diag"), 1)
+                    else:
+                        self.assertNotIn("--diag", args)
+
     def sandbox_policy(self):
         # Retained SDK records use macOS POSIX paths even when parsed on Windows.
         scratch = PurePosixPath("/native/scratch")

@@ -32,7 +32,7 @@ ADAPTERS = {
     "supply-chain.license-sbom-provenance": ("supply-chain-native", "security-supply-chain-native", "candidate", "canonical-json", "native_providers::security::producer::supply_chain_qualification_tests::native_supply_chain_qualification"),
     "legacy.quality.test": ("quality-test-native", "real_quality_test_accuracy", "finding", "canonical-json", "real_quality_test_accuracy"),
     "compatibility.core": ("compatibility-report", "compatibility_report_accuracy", "fact-output", "canonical-json", "compatibility_report_native_known_answers"),
-    "code.mobile": ("code-mobile-sdk", "mobile-sdk-native", "finding", "canonical-json", "native_providers::code::tools::mobile_sdk::tests::native::native_mobile_sdk_controls"),
+    "code.mobile": ("code-mobile-sdk", "mobile-sdk-native", "finding", "native-insertion-json", "native_providers::code::tools::mobile_sdk::tests::native::native_mobile_sdk_controls"),
     "governance.capability-ownership": ("ownership-native", "ownership_native_accuracy", "finding", "canonical-json", "ownership_native_sdk_known_answers"),
     "code.javascript": ("javascript-sdk", "real_javascript_sdk_accuracy", "finding", "canonical-json", "real_javascript_sdk_accuracy"),
     "code.long-tail": ("code-long-tail", "code_long_tail_accuracy", "finding", "canonical-json", "code_long_tail_native_qualification"),

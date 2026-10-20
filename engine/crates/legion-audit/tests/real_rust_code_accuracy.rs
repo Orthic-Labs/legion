@@ -1274,6 +1274,7 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
         assert_eq!(fs::canonicalize(root).unwrap(), *root);
         walk(root, &excluded, &mut files, &mut links);
     }
+    let mut targets = BTreeMap::new();
     for (relative, target) in &sealed {
         assert!(
             !relative.starts_with('/')
@@ -1293,15 +1294,46 @@ fn native_runtime_snapshot(runtime: &Value) -> Value {
         links.insert(relative.clone(), target.clone());
         let witnessed = absent_hops.get(relative) == Some(target);
         let final_path = resolve(&path, &sealed, &excluded, witnessed, &mut links);
+        targets.insert(relative.clone(), final_path);
+    }
+    // Match the shared live/manifest proof: only actual retained file bytes
+    // seed reachability. Proven sealed aliases then retain their ancestors;
+    // empty roots, absence witnesses & orphan cycles cannot seed this proof.
+    let mut pending: BTreeMap<PathBuf, Vec<String>> = BTreeMap::new();
+    for (relative, target) in &targets {
+        pending
+            .entry(target.clone())
+            .or_default()
+            .push(relative.clone());
+    }
+    let mut reachable = BTreeSet::new();
+    for file in files.keys() {
+        let path = Path::new("/").join(file);
+        reachable.extend(path.ancestors().map(Path::to_path_buf));
+    }
+    let mut frontier: Vec<_> = reachable.iter().cloned().collect();
+    let mut byte_backed = BTreeSet::new();
+    while let Some(target) = frontier.pop() {
+        for relative in pending.remove(&target).unwrap_or_default() {
+            byte_backed.insert(relative.clone());
+            let path = Path::new("/").join(relative);
+            for parent in path.ancestors().skip(1) {
+                if reachable.insert(parent.to_path_buf()) {
+                    frontier.push(parent.to_path_buf());
+                }
+            }
+        }
+    }
+    for (relative, target) in &sealed {
+        let path = Path::new("/").join(relative);
+        let final_path = &targets[relative];
+        let witnessed = absent_hops.get(relative) == Some(target);
         let inside = roots.iter().any(|root| final_path.starts_with(root));
-        let retained_ancestor = files
-            .keys()
-            .any(|file| Path::new("/").join(file).starts_with(&final_path));
         if roots.iter().any(|root| path.starts_with(root)) {
             assert!(inside, "walked runtime link escapes declared roots");
         } else {
             assert!(
-                inside || retained_ancestor || witnessed,
+                inside || byte_backed.contains(relative) || witnessed,
                 "external alias has no retained runtime target or exact absent hop: candidate={absent:?} alias={relative:?} target={target:?} hops={absent_hops:?}"
             );
         }

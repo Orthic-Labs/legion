@@ -50,6 +50,95 @@ class GovulncheckDownloadFailureTests(unittest.TestCase):
             self.assertFalse(metadata["responseMayBeTruncated"])
 
 
+class GovulncheckOfflineProxyTests(unittest.TestCase):
+    def proxy_row(self, proxy, module, version, extension, data):
+        path = proxy / module / "@v" / (version + "." + extension)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return {"module": module, "version": version, "extension": extension,
+                "bytes": len(data), "sha256": govuln["digest"](data).removeprefix("sha256:")}
+
+    def test_historical_graph_leaf_gets_exact_version_metadata_without_source_archive(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
+            proxy = Path(temp)
+            version = "v0.0.0-20180917221912-90fa682c2a6e"
+            source = b"module golang.org/x/tools\n"
+            row = self.proxy_row(proxy, "golang.org/x/tools", version, "mod", source)
+            locked = json.loads((SOURCE_ROOT / "scripts/ci/audit-govulncheck-inputs.json").read_text())
+            official = next(item for item in locked["moduleProxy"] if item["module"] == row["module"]
+                            and item["version"] == version and item["extension"] == "mod")
+            self.assertEqual((row["bytes"], row["sha256"]), (official["bytes"], official["sha256"]))
+            govuln["complete_module_proxy"](proxy, [row])
+            directory = proxy / row["module"] / "@v"
+            self.assertEqual(json.loads((directory / (version + ".info")).read_bytes()), {"Version": version})
+            self.assertEqual((directory / (version + ".mod")).read_bytes(), source)
+            self.assertEqual((directory / "list").read_text(), version + "\n")
+            self.assertEqual({path.name for path in directory.iterdir()}, {version + ".mod", version + ".info", "list"})
+            self.assertFalse((proxy / row["module"] / "@latest").exists())
+
+    def test_downloaded_info_is_preserved_and_changed_go_mod_is_rejected_before_derivation(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
+            proxy = Path(temp)
+            module, version = "example.org/pinned", "v1.2.3"
+            official = b'{"Version":"v1.2.3","Time":"2020-01-02T03:04:05Z"}\n'
+            rows = [self.proxy_row(proxy, module, version, "mod", b"module example.org/pinned\n"),
+                    self.proxy_row(proxy, module, version, "info", official)]
+            govuln["complete_module_proxy"](proxy, rows)
+            directory = proxy / module / "@v"
+            self.assertEqual((directory / (version + ".info")).read_bytes(), official)
+            (directory / (version + ".mod")).write_bytes(b"module example.org/tampered\n")
+            with self.assertRaisesRegex(ValueError, "source changed"):
+                govuln["complete_module_proxy"](proxy, rows)
+
+    def test_metadata_cannot_be_derived_without_authenticated_module_or_from_unpinned_file(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
+            proxy = Path(temp)
+            row = self.proxy_row(proxy, "example.org/pinned", "v1.0.0", "info", b'{"Version":"v1.0.0"}')
+            self.proxy_row(proxy, "example.org/unpinned", "v99.0.0", "mod", b"module example.org/unpinned\n")
+            with self.assertRaisesRegex(ValueError, "missing authenticated go.mod"):
+                govuln["complete_module_proxy"](proxy, [row])
+            self.assertFalse((proxy / "example.org/unpinned/@v/v99.0.0.info").exists())
+
+    def test_isolated_graph_preparation_populates_sums_before_readonly_recheck(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-graph-unit-") as temp:
+            prepare = Path(temp) / "prepare"
+            go = Path(temp) / "pinned-go/bin/go"
+            control = {"module": "golang.org/x/text", "version": "v0.3.6", "sum": "h1:source", "goModSum": "h1:module"}
+            commands = []
+            graph_sum = "golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:graph\n"
+
+            def retained_run(argv, cwd):
+                self.assertEqual(cwd, prepare)
+                self.assertEqual(argv[0], str(go))
+                commands.append(argv[1:])
+                if argv[1:3] == ["mod", "download"]:
+                    self.assertIn("require golang.org/x/text v0.3.6", (cwd / "go.mod").read_text())
+                    return {"stdout": json.dumps({"Sum": control["sum"], "GoModSum": control["goModSum"]})}
+                if "-mod=mod" in argv:
+                    with (cwd / "go.sum").open("a") as target:
+                        target.write(graph_sum)
+                else:
+                    self.assertIn(graph_sum, (cwd / "go.sum").read_text())
+                return {"stdout": ""}
+
+            govuln["prepare_module_cache"](go, prepare, control, retained_run)
+            self.assertEqual(commands, [["mod", "download", "-json", "golang.org/x/text@v0.3.6"],
+                                        ["list", "-mod=mod", "-m", "all"], ["list", "-m", "all"]])
+
+    def test_checksum_mismatch_stops_before_graph_preparation(self):
+        with tempfile.TemporaryDirectory(prefix="govulncheck-graph-unit-") as temp:
+            calls = []
+
+            def retained_run(argv, cwd):
+                calls.append(argv)
+                return {"stdout": json.dumps({"Sum": "h1:changed", "GoModSum": "h1:module"})}
+
+            with self.assertRaisesRegex(ValueError, "download checksum mismatch"):
+                govuln["prepare_module_cache"](Path(temp) / "go", Path(temp) / "prepare",
+                    {"module": "example.org/pinned", "version": "v1.0.0", "sum": "h1:source", "goModSum": "h1:module"}, retained_run)
+            self.assertEqual(len(calls), 1)
+
+
 class RegistrationGateTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="qualification-checker-unit-")
@@ -477,7 +566,7 @@ class RegistrationGateTests(unittest.TestCase):
         entry = {"provider":"code.mobile", "family":"code-mobile-sdk", "stage":"finding", "scope":scope,
                  "record":{"path":"unit.json", "sha256":"sha256:" + "a" * 64, "qualificationDigest":"sha256:" + "b" * 64}}
         self.assertEqual(gate["adapter"](self.root, entry),
-                         ("code-mobile-sdk", "mobile-sdk-native", "canonical-json", gate["CODE_MOBILE_HARNESS"][2]))
+                         ("code-mobile-sdk", "mobile-sdk-native", "native-insertion-json", gate["CODE_MOBILE_HARNESS"][2]))
         row = {"schema":"legion-mobile-sdk-controls/2", "provider":"code.mobile", "family":"code-mobile-sdk",
                "stage":"finding", "scope":scope, "productionQualification":False, "wholePlatformQualified":False,
                "productionOwnerAdmissionQualified":False, "qualificationEligible":True, "boundedMacosKnownAnswerEligible":True,
@@ -497,6 +586,51 @@ class RegistrationGateTests(unittest.TestCase):
         schema = json.loads((SOURCE_ROOT / gate["SCHEMA"]).read_text())
         self.assertIn("code-mobile-sdk", schema["$defs"]["entry"]["properties"]["family"]["enum"])
         self.assertEqual(set(schema["$defs"]["codeMobileEvidence"]["required"]), set(gate["CODE_MOBILE_EVIDENCE"]))
+
+    def test_mobile_native_seal_preserves_producer_order_and_rejects_tampering(self):
+        api = gate["helper"]("audit-mobile-sdk-accuracy.py")
+        scope = api["FAMILY_SCOPE"]
+        row = {"schema": "legion-mobile-sdk-controls/2", "provider": "code.mobile",
+               "cases": [{"control": "nonempty-clean", "actual": {"z": 0, "a": 1}}]}
+        native_digest = api["record_digest"](row)
+        self.assertEqual(native_digest, gate["digest"](gate["encoded"](row, "native-insertion-json")))
+        self.assertNotEqual(native_digest, gate["digest"](gate["encoded"](row, "canonical-json")))
+        row["qualificationDigest"] = native_digest
+        entry = copy.deepcopy(self.entry)
+        entry.update(provider="code.mobile", family="code-mobile-sdk", stage="finding", scope=scope,
+                     codeMobileEvidence={})
+        entry["record"].update(path=gate["ARCHIVE"] + "/records/code.mobile/unit.json",
+                               encoding="native-insertion-json", qualificationDigest=native_digest)
+        self.write_json("src/registry/providers.json", {"providers": [{**self.spec, "id": "code.mobile"}]})
+
+        def retain(value):
+            self.write_json(entry["record"]["path"], value)
+            entry["record"]["sha256"] = gate["digest"]((self.root / entry["record"]["path"]).read_bytes())
+            self.write_index([entry])
+
+        def reached_native_evidence(*_):
+            raise AssertionError("original mobile seal accepted; native evidence still required")
+
+        function = gate["check"]
+        with patch.dict(function.__globals__, {"source_closure": lambda *_: None,
+                                              "code_mobile_evidence": reached_native_evidence}):
+            retain(row)
+            with self.assertRaisesRegex(AssertionError, "original mobile seal accepted"):
+                function(self.root)
+            for mutation in ("nested-order", "value", "canonical-reseal"):
+                changed = copy.deepcopy(row)
+                if mutation == "nested-order":
+                    changed["cases"][0]["actual"] = {"a": 1, "z": 0}
+                elif mutation == "value":
+                    changed["cases"][0]["actual"]["z"] = 2
+                else:
+                    unsigned = {key: value for key, value in changed.items() if key != "qualificationDigest"}
+                    changed["qualificationDigest"] = gate["digest"](gate["encoded"](unsigned, "canonical-json"))
+                    entry["record"]["qualificationDigest"] = changed["qualificationDigest"]
+                with self.subTest(mutation=mutation):
+                    retain(changed)
+                    with self.assertRaisesRegex(AssertionError, "original qualification digest changed"):
+                        function(self.root)
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
         self.assertEqual(len(gate["ADAPTERS"]), 39)

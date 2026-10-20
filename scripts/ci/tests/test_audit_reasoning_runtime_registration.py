@@ -1,5 +1,5 @@
 """Checker units; synthetic values never establish runtime provenance."""
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import errno
 import hashlib
 import json
@@ -23,6 +23,9 @@ class ThreeMemberCapture:
         root = Path(root).resolve()
         self.root = root
         self.corpus = root / API["FIXTURES"]
+        # Retained native identities belong to macOS, independently of local IO.
+        self.native_corpus = PurePosixPath("/Volumes/native-checkout") / API["FIXTURES"]
+        self.native_capture = PurePosixPath("/Volumes/native-capture")
         shutil.copytree(Path(__file__).resolve().parents[1] / "fixtures/audit-reasoning-runtime-accuracy", self.corpus)
         self.controls = json.loads((self.corpus / "cases.json").read_text())
         self.exports = {}
@@ -35,18 +38,18 @@ class ThreeMemberCapture:
                        "artifactId": 1, "runId": 2, "runAttempt": 1, "jobId": 3, "repository": "Orthic-Labs/legion"},
             "commands": [], "exports": [], "members": [],
             "cases": self.source_ref("cases.json"), "packetPlan": self.source_ref("packet-plan.json")}
-        self.command("preflight", None, str(root / "capture"),
-                     ["audit", "check-reasoning-fixtures", "--root", str(self.corpus)], {})
+        self.command("preflight", None, str(self.native_capture),
+                     ["audit", "check-reasoning-fixtures", "--root", str(self.native_corpus)], {})
         for index, group in enumerate(API["MEMBER_PROVIDERS"]):
             member_id = f"run-{index + 1:02d}"
-            base = root / "capture" / member_id
+            base = self.native_capture / member_id
             member = {"memberId": member_id, "memberIndex": index, "providerIds": list(group),
                       "caseIds": API["member_case_ids"](self.controls, group),
                       "sourceRoot": str(base / "fixture-source"), "run": str(base / "native-run"),
                       "sourceFiles": API["expected_member_sources"](root, self.controls, group)}
             member["manifest"] = self.retain(member_id + "/manifest.json", {"schema": API["MEMBER_SCHEMA"],
                 **{key: member[key] for key in ("memberId", "memberIndex", "providerIds", "caseIds", "sourceRoot", "sourceFiles")},
-                "corpusRoot": str(self.corpus), "casesDigest": self.capture["cases"]["sha256"]})
+                "corpusRoot": str(self.native_corpus), "casesDigest": self.capture["cases"]["sha256"]})
             self.capture["members"].append(member)
             self.plan_command(member, "plan-preflight", str(base / "preflight-run"), 44)
             preflight = self.preflight(member, str(base / "preflight-run"), 44, len(group) - (index == 0))
@@ -128,7 +131,7 @@ class ThreeMemberCapture:
         name = f"commands/{len(self.capture['commands']):02d}-{role}"
         stdout = self.retain(name + ".json", value)
         self.capture["commands"].append({"role": role, "memberId": member["memberId"] if member else None,
-            "argv": [str(self.root / "bin/legion")] + args, "cwd": str(self.corpus),
+            "argv": ["/Volumes/native-binary/legion"] + args, "cwd": str(self.native_corpus),
             "environmentNames": ["CLAUDECODE", "CLAUDE_CODE_SESSION_ID"], "exitCode": exit_code,
             "stdout": stdout, "stderr": self.retain(name + ".stderr.json", {}), "run": run})
         return stdout
@@ -362,6 +365,56 @@ class ReasoningRegistrationBoundaryTests(unittest.TestCase):
                     retained = API["validate"](fixture.root, entry, record)
                     self.assertIn(entry["provenanceVerification"]["path"], retained)
 
+    def test_native_posix_identity_does_not_follow_verifier_windows_rules(self):
+        run = "/Volumes/native-capture/run-01/native-run"
+        self.assertFalse(PureWindowsPath(run).is_absolute())
+        native = API["safe_absolute"](run)
+        self.assertIsInstance(native, PurePosixPath)
+        self.assertEqual(str(native / "followup"), run + "/followup")
+        self.assertEqual(str(native.parent / "preflight-run"), "/Volumes/native-capture/run-01/preflight-run")
+        for invalid in (r"C:\native\run", r"\\server\run", "/native\\run", "relative/run",
+                        "/native/../run", "/native//run", "/native/./run", "//native/run", "/native/run/", "/native/\0run"):
+            with self.subTest(path=invalid), self.assertRaises(AssertionError):
+                API["safe_absolute"](invalid)
+
+    def test_complete_native_capture_is_independent_of_local_checkout_location(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            first = ThreeMemberCapture(Path(temporary) / "local-checkout-one")
+            second = ThreeMemberCapture(Path(temporary) / "different-checkout-two")
+            self.assertNotEqual(first.root, second.root)
+            self.assertEqual(first.capture, second.capture)
+            for fixture in (first, second):
+                for provider in sorted(API["PROVIDERS"]):
+                    with self.subTest(checkout=fixture.root.name, provider=provider):
+                        entry, record = fixture.entry(provider)
+                        API["validate"](fixture.root, entry, record)
+
+    def test_full_capture_rejects_native_location_and_local_source_drift(self):
+        for mutation, message in (("manifest", "corpus roots differ"), ("cwd", "command identity"),
+                                  ("preflight-root", "corpus preflight selector"),
+                                  ("source-bytes", "source subset/hash"), ("cases-bytes", "corpus source binding")):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                fixture = ThreeMemberCapture(Path(temporary))
+                if mutation == "manifest":
+                    member = fixture.capture["members"][1]
+                    manifest = json.loads(API["reference"](fixture.root, member["manifest"]).read_text())
+                    manifest["corpusRoot"] = "/Volumes/foreign-corpus"
+                    member["manifest"] = fixture.retain("foreign-corpus-manifest.json", manifest)
+                elif mutation == "cwd":
+                    fixture.capture["commands"][0]["cwd"] = "/Volumes/foreign-corpus"
+                elif mutation == "preflight-root":
+                    fixture.capture["commands"][0]["argv"][-1] = "/Volumes/foreign-corpus"
+                elif mutation == "source-bytes":
+                    relative = next(iter(fixture.capture["members"][0]["sourceFiles"]))
+                    path = fixture.corpus / "fixtures" / relative
+                    path.write_bytes(path.read_bytes() + b"\nchanged local source\n")
+                else:
+                    path = fixture.corpus / "cases.json"
+                    path.write_bytes(path.read_bytes() + b"\n")
+                entry, record = fixture.entry("reasoning.security")
+                with self.assertRaisesRegex(AssertionError, message):
+                    API["validate"](fixture.root, entry, record)
+
     def test_full_capture_rejects_disconnected_preflight_and_usage_ceiling(self):
         for mutation, message in (("dispatch", "dispatch preflight"), ("plan", "plan/logical"),
                                   ("cost", "usage/reservation"), ("usage", "usage/reservation"),
@@ -509,7 +562,7 @@ class ReasoningRegistrationBoundaryTests(unittest.TestCase):
                 return {"path": path.relative_to(root).as_posix(), "sha256": digest(raw)}
 
             manifest_ref = retain("member.json", {"schema": API["MEMBER_SCHEMA"], "memberId": "run-01", "memberIndex": 0,
-                "corpusRoot": str(fixture_root.resolve()), "providerIds": providers,
+                "corpusRoot": "/Volumes/native-checkout/corpus", "providerIds": providers,
                 "caseIds": API["member_case_ids"](controls, providers), "sourceRoot": "/tmp/run-01/fixture-source",
                 "sourceFiles": source_files, "casesDigest": digest(fixture_root.joinpath("cases.json").read_bytes())})
             dispatch_ref = retain("dispatch.json", {"modelCalls": 0})

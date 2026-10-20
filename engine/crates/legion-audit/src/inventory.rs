@@ -1359,6 +1359,7 @@ fn is_source_path(path: &Path) -> bool {
                 | "hh"
                 | "hpp"
                 | "hs"
+                | "html"
                 | "java"
                 | "jl"
                 | "js"
@@ -1415,6 +1416,71 @@ mod tests {
                 "{path} should not be source"
             );
         }
+    }
+
+    #[test]
+    fn filesystem_html_sources_enter_source_denominator_with_exact_digests() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-html-inventory-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        // Separate directories preserve both case controls on case-insensitive hosts.
+        std::fs::create_dir_all(root.join("lower")).unwrap();
+        std::fs::create_dir(root.join("upper")).unwrap();
+        let sources = [
+            (
+                "lower/index.html",
+                b"<!doctype html><html><body>lower</body></html>".as_slice(),
+            ),
+            (
+                "upper/index.HTML",
+                b"<!doctype html><html><body>upper</body></html>".as_slice(),
+            ),
+        ];
+        for (path, bytes) in sources {
+            std::fs::write(root.join(path), bytes).unwrap();
+        }
+        std::fs::write(root.join("capture.png"), b"\x89PNG\r\n\x1a\n").unwrap();
+        std::fs::write(root.join("capture.json"), b"{\"capture\":true}").unwrap();
+
+        let inventory = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("html-source-controls")
+            .unwrap();
+        assert_eq!(inventory.entries.len(), 4);
+        for path in ["capture.png", "capture.json"] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.path == path)
+                .unwrap();
+            assert!(
+                !entry.source_file,
+                "{path} must remain outside source denominator"
+            );
+        }
+        let selected = inventory
+            .denominator_entries(&serde_json::json!({"op":"sourceFilesAtLeast","count":1}))
+            .unwrap();
+        assert_eq!(selected.entries.len(), sources.len());
+        for ((path, bytes), entry) in sources.into_iter().zip(&selected.entries) {
+            assert_eq!(entry.path, path);
+            assert!(entry.source_file);
+            assert_eq!(
+                entry.digest,
+                Some(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+            );
+        }
+        assert!(inventory
+            .denominator_entries(&serde_json::json!({"op":"sourceFilesAtLeast","count":3}))
+            .unwrap()
+            .entries
+            .is_empty());
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

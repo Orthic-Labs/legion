@@ -447,7 +447,7 @@ fn real_runtime_app_accuracy() {
         };
         let inventory = FilesystemInventorySource::new(&fixture)
             .unwrap()
-            .capture()
+            .inventory(fixture.to_str().unwrap())
             .unwrap();
         let mut configured = spec.clone();
         configured["runner"]["runtime"] =

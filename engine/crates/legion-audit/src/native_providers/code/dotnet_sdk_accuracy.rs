@@ -89,6 +89,12 @@ pub(super) fn authenticate_qualification_sandbox(
             .map_err(|e| legion_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
         let mut wrapped_args = vec!["-f".into(), string(&path), "--".into(), executable.into()];
         wrapped_args.extend_from_slice(args);
+        // VSTest propagates diagnostics to testhost; retain both logs in this
+        // qualification case's existing control tree, including on failure.
+        wrapped_args.extend([
+            "--diag".into(),
+            string(&ctx.scratch.cache_dir().join("dotnet-control/vstest.log")),
+        ]);
         Ok(legion_effects::SandboxAuthentication {
             id: format!("sandbox:macos:{hash}"),
             network: true,
@@ -462,6 +468,8 @@ impl ExactPolicy {
                 "trx;LogFilePrefix=dotnet-sdk".into(),
                 "--results-directory".into(),
                 string(&control.join("test-results-0")),
+                "--diag".into(),
+                string(&control.join("vstest.log")),
             ]),
             _ => panic!(),
         };
@@ -914,6 +922,9 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, language: &str, contro
             assert!(row["stdout"].is_object() && row["stderr"].is_object());
         }
         if ["positive", "nonempty-clean"].contains(&control) {
+            let diagnostics = scratch.cache_dir().join("dotnet-control/vstest.log");
+            assert!(!diagnostics.is_symlink());
+            assert!(!fs::read(diagnostics).unwrap().is_empty());
             assert_eq!(result["complete"], true);
             for row in &executions {
                 assert_eq!(row["executionReceipt"]["state"], "completed");

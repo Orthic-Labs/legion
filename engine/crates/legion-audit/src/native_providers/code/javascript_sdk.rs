@@ -751,7 +751,7 @@ fn planned_assertions(source: &str) -> Result<Vec<(String, String)>, String> {
         .ok_or("test-source-grammar-unsupported")?;
     // Anchored, whole-source grammar: one synchronous planned assertion per
     // imported emitted module; no hooks, skip/todo, arbitrary code or overrides.
-    let block = Regex::new(r"\A\{\n  const loaded = await import\(pathToFileURL\(path.join\(output, '([A-Za-z0-9_./-]+)'\)\).href\);\n  test\('([A-Za-z0-9_./-]+)', \{plan:1\}, \(t\) => \{\n    t.assert.strictEqual\(\(loaded.answer \|\| loaded.default.answer\)\(\),(-?[0-9]+)\);\n  \}\);\n\}\n").expect("constant planned-test grammar");
+    let block = Regex::new(r"\A\{\n  const loaded = await import\(pathToFileURL\(path.join\(output, '([A-Za-z0-9_./-]+)'\)\).href\);\n  test\('([A-Za-z0-9_./-]+)', \{plan:1\}, \((?:/\*\* @type \{import\('node:test'\)\.TestContext\} \*/ )?t\) => \{\n    t.assert.strictEqual\(\(loaded.answer \|\| loaded.default.answer\)\(\),(-?[0-9]+)\);\n  \}\);\n\}\n").expect("constant planned-test grammar");
     let mut out = Vec::new();
     let mut seen = BTreeSet::new();
     while !rest.is_empty() {
@@ -1006,6 +1006,18 @@ mod protocol_tests {
                 .len(),
             1
         );
+        let typed_block = block.replace(
+            "(t) =>",
+            "(/** @type {import('node:test').TestContext} */ t) =>",
+        );
+        assert_eq!(
+            planned_assertions(&format!("{TEST_PREAMBLE}{typed_block}"))
+                .unwrap()
+                .len(),
+            1
+        );
+        let unsupported_annotation = block.replace("(t) =>", "(/** @type {object} */ t) =>");
+        assert!(planned_assertions(&format!("{TEST_PREAMBLE}{unsupported_annotation}")).is_err());
         assert!(planned_assertions(&format!(
             "{TEST_PREAMBLE}{}",
             block.replace(

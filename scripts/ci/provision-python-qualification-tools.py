@@ -98,6 +98,30 @@ def snapshot(roots, exclusions, sealed_links=None, absent=None):
         raise
 
 
+def retained_aliases(files, targets):
+    """Prove alias containers by finite routes ending at retained file bytes."""
+    pending = {}
+    for key, target in targets.items():
+        pending.setdefault(PurePosixPath(target), []).append(key)
+    reachable = set()
+    for name in files:
+        path = PurePosixPath("/") / name
+        reachable.add(path)
+        reachable.update(path.parents)
+    frontier, proven = list(reachable), set()
+    while frontier:
+        target = frontier.pop()
+        for key in pending.pop(target, ()):
+            proven.add(key)
+            # An alias is a retained descendant of its containing directories.
+            # Empty roots & absent candidates never seed this byte-backed proof.
+            for parent in (PurePosixPath("/") / key).parents:
+                if parent not in reachable:
+                    reachable.add(parent)
+                    frontier.append(parent)
+    return proven
+
+
 def _snapshot(roots, exclusions, sealed_links, absent, witness):
     """Complete files, every link hop, & absent native search candidates."""
     files, links = {}, {}
@@ -146,13 +170,19 @@ def _snapshot(roots, exclusions, sealed_links, absent, witness):
         visit(root)
     # Native load commands can name aliases outside canonical runtime roots.
     # Seal these nodes too; no intermediate directory alias remains unobserved.
+    targets = {}
     for key, raw in sealed_links.items():
         witness.update(alias=key, target=raw)
         path = Path("/") / key
         require(path.is_symlink() and os.readlink(path) == raw, "sealed runtime alias changed: " + str(path))
         witnessed = absent_hops.get(key) == raw
-        target = resolve_link_chain(path, links, allow_missing=witnessed, exclusions=omitted)
-        retained = any(within(target, root) for root in declared) or (target.is_dir() and any(within(Path("/") / name, target) for name in files))
+        targets[key] = resolve_link_chain(path, links, allow_missing=witnessed, exclusions=omitted)
+    byte_backed = retained_aliases(files, targets)
+    for key, raw in sealed_links.items():
+        witness.update(alias=key, target=raw)
+        path, target = Path("/") / key, targets[key]
+        witnessed = absent_hops.get(key) == raw
+        retained = any(within(target, root) for root in declared) or key in byte_backed
         require(retained or (witnessed and not any(within(path, root) for root in declared)),
                 "runtime alias target has no bound descendant or exact absent hop: " + canonical({"alias": key, "target": raw, "hops": absent_hops, "candidates": absent}).decode())
     # A caller replays this function with the full returned map. Exact equality
@@ -197,11 +227,13 @@ def validate_runtime_aliases(runtime):
         require(PurePosixPath(name).is_absolute(), "relative absent candidate")
         final = resolve(name, absent_hops)
         require(final.relative_to("/").as_posix() not in files, "absent candidate names retained file")
+    targets = {key: resolve(str(PurePosixPath("/") / key), {}) for key in links}
+    byte_backed = retained_aliases(files, targets)
     for key, raw in links.items():
         path = PurePosixPath("/") / key
-        final = resolve(str(path), {})
+        final = targets[key]
         inside = any(within(final, root) for root in roots)
-        retained = any(within(PurePosixPath("/") / name, final) for name in files)
+        retained = key in byte_backed
         witnessed = absent_hops.get(key) == raw
         require(inside if any(within(path, root) for root in roots) else inside or retained or witnessed,
                 "runtime alias has no retained target or exact absent hop: " + canonical({"candidates": absent, "alias":key,"target":raw,"hops":absent_hops}).decode())

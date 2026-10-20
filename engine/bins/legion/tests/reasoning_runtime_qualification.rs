@@ -19,6 +19,10 @@ struct Fixture {
     home: PathBuf,
 }
 
+fn digest(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
 fn copy_source(from: &Path, to: &Path) {
     assert!(!fs::symlink_metadata(from).unwrap().file_type().is_symlink());
     if from.is_dir() {
@@ -83,17 +87,14 @@ impl Fixture {
                             .unwrap()
                             .to_string_lossy()
                             .replace('\\', "/"),
-                        json!(format!(
-                            "sha256:{:x}",
-                            Sha256::digest(fs::read(path).unwrap())
-                        )),
+                        json!(digest(&fs::read(path).unwrap())),
                     );
                 }
             }
         }
         let mut files = serde_json::Map::new();
         hashes(&fixture.source, &fixture.source, &mut files);
-        let manifest = json!({"schema":"legion-reasoning-qualification-member/1","memberId":format!("run-{:02}",member_index+1),"memberIndex":member_index,"corpusRoot":fixture.corpus,"providerIds":providers,"caseIds":case_ids,"sourceRoot":fixture.source,"sourceFiles":files,"casesDigest":format!("sha256:{:x}",Sha256::digest(fs::read(fixture.corpus.join("cases.json")).unwrap()))});
+        let manifest = json!({"schema":"legion-reasoning-qualification-member/1","memberId":format!("run-{:02}",member_index+1),"memberIndex":member_index,"corpusRoot":fixture.corpus,"providerIds":providers,"caseIds":case_ids,"sourceRoot":fixture.source,"sourceFiles":files,"casesDigest":digest(&fs::read(fixture.corpus.join("cases.json")).unwrap())});
         fs::write(
             fixture.base.join("qualification-member.json"),
             serde_json::to_vec(&manifest).unwrap(),

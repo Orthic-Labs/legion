@@ -172,6 +172,8 @@ def commands(language, task, scratch, enrollment):
         return [enrollment["fsharpAnalyzer"]["root"] + "/tools/net8.0/any/dotnet-fsharplint.dll", "--format", "MSBuild", "lint", str(stage / language / "**/*.fs"), "--lint-config", str(stage / "fsharplint.json")]
     args = ["build" if task == "analyzer" else task, str(stage / language / ("Fixture." + ext)), "--nologo", "--verbosity", "normal", "--artifacts-path", str(control / "artifacts-0"), "-p:NuGetAudit=false", "-p:RestoreIgnoreFailedSources=false", "-p:UseSharedCompilation=false", "-p:BuildInParallel=false", "-nodeReuse:false", "-p:ImportDirectoryBuildProps=false", "-p:ImportDirectoryBuildTargets=false", "-p:ImportDirectoryPackagesProps=false"]
     args += {"restore": ["--locked-mode", "--no-cache", "--disable-parallel", "--configfile", str(control / "NuGet.Config"), "--packages", enrollment["packagesRoot"]], "build": ["--no-restore", "-p:RunAnalyzers=false"], "analyzer": ["--no-restore", "-t:Rebuild", "-p:RunAnalyzers=true", "-p:RunAnalyzersDuringBuild=true", "-p:EnableNETAnalyzers=true", "-p:ReportAnalyzer=true"], "test": ["--no-restore", "--no-build", "--logger", "trx;LogFilePrefix=dotnet-sdk", "--results-directory", str(control / "test-results-0")]}[task]
+    if task == "test":
+        args += ["--diag", str(control / "vstest.log")]
     return args
 
 

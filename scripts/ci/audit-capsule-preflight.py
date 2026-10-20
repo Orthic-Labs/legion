@@ -187,9 +187,14 @@ def projection(files, expected, evidence, excerpts):
     return rows, windows, gaps
 
 
-def inspect_plan(plan, run, item):
+def inspect_plan(plan, run, item, return_code):
     provider, lens = item["providerId"], item["lens"]
-    require(plan["kind"] == "audit-provider-plan" and plan["processExecution"] == plan["processState"] == "not-run",
+    # Native plan-only deliberately reports incomplete (exit 2): source
+    # projection is not model execution or a completed audit.
+    require(return_code == 2 and plan["kind"] == "audit-provider-plan"
+            and plan["auditStatus"] == "incomplete" and plan["qualityGate"] == "unproven"
+            and plan["completionValidation"] == plan["processExecution"] == plan["processState"] == "not-run"
+            and plan["gaps"] == ["plan-only"],
             "native output is not plan-only")
     require(plan["providers"] == [provider] and plan["coverageMode"] == "exhaustive", "native provider/coverage scope differs")
     require(not plan["inputGaps"] and not [g for g in plan["gaps"] if g != "plan-only"], "native plan input gaps")
@@ -291,10 +296,9 @@ def run_case(root, legion, out, number, item):
     try:
         completed = subprocess.run(command, cwd=root, capture_output=True, timeout=120, check=False, shell=False)
         stdout, stderr, code = completed.stdout, completed.stderr, completed.returncode
-        require(code == 0, f"native-plan-failure: exit {code}")
         plan_path = run / "plan.json"
         require(not plan_path.is_symlink(), "plan artifact symlink")
-        dispatch, excerpts, packets, packet_gaps = inspect_plan(json.loads(plan_path.read_bytes()), run, item)
+        dispatch, excerpts, packets, packet_gaps = inspect_plan(json.loads(plan_path.read_bytes()), run, item, code)
         gaps.extend(packet_gaps)
         projected, windows, projection_gaps = projection(case["files"], case["expected"], case.get("requiredEvidence", []), excerpts)
         gaps.extend(projection_gaps)

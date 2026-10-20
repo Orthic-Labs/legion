@@ -315,7 +315,24 @@ def inspect_gem(path, row):
                     and "\\" not in item.name, "unsafe gem data entry")
 
 
-def run_offline(arguments, environment, cwd, logs, label, timeout=600):
+def retain_failure(label, record, stdout, stderr):
+    # Keep bounded original process bytes under CI's existing uploaded QA root.
+    failure = Path(os.environ["RUNNER_TEMP"]) / "legion-provider-qualification/provisioning-failures/php-ruby" / label
+    failure.mkdir(parents=True, exist_ok=True)
+    for stream, data in (("stdout", stdout), ("stderr", stderr)):
+        retained = data[:65536]
+        path = failure / (stream + ".bin")
+        path.write_bytes(retained)
+        record[stream] = {"bytes": len(data), "digest": digest(data), "retainedBytes": len(retained),
+            "retainedDigest": digest(retained), "truncated": len(retained) != len(data), "path": str(path)}
+    evidence = failure / "process.json"
+    evidence.write_bytes(canonical(record) + b"\n")
+    print("PHP_RUBY_BOOTSTRAP_FAILURE " + canonical({"label": label, "exitCode": record["exitCode"],
+        "stderrPreview": stderr[:16384].decode("utf-8", "replace"),
+        "retainedProcess": str(evidence)}).decode(), file=sys.stderr)
+
+
+def run_offline(arguments, environment, cwd, logs, label, timeout=600, return_result=False):
     sandbox = Path("/usr/bin/sandbox-exec")
     require(sandbox.is_file() and not sandbox.is_symlink(), "managed macOS sandbox unavailable")
     require(re.fullmatch(r"[a-z0-9-]+", label), "unsafe provisioning log label")
@@ -324,23 +341,10 @@ def run_offline(arguments, environment, cwd, logs, label, timeout=600):
     (logs / (label + ".stdout")).write_bytes(result.stdout)
     (logs / (label + ".stderr")).write_bytes(result.stderr)
     if result.returncode != 0:
-        # Preserve bounded original bytes under CI's existing uploaded QA root.
-        failure = Path(os.environ["RUNNER_TEMP"]) / "legion-provider-qualification/provisioning-failures/php-ruby" / label
-        failure.mkdir(parents=True, exist_ok=True)
-        record = {"argv": list(map(str, arguments)), "cwd": str(cwd), "exitCode": result.returncode}
-        for stream, data in (("stdout", result.stdout), ("stderr", result.stderr)):
-            retained = data[:65536]
-            path = failure / (stream + ".bin")
-            path.write_bytes(retained)
-            record[stream] = {"bytes": len(data), "digest": digest(data), "retainedBytes": len(retained),
-                "retainedDigest": digest(retained), "truncated": len(retained) != len(data), "path": str(path)}
-        evidence = failure / "process.json"
-        evidence.write_bytes(canonical(record) + b"\n")
-        print("PHP_RUBY_BOOTSTRAP_FAILURE " + canonical({"label": label, "exitCode": result.returncode,
-            "stderrPreview": result.stderr[:16384].decode("utf-8", "replace"),
-            "retainedProcess": str(evidence)}).decode(), file=sys.stderr)
+        retain_failure(label, {"argv": list(map(str, arguments)), "cwd": str(cwd), "exitCode": result.returncode},
+            result.stdout, result.stderr)
     require(result.returncode == 0, "offline provisioning command failed: " + label)
-    return result.stdout
+    return result if return_result else result.stdout
 
 
 def link_closed_roots(api, initial):
@@ -480,8 +484,17 @@ def main():
     for name, version in (("bundle","2.6.9"), ("rubocop","1.80.2")):
         launcher = out / "gems/bin" / name
         require(launcher.is_file() and not launcher.is_symlink(), "real installed launcher absent")
-        output = run_offline([tools["ruby"]["path"], launcher,"--version"], env, out, logs, name + "-version").decode().strip()
-        require(output == ("Bundler version " + version if name == "bundle" else version), "installed launcher version differs")
+        arguments = [tools["ruby"]["path"], launcher, "--version"]
+        result = run_offline(arguments, env, out, logs, name + "-version", return_result=True)
+        output = result.stdout.decode("utf-8", "replace").strip()
+        expected = "Bundler version " + version if name == "bundle" else version
+        if output != expected:
+            retain_failure(name + "-version", {"executable": str(arguments[0]), "argv": list(map(str, arguments)),
+                "cwd": str(out), "exitCode": result.returncode, "failure": "launcher-version-mismatch",
+                "expectedVersion": expected, "observedVersionPreview": output[:4096],
+                "observedVersionPreviewTruncated": len(output) > 4096},
+                result.stdout, result.stderr)
+            require(False, "installed launcher version differs")
         tools[name] = {"path":str(launcher), "digest":file_digest(launcher), "version":version}
     for name, row in assets.items():
         output = run_offline([tools["php"]["path"],"-n",row["path"],"--version"], env, out, logs, name + "-version").decode()

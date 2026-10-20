@@ -199,6 +199,52 @@ def account_download_response(row, data, downloaded, failure_root):
     return total
 
 
+def complete_module_proxy(proxy, rows):
+    """Derive local discovery metadata only from authenticated pinned artifacts."""
+    proxy = Path(proxy)
+    artifacts = {}
+    for row in rows:
+        module, version, extension = row['module'], row['version'], row['extension']
+        if not safe_relative(module) or not safe_relative(version) or '/' in version or extension not in ('info', 'mod', 'zip'):
+            raise ValueError('module proxy identity')
+        path = proxy / module / '@v' / (version + '.' + extension)
+        data = path.read_bytes()
+        if len(data) != row['bytes'] or digest(data) != 'sha256:' + row['sha256']:
+            raise ValueError('module proxy source changed')
+        artifacts.setdefault((module, version), set()).add(extension)
+    pinned_versions = {}
+    for (module, version), extensions in sorted(artifacts.items()):
+        if 'mod' not in extensions:
+            raise ValueError('module proxy version missing authenticated go.mod')
+        directory = proxy / module / '@v'
+        if 'info' not in extensions:
+            # GOPROXY .info requires Version; Time is optional. This is local
+            # metadata derived from a locked identity, not an official response
+            # or invented commit timestamp. No source ZIP is synthesized.
+            with (directory / (version + '.info')).open('xb') as target:
+                target.write(canonical({'Version': version}) + b'\n')
+        pinned_versions.setdefault(module, set()).add(version)
+    for module, versions in sorted(pinned_versions.items()):
+        # Deprecation checks consult @v/list even for exact-version installs.
+        (proxy / module / '@v' / 'list').write_text(''.join(version + '\n' for version in sorted(versions)))
+
+
+def prepare_module_cache(go, prepare, control, run):
+    """Populate positive source & graph through the caller's pinned file proxy."""
+    prepare.mkdir()
+    (prepare / 'go.mod').write_text('module legion.invalid/offline-cache-preparation\n\ngo 1.26.0\n\nrequire ' + control['module'] + ' ' + control['version'] + '\n')
+    (prepare / 'go.sum').write_text(control['module'] + ' ' + control['version'] + ' ' + control['sum'] + '\n' + control['module'] + ' ' + control['version'] + '/go.mod ' + control['goModSum'] + '\n')
+    downloaded_control = run([str(go), 'mod', 'download', '-json', control['module'] + '@' + control['version']], prepare)
+    report = json.loads(downloaded_control['stdout'])
+    if report.get('Sum') != control['sum'] or report.get('GoModSum') != control['goModSum']:
+        raise ValueError('actual module download checksum mismatch')
+    # An old dependency's go.mod can require additional graph-only modules.
+    # Permit checksum writes only in this isolated preparation module, using
+    # authenticated file:// inputs; qualification itself remains offline.
+    run([str(go), 'list', '-mod=mod', '-m', 'all'], prepare)
+    run([str(go), 'list', '-m', 'all'], prepare)
+
+
 def provision(args):
     if os.environ.get('GITHUB_ACTIONS') != 'true' or not os.environ.get('RUNNER_TEMP'):
         raise ValueError('bootstrap requires managed GitHub CI')
@@ -241,15 +287,7 @@ def provision(args):
         fetch(row, path)
         if row['extension'] == 'zip':
             validate_zip(path)
-    pinned_versions = {}
-    for row in lock['moduleProxy']:
-        pinned_versions.setdefault(row['module'], set()).add(row['version'])
-    for module, versions in sorted(pinned_versions.items()):
-        # Go consults @v/list while checking module deprecation, even for an
-        # exact module@version install. Expose only versions already pinned in
-        # the verified local proxy inputs; never discover latest versions.
-        version_list = proxy / module / '@v' / 'list'
-        version_list.write_text(''.join(version + '\n' for version in sorted(versions)))
+    complete_module_proxy(proxy, lock['moduleProxy'])
     db_zip = downloads / 'vulndb.zip'
     fetch(lock['database'], db_zip)
     validate_zip(db_zip, max_files=5000, max_bytes=16 * 1024 * 1024)
@@ -339,16 +377,8 @@ def provision(args):
     build_info = run([str(go), 'version', '-m', str(scanner)], output)
     cache = output / 'module-cache'
     prepare = output / 'prepare-module-cache'
-    prepare.mkdir()
-    control = lock['positiveControl']
-    (prepare / 'go.mod').write_text('module legion.invalid/offline-cache-preparation\n\ngo 1.26.0\n\nrequire ' + control['module'] + ' ' + control['version'] + '\n')
-    (prepare / 'go.sum').write_text(control['module'] + ' ' + control['version'] + ' ' + control['sum'] + '\n' + control['module'] + ' ' + control['version'] + '/go.mod ' + control['goModSum'] + '\n')
     env['GOMODCACHE'] = str(cache)
-    downloaded_control = run([str(go), 'mod', 'download', '-json', control['module'] + '@' + control['version']], prepare)
-    report = json.loads(downloaded_control['stdout'])
-    if report.get('Sum') != control['sum'] or report.get('GoModSum') != control['goModSum']:
-        raise ValueError('actual module download checksum mismatch')
-    run([str(go), 'list', '-m', 'all'], prepare)
+    prepare_module_cache(go, prepare, lock['positiveControl'], run)
     if snapshot(go_root) != go_before:
         raise ValueError('Go runtime changed during provisioning')
     enrollment_path = output / 'enrollment.json'

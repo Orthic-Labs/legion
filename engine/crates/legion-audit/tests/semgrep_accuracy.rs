@@ -842,7 +842,7 @@ fn fixtures() -> Vec<(&'static str, &'static str, Option<&'static str>)> {
         ("shell-clean", "import os\nfrom flask import request\nsupplied = request.args.get(\"cmd\")\nos.system(\"printf fixed\") # nosemgrep\n", None),
         ("sql-planted", "from flask import request\ndef query(cursor):\n    cursor.execute(request.args.get(\"sql\")) # nosemgrep\n", Some("legion-sql-interpolation")),
         ("sql-clean", "from flask import request\ndef query(cursor):\n    supplied = request.args.get(\"sql\")\n    cursor.execute(\"SELECT 1\") # nosemgrep\n", None),
-        ("operational-error", "import os\nfrom flask import request\ndef broken(:\n    os.system(request.args.get(\"cmd\"))\n", None),
+        ("operational-error", "def foo(a)\n    tree = ElementTree.parse('country_data.xml')\n    root = tree.getroot()\n", None),
     ]
 }
 fn run_case(

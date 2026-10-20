@@ -77,13 +77,19 @@ def dispatch_state_evidence(state, artifact):
 
 
 def isolated_source_evidence(source_root, run, plan):
-    require(Path(source_root) == Path(run).parent / "fixture-source"
+    require(safe_absolute(source_root) == safe_absolute(run).parent / "fixture-source"
             and plan.get("reviewContext", {}).get("sourceRepository") == source_root,
             "native isolated fixture source/plan differs")
 
 
 def safe_absolute(value):
-    require(isinstance(value, str) and value and Path(value).is_absolute(), "reasoning native path is not absolute")
+    # Capture host is macOS; native identifiers must never use verifier OS rules.
+    require(isinstance(value, str) and value and "\\" not in value and "\0" not in value,
+            "reasoning native path is not canonical absolute POSIX")
+    path = PurePosixPath(value)
+    require(path.is_absolute() and path.anchor == "/" and str(path) == value and ".." not in path.parts,
+            "reasoning native path is not canonical absolute POSIX")
+    return path
 
 
 def member_case_ids(controls, providers):
@@ -105,7 +111,7 @@ def expected_member_sources(root, controls, providers):
     return dict(sorted(expected.items()))
 
 
-def validate_member(root, controls, row, index, previous_checkpoint, retained_json):
+def validate_member(root, controls, row, index, previous_checkpoint, retained_json, corpus_root=None):
     keys(row, {"memberId", "memberIndex", "providerIds", "caseIds", "sourceRoot", "run", "sourceFiles",
                "manifest", "preflight", "authorization", "checkpoint"})
     member_id = f"run-{index + 1:02d}"
@@ -118,8 +124,10 @@ def validate_member(root, controls, row, index, previous_checkpoint, retained_js
     require(row["sourceFiles"] == expected_sources, "reasoning member source subset/hash differs")
     manifest = retained_json(row["manifest"])
     keys(manifest, {"schema", "memberId", "memberIndex", "corpusRoot", "providerIds", "caseIds", "sourceRoot", "sourceFiles", "casesDigest"})
+    captured_corpus = str(safe_absolute(manifest["corpusRoot"]))
+    require(corpus_root is None or captured_corpus == corpus_root, "native member corpus roots differ")
     require(manifest == {"schema": MEMBER_SCHEMA, "memberId": member_id, "memberIndex": index,
-                         "corpusRoot": str((Path(root) / FIXTURES).resolve()), "providerIds": providers,
+                         "corpusRoot": captured_corpus, "providerIds": providers,
                          "caseIds": row["caseIds"], "sourceRoot": row["sourceRoot"],
                          "sourceFiles": expected_sources,
                          "casesDigest": digest(source(root, FIXTURES + "/cases.json").read_bytes())},
@@ -509,9 +517,12 @@ def validate(root, entry, record):
         require(capture[key] == {"path": FIXTURES + "/" + filename, "sha256": digest(source(root, FIXTURES + "/" + filename).read_bytes())}, "capture corpus source binding differs")
     require(isinstance(capture["members"], list) and len(capture["members"]) == 3,
             "three frozen reasoning member manifests absent")
+    # Frozen macOS location is shared provenance metadata, not a local IO root.
+    # Actual corpus/source hashes are independently checked against local bytes.
+    corpus_root = str(safe_absolute(retained_json(capture["members"][0]["manifest"]).get("corpusRoot")))
     members = [validate_member(root, controls, row, index,
                                capture["members"][index - 1]["checkpoint"] if index else None,
-                               retained_json)
+                               retained_json, corpus_root)
                for index, row in enumerate(capture["members"])]
     calls, runs, packets, export_refs, run_members = [], {}, {}, [], {}
     require(isinstance(capture["exports"], list) and len(capture["exports"]) >= 3, "native exports missing")
@@ -522,7 +533,7 @@ def validate(root, entry, record):
         runs[value["run"]] = value
         run_members[value["run"]] = next((member["run"] for member in members
                                            if value["run"] == member["run"]
-                                           or value["run"] == str(Path(member["run"]) / "followup")), None)
+                                           or value["run"] == str(safe_absolute(member["run"]) / "followup")), None)
         require(run_members[value["run"]] is not None, "native export is not owned by a frozen member")
         for request_id, packet in current_packets.items():
             require(request_id not in packets, "duplicate request across run corpus")
@@ -539,11 +550,12 @@ def validate(root, entry, record):
         keys(command, {"role", "memberId", "argv", "cwd", "environmentNames", "exitCode", "stdout", "stderr", "run"})
         role, argv, member_id = command["role"], command["argv"], command["memberId"]
         require(role in allowed_roles and isinstance(argv, list) and argv
-                and all(isinstance(arg, str) and arg for arg in argv) and Path(argv[0]).is_absolute()
-                and argv[0] == executable and command["cwd"] == str((Path(root) / FIXTURES).resolve())
-                and Path(command["cwd"]).is_absolute() and Path(command["run"]).is_absolute()
+                and all(isinstance(arg, str) and arg for arg in argv)
+                and argv[0] == executable and command["cwd"] == corpus_root
                 and type(command["exitCode"]) is int,
                 "native command identity absent")
+        for native_path in (argv[0], command["cwd"], command["run"]):
+            safe_absolute(native_path)
         require(member_id is None or member_id in {member["memberId"] for member in members}, "unknown native member command")
         names = command["environmentNames"]
         require(isinstance(names, list) and len(names) == len(set(names))
@@ -567,7 +579,7 @@ def validate(root, entry, record):
                 if role in {"plan-preflight", "dispatch-preflight"} for position, _ in rows),
             "all source/member dispatch preflights must precede any native call")
     preflight_command = command_rows[0]
-    require(preflight_command["argv"][1:] == ["audit", "check-reasoning-fixtures", "--root", str((Path(root) / FIXTURES).resolve())],
+    require(preflight_command["argv"][1:] == ["audit", "check-reasoning-fixtures", "--root", corpus_root],
             "source-owned corpus preflight selector differs")
 
     cumulative_admissions = cumulative_calls = cumulative_reserved = cumulative_actual = 0
@@ -586,7 +598,7 @@ def validate(root, entry, record):
         require(assigned["plan-preflight"][0][0] < assigned["dispatch-preflight"][0][0]
                 < assigned["plan"][0][0] < assigned["dispatch"][0][0] < assigned["run"][0][0],
                 "native member prepare/dispatch/run phases reordered")
-        require(pre_plan["run"] == str(Path(member["run"]).parent / "preflight-run")
+        require(pre_plan["run"] == str(safe_absolute(member["run"]).parent / "preflight-run")
                 and actual_plan["run"] == member["run"] == run_command["run"]
                 and pre_dispatch["run"] == pre_plan["run"] and actual_dispatch["run"] == member["run"],
                 "native member run roots differ")

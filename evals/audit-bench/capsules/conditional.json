@@ -279,7 +279,7 @@
             "contracts/workspace.md": "# Workspace contract\n`ensure_workspace` creates its path idempotently on Windows, macOS, and Linux. `prepare_workspace` calls it before writing workspace files.\n",
             "src/commands.rs": "use crate::platform::ensure_workspace;\nuse std::path::Path;\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n",
             "src/lib.rs": "pub mod commands;\npub mod platform;\n",
-            "src/platform.rs": "use std::path::Path;\n\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
+            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n\n#[cfg(not(target_os = \"windows\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
           },
           "expected": [],
           "requiredEvidence": [
@@ -287,7 +287,7 @@
             {"path": ".github/workflows/platforms.yml", "lineRange": [1, 12], "role": "contract"},
             {"path": "src/lib.rs", "lineRange": [1, 2], "role": "caller"},
             {"path": "src/commands.rs", "lineRange": [4, 6], "role": "caller"},
-            {"path": "src/platform.rs", "lineRange": [3, 5], "role": "behavior"}
+            {"path": "src/platform.rs", "lineRange": [3, 11], "role": "behavior"}
           ],
           "forbiddenClaims": ["The clean control has been executed on all three operating systems.", "Directory creation changes files outside the requested path."]
         }
