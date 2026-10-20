@@ -492,6 +492,101 @@ fn copy_runtime(enrollment: &Value, root: &Path) {
     }
     assert_eq!(runtime_tree(root), enrollment["runtime"]);
 }
+fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &Path) -> Value {
+    let node = PathBuf::from(enrollment["node"]["path"].as_str().unwrap());
+    let pnpm = root.join("node_modules/pnpm/bin/pnpm.mjs");
+    assert!(
+        pnpm.is_file(),
+        "pinned pnpm entrypoint is absent from enrolled runtime"
+    );
+    fs::create_dir_all(config_root.parent().unwrap()).unwrap();
+    fs::create_dir(config_root).unwrap();
+    for relative in ["home", "config/pnpm", "cache", "state", "data", "tmp"] {
+        fs::create_dir_all(config_root.join(relative)).unwrap();
+    }
+    let mut config_inputs = BTreeMap::new();
+    for (relative, bytes) in [
+        ("npmrc", b"".as_slice()),
+        ("config/pnpm/auth.ini", b"".as_slice()),
+        ("config/pnpm/config.yaml", b"{}\n".as_slice()),
+    ] {
+        let path = config_root.join(relative);
+        fs::write(&path, bytes).unwrap();
+        config_inputs.insert(
+            relative,
+            json!({"path":path,"digest":digest(bytes),"bytes":bytes.len(),"rawBytes":bytes}),
+        );
+    }
+    // Pinned pnpm env reader, dirs & workspace finder own these inputs.
+    // Config remains outside audited source; no host config or NODE_OPTIONS inherits.
+    let mut environment = BTreeMap::new();
+    environment.insert(
+        "PATH".to_owned(),
+        format!("{}:/usr/bin:/bin", node.parent().unwrap().display()),
+    );
+    for (key, relative) in [
+        ("HOME", "home"),
+        ("XDG_CONFIG_HOME", "config"),
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_STATE_HOME", "state"),
+        ("XDG_DATA_HOME", "data"),
+        ("TMPDIR", "tmp"),
+        ("PNPM_CONFIG_USERCONFIG", "npmrc"),
+    ] {
+        environment.insert(
+            key.to_owned(),
+            config_root.join(relative).to_str().unwrap().to_owned(),
+        );
+    }
+    environment.insert("CI".into(), "true".into());
+    environment.insert("PNPM_CONFIG_IGNORE_PNPMFILE".into(), "true".into());
+    environment.insert(
+        "PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE".into(),
+        "false".into(),
+    );
+    environment.insert("PNPM_CONFIG_EXTEND_NODE_PATH".into(), "false".into());
+    environment.insert(
+        "NPM_CONFIG_WORKSPACE_DIR".into(),
+        root.to_str().unwrap().into(),
+    );
+    let output = Command::new(&node)
+        .arg(pnpm)
+        .args([
+            "install",
+            "--offline",
+            "--ignore-scripts",
+            "--no-frozen-lockfile",
+        ])
+        .current_dir(root)
+        .env_clear()
+        .envs(&environment)
+        .output()
+        .unwrap();
+    let mut config_after = BTreeMap::new();
+    for relative in config_inputs.keys() {
+        let path = config_root.join(relative);
+        let bytes = bounded(&path, 1024);
+        config_after.insert(
+            *relative,
+            json!({"path":path,"digest":digest(&bytes),"bytes":bytes.len(),"rawBytes":bytes}),
+        );
+    }
+    json!({
+        "schema": "legion-javascript-pnpm-install/1",
+        "argv": [node, root.join("node_modules/pnpm/bin/pnpm.mjs"), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile"],
+        "cwd": root,
+        "nodeDigest": enrollment["node"]["digest"],
+        "pnpmDigest": enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"],
+        "environmentCleared": true,
+        "environment": environment,
+        "configInputsBefore": config_inputs,
+        "configInputsAfter": config_after,
+        "exitCode": output.status.code(),
+        "success": output.status.success(),
+        "stdout": {"digest": digest(&output.stdout), "bytes": output.stdout.len(), "rawBytes": output.stdout},
+        "stderr": {"digest": digest(&output.stderr), "bytes": output.stderr.len(), "rawBytes": output.stderr},
+    })
+}
 fn fixtures(control: &str) -> BTreeMap<String, String> {
     let base = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../..")
@@ -843,12 +938,103 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     let case_id = format!("javascript-{control}");
     let root = base.join(&case_id).join("source");
     fs::create_dir_all(&root).unwrap();
+    let baseline = fixtures("nonempty-clean");
+    for (relative, text) in &baseline {
+        fs::write(root.join(relative), text).unwrap();
+    }
+    copy_runtime(enrollment, &root);
+    let enrolled_runtime = runtime_tree(&root);
+    assert_eq!(enrolled_runtime, enrollment["runtime"]);
+    let install = install_fixture_dependencies(
+        enrollment,
+        &root,
+        &retained
+            .join("preparations")
+            .join(format!("{case_id}-config")),
+    );
+    let receipt_path = retained
+        .join("preparations")
+        .join(format!("{case_id}-install.json"));
+    fs::create_dir_all(receipt_path.parent().unwrap()).unwrap();
+    fs::write(&receipt_path, serde_json::to_vec_pretty(&install).unwrap()).unwrap();
+    let mut install_files = serde_json::Map::new();
+    for path in [
+        "node_modules/.bin/acorn",
+        "node_modules/.bin/js-yaml",
+        "node_modules/.bin/node-which",
+        "node_modules/.bin/pn",
+        "node_modules/.bin/pnpx",
+        "node_modules/.bin/pnx",
+        "node_modules/.bin/semver",
+        "node_modules/.bin/tsserver",
+        "node_modules/.package-map.json",
+        "node_modules/.pnpm-workspace-state-v1.json",
+    ] {
+        let path_on_disk = root.join(path);
+        let metadata = fs::symlink_metadata(&path_on_disk).unwrap();
+        assert!(
+            metadata.is_file() && !metadata.file_type().is_symlink(),
+            "installer output is not a regular file: {path}"
+        );
+        let bytes = bounded(&path_on_disk, 8 * 1024 * 1024);
+        install_files.insert(
+            path.into(),
+            json!({
+                "digest": digest(&bytes),
+                "bytes": bytes.len(),
+                "executable": metadata.permissions().mode() & 0o111 != 0,
+                "rawBytes": bytes,
+            }),
+        );
+    }
+    let post_install_runtime = runtime_tree(&root);
+    let lock_bytes = bounded(&root.join("pnpm-lock.yaml"), 8 * 1024 * 1024);
+    let preparation = json!({
+        "install": install,
+        "enrolledRuntime": enrolled_runtime,
+        "postInstallRuntime": post_install_runtime,
+        "generatedFiles": install_files,
+        "lockfile": {"digest": digest(&lock_bytes), "bytes": lock_bytes.len(), "rawBytes": lock_bytes.clone()},
+    });
+    let preparation_path = retained
+        .join("preparations")
+        .join(format!("{case_id}.json"));
+    fs::create_dir_all(preparation_path.parent().unwrap()).unwrap();
+    fs::write(
+        &preparation_path,
+        serde_json::to_vec_pretty(&preparation).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        install["success"] == true,
+        "genuine pinned pnpm baseline install failed; stdout={} stderr={}",
+        String::from_utf8_lossy(
+            &install["stdout"]["rawBytes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n.as_u64().unwrap() as u8)
+                .collect::<Vec<_>>()
+        ),
+        String::from_utf8_lossy(
+            &install["stderr"]["rawBytes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n.as_u64().unwrap() as u8)
+                .collect::<Vec<_>>()
+        )
+    );
     let files = fixtures(control);
+    let mut files = files;
+    files.insert(
+        "pnpm-lock.yaml".into(),
+        String::from_utf8(lock_bytes).expect("pnpm lockfile is utf-8"),
+    );
     for (relative, text) in &files {
         fs::write(root.join(relative), text).unwrap();
     }
     let source_before = source_snapshot(&root, &files);
-    copy_runtime(enrollment, &root);
     if control == "missing-tool" {
         fs::remove_file(root.join("node_modules/.bin/eslint")).unwrap();
     }
@@ -984,7 +1170,7 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     };
     let executions = rows.lock().unwrap().clone();
     let decisions = policy.decisions.lock().unwrap().clone();
-    let mut result = json!({"caseId":case_id,"control":control,"provider":JS,"scope":if control=="absent-sandbox"{"sdk-boundary-control"}else{"native-provider-known-answer-fixture"},"productionQualification":false,"qualificationEligible":false,"fixtureFiles":files,"sourceBefore":source_before,"sourceAfter":source_snapshot(&root,&files),"localRuntimeBefore":runtime_before,"localRuntimeAfter":runtime_tree(&root),"inventory":inventory,"planDigest":frozen.digest(),"frozenProvider":provider,"nativeResult":native_result,"policyDefinition":policy.definition(),"policyDecisions":decisions,"sdkExecutions":executions,"matched":false});
+    let mut result = json!({"caseId":case_id,"control":control,"provider":JS,"scope":if control=="absent-sandbox"{"sdk-boundary-control"}else{"native-provider-known-answer-fixture"},"productionQualification":false,"qualificationEligible":false,"fixtureFiles":files,"sourceBefore":source_before,"sourceAfter":source_snapshot(&root,&files),"enrollmentPreparation":preparation,"enrolledRuntime":enrolled_runtime,"localRuntimeBefore":runtime_before,"localRuntimeAfter":runtime_tree(&root),"inventory":inventory,"planDigest":frozen.digest(),"frozenProvider":provider,"nativeResult":native_result,"policyDefinition":policy.definition(),"policyDecisions":decisions,"sdkExecutions":executions,"matched":false});
     if control == "tool-tamper" {
         result["toolTamperBytes"] = json!(bounded(
             &root.join("node_modules/eslint/bin/eslint.js"),

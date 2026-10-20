@@ -176,6 +176,16 @@ def mutations(case, scratch, live):
         same(r["sandbox"], {"required": True, "receiptId": wanted["sandbox"]["id"], "networkEnabled": True}, "mutation sandbox changed")
         if live: same(parsed(Path(scratch, "mutations", field, "sdk-execution-0.json").read_bytes()), row, "actual mutation evidence changed")
 
+def frozen_denominator(case, spec, entries):
+    # InventoryDenominator uses InventoryEnvelope.digest directly for always.
+    # validate_case independently seals inventory & entries before this boundary.
+    frozen = case["frozenProvider"]
+    same(spec["selector"], {"op": "always"}, "original Python always selector changed")
+    same(frozen["configuration"]["selector"], spec["selector"], "frozen Python selector changed")
+    require(is_digest(case["planDigest"]) and frozen["id"] == PROVIDER and frozen["version"] == spec["providerVersion"]
+            and frozen["configuration"]["denominatorCount"] == len(entries)
+            and frozen["configuration"]["denominatorDigest"] == case["inventory"]["digest"], "original provider denominator changed")
+
 def validate_case(root, case, enrollment, live):
     control = case["control"]
     fields = {"caseId", "control", "provider", "scope", "fixtureFiles", "fixtureSources", "inventory", "planDigest", "frozenProvider", "nativeResult", "policyDefinition", "policyDecisions", "sdkExecutions", "runtimeBefore", "runtimeAfter", "matched"}
@@ -191,8 +201,7 @@ def validate_case(root, case, enrollment, live):
     same(inv["entries"], entries, "frozen inventory dropped/added source/context siblings")
     require(inv["schemaVersion"] == 1 and inv["repositoryId"] == case["caseId"] and inv["generation"] == "filesystem:" + digest(encoded(entries)) and inv["digest"] == digest(encoded([1, case["caseId"], inv["generation"], entries])), "inventory identity differs")
     spec = next(s for s in parsed(source_file(root, "src/registry/providers.json").read_bytes())["providers"] if s["id"] == PROVIDER)
-    frozen = case["frozenProvider"]
-    require(is_digest(case["planDigest"]) and frozen["id"] == PROVIDER and frozen["version"] == spec["providerVersion"] and frozen["configuration"]["denominatorCount"] == len(entries) and frozen["configuration"]["denominatorDigest"] == digest(encoded([inv["digest"], spec["selector"], entries])), "original provider denominator changed")
+    frozen_denominator(case, spec, entries)
     policy = case["policyDefinition"]
     keys(policy, ("id", "version", "scope", "provider", "planDigest", "originalRoot", "cwd", "frozenSourceDigest", "toolIdentities", "wrapper", "profile", "commands", "environment", "environmentAllowlist", "absentSandboxControl", "timeoutMs", "stdoutLimit", "stderrLimit"))
     original = absolute(policy["originalRoot"])

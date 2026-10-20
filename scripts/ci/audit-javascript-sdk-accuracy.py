@@ -273,6 +273,150 @@ def fixture(root, control):
     return files
 
 
+GENERATED_INSTALL_FILES = {
+    "node_modules/.bin/acorn": "node_modules/acorn/bin/acorn",
+    "node_modules/.bin/js-yaml": "node_modules/js-yaml/bin/js-yaml.js",
+    "node_modules/.bin/node-which": "node_modules/which/bin/node-which",
+    "node_modules/.bin/pn": "node_modules/pnpm/bin/pnpm.mjs",
+    "node_modules/.bin/pnpx": "node_modules/pnpm/bin/pnpx.mjs",
+    "node_modules/.bin/pnx": "node_modules/pnpm/bin/pnpx.mjs",
+    "node_modules/.bin/semver": "node_modules/semver/bin/semver.js",
+    "node_modules/.bin/tsserver": "node_modules/typescript/bin/tsserver",
+    "node_modules/.package-map.json": None,
+    "node_modules/.pnpm-workspace-state-v1.json": None,
+}
+
+
+# Exact static prefix from enrolled pnpm 11.24.0 / @zkochan/cmd-shim 9.0.7.
+# Archive SHA256: d1eab2433172661cc36a18ec85fce93f771db1962717329cc01ec9c2824ca24f.
+PINNED_SHIM_PREFIX = '#!/bin/sh\n# Resolve $0 through symlinks so basedir is the shim\'s real directory.\n# Cap hops at the kernel\'s ELOOP limit so a cycle cannot hang the shim.\nlink="$0"\nhops=0\nwhile [ -L "$link" ] && [ "$hops" -lt 40 ]; do\n  hops=$((hops+1))\n  target=$(readlink "$link")\n  case "$target" in\n    /*) link="$target" ;;\n    *)  link="$(dirname "$link")/$target" ;;\n  esac\ndone\nbasedir=$(dirname "$(echo "$link" | sed -e \'s,\\\\,/,g\')")\nbasedir_win="$basedir"\nexe=""\nmsys=""\n\ncase `uname -a` in\n  *CYGWIN*|*MINGW*|*MSYS*)\n    if command -v cygpath > /dev/null 2>&1; then\n      basedir_win=`cygpath -w "$basedir"`\n    fi\n    exe=".exe"\n    msys="true"\n  ;;\n  *WSL2*)\n    if command -v wslpath > /dev/null 2>&1; then\n      basedir_win="$(wslpath -w "$basedir" 2> /dev/null)"\n      if [ $? -ne 0 ] || [ -z "$basedir_win" ]; then\n        basedir_win="$basedir"\n      else\n        exe=".exe"\n      fi\n    fi\n  ;;\nesac\n\n'
+
+
+def pinned_shim(cwd, target):
+    rel = "../" + target.removeprefix("node_modules/")
+    body = ('if [ -n "$exe" ] && [ -x "$basedir/node.exe" ]; then\n'
+            '  exec "$basedir/node.exe"  "$basedir_win/' + rel + '" "$@"\n'
+            'elif [ -x "$basedir/node" ]; then\n'
+            '  exec "$basedir/node"  "$basedir/' + rel + '" "$@"\n'
+            'elif command -v node >/dev/null 2>&1; then\n'
+            '  exec node  "$basedir/' + rel + '" "$@"\n'
+            'elif [ -n "$exe" ] && command -v node.exe >/dev/null 2>&1; then\n'
+            '  exec node.exe  "$basedir_win/' + rel + '" "$@"\n'
+            'else\n  exec node  "$basedir/' + rel + '" "$@"\nfi\n'
+            '# cmd-shim-target=' + str(cwd / target) + '\n')
+    return (PINNED_SHIM_PREFIX + body).encode()
+
+
+def raw_descriptor(value, reason):
+    require(set(value) == {"digest", "bytes", "rawBytes"} or set(value) == {"digest", "bytes", "executable", "rawBytes"}, reason + " fields differ")
+    raw = value["rawBytes"]
+    require(isinstance(raw, list) and all(type(n) is int and 0 <= n <= 255 for n in raw), reason + " bytes malformed")
+    data = bytes(raw)
+    require(len(data) == value["bytes"] and digest(data) == value["digest"], reason + " bytes/hash differ")
+    return data
+
+
+def validate_preparation(case, enrollment, root, expected_files, control):
+    prep = case.get("enrollmentPreparation")
+    require(isinstance(prep, dict) and set(prep) == {"install", "enrolledRuntime", "postInstallRuntime", "generatedFiles", "lockfile"}, "genuine install preparation missing/incomplete")
+    install = prep["install"]
+    require(set(install) == {"schema", "argv", "cwd", "nodeDigest", "pnpmDigest", "exitCode", "success", "stdout", "stderr", "environmentCleared", "environment", "configInputsBefore", "configInputsAfter"}
+            and install["schema"] == "legion-javascript-pnpm-install/1", "install receipt schema differs")
+    cwd = absolute(case["policyDefinition"]["cwd"])
+    node = absolute(enrollment["node"]["path"])
+    pnpm = cwd / "node_modules/pnpm/bin/pnpm.mjs"
+    scratch = absolute(case["policyDefinition"]["profile"]["path"]).parent.parent
+    config_root = scratch.parent.parent / "preparations" / (case["caseId"] + "-config")
+    require(not config_root.is_relative_to(cwd), "install config escaped external preparation scope")
+    environment = {"PATH": str(node.parent) + ":/usr/bin:/bin", "CI": "true",
+        "PNPM_CONFIG_IGNORE_PNPMFILE": "true", "PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE": "false",
+        "PNPM_CONFIG_EXTEND_NODE_PATH": "false", "NPM_CONFIG_WORKSPACE_DIR": str(cwd)}
+    for key, path in (("HOME", "home"), ("XDG_CONFIG_HOME", "config"),
+        ("XDG_CACHE_HOME", "cache"), ("XDG_STATE_HOME", "state"), ("XDG_DATA_HOME", "data"),
+        ("TMPDIR", "tmp"), ("PNPM_CONFIG_USERCONFIG", "npmrc")):
+        environment[key] = str(config_root / path)
+    require(install["environmentCleared"] is True, "install inherited host configuration")
+    same(install["environment"], environment, "install environment differs from isolated pinned inputs")
+    configs = {}
+    for path, data in (("npmrc", b""), ("config/pnpm/auth.ini", b""), ("config/pnpm/config.yaml", b"{}\n")):
+        configs[path] = {"path": str(config_root / path), "digest": digest(data), "bytes": len(data), "rawBytes": list(data)}
+    same(install["configInputsBefore"], configs, "install config bytes differ from empty isolated inputs")
+    same(install["configInputsAfter"], configs, "install changed isolated config inputs")
+    same(install["argv"], [str(node), str(pnpm), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile"], "baseline installer argv differs")
+    require(install["cwd"] == str(cwd) and install["nodeDigest"] == enrollment["node"]["digest"]
+            and install["pnpmDigest"] == enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"]
+            and install["exitCode"] == 0 and install["success"] is True, "pinned baseline install did not succeed")
+    for key in ("stdout", "stderr"):
+        raw_descriptor(install[key], "original install " + key)
+    same(prep["enrolledRuntime"], enrollment["runtime"], "preinstall enrolled tree differs from verified enrollment")
+    generated = prep["generatedFiles"]
+    same(set(generated), set(GENERATED_INSTALL_FILES), "installer generated-file set differs")
+    pin = parsed(read(source(root, INPUTS), 16 * 1024 * 1024))
+    declared_bins = {}
+    for package_id, package in pin["packages"].items():
+        bins = package.get("bin", {})
+        if isinstance(bins, str):
+            bins = {package_id.rsplit("@", 1)[0].rsplit("/", 1)[-1]: bins}
+        require(isinstance(bins, dict), "pinned package bin declaration malformed")
+        name = package_id.rsplit("@", 1)[0]
+        package_path = "node_modules/" + name
+        for alias, target in bins.items():
+            if alias in {"acorn", "js-yaml", "node-which", "pn", "pnpx", "pnx", "semver", "tsserver"}:
+                declared_bins["node_modules/.bin/" + alias] = package_path + "/" + target.removeprefix("./")
+    same({p: GENERATED_INSTALL_FILES[p] for p in GENERATED_INSTALL_FILES if GENERATED_INSTALL_FILES[p] is not None}, declared_bins, "generated shim set/targets differ from enrolled package bin declarations")
+    generated_raw = {}
+    for path, target in GENERATED_INSTALL_FILES.items():
+        data = raw_descriptor(generated[path], "generated " + path)
+        generated_raw[path] = data
+        require(generated[path].get("executable") is (target is not None), "generated install file mode differs")
+        if target is not None:
+            require(data == pinned_shim(cwd, target),
+                    "pnpm shim bytes differ from pinned cmd-shim body/target")
+    package_map = parsed(generated_raw["node_modules/.package-map.json"])
+    same(set(package_map), {"packages"}, "pnpm package map keys differ")
+    same(package_map["packages"], {".": {"url": "../..", "dependencies": {parsed(expected_files["package.json"].encode())["name"]: "."}}}, "pnpm package map includes unexpected package/dependency")
+    state = parsed(generated_raw["node_modules/.pnpm-workspace-state-v1.json"])
+    # ignorePnpmfile skips main's hook loader; pnpmfile/configDependencies remain
+    # undefined & JSON.stringify omits both fields in the pinned state writer.
+    same(set(state), {"lastValidatedTimestamp", "projects", "settings", "filteredInstall"}, "pnpm workspace state keys differ")
+    require(type(state["lastValidatedTimestamp"]) is int and state["lastValidatedTimestamp"] >= 0, "pnpm workspace timestamp malformed")
+    manifest = parsed(expected_files["package.json"].encode())
+    same(state["projects"], {str(cwd): {"name": manifest["name"], "version": manifest["version"]}}, "pnpm workspace projects differ")
+    require(state["filteredInstall"] is False
+            and isinstance(state["settings"], dict), "pnpm workspace state values differ")
+    # Exact projection of isolated pinned config defaults through the state writer.
+    default_settings = {"enableGlobalVirtualStore": False,
+        "autoInstallPeers": True, "catalogs": {}, "dedupeDirectDeps": False,
+        "dedupeInjectedDeps": True, "dedupePeerDependents": True, "dedupePeers": False,
+        "dev": True, "excludeLinksFromLockfile": False, "hoistPattern": ["*"],
+        "hoistWorkspacePackages": True,
+        "injectWorkspacePackages": False, "linkWorkspacePackages": False,
+        "minimumReleaseAge": 1440, "minimumReleaseAgeIgnoreMissingTime": True,
+        "nodeLinker": "isolated", "optional": True, "peersSuffixMaxLength": 1000,
+        "preferWorkspacePackages": False, "production": True, "publicHoistPattern": [],
+        "workspacePackagePatterns": ["."]}
+    same(state["settings"], default_settings, "pnpm workspace state differs from isolated pinned config projection")
+    lock = raw_descriptor(prep["lockfile"], "generated lockfile")
+    lock_text = lock.decode("utf-8")
+    require(re.fullmatch(r"lockfileVersion: '9\.0'\n+settings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n+importers:\n+  \.: \{\}\n", lock_text),
+            "pnpm lockfile differs from complete empty-importer writer grammar")
+    expected_files["pnpm-lock.yaml"] = lock_text
+    original = prep["enrolledRuntime"]
+    post = prep["postInstallRuntime"]
+    same(post["links"], original["links"], "install changed enrolled links")
+    same(post["directories"], original["directories"], "install changed enrolled directories")
+    require(set(post["files"]) == set(original["files"]) | (set(GENERATED_INSTALL_FILES) - {"pnpm-lock.yaml"}), "install file delta differs")
+    for path, value in original["files"].items():
+        same(post["files"][path], value, "install changed enrolled file: " + path)
+    for path, value in generated.items():
+        if path.startswith("node_modules/"):
+            same(post["files"][path], {k: value[k] for k in ("digest", "bytes", "executable")}, "installed runtime descriptor differs: " + path)
+    expected_baseline = parsed(encoded(post))
+    if control == "missing-tool":
+        expected_baseline["links"].pop("node_modules/.bin/eslint")
+    same(case["localRuntimeBefore"], expected_baseline, "post-install execution baseline differs")
+
+
 def stream(record, raw, root):
     if record is None:
         require(raw is None, "unrecorded stream data")
@@ -396,15 +540,8 @@ def validate_record(root, row, enrollment=None, live=False):
                 and case["matched"] is True and case["productionQualification"] is False
                 and case["qualificationEligible"] is False, "case identity/claim differs")
         expected_files = fixture(root, control)
+        validate_preparation(case, enrollment, root, expected_files, control)
         actual_files = dict(case["fixtureFiles"])
-        if control in ("build-noop", "test-noop", "test-empty", "test-unmet-plan"):
-            task = "build" if control == "build-noop" else "test"
-            row_execution = next(e for e in executions if e["request"]["taskId"] == task)
-            require(not result["complete"] and result["coverage_gaps"], "substance-negative control falsely complete")
-            if control != "test-unmet-plan":
-                require(row_execution["executionReceipt"]["state"] == "completed" and row_execution["executionReceipt"]["exitCode"] == 0, "noop/empty control did not genuinely exit zero")
-            else:
-                require("plan expected 1 assertions but received 0" in observed["test"][0], "genuine Node missing-plan enforcement absent")
         if control == "scope-omission":
             same(parsed(actual_files["tsconfig.json"]), parsed(expected_files["tsconfig.json"]), "scope config mutation differs")
             expected_files["tsconfig.json"] = actual_files["tsconfig.json"]
@@ -444,10 +581,9 @@ def validate_record(root, row, enrollment=None, live=False):
         same(policy["environment"], exact_env, "policy environment exceeds frozen source contract")
         same(policy["environmentAllowlist"], exact_allowlist, "policy inheritance exceeds frozen source contract")
         require(policy["wrapper"]["path"] == "/usr/bin/sandbox-exec", "unrecognized native sandbox wrapper")
-        baseline = parsed(encoded(enrollment["runtime"]))
+        baseline = parsed(encoded(case["enrollmentPreparation"]["postInstallRuntime"]))
         if control == "missing-tool":
             baseline["links"].pop("node_modules/.bin/eslint")
-        same(case["localRuntimeBefore"], baseline, "local official package closure differs")
         same(policy["runtime"], baseline, "fixture admission closure differs")
         after_runtime = parsed(encoded(baseline))
         if control == "tool-tamper":

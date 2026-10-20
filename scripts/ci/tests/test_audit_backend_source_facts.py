@@ -11,16 +11,31 @@ ROOT = Path(__file__).resolve().parents[3]
 api = runpy.run_path(str(ROOT / "scripts/ci/audit-backend-source-facts.py"))
 
 
-def unit_record():
+def qualified_unit_benchmark():
+    # Constructed semantic input only, never an authenticated qualification record.
+    qualification = {"basis": "retained-provider-accuracy", "index": "qualification/provider-accuracy/index.json",
+        "record": "qualification/provider-accuracy/records/framework.backend/" + "1" * 64 + ".json",
+        "recordSha256": "sha256:" + "2" * 64, "originalQualificationDigest": "sha256:" + "1" * 64,
+        "validationBasis": "native-family-validator", "stage": "fact-output", "scope": api["SCOPE"],
+        "fixtureScope": api["SCOPE"], "runtimeExamined": 0,
+        "coverageScope": "exact thirteen named literal source facts only; runtime, mount composition & auth remain unproven",
+        **{key: False for key in api["FALSE_CLAIMS"]}}
+    return {"status": "qualified", "requiredForCleanClaim": False,
+        "qualification": qualification, "qualificationDigest": api["digest"](api["encoded"](qualification))}
+
+
+def unit_record(benchmark=None):
     corpus = api["contract"](ROOT)
     registry = api["parsed"]((ROOT / "src/registry/providers.json").read_bytes())
-    spec = {k: v for k, v in next(s for s in registry["providers"] if s["id"] == api["ID"]).items() if k != "benchmark"}
+    shipped = next(s for s in registry["providers"] if s["id"] == api["ID"])
+    spec = {k: v for k, v in shipped.items() if k != "benchmark"}
+    benchmark = copy.deepcopy(shipped["benchmark"] if benchmark is None else benchmark)
     retained = "/constructed-unit/legion-provider-qualification/backend-source"
     rows = []
     for case_id in api["CONTROLS"]:
         row, control, files, after = api["fixed_case"](corpus, case_id)
         inventory = api["expected_inventory"](case_id, row, files)
-        plan = api["expected_plan"](spec, inventory, api["EXECUTION_BENCHMARK"])
+        plan = api["expected_plan"](spec, inventory, benchmark)
         pd = api["digest"](api["encoded"](plan))
         rows.append({"caseId": case_id, "framework": row["framework"], "control": control,
             "fixtureRoot": retained + "/fixtures/" + case_id, "fixtureFiles": files, "postFreezeFiles": after,
@@ -35,7 +50,7 @@ def unit_record():
         "executionPath": "native-frozen-plan-self-sourced-backend-source-facts", "status": "pass",
         "qualificationEligible": True, "coverageState": "scoped-controls-complete", "modelCalls": 0, "runtimeExamined": 0,
         **{key: False for key in api["FALSE_CLAIMS"]}, "frameworkDenominator": api["FRAMEWORKS"], "controls": api["CONTROLS"],
-        "binding": {"providerSpec": spec, "providerSpecDigest": api["digest"](api["encoded"](spec)), "benchmarkAtExecution": api["EXECUTION_BENCHMARK"],
+        "binding": {"providerSpec": spec, "providerSpecDigest": api["digest"](api["encoded"](spec)), "benchmarkAtExecution": benchmark,
             "fixture": api["HARNESS"], "sources": sources, "sourcesDigest": api["digest"](api["encoded"](sources))},
         "rawStream": {"path": "native-results.jsonl", "sha256": api["digest"](raw), "bytes": len(raw), "cases": 60}, "retainedRoot": retained,
         "metrics": {"frameworks": 13, "cases": 60, "matched": 60, "mismatched": 0, "runtimeExamined": 0}}
@@ -55,6 +70,70 @@ class BackendSourceReplayUnits(unittest.TestCase):
         self.assertEqual((summary["frameworks"], summary["cases"], summary["runtimeExamined"]), (13, 60, 0))
         for key in api["FALSE_CLAIMS"]:
             self.assertIs(summary[key], False)
+
+    def test_execution_benchmark_matches_shipped_registry_without_promoting_claims(self):
+        registry = api["parsed"]((ROOT / "src/registry/providers.json").read_bytes())
+        shipped = next(row for row in registry["providers"] if row["id"] == api["ID"])
+        self.assertEqual(self.record["binding"]["benchmarkAtExecution"], shipped["benchmark"])
+        summary = api["validate_record"](ROOT, self.record, self.raw)
+        for claim in api["FALSE_CLAIMS"]:
+            self.assertIs(summary[claim], False)
+
+    def test_retained_benchmarks_replay_without_claiming_current_registry_or_ci_authentication(self):
+        # Offline replay is semantic only; canonical gate separately authenticates original CI bytes.
+        unproven = {"status": "unproven", "requiredForCleanClaim": False, "qualificationDigest": None}
+        registry = api["parsed"]((ROOT / "src/registry/providers.json").read_bytes())
+        shipped = next(row for row in registry["providers"] if row["id"] == api["ID"])
+        for historical in (unproven, {**unproven, "qualification": None}, qualified_unit_benchmark()):
+            record, raw = unit_record(historical)
+            summary = api["validate_record"](ROOT, record, raw, live=False)
+            self.assertEqual(summary["cases"], 60)
+            for claim in api["FALSE_CLAIMS"]:
+                self.assertIs(summary[claim], False)
+            if shipped["benchmark"] != historical:
+                with self.assertRaisesRegex(AssertionError, "live execution benchmark differs from shipped registry"):
+                    api["validate_record"](ROOT, record, raw, live=True)
+
+    def test_historical_benchmark_rejects_type_status_digest_and_claim_widening(self):
+        unproven = {"status": "unproven", "requiredForCleanClaim": False, "qualificationDigest": None}
+        invalid = [None, [], {**unproven, "status": "pass"}, {**unproven, "requiredForCleanClaim": 0},
+            {**unproven, "requiredForCleanClaim": True}, {**unproven, "qualificationDigest": "sha256:" + "0" * 64},
+            {**unproven, "qualification": {}}, {**unproven, "qualification": False},
+            {**unproven, "qualification": None, "extra": None}]
+        benchmark = qualified_unit_benchmark()
+        for field, value in (("runtimeExamined", False), ("runtimeExamined", 1), ("scope", "whole-provider"),
+                             ("recordSha256", "sha256:bad"), ("originalQualificationDigest", 0)):
+            changed = copy.deepcopy(benchmark)
+            changed["qualification"][field] = value
+            changed["qualificationDigest"] = api["digest"](api["encoded"](changed["qualification"]))
+            invalid.append(changed)
+        for claim in api["FALSE_CLAIMS"]:
+            changed = copy.deepcopy(benchmark)
+            changed["qualification"][claim] = True
+            changed["qualificationDigest"] = api["digest"](api["encoded"](changed["qualification"]))
+            invalid.append(changed)
+        for changed in invalid:
+            with self.subTest(benchmark=changed), self.assertRaises(AssertionError):
+                api["execution_benchmark"](changed)
+
+    def test_resealed_execution_benchmark_change_is_rejected(self):
+        changed = copy.deepcopy(self.record)
+        changed["binding"]["benchmarkAtExecution"]["qualificationDigest"] = "sha256:" + "0" * 64
+        changed.pop("qualificationDigest")
+        changed["qualificationDigest"] = api["digest"](api["encoded"](changed))
+        with self.assertRaisesRegex(AssertionError, "historical qualification seal differs|unproven execution benchmark differs"):
+            api["validate_record"](ROOT, changed, self.raw)
+
+    def test_frozen_plan_benchmark_must_match_execution_binding(self):
+        rows = [api["parsed"](line) for line in self.raw.splitlines()]
+        observation = rows[0]
+        observation["frozenPlan"]["providers"][0]["configuration"]["benchmark"]["qualificationDigest"] = "sha256:" + "0" * 64
+        raw_plan = api["encoded"](observation["frozenPlan"])
+        observation["planDigest"] = api["digest"](raw_plan)
+        observation["planSignature"] = "hmac-sha256:" + hmac.new(api["KEY"], raw_plan, hashlib.sha256).hexdigest()
+        observation["dispatch"]["planDigest"] = observation["planDigest"]
+        with self.assertRaisesRegex(AssertionError, "frozen original provider/selector/bounds altered"):
+            self.replay(rows)
 
     def test_resealed_semantic_mutations_are_rejected(self):
         self.assertEqual(api["rejection_controls"](ROOT, self.record, self.raw), 20)
@@ -175,7 +254,7 @@ class BackendSourceReplayUnits(unittest.TestCase):
                 api["parsed"](raw)
         for raw in (self.raw[:-1], self.raw.replace(b"\n", b"\r\n"), b"\n" + self.raw):
             with self.assertRaises(AssertionError):
-                api["replay_stream"](raw, api["contract"](ROOT), self.record["binding"]["providerSpec"], api["EXECUTION_BENCHMARK"], self.record["retainedRoot"])
+                api["replay_stream"](raw, api["contract"](ROOT), self.record["binding"]["providerSpec"], self.record["binding"]["benchmarkAtExecution"], self.record["retainedRoot"])
 
 
 if __name__ == "__main__":

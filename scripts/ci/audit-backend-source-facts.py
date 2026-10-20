@@ -28,7 +28,6 @@ SOURCE_FILES = ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain
 FALSE_CLAIMS = ("productionQualification", "wholeProviderQualified", "auditCleanClaim", "runtimeQualified", "authQualified", "certificationClaim")
 KEY = b"backend-source-known-answer-frozen-plan"
 POLICY = {"externalProcesses": "owner-admission-required", "admissionStatus": "unavailable", "effectiveMode": "deny-external"}
-EXECUTION_BENCHMARK = {"status": "unproven", "requiredForCleanClaim": False, "qualificationDigest": None}
 RECORD_KEYS = {"schema", "provider", "providerVersion", "family", "stage", "scope", "executionPath", "status", "qualificationEligible",
     "coverageState", "modelCalls", "runtimeExamined", "frameworkDenominator", "controls", "binding", "rawStream", "retainedRoot", "metrics", "qualificationDigest", *FALSE_CLAIMS}
 OBSERVATION_KEYS = {"caseId", "framework", "control", "fixtureRoot", "fixtureFiles", "postFreezeFiles", "inventory", "frozenPlan", "planDigest", "planSignature", "nativeResult", "dispatch"}
@@ -237,6 +236,38 @@ def replay_stream(raw, corpus, spec, benchmark, retained, live=False):
     return observations
 
 
+def execution_benchmark(benchmark):
+    """Bounded historical semantics only; canonical enrollment must authenticate provenance."""
+    require(type(benchmark) is dict, "execution benchmark must be an object")
+    require(benchmark.get("status") in ("unproven", "qualified"), "execution benchmark status differs")
+    require(benchmark.get("requiredForCleanClaim") is False, "execution benchmark clean claim widened")
+    if benchmark["status"] == "unproven":
+        wanted = {"status": "unproven", "requiredForCleanClaim": False, "qualificationDigest": None}
+        if "qualification" in benchmark:
+            wanted["qualification"] = None
+        same(benchmark, wanted, "unproven execution benchmark differs")
+        return
+    keys(benchmark, {"status", "requiredForCleanClaim", "qualificationDigest", "qualification"})
+    qualification = benchmark["qualification"]
+    keys(qualification, {"basis", "index", "record", "recordSha256", "originalQualificationDigest", "validationBasis",
+        "stage", "scope", "fixtureScope", "coverageScope", "runtimeExamined", *FALSE_CLAIMS})
+    for field in ("recordSha256", "originalQualificationDigest"):
+        require(type(qualification[field]) is str and re.fullmatch(r"sha256:[0-9a-f]{64}", qualification[field]),
+                "historical qualification digest malformed")
+    original = qualification["originalQualificationDigest"].removeprefix("sha256:")
+    same({field: qualification[field] for field in ("basis", "index", "record", "validationBasis", "stage", "scope", "fixtureScope", "coverageScope")},
+        {"basis": "retained-provider-accuracy", "index": "qualification/provider-accuracy/index.json",
+         "record": "qualification/provider-accuracy/records/" + ID + "/" + original + ".json",
+         "validationBasis": "native-family-validator", "stage": "fact-output", "scope": SCOPE, "fixtureScope": SCOPE,
+         "coverageScope": "exact thirteen named literal source facts only; runtime, mount composition & auth remain unproven"},
+        "historical qualification scope/reference widened")
+    require(type(qualification["runtimeExamined"]) is int and qualification["runtimeExamined"] == 0,
+            "historical qualification runtime claim widened")
+    for field in FALSE_CLAIMS:
+        require(qualification[field] is False, "historical qualification claim widened: " + field)
+    require(benchmark["qualificationDigest"] == digest(encoded(qualification)), "historical qualification seal differs")
+
+
 def validate_record(root, record, raw, live=False):
     root = Path(root).resolve()
     keys(record, RECORD_KEYS)
@@ -255,8 +286,14 @@ def validate_record(root, record, raw, live=False):
     require(len(specs) == 1, "original provider missing/duplicated")
     spec = {key: value for key, value in specs[0].items() if key != "benchmark"}
     keys(record["binding"], {"providerSpec", "providerSpecDigest", "benchmarkAtExecution", "fixture", "sources", "sourcesDigest"})
+    benchmark = record["binding"]["benchmarkAtExecution"]
+    execution_benchmark(benchmark)
+    if live:
+        same(benchmark, specs[0]["benchmark"], "live execution benchmark differs from shipped registry")
+    # Retained replay binds every frozen plan to this complete historical object.
+    # audit-qualification-records must then authenticate original record/stream/summary provenance.
     sources = {path: digest(source(root, path).read_bytes()) for path in source_files(root)}
-    same(record["binding"], {"providerSpec": spec, "providerSpecDigest": digest(encoded(spec)), "benchmarkAtExecution": EXECUTION_BENCHMARK,
+    same(record["binding"], {"providerSpec": spec, "providerSpecDigest": digest(encoded(spec)), "benchmarkAtExecution": benchmark,
         "fixture": HARNESS, "sources": sources, "sourcesDigest": digest(encoded(sources))}, "full production source closure/provider contract stale")
     require(record["providerVersion"] == spec["providerVersion"], "provider version differs")
     retained = record["retainedRoot"]

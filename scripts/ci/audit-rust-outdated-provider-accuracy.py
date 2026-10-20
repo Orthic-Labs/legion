@@ -69,7 +69,7 @@ def source_files(root):
 def fixtures(control):
     version = "1.0.2" if control in ("absence", "missing-tool") else "1.0.1"
     manifest = "[package\n" if control == "analysis-error" else ('[package]\nname = "outdated-probe"\nversion = "0.1.0"\nedition = "2021"\n[dependencies]\nvoid = "=' + version + '"\n')
-    lock = ('# This file is manually generated from registry package metadata.\nversion = 3\n\n[[package]]\nname = "outdated-probe"\nversion = "0.1.0"\ndependencies = [\n "void",\n]\n\n[[package]]\nname = "void"\nversion = "' + version + '"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "' + VOID[version] + '"\n')
+    lock = ('# This file is manually generated from registry package metadata.\nversion = 4\n\n[[package]]\nname = "outdated-probe"\nversion = "0.1.0"\ndependencies = [\n "void",\n]\n\n[[package]]\nname = "void"\nversion = "' + version + '"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "' + VOID[version] + '"\n')
     files = {"Cargo.toml": manifest, "Cargo.lock": lock, "src/lib.rs": "pub fn value() {}\n"}
     if control == "uncovered-lock":
         files["extra/Cargo.lock"] = "# independently selected lock fixture\nversion = 3\n"
@@ -156,9 +156,36 @@ def validate_record(repository_root, row, live=False, receipts=None):
         cargo = api["executable"](runtime["path"], runtime["binarySha256"], live=live)
         require(cargo.name == "cargo" and runtime["versionStdout"].startswith("cargo 1.98.0 ") and runtime["versionStderr"] == ""
                 and runtime["exitCode"] == 0 and runtime["signal"] is None, "actual Cargo runtime probe differs")
-        cwd = PurePosixPath(policy["cwd"])
+        cwd = PurePosixPath(policy["sourceRoot"])
         require(cwd.is_absolute() and ".." not in cwd.parts and cwd.name == "source" and cwd.parent.name == control, "fixture cwd differs")
         run = cwd.parent / "run"
+        execution_cwd = run / "rust-outdated-resolution/source"
+        require(policy["cwd"] == str(execution_cwd), "isolated resolution cwd differs")
+        resolution = result["details"]["rustOutdatedResolution"]
+        rustc_identity = resolution["runtime"]["rustc"]
+        rustc = api["executable"](rustc_identity["path"], rustc_identity["digest"], live=live)
+        require(rustc.name == "rustc" and rustc.parent == cargo.parent, "native rustc escaped enrolled Cargo toolchain")
+        postimage = resolution["postimage"]
+        require(isinstance(postimage, dict) and set(postimage) == set(hashes)
+                and all(re.fullmatch(r"sha256:[0-9a-f]{64}", value) for value in postimage.values())
+                and all(postimage[path] == value for path, value in hashes.items() if path != "Cargo.lock"), "isolated resolution changed another copied source")
+        deltas = [{"path": path, "beforeDigest": hashes[path], "afterDigest": postimage[path]}
+                  for path in sorted(hashes) if hashes[path] != postimage[path]]
+        require(resolution == {"sourceRoot": str(cwd), "sourceCwd": str(cwd),
+                "executionRoot": str(execution_cwd), "executionCwd": str(execution_cwd),
+                "inventoryDigest": inventory["digest"], "preimage": hashes, "preimageDigest": digest(canonical(hashes)),
+                "postimage": postimage, "postimageError": None, "allowedChangedPath": "Cargo.lock", "deltas": deltas,
+                "sourceUnchanged": True, "runtime": {"cargo": {"path": str(cargo), "digest": runtime["binarySha256"]}, "rustc": rustc_identity},
+                "runtimeUnchanged": True, "valid": True}, "exact frozen-source resolution mapping differs")
+        if live:
+            for relative in hashes:
+                source, copied = Path(cwd / relative), Path(execution_cwd / relative)
+                require(source.is_file() and source.resolve(strict=True) == source and digest(source.read_bytes()) == hashes[relative]
+                        and copied.is_file() and copied.resolve(strict=True) == copied and digest(copied.read_bytes()) == postimage[relative]
+                        and (source.stat().st_dev, source.stat().st_ino) != (copied.stat().st_dev, copied.stat().st_ino), "live frozen source/copy bytes or identity differ")
+            paths = list(Path(execution_cwd).rglob("*"))
+            require(not any(path.is_symlink() for path in paths)
+                    and {path.relative_to(Path(execution_cwd)).as_posix() for path in paths if path.is_file()} == set(hashes), "live copy acquired extra or aliased files")
         escaped = str(cwd).replace("\\", "\\\\").replace('"', '\\"')
         text = f'(version 1)\n(allow default)\n(allow network*)\n(allow file-read* (subpath "{escaped}"))\n(deny file-write* (subpath "{escaped}"))\n'
         profile_hash = digest(text.encode()).removeprefix("sha256:")
@@ -175,7 +202,8 @@ def validate_record(repository_root, row, live=False, receipts=None):
                 and policy["acceptedExitCodes"] == [0] and policy["artifactRequestId"] == "legion-audit/<64 lowercase hex>; one admission only"
                 and policy["timeoutMs"] == 120000 and policy["stdoutLimit"] == policy["stderrLimit"] == 8388608
                 and policy["sandbox"] == "native-macos-allow-network-deny-project-write", "exact constructed policy differs")
-        environment = {"PATH": policy["environment"]["PATH"], "HOME": str(cwd.parent.parent / "home")}
+        environment = {"PATH": policy["environment"]["PATH"], "HOME": str(run / "home"), "USERPROFILE": str(run / "home"),
+                       "CARGO_HOME": str(run / "cache/cargo-home"), "CARGO": str(cargo), "RUSTC": str(rustc)}
         require(environment["PATH"].split(":")[0] == str(cargo.parent), "actual toolchain PATH differs")
         for part in environment["PATH"].split(":"):
             require(PurePosixPath(part).is_absolute() and ".." not in PurePosixPath(part).parts, "noncanonical PATH entry")
@@ -184,7 +212,7 @@ def validate_record(repository_root, row, live=False, receipts=None):
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         environment["PYTHONNOUSERSITE"] = "1"
         environment["GIT_CONFIG_NOSYSTEM"] = "1"
-        require(policy["environment"] == environment and policy["environmentAllowlist"] == sorted(set(["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE"] + list(cache) + ["PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "GIT_CONFIG_NOSYSTEM"])), "exact admitted environment differs")
+        require(policy["environment"] == environment and policy["environmentAllowlist"] == sorted(set(["PATH", "PATHEXT", "SystemRoot", "COMSPEC", "HOME", "USERPROFILE", "CARGO_HOME", "CARGO", "RUSTC"] + list(cache) + ["PYTHONDONTWRITEBYTECODE", "PYTHONNOUSERSITE", "GIT_CONFIG_NOSYSTEM"])), "exact admitted environment differs")
         require(receipt["policyId"] == policy["id"] and receipt["policy"]["allowed"] is True and receipt["policy"]["id"] == policy["id"]
                 and receipt["policy"]["version"] == 1 and receipt["policy"]["digest"] == digest(canonical(policy)), "SDK policy receipt differs")
         version = receipt["executable"]["version"]
@@ -193,7 +221,7 @@ def validate_record(repository_root, row, live=False, receipts=None):
         decision, = case["policyDecisions"]
         require(decision["allowed"] is True and receipt["providerId"] == decision["providerId"] == PROVIDER
                 and receipt["planId"] == decision["planId"] == case["planDigest"] and receipt["taskId"] == decision["taskId"] == "cargo_outdated"
-                and receipt["cwd"] == decision["cwd"] == str(cwd) and receipt["command"]["args"] == decision["args"] == prefix + args
+                and receipt["cwd"] == decision["cwd"] == str(execution_cwd) and receipt["command"]["args"] == decision["args"] == prefix + args
                 and decision["versionArgs"] == prefix + version_args and decision["requestId"] == receipt["requestId"]
                 and re.fullmatch(r"legion-audit/[0-9a-f]{64}", receipt["requestId"]) and receipt["receiptId"] == "receipt:" + receipt["requestId"]
                 and decision["executable"] == receipt["command"]["executable"] == receipt["executable"]["canonicalPath"] == str(wrapper)

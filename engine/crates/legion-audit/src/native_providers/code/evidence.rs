@@ -1041,7 +1041,12 @@ pub fn produce(
     let mut verified_context = Vec::new();
     if matches!(
         provider_id,
-        "code.c-family" | "code.go" | "code.python" | "code.rust" | "code.dotnet"
+        "code.c-family"
+            | "code.go"
+            | "code.javascript"
+            | "code.python"
+            | "code.rust"
+            | "code.dotnet"
     ) {
         if provider_id == "code.python" {
             // setup.py already belongs to Python source coverage. Reuse only
@@ -1071,6 +1076,10 @@ pub fn produce(
                     .any(|extension| name.ends_with(extension))
             }
             "code.c-family" => entry.path == "CMakeLists.txt",
+            "code.javascript" => matches!(
+                file_name(&entry.path),
+                "package.json" | "tsconfig.json" | "tsconfig.build.json" | "pnpm-lock.yaml"
+            ),
             "code.python" => matches!(
                 file_name(&entry.path),
                 "pyproject.toml" | "setup.cfg" | "requirements.txt" | "Pipfile"
@@ -1126,7 +1135,7 @@ pub fn produce(
                     }
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if provider_id == "code.dotnet" { "dotnet-sdk-frozen-context" } else if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else { match file_name(&entry.path) {
+                        "analysis": if provider_id == "code.dotnet" { "dotnet-sdk-frozen-context" } else if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else if provider_id == "code.javascript" { "javascript-project-context" } else { match file_name(&entry.path) {
                             "go.mod" | "Cargo.toml" => "module-context",
                             "rust-toolchain.toml" | "rust-toolchain" => "toolchain-context",
                             _ => "dependency-lock-context",
@@ -1190,7 +1199,12 @@ pub fn produce(
     let tags = (examined as usize == selected.len()).then_some(build_tags);
     let context_entries = if matches!(
         provider_id,
-        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.dotnet"
+        "code.rust"
+            | "code.c-family"
+            | "code.go"
+            | "code.javascript"
+            | "code.python"
+            | "code.dotnet"
     ) {
         verified_context.as_slice()
     } else {
@@ -1241,7 +1255,13 @@ pub fn produce(
     });
     if matches!(
         provider_id,
-        "code.rust" | "code.c-family" | "code.go" | "code.python" | "code.jvm" | "code.dotnet"
+        "code.rust"
+            | "code.c-family"
+            | "code.go"
+            | "code.javascript"
+            | "code.python"
+            | "code.jvm"
+            | "code.dotnet"
     ) {
         input["contextAccounting"] = json!(context_accounting);
     }
@@ -1607,6 +1627,134 @@ mod go_context_tests {
         assert_eq!(made.bytes_read, source.len() as u64);
         assert_eq!(
             made.input["contextAccounting"][0]["reason"],
+            "total-size-cap"
+        );
+    }
+}
+
+#[cfg(test)]
+mod javascript_context_tests {
+    use super::*;
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "javascript-context-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos(),
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+
+        fn file(&self, path: &str, text: &str) -> InventoryEntry {
+            std::fs::write(self.0.join(path), text).unwrap();
+            InventoryEntry {
+                path: path.into(),
+                symbols: Vec::new(),
+                dependencies: Vec::new(),
+                package_scripts: Vec::new(),
+                source_file: extension_of(path) == "js",
+                digest: Some(format!(
+                    "sha256:{}",
+                    hex::encode(Sha256::digest(text.as_bytes()))
+                )),
+            }
+        }
+
+        fn produce(&self, entries: &[InventoryEntry], limits: &EvidenceLimits) -> Produced {
+            produce(
+                "code.javascript",
+                &javascript::CONFIG,
+                Some(&self.0),
+                entries,
+                limits,
+            )
+            .unwrap()
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn javascript_project_context_is_digest_bound_and_shares_source_byte_budget() {
+        let fixture = Fixture::new();
+        let package = "{\"name\":\"fixture\"}\n";
+        let tsconfig = "{\"compilerOptions\":{}}\n";
+        let lock = "lockfileVersion: '9.0'\nimporters: {}\n";
+        let entries = [
+            fixture.file("package.json", package),
+            fixture.file("tsconfig.json", tsconfig),
+            fixture.file("tsconfig.build.json", tsconfig),
+            fixture.file("pnpm-lock.yaml", lock),
+            fixture.file("a.js", "export const a = 1;\n"),
+            fixture.file("b.js", "export const b = 2;\n"),
+            fixture.file("c.js", "export const c = 3;\n"),
+            fixture.file("d.js", "export const d = 4;\n"),
+            fixture.file("e.js", "export const e = 5;\n"),
+            fixture.file("f.js", "export const f = 6;\n"),
+            fixture.file("g.js", "export const g = 7;\n"),
+            fixture.file("h.js", "export const h = 8;\n"),
+            fixture.file("i.js", "export const i = 9;\n"),
+            fixture.file("j.js", "export const j = 10;\n"),
+            fixture.file("k.js", "export const k = 11;\n"),
+        ];
+        let source_bytes = entries[4..]
+            .iter()
+            .map(|entry| {
+                std::fs::metadata(fixture.0.join(&entry.path))
+                    .unwrap()
+                    .len()
+            })
+            .sum::<u64>();
+        let context_bytes = [package, tsconfig, tsconfig, lock]
+            .iter()
+            .map(|text| text.len() as u64)
+            .sum::<u64>();
+        let made = fixture.produce(&entries, &EvidenceLimits::default());
+        assert_eq!((made.expected, made.examined), (11, 11));
+        assert_eq!((made.context_expected, made.context_examined), (4, 4));
+        assert_eq!(made.bytes_read, source_bytes + context_bytes);
+        assert_eq!(made.context_bytes_read, context_bytes);
+        assert_eq!(made.input["facts"][0]["bytesRead"], source_bytes);
+        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 4);
+        assert!(made.input["contextAccounting"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row["analysis"] == "javascript-project-context"));
+    }
+
+    #[test]
+    fn javascript_unbound_or_over_budget_context_never_receives_credit() {
+        let fixture = Fixture::new();
+        let package = "{\"name\":\"fixture\"}\n";
+        let mut entry = fixture.file("package.json", package);
+        entry.digest = None;
+        let missing = fixture.produce(&[entry], &EvidenceLimits::default());
+        assert_eq!((missing.context_expected, missing.context_examined), (1, 0));
+        assert_eq!(
+            missing.input["contextAccounting"][0]["reason"],
+            "context-inventory-digest-missing"
+        );
+
+        let entry = fixture.file("tsconfig.json", package);
+        let mut limits = EvidenceLimits::default();
+        limits.max_total_bytes = package.len() as u64 - 1;
+        let capped = fixture.produce(&[entry], &limits);
+        assert_eq!((capped.context_expected, capped.context_examined), (1, 0));
+        assert_eq!(capped.context_bytes_read, 0);
+        assert_eq!(
+            capped.input["contextAccounting"][0]["reason"],
             "total-size-cap"
         );
     }

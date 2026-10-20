@@ -586,26 +586,73 @@ fn shipped_registry_qualifies_bench_providers_and_never_requires_an_unqualified_
     ))
     .unwrap();
     let registry: Value = serde_json::from_str(&raw).unwrap();
+    let index: Value = serde_json::from_str(
+        &fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../qualification/provider-accuracy/index.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(index["schema"], "legion-provider-accuracy-index/1");
     let bench = [
-        "legacy.security.secrets",
-        "legacy.security.node-dependencies",
-        "legacy.quality.dead-code",
-        "legacy.quality.duplication",
-        "legacy.quality.types",
+        ("legacy.security.secrets", "secret"),
+        ("legacy.security.node-dependencies", "dependency_cve"),
+        ("legacy.quality.dead-code", "dead_code"),
+        ("legacy.quality.duplication", "duplication"),
+        ("legacy.quality.types", "type_error"),
     ];
     let mut qualified = 0;
     for provider in registry["providers"].as_array().unwrap() {
         let id = provider["id"].as_str().unwrap();
         let benchmark = &provider["benchmark"];
         let is_qualified = benchmark["status"] == "qualified";
-        if bench.contains(&id) {
+        if let Some((_, bench_class)) = bench.iter().find(|(bench_id, _)| *bench_id == id) {
+            assert!(is_qualified, "{id} must retain native bench qualification");
+            assert_eq!(benchmark["requiredForCleanClaim"], true, "{id}");
+            let entries: Vec<_> = index["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|entry| entry["provider"] == id)
+                .collect();
+            assert_eq!(entries.len(), 1, "{id} must have one retained index entry");
+            let entry = entries[0];
+            assert_eq!(entry["family"], "bench-known-answer", "{id}");
+            assert_eq!(entry["stage"], "outcome", "{id}");
+            assert_eq!(entry["scope"], "known-answer-fixture-cases", "{id}");
+            assert_eq!(entry["record"]["encoding"], "canonical-json", "{id}");
+            let original_digest = entry["record"]["qualificationDigest"].as_str().unwrap();
+            let digest_hex = original_digest.strip_prefix("sha256:").unwrap();
             assert!(
-                is_qualified,
-                "{id} must be qualified by its passing bench class"
+                digest_hex.len() == 64
+                    && digest_hex
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+                "{id} original qualification digest must be canonical SHA256"
+            );
+            assert_eq!(
+                entry["record"]["path"],
+                format!("qualification/provider-accuracy/records/{id}/{digest_hex}.json"),
+                "{id} retained record path must bind provider & original digest"
             );
             let record = &benchmark["qualification"];
-            assert_eq!(record["basis"], "bench-class", "{id}");
-            assert_eq!(record["ciJob"], "bench", "{id}");
+            assert_eq!(
+                record,
+                &json!({
+                    "basis": "retained-provider-accuracy",
+                    "index": "qualification/provider-accuracy/index.json",
+                    "record": entry["record"]["path"],
+                    "recordSha256": entry["record"]["sha256"],
+                    "originalQualificationDigest": entry["record"]["qualificationDigest"],
+                    "validationBasis": "source-owned-harness-success",
+                    "stage": "outcome",
+                    "scope": "known-answer-fixture-cases",
+                    "productionQualification": false,
+                    "benchClass": bench_class,
+                }),
+                "{id} qualification must match its canonical native index projection"
+            );
             assert_eq!(
                 benchmark["qualificationDigest"],
                 json!(canonical_digest(record).unwrap()),

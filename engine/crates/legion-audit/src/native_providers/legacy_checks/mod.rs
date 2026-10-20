@@ -1183,7 +1183,7 @@ impl NativeLegacyCheckExecutor {
             plan.digest(),
             inventory.digest
         );
-        let (environment, environment_allowlist) = audit_environment(&scratch);
+        let (mut environment, mut environment_allowlist) = audit_environment(&scratch);
         let needs_sandbox = sandbox_required_check(contract.check);
         // Cargo uses 101 for denied lint diagnostics as well as launch/compiler
         // failures. Admit that raw exit only for the resolved frozen clippy
@@ -1204,6 +1204,70 @@ impl NativeLegacyCheckExecutor {
         // nested Cargo workspace, `src-tauri`) is resolved here.
         let mut tool_cwd: Option<PathBuf> =
             test_command.as_ref().map(|resolved| resolved.cwd.clone());
+        let rust_outdated_resolution = if contract.check == "cargo_outdated" {
+            if let Ok(resolved) = resolve_request(&self.root, &executable, &args) {
+                let timeout = provider
+                    .bounds
+                    .get("timeoutMs")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(120_000)
+                    .min(120_000);
+                let mut prepared = match rust_outdated::prepare(
+                    &input,
+                    inventory,
+                    &resolved.cwd,
+                    &scratch,
+                    std::time::Instant::now() + std::time::Duration::from_millis(timeout),
+                    &cancellation,
+                ) {
+                    Ok(prepared) => prepared,
+                    Err(reason) => {
+                        return dispatcher
+                            .project_result(
+                                provider,
+                                &input,
+                                rust_outdated::refusal(&input, contract.command, &reason),
+                            )
+                            .map_err(|error| AuditError::Provider(error.to_string()));
+                    }
+                };
+                let runtime_environment = match prepared.bind_runtime() {
+                    Ok(environment) => environment,
+                    Err(reason) => {
+                        return dispatcher
+                            .project_result(
+                                provider,
+                                &input,
+                                rust_outdated::refusal(&input, contract.command, &reason),
+                            )
+                            .map_err(|error| AuditError::Provider(error.to_string()));
+                    }
+                };
+                for (name, path) in runtime_environment {
+                    environment_allowlist.insert(name.clone());
+                    environment.insert(name, path);
+                }
+                // Cargo may rewrite its lock while resolving newer registry
+                // versions. Only this byte copy is its working directory.
+                tool_cwd = Some(prepared.cwd.clone());
+                for (name, path) in [
+                    ("HOME", scratch.root().join("home")),
+                    ("USERPROFILE", scratch.root().join("home")),
+                    ("CARGO_HOME", scratch.cache_dir().join("cargo-home")),
+                ] {
+                    make_private_dir(&path).map_err(|error| {
+                        AuditError::Provider(format!("cargo-outdated-runtime-unavailable:{error}"))
+                    })?;
+                    environment.insert(name.into(), path.to_string_lossy().into_owned());
+                    environment_allowlist.insert(name.into());
+                }
+                Some(prepared)
+            } else {
+                None // Preserve the actual missing-executable SDK receipt.
+            }
+        } else {
+            None
+        };
         let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
             let profile_dir = scratch.sandbox_dir();
@@ -1227,7 +1291,9 @@ impl NativeLegacyCheckExecutor {
                 resolve_request(&self.root, &executable, &args)
                     .ok()
                     .map(|resolved| {
-                        tool_cwd = Some(resolved.cwd.clone());
+                        if rust_outdated_resolution.is_none() {
+                            tool_cwd = Some(resolved.cwd.clone());
+                        }
                         (
                             resolved.executable.to_string_lossy().into_owned(),
                             resolved.args,
@@ -1368,8 +1434,12 @@ impl NativeLegacyCheckExecutor {
                 .unwrap_or_else(|| vec![legacy_version_probe_flag(contract.check).into()]),
             ..ExternalToolRequest::default()
         };
-        let outdated_input = (contract.check == "cargo_outdated")
-            .then(|| rust_outdated::capture(&input, inventory, Path::new(&request.cwd)));
+        let outdated_input = (contract.check == "cargo_outdated").then(|| {
+            rust_outdated_resolution.as_ref().map_or_else(
+                || rust_outdated::capture(&input, inventory, Path::new(&request.cwd)),
+                rust_outdated::Prepared::before,
+            )
+        });
         let receipt = tool.execute(request, cancellation).await;
         let report_artifact = report_temp_dir
             .as_ref()
@@ -1406,7 +1476,13 @@ impl NativeLegacyCheckExecutor {
             }
         }
         if let Some(before) = outdated_input {
-            rust_outdated::reconcile(&input, inventory, before, &mut execution);
+            rust_outdated::reconcile(
+                &input,
+                inventory,
+                before,
+                rust_outdated_resolution,
+                &mut execution,
+            );
         }
         dispatcher
             .project_result(provider, &input, execution)

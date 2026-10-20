@@ -407,12 +407,33 @@ fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<Strin
     allowed.insert("PYTHONDONTWRITEBYTECODE".into());
     allowed.insert("PYTHONNOUSERSITE".into());
     allowed.insert("GIT_CONFIG_NOSYSTEM".into());
+    for (name, path) in [
+        ("HOME", "home"),
+        ("USERPROFILE", "home"),
+        ("CARGO_HOME", "cache/cargo-home"),
+    ] {
+        env.insert(name.into(), run.join(path).to_string_lossy().into_owned());
+        allowed.insert(name.into());
+    }
+    let toolchain =
+        fs::canonicalize(std::env::var_os("LEGION_RUST_OUTDATED_TOOLCHAIN_BIN").unwrap()).unwrap();
+    for (variable, executable) in [("CARGO", "cargo"), ("RUSTC", "rustc")] {
+        env.insert(
+            variable.into(),
+            fs::canonicalize(toolchain.join(executable))
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+        );
+        allowed.insert(variable.into());
+    }
     (env, allowed)
 }
 
 struct ScopedPolicy {
     plan: String,
     root: PathBuf,
+    execution_cwd: PathBuf,
     tool: PathBuf,
     tool_digest: String,
     wrapper: PathBuf,
@@ -443,7 +464,7 @@ impl ScopedPolicy {
         args
     }
     fn definition(&self) -> Value {
-        json!({"id":POLICY,"version":1,"provider":PROVIDER,"task":CHECK,"plan":self.plan,"cwd":self.root,
+        json!({"id":POLICY,"version":1,"provider":PROVIDER,"task":CHECK,"plan":self.plan,"cwd":self.execution_cwd,"sourceRoot":self.root,
             "artifactRequestId":"legion-audit/<64 lowercase hex>; one admission only","tool":{"path":self.tool,"digest":self.tool_digest},
             "wrapper":{"path":self.wrapper,"digest":self.wrapper_digest},"profile":{"path":self.profile,"text":self.profile_text,"digest":digest(self.profile_text.as_bytes()),"receiptId":self.sandbox_id()},
             "args":self.args,"wrappedArgs":self.wrapped(&self.args),"versionArgs":self.wrapped(&self.version_args),"environment":self.environment,
@@ -463,7 +484,7 @@ impl ScopedPolicy {
             && req.plan_id == self.plan
             && req.policy_id == "audit"
             && req.task_id.as_deref() == Some(CHECK)
-            && req.cwd == self.root.to_string_lossy().as_ref()
+            && req.cwd == self.execution_cwd.to_string_lossy().as_ref()
             && req.origin == ToolOrigin::TargetProject
             && !req.shell
             && req.requires_network_sandbox
@@ -635,6 +656,10 @@ fn case(base: &Path, control: &str, missing: bool) -> Value {
         "pinned native Cargo runtime required"
     );
     let cargo_runtime = json!({"path":cargo,"binarySha256":digest(&cargo_bytes),"versionStdout":cargo_stdout,"versionStderr":String::from_utf8_lossy(&cargo_output.stderr),"exitCode":cargo_output.status.code(),"signal":cargo_output.status.signal()});
+    let rustc = fs::canonicalize(toolchain.join("rustc")).expect("native rustc required");
+    assert!(rustc.starts_with(&toolchain));
+    let rustc_bytes = fs::read(&rustc).unwrap();
+    assert!(!rustc_bytes.starts_with(b"#!"));
     let args = vec!["--format".into(), "json".into(), "--root-deps-only".into()];
     let resolved =
         resolve_request(&root, "cargo-outdated", &args).expect("pinned cargo-outdated provisioned");
@@ -678,6 +703,7 @@ fn case(base: &Path, control: &str, missing: bool) -> Value {
     let policy = Arc::new(ScopedPolicy {
         plan: frozen.digest().into(),
         root: root.clone(),
+        execution_cwd: run.join("rust-outdated-resolution/source"),
         tool: tool.clone(),
         tool_digest: resolved.digest.clone(),
         wrapper_digest: digest(&fs::read(&wrapper).unwrap()),
@@ -713,7 +739,7 @@ fn case(base: &Path, control: &str, missing: bool) -> Value {
     assert_eq!(receipt["planId"], frozen.digest());
     assert_eq!(receipt["providerId"], PROVIDER);
     assert_eq!(receipt["taskId"], CHECK);
-    assert_eq!(receipt["cwd"], root.to_str().unwrap());
+    assert_eq!(receipt["cwd"], policy.execution_cwd.to_str().unwrap());
     assert_eq!(receipt["policy"]["allowed"], true);
     assert_eq!(receipt["policy"]["id"], POLICY);
     assert_eq!(
@@ -737,6 +763,38 @@ fn case(base: &Path, control: &str, missing: bool) -> Value {
     assert_eq!(receipt["processTree"]["reaped"], true);
     assert!(receipt["signal"].is_null());
     assert_eq!(snapshot(&root), before);
+    let resolution = &result.details["rustOutdatedResolution"];
+    assert_eq!(resolution["sourceRoot"], root.to_str().unwrap());
+    assert_eq!(resolution["sourceCwd"], root.to_str().unwrap());
+    assert_eq!(
+        resolution["executionRoot"],
+        policy.execution_cwd.to_str().unwrap()
+    );
+    assert_eq!(resolution["executionCwd"], receipt["cwd"]);
+    assert_eq!(resolution["inventoryDigest"], inventory.digest);
+    assert_eq!(resolution["preimage"], json!(before));
+    assert_eq!(
+        resolution["preimageDigest"],
+        digest(&canonical_bytes(&json!(before)))
+    );
+    assert_eq!(
+        resolution["postimage"],
+        json!(snapshot(&policy.execution_cwd))
+    );
+    assert!(resolution["postimageError"].is_null());
+    assert_eq!(resolution["sourceUnchanged"], true);
+    assert_eq!(resolution["runtimeUnchanged"], true);
+    assert_eq!(
+        resolution["runtime"],
+        json!({"cargo":{"path":cargo,"digest":digest(&cargo_bytes)},"rustc":{"path":rustc,"digest":digest(&rustc_bytes)}})
+    );
+    assert_eq!(resolution["valid"], true);
+    assert_eq!(resolution["allowedChangedPath"], "Cargo.lock");
+    assert!(resolution["deltas"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|delta| delta["path"] == "Cargo.lock"));
     assert_eq!(digest(&fs::read(&tool).unwrap()), policy.tool_digest);
     let malformed = control == "analysis-error";
     let uncovered = control == "uncovered-lock";
