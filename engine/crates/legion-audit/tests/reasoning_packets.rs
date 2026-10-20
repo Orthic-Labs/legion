@@ -903,7 +903,12 @@ fn skeleton_excerpts_are_redacted_too() {
     let fake = ["sk", "live", "abcdefghijklmnopqrstuvwxyz"].join("_");
     let pem = pem_block("SKELPEMBODY", 8);
     let source = format!(
-        "pub const API_KEY: &str = \"{fake}\";\npub fn run() {{}}\n{pem}pub fn done() {{}}\n"
+        "pub const API_KEY: &str = \"{fake}\";\npub fn run() {{}}\n{pem}pub fn done() {{}}\nfn omitted_body() {{\n{}}}\n",
+        "    let omitted_body = 0;\n".repeat(256)
+    );
+    assert!(
+        source.len() > 4096,
+        "exercise skeleton redaction above Raw promotion ceiling"
     );
     let env = build_env(
         "skeleton-redaction",
@@ -919,4 +924,5 @@ fn skeleton_excerpts_are_redacted_too() {
     let content = excerpt["content"].as_str().unwrap();
     assert!(content.contains("pub fn run() {}"));
     assert!(content.contains("pub fn done() {}"));
+    assert!(!content.contains("let omitted_body = 0"));
 }

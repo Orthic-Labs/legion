@@ -446,7 +446,15 @@ impl Fixture {
         fs::create_dir_all(&fixture.home).unwrap();
         // Naming uses skeleton excerpts, which omit ordinary comments. Keep
         // mode selection in valid frozen source retained by that projection.
-        fs::write(fixture.repo.join("src/lib.rs"),format!("pub fn add(a:i32,b:i32)->i32 {{\n{SOURCE_LINE}\n}}\npub const RUNTIME_SIMULATION: &str = \"runtime-simulation:{mode}\";\n")).unwrap();
+        let padding = "// inert fixture padding for eager snapshot simulation\n".repeat(100);
+        let source = format!(
+            "pub fn add(a:i32,b:i32)->i32 {{\n{SOURCE_LINE}\n}}\npub const RUNTIME_SIMULATION: &str = \"runtime-simulation:{mode}\";\n{padding}"
+        );
+        assert!(
+            (4097..=8192).contains(&source.len()),
+            "simulation source must exercise skeleton-mode eager context within its byte budget"
+        );
+        fs::write(fixture.repo.join("src/lib.rs"), source).unwrap();
         fixture.git(&["init", "-q"]);
         fixture.git(&["config", "user.name", "Runtime Simulation"]);
         fixture.git(&["config", "user.email", "simulation@example.invalid"]);

@@ -47,6 +47,7 @@ const TEST_FIXTURE_MACHETE_STDOUT: &[u8] =
     b"cargo-machete didn't find any unused dependencies in this directory. Good job!\n";
 const TEST_FIXTURE_MACHETE_STDERR: &[u8] =
     b"Analyzing dependencies of crates in this directory...\nDone!\n";
+const TEST_FIXTURE_CARGO_DENY_CLEAN: &[u8] = br#"{"type":"summary","fields":{"advisories":{"errors":0,"warnings":0,"notes":0,"helps":0},"bans":{"errors":0,"warnings":0,"notes":0,"helps":0},"licenses":{"errors":0,"warnings":0,"notes":0,"helps":0},"sources":{"errors":0,"warnings":0,"notes":0,"helps":0}}}"#;
 
 /// Tool labels and readiness gates are copied from
 /// `tools/audit/collect-facts.mjs::buildChecks` and its `doctor` function.
@@ -501,8 +502,8 @@ impl ExternalProjectTool for FakeTool {
                     && serde_json::from_slice::<serde_json::Value>(body)
                         .is_ok_and(|value| value["complete"] == true) =>
             {
-                // Model cargo-deny's required all-check completion envelope.
-                Some(br#"{"type":"summary","fields":{"advisories":{"errors":0,"warnings":0,"notes":0,"helps":0},"bans":{"errors":0,"warnings":0,"notes":0,"helps":0},"licenses":{"errors":0,"warnings":0,"notes":0,"helps":0},"sources":{"errors":0,"warnings":0,"notes":0,"helps":0}}}"#.to_vec())
+                // Model cargo-deny's required native all-check summary.
+                Some(TEST_FIXTURE_CARGO_DENY_CLEAN.to_vec())
             }
             other => other.clone(),
         };
@@ -1072,6 +1073,104 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     // Managed tests need enrolled trust; Python/SAST inputs fail preflight.
     // None of these prerequisite refusals can be a successful FakeTool run.
     assert_eq!(checked, 18);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn cargo_deny_single_json_and_jsonl_keep_native_summary_contract() {
+    let records = node_registry();
+    let inventory = inventory();
+    let root = fixture_root();
+    let plan = plan_for(&records, &inventory);
+    let provider = plan.provider("legacy.security.rust-policy").unwrap();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let info = b"{\"type\":\"log\",\"fields\":{\"level\":\"INFO\",\"message\":\"checked\"}}\n";
+    let error =
+        b"{\"type\":\"log\",\"fields\":{\"level\":\"ERROR\",\"message\":\"database missing\"}}\n";
+    for (label, body, complete) in [
+        (
+            "single summary",
+            TEST_FIXTURE_CARGO_DENY_CLEAN.to_vec(),
+            true,
+        ),
+        (
+            "JSONL summary",
+            [info.as_slice(), TEST_FIXTURE_CARGO_DENY_CLEAN].concat(),
+            true,
+        ),
+        (
+            "incomplete schema",
+            br#"{"type":"summary","fields":{}}"#.to_vec(),
+            false,
+        ),
+        (
+            "duplicate summary",
+            [
+                TEST_FIXTURE_CARGO_DENY_CLEAN,
+                b"\n",
+                TEST_FIXTURE_CARGO_DENY_CLEAN,
+            ]
+            .concat(),
+            false,
+        ),
+        (
+            "operational error",
+            [error.as_slice(), TEST_FIXTURE_CARGO_DENY_CLEAN].concat(),
+            false,
+        ),
+    ] {
+        let registry =
+            NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
+                state: ExecutionState::Completed,
+                body: Some(body.clone()),
+            }));
+        let result = runtime
+            .block_on(registry.execute_async(&plan, provider, &inventory, CancellationToken::new()))
+            .unwrap();
+        assert_eq!(
+            result.complete, complete,
+            "{label}: {:?}",
+            result.coverage_gaps
+        );
+        let receipt = &result.details["executionReceipt"];
+        assert_eq!(receipt["state"], "completed", "{label}");
+        assert_eq!(receipt["complete"], true, "{label}");
+        assert_eq!(receipt["exitCode"], 0, "{label}");
+        assert_eq!(receipt["reportSource"], "stderr", "{label}");
+        assert_eq!(receipt["stderr"]["immutable"], true, "{label}");
+        assert_eq!(
+            receipt["stderr"]["digest"],
+            format!("sha256:{}", hex::encode(sha2::Sha256::digest(&body))),
+            "{label} original stream"
+        );
+        assert!(result.findings.is_empty(), "{label}");
+        assert!(
+            result.details["candidates"].as_array().unwrap().is_empty(),
+            "{label}"
+        );
+        if complete {
+            assert!(result.coverage_gaps.is_empty(), "{label}");
+            assert_eq!(result.details["findingsCount"], 0, "{label}");
+            let coverage = result.coverage.as_ref().unwrap();
+            assert_eq!(coverage.examined, coverage.expected, "{label}");
+            assert_eq!(
+                coverage.denominator_digest,
+                provider.configuration["denominatorDigest"]
+                    .as_str()
+                    .unwrap(),
+                "{label} denominator"
+            );
+        } else {
+            assert!(
+                result
+                    .coverage_gaps
+                    .iter()
+                    .any(|gap| gap == "cargo-deny-completion-unproven"),
+                "{label}"
+            );
+            assert!(result.details["findingsCount"].is_null(), "{label}");
+        }
+    }
     fs::remove_dir_all(root).unwrap();
 }
 

@@ -55,7 +55,11 @@ fn read(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
 }
 
 fn within(root: &Path, cwd: &Path, text: &str) -> Result<String, String> {
-    if text.chars().any(|c| matches!(c, '\\' | '\n' | '\r' | '\0')) {
+    // Native Windows separators still pass every canonical containment check below.
+    if text
+        .chars()
+        .any(|c| matches!(c, '\n' | '\r' | '\0') || (c == '\\' && !cfg!(windows)))
+    {
         return Err("unsupported-path".into());
     }
     let joined = cwd.join(text);
@@ -64,9 +68,12 @@ fn within(root: &Path, cwd: &Path, text: &str) -> Result<String, String> {
         .strip_prefix(root)
         .map_err(|_| "external-context")?;
     // Canonical equality refuses symlink aliases, including parent components.
-    if joined
+    if Path::new(text)
         .components()
         .any(|c| matches!(c, Component::ParentDir))
+        || joined
+            .components()
+            .any(|c| matches!(c, Component::ParentDir))
         || joined != canonical
     {
         return Err("noncanonical-context".into());
@@ -2015,6 +2022,17 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let root = root.canonicalize().unwrap();
         fs::write(root.join("source.c"), "int value(void){return 1;}\n").unwrap();
+        let child = root.join("child");
+        fs::create_dir_all(&child).unwrap();
+        let child = child.canonicalize().unwrap();
+        let native_source = root.join("source.c");
+        assert!(within(&child, &root, native_source.to_str().unwrap()).is_err());
+        let separator = std::path::MAIN_SEPARATOR;
+        let parent_alias = format!(
+            "{}{separator}child{separator}..{separator}source.c",
+            root.display()
+        );
+        assert!(within(&root, &root, &parent_alias).is_err());
         let mut command = planned(
             "compiler",
             &["clang"],

@@ -544,13 +544,24 @@ mod tests {
             _cancellation: CancellationToken,
         ) -> ExecutionReceipt {
             assert_eq!(request.task_id.as_deref(), Some("ruby-lint"));
-            assert!(request.args.iter().any(|arg| arg == "--no-parallel"));
+            assert!(request.requires_network_sandbox);
+            // Mock command orchestration only: authenticated macOS wrapping,
+            // when available, must not change the original scanner arguments.
+            let arguments = if request.sandbox.is_some() {
+                assert_eq!(request.executable, "/usr/bin/sandbox-exec");
+                assert_eq!(request.args.first().map(String::as_str), Some("-f"));
+                assert_eq!(request.args.get(2).map(String::as_str), Some("--"));
+                &request.args[4..]
+            } else {
+                &request.args[..]
+            };
+            assert!(arguments.iter().any(|arg| arg == "--no-parallel"));
             // v1.80.2 OptionsValidator prints a warning to stdout for the
             // cache:false + parallel:false CLI combination. Config-only
             // UseCache:false keeps both caching & parallelism disabled.
-            assert!(!request.args.iter().any(|arg| arg == "--cache"));
+            assert!(!arguments.iter().any(|arg| arg == "--cache"));
             assert_eq!(
-                std::fs::read_to_string(&request.args[1]).unwrap(),
+                std::fs::read_to_string(&arguments[1]).unwrap(),
                 OWNED_CONFIG
             );
             let offenses = match self.0 {
@@ -559,7 +570,7 @@ mod tests {
             };
             let path = match self.0 {
                 MockReport::Unmapped => "../../outside.rb".to_owned(),
-                _ => Path::new(request.args.last().unwrap())
+                _ => Path::new(arguments.last().unwrap())
                     .file_name()
                     .unwrap()
                     .to_string_lossy()
@@ -602,8 +613,10 @@ mod tests {
         }
     }
 
+    // Command-unit regression through production run_one + path normalization.
+    // Mock SDK bytes do not qualify the full provider's native enrollment.
     #[tokio::test]
-    async fn rubocop_orchestration_keeps_original_paths_findings_and_receipts() {
+    async fn rubocop_command_keeps_original_paths_diagnostics_and_receipts() {
         let (root, _fixture_scratch, _planned) = fixture();
         let digest = sha256_text(&std::fs::read(root.join("app.rb")).unwrap());
         let entries = [InventoryEntry {
@@ -617,6 +630,9 @@ mod tests {
         let selected = BTreeSet::from(["app.rb".into()]);
         for mode in [MockReport::Clean, MockReport::Offense, MockReport::Unmapped] {
             let scratch = AuditScratch::create(&root).unwrap();
+            let mut planned = Plan::default();
+            plan(&root, &entries, &selected, &scratch, &mut planned);
+            assert_eq!(planned.commands.len(), 1);
             let bin = scratch.root().join("mock-bin");
             std::fs::create_dir(&bin).unwrap();
             let executable = bin.join("rubocop");
@@ -633,7 +649,7 @@ mod tests {
                 root: &root,
                 tool: &tool,
                 scratch: &scratch,
-                sandbox: SandboxPolicy::Disabled,
+                sandbox: SandboxPolicy::Required,
                 search_path: Some(&search_path),
                 plan_digest: "sha256:plan",
                 inventory_digest: "sha256:inventory",
@@ -642,50 +658,153 @@ mod tests {
                 total_budget_ms: 10_000,
                 output_limit: 64 * 1024,
             };
-            let evidence = super::super::run(
+            let mut resolver = super::super::Resolver::new(&context);
+            let output = super::super::run_one(
                 &context,
-                &["ruby-lint"],
-                &entries,
-                &selected,
+                &mut resolver,
+                &planned.commands[0],
+                None,
+                0,
+                1000,
                 CancellationToken::new(),
             )
             .await;
-            assert_eq!(evidence.receipts.len(), 1);
-            assert_eq!(evidence.receipts[0]["sourcePath"], "app.rb");
-            assert_eq!(evidence.receipts[0]["sourceDigest"], digest);
+            let receipt = output.receipt.as_ref().expect("RuboCop command receipt");
+            assert_eq!(receipt["tool"], "ruby-lint");
+            assert!(receipt["sdkReceipt"].is_object());
+            assert_eq!(receipt["sourcePath"], "app.rb");
+            assert_eq!(receipt["sourceDigest"], digest);
             assert_eq!(
-                evidence.receipts[0]["cwd"],
+                receipt["cwd"],
                 scratch
                     .tmp_dir()
                     .join("ruby-lint")
                     .to_string_lossy()
                     .into_owned()
             );
-            assert!(!evidence
-                .gaps
-                .iter()
-                .any(|gap| gap.contains("tool-diagnostics-outside-denominator")));
+            let canonical_root = root.canonicalize().unwrap();
+            for diagnostic in &output.diagnostics {
+                // Isolated lint diagnostics already refer to original sources;
+                // production finding normalization therefore uses an empty cwd.
+                let path =
+                    super::super::repo_relative(&root, &canonical_root, "", &diagnostic.path)
+                        .expect("diagnostic must remain inside repository");
+                assert_eq!(path, "app.rb");
+                assert!(selected.contains(&path));
+            }
             match mode {
                 MockReport::Unmapped => {
                     assert!(
-                        matches!(evidence.outcomes.get("ruby-lint"), Some(Outcome::Failed(reason)) if reason.contains("rubocop-unmapped-path"))
+                        matches!(&output.outcome, Outcome::Failed(reason) if reason.contains("rubocop-unmapped-path"))
                     );
-                    assert_eq!(evidence.tools["ruby-lint"]["status"], "fail");
-                    assert!(evidence.findings.is_empty());
+                    assert!(output.diagnostics.is_empty());
                 }
                 MockReport::Clean => {
-                    assert_eq!(evidence.outcomes.get("ruby-lint"), Some(&Outcome::Ran));
-                    assert!(evidence.findings.is_empty());
+                    assert_eq!(output.outcome, Outcome::Ran);
+                    assert!(output.diagnostics.is_empty());
                 }
                 MockReport::Offense => {
-                    assert_eq!(evidence.outcomes.get("ruby-lint"), Some(&Outcome::Ran));
-                    assert_eq!(evidence.findings.len(), 1);
-                    assert_eq!(evidence.findings[0].path, "app.rb");
-                    assert_eq!(evidence.findings[0].line, 2);
-                    assert_eq!(evidence.findings[0].rule, "rubocop:Lint/UselessAssignment");
+                    assert_eq!(output.outcome, Outcome::Ran);
+                    assert_eq!(output.diagnostics.len(), 1);
+                    assert_eq!(output.diagnostics[0].path, "app.rb");
+                    assert_eq!(output.diagnostics[0].line, 2);
+                    assert_eq!(output.diagnostics[0].rule, "rubocop:Lint/UselessAssignment");
                 }
             }
         }
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn rubocop_full_provider_without_enrollment_never_submits() {
+        // Isolate environment removal in this exact test's child process;
+        // changing process-global enrollment would race parallel native tests.
+        const CHILD: &str = "LEGION_RUBOCOP_MISSING_ENROLLMENT_TEST_CHILD";
+        const ENROLLMENT: &str = "LEGION_PHP_RUBY_SDK_ENROLLMENT_JSON";
+        const EXECUTED: &str = "rubocop-missing-enrollment-control-executed";
+        if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "native_providers::code::tools::rubocop::tests::rubocop_full_provider_without_enrollment_never_submits",
+                    "--nocapture",
+                ])
+                .env(CHILD, "1")
+                .env_remove(ENROLLMENT)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "isolated missing-enrollment control failed: {}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(
+                String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .any(|line| line.trim() == EXECUTED),
+                "isolated missing-enrollment control must execute its assertions"
+            );
+            return;
+        }
+        assert!(std::env::var_os(ENROLLMENT).is_none());
+        struct NeverSubmit;
+        #[async_trait::async_trait]
+        impl ExternalProjectTool for NeverSubmit {
+            async fn execute(
+                &self,
+                _request: ExternalToolRequest,
+                _cancellation: CancellationToken,
+            ) -> ExecutionReceipt {
+                panic!("missing genuine enrollment must refuse before SDK submission");
+            }
+        }
+        let (root, _fixture_scratch, _planned) = fixture();
+        let scratch = AuditScratch::create(&root).unwrap();
+        let entries = [InventoryEntry {
+            path: "app.rb".into(),
+            symbols: Vec::new(),
+            dependencies: Vec::new(),
+            package_scripts: Vec::new(),
+            source_file: true,
+            digest: Some(sha256_text(&std::fs::read(root.join("app.rb")).unwrap())),
+        }];
+        let search_path = [];
+        let context = ToolContext {
+            root: &root,
+            tool: &NeverSubmit,
+            scratch: &scratch,
+            sandbox: SandboxPolicy::Required,
+            search_path: Some(&search_path),
+            plan_digest: "sha256:plan",
+            inventory_digest: "sha256:inventory",
+            provider_id: "code.php-ruby",
+            per_tool_timeout_ms: 1000,
+            total_budget_ms: 10_000,
+            output_limit: 64 * 1024,
+        };
+        let evidence = super::super::run(
+            &context,
+            &["ruby-lint"],
+            &entries,
+            &BTreeSet::from(["app.rb".into()]),
+            CancellationToken::new(),
+        )
+        .await;
+        assert!(evidence.findings.is_empty());
+        assert_eq!(
+            evidence.outcomes.get("ruby-lint"),
+            Some(&Outcome::Failed(
+                "php-ruby-native-enrollment-boundary-failed".into()
+            ))
+        );
+        assert_eq!(evidence.receipts.len(), 1);
+        let boundary = &evidence.receipts[0];
+        assert_eq!(boundary["kind"], "php-ruby-native-enrollment-boundary");
+        assert!(boundary["before"].is_null() && boundary["after"].is_null());
+        assert_eq!(boundary["beforeError"], "php-ruby-enrollment-unavailable");
+        assert_eq!(boundary["afterError"], "php-ruby-enrollment-unavailable");
+        std::fs::remove_dir_all(root).unwrap();
+        println!("{EXECUTED}");
     }
 }

@@ -368,13 +368,21 @@ mod continuation_staging_tests {
         let output = fixture.0.join("new").join("run");
         assert_eq!(native_security_output_path(&root, &output).unwrap(), output);
         assert!(!fixture.0.join("new").exists());
+        // Preserve CLI spelling: joining onto a Windows verbatim root removes `..`.
+        let separator = std::path::MAIN_SEPARATOR;
+        let mut traversal = fixture.0.as_os_str().to_os_string();
+        traversal.push(format!("{separator}new{separator}..{separator}run"));
         for unsafe_output in [
             root.clone(),
             root.join("nested"),
             fixture.0.clone(),
-            fixture.0.join("new/../run"),
+            PathBuf::from(traversal),
         ] {
-            assert!(native_security_output_path(&root, &unsafe_output).is_err());
+            assert!(
+                native_security_output_path(&root, &unsafe_output).is_err(),
+                "unsafe security output admitted: {}",
+                unsafe_output.display()
+            );
         }
         let file = fixture.0.join("file");
         std::fs::write(&file, b"unchanged").unwrap();
@@ -446,8 +454,11 @@ mod continuation_staging_tests {
             let mut raw = fixture.0.as_os_str().to_os_string();
             raw.push(r"\");
             raw.push(suffix);
-            let error = continuation_output_path(&parent, &PathBuf::from(raw)).unwrap_err();
+            let requested = PathBuf::from(raw);
+            let error = continuation_output_path(&parent, &requested).unwrap_err();
             assert!(error.message.contains("cannot contain parent traversal"));
+            let error = native_security_output_path(&parent, &requested).unwrap_err();
+            assert!(error.message.contains("without parent traversal"));
         }
     }
 

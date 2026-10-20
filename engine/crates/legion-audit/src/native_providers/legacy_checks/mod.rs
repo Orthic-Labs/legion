@@ -1856,7 +1856,10 @@ fn execution_from_receipt(
         // envelope. A completed receipt is the proof; stdout/stderr digests
         // remain bound in the receipt below.
     } else if let Some(bytes) = parse_bytes {
-        if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
+        // A clean cargo-deny JSONL stream can be a single summary object.
+        if input.check == "cargo_deny" {
+            parsed = parse_text_output(input, bytes, &mut output);
+        } else if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
             parsed = parse_external_value(input, &value, &mut output);
         }
         if !parsed {

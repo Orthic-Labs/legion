@@ -121,18 +121,24 @@ fn raw_excerpt_slicing_is_file_line_anchored_and_redacted_across_languages() {
 #[test]
 fn skeleton_excerpt_slicing_keeps_signatures_and_drops_bodies_across_languages() {
     let dir = ScratchDir::new();
-    write(
-        dir.path(),
-        "src/lib.rs",
-        "use std::fmt;\n\npub struct Thing {\n    x: i32,\n}\n\npub fn compute() -> i32 {\n    let secret_body = 41 + 1;\n    secret_body\n}\n",
+    let source = format!(
+        "use std::fmt;\n\npub struct Thing {{\n    x: i32,\n}}\n\npub fn compute() -> i32 {{\n    let secret_body = 41 + 1;\n{}    secret_body\n}}\n",
+        "    let omitted_body = 0;\n".repeat(256)
     );
+    assert!(
+        source.len() > 4096,
+        "exercise skeleton extraction above Raw promotion ceiling"
+    );
+    write(dir.path(), "src/lib.rs", &source);
     let paths = vec!["src/lib.rs".to_string()];
     let excerpts = excerpts::build_excerpts(dir.path(), &paths, lens_plan::ExcerptMode::Skeleton);
     let excerpt = &excerpts[0];
+    assert_eq!(excerpt.mode, lens_plan::ExcerptMode::Skeleton);
     assert!(excerpt.content.contains("use std::fmt;"));
     assert!(excerpt.content.contains("pub struct Thing {"));
     assert!(excerpt.content.contains("pub fn compute() -> i32 {"));
     assert!(!excerpt.content.contains("secret_body = 41 + 1"));
+    assert!(!excerpt.content.contains("let omitted_body = 0"));
     assert!(excerpt.content.contains("{ ... }"));
     assert!(
         !excerpt.redacted,

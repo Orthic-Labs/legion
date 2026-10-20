@@ -433,6 +433,25 @@ pub(super) fn typescript(
     typescript_output(ctx.root, &command.cwd_rel, bytes, exit)
 }
 
+// Keep native absolute prefixes intact until canonical confinement is established.
+// In particular, rewriting a Windows verbatim path before stripping its root
+// makes it incomparable with the canonical root.
+fn typescript_source_path(
+    root: &Path,
+    canonical_root: &Path,
+    cwd: &str,
+    raw: &str,
+) -> Option<String> {
+    let path = Path::new(raw);
+    if path.is_absolute() {
+        let canonical = fs::canonicalize(path).ok()?;
+        let relative = canonical.strip_prefix(canonical_root).ok()?.to_str()?;
+        repo_relative(root, canonical_root, "", relative)
+    } else {
+        repo_relative(root, canonical_root, cwd, raw)
+    }
+}
+
 fn typescript_output(
     root: &Path,
     cwd: &str,
@@ -461,7 +480,7 @@ fn typescript_output(
                 .ok()
                 .filter(|v| *v > 0)
                 .ok_or("tsc-location-invalid")?;
-            let path = repo_relative(root, &canonical_root, cwd, &c[1])
+            let path = typescript_source_path(root, &canonical_root, cwd, &c[1])
                 .ok_or("tsc-diagnostic-source-unbound")?;
             diagnostics.push(Diag {
                 rule: format!("tsc:{}", &c[5]),
@@ -494,8 +513,8 @@ fn typescript_output(
         {
             return Err("tsc-file-list-invalid".into());
         }
-        let relative =
-            repo_relative(root, &canonical_root, cwd, line).ok_or("tsc-file-list-unbound")?;
+        let relative = typescript_source_path(root, &canonical_root, cwd, line)
+            .ok_or("tsc-file-list-unbound")?;
         covered.insert(relative);
     }
     if listed.is_empty()
@@ -914,7 +933,32 @@ mod protocol_tests {
         let input = root.join("answer.ts");
         fs::write(&input, "export const answer = 42;\n").unwrap();
         let listed = format!("{}\n", input.display());
-        assert!(typescript_output(&root, "", listed.as_bytes(), Some(0)).is_ok());
+        let (diagnostics, covered) =
+            typescript_output(&root, "", listed.as_bytes(), Some(0)).unwrap();
+        assert!(diagnostics.is_empty());
+        assert_eq!(covered, BTreeSet::from(["answer.ts".to_owned()]));
+        let absolute_input = input.display().to_string();
+        let native_input = absolute_input
+            .strip_prefix(r"\\?\")
+            .unwrap_or(&absolute_input);
+        let slash_input = native_input.replace('\\', "/");
+        for absolute in [absolute_input.as_str(), native_input, slash_input.as_str()] {
+            let output = format!("{absolute}(1,1): error TS2322: Type mismatch.\n{absolute}\n");
+            let (diagnostics, covered) =
+                typescript_output(&root, "nested", output.as_bytes(), Some(2)).unwrap();
+            assert_eq!(diagnostics[0].path, "answer.ts");
+            assert_eq!(covered, BTreeSet::from(["answer.ts".to_owned()]));
+        }
+        let outside = root.with_extension("ts");
+        fs::write(&outside, "export const outside = 1;\n").unwrap();
+        let outside_list = format!("{}\n", outside.display());
+        assert!(typescript_output(&root, "", outside_list.as_bytes(), Some(0)).is_err());
+        let outside_diagnostic = format!(
+            "{}(1,1): error TS2322: Type mismatch.\n{listed}",
+            outside.display()
+        );
+        assert!(typescript_output(&root, "", outside_diagnostic.as_bytes(), Some(2)).is_err());
+        fs::remove_file(&outside).unwrap();
         for unknown in [
             "garbage diagnostic",
             "answer.ts(1,x): error TS2322: malformed",

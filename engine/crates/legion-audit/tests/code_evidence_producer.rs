@@ -527,8 +527,32 @@ fn family_manifest_without_source_keeps_its_gaps() {
     assert!(result.applicable);
     assert!(!result.details.contains_key("applicability"));
     assert!(!result.complete);
+    assert_eq!(result.status, ProviderStatus::Partial);
     let coverage = result.coverage.as_ref().unwrap();
-    assert_eq!((coverage.expected, coverage.examined), (1, 0));
+    // Frozen coverage includes the inspected manifest context; no Rust
+    // source or tool execution can be inferred from that context read.
+    assert_eq!((coverage.expected, coverage.examined), (1, 1));
+    let producer = &result.details["nativeProducer"];
+    assert_eq!(producer["filesExpected"], json!(1));
+    assert_eq!(producer["filesRead"], json!(1));
+    assert_eq!(producer["sourceFilesExpected"], json!(0));
+    assert_eq!(producer["sourceFilesRead"], json!(0));
+    assert_eq!(producer["contextFilesExpected"], json!(1));
+    assert_eq!(producer["contextFilesRead"], json!(1));
+    assert_eq!(producer["contextAccounting"].as_array().unwrap().len(), 1);
+    let context = &producer["contextAccounting"][0];
+    assert_eq!(context["path"], json!("Cargo.toml"));
+    assert_eq!(context["status"], json!("examined"));
+    assert_eq!(context["analysis"], json!("module-context"));
+    assert_eq!(context["digest"], json!(entry(&root, "Cargo.toml").digest));
+    assert_eq!(producer["sourceAccounting"], json!([]));
+    assert_eq!(producer["toolReceipts"], json!([]));
+    assert!(producer["toolDiscovery"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|tool| tool["executed"] == false));
+    assert!(result.findings.is_empty());
     assert!(
         result
             .coverage_gaps
@@ -536,6 +560,7 @@ fn family_manifest_without_source_keeps_its_gaps() {
         "{:?}",
         result.coverage_gaps
     );
+    result.validate().unwrap();
     fs::remove_dir_all(root).unwrap();
 }
 

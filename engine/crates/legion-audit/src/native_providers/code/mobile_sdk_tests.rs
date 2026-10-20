@@ -59,6 +59,10 @@ fn parser_fixture() -> (PathBuf, Planned) {
             .unwrap()
             .as_nanos()
     ));
+    // Match production's canonical root binding before deriving child paths.
+    // Windows canonicalize adds its native extended-length prefix.
+    std::fs::create_dir_all(&base).unwrap();
+    let base = base.canonicalize().unwrap();
     let root = base.join("root");
     let stage = base.join("stage");
     for path in [&root, &stage] {
@@ -129,8 +133,8 @@ fn mobile_json_clean_planted_malformed_and_source_binding_controls() {
     item.parser = Parser::MobileCompiler;
     item.programs = &["swiftc"];
     let diagnostic = format!(
-        "{}/App.swift:1:1: error: cannot convert value\n",
-        item.cwd_rel
+        "{}:1:1: error: cannot convert value\n",
+        Path::new(&item.cwd_rel).join("App.swift").display()
     );
     assert_eq!(
         parse(b"", Some(diagnostic.as_bytes()), Some(1), &item)
@@ -141,8 +145,15 @@ fn mobile_json_clean_planted_malformed_and_source_binding_controls() {
     assert!(parse(b"", Some(b"unexpected garbage"), Some(0), &item).is_err());
     assert!(parse(b"", Some(b"swiftc: error: missing SDK"), Some(1), &item).is_err());
     assert!(parse(b"", None, Some(0), &item).is_err());
-    std::fs::write(base.join("root/App.swift"), "changed\n").unwrap();
-    assert!(snapshot(&item).is_err());
+    let source_path = base.join("root").join("App.swift");
+    let staged_path = base.join("stage").join("App.swift");
+    let original = std::fs::read(&source_path).unwrap();
+    std::fs::write(&source_path, "changed\n").unwrap();
+    assert_eq!(snapshot(&item).unwrap_err(), "mobile-source-changed");
+    std::fs::write(&source_path, original).unwrap();
+    assert!(snapshot(&item).is_ok());
+    std::fs::write(&staged_path, "changed staged bytes\n").unwrap();
+    assert_eq!(snapshot(&item).unwrap_err(), "mobile-source-changed");
     std::fs::remove_dir_all(base).unwrap();
 }
 
