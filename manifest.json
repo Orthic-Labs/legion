@@ -58,7 +58,7 @@
       "backs": [
         "installer-hygiene"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.test",
@@ -124,7 +124,7 @@
         "performance",
         "a11y"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.negative-space",
@@ -281,7 +281,7 @@
         "security",
         "release-readiness"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.node-dependencies",
@@ -531,7 +531,7 @@
         "kind": "runtime-script",
         "module": "code.long-tail"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -666,7 +666,7 @@
         "kind": "runtime-script",
         "module": "framework.backend"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -865,7 +865,7 @@
         "kind": "legacy-check",
         "check": "build"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -940,7 +940,7 @@
         "kind": "legacy-check",
         "check": "lint"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1360,7 +1360,7 @@
         "kind": "legacy-check",
         "check": "js_licenses"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1720,7 +1720,7 @@
         "kind": "runtime-script",
         "module": "supply-chain.license-sbom-provenance"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,

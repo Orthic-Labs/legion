@@ -1,0 +1,1108 @@
+{
+  "schema": "legion-ast-grep-accuracy/1",
+  "providerId": "structural.ast-grep",
+  "claimScope": "constructed-native-sdk-artifact-fixture",
+  "productionQualification": false,
+  "selfProducerQualification": false,
+  "tool": {
+    "versionToken": "0.51.0",
+    "rawVersionStdout": "ast-grep 0.51.0\n",
+    "executablePath": "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+    "executableDigest": "sha256:6e4e64393e1cbc67b68f56606982c2834e9ffe771cf10d4811de0f4d15ee3a6d",
+    "assetDigest": "sha256:e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8"
+  },
+  "sourceBinding": {
+    "repositoryRoot": "/Users/runner/work/legion/legion",
+    "roots": [
+      "engine/crates/legion-audit/src",
+      "engine/crates/legion-effects/src",
+      "engine/crates/legion-provider-sdk/src",
+      "engine/crates/legion-contracts/src",
+      "engine/crates/legion-rules/src",
+      "src/registry/rules",
+      "src/registry/controls",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep"
+    ],
+    "files": {
+      "engine/Cargo.lock": "sha256:f60770dc8f844e388f0671257bf1cb34ecc42280f070f1daf72ab0b8b2c205e8",
+      "engine/Cargo.toml": "sha256:9c5aa090ccefe103cd28e5da41fbf3b921938d2e65b6046adcdd9625d23136c9",
+      "engine/crates/legion-audit/Cargo.toml": "sha256:e02df224aa30fc069f80b2ff563ab17711ecaedc27c84f3033b0d7d96e87298c",
+      "engine/crates/legion-audit/src/continuation.rs": "sha256:97f7cdc62ec094d83b119dd2733a53c1e68b1d5248439b73813724797c4ccf21",
+      "engine/crates/legion-audit/src/dag.rs": "sha256:3a81aeed750c34d796589bfbd054e481a39bc3a3de025307a3352bcee4f02bd9",
+      "engine/crates/legion-audit/src/error.rs": "sha256:61f1eeeb6ac1dbf3328bddd1fc4e52c51314006110a4c1bf4b61fbdecdb8001d",
+      "engine/crates/legion-audit/src/execution.rs": "sha256:1e2bb667feea26dc35eb6ba6b86ef8cbc477b35604da5e5ed1011c84c5dd9d40",
+      "engine/crates/legion-audit/src/execution_policy.rs": "sha256:a5b38006b444caa15c005fbb4c65926490e4bd2c0de004384bca786c29082b03",
+      "engine/crates/legion-audit/src/graph_context.rs": "sha256:cea099880dba0945aa1c036a35f57b872e98c24268680702c98378bf9bb3ca5b",
+      "engine/crates/legion-audit/src/integrity.rs": "sha256:af95401d7d3a08af2aa61bf2e587ed39acad5c980f301697c5242eaf160f43c5",
+      "engine/crates/legion-audit/src/inventory.rs": "sha256:3b767696e40cb228c62a06b6de432dedae1a94bc27e506a66288297c7c3a1c46",
+      "engine/crates/legion-audit/src/lib.rs": "sha256:7afdc6202b9f2ac51229535dcb79a165511a620dd419efe2f9bff76c17fa69c3",
+      "engine/crates/legion-audit/src/native_providers/architecture/backend.rs": "sha256:9bf2df2b0640648d018e798e2bb3570fb003c86cb4c85251ecc79a1755b44b3d",
+      "engine/crates/legion-audit/src/native_providers/architecture/common.rs": "sha256:35dbfb8ea455b7856b58d093129425a1941cd594f1c9bdca73ee09098ef21b18",
+      "engine/crates/legion-audit/src/native_providers/architecture/compatibility.rs": "sha256:2d9892eb9367a7f1c80f7db9a6823e8e56aabebbe6260c9a0e5160790f3ee8f8",
+      "engine/crates/legion-audit/src/native_providers/architecture/core.rs": "sha256:b79d701e4df5947ac1f037a7ce8cd84a159e331b3ea752371920d56019dbd425",
+      "engine/crates/legion-audit/src/native_providers/architecture/data.rs": "sha256:3646e96467019dd1fda53e6f9b8807d245d1a5eed919ffb35fd414d27929c506",
+      "engine/crates/legion-audit/src/native_providers/architecture/docs.rs": "sha256:e414bc1fcde2cdd2601ab88a2686c16de74defdb9051eba81341192105f3534c",
+      "engine/crates/legion-audit/src/native_providers/architecture/docs_contract.rs": "sha256:4f16bb9fcba4f381062d6caf4ea73f45861127a914e8369339aa4502cf223a3d",
+      "engine/crates/legion-audit/src/native_providers/architecture/evidence.rs": "sha256:dcaf12e998201aa9cf2e6d4070b54e7a7d651b92185de55ed1f117690da527ce",
+      "engine/crates/legion-audit/src/native_providers/architecture/framework.rs": "sha256:e464045efbe2b0aa815be1bb475c3dc1c7a230ef0025365a85ea5aed1f288833",
+      "engine/crates/legion-audit/src/native_providers/architecture/frontend.rs": "sha256:12e915ffd0821e6ed6094b593289d412d2591c04574afb9dfbc1c243900bae91",
+      "engine/crates/legion-audit/src/native_providers/architecture/mod.rs": "sha256:5db110ffb3a532f11e499463e24ac2dba27b82f80336da90e15788681b47da27",
+      "engine/crates/legion-audit/src/native_providers/architecture/producer.rs": "sha256:d466d44fc9a5577bd7866b943518de8851b08e714eb9fe52536b256b1d52e65f",
+      "engine/crates/legion-audit/src/native_providers/architecture/report_compatibility.rs": "sha256:29e429c84d55bbb6449c0148ff9a9e68995cc84ebfe8213131a2a7d515f8067e",
+      "engine/crates/legion-audit/src/native_providers/architecture/requirements.rs": "sha256:b5247d3d311985516665b7bcbb1bbe336662b1b613ca36bab0eacda08e33974a",
+      "engine/crates/legion-audit/src/native_providers/architecture/test_quality.rs": "sha256:92de8a35ec11886383881bb11fdcc8cf90584f084ec80c3b266f44079d13a686",
+      "engine/crates/legion-audit/src/native_providers/availability.rs": "sha256:c90ffbbcfb608635bece768238beeb88f9f3331a3d626d592570146b85581409",
+      "engine/crates/legion-audit/src/native_providers/code/applicability.rs": "sha256:360661e8c206e9335c265feabefc8da472b7ce0f780a031f38d27b842d19d1d6",
+      "engine/crates/legion-audit/src/native_providers/code/c_family.rs": "sha256:f31f8decca48ce7a24bd0da354148584b27272d7293666c32a9aeb0c02bc7dfc",
+      "engine/crates/legion-audit/src/native_providers/code/c_family_native.rs": "sha256:62ae6314c76aaca5def8e47b75aef274d985b8a03c9c5bfdda4ffa51f55ee8e5",
+      "engine/crates/legion-audit/src/native_providers/code/common.rs": "sha256:51d4e8e2d1bae78a8530a4908c36c6e94883170610f38d12c0c73e6cc24e36f6",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet.rs": "sha256:6ac0a77b4bb2b752b361478ab63ca8522d967afe4c78ab211dfaeb7a5119f72b",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk.rs": "sha256:f817a91f8843626286837ae11aa508f1400a7d0866ff8d5d479f1bafd594fc41",
+      "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk_accuracy.rs": "sha256:756a0442c3d9eec115bd6bd44bff647fa05ac3d1980749cc287f16a2f3dee142",
+      "engine/crates/legion-audit/src/native_providers/code/evidence.rs": "sha256:f53144d60d748c26dbb9c759c37eae4047b480e293de559dd6955ed047cdc609",
+      "engine/crates/legion-audit/src/native_providers/code/go.rs": "sha256:09584b27339e3977492708e4c88494264934a1ea8fba4baacd34c154e53c4ef1",
+      "engine/crates/legion-audit/src/native_providers/code/govulncheck.rs": "sha256:2c791a01983744b76d9897183c1ad1a0144dcbd8562c4689a25d0b6eb8b9a0ea",
+      "engine/crates/legion-audit/src/native_providers/code/javascript.rs": "sha256:dd2b45a96de425b08b383637d4250e090f7664071c31e342f97fdf34ec04f5aa",
+      "engine/crates/legion-audit/src/native_providers/code/javascript_sdk.rs": "sha256:d8cce4dcc942f25311a3edd42bfe636f3da1d6ccf1f3669cbc956c3dac332886",
+      "engine/crates/legion-audit/src/native_providers/code/jvm.rs": "sha256:384bd369d06a064e07753de0e3410910600750d2cd8270024519f32fccbe6e07",
+      "engine/crates/legion-audit/src/native_providers/code/jvm_sdk.rs": "sha256:b665d77e52e92058c84fbb7f1c2be93dc949f0d63a2f2c0a5ee702e2efe04c25",
+      "engine/crates/legion-audit/src/native_providers/code/long_tail.rs": "sha256:11651548a89a8607e80e9a312c585cd785210e3428345f9d3115afc69f5a2601",
+      "engine/crates/legion-audit/src/native_providers/code/mobile.rs": "sha256:fba81a0b349469a3d6f6c106a0709bc09fb4048a67168aab0fd8c9210e022308",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs": "sha256:d501385bd72f1a4d1ec046c811826e222e86fb526ba9feb236d0a18bed8148be",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_enrollment.rs": "sha256:ac55de04ad338eee92576708b0f6f73d4baf640780e7141d240443ea45ccf2a3",
+      "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_tests.rs": "sha256:6b57f3c7e390e50ba5ad7e7a49bd693e1f0d9a30e37cd3ede6a050c3c97e734d",
+      "engine/crates/legion-audit/src/native_providers/code/mod.rs": "sha256:36ac6967cc44ff19e22dd0c7b208b24d1b361e924fcc8ad3d83b3bba9dcacabf",
+      "engine/crates/legion-audit/src/native_providers/code/native_commands.rs": "sha256:761a9b5bc05ebf78a783b674ff312b93f0d2c03497615422a527d4d9cc9150d1",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby.rs": "sha256:3a8704b8578d190bb61c9236faaf0ab267cf91b8094ea55ef7f7bdfae4d7183e",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby_commands.rs": "sha256:74fb89178d986d9a9e6ee3dfa6cf472b22587c424216af1b93da0ee4dfe2f9fa",
+      "engine/crates/legion-audit/src/native_providers/code/php_ruby_enrollment.rs": "sha256:d15a4bf12150ee00ff640e58756f4b0fbb7dc79438b70ca19a2ddd2606b91a5b",
+      "engine/crates/legion-audit/src/native_providers/code/python.rs": "sha256:4ef9a4806a98d864ad8ead33d8bb2230c9868ad12b28b5091498b31fdb413898",
+      "engine/crates/legion-audit/src/native_providers/code/python_commands.rs": "sha256:bf92edb0e3a0e299cdf3638dfb562333466a3720643188102fbf20fcad6f982d",
+      "engine/crates/legion-audit/src/native_providers/code/rubocop.rs": "sha256:c8e27119732be8e5b5d1578b160c84c5c0e7aeebe7433e865dfdb9a7e301b26e",
+      "engine/crates/legion-audit/src/native_providers/code/rust.rs": "sha256:86dcf2a2ac57b90b749946f133229185b050f05dc280166a4d191437ab71411e",
+      "engine/crates/legion-audit/src/native_providers/code/rust_dependency.rs": "sha256:1420aa6cb678cafaf7e370f4937e44424abe0bacc58e7b29ff1a4973ec543d30",
+      "engine/crates/legion-audit/src/native_providers/code/tools.rs": "sha256:69c0a2344213a44bbde8e1f389d0feb05430374095bca8f78a3a51d4e576cf27",
+      "engine/crates/legion-audit/src/native_providers/legacy/accessibility.rs": "sha256:ae4aa30fe70c4eafe13c2b89104162ecc1b8143474d278853c9d8be71af3827c",
+      "engine/crates/legion-audit/src/native_providers/legacy/accessibility_internal_suite.rs": "sha256:01afa70076575dcdcd5ee6ed4404101b4abf8aced615594e0c5857236dc9df7f",
+      "engine/crates/legion-audit/src/native_providers/legacy/adapter.rs": "sha256:065cd7d3ade34dd7f6834036154e4bff39e8703b1ab8d6a17d7c4858e41a176d",
+      "engine/crates/legion-audit/src/native_providers/legacy/candidate_suites.rs": "sha256:6b1511be41f81f56667cb6ff2f262527a09e6c96f1940fff9c9151e571745022",
+      "engine/crates/legion-audit/src/native_providers/legacy/common.rs": "sha256:14e7d946fcc0308d55b51b7f4f20c218b496dfb48048e85a74538b3bc1c6b93a",
+      "engine/crates/legion-audit/src/native_providers/legacy/framework.rs": "sha256:ebca74953cec365107b928d784867d3d341e0e16ae3c59de8b712a1e9c307736",
+      "engine/crates/legion-audit/src/native_providers/legacy/framework_major_suite.rs": "sha256:2e5bc0bac9eeec9d2692edd0fbfd9c2561e3c9b5acb5787bbe2b23cdf144fe60",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance.rs": "sha256:bfb7b7ee39379128412bf8c2cc307c75673e2addd794cf4c8b848072189106e9",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance_ownership.rs": "sha256:259e42f08cd385609f49f23293205e5191693fb9cdaf1175dd868e1a83d70001",
+      "engine/crates/legion-audit/src/native_providers/legacy/governance_policy.rs": "sha256:c3160732ac76f1c5aa40013a474123d345164112d4e74a5ee3860c498ad4ca77",
+      "engine/crates/legion-audit/src/native_providers/legacy/mod.rs": "sha256:d0f5287e0280d9cddd77134e7db10b86ce69ebdecc80f9390bd4daea2394f215",
+      "engine/crates/legion-audit/src/native_providers/legacy/ownership_sdk.rs": "sha256:44d725ba6129abe13b12b69f4c3ae556fd2026326d819e1fc5da150d94028466",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual.rs": "sha256:3e22ef41dfbe41371f6fb2281b10de8287e3af11b3d01b1eb2b12fe8a4c166b9",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual_core.rs": "sha256:064afe0a5bb6acee921f9c00d67993718e5a7a66915627c7e673729a6673875d",
+      "engine/crates/legion-audit/src/native_providers/legacy/visual_png.rs": "sha256:e5a8260b9006a7aaa8998d9e627cc74ec0920daacb4500a2dca835dd3812fab0",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/attested_runs.rs": "sha256:ef21ca12a37e6520b986dd9d6e00f0295e3426c682aaf0b9cb6c0b36d606dbaf",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/contracts.rs": "sha256:97b208006b883bed73710c2213a3660afd4831a08785ca8f4001d2566724300d",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/disposable_copy.rs": "sha256:e73b77b9d680bcf787f9538a47d1b354254e115d8283e37d399e279404d764e3",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/mod.rs": "sha256:edd1811816bba755916639c988c3a743fe8f456a7082cccebb34c667773e3970",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/node_outdated.rs": "sha256:3375a0bcdae5cc7ab1e3136ee5fa96409cfe3c54b4aac19c0a849a4ef277f126",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/parsers.rs": "sha256:7faa8cbd650b3f737f561896773e7d1e3651149be73e86aefa2d33a7e5e2c7a4",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/python_requirements.rs": "sha256:4c0b54b384195ab635638a438e053076a269ea85667189efc8ea108dc7038a9e",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/registry.rs": "sha256:3d661c3ee297e0d034a80667cf48c05fa77fc2d22b708b22dab218ebe9a7249f",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/resolver.rs": "sha256:d8a98b7239c7b87828af54314d898729c2231a168a784edbbe6216dd7e1b6dcb",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture.rs": "sha256:6b759fe2c1616907cfa041562910e1d0dfeb2738009e6f262091fe5eda6b8f03",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture_load_tests.rs": "sha256:df35ecbe68bbfec83fa967bc0ca8edbe58f948ce7ee4170c69dfa7370b1f7bbd",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/rust_outdated.rs": "sha256:0b80065d0c547e0c812b7100e91852b73a02f865df2b7bf8cd67e95460dee2f6",
+      "engine/crates/legion-audit/src/native_providers/legacy_checks/semgrep.rs": "sha256:a6e0ecd7bb0276a61a18722d534d953a7cb7e69c179e1fe70ccfd68f6d7ad4d3",
+      "engine/crates/legion-audit/src/native_providers/mod.rs": "sha256:d344922f848c5632d38a0c6a9c7f8e55c0894517e61c078faf345067a9b89329",
+      "engine/crates/legion-audit/src/native_providers/p11d_quality/mod.rs": "sha256:456b88b0cd963297c64f1e550a1baf08becadd893b4f3e2c2f6ec29707f05d8b",
+      "engine/crates/legion-audit/src/native_providers/p11d_quality/security_suite.rs": "sha256:f3790148fdbbec532a01b6a4b0b1159609a461163a46f54f63a08f496b296b9d",
+      "engine/crates/legion-audit/src/native_providers/reasoning/candidate_routing.rs": "sha256:0e5fb1ec270dee8736b19854688c3d5fd5e08bb6f739ff6d528b5ff2c4752d0b",
+      "engine/crates/legion-audit/src/native_providers/reasoning/coverage_plan.rs": "sha256:bde34cd1f8200cacc10eebf3ee26f41875b86e7405bdf4e70c3fcc32217f73c2",
+      "engine/crates/legion-audit/src/native_providers/reasoning/coverage_regressions.rs": "sha256:9452ab71cea517bf9338c41fb013296a038d37332e26479bb8f762b0057351a0",
+      "engine/crates/legion-audit/src/native_providers/reasoning/excerpts.rs": "sha256:1cd2f75ac0206d28405f8f07383ba18cb0f16d34ad7878f13a1fef61017b13f0",
+      "engine/crates/legion-audit/src/native_providers/reasoning/followup.rs": "sha256:50c673baf0436bd220397f15da737b64798da8e32a8c61b1b840b261c8103431",
+      "engine/crates/legion-audit/src/native_providers/reasoning/ingest.rs": "sha256:f9f2cb335076387c970d315acbea14ffbaf33a41e904f38421b325e970ce1819",
+      "engine/crates/legion-audit/src/native_providers/reasoning/lens_plan.rs": "sha256:f0c69350cef66c9718ba2e9f929d2199b1e85fae306c908fce393dded84505b6",
+      "engine/crates/legion-audit/src/native_providers/reasoning/lens_schemas.rs": "sha256:cebdb63ab97eb08f010ccf07d30d47c5d72a40bb29a41b456e91d97fd5290e7d",
+      "engine/crates/legion-audit/src/native_providers/reasoning/mod.rs": "sha256:4aae405d92f502e88ef790e8cba663bb455d0486ed861d88871cf05e2e085839",
+      "engine/crates/legion-audit/src/native_providers/reasoning/packet_context.rs": "sha256:76aafeeb385112b0316a1f75c9cde54ad11fe48fa2510412d7d69b7f0aeb38e2",
+      "engine/crates/legion-audit/src/native_providers/reasoning/pattern_cards.rs": "sha256:2316578b00dee580d09713572bc64e072721ee6d442348ff95d52b289d55ceb0",
+      "engine/crates/legion-audit/src/native_providers/reasoning/security_adjudication.rs": "sha256:44ada45d993ea0d874164ab4e26ca4216a5b461e62af191fc6ff5eb0ed72c791",
+      "engine/crates/legion-audit/src/native_providers/reasoning/triggers.rs": "sha256:36ec6b1aa9db6e3e2fb674293d373962129a73ca9bb1b4184877d815e23ce808",
+      "engine/crates/legion-audit/src/native_providers/security/adapter.rs": "sha256:610554aaca2d8f2a4b559b8bac5f743a5872ecf5f1cd13ae3af0bf3c50517b5b",
+      "engine/crates/legion-audit/src/native_providers/security/ast_grep.rs": "sha256:739d00ac70a0500dd8753e82cd5ae61fe23c4fd2f1d16aa5a006922d6e4e46fc",
+      "engine/crates/legion-audit/src/native_providers/security/common.rs": "sha256:bf9efe6361366114f2e73a20b39587011eec66b4d370903e913884b3ce8e668b",
+      "engine/crates/legion-audit/src/native_providers/security/container_iac.rs": "sha256:0e471e43779e02143c30e7746b6de347b564fd000f65bf17ea9a8922fd556968",
+      "engine/crates/legion-audit/src/native_providers/security/dependency_osv.rs": "sha256:9aa883f9d1bd6b3a2db9d58e86af709bad0391049be5f8358ea8f0a8d5cb05c7",
+      "engine/crates/legion-audit/src/native_providers/security/history.rs": "sha256:b10592d07a941dcd60f22fd9e66259a1d97ab54b7d64dc46ab5c776e79ab31ef",
+      "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs": "sha256:2d86ce7e9f97432809ed276caaa001ad52b7d1eed5b468ed53315be57e1fc9ba",
+      "engine/crates/legion-audit/src/native_providers/security/history_qualification_tests.rs": "sha256:a36562e8f17fc690e1075aeaa530280c21beb9a86e96d7cfafb409e87c062621",
+      "engine/crates/legion-audit/src/native_providers/security/imported_sarif.rs": "sha256:1033fc9e5e29c622d81606f72709bef9a83bbc4f6eede1cdc9d559fc53e0f562",
+      "engine/crates/legion-audit/src/native_providers/security/mod.rs": "sha256:382ac076dff108f6dfa13106193494ae49f3c2a92d1ce4f0bd978c3f0e7f2674",
+      "engine/crates/legion-audit/src/native_providers/security/opengrep.rs": "sha256:3107dbb12643b88e5c5d6eb4e6c2a5ac9c24d6d5ba3c5a68b6bd3344c6fbbdab",
+      "engine/crates/legion-audit/src/native_providers/security/packs.rs": "sha256:25ffd3ca1ce9c20275f2b0137d9c64986411f68b4d8392e65ebb2f954f0ad0b4",
+      "engine/crates/legion-audit/src/native_providers/security/producer.rs": "sha256:fe4e57984d98ada253578a9bda52a8dc7304afa9f7231e1f117551ee3ead0abc",
+      "engine/crates/legion-audit/src/native_providers/security/scanner_tools.rs": "sha256:bd06fc56102ade782e0a52e364ea05cd81d85c7ce4ff11d13632193b1ed913b8",
+      "engine/crates/legion-audit/src/native_providers/security/scanners.rs": "sha256:c7cc2f05a0a6353c6d28fb39eb2bf2e2697cc54a6f4476caa7bd161e7b229aa5",
+      "engine/crates/legion-audit/src/native_providers/security/secrets.rs": "sha256:9ef6d8a78c28f60c64d681990187167f98adca1b3864f908ac2ce81fec4f63dd",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain.rs": "sha256:468f7f22485d3e6d2e3f41d24527ab7fab80c18b360d57c868f9b8f36a4f6d4f",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain_documents.rs": "sha256:85a8def28fb897d41d15a02fb820b5df491d18d96d0b36e49794f5b851584142",
+      "engine/crates/legion-audit/src/native_providers/security/supply_chain_qualification_tests.rs": "sha256:e12317cbe9443093d0f6ea39055aa22290d3661fc0cf7a6511b2dc8912c50f93",
+      "engine/crates/legion-audit/src/native_providers/security/suppressions.rs": "sha256:7e2b0409d8bdf80b7744966be2aa7df3579e00fe154f269f6821de9ef2107d63",
+      "engine/crates/legion-audit/src/next.rs": "sha256:1879b2e94e1389dcce12f801af861dd1224dda8c70d4ddae4b39215314ac54fb",
+      "engine/crates/legion-audit/src/normalize.rs": "sha256:522c320ac951a9979e85da7533d377d07a9d1c703a03b04f6f0bec6bb491722f",
+      "engine/crates/legion-audit/src/p12_pipeline/mod.rs": "sha256:9be8d40810c841645438cb71b764d037be5f4af6aa89aeddfa47b55bdc6b5877",
+      "engine/crates/legion-audit/src/p12_pipeline/store.rs": "sha256:6c02fbc071e7ae5ac96ef9222a2933ed4f6c98282517ab995738d32c6c743f13",
+      "engine/crates/legion-audit/src/plan.rs": "sha256:f6ef9313c81c49aafa9e03f37a6706aa6de3cd7be9919d76ab734806360f7a7d",
+      "engine/crates/legion-audit/src/report.rs": "sha256:691564b76011c2c7badfa42b3d8686a5ea1a901ec7998ed5503fe8fd83945a7c",
+      "engine/crates/legion-audit/src/review_runtime/batch.rs": "sha256:37cf00acc6f85d0ca1942bfd245faeb73c9033d5e4eba254e0b53818af4562da",
+      "engine/crates/legion-audit/src/review_runtime/cost.rs": "sha256:46ece3568b9199e5b2a23401237453fd69d952043354c84d93b5a8026fea04a2",
+      "engine/crates/legion-audit/src/review_runtime/gather.rs": "sha256:0f5f65ac2ee5fbf291b38800aa978feb6d5718842a7cf07d4b3b28f521cff88c",
+      "engine/crates/legion-audit/src/review_runtime/mod.rs": "sha256:2d3e5661192f61e9393232572c6292217b5842ef0455e005d95e6bc5569e6eed",
+      "engine/crates/legion-audit/src/review_runtime/model.rs": "sha256:129e37ba252658998ee1078c790a69898ab15173d9398f18a3e87218c070a3dc",
+      "engine/crates/legion-audit/src/review_runtime/native.rs": "sha256:49f28c52d2daf2f9d38371071ad10f8d0062b4dd4d1f4f9f50f5e0bd0e5f0a7b",
+      "engine/crates/legion-audit/src/review_runtime/partial.rs": "sha256:506c918a2b0c1a1d4cf2a8b22f682e73f44abad7f2829f8b510215d7e7ff2eeb",
+      "engine/crates/legion-audit/src/review_runtime/projection.rs": "sha256:8f8db69ed091de89edb5806edc413c37d09e372709e1b448a8484232eb6ebf3b",
+      "engine/crates/legion-audit/src/review_runtime/tools.rs": "sha256:d8845f3b929a0cd0478d5729dc4b34bcba06ed8255061eba31c145d457d4887a",
+      "engine/crates/legion-audit/src/review_runtime/verification.rs": "sha256:fca53f6b2a26c30c481b483298e9189373a508db7f2bd242489a358575e64b17",
+      "engine/crates/legion-audit/src/scope.rs": "sha256:e7b1923a25349d897491d4d30f6df2b37455578b9aae44d9be2e63917fe46f4e",
+      "engine/crates/legion-audit/src/snapshot.rs": "sha256:12a38dc0cb209ea60cdc5a69dc39604ab3ccb516422c1c4625cbebcff1a7382d",
+      "engine/crates/legion-audit/src/source_cache.rs": "sha256:2f19a2f403bcaf9759239e92fc45d1dc919d77512d437ee63b8871058edc2ff0",
+      "engine/crates/legion-audit/src/verify.rs": "sha256:ab18d127f95c25e282a1138fbe2f6f5a9076ab203c573b7bef2aab9d184448cd",
+      "engine/crates/legion-audit/src/wf_port/mod.rs": "sha256:c1d7c0c75c91ecc2c91c87d7c6f5adb5c634866a3da8bb039a67b184d5690fc8",
+      "engine/crates/legion-audit/src/wf_port/wf010/external_process.rs": "sha256:6694b9349064f5ae6efbbb82b28418d38c23cddbdbfe76e81ac156f1bd5da8b2",
+      "engine/crates/legion-audit/src/wf_port/wf010/mod.rs": "sha256:3ee7bfc79fea3211371d0773a2d41f162382d55daf0beb0c8c9888140282d006",
+      "engine/crates/legion-audit/src/wf_port/wf010/provider_executor.rs": "sha256:f0a9e1a79753954cf2f5b01ee5b56b41a77693c313de4172eb5e5fd6e4b4e902",
+      "engine/crates/legion-audit/src/wf_port/wf010/provider_registry.rs": "sha256:6581524507c6c2418cc6fa3b5f35ef13f62f24a27e38543752ee12933331501f",
+      "engine/crates/legion-audit/src/wf_port/wf010/registry.rs": "sha256:4ee050f63a9f6b0d62ab100b7929cd9304ea53b9f02dc49f3a267312c01d4362",
+      "engine/crates/legion-audit/src/wf_port/wf010/runtime_module.rs": "sha256:7b04c57a71c9e5db9e890ffbb7c603226bf38d0b5956c61fe62c572492530397",
+      "engine/crates/legion-audit/src/wf_port/wf010/tool_identity.rs": "sha256:59b3d627fc38367f0d68e0e1549bd9f080405b06339c19eb7b5e6dcc05e59491",
+      "engine/crates/legion-audit/src/wf_port/wf064/common.rs": "sha256:148e38739ca11b2c9964132711f34d55a7890ae384fa05998af812ed147e63a7",
+      "engine/crates/legion-audit/src/wf_port/wf064/complete.rs": "sha256:f67efc6c35bebf6d611f8baf58718aa60a69738cd0f5cf6dacbbcf56fa288e18",
+      "engine/crates/legion-audit/src/wf_port/wf064/finalize.rs": "sha256:7255caa7c479888072c8f2791df103bcacf50b15f5d527bfc45a2b0212186451",
+      "engine/crates/legion-audit/src/wf_port/wf064/mod.rs": "sha256:ca8ce920a3bf34e396ed5c57aaf75446b84dd850bdf94ccc6f44cfa2b9131bb7",
+      "engine/crates/legion-audit/src/wf_port/wf064/plan.rs": "sha256:9757e9b3d9807facd5e98c19db104c6cc158b05a43effad5c4ab6d79de5d9656",
+      "engine/crates/legion-audit/src/wf_port/wf064/run.rs": "sha256:c34bdda47390f3691439817e973a7859c2a0399c6da4020a92b614412c92a028",
+      "engine/crates/legion-audit/src/wf_port/wf064/runtime.rs": "sha256:1b8935f8d9d1df02d0974e71357456d451db1300ae56f37c3d0e4ca142f05600",
+      "engine/crates/legion-audit/src/worktree.rs": "sha256:52874241dea2e44d700f0f7012a21488f5b6f9c2277188e8c8b6bbf6a6aff971",
+      "engine/crates/legion-audit/tests/ast_grep_accuracy.rs": "sha256:0be9ec7a28561b570bf65feb250997d3a6dd9309dca94ad915e1ab3ec2bc1e29",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/clean/rules/no-console-error-leak.yml": "sha256:6551fb81ad6852f57bca28b48da451d6728673076edcdbb23f6e3bfcb75a8262",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/clean/rules/no-inner-html.yml": "sha256:63dfeb22323d643b836859cc93df9a5c1283da135d77581683eed6cf2c783ce0",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/clean/sgconfig.yml": "sha256:329f05cc3da607f4a42fc716fe10c70a97a0f45836356b7c56943f9071175085",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/clean/src/probe.ts": "sha256:55aa44885a64a67a84cd837d5120b561379cf1147c3fbbbfa0807542c6ffbc10",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/planted/rules/no-console-error-leak.yml": "sha256:6551fb81ad6852f57bca28b48da451d6728673076edcdbb23f6e3bfcb75a8262",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/planted/rules/no-inner-html.yml": "sha256:63dfeb22323d643b836859cc93df9a5c1283da135d77581683eed6cf2c783ce0",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/planted/sgconfig.yml": "sha256:329f05cc3da607f4a42fc716fe10c70a97a0f45836356b7c56943f9071175085",
+      "engine/crates/legion-audit/tests/fixtures/ast-grep/planted/src/probe.ts": "sha256:83dc5e93141ecd86e00cd166cd04bde8e6898de8a7755c2b6b33fb8b2a23d757",
+      "engine/crates/legion-contracts/Cargo.toml": "sha256:e303c05c6e383cbc177d814cefa96bbc531177f32400283b6c20b2c01905a023",
+      "engine/crates/legion-contracts/src/agent.rs": "sha256:72707bfed5300f9381163fa033d6990b7ffdd565675ec3919af23899c4b6b311",
+      "engine/crates/legion-contracts/src/canonical.rs": "sha256:555633148a589760c83b25e0a7637ab7d543ac741f2d0a9f23c3c22d28dc2aa3",
+      "engine/crates/legion-contracts/src/enums.rs": "sha256:f7fd5152e6ce77e6c5d27567e03c300b12be28c533de3a4f2d5a9d36014bfcc8",
+      "engine/crates/legion-contracts/src/host.rs": "sha256:47a1d038a6f0afd0b6b166e40d75548cb3af5b8dee5404aafe5ed6e660d644d9",
+      "engine/crates/legion-contracts/src/id.rs": "sha256:42f46af58b90619e729aa64a6fba3932280169499a542673d59e203959722b65",
+      "engine/crates/legion-contracts/src/l2_port/enums.rs": "sha256:1a013706899aa61537e6ad751b435a073824a0ae066595b221276ef94c11453c",
+      "engine/crates/legion-contracts/src/l2_port/executable.rs": "sha256:c6ab509588da71c5cf0e903fe166a743be82d614a6f9e228900832e32a10e779",
+      "engine/crates/legion-contracts/src/l2_port/mod.rs": "sha256:cd8b2396ac68477ec1f0ba383ec6f0fc0866026329e1c64d346a0edf49ec356d",
+      "engine/crates/legion-contracts/src/l2_port/schema_names.rs": "sha256:77df8be112fbd2d520de2b5b589e8a237ebe31fb792c110edc8397c21aa8e01b",
+      "engine/crates/legion-contracts/src/lib.rs": "sha256:dde92ce03f09b1f1717a9a91010481d2999e7d7ac950d1bf169c5a54673c27df",
+      "engine/crates/legion-contracts/src/plan.rs": "sha256:da830b1bfd84fb6ff96d77d039d098c15d480c4c29e3af9142b452ef829c7110",
+      "engine/crates/legion-contracts/src/policy.rs": "sha256:d3213e609c16f5145f654d1c167f3f4f017729043015155bee9ac0fdeb8b591f",
+      "engine/crates/legion-contracts/src/provider.rs": "sha256:0f0f56a8491e57b5a182922e2304f9b2684c108404d5c8143ec5cbef22989057",
+      "engine/crates/legion-contracts/src/provider_result.rs": "sha256:20968234a70e50a7e2d998c5027643993a4fa8ad5887a4c3a39ac2beef4a134c",
+      "engine/crates/legion-contracts/src/receipt.rs": "sha256:65626770c4aab475c2144973214ff629e6be28f764dbacf437d1bc70174491ef",
+      "engine/crates/legion-contracts/src/report.rs": "sha256:79e302b5fcc308504f8a9554b3f81c8c67d101c22b5e5f32423dac64b73a6b9e",
+      "engine/crates/legion-contracts/src/state_root.rs": "sha256:7e9b238494db42942333c684222b5f88f60fb47738b9c987373772704c2059a1",
+      "engine/crates/legion-contracts/src/task.rs": "sha256:92f69a1e00a915abc6fc83cc55f790dd3013562f3a9c57597ef0ceac05a14bc4",
+      "engine/crates/legion-contracts/src/trace.rs": "sha256:8739098333ec9bc66971e431041df4c0e33dccf846373ebd451413af4386189f",
+      "engine/crates/legion-effects/Cargo.toml": "sha256:b0bfab4c589db448d7afbdd8e8edda58d432fc5a7c0cf3da4d023c0380da2fd2",
+      "engine/crates/legion-effects/src/artifact.rs": "sha256:5339c21ce35adc6690fac53f4ee31aea74aae7554721393c5ab134f802b908fd",
+      "engine/crates/legion-effects/src/credential.rs": "sha256:20bfa4858c8d602fec28e90912663a79bec2e91f7ae756cd3a351c2dcc8da774",
+      "engine/crates/legion-effects/src/environment.rs": "sha256:ef8ce22c40a9b43728595e01ab34f1522a2946901e39b0b197c9c5202ffc5ed3",
+      "engine/crates/legion-effects/src/error.rs": "sha256:25787cb6d29e961b78c909f4177881f7a725dc3e812959d2c8f8347f097f0f2d",
+      "engine/crates/legion-effects/src/executable.rs": "sha256:b8f3508d83c6ca2214dece9dfae5d4d9a7f890f05352459d431233beb8a6c3b5",
+      "engine/crates/legion-effects/src/executor.rs": "sha256:3a69f7d22745aee63a4523e859178ff8729a8a27e62cd9b14fafd10081e15d1d",
+      "engine/crates/legion-effects/src/gradle_sandbox.rs": "sha256:42ea0ee0baf8c532d8d9dd97f39c394cc7930c1fac37d64b20bc4c8a1b05f6c1",
+      "engine/crates/legion-effects/src/lib.rs": "sha256:5453468d02a9c4dd550ee2aa5e6a4ac1e0147601d57d9a326be0719ad519cbae",
+      "engine/crates/legion-effects/src/platform.rs": "sha256:d5cbd5580bde8a4a4fad0a0402bf67b9b72a05cf2e40d9b1ec4f6b85c102e87d",
+      "engine/crates/legion-effects/src/receipt.rs": "sha256:1d6ed4a9ee440c001f16fe80f2f8d1cf027cb537933004e55b7d3c2ec2832330",
+      "engine/crates/legion-effects/src/request.rs": "sha256:67d1c9a3e796b7fd4b772ffb69d137f2f4fd51ffb9cebba8b6b9850f2654687d",
+      "engine/crates/legion-effects/src/sandbox.rs": "sha256:ff4ac6444b08d96cb392c36c19f04484f9ffbad0b83d835ce6b7bbcd0733aaf9",
+      "engine/crates/legion-effects/src/unix.rs": "sha256:d67bcfbacc606637b562aea4b9dd98c7526a5eec3492f1f4d9aa733a5974a171",
+      "engine/crates/legion-effects/src/windows.rs": "sha256:a16a7d6d5fc55b814f2be403a613ec1142049df9416efef626038d004608f647",
+      "engine/crates/legion-provider-sdk/Cargo.toml": "sha256:5111c851c4c67a6955d92135a5ef5abb6b1bb7b60cf7dba8b1e5457565f10b98",
+      "engine/crates/legion-provider-sdk/src/auth.rs": "sha256:1e5cdfd3fe9abe368b9b1ae5214bf5d8be8dad997d3c885f205c6a414eddbd82",
+      "engine/crates/legion-provider-sdk/src/context.rs": "sha256:429d6a5f2f081b38b0d918aa576d0da010538692963982f1a2bfcd1f0a6cdca7",
+      "engine/crates/legion-provider-sdk/src/coverage.rs": "sha256:5c8a5ee408fb42d74229878af1cc28be53c178f7c922dff28596b480334eb8a2",
+      "engine/crates/legion-provider-sdk/src/error.rs": "sha256:065850a387f9e36f70ef6b173f688da8c1cbafaa57d7961a484a4629615afb31",
+      "engine/crates/legion-provider-sdk/src/external_project_tool.rs": "sha256:f5e48107508b70a35cb0ca4bb83dde1429ffcd25e679a793826002c50178c205",
+      "engine/crates/legion-provider-sdk/src/http_client.rs": "sha256:b97b88c630d13e7dfe9b88347c973cf49ee00fdc1eb742ff2f0a26c8a9181413",
+      "engine/crates/legion-provider-sdk/src/inference.rs": "sha256:d6d6e72b0c8e13265acff9a00d76857001546ba36d1944a8abe12485fa35ec3c",
+      "engine/crates/legion-provider-sdk/src/lib.rs": "sha256:d90a42c20c503ecb8e561a28245145b6461d53b3101da17dd490cf1ed2956a3a",
+      "engine/crates/legion-provider-sdk/src/provider.rs": "sha256:ae2523964411d7c45628bccd69776b6d3f7be2cb827e29f35d02bb56e2d2b3e3",
+      "engine/crates/legion-provider-sdk/src/registry.rs": "sha256:cf28d45688879ae297aef28fe7ba00f6218a9d0ced67daf63f2c53304ec80f88",
+      "engine/crates/legion-provider-sdk/src/result.rs": "sha256:73e6d8ca91f1e48bb302a6cea21b7d865b31df07ead16bfcf6a41e81e6ea831e",
+      "engine/crates/legion-provider-sdk/src/retry.rs": "sha256:d43c4d2b11eae4e0fb5afab03850537513a8c9b5f6728a94032951eda15eec80",
+      "engine/crates/legion-provider-sdk/src/stream.rs": "sha256:4a659b1fab4b12fbb716e7183641bfe925787f0c26a33e8f53f8ed6f8477c720",
+      "engine/crates/legion-provider-sdk/src/testkit.rs": "sha256:4daa713abb02d27c7c777487ee64f1f11894843b51d55a9678f528bba07dba3a",
+      "engine/crates/legion-provider-sdk/src/wf_port/mod.rs": "sha256:887e25964e16c69a65d3f2b896ed1fa5f196858d4c001337e875137f753b5454",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/canonical.rs": "sha256:a66e764791ea4b3eaeda85d0d0219adeaee244b04f1a26fdef05a95dd69c81ca",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/contracts.rs": "sha256:bb3cc63faeaea9bffe8d4f6d1293dca729a3a25638c74379c462196b12f12a4b",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/dag.rs": "sha256:97077ac70858c2a22507ff4235dc73ee21552f38dd31d0680a6b415f4eb03855",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/mod.rs": "sha256:979d34cfe9e5fb1e0c02cd029a48228be76b959d601140f695cb2f51f5e87e8a",
+      "engine/crates/legion-provider-sdk/src/wf_port/r53/testkit.rs": "sha256:666974aae250d8ea9a784be6f8027e226d711a556956b67be5dabc7baab063d5",
+      "engine/crates/legion-rules/Cargo.toml": "sha256:019d452373a12aa0f3cd6761432a24d2e9e6daf90a9d0feee9f63c104d0bdae9",
+      "engine/crates/legion-rules/src/compiler.rs": "sha256:f43f964c476d7ccc2953c9400696880bb940833c06618589471c7f88dcb1bfaf",
+      "engine/crates/legion-rules/src/error.rs": "sha256:549975c3f0e7df2dce4b4e8adb16b8fc3603f6b8b443ff81bc25086ec7445fb2",
+      "engine/crates/legion-rules/src/evidence.rs": "sha256:7eece66e56c61fac488d3dcc6a2292f0d8877917b66ec0f31e72e78c828b9fd7",
+      "engine/crates/legion-rules/src/lexical.rs": "sha256:0902d42bef5fb5e3a1480bb1dda616a9645bae36a9305bb90d243ac51b267505",
+      "engine/crates/legion-rules/src/lib.rs": "sha256:e44d6302852cd37e15f58f40862f7e4c4ff6a4dfcb8d0c91df138fdd9a2f32fb",
+      "engine/crates/legion-rules/src/schema.rs": "sha256:593931c1d5961029a07f9e20fc2a6c2f772df423088766559bb4434b5fc9e7bc",
+      "engine/crates/legion-rules/src/structural.rs": "sha256:70afb945abcf8c5d2996f70d81f35da0864164ade5bd57cdf0a3b1e3d5443006",
+      "engine/crates/legion-rules/src/wf_port/mod.rs": "sha256:fcdbdc6dcaf8025ed9b8133d407eb56f031912e3e7367c9a19eab84a9d20a859",
+      "engine/crates/legion-rules/src/wf_port/u06/mod.rs": "sha256:ef1cf2039b6f4aa4acd8cb7db5a881e3cb62854358cec5295ef1b890bc3ac5e7",
+      "src/registry/controls/controls/conditional/core.json": "sha256:cfde06b08552cb115dd74463d4ab61a77ea8da6badf8617f5cb7fff3b75b2d46",
+      "src/registry/controls/controls/desktop/core.json": "sha256:0e5dd518ad202b6a3a3bdb852734b1497f121b2eac94a34653d740d125131184",
+      "src/registry/controls/controls/developer-tools/core.json": "sha256:a9cef8924878bdac7b55b3eff36a2950276f960579d6cf15cbd8ebba11ac4ea4",
+      "src/registry/controls/controls/infrastructure-release/core.json": "sha256:08868e50fc49f8f54eba219a841ed78c0ec0351fd2bd6b0a18bce94e3b248380",
+      "src/registry/controls/controls/mobile/core.json": "sha256:d6867105a18f2e3521f73cd701402c7c961682c2f4b0b6911b8812059d6fccd3",
+      "src/registry/controls/controls/service-data/core.json": "sha256:623d5c8f91af05bc601d8d204ec5ad6187b990e25a08218a57c2e443d21a35db",
+      "src/registry/controls/controls/universal/core.json": "sha256:bca072dfcab9578895df1b9dab5132e0a512eba33ebbafcaebb7aa05313924bb",
+      "src/registry/controls/controls/web/core.json": "sha256:e23533415459c2d3f74324e75bcb1b039c93200e8b19ee8e345cee26782698c1",
+      "src/registry/controls/packs/components/infrastructure-release/core.json": "sha256:1377862b6f498d9619beda5a31e07791f9fcbcdc87eeb54666b89ade6808f17b",
+      "src/registry/controls/packs/components/service-data/core.json": "sha256:c899ea9983d0b8e16a40c585f956efd37d6e5a5607fa5825bd3d21caa5f6903b",
+      "src/registry/controls/packs/conditional/core.json": "sha256:37196e5013a2e62cbd760d6b50270f30bd307ad1df8d95c507ced95ee411c1e8",
+      "src/registry/controls/packs/index.json": "sha256:64ecf19696bddb93307069e7515fd1242f58dfc68fbfd2b607e9824967d4db7e",
+      "src/registry/controls/packs/targets/desktop/core.json": "sha256:ed8b07527d504e8382167ffe32f8dfb579755383d94282707b80056ee3b1dc30",
+      "src/registry/controls/packs/targets/developer-tools/core.json": "sha256:4af9527e06d6f562bde4c6a6002c88273b569e2b3e5d0f68f87ef78941ed3578",
+      "src/registry/controls/packs/targets/mobile/core.json": "sha256:c1fc787a0cab635c8d164b01d877aa91bab24c7890ae9fe3550aede6a8353b5e",
+      "src/registry/controls/packs/targets/service/core.json": "sha256:6bac6f16cb00164c99990ab200a5f6ede7c0205504074a2d4e1487ba28d1dd81",
+      "src/registry/controls/packs/targets/web/core.json": "sha256:61baad5c05205c70c8f53977bbf8dd7602cf4dfaba264c30f19ae8f68803e76d",
+      "src/registry/controls/packs/universal/core.json": "sha256:90d650f5e0b3167a578f55958738e94bafa7279ff9258a64b817cf1d117c5da7",
+      "src/registry/controls/sources/catalogue.json": "sha256:455292338c81e6cc48d63d0a7ab5d0595cacba9c185b2923d469b66be1e9847f",
+      "src/registry/controls/sources/creator-audits-v1.json": "sha256:7bdf16db0434312a3a9b1793071f4a8ba1c879d1f2efd6df96eb145875a70542",
+      "src/registry/controls/sources/platform-checklists-v1.json": "sha256:5305e70aa75759e191ed5d5dac9a4645a303912325cfbe55d25adb030d7be518",
+      "src/registry/rules/ast-grep/structural-core.json": "sha256:1f5b0b038bd516210a8ed8bcbdf2cca0d5b7527b9e91401435624ad1e545a63d",
+      "src/registry/rules/code/architecture/core.json": "sha256:0d9e567f3b5605733367b51cfc51ed43810ae4f0be9395c4d3208376d685b634",
+      "src/registry/rules/code/ast-grep/core.json": "sha256:f78d5b142a59df8973fe7969244d51fc61835c428f5edbf7805cadedb34258cf",
+      "src/registry/rules/code/docs-contract/core.json": "sha256:0fa5af5b059e3e8be6c22c1a295969dbcb60414f606498cbd274b1e5492465e1",
+      "src/registry/rules/code/maintainability/core.json": "sha256:0818af2376833df9e870ee21f22d03b9a557915224044cd30073e1c025397025",
+      "src/registry/rules/code/test-quality/core.json": "sha256:6cfc4ead2c42db8a8814834203c4ea6fa03469af43ee581f8a2f380f3750b781",
+      "src/registry/rules/compatibility/core.json": "sha256:00f939a0734f29fe66fb15b5d48e21ec8dc3b1838581f3218c0747fec4eb4a85",
+      "src/registry/rules/copy/anti-slop.json": "sha256:48c6ac7f4d7135975c4323bd19e308dfbd33965c064722a91a6e6b052c17c9c3",
+      "src/registry/rules/copy/clarity.json": "sha256:95e201e18d4c788521da382a187c1aaef0a09649364e3c6151b773fade74176e",
+      "src/registry/rules/copy/core.json": "sha256:5fe1f41dd0aec352bdd621126055f75a7433f5f97174916d8ce774b155612aaf",
+      "src/registry/rules/copy/documentation.json": "sha256:165a127d6c38720b7f48434fdc2b21d9ba231962ceec11564343133fdf1aa0ae",
+      "src/registry/rules/data-integrity/core.json": "sha256:57c3adbb4c979277110df3f1865e0e01ca7ae357a199adb78f5c5d7cb98f3a85",
+      "src/registry/rules/discoverability/core.json": "sha256:287a19af1a41bceda7ad107068135a3d4fa1bdf77d8b88e3d641a92c93db664e",
+      "src/registry/rules/governance/core.json": "sha256:2d8889259ed08316a77c7b516891037ffded95c21d956f82528e52051c0fff0a",
+      "src/registry/rules/narrative/chronology.json": "sha256:0b46e3909f7de8a4f48dfa9eb1bc2dff7febe6db1c1168d09fe37c969245ddaa",
+      "src/registry/rules/opengrep/legion-core.yml": "sha256:2ceaa81ea4513ffbd1f982b178ffc30a18d47766c1c026346fb6b62a16afad58",
+      "src/registry/rules/privacy/core.json": "sha256:d835c9f56e5520d19b07d285d0d26def71bcba012ff19dfb757279cd179a1988",
+      "src/registry/rules/requirements/core.json": "sha256:0c5cf852895b7c5270c1165a4343d02e0eac73aa336c2bb45c9b54f96564f27a",
+      "src/registry/rules/safety/hazards.json": "sha256:0651353148ded0e467b55a20ea5e28d59894e7efa467dcdd2c020adc4f27ea26",
+      "src/registry/rules/security/abuse-observability.json": "sha256:e17e5de6988fbf49a3d1fa08b20ce986019b1b50d670b1ef082928bdf0b107ef",
+      "src/registry/rules/security/ai.json": "sha256:6739e6660d03c92dab156bc23ffbecdd89fee9712a68b9d0ab38f41bb4fa5949",
+      "src/registry/rules/security/boundaries.json": "sha256:932d26f26e7cd822e23a3ace60aded36f6d7459302b2b292aedda1b877601c15",
+      "src/registry/rules/security/browser-http.json": "sha256:7d93b23816cafa4ed79e32a91c9e2a2305502dba040c57eb350388401ee43543",
+      "src/registry/rules/security/creator-derived.json": "sha256:139c7533b4f708e98faccc39321188fd0f082ea467467e168cd63865fe018e4c",
+      "src/registry/rules/security/crypto-data-privacy.json": "sha256:fc1c8db27b2c1b2af459aff17d3c9c1da50485acf2937e5f618bc41b9baf0e9e",
+      "src/registry/rules/security/enums.json": "sha256:3d4e987c66dc6f9ec10f9d17f92094201c81c53e87d0951a102e5c86d2711922",
+      "src/registry/rules/security/injection-output.json": "sha256:0694a8088fb4578b0645e9bd5d6b1006fc27289e614d8e9fb5e3a4b29e283705",
+      "src/registry/rules/security/opengrep/core.json": "sha256:be5241d3951648e74dbecab2300f2c793b1b810d6ef0e5b67fe6fa020ac2250c",
+      "src/registry/rules/security/specialist.json": "sha256:c1ae5f295f696d1dab285e19c3e1db48350c9ea5c3ee6335d64237a1ec609ae0",
+      "src/registry/rules/security/supply-developer-machine.json": "sha256:42f8680e8e3849a2bd41789cdfc6169058e77ca477e3eefaa86a59f8f346c09e",
+      "src/registry/rules/ux/designer-derived.json": "sha256:b3913a1de6ab1f449fc0a5b1387f3c8157396f26cbcf26f9ea8059f33c2b14e9",
+      "src/registry/rules/visual/designer-derived.json": "sha256:f7760a27443f476a3a2cb73cb7862fe01a7360ff1725951285d66db02f905fb1"
+    },
+    "providerSpec": {
+      "schemaVersion": 2,
+      "id": "structural.ast-grep",
+      "providerVersion": "1.0.0",
+      "family": "structural",
+      "lensIds": [],
+      "role": "deterministic",
+      "phase": "source",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "always"
+      },
+      "denominatorKind": "selected-scope",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "structural.ast-grep"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "none",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "selectable": true,
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "structural.source-assurance"
+      ],
+      "scopes": [
+        "family:structural"
+      ]
+    },
+    "providerSpecDigest": "sha256:60e4d27eb85ae99564a1844eec44abe30f325980fe2bb673359e82b5245140f2"
+  },
+  "cases": [
+    {
+      "id": "planted",
+      "fixtureRoot": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted",
+      "expected": [
+        "no-console-error-leak|src/probe.ts|2",
+        "no-inner-html|src/probe.ts|4"
+      ],
+      "actual": [
+        "no-console-error-leak|src/probe.ts|2",
+        "no-inner-html|src/probe.ts|4"
+      ],
+      "streamParsing": {
+        "attempted": true,
+        "succeeded": true,
+        "rowCount": 2
+      },
+      "commandContract": {
+        "executable": "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+        "args": [
+          "scan",
+          "--config",
+          "sgconfig.yml",
+          "--json=stream",
+          "rules/no-console-error-leak.yml",
+          "rules/no-inner-html.yml",
+          "sgconfig.yml",
+          "src/probe.ts"
+        ],
+        "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted",
+        "timeoutMs": 30000,
+        "maxOutputBytes": 1048576,
+        "environmentKeys": [
+          "PATH",
+          "HOME",
+          "USERPROFILE",
+          "TEMP",
+          "TMP"
+        ]
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "providerId": "structural.ast-grep",
+          "planId": "sha256:9111c07cbd426857baeb751e81fd5dcce2ba3a5d5c204171fff122709b4f9027",
+          "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/planted/sandbox/audit-8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "scan",
+            "--config",
+            "sgconfig.yml",
+            "--json=stream",
+            "rules/no-console-error-leak.yml",
+            "rules/no-inner-html.yml",
+            "sgconfig.yml",
+            "src/probe.ts"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/planted/sandbox/audit-8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "--version"
+          ],
+          "sandbox": {
+            "id": "sandbox:macos:8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513",
+            "network": true,
+            "filesystemScope": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted"
+          },
+          "environmentKeys": [
+            "HOME",
+            "PATH"
+          ]
+        }
+      ],
+      "coverage": {
+        "expected": 4,
+        "examined": 4,
+        "denominatorDigest": "sha256:43f31027c015bdf29ee1354e7f48f45684a76d8a70d4a4d77b5e2fa108b4caee",
+        "gaps": []
+      },
+      "fixtureFiles": [
+        {
+          "path": "rules/no-console-error-leak.yml",
+          "text": "id: no-console-error-leak\nlanguage: typescript\nseverity: warning\nmessage: Console error output may leak internal state.\nrule:\n  pattern: console.error($ARGS)\n"
+        },
+        {
+          "path": "rules/no-inner-html.yml",
+          "text": "id: no-inner-html\nlanguage: typescript\nseverity: error\nmessage: Raw innerHTML assignment requires a proven sanitization boundary.\nrule:\n  pattern: $X.innerHTML = $VALUE\n"
+        },
+        {
+          "path": "sgconfig.yml",
+          "text": "ruleDirs:\n  - rules\n"
+        },
+        {
+          "path": "src/probe.ts",
+          "text": "export function render(element: HTMLElement, detail: string): void {\n  console.error(detail);\n  element.textContent = detail;\n  element.innerHTML = detail;\n}\n"
+        }
+      ],
+      "fixtureSourceDigests": [
+        {
+          "path": "rules/no-console-error-leak.yml",
+          "digest": "sha256:6551fb81ad6852f57bca28b48da451d6728673076edcdbb23f6e3bfcb75a8262"
+        },
+        {
+          "path": "rules/no-inner-html.yml",
+          "digest": "sha256:63dfeb22323d643b836859cc93df9a5c1283da135d77581683eed6cf2c783ce0"
+        },
+        {
+          "path": "sgconfig.yml",
+          "digest": "sha256:329f05cc3da607f4a42fc716fe10c70a97a0f45836356b7c56943f9071175085"
+        },
+        {
+          "path": "src/probe.ts",
+          "digest": "sha256:83dc5e93141ecd86e00cd166cd04bde8e6898de8a7755c2b6b33fb8b2a23d757"
+        }
+      ],
+      "unsupportedGrammars": [],
+      "providerResult": {
+        "schema_version": 1,
+        "provider": "structural.ast-grep",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:43f31027c015bdf29ee1354e7f48f45684a76d8a70d4a4d77b5e2fa108b4caee",
+          "expected": 4,
+          "examined": 4,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "complete": true,
+            "denominator": {
+              "kind": "sealed-source-paths",
+              "expected": 4,
+              "examined": 4,
+              "unexamined": []
+            },
+            "findings": [],
+            "candidates": [
+              {
+                "ruleId": "no-console-error-leak",
+                "severity": "warning",
+                "message": "Console error output may leak internal state.",
+                "file": "src/probe.ts",
+                "range": {
+                  "byteOffset": {
+                    "start": 71,
+                    "end": 92
+                  },
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 23
+                  }
+                },
+                "metavariables": {},
+                "fingerprint": "sha256:7444607015813b0cbdaa7362c0c21fb89e630bc9ba18cf1b1d3a7e6f9e583b18",
+                "rawArtifactRef": null
+              },
+              {
+                "ruleId": "no-inner-html",
+                "severity": "error",
+                "message": "Raw innerHTML assignment requires a proven sanitization boundary.",
+                "file": "src/probe.ts",
+                "range": {
+                  "byteOffset": {
+                    "start": 128,
+                    "end": 154
+                  },
+                  "start": {
+                    "line": 4,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 28
+                  }
+                },
+                "metavariables": {},
+                "fingerprint": "sha256:1744ca45147f2e09bb0131cee72108084ab18bc076eda7f9ca37f1d46c7d0153",
+                "rawArtifactRef": null
+              }
+            ],
+            "coverageGaps": []
+          },
+          "candidates": [
+            {
+              "ruleId": "no-console-error-leak",
+              "severity": "warning",
+              "message": "Console error output may leak internal state.",
+              "file": "src/probe.ts",
+              "range": {
+                "byteOffset": {
+                  "start": 71,
+                  "end": 92
+                },
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": 23
+                }
+              },
+              "metavariables": {},
+              "fingerprint": "sha256:7444607015813b0cbdaa7362c0c21fb89e630bc9ba18cf1b1d3a7e6f9e583b18",
+              "rawArtifactRef": null
+            },
+            {
+              "ruleId": "no-inner-html",
+              "severity": "error",
+              "message": "Raw innerHTML assignment requires a proven sanitization boundary.",
+              "file": "src/probe.ts",
+              "range": {
+                "byteOffset": {
+                  "start": 128,
+                  "end": 154
+                },
+                "start": {
+                  "line": 4,
+                  "column": 2
+                },
+                "end": {
+                  "line": 4,
+                  "column": 28
+                }
+              },
+              "metavariables": {},
+              "fingerprint": "sha256:1744ca45147f2e09bb0131cee72108084ab18bc076eda7f9ca37f1d46c7d0153",
+              "rawArtifactRef": null
+            }
+          ],
+          "producer": {
+            "mode": "fixture-sdk-command",
+            "sdkReceiptId": "receipt:ast-grep-accuracy-planted"
+          }
+        }
+      },
+      "sdkReceipt": {
+        "schemaVersion": 1,
+        "wrapperIdentity": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "state": "completed",
+        "complete": true,
+        "receiptId": "receipt:ast-grep-accuracy-planted",
+        "requestId": "ast-grep-accuracy-planted",
+        "providerId": "structural.ast-grep",
+        "planId": "sha256:9111c07cbd426857baeb751e81fd5dcce2ba3a5d5c204171fff122709b4f9027",
+        "policyId": "legion-ast-grep-fixture-accuracy-v1",
+        "taskId": "ast-grep",
+        "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted",
+        "policy": {
+          "id": "legion-ast-grep-fixture-accuracy-v1",
+          "version": 1,
+          "digest": "sha256:2c8b3fffa56b49d286da79cd1bb0980a35caec05e5ad6fd7a392e47b2e370688",
+          "allowed": true,
+          "reason": "one exact fixture-rooted ast-grep command"
+        },
+        "executable": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "digestState": "Sealed",
+          "signature": "Unknown",
+          "version": {
+            "args": [
+              "-f",
+              "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/planted/sandbox/audit-8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513.sb",
+              "--",
+              "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+              "--version"
+            ],
+            "output": "ast-grep 0.51.0\n",
+            "exitCode": 0,
+            "qualified": true,
+            "skippedByPolicy": false
+          }
+        },
+        "command": {
+          "executable": "/usr/bin/sandbox-exec",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/planted/sandbox/audit-8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "scan",
+            "--config",
+            "sgconfig.yml",
+            "--json=stream",
+            "rules/no-console-error-leak.yml",
+            "rules/no-inner-html.yml",
+            "sgconfig.yml",
+            "src/probe.ts"
+          ],
+          "environmentNames": [
+            "HOME",
+            "PATH"
+          ],
+          "redactedArgumentIndexes": [],
+          "redactedEnvironmentNames": []
+        },
+        "environmentNames": [
+          "HOME",
+          "PATH"
+        ],
+        "sandbox": {
+          "required": true,
+          "networkEnabled": true,
+          "receiptId": "sandbox:macos:8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513",
+          "profilePath": "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/planted/sandbox/audit-8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513.sb",
+          "profileRaw": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted\"))\n(deny file-write* (subpath \"/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/planted\"))\n",
+          "profileDigest": "sha256:8ba6d6f462cc7d2d15066f87feb4367a218e80543ba7380f652c880831042513"
+        },
+        "processTree": {
+          "started": true,
+          "terminated": true,
+          "hardKilled": false,
+          "reaped": true,
+          "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+        },
+        "timing": {
+          "startedAtMs": 1792470501376,
+          "completedAtMs": 1792470501406,
+          "durationMs": 30
+        },
+        "exitCode": 1,
+        "signal": null,
+        "parser": {
+          "attempted": false,
+          "succeeded": false,
+          "error": null
+        },
+        "gaps": [],
+        "stdout": {
+          "path": "ast-grep-accuracy-planted/stdout",
+          "raw": "{\"text\":\"console.error(detail)\",\"range\":{\"byteOffset\":{\"start\":71,\"end\":92},\"start\":{\"line\":1,\"column\":2},\"end\":{\"line\":1,\"column\":23}},\"file\":\"src/probe.ts\",\"lines\":\"  console.error(detail);\",\"charCount\":{\"leading\":2,\"trailing\":1},\"language\":\"TypeScript\",\"metaVariables\":{\"single\":{\"ARGS\":{\"text\":\"detail\",\"range\":{\"byteOffset\":{\"start\":85,\"end\":91},\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}}}},\"multi\":{},\"transformed\":{}},\"ruleId\":\"no-console-error-leak\",\"severity\":\"warning\",\"note\":null,\"message\":\"Console error output may leak internal state.\",\"labels\":[{\"text\":\"console.error(detail)\",\"range\":{\"byteOffset\":{\"start\":71,\"end\":92},\"start\":{\"line\":1,\"column\":2},\"end\":{\"line\":1,\"column\":23}},\"style\":\"primary\"}]}\n{\"text\":\"element.innerHTML = detail\",\"range\":{\"byteOffset\":{\"start\":128,\"end\":154},\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":28}},\"file\":\"src/probe.ts\",\"lines\":\"  element.innerHTML = detail;\",\"charCount\":{\"leading\":2,\"trailing\":1},\"language\":\"TypeScript\",\"metaVariables\":{\"single\":{\"VALUE\":{\"text\":\"detail\",\"range\":{\"byteOffset\":{\"start\":148,\"end\":154},\"start\":{\"line\":3,\"column\":22},\"end\":{\"line\":3,\"column\":28}}},\"X\":{\"text\":\"element\",\"range\":{\"byteOffset\":{\"start\":128,\"end\":135},\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":9}}}},\"multi\":{},\"transformed\":{}},\"ruleId\":\"no-inner-html\",\"severity\":\"error\",\"note\":null,\"message\":\"Raw innerHTML assignment requires a proven sanitization boundary.\",\"labels\":[{\"text\":\"element.innerHTML = detail\",\"range\":{\"byteOffset\":{\"start\":128,\"end\":154},\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":28}},\"style\":\"primary\"}]}\n",
+          "digest": "sha256:07799a7e82ccb86b89ec7405d275a087d25967dfd53d083e8869b29f9162a942",
+          "bytes": 1628,
+          "immutable": true
+        },
+        "stderr": {
+          "path": "ast-grep-accuracy-planted/stderr",
+          "raw": "Error: 1 error(s) found in code.\nHelp: Scan succeeded and found error level diagnostics in the codebase.\n\n",
+          "digest": "sha256:f8cb76fe8c815967695f8acdfc526311a763df20f64c77205e9080ab2d425267",
+          "bytes": 106,
+          "immutable": true
+        }
+      },
+      "astGrepArtifacts": {
+        "astGrepTool": {
+          "name": "ast-grep",
+          "version": "ast-grep 0.51.0",
+          "executableDigest": "sha256:6e4e64393e1cbc67b68f56606982c2834e9ffe771cf10d4811de0f4d15ee3a6d"
+        },
+        "examinedPaths": [
+          "rules/no-console-error-leak.yml",
+          "rules/no-inner-html.yml",
+          "sgconfig.yml",
+          "src/probe.ts"
+        ],
+        "unsupportedGrammars": [],
+        "structuralMatches": [
+          {
+            "ruleId": "no-console-error-leak",
+            "severity": "warning",
+            "message": "Console error output may leak internal state.",
+            "file": "src/probe.ts",
+            "range": {
+              "byteOffset": {
+                "start": 71,
+                "end": 92
+              },
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": 23
+              }
+            },
+            "metavariables": {},
+            "fingerprint": "sha256:7444607015813b0cbdaa7362c0c21fb89e630bc9ba18cf1b1d3a7e6f9e583b18",
+            "rawArtifactRef": null
+          },
+          {
+            "ruleId": "no-inner-html",
+            "severity": "error",
+            "message": "Raw innerHTML assignment requires a proven sanitization boundary.",
+            "file": "src/probe.ts",
+            "range": {
+              "byteOffset": {
+                "start": 128,
+                "end": 154
+              },
+              "start": {
+                "line": 4,
+                "column": 2
+              },
+              "end": {
+                "line": 4,
+                "column": 28
+              }
+            },
+            "metavariables": {},
+            "fingerprint": "sha256:1744ca45147f2e09bb0131cee72108084ab18bc076eda7f9ca37f1d46c7d0153",
+            "rawArtifactRef": null
+          }
+        ]
+      },
+      "assetDigest": "sha256:e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8",
+      "tool": {
+        "versionToken": "0.51.0",
+        "rawVersionStdout": "ast-grep 0.51.0\n",
+        "executablePath": "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+        "executableDigest": "sha256:6e4e64393e1cbc67b68f56606982c2834e9ffe771cf10d4811de0f4d15ee3a6d",
+        "assetDigest": "sha256:e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8"
+      }
+    },
+    {
+      "id": "clean",
+      "fixtureRoot": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean",
+      "expected": [],
+      "actual": [],
+      "streamParsing": {
+        "attempted": true,
+        "succeeded": true,
+        "rowCount": 0
+      },
+      "commandContract": {
+        "executable": "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+        "args": [
+          "scan",
+          "--config",
+          "sgconfig.yml",
+          "--json=stream",
+          "rules/no-console-error-leak.yml",
+          "rules/no-inner-html.yml",
+          "sgconfig.yml",
+          "src/probe.ts"
+        ],
+        "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean",
+        "timeoutMs": 30000,
+        "maxOutputBytes": 1048576,
+        "environmentKeys": [
+          "PATH",
+          "HOME",
+          "USERPROFILE",
+          "TEMP",
+          "TMP"
+        ]
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "providerId": "structural.ast-grep",
+          "planId": "sha256:61be0aeffb78b48ce014b0fabfb7432e3555449b609192cacfb8ddca8af2075c",
+          "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/clean/sandbox/audit-67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "scan",
+            "--config",
+            "sgconfig.yml",
+            "--json=stream",
+            "rules/no-console-error-leak.yml",
+            "rules/no-inner-html.yml",
+            "sgconfig.yml",
+            "src/probe.ts"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/clean/sandbox/audit-67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "--version"
+          ],
+          "sandbox": {
+            "id": "sandbox:macos:67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088",
+            "network": true,
+            "filesystemScope": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean"
+          },
+          "environmentKeys": [
+            "HOME",
+            "PATH"
+          ]
+        }
+      ],
+      "coverage": {
+        "expected": 4,
+        "examined": 4,
+        "denominatorDigest": "sha256:a2cd39cdc8f32bac1e762d90be0d7afb3733b2626ea051f18f2abb703625bf15",
+        "gaps": []
+      },
+      "fixtureFiles": [
+        {
+          "path": "rules/no-console-error-leak.yml",
+          "text": "id: no-console-error-leak\nlanguage: typescript\nseverity: warning\nmessage: Console error output may leak internal state.\nrule:\n  pattern: console.error($ARGS)\n"
+        },
+        {
+          "path": "rules/no-inner-html.yml",
+          "text": "id: no-inner-html\nlanguage: typescript\nseverity: error\nmessage: Raw innerHTML assignment requires a proven sanitization boundary.\nrule:\n  pattern: $X.innerHTML = $VALUE\n"
+        },
+        {
+          "path": "sgconfig.yml",
+          "text": "ruleDirs:\n  - rules\n"
+        },
+        {
+          "path": "src/probe.ts",
+          "text": "export function render(element: HTMLElement, detail: string): void {\n  console.warn(detail);\n  element.textContent = detail;\n  element.replaceChildren(document.createTextNode(detail));\n}\n"
+        }
+      ],
+      "fixtureSourceDigests": [
+        {
+          "path": "rules/no-console-error-leak.yml",
+          "digest": "sha256:6551fb81ad6852f57bca28b48da451d6728673076edcdbb23f6e3bfcb75a8262"
+        },
+        {
+          "path": "rules/no-inner-html.yml",
+          "digest": "sha256:63dfeb22323d643b836859cc93df9a5c1283da135d77581683eed6cf2c783ce0"
+        },
+        {
+          "path": "sgconfig.yml",
+          "digest": "sha256:329f05cc3da607f4a42fc716fe10c70a97a0f45836356b7c56943f9071175085"
+        },
+        {
+          "path": "src/probe.ts",
+          "digest": "sha256:55aa44885a64a67a84cd837d5120b561379cf1147c3fbbbfa0807542c6ffbc10"
+        }
+      ],
+      "unsupportedGrammars": [],
+      "providerResult": {
+        "schema_version": 1,
+        "provider": "structural.ast-grep",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:a2cd39cdc8f32bac1e762d90be0d7afb3733b2626ea051f18f2abb703625bf15",
+          "expected": 4,
+          "examined": 4,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "complete": true,
+            "denominator": {
+              "kind": "sealed-source-paths",
+              "expected": 4,
+              "examined": 4,
+              "unexamined": []
+            },
+            "findings": [],
+            "candidates": [],
+            "coverageGaps": []
+          },
+          "candidates": [],
+          "producer": {
+            "mode": "fixture-sdk-command",
+            "sdkReceiptId": "receipt:ast-grep-accuracy-clean"
+          }
+        }
+      },
+      "sdkReceipt": {
+        "schemaVersion": 1,
+        "wrapperIdentity": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "state": "completed",
+        "complete": true,
+        "receiptId": "receipt:ast-grep-accuracy-clean",
+        "requestId": "ast-grep-accuracy-clean",
+        "providerId": "structural.ast-grep",
+        "planId": "sha256:61be0aeffb78b48ce014b0fabfb7432e3555449b609192cacfb8ddca8af2075c",
+        "policyId": "legion-ast-grep-fixture-accuracy-v1",
+        "taskId": "ast-grep",
+        "cwd": "/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean",
+        "policy": {
+          "id": "legion-ast-grep-fixture-accuracy-v1",
+          "version": 1,
+          "digest": "sha256:2c8b3fffa56b49d286da79cd1bb0980a35caec05e5ad6fd7a392e47b2e370688",
+          "allowed": true,
+          "reason": "one exact fixture-rooted ast-grep command"
+        },
+        "executable": {
+          "requestedPath": "/usr/bin/sandbox-exec",
+          "canonicalPath": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "digestState": "Sealed",
+          "signature": "Unknown",
+          "version": {
+            "args": [
+              "-f",
+              "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/clean/sandbox/audit-67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088.sb",
+              "--",
+              "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+              "--version"
+            ],
+            "output": "ast-grep 0.51.0\n",
+            "exitCode": 0,
+            "qualified": true,
+            "skippedByPolicy": false
+          }
+        },
+        "command": {
+          "executable": "/usr/bin/sandbox-exec",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/clean/sandbox/audit-67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+            "scan",
+            "--config",
+            "sgconfig.yml",
+            "--json=stream",
+            "rules/no-console-error-leak.yml",
+            "rules/no-inner-html.yml",
+            "sgconfig.yml",
+            "src/probe.ts"
+          ],
+          "environmentNames": [
+            "HOME",
+            "PATH"
+          ],
+          "redactedArgumentIndexes": [],
+          "redactedEnvironmentNames": []
+        },
+        "environmentNames": [
+          "HOME",
+          "PATH"
+        ],
+        "sandbox": {
+          "required": true,
+          "networkEnabled": true,
+          "receiptId": "sandbox:macos:67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088",
+          "profilePath": "/Users/runner/work/_temp/legion-provider-qualification/ast-grep/run/clean/sandbox/audit-67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088.sb",
+          "profileRaw": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean\"))\n(deny file-write* (subpath \"/Users/runner/work/legion/legion/engine/crates/legion-audit/tests/fixtures/ast-grep/clean\"))\n",
+          "profileDigest": "sha256:67af04c2629d2184cb9604da9c90dce88390bd17e598bd9c1d0a4f18820bd088"
+        },
+        "processTree": {
+          "started": true,
+          "terminated": true,
+          "hardKilled": false,
+          "reaped": true,
+          "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+        },
+        "timing": {
+          "startedAtMs": 1792470502672,
+          "completedAtMs": 1792470502690,
+          "durationMs": 18
+        },
+        "exitCode": 0,
+        "signal": null,
+        "parser": {
+          "attempted": false,
+          "succeeded": false,
+          "error": null
+        },
+        "gaps": [],
+        "stdout": {
+          "path": "ast-grep-accuracy-clean/stdout",
+          "raw": "",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "immutable": true
+        },
+        "stderr": {
+          "path": "ast-grep-accuracy-clean/stderr",
+          "raw": "",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "immutable": true
+        }
+      },
+      "astGrepArtifacts": {
+        "astGrepTool": {
+          "name": "ast-grep",
+          "version": "ast-grep 0.51.0",
+          "executableDigest": "sha256:6e4e64393e1cbc67b68f56606982c2834e9ffe771cf10d4811de0f4d15ee3a6d"
+        },
+        "examinedPaths": [
+          "rules/no-console-error-leak.yml",
+          "rules/no-inner-html.yml",
+          "sgconfig.yml",
+          "src/probe.ts"
+        ],
+        "unsupportedGrammars": [],
+        "structuralMatches": []
+      },
+      "assetDigest": "sha256:e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8",
+      "tool": {
+        "versionToken": "0.51.0",
+        "rawVersionStdout": "ast-grep 0.51.0\n",
+        "executablePath": "/Users/runner/work/_temp/legion-ast-grep-0.51.0/unpacked/ast-grep",
+        "executableDigest": "sha256:6e4e64393e1cbc67b68f56606982c2834e9ffe771cf10d4811de0f4d15ee3a6d",
+        "assetDigest": "sha256:e18e13c27ed6c4b3ec4de00745b0755dee9dc26c035e226f4dd5d147dca99cc8"
+      }
+    }
+  ]
+}
