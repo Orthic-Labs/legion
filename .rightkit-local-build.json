@@ -1,0 +1,7 @@
+{
+  "allow": "build-test-publish",
+  "repository": "Orthic-Labs/legion",
+  "grantedBy": "Adrian D'Souza",
+  "grantedOn": "2026-10-21",
+  "reason": "Audit provider qualification harnesses must iterate locally on the Mac; CI remains the only source of enrollment proof."
+}
