@@ -2940,9 +2940,23 @@
         "producerSeparation": true
       },
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:41f18b7ae768ab4252c36f33eb03414244723da55f9f32c342c542bd952dc4d9",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/legacy.quality.rust-unused-deps/fa6d90a9d69571aeb9271ab481d22f8ecf24fd18ef5a85dd51fa10ab506281db.json",
+          "recordSha256": "sha256:d01a063aebe93e7a7f3f40b4545461f383c4fe6530141e9c4e1f78f53246112e",
+          "originalQualificationDigest": "sha256:fa6d90a9d69571aeb9271ab481d22f8ecf24fd18ef5a85dd51fa10ab506281db",
+          "validationBasis": "native-family-validator",
+          "stage": "finding",
+          "scope": "constructed-native-sdk-fixture",
+          "productionQualification": false,
+          "selfProducerQualification": false,
+          "fixtureScope": "constructed-native-sdk-fixture",
+          "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
+        }
       },
       "cleanClaim": "evidence-only",
       "controlIds": [
