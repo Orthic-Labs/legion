@@ -809,6 +809,8 @@ def validate_bench_record(root, entry, row, registry):
                 collect(child)
         elif path.is_file():
             relative = path.relative_to(root).as_posix()
+            if generated_session_provenance(relative):
+                return
             if relative == "src/registry/providers.json":
                 value = load(path)
                 for spec in value["providers"]:

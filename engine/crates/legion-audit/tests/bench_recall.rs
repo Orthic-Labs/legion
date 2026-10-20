@@ -83,43 +83,80 @@ fn implementation_binding(spec: &ProviderSpec) -> Value {
     })
 }
 
+fn collect_source_bindings(
+    root: &Path,
+    path: &Path,
+    bindings: &mut std::collections::BTreeMap<String, String>,
+) {
+    assert!(
+        !path.is_symlink(),
+        "symlink in bench implementation closure"
+    );
+    if path.is_dir() {
+        for entry in fs::read_dir(path).expect("implementation source directory") {
+            collect_source_bindings(
+                root,
+                &entry.expect("implementation source entry").path(),
+                bindings,
+            );
+        }
+    } else if path.is_file() {
+        let relative = path
+            .strip_prefix(root)
+            .expect("workspace-relative source")
+            .to_string_lossy()
+            .replace('\\', "/");
+        // Only generated regular receipts are excluded; matching directories recurse.
+        let generated_receipt = relative
+            .strip_prefix(
+                "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/",
+            )
+            .and_then(|name| name.strip_suffix(".json"))
+            .is_some_and(|name| {
+                name.len() == 64
+                    && name
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            });
+        if generated_receipt {
+            return;
+        }
+        let bytes = fs::read(path).expect("implementation source bytes");
+        let bound_digest = if relative == "src/registry/providers.json" {
+            let mut registry: Value = serde_json::from_slice(&bytes).expect("provider registry");
+            for provider in registry["providers"].as_array_mut().expect("provider list") {
+                provider
+                    .as_object_mut()
+                    .expect("provider definition")
+                    .remove("benchmark");
+            }
+            legion_contracts::canonical_digest(&registry)
+                .expect("sanitized provider registry digest")
+        } else {
+            digest(&bytes)
+        };
+        bindings.insert(relative, bound_digest);
+    }
+}
+
 /// Bind the entire in-workspace production crate closure, registry resources,
 /// dependency lock and this harness. Benchmark metadata is sanitized wherever
 /// provider definitions are bound, preventing qualification circularity.
 fn source_bindings() -> &'static Value {
     static BINDINGS: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
     BINDINGS.get_or_init(|| {
-        fn collect(root: &Path, path: &Path, bindings: &mut std::collections::BTreeMap<String, String>) {
-            if path.is_dir() {
-                for entry in fs::read_dir(path).expect("implementation source directory") {
-                    collect(root, &entry.expect("implementation source entry").path(), bindings);
-                }
-            } else if path.is_file() {
-                let relative = path.strip_prefix(root).expect("workspace-relative source")
-                    .to_string_lossy().replace('\\', "/");
-                let bytes = fs::read(path).expect("implementation source bytes");
-                let bound_digest = if relative == "src/registry/providers.json" {
-                    let mut registry: Value = serde_json::from_slice(&bytes).expect("provider registry");
-                    for provider in registry["providers"].as_array_mut().expect("provider list") {
-                        provider.as_object_mut().expect("provider definition").remove("benchmark");
-                    }
-                    legion_contracts::canonical_digest(&registry).expect("sanitized provider registry digest")
-                } else { digest(&bytes) };
-                bindings.insert(relative, bound_digest);
-            }
-        }
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
         let mut bindings = std::collections::BTreeMap::new();
         for entry in fs::read_dir(root.join("engine/crates")).expect("workspace production crates") {
             let crate_root = entry.expect("workspace crate").path();
             if crate_root.is_dir() {
-                collect(&root, &crate_root.join("src"), &mut bindings);
-                collect(&root, &crate_root.join("Cargo.toml"), &mut bindings);
+                collect_source_bindings(&root, &crate_root.join("src"), &mut bindings);
+                collect_source_bindings(&root, &crate_root.join("Cargo.toml"), &mut bindings);
             }
         }
         for path in ["engine/Cargo.toml", "engine/Cargo.lock", "src/registry",
             "engine/crates/legion-audit/tests/bench_recall.rs"] {
-            collect(&root, &root.join(path), &mut bindings);
+            collect_source_bindings(&root, &root.join(path), &mut bindings);
         }
         json!({"kind":"workspace-production-source-closure", "files":bindings,
             "sanitized": {"src/registry/providers.json":"remove providers[*].benchmark before canonical digest"}})
@@ -139,6 +176,124 @@ fn temp_root(tag: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("legion-bench-recall-{tag}-{suffix}"));
     fs::create_dir_all(&root).expect("temporary bench root");
     root
+}
+
+#[cfg(test)]
+mod source_binding_tests {
+    use super::{collect_source_bindings, digest, temp_root};
+    use std::{collections::BTreeMap, fs, path::PathBuf};
+
+    const SOURCE: &str = "engine/crates/legion-audit/src/lib.rs";
+    const PREFIX: &str =
+        "engine/crates/legion-audit/src/.audit/arcane/receipts/session-provenance/";
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new(tag: &str) -> Self {
+            Self(temp_root(tag))
+        }
+
+        fn write(&self, relative: &str, bytes: &[u8]) {
+            let path = self.0.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+
+        fn bindings(&self) -> BTreeMap<String, String> {
+            let mut bindings = BTreeMap::new();
+            collect_source_bindings(&self.0, &self.0, &mut bindings);
+            bindings
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).expect("remove source-binding fixture");
+        }
+    }
+
+    #[test]
+    fn exact_receipt_insertion_and_mutation_leave_source_binding_unchanged() {
+        let fixture = Fixture::new("source-binding-receipt");
+        fixture.write(SOURCE, b"pub const VALUE: u8 = 1;\n");
+        let before = fixture.bindings();
+        let receipt = format!("{PREFIX}{}.json", "0123456789abcdef".repeat(4));
+        fixture.write(&receipt, b"first generated receipt\n");
+        assert_eq!(fixture.bindings(), before);
+        fixture.write(&receipt, b"changed generated receipt\n");
+        assert_eq!(fixture.bindings(), before);
+        assert_eq!(
+            fs::read(fixture.0.join(&receipt)).unwrap(),
+            b"changed generated receipt\n"
+        );
+        fixture.write(SOURCE, b"pub const VALUE: u8 = 2;\n");
+        let after = fixture.bindings();
+        assert_eq!(
+            before.keys().collect::<Vec<_>>(),
+            after.keys().collect::<Vec<_>>()
+        );
+        assert_ne!(
+            before, after,
+            "retained Rust source changes must invalidate binding"
+        );
+        assert_eq!(after[SOURCE], digest(b"pub const VALUE: u8 = 2;\n"));
+    }
+
+    #[test]
+    fn near_matches_and_children_of_matching_directories_remain_bound() {
+        let fixture = Fixture::new("source-binding-near-matches");
+        let hash = "a".repeat(64);
+        let relatives = [
+            format!("{PREFIX}{}.json", "B".repeat(64)),
+            format!("{PREFIX}{}.json", "g".repeat(64)),
+            format!("{PREFIX}{}.json", "a".repeat(63)),
+            format!("{PREFIX}{}.json", "a".repeat(65)),
+            format!("{PREFIX}{hash}.rs"),
+            format!("{PREFIX}{hash}.json.extra"),
+            format!("{PREFIX}nested/{hash}.json"),
+            format!("nested/{PREFIX}{hash}.json"),
+            format!("engine/crates/legion-audit/src/nested/.audit/arcane/receipts/session-provenance/{hash}.json"),
+            format!("engine/crates/other/src/.audit/arcane/receipts/session-provenance/{hash}.json"),
+            // Directory name matches the receipt predicate; its child is still source.
+            format!("{PREFIX}{hash}.json/child.rs"),
+        ];
+        let mut expected = BTreeMap::new();
+        for (index, relative) in relatives.iter().enumerate() {
+            let bytes = format!("source {index}\n");
+            fixture.write(relative, bytes.as_bytes());
+            expected.insert(relative.clone(), digest(bytes.as_bytes()));
+        }
+        assert_eq!(fixture.bindings(), expected);
+        fixture.write(&relatives[10], b"changed child source\n");
+        assert_ne!(
+            fixture.bindings(),
+            expected,
+            "matching directory must recurse"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn exact_receipt_symlinks_are_rejected_before_exclusion_or_recursion() {
+        for directory in [false, true] {
+            let fixture = Fixture::new("source-binding-symlink");
+            let target = fixture.0.join("target");
+            if directory {
+                fs::create_dir(&target).unwrap();
+                fs::write(target.join("child.rs"), b"retained child\n").unwrap();
+            } else {
+                fs::write(&target, b"not a generated regular file\n").unwrap();
+            }
+            let link = fixture.0.join(format!("{PREFIX}{}.json", "a".repeat(64)));
+            fs::create_dir_all(link.parent().unwrap()).unwrap();
+            std::os::unix::fs::symlink(&target, &link).unwrap();
+            assert!(
+                std::panic::catch_unwind(|| fixture.bindings()).is_err(),
+                "matching symlink must never be excluded or traversed"
+            );
+        }
+    }
 }
 
 /// Copies a bench fixture directory (from the ported `tests/fixtures/bench/`
