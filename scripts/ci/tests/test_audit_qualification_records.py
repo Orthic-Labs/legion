@@ -1134,8 +1134,8 @@ class RegistrationGateTests(unittest.TestCase):
                 with self.subTest(provider=provider), patch.dict(namespace, {
                     "controls": lambda *_: None,
                     "helper": lambda *_: {"sources": lambda *_: []},
-                }), patch.dict(namespace, {semantic: lambda *_: (_ for _ in ()).throw(AssertionError("semantic sentinel"))}):
-                    with self.assertRaisesRegex(AssertionError, "semantic sentinel"):
+                }), patch.dict(namespace, {semantic: lambda *_: (_ for _ in ()).throw(AssertionError("validation path reached"))}):
+                    with self.assertRaisesRegex(AssertionError, "validation path reached"):
                         function(self.root, entry, row, {}, raw)
                     changed = dict(row, provider="changed")
                     with self.assertRaisesRegex(AssertionError, "original native receipt bytes differ"):

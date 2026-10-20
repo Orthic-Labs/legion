@@ -21,7 +21,7 @@ class CFamilyBootstrapTests(unittest.TestCase):
         self.config.mkdir(parents=True)
         (self.config / 'clang.cfg').write_bytes(b'--sysroot=/selected/sdk\n')
         self.alias = self.llvm / 'etc/clang'
-        self.alias.symlink_to('../../../../etc/clang')
+        self.alias.symlink_to(Path('../../../../etc/clang'), target_is_directory=True)
 
     def selected_config(self, roots=None):
         return API['homebrew_clang_config_root'](
@@ -44,13 +44,13 @@ class CFamilyBootstrapTests(unittest.TestCase):
         other = self.prefix / 'etc/other'
         other.mkdir()
         self.alias.unlink()
-        self.alias.symlink_to(other)
+        self.alias.symlink_to(other, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, 'unexpected Homebrew LLVM'):
             self.selected_config()
 
     def test_shared_config_alias_target_is_rejected(self):
         config = self.config.rename(self.prefix / 'etc/elsewhere')
-        self.config.symlink_to(config)
+        self.config.symlink_to(config, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, 'unexpected Homebrew LLVM'):
             self.selected_config()
 
