@@ -21,7 +21,7 @@
         "correctness",
         "platform-parity"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "architecture.decomposition",
@@ -34,7 +34,7 @@
         "architecture",
         "minimize"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "core.repo",
@@ -46,7 +46,7 @@
       "backs": [
         "prioritization"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.build",
@@ -96,7 +96,7 @@
         "ai-slop",
         "maintainability"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.duplication",
@@ -137,7 +137,7 @@
         "architecture",
         "maintainability"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.rust-unused-deps",
@@ -177,7 +177,7 @@
         "security",
         "correctness"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "quality.types",
@@ -203,7 +203,7 @@
         "correctness",
         "ai-slop"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "runtime.app",
@@ -232,7 +232,7 @@
         "release-readiness",
         "stack"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.dependency-pinning",
@@ -244,7 +244,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.docker",
@@ -330,7 +330,7 @@
         "security",
         "stack"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.rust-unsafe",
@@ -378,7 +378,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "stack.node-outdated",
@@ -415,7 +415,7 @@
         "security",
         "platform-parity"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "tauri.contract-mirror",
@@ -429,7 +429,7 @@
         "security",
         "dead-file"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     }
   ],
   "providers": [
@@ -441,7 +441,7 @@
         "kind": "runtime-script",
         "module": "architecture.core"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -606,7 +606,7 @@
         "kind": "runtime-script",
         "module": "compatibility.core"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -621,7 +621,7 @@
         "kind": "runtime-script",
         "module": "container.iac"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -651,7 +651,7 @@
         "kind": "runtime-script",
         "module": "docs.contract"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -681,7 +681,7 @@
         "kind": "runtime-script",
         "module": "framework.data"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -696,7 +696,7 @@
         "kind": "runtime-script",
         "module": "framework.frontend"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -711,7 +711,7 @@
         "kind": "runtime-script",
         "module": "governance.policy"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -745,7 +745,7 @@
         "kind": "runtime-script",
         "module": "imported.sarif"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -760,7 +760,7 @@
         "kind": "runtime-script",
         "module": "legacy.accessibility.internal-suite"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -775,7 +775,7 @@
         "kind": "legacy-check",
         "check": "apple_platform"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -790,7 +790,7 @@
         "kind": "legacy-check",
         "check": "decomposition"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -805,7 +805,7 @@
         "kind": "legacy-check",
         "check": "repo"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": true,
       "produces_security_candidates": false,
@@ -820,7 +820,7 @@
         "kind": "runtime-script",
         "module": "legacy.framework.major-suite"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -835,7 +835,7 @@
         "kind": "runtime-script",
         "module": "legacy.data.internal-suite"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -850,7 +850,7 @@
         "kind": "runtime-script",
         "module": "legacy.infrastructure.internal-suite"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -910,7 +910,7 @@
         "kind": "legacy-check",
         "check": "debt_markers"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -955,7 +955,7 @@
         "kind": "legacy-check",
         "check": "negative_space"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1000,7 +1000,7 @@
         "kind": "legacy-check",
         "check": "tool_coverage"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1030,7 +1030,7 @@
         "kind": "legacy-check",
         "check": "react_hooks"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1300,7 +1300,7 @@
         "kind": "legacy-check",
         "check": "binary_pins"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1315,7 +1315,7 @@
         "kind": "legacy-check",
         "check": "dep_pinning"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1420,7 +1420,7 @@
         "kind": "legacy-check",
         "check": "cargo_deny"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1495,7 +1495,7 @@
         "kind": "legacy-check",
         "check": "vendored_deps"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1540,7 +1540,7 @@
         "kind": "legacy-check",
         "check": "tauri_capabilities"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1555,7 +1555,7 @@
         "kind": "legacy-check",
         "check": "contract_mirror"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1585,7 +1585,7 @@
         "kind": "runtime-script",
         "module": "requirements.traceability"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1630,7 +1630,7 @@
         "kind": "runtime-script",
         "module": "security.credentials"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1645,7 +1645,7 @@
         "kind": "runtime-script",
         "module": "security.insecure-defaults"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1660,7 +1660,7 @@
         "kind": "runtime-script",
         "module": "security.misuse-resistance"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1675,7 +1675,7 @@
         "kind": "runtime-script",
         "module": "security.agentic-ci"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1690,7 +1690,7 @@
         "kind": "runtime-script",
         "module": "security.agent-skill-mcp"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1705,7 +1705,7 @@
         "kind": "runtime-script",
         "module": "structural.ast-grep"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1735,7 +1735,7 @@
         "kind": "runtime-script",
         "module": "test-quality.core"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1765,7 +1765,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-shellcheck"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1780,7 +1780,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-zizmor"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1810,7 +1810,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-kubeconform"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1825,7 +1825,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-kube-linter"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1870,7 +1870,7 @@
         "kind": "runtime-script",
         "module": "security.suppression-changes"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
