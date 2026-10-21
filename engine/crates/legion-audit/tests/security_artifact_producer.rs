@@ -316,11 +316,17 @@ fn stub_scanner_on_path_is_run_and_its_receipt_recorded() {
     assert_eq!(producer["tool"], json!("opengrep"));
     assert!(producer["version"].as_str().unwrap().contains("1.2.3"));
     assert_eq!(producer["offline"], json!(true));
-    assert!(producer["argv"]
+    // Metrics are switched off through the environment (SEMGREP_SEND_METRICS)
+    // since the producer stopped passing `--metrics off` on the command line.
+    let argv_off = producer["argv"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|a| a == "off"));
+        .any(|a| a == "off");
+    let env_off = producer["environmentNames"]
+        .as_array()
+        .is_some_and(|names| names.iter().any(|n| n == "SEMGREP_SEND_METRICS"));
+    assert!(argv_off || env_off, "{producer}");
     assert!(producer["executableDigest"]
         .as_str()
         .unwrap()
