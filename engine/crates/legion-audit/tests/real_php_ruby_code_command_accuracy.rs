@@ -603,6 +603,7 @@ fn expected_commands(policy: &ScopedPolicy, enrollment: &Value, timeout: u64) ->
             "--no-interaction",
             "--debug",
             "--level=max",
+            "--memory-limit=1G",
         ]
         .map(str::to_owned),
     );

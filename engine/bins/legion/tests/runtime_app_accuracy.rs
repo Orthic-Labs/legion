@@ -176,6 +176,10 @@ impl Server {
             while !done.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // macOS accepted sockets inherit the listener's
+                        // non-blocking mode; a read before the request bytes
+                        // arrive returned 0 and served a 404 (run 39613219626).
+                        stream.set_nonblocking(false).unwrap();
                         stream
                             .set_read_timeout(Some(Duration::from_secs(2)))
                             .unwrap();

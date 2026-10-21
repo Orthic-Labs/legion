@@ -93,7 +93,7 @@ def command_definitions(root,policy,files,scratch,enrollment):
     phar=lambda n:["-n",enrollment["assets"][n]["path"]]
     report=str(output/"phpunit.xml")
     specs=[("package","php","composer-validate",phar("composer")+["--no-plugins","--no-scripts","validate","--strict","--no-check-publish"],phar("composer")+["--version"],[0]),
-        ("type","php","phpstan",phar("phpstan")+["analyse","--error-format=json","--no-progress","--no-interaction","--debug","--level=max","--autoload-file",enrollment["assets"]["phpunit"]["path"],"--"]+[str(stage/p) for p in sorted(files) if p.endswith(".php")],phar("phpstan")+["--version"],[0,1]),
+        ("type","php","phpstan",phar("phpstan")+["analyse","--error-format=json","--no-progress","--no-interaction","--debug","--level=max","--memory-limit=1G","--autoload-file",enrollment["assets"]["phpunit"]["path"],"--"]+[str(stage/p) for p in sorted(files) if p.endswith(".php")],phar("phpstan")+["--version"],[0,1]),
         ("test","php","phpunit",phar("phpunit")+["--colors=never","--no-output","--do-not-record-test-run-history","--do-not-cache-test-index","--fail-on-empty-test-suite","--fail-on-risky","--fail-on-warning","--fail-on-notice","--fail-on-deprecation","--log-junit",report],phar("phpunit")+["--version"],[0]),
         ("test","php","phpunit-report",["-n","-r",literal(root,"engine/crates/legion-audit/src/native_providers/code/php_ruby_commands.rs","JUNIT_CHECK"),report],["--version"],[0]),
         ("test","ruby","rake",[enrollment["tools"]["bundle"]["path"],"exec","rake","test"],["--version"],[0]),

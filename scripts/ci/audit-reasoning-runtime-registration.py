@@ -198,7 +198,9 @@ def native_accounting(value, calls):
                 and reservation["reportedApiCostUsd"] == observation.get("reportedApiEquivalentCostUsd")
                 and usage["cachedInputTokens"] <= usage["inputTokens"]
                 and type(reservation.get("outputTokenLimit")) is int
-                and 0 <= usage["outputTokens"] <= reservation["outputTokenLimit"]
+                and type(usage.get("thinkingTokens", 0)) is int
+                and 0 <= usage.get("thinkingTokens", 0) <= usage["outputTokens"]
+                and usage["outputTokens"] - usage.get("thinkingTokens", 0) <= reservation["outputTokenLimit"]
                 and usage["inputTokens"] + usage["outputTokens"] + usage["retryTokens"] <= reservation["reservedTokens"],
                 "native authorized usage/reservation reconciliation failed")
         actual_tokens += usage["inputTokens"] + usage["outputTokens"] + usage["retryTokens"]
@@ -329,7 +331,7 @@ def accepted_result(request, artifacts):
     result = matches[0]
     receipt = result["details"]["executionReceipt"]
     bare = dict(result); bare["details"] = dict(result["details"]); bare["details"].pop("executionReceipt")
-    require(result.get("complete") is True and result.get("coverageGaps") == [] and receipt.get("complete") is True
+    require(result.get("complete") is True and result.get("coverage_gaps") == [] and receipt.get("complete") is True
             and receipt.get("gaps") == [] and receipt.get("resultDigest") == digest(encoded(bare))
             and receipt.get("providerId") == request["providerId"] and receipt.get("planDigest") == request["planDigest"]
             and receipt.get("denominatorDigest") == request["denominatorDigest"], "accepted native result incomplete/unbound")
@@ -346,7 +348,8 @@ def staged_evidence(request, artifacts, calls, result, execution):
     require(candidates and len({candidate["findingId"] for candidate in candidates}) == len(candidates), "staged candidates absent/duplicated")
     for candidate in candidates:
         require(candidate.get("provider") != "legacy.security.adjudication" and any(row.get("provider") == candidate.get("provider")
-                and any(finding.get("id") == candidate["findingId"] for finding in row.get("result", {}).get("findings", []))
+                and any(item.get("id") == candidate["findingId"] for item in row.get("result", {}).get("findings", [])
+                        + row.get("result", {}).get("details", {}).get("candidates", []))
                 for row in execution.get("results", [])), "candidate not produced by original native generator")
     submitted = details.get("rawAdjudicationVerdicts", [])
     observations = details.get("adjudicationDeliveryEvidence", [])
@@ -440,7 +443,7 @@ def export_evidence(value):
         accepted = accepted_result(request, artifacts)
         require(request["providerId"] in value["ingested"] and request["providerId"] not in value["execution"].get("pendingHost", []), "native provider not ingested/complete")
         native_results = [row["result"] for row in value["execution"].get("results", []) if row.get("provider") == request["providerId"] and row.get("skipped") is False]
-        require(len(native_results) == 1 and native_results[0].get("complete") is True and native_results[0].get("coverageGaps") == [], "recomputed provider execution incomplete")
+        require(len(native_results) == 1 and native_results[0].get("complete") is True and native_results[0].get("coverage_gaps") == [], "recomputed provider execution incomplete")
         if request["providerId"] == "legacy.security.adjudication":
             require(set(evidence) == {"delivery", "verification", "adjudication"}, "staged authenticated export fields differ")
             findings = staged_evidence(request, artifacts, calls, accepted, value["execution"])
@@ -510,6 +513,22 @@ def validate(root, entry, record):
     reference(root, retrieval["noCall"]["log"]); retained.add(retrieval["noCall"]["log"]["path"])
     for key in ("artifactArchive", "jobLog"):
         reference(root, retrieval[key]); retained.add(retrieval[key]["path"])
+    # The original artifact (runner binary included) exceeds repository file
+    # limits; its GitHub record binds the archive by id, size and digest, and
+    # the extracted runner member binds the executable bytes the capture ran.
+    artifact_record = retained_json(retrieval["artifactArchive"])
+    keys(artifact_record, {"schema", "repository", "artifact", "runner", "binary"})
+    keys(artifact_record["artifact"], {"id", "name", "sizeInBytes", "sha256", "runId", "jobId"})
+    keys(artifact_record["runner"], {"member", "sha256", "content"})
+    require(artifact_record["schema"] == "legion-github-artifact-record/1" and artifact_record["repository"] == binary["repository"]
+            and artifact_record["artifact"]["id"] == binary["artifactId"] and artifact_record["artifact"]["runId"] == binary["runId"]
+            and artifact_record["artifact"]["jobId"] == binary["jobId"] and type(artifact_record["artifact"]["sizeInBytes"]) is int
+            and artifact_record["artifact"]["sizeInBytes"] > 0 and isinstance(artifact_record["artifact"]["sha256"], str)
+            and artifact_record["binary"] == {"member": "reasoning-native-runner/legion", "sha256": binary["sha256"]}
+            and artifact_record["runner"]["member"] == "reasoning-native-runner/runner.json"
+            and parsed(artifact_record["runner"]["content"].encode())["binary"]["sha256"] == binary["sha256"]
+            and artifact_record["runner"]["sha256"] == digest(artifact_record["runner"]["content"].encode()),
+            "original artifact record does not bind the CI-built binary")
     controls = parsed(source(root, FIXTURES + "/cases.json").read_bytes())
     require(controls["schema"] == "legion-reasoning-runtime-cases/1" and set(controls["providers"]) == PROVIDERS
             and len(controls["cases"]) == 34, "source-owned reasoning corpus differs")
@@ -795,8 +814,11 @@ def validate(root, entry, record):
                         and excerpt.get("truncated") is not True and not excerpt.get("redactedRanges")
                         and excerpt.get("content", "").splitlines() == lines for excerpt in request["packet"].get("excerpts", [])), "fixed control source not fully included in native packet")
         findings = packet["_findings"]
-        observed = [row["findingId"] for row in findings if any(anchor.get("path", "").startswith(expected["fixtureRoot"].removeprefix("fixtures/") + "/")
-                    for anchor in row.get("evidence", []) + [row.get("authorFinding", {}).get("anchor", {})])]
+        # A finding belongs to the case its own anchor names; supporting
+        # evidence may cite the sibling control as contrast.
+        case_root = expected["fixtureRoot"].removeprefix("fixtures/") + "/"
+        observed = [row["findingId"] for row in findings
+                    if (row.get("authorFinding", {}).get("anchor") or (row.get("evidence") or [{}])[0]).get("path", "").startswith(case_root)]
         require(sorted(result["observedFindingIds"]) == sorted(observed), "case observed finding inventory differs")
         if "positive" in expected["expected"]:
             require(observed, "planted defect not detected & independently upheld")

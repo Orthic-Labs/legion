@@ -517,6 +517,9 @@ pub(super) fn plan(
             "--no-interaction",
             "--debug",
             "--level=max",
+            // `php -n` loads no ini, so PHP's 128M default applies; run
+            // 39613219626 exhausted it parsing the PHPUnit phar autoload.
+            "--memory-limit=1G",
         ]
         .map(str::to_owned),
     );
@@ -685,6 +688,18 @@ pub(super) fn parse(
                 Regex::new(r"(?m)^(\d+) runs, (\d+) assertions, 0 failures, 0 errors, 0 skips\r?$")
                     .map_err(|_| "rake-summary-regex")?;
             let matches = summary.captures_iter(text).collect::<Vec<_>>();
+            // The pinned bundler re-declares Gem::Platform constants that a
+            // newer host RubyGems already defines; exactly that warning pair
+            // is runtime noise. Every other stderr line still disqualifies.
+            let redefinition = Regex::new(
+                r"^/\S+/bundler-[0-9.]+/lib/bundler/rubygems_ext\.rb:\d+: warning: already initialized constant Gem::Platform::[A-Z0-9_]+$|^/\S+/rubygems/platform\.rb:\d+: warning: previous definition of [A-Z0-9_]+ was here$",
+            )
+            .map_err(|_| "rake-warning-regex")?;
+            let error = error
+                .lines()
+                .filter(|line| !redefinition.is_match(line))
+                .collect::<Vec<_>>()
+                .join("\n");
             if exit != Some(0)
                 || matches.len() != 1
                 || matches[0][1].parse::<u64>().unwrap_or(0) == 0

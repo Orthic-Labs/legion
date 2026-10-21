@@ -123,6 +123,16 @@ class ThreeMemberCapture:
         path = self.corpus / name
         return {"path": path.relative_to(self.root).as_posix(), "sha256": API["digest"](path.read_bytes())}
 
+    def artifact_record(self):
+        binary = self.capture["binary"]
+        runner = json.dumps({"binary": {"sha256": binary["sha256"]}})
+        return {"schema": "legion-github-artifact-record/1", "repository": binary["repository"],
+                "artifact": {"id": binary["artifactId"], "name": "qa-evidence-macos-15-1", "sizeInBytes": 1,
+                             "sha256": "sha256:" + "4" * 64, "runId": binary["runId"], "jobId": binary["jobId"]},
+                "runner": {"member": "reasoning-native-runner/runner.json", "content": runner,
+                           "sha256": "sha256:" + hashlib.sha256(runner.encode()).hexdigest()},
+                "binary": {"member": "reasoning-native-runner/legion", "sha256": binary["sha256"]}}
+
     def retain(self, name, value, category="evidence"):
         path = self.root / "qualification/provider-accuracy" / category / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +255,7 @@ class ThreeMemberCapture:
             evidence = {"delivery": proof, "verification": verification}
             if provider == "legacy.security.adjudication":
                 evidence["adjudication"] = details["adjudicationDeliveryEvidence"]
-            bare = {"complete": True, "coverageGaps": [], "details": details}
+            bare = {"complete": True, "coverage_gaps": [], "details": details}
             accepted = {**bare, "details": {**details, "executionReceipt": {"requestId": request_id, "complete": True,
                 "gaps": [], "providerId": provider, "planDigest": plan_digest,
                 "denominatorDigest": request["denominatorDigest"], "resultDigest": API["digest"](API["encoded"](bare))}}}
@@ -300,7 +310,7 @@ class ThreeMemberCapture:
         closure = "sha256:" + "3" * 64
         retrieval = {"schema": "legion-reasoning-binary-retrieval-verification/1",
             "method": "authenticated-github-artifact-retrieval", "verified": True, "binary": self.capture["binary"],
-            "sourceClosureDigest": closure, "artifactArchive": self.retain("archive.json", {}),
+            "sourceClosureDigest": closure, "artifactArchive": self.retain("archive.json", self.artifact_record()),
             "jobLog": self.retain("job-log.json", {}), "noCall": {"verified": True,
                 "sourceCommit": self.capture["binary"]["sourceCommit"], "binarySha256": self.capture["binary"]["sha256"],
                 "log": self.retain("no-call-log.json", {})}}
