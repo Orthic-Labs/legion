@@ -232,7 +232,7 @@ fn assert_verifier_source(prompt: &Value) {
 fn simulate_native(args: &[String]) {
     assert_eq!(value_after(args, "--tools"), "");
     assert_eq!(value_after(args, "--mcp-config"), r#"{"mcpServers":{}}"#);
-    assert_eq!(value_after(args, "--max-turns"), "1");
+    assert_eq!(value_after(args, "--max-turns"), "2");
     let schema: Value = serde_json::from_str(value_after(args, "--json-schema")).unwrap();
     for unsupported in ["oneOf", "allOf", "anyOf"] {
         assert!(
@@ -321,7 +321,9 @@ fn simulate_native(args: &[String]) {
         json!({"contextRequests":[{"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}}]})
     } else if reviewer {
         assert_verifier_source(&prompt);
-        assert!(cap <= 2500);
+        // Native env cap = frozen text cap (at most 4096) plus the high-effort
+        // thinking allowance (12_288): Claude Code counts thinking as output.
+        assert!(cap <= 4096 + 12_288);
         assert_eq!(schema["properties"]["verdicts"]["type"], "array");
         assert_eq!(schema["properties"]["negativeReviews"]["type"], "array");
         json!({"verdicts":prompt["candidates"].as_array().unwrap().iter().map(|candidate| json!({"candidateId":candidate["candidateId"],"verdict":"upheld","reason":"Simulation: add(5,2) follows subtraction source trace","evidence":[{"path":"src/lib.rs","line":2,"text":SOURCE_LINE,"sourceSide":"selected"}],"concreteCase":"Simulation: add(5,2) returns3 while name promises addition7"})).collect::<Vec<_>>(),

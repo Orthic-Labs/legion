@@ -694,6 +694,25 @@ pub fn compile_followup(
         )?,
     )?;
     let plan_path = write_atomic(&dir, "plan.json", &to_bytes(&plan_json)?)?;
+    // `legion verify` reconciles a run's facts against its plan; the follow-up
+    // is a self-contained run, so it carries its own facts bound to its plan.
+    // It inherits the parent's workspace, scope and network policy and starts
+    // with no checks: the variant lens is its only, still pending, provider.
+    let parent_facts = read_json(&parent_run.join("facts.json")).unwrap_or_else(|_| json!({}));
+    let facts = json!({
+        "schemaVersion": 1,
+        "kind": "audit-facts",
+        "workspace": parent_facts.get("workspace").cloned().unwrap_or(Value::Null),
+        "out_dir": Value::Null,
+        "plan": plan_json,
+        "checks": [],
+        "lenses_ran": [],
+        "incomplete": true,
+        "provider_reconciliation": {"valid": false, "providerResults": []},
+        "network_policy": parent_facts.get("network_policy").cloned().unwrap_or(Value::Null),
+        "scope": parent_facts.get("scope").cloned().unwrap_or(Value::Null),
+    });
+    write_atomic(&dir, "facts.json", &to_bytes(&facts)?)?;
     Ok(Some(FollowupPlanned {
         dir: dir.clone(),
         plan_path,

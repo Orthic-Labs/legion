@@ -667,6 +667,7 @@ mod tests {
             output_tokens: Some(output),
             cached_input_tokens: Some(0),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed,
         };
         next::reconcile_native_usage(run, &usage, Some("0.046638")).unwrap();

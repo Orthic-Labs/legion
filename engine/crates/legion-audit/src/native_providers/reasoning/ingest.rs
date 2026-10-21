@@ -1319,20 +1319,29 @@ impl FrozenFiles<'_> {
         };
         let content = String::from_utf8_lossy(&bytes).replace("\r\n", "\n");
         let needle = text.replace("\r\n", "\n");
-        let found = content.match_indices(needle.as_str()).any(|(index, _)| {
-            content[..index]
-                .bytes()
-                .filter(|byte| *byte == b'\n')
-                .count() as u64
-                + 1
-                == line
-        });
-        if !found {
-            return Err(invalid(format!(
-                "{who}: anchor text does not appear verbatim at {path}:{line} in the frozen file"
-            )));
+        let lines: BTreeSet<u64> = content
+            .match_indices(needle.as_str())
+            .map(|(index, _)| {
+                content[..index]
+                    .bytes()
+                    .filter(|byte| *byte == b'\n')
+                    .count() as u64
+                    + 1
+            })
+            .collect();
+        if lines.contains(&line) {
+            return Ok((path.to_owned(), line));
         }
-        Ok((path.to_owned(), line))
+        // Packets carry raw source without line numbers, so a model may miscount while
+        // quoting correctly. The verbatim text is the invariant: when it occurs exactly
+        // once in the frozen file, bind the anchor to that line instead of refusing.
+        if lines.len() == 1 {
+            let actual = *lines.iter().next().expect("one match");
+            return Ok((path.to_owned(), actual));
+        }
+        Err(invalid(format!(
+            "{who}: anchor text does not appear verbatim at {path}:{line} in the frozen file"
+        )))
     }
 }
 
@@ -2271,7 +2280,15 @@ pub fn ingest_lens_result(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        if !evidence_covers(&evidence, &path, line) {
+        // The anchor text was verified verbatim; when its line was corrected,
+        // evidence written against the model's original line still covers it.
+        let claimed_line = finding
+            .pointer("/anchor/line")
+            .and_then(Value::as_u64)
+            .unwrap_or(line);
+        if !evidence_covers(&evidence, &path, line)
+            && !evidence_covers(&evidence, &path, claimed_line)
+        {
             return Err(invalid(format!(
                 "{label}: evidence must include a file:line entry covering the anchor {path}:{line}"
             )));
@@ -2965,8 +2982,11 @@ pub fn merge_adjudication_results(results: &[Value]) -> Result<Value, AuditError
         }
     }
     let mut verdicts: Vec<Value> = Vec::new();
-    let mut seen_rows: BTreeSet<(String, String)> = BTreeSet::new();
+    // A batch work item carries one row per cluster representative, so the
+    // candidate is part of the row identity.
+    let mut seen_rows: BTreeSet<(String, String, String)> = BTreeSet::new();
     let mut findings: BTreeMap<String, Value> = BTreeMap::new();
+    let mut finding_rank: BTreeMap<String, u8> = BTreeMap::new();
     let mut withdrawn: BTreeMap<String, Value> = BTreeMap::new();
     let mut details = Map::new();
     for result in results {
@@ -2986,24 +3006,72 @@ pub fn merge_adjudication_results(results: &[Value]) -> Result<Value, AuditError
                     Some(format!("{batch}|{candidate}"))
                 })
                 .ok_or_else(|| invalid(format!("{who}: verdict row has no workItemId")))?;
-            if !seen_rows.insert((item.clone(), stage.clone())) {
+            let candidate = row
+                .get("candidateId")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            if !seen_rows.insert((item.clone(), stage.clone(), candidate.clone())) {
                 return Err(invalid(format!(
-                    "{who}: duplicate or conflicting verdict row for workItemId {item} stage {stage}"
+                    "{who}: duplicate or conflicting verdict row for workItemId {item} stage {stage} candidate {candidate}"
                 )));
             }
             verdicts.push(row);
+        }
+        // A later single-candidate stage re-states the adjudicated finding it
+        // confirms; that restatement supersedes the batch's. Any other
+        // disagreement between results is a conflict.
+        let stage_rank = |stage: &str| match stage {
+            "batch" => 0u8,
+            "spotCheck" => 1,
+            "confirmation" => 2,
+            "individual" => 3,
+            _ => 0,
+        };
+        let mut candidate_rank: BTreeMap<String, u8> = BTreeMap::new();
+        for row in array_field(result, "verdicts", &who)? {
+            if let (Some(candidate), Some(stage)) = (
+                row.get("candidateId").and_then(Value::as_str),
+                row.get("stage").and_then(Value::as_str),
+            ) {
+                let rank = stage_rank(stage);
+                let entry = candidate_rank.entry(candidate.to_owned()).or_insert(rank);
+                *entry = (*entry).max(rank);
+            }
         }
         for (field, into) in [("findings", &mut findings), ("withdrawn", &mut withdrawn)] {
             for entry in array_field(result, field, &who)? {
                 let id = string_field(&entry, "id", &format!("{who} {field}"))?.to_owned();
                 match into.get(&id) {
                     Some(existing) if *existing != entry => {
-                        return Err(invalid(format!(
-                            "{who}: conflicting {field} entries for id {id}"
-                        )));
+                        let candidate = id.strip_prefix("adjudicated:");
+                        let rank = candidate
+                            .and_then(|candidate| candidate_rank.get(candidate))
+                            .copied();
+                        let existing_rank = finding_rank.get(&id).copied().unwrap_or(0);
+                        match (field, rank) {
+                            ("findings", Some(rank)) if rank > existing_rank => {
+                                finding_rank.insert(id.clone(), rank);
+                                into.insert(id, entry);
+                            }
+                            ("findings", Some(rank)) if rank < existing_rank => {}
+                            _ => {
+                                return Err(invalid(format!(
+                                    "{who}: conflicting {field} entries for id {id}"
+                                )));
+                            }
+                        }
                     }
                     Some(_) => {}
                     None => {
+                        if field == "findings" {
+                            if let Some(rank) = id
+                                .strip_prefix("adjudicated:")
+                                .and_then(|candidate| candidate_rank.get(candidate))
+                            {
+                                finding_rank.insert(id.clone(), *rank);
+                            }
+                        }
                         into.insert(id, entry);
                     }
                 }
@@ -5253,10 +5321,16 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
     let rebuilt = canonical_report(&repository, &next)?;
     let original_gaps: BTreeSet<&String> = original.gaps.iter().collect();
     // Gaps the CLI added outside the engine (input, parity, packet gaps) carry over.
+    // Engine-owned gaps (budget, follow-up state) are recomputed below from
+    // current evidence; carrying a stored copy forward would pin a stale one.
     let mut gaps: BTreeSet<String> = stored
         .gaps
         .iter()
-        .filter(|gap| !original_gaps.contains(gap) && !gap.starts_with("reasoning-budget-"))
+        .filter(|gap| {
+            !original_gaps.contains(gap)
+                && !gap.starts_with("reasoning-budget-")
+                && !gap.starts_with("security-variant-analysis-pending:")
+        })
         .cloned()
         .collect();
     gaps.extend(rebuilt.gaps.iter().cloned());

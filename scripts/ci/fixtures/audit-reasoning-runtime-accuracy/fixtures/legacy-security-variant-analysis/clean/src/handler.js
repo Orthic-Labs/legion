@@ -7,6 +7,6 @@ function safePath(input) {
   return resolved;
 }
 function handleConfig(req, res) {
-  fs.readFile(req.query.path, "utf8", (error, data) => { if (error) return res.sendStatus(404); res.type("text/plain").send(data); });
+  fs.readFile(safePath(req.query.path), "utf8", (error, data) => { if (error) return res.sendStatus(404); res.type("text/plain").send(data); });
 }
 module.exports = { handleConfig, safePath };

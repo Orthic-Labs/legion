@@ -430,7 +430,21 @@ pub struct UsageReceipt {
     pub output_tokens: Option<u64>,
     pub cached_input_tokens: Option<u64>,
     pub retry_tokens: Option<u64>,
+    /// Thinking tokens the provider counted inside output_tokens (0 when
+    /// unreported). They spend budget but do not count against the text cap.
+    #[serde(default)]
+    pub thinking_tokens: Option<u64>,
     pub failed: bool,
+}
+
+/// Output tokens that count against the frozen text cap: provider output
+/// minus reported thinking (the native runtime grants thinking its own
+/// allowance; see review_runtime::native::thinking_allowance).
+pub fn text_output_tokens(usage: &UsageReceipt) -> u64 {
+    usage
+        .output_tokens
+        .unwrap_or(0)
+        .saturating_sub(usage.thinking_tokens.unwrap_or(0))
 }
 
 fn reservation_id(dispatch_digest: &str, key: &str, attempt: u32) -> String {
@@ -1450,10 +1464,7 @@ fn budget_summary(state: &State) -> Value {
                 retry = retry.saturating_add(usage.retry_tokens.unwrap_or(0));
                 failures += usize::from(usage.failed);
                 output_cap_overrun = output_cap_overrun.saturating_add(
-                    usage
-                        .output_tokens
-                        .unwrap_or(0)
-                        .saturating_sub(reservation.output_token_limit),
+                    text_output_tokens(usage).saturating_sub(reservation.output_token_limit),
                 );
                 if usage.input_tokens.is_none()
                     || usage.output_tokens.is_none()
@@ -1914,19 +1925,21 @@ fn reconcile_usage_inner(
         .saturating_add(receipt.output_tokens.unwrap_or(0))
         .saturating_add(receipt.retry_tokens.unwrap_or(0));
     let extra = reported.saturating_sub(entry.reserved_tokens);
-    let output_excess = receipt
-        .output_tokens
-        .unwrap_or(0)
-        .saturating_sub(entry.output_token_limit);
+    let output_excess = text_output_tokens(receipt).saturating_sub(entry.output_token_limit);
     let tier = entry.tier.clone();
     entry.usage = Some(receipt.clone());
     entry.native_cost_required = cost_required;
     entry.reported_api_cost_usd = reported_cost;
     let cost_unknown = cost_required && entry.reported_api_cost_usd.is_none();
-    if extra > 0 || output_excess > 0 {
+    // Reserved tokens bound physical spend; exceeding them is terminal. Text
+    // beyond the frozen output cap is charged and reported (the native host
+    // bounds total output, thinking included) but stops nothing by itself.
+    if extra > 0 {
         let spent = state.spent.entry(tier).or_insert(0);
         *spent = spent.saturating_add(extra);
         state.terminal_status = Some("incomplete:budget-overrun".to_owned());
+    } else if output_excess > 0 {
+        state.spent.entry(tier).or_insert(0);
     } else if state.terminal_status.is_none() {
         if receipt.input_tokens.is_none()
             || receipt.output_tokens.is_none()
@@ -2144,6 +2157,8 @@ fn next_inner(
                     "modelTier": model_tier("judgment"),
                     "bundle": "adjudication",
                     "providers": [ADJUDICATOR_PROVIDER_ID],
+                    // Adjudication packets carry their frozen excerpts; no planning call.
+                    "gatherPolicy": "deterministic",
                     "packetPaths": paths_json(&[packet]),
                     "resultPaths": paths_json(&[result]),
                     "estimatedTokens": item.tokens,
@@ -2675,6 +2690,7 @@ mod tests {
                 output_tokens: Some(1),
                 cached_input_tokens: Some(0),
                 retry_tokens: Some(0),
+                thinking_tokens: None,
                 failed: false,
             },
         )
@@ -2852,6 +2868,7 @@ mod tests {
         let round1 = next(&run, &options(0)).unwrap();
         assert_eq!(round1["status"], "wave");
         assert_eq!(round1["seats"][0]["kind"], "adjudication");
+        assert_eq!(round1["seats"][0]["gatherPolicy"], "deterministic");
         assert_eq!(round1["seats"][0]["stage"], "batch");
         assert_eq!(round1["progress"]["adjudication"]["round"], 1);
         let packet_path = PathBuf::from(round1["seats"][0]["packetPaths"][0].as_str().unwrap());
@@ -3266,6 +3283,7 @@ mod tests {
             output_tokens: Some(3),
             cached_input_tokens: Some(2),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         };
         let first = reconcile_usage(&run, &receipt).unwrap();
@@ -3299,6 +3317,7 @@ mod tests {
             output_tokens: None,
             cached_input_tokens: None,
             retry_tokens: None,
+            thinking_tokens: None,
             failed: true,
         };
         let summary = reconcile_usage(&run, &receipt).unwrap();
@@ -3351,6 +3370,7 @@ mod tests {
             output_tokens: Some(3),
             cached_input_tokens: Some(0),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         };
         let result = reconcile_native_usage(&run, &receipt, Some("0.1")).unwrap();
@@ -3507,6 +3527,7 @@ mod tests {
             output_tokens: Some(122),
             cached_input_tokens: Some(7200),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         };
         let reconciled = reconcile_usage(&run, &receipt).unwrap();
@@ -3541,6 +3562,38 @@ mod tests {
     }
 
     #[test]
+    fn thinking_tokens_spend_budget_but_do_not_breach_the_text_output_cap() {
+        let run = budget_run_with_limits("thinking-cap", 20000, 10000, 2500);
+        let mut request = call("thinking");
+        request.rendered_request_bytes = 9000;
+        request.model_input_bytes = 9000;
+        request.output_token_limit = 2500;
+        let admitted = reserve_call(&run, &request).unwrap();
+        let receipt = UsageReceipt {
+            reservation_id: admitted["reservationId"].as_str().unwrap().into(),
+            receipt_id: "thinking-usage".into(),
+            input_tokens: Some(4000),
+            output_tokens: Some(4100),
+            cached_input_tokens: Some(0),
+            retry_tokens: Some(0),
+            thinking_tokens: Some(2000),
+            failed: false,
+        };
+        let reconciled = reconcile_usage(&run, &receipt).unwrap();
+        assert_eq!(reconciled["budget"]["actual"]["outputTokens"], 4100);
+        assert_eq!(reconciled["budget"]["outputCapOverrunTokens"], 0);
+        assert_eq!(reconciled["budget"]["actualOverrunTokens"], 0);
+        assert!(reconciled["budget"]["terminalStatus"].is_null());
+        let breach = UsageReceipt {
+            output_tokens: Some(4600),
+            thinking_tokens: Some(2000),
+            ..receipt
+        };
+        assert!(reconcile_usage(&run, &breach).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
     fn physical_allowance_cannot_borrow_unused_actuals_or_exceed_tier_or_estimate_cap() {
         for tier_limit in [false, true] {
             let run = budget_run_with_limits("remaining-allowance", 15000, 10000, 10);
@@ -3560,6 +3613,7 @@ mod tests {
                     output_tokens: Some(1),
                     cached_input_tokens: Some(0),
                     retry_tokens: Some(0),
+                    thinking_tokens: None,
                     failed: false,
                 },
             )
@@ -3627,21 +3681,19 @@ mod tests {
             output_tokens: Some(1501),
             cached_input_tokens: Some(0),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         };
         let result = reconcile_usage(&run, &receipt).unwrap();
-        assert_eq!(
-            result["budget"]["terminalStatus"],
-            "incomplete:budget-overrun"
-        );
+        // Text past the frozen cap is reported, not terminal: reserved tokens
+        // still bound the physical spend.
+        assert!(result["budget"]["terminalStatus"].is_null());
         assert_eq!(result["budget"]["outputCapOverrunTokens"], 1);
         assert_eq!(result["budget"]["actualOverrunTokens"], 0);
-        let before = fs::read(run.join(STATE_FILE)).unwrap();
-        assert_eq!(
-            reserve_call(&run, &call("after-output-overrun")).unwrap()["authorized"],
-            false
-        );
-        assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
+        let mut follow_up = request.clone();
+        follow_up.call_id = "after-output-overrun".into();
+        follow_up.reservation_id = None;
+        assert_eq!(reserve_call(&run, &follow_up).unwrap()["authorized"], true);
         let _ = fs::remove_dir_all(run);
     }
 
@@ -3664,6 +3716,7 @@ mod tests {
             output_tokens: Some(122),
             cached_input_tokens: Some(0),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         });
         state.spent.insert("judgment".into(), 7324);
@@ -3768,6 +3821,7 @@ mod tests {
                 output_tokens: None,
                 cached_input_tokens: None,
                 retry_tokens: None,
+                thinking_tokens: None,
                 failed: true,
             },
         )
@@ -3798,10 +3852,12 @@ mod tests {
             &UsageReceipt {
                 reservation_id: first.reservation_id.unwrap(),
                 receipt_id: "overrun".into(),
-                input_tokens: Some(1),
+                // Physical spend past the reservation, not a mere text-cap spill.
+                input_tokens: Some(25),
                 output_tokens: Some(11),
                 cached_input_tokens: Some(0),
                 retry_tokens: Some(0),
+                thinking_tokens: None,
                 failed: false,
             },
         )

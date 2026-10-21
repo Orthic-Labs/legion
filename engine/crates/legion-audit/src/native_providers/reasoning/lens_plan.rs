@@ -581,7 +581,7 @@ pub fn semantic_review_contract(lens: &str) -> Option<Value> {
         "correctness" => (
             "spec",
             &["pass", "findings", "unproven", "not-applicable"][..],
-            "Review public behavior against independent expected values. Flag missing/partial/wrong/unrequested spec behavior; avoid internal-mock or refactor-fragile claims without observable impact.",
+            "Review public behavior against independent expected values (the behavior observable from names, types, docs and tests; no spec document is needed). Flag missing/partial/wrong/unrequested spec behavior; avoid internal-mock or refactor-fragile claims without observable impact. Status findings needs one axis finding carrying reviewAxis, sourceQuote, sourceLocation, disposition and changeAttribution; pass when clean; unproven only when source was unreviewable.",
         ),
         "ai-slop" => (
             "standards",

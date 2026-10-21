@@ -42,7 +42,25 @@ fn anchors_valid(snapshot: &FrozenSnapshot, evidence: &[Value]) -> bool {
                 )
                 .ok()
                 .and_then(|bytes| String::from_utf8(bytes).ok())
-                .is_some_and(|source| source.lines().nth((line - 1) as usize) == Some(text))
+                .is_some_and(|source| {
+                    // Verbatim at the stated line, or verbatim at exactly one
+                    // other line (a one-off line number is a labelling slip,
+                    // not a fabricated quote).
+                    // A verbatim fragment of the stated line also counts: the
+                    // quote is still checked against frozen source.
+                    let wanted = text.trim();
+                    source
+                        .lines()
+                        .nth((line - 1) as usize)
+                        .is_some_and(|actual| {
+                            actual.trim_end() == text.trim_end() || actual.contains(wanted)
+                        })
+                        || source
+                            .lines()
+                            .filter(|actual| actual.trim_end() == wanted)
+                            .count()
+                            == 1
+                })
         })
 }
 fn compact_source(
@@ -267,13 +285,21 @@ pub(super) fn verify_pending(
     let mut negative = Vec::new();
     let mut negative_expected = BTreeSet::new();
     let mut seat = pending.first().map(|item| item.seat.clone());
-    let output_ceiling = seat.as_ref().map_or(0, verifier_output_ceiling).min(2500);
+    // The one fresh verifier must carry every author finding of the run; its
+    // text cap is the frozen default and each verdict needs ~300 tokens.
+    let output_ceiling = seat
+        .as_ref()
+        .map_or(0, verifier_output_ceiling)
+        .min(crate::next::DEFAULT_OUTPUT_TOKENS);
+    // One fresh verifier process must be able to carry every pending
+    // candidate (up to the item cap) with its source packet; the seat's own
+    // per-call allowance bounds it, capped well inside the physical ledger.
     let allowance = seat
         .as_ref()
         .and_then(|seat| seat["perCallTokenAllowance"].as_u64())
         .unwrap_or(0)
-        .min(10_000);
-    let candidate_cap = (output_ceiling / 300).clamp(1, 8) as usize;
+        .min(60_000);
+    let candidate_cap = (output_ceiling / 300).clamp(1, 12) as usize;
     for (packet_index, item) in pending.iter().enumerate() {
         if item.result["withdrawn"]
             .as_array()

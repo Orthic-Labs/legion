@@ -32,6 +32,18 @@ fn base_properties() -> Value {
     json!({
         "id": { "type": "string", "minLength": 1 },
         "lens": { "type": "string", "minLength": 1 },
+        // Ingest verifies this verbatim code anchor against the frozen bytes; declaring it
+        // here lets the CLI reject findings that carry a string or omit it.
+        "anchor": {
+            "type": "object",
+            "required": ["path", "line", "text"],
+            "additionalProperties": false,
+            "properties": {
+                "path": { "type": "string", "minLength": 1 },
+                "line": { "type": "integer", "minimum": 1 },
+                "text": { "type": "string", "minLength": 1 }
+            }
+        },
         "severity": { "type": "string", "enum": SEVERITIES },
         "confidence": { "type": "string", "enum": CONFIDENCES },
         "evidence": {
@@ -73,6 +85,7 @@ fn base_required() -> Vec<&'static str> {
     vec![
         "id",
         "lens",
+        "anchor",
         "severity",
         "confidence",
         "evidence",
@@ -161,7 +174,7 @@ fn variant_analysis_schema() -> Value {
 /// Returns the full JSON Schema value for `lens`'s report shape, or `None`
 /// for a lens id this module does not own a schema for.
 pub fn lens_report_schema(lens: &str) -> Option<Value> {
-    Some(match lens {
+    let mut schema = match lens {
         "minimize" => minimize_schema(),
         "correctness" => correctness_schema(),
         "variant-analysis" => variant_analysis_schema(),
@@ -179,7 +192,11 @@ pub fn lens_report_schema(lens: &str) -> Option<Value> {
         "platform-parity" => base_schema("audit.lens.platform-parity.v1", lens),
         "release-readiness" => base_schema("audit.lens.release-readiness.v1", lens),
         _ => return None,
-    })
+    };
+    // A semantic-axis finding must say whether the change introduced it; the
+    // validator enforces this, so the schema the model sees states it too.
+    schema["dependentRequired"] = json!({ "reviewAxis": ["changeAttribution"] });
+    Some(schema)
 }
 
 /// One structural validation failure: a JSON-Pointer-ish field path plus a

@@ -1644,9 +1644,9 @@ fn build_invocations_with_budget(
                 "identity": ["candidateId", "provider", "evidenceDigest"],
                 "statuses": ["confirmed", "dismissed", "unresolved"],
                 "required": ["reason", "evidence"],
-                "confirmed": "findingId must name a returned lens finding; apply this lens report schema & verification contract",
-                "dismissed": "cite source evidence in the candidate file & explain counterevidence",
-                "unresolved": "retain candidate-review-pending coverage gap; context inclusion is not a disposition"
+                "confirmed": "findingId names a returned lens finding under this lens schema",
+                "dismissed": "cite candidate-file counterevidence",
+                "unresolved": "keeps candidate-review-pending; inclusion is not a disposition"
             }) },
             "triggerEvidence": trigger_evidence,
             "sourceSides": provider.configuration.get("sourceSides").cloned().unwrap_or_else(|| json!({})),

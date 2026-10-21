@@ -82,7 +82,21 @@ impl Controller<'_> {
                 return Err(invalid("duplicate request IDs in shared seat"));
             }
         }
-        let schema = action_schema();
+        let single_call = self.options.strict_no_retry || self.options.max_calls_per_packet <= 1;
+        let schema = if single_call {
+            super::final_only_action_schema()
+        } else {
+            action_schema()
+        };
+        if single_call {
+            // One physical call: no host context request can be answered.
+            prompt["contextTools"] = json!([]);
+            prompt["singleCall"] = json!("This packet allows exactly one response: no toolRequest is available; review the supplied shared excerpts and emit finalResult.");
+            let requests = works.iter().map(|work| &work.request).collect::<Vec<_>>();
+            if let Some(note) = super::full_coverage_note(&requests) {
+                prompt["coverage"] = json!(note);
+            }
+        }
         let mut initial = initial;
         let execution = super::model::author(
             works.iter().map(|work| work.provider_id.as_str()),

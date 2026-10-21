@@ -1938,8 +1938,10 @@ fn chrono_now_rfc3339() -> String {
 // host is asked to honour; a verdict echoing one proves nothing about how it
 // was reached, so ingest keeps recording the derived-context gap.
 
-/// Most clusters one batch may carry.
-pub const MAX_CLUSTERS_PER_BATCH: usize = 25;
+/// Most clusters one batch may carry. Bounded by the adjudicator's frozen text
+/// output cap (4096 tokens): every representative needs four prose fields and
+/// a surviving one an anchored finding, so four verdicts fit with headroom.
+pub const MAX_CLUSTERS_PER_BATCH: usize = 4;
 /// Estimated-token bound for one batch packet (4 characters per token).
 pub const MAX_BATCH_TOKENS: usize = 24_000;
 /// Share of routine dismissals re-adjudicated alone, rounded up, at least one

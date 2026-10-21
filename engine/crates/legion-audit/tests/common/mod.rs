@@ -230,6 +230,7 @@ pub fn record_budget_usage(run: &Path, request: &ReasoningInvocation, label: &st
             output_tokens: Some(1),
             cached_input_tokens: Some(0),
             retry_tokens: Some(0),
+            thinking_tokens: None,
             failed: false,
         },
     )

@@ -254,6 +254,10 @@ pub fn invoke(
     schema: &Value,
     frame: String,
 ) -> Observation {
+    // Claude Code counts thinking tokens against CLAUDE_CODE_MAX_OUTPUT_TOKENS: the native cap is
+    // the frozen text allowance plus an effort-sized thinking allowance (see thinking_allowance).
+    let native_output_cap =
+        output_limit.saturating_add(thinking_allowance(&execution.reasoning_effort));
     let mut usage = UsageReceipt {
         reservation_id: reservation_id.into(),
         receipt_id: format!("usage:{call_id}"),
@@ -261,6 +265,7 @@ pub fn invoke(
         output_tokens: None,
         cached_input_tokens: None,
         retry_tokens: None,
+        thinking_tokens: None,
         failed: true,
     };
     let mut observation = Observation {
@@ -285,6 +290,8 @@ pub fn invoke(
         super::model::validate_execution_host(execution).map_err(|error| error.to_string())?;
         admit_host(execution.host).map_err(|error| error.to_string())?;
         let mut cmd = command(binary, cwd);
+        // Without the thinking allowance a high-effort author is cut at the text cap mid-JSON and
+        // the CLI's structured-output retries repeat the truncation (observed: 4 x 4096, stop_sequence).
         // Installed --help defines safe-mode as disabling user/project
         // settings, hooks & plugins while retaining subscription auth. Bare
         // mode disables OAuth/keychain auth, so it is not interchangeable.
@@ -310,14 +317,21 @@ pub fn invoke(
                 "--no-session-persistence",
                 "--permission-prompts",
                 "none",
+                // Two assistant turns: one structured answer plus at most one
+                // in-process re-emit after the host rejects unparsable JSON.
+                // The decoder admits nothing else, so this stays one physical
+                // call with cumulative usage.
                 "--max-turns",
-                "1",
+                "2",
                 "--system-prompt",
                 system,
                 "--json-schema",
                 &schema.to_string(),
             ])
-            .env("CLAUDE_CODE_MAX_OUTPUT_TOKENS", output_limit.to_string());
+            .env(
+                "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+                native_output_cap.to_string(),
+            );
         let mut child = cmd.spawn().map_err(|error| error.to_string())?;
         observation.process_id = child.id();
         observation.process_creation_time = child.creation_time();
@@ -358,6 +372,7 @@ pub fn invoke(
             .recv_timeout(Duration::from_secs(2))
             .is_ok_and(|(_, truncated)| !truncated);
         observation.response_digest = super::digest_bytes(&bytes);
+        dump_native_stream(&observation.response_digest, &bytes);
         let decoded = decode_stream_with_schema(&bytes, &mut observation, &mut usage, schema);
         let process_failure = exited
             .as_ref()
@@ -410,7 +425,8 @@ pub fn invoke(
         || usage.retry_tokens.is_none()
         || usage
             .output_tokens
-            .is_some_and(|tokens| tokens > output_limit)
+            .is_some_and(|tokens| tokens > native_output_cap)
+        || crate::next::text_output_tokens(&usage) > output_limit
     {
         observation.schema_rejection = None;
     }
@@ -502,6 +518,15 @@ fn capture_accounting(
         };
         usage.cached_input_tokens = cache_read;
         usage.output_tokens = count("output_tokens");
+        // Claude Code reports thinking inside output_tokens and itemizes it here;
+        // absent itemization means no thinking was counted.
+        usage.thinking_tokens = Some(
+            value
+                .get("output_tokens_details")
+                .and_then(|details| details.get("thinking_tokens"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+        );
         // Final native usage is cumulative for this fresh process. This
         // field counts only ADDITIONAL spend absent from that total, not
         // retry attribution (which native transport does not report).
@@ -510,6 +535,17 @@ fn capture_accounting(
         }
         observation.raw_usage = Some(value.clone());
     }
+}
+
+/// Diagnostic only: when LEGION_NATIVE_STREAM_DIR names a directory, keep the
+/// raw native stream under its digest so protocol failures carry evidence.
+fn dump_native_stream(digest: &str, bytes: &[u8]) {
+    let Some(dir) = std::env::var_os("LEGION_NATIVE_STREAM_DIR") else {
+        return;
+    };
+    let name = digest.strip_prefix("sha256:").unwrap_or(digest);
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(Path::new(&dir).join(format!("{name}.ndjson")), bytes);
 }
 
 fn native_process_failure(code: Option<i32>) -> String {
@@ -560,6 +596,15 @@ fn native_terminal_failure(raw: &Value) -> String {
     format!("native result failed/refused; subtype={subtype}; num_turns={turns}; stop_reason={stop_reason}; raw usage retained")
 }
 
+/// Thinking tokens the native CLI may spend above the frozen text output cap.
+fn thinking_allowance(reasoning_effort: &str) -> u64 {
+    match reasoning_effort {
+        "low" => 2_048,
+        "medium" => 6_144,
+        _ => 12_288,
+    }
+}
+
 #[cfg(test)]
 fn decode_stream(
     bytes: &[u8],
@@ -579,7 +624,8 @@ fn decode_stream_with_schema(
     let mut protocol_error = None;
     let mut terminal = None;
     let mut structured = Vec::new();
-    let mut results = Vec::new();
+    let mut results: Vec<(Value, bool, bool, bool)> = Vec::new();
+    let mut json_reemits = 0usize;
     let mut session = None;
     let mut strict_boundary = false;
     let mut repair_events_valid = true;
@@ -626,8 +672,18 @@ fn decode_stream_with_schema(
                         if raw["type"] != "assistant" {
                             strict_boundary = false;
                         }
-                        if observation.context_id.is_empty() || !results.is_empty() {
+                        // A second tool use is admitted only as the single
+                        // re-emit after the host could not parse the first.
+                        let reemit = !results.is_empty()
+                            && results.len() == structured.len()
+                            && results
+                                .last()
+                                .is_some_and(|(_, is_error, _, unparsed)| *is_error && *unparsed)
+                            && json_reemits < 1;
+                        if observation.context_id.is_empty() || (!results.is_empty() && !reemit) {
                             protocol_error = Some("native tool use outside initialized call order");
+                        } else if reemit {
+                            json_reemits += 1;
                         }
                         structured.push((
                             item["id"].clone(),
@@ -639,7 +695,9 @@ fn decode_stream_with_schema(
                         if raw["type"] != "user" {
                             strict_boundary = false;
                         }
-                        if structured.len() != 1 || structured[0].0 != item["tool_use_id"] {
+                        if structured.len() != results.len() + 1
+                            || structured.last().map(|entry| &entry.0) != Some(&item["tool_use_id"])
+                        {
                             protocol_error = Some("native tool result correlation invalid");
                         }
                         results.push((
@@ -647,6 +705,9 @@ fn decode_stream_with_schema(
                             item["is_error"] == true,
                             item["content"].as_str().is_some_and(|text| {
                                 text.starts_with("Output does not match required schema: ")
+                            }),
+                            item["content"].as_str().is_some_and(|text| {
+                                text.starts_with("<tool_use_error>InputValidationError: StructuredOutput was called with input that could not be parsed as JSON")
                             }),
                         ));
                     }
@@ -725,26 +786,31 @@ fn decode_stream_with_schema(
                 && raw["subtype"] == "error_max_turns"
                 && raw["is_error"] == true
                 && raw["stop_reason"] == "tool_use"
-                && raw["num_turns"] == 2
+                && (raw["num_turns"] == 2 || raw["num_turns"] == 3)
                 && raw.get("structured_output").is_none()
                 && raw["permission_denials"] == json!([])
                 && raw["safety_stops"] == 0
-                && structured.len() == 1
-                && results.len() == 1
-                && structured[0].1 == "StructuredOutput"
-                && structured[0]
-                    .0
-                    .as_str()
-                    .is_some_and(|id| !id.is_empty() && id.len() <= 256)
-                && structured[0].0 == results[0].0
-                && results[0].1
-                && results[0].2
+                && !structured.is_empty()
+                && structured.len() == results.len()
+                && structured.last().is_some_and(|entry| {
+                    entry.1 == "StructuredOutput"
+                        && entry
+                            .0
+                            .as_str()
+                            .is_some_and(|id| !id.is_empty() && id.len() <= 256)
+                })
+                && results
+                    .last()
+                    .zip(structured.last())
+                    .is_some_and(|(result, entry)| result.0 == entry.0 && result.1 && result.2)
                 && usage.input_tokens.is_some()
                 && usage.output_tokens.is_some()
                 && usage.cached_input_tokens.is_some()
                 && usage.retry_tokens.is_some()
             {
-                observation.schema_rejection = schema_rejection(&structured[0].2, schema, "", 0);
+                if let Some(entry) = structured.last() {
+                    observation.schema_rejection = schema_rejection(&entry.2, schema, "", 0);
+                }
             }
             return Err(native_terminal_failure(&raw));
         }
@@ -1287,6 +1353,7 @@ mod tests {
             output_tokens: None,
             cached_input_tokens: None,
             retry_tokens: None,
+            thinking_tokens: None,
             failed: true,
         };
         (
@@ -1341,6 +1408,41 @@ mod tests {
             observation_value(&observation)["processCreationTime"],
             observed
         );
+    }
+    #[test]
+    fn native_stream_admits_one_in_process_reemit_after_unparsable_json() {
+        let (mut observation, mut usage) = empty();
+        let fixture = concat!(
+            r#"{"type":"system","subtype":"init","session_id":"fresh","tools":["StructuredOutput"],"mcp_servers":[],"slash_commands":[]}"#,
+            "\n",
+            r#"{"type":"assistant","session_id":"fresh","message":{"content":[{"type":"tool_use","id":"t1","name":"StructuredOutput","input":{"__unparsedToolInput":{"raw":"{"}}}]}}"#,
+            "\n",
+            r#"{"type":"user","session_id":"fresh","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"<tool_use_error>InputValidationError: StructuredOutput was called with input that could not be parsed as JSON.\nRetry with valid JSON.</tool_use_error>"}]}}"#,
+            "\n",
+            r#"{"type":"assistant","session_id":"fresh","message":{"content":[{"type":"tool_use","id":"t2","name":"StructuredOutput","input":{"finalResult":{"complete":true}}}]}}"#,
+            "\n",
+            r#"{"type":"user","session_id":"fresh","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":false,"content":"Structured output provided successfully"}]}}"#,
+            "\n",
+            r#"{"type":"result","subtype":"success","is_error":false,"session_id":"fresh","num_turns":3,"structured_output":{"finalResult":{"complete":true}},"usage":{"input_tokens":7,"output_tokens":9,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}"#
+        );
+        decode_stream(fixture.as_bytes(), &mut observation, &mut usage).unwrap();
+        assert_eq!(observation.reply.unwrap()["finalResult"]["complete"], true);
+        assert_eq!(usage.output_tokens, Some(9));
+        // A third attempt, or a second after a non-parse error, is a protocol error.
+        let (mut observation, mut usage) = empty();
+        let fixture = concat!(
+            r#"{"type":"system","subtype":"init","session_id":"fresh","tools":["StructuredOutput"],"mcp_servers":[],"slash_commands":[]}"#,
+            "\n",
+            r#"{"type":"assistant","session_id":"fresh","message":{"content":[{"type":"tool_use","id":"t1","name":"StructuredOutput","input":{"toolRequest":{}}}]}}"#,
+            "\n",
+            r#"{"type":"user","session_id":"fresh","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":false,"content":"Structured output provided successfully"}]}}"#,
+            "\n",
+            r#"{"type":"assistant","session_id":"fresh","message":{"content":[{"type":"tool_use","id":"t2","name":"StructuredOutput","input":{"finalResult":{"complete":true}}}]}}"#,
+            "\n",
+            r#"{"type":"result","subtype":"success","is_error":false,"session_id":"fresh","num_turns":3,"structured_output":{"finalResult":{"complete":true}},"usage":{"input_tokens":7,"output_tokens":9}}"#
+        );
+        let error = decode_stream(fixture.as_bytes(), &mut observation, &mut usage).unwrap_err();
+        assert_eq!(error, "native tool use outside initialized call order");
     }
     #[test]
     fn native_stream_preserves_missing_usage_instead_of_zero() {
