@@ -152,10 +152,20 @@ pub(super) fn replay(runtime: &Value, project: &Path) -> Result<Value, String> {
             return Err("php-ruby-runtime-link-changed".into());
         }
         let final_path = resolve(&path, links)?;
-        if !expected.keys().any(|file| {
+        // A sealed link stays inside the closure when it reaches an enrolled
+        // file, a declared root (an empty root such as a pecl directory holds
+        // no file), or when an absence probe is evaluated through it.
+        let anchored = expected.keys().any(|file| {
             let file = Path::new("/").join(file);
             file == final_path || file.starts_with(&final_path)
-        }) {
+        }) || roots.iter().filter_map(Value::as_str).any(|root| {
+            let root = Path::new(root);
+            root == final_path || root.starts_with(&final_path)
+        }) || absent
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|probe| Path::new(probe).starts_with(&path));
+        if !anchored {
             return Err("php-ruby-runtime-link-outside-closure".into());
         }
         observed_links.insert(key.clone(), target.clone());

@@ -259,6 +259,93 @@ class DotnetSdkAdapterTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(AssertionError):
                 validator["validate"](ROOT, {"sandboxAdmission": changed})
 
+    def shared_record(self):
+        # Hand-built stand-in for the harness's compaction: a repeated large value, and a stored
+        # value that itself references another stored value (children are shared first).
+        digest, encoded = validator["digest"], validator["encoded"]
+        leaf = {"listing": {"path/a": "sha256:" + "a" * 64}, "tag": "leaf"}
+        leaf_key = digest(encoded(leaf))
+        parent = {"keep": {"$sharedRef": leaf_key}, "tag": "parent"}
+        parent_key = digest(encoded(parent))
+        cases = [{"id": 1, "before": {"$sharedRef": parent_key}, "after": {"$sharedRef": parent_key}, "inline": {"tag": "own"}},
+                 {"id": 2, "snapshots": [{"$sharedRef": leaf_key}, {"$sharedRef": parent_key}]}]
+        expanded = [{"id": 1, "before": {"keep": leaf, "tag": "parent"}, "after": {"keep": leaf, "tag": "parent"}, "inline": {"tag": "own"}},
+                    {"id": 2, "snapshots": [leaf, {"keep": leaf, "tag": "parent"}]}]
+        return {"cases": cases, "sharedValues": {leaf_key: leaf, parent_key: parent}}, expanded, leaf_key, parent_key
+
+    def test_shared_values_expand_recursively_and_leave_the_record_otherwise_intact(self):
+        row, expanded, _, _ = self.shared_record()
+        resolved = validator["resolve_shared"](row)
+        self.assertEqual(resolved["cases"], expanded)
+        self.assertEqual(resolved["sharedValues"], row["sharedValues"])
+        plain = {"cases": [{"id": 1}], "metrics": {"cases": 1}}
+        self.assertEqual(validator["resolve_shared"](plain), plain)
+
+    def test_shared_values_are_digest_bound_and_references_must_resolve(self):
+        row, _, leaf_key, parent_key = self.shared_record()
+        for key in (leaf_key, parent_key):
+            changed = copy.deepcopy(row)
+            changed["sharedValues"][key]["tag"] = "tampered"
+            with self.subTest(key=key), self.assertRaisesRegex(AssertionError, "shared value digest differs"):
+                validator["resolve_shared"](changed)
+        changed = copy.deepcopy(row)
+        changed["cases"][0]["before"] = {"$sharedRef": "sha256:" + "0" * 64}
+        with self.assertRaisesRegex(AssertionError, "shared reference unresolved"):
+            validator["resolve_shared"](changed)
+        changed = copy.deepcopy(row)
+        changed["sharedValues"] = {leaf_key: row["sharedValues"][leaf_key], parent_key: {"keep": {"$sharedRef": "sha256:" + "1" * 64}}}
+        with self.assertRaisesRegex(AssertionError, "shared value digest differs"):
+            validator["resolve_shared"](changed)
+
+    def test_qualification_digest_binds_the_compacted_record_before_expansion(self):
+        row, _, leaf_key, _ = self.shared_record()
+        digest, encoded = validator["digest"], validator["encoded"]
+        envelope = {"sandboxAdmission": validator["sandbox_admission"](), "schema": "legion-dotnet-sdk-accuracy/1",
+                    "provider": "code.dotnet", "qualificationEligible": True, "productionQualification": False, "modelCalls": 0,
+                    "kind": "dotnet-code-command-sdk-constructed", "claimScope": "known-answer-fixture-cases",
+                    "executionPath": "native-sdk-frozen-plan-self-sourced-code", "status": "observed-known-answer-controls",
+                    "missingControls": [], "executedScope": list(validator["TASKS"])}
+
+        def sealed(record):
+            return dict(record, qualificationDigest=digest(encoded(record)))
+
+        # The compacted bytes verify and expand; the record then stops at the first check that needs
+        # fields this stand-in omits (the source binding).
+        with self.assertRaises(KeyError):
+            validator["validate"](ROOT, sealed(dict(envelope, **row)))
+        tampered = copy.deepcopy(row)
+        tampered["sharedValues"][leaf_key]["tag"] = "tampered"
+        # Editing a shared value without resealing breaks the qualification digest first.
+        stale = dict(sealed(dict(envelope, **row)), sharedValues=tampered["sharedValues"])
+        with self.assertRaisesRegex(AssertionError, "qualification bytes changed"):
+            validator["validate"](ROOT, stale)
+        # A resealed edit is caught by the stored value's own digest.
+        with self.assertRaisesRegex(AssertionError, "shared value digest differs"):
+            validator["validate"](ROOT, sealed(dict(envelope, **tampered)))
+
+    def receipt_row(self, state, extra=()):
+        request = dict.fromkeys(validator["REQUEST_FIELDS"])
+        receipt = dict.fromkeys(validator["RECEIPT_FIELDS"] | set(extra))
+        receipt["state"] = state
+        return {"request": request, "executionReceipt": receipt, "stdout": None, "stderr": None}
+
+    def test_only_owner_admission_refusals_carry_the_frozen_execution_policy_fields(self):
+        policy_fields = ("executionPolicy", "executionPolicyIdentity")
+        self.assertEqual(validator["POLICY_RECEIPT_FIELDS"], validator["RECEIPT_FIELDS"] | set(policy_fields))
+        # An accepted field set proceeds to the first case lookup (no case is supplied), a differing
+        # one stops at the exact-set check.
+        for state in ("completed", "failed"):
+            with self.subTest(state=state, extra=False), self.assertRaises(KeyError):
+                validator["execution"](self.receipt_row(state), {}, {}, False)
+            for extra in (policy_fields, policy_fields[:1], policy_fields[1:]):
+                with self.subTest(state=state, extra=extra), self.assertRaisesRegex(AssertionError, "request/receipt fields differ"):
+                    validator["execution"](self.receipt_row(state, extra), {}, {}, False)
+        with self.subTest(state="unauthorized_effect", extra=policy_fields), self.assertRaises(KeyError):
+            validator["execution"](self.receipt_row("unauthorized_effect", policy_fields), {}, {}, False)
+        for extra in ((), policy_fields[:1], policy_fields[1:], policy_fields + ("unbound",)):
+            with self.subTest(state="unauthorized_effect", extra=extra), self.assertRaisesRegex(AssertionError, "request/receipt fields differ"):
+                validator["execution"](self.receipt_row("unauthorized_effect", extra), {}, {}, False)
+
     def test_native_family_has_exact_provider_stage_and_selector(self):
         entry = {"provider": "code.dotnet", "family": "dotnet-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, entry), ("dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", gate["DOTNET_SDK_SELECTOR"]))

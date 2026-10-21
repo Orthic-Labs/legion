@@ -245,7 +245,7 @@ def validate_record(root, row, live=True, receipts=None):
         diff = observed["diff"]
         for key, value in {"width": 64, "height": 48, "compared_pixels": 3072, "changed_pixels": 3072 if planted else 0,
                            "changed_ratio": 1.0 if planted else 0.0, "max_channel_delta": 255 if planted else 0,
-                           "mean_channel_delta": 127.5 if planted else 0.0, "channel_threshold": 0, "max_changed_ratio": 0.0, "masks": []}.items():
+                           "mean_channel_delta": 127.5 if planted else 0.0, "channel_threshold": 0.0, "max_changed_ratio": 0.0, "masks": []}.items():
             same(diff[key], value, "observed pixel difference differs: " + key)
         require(case["observedDiffDigest"] == digest(encoded(diff)), "diff digest differs")
         findings, details = result["findings"], result["details"]

@@ -56,6 +56,9 @@ SOURCE_DIRS = ["engine/crates/" + name + "/src" for name in CRATES] + ["src/regi
 SOURCE_FILES = ["engine/crates/" + name + "/Cargo.toml" for name in CRATES] + ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", "scripts/ci/provision-dotnet-qualification-tools.py", "scripts/ci/audit-dotnet-sdk-accuracy.py", "scripts/ci/run-dotnet-sdk-qualification-child.py"]
 REQUEST_FIELDS = {"schemaVersion", "requestId", "providerId", "planId", "policyId", "taskId", "executable", "args", "cwd", "origin", "shell", "expectedDigest", "acceptedExitCodes", "versionArgs", "skipVersionProbe", "versionRequirement", "environment", "environmentAllowlist", "sensitiveArgumentIndexes", "sensitiveEnvironmentNames", "requiresNetworkSandbox", "sandbox", "timeoutMs", "stdoutLimit", "stderrLimit"}
 RECEIPT_FIELDS = {"schemaVersion", "receiptId", "requestId", "providerId", "planId", "policyId", "policy", "taskId", "state", "complete", "executable", "command", "cwd", "environmentNames", "sandbox", "processTree", "timing", "exitCode", "signal", "stdout", "stderr", "parser", "gaps"}
+# A receipt refused by the native owner-admission policy also carries the frozen policy it was refused under.
+POLICY_RECEIPT_FIELDS = RECEIPT_FIELDS | {"executionPolicy", "executionPolicyIdentity"}
+OWNER_ADMISSION_POLICY = {"externalProcesses": "owner-admission-required", "admissionStatus": "unavailable", "effectiveMode": "deny-external"}
 
 
 def require(value, message):
@@ -80,6 +83,30 @@ def parsed(raw):
         require(len(rows) == len(dict(rows)), "duplicate JSON key")
         return dict(rows)
     return json.loads(raw, object_pairs_hook=pairs, parse_constant=lambda _: require(False, "non-JSON number"))
+
+
+def resolve_shared(row):
+    """Expand `$sharedRef` digests from the record's `sharedValues` table into full subtrees.
+
+    The harness stores identical large subtrees once; each reference is bound by the digest
+    of the canonical stored value, checked here before any case-level comparison sees it.
+    A stored value may itself reference other stored values, so expansion is recursive."""
+    shared = row.get("sharedValues") or {}
+    require(isinstance(shared, dict) and all(digest(encoded(v)) == k for k, v in shared.items()), "shared value digest differs")
+
+    def expand(value):
+        if isinstance(value, dict):
+            if set(value) == {"$sharedRef"}:
+                require(value["$sharedRef"] in shared, "shared reference unresolved")
+                return expand(shared[value["$sharedRef"]])
+            return {k: expand(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [expand(v) for v in value]
+        return value
+
+    out = dict(row)
+    out["cases"] = expand(row["cases"])
+    return out
 
 
 def absolute(value):
@@ -199,7 +226,7 @@ def environment(req, scratch, enrollment, language, task):
 def execution(row, case, enrollment, live):
     require(set(row) == {"request", "executionReceipt", "stdout", "stderr"}, "SDK execution row fields differ")
     req, receipt = row["request"], row["executionReceipt"]
-    require(set(req) == REQUEST_FIELDS and set(receipt) == RECEIPT_FIELDS, "actual SDK request/receipt fields differ")
+    require(set(req) == REQUEST_FIELDS and set(receipt) == (POLICY_RECEIPT_FIELDS if receipt.get("state") == "unauthorized_effect" else RECEIPT_FIELDS), "actual SDK request/receipt fields differ")
     policy = case["policyDefinition"]
     scratch = absolute(policy["scratch"])
     stage = scratch / "cache/dotnet-source"
@@ -224,6 +251,9 @@ def execution(row, case, enrollment, live):
     require(p and receipt["policyId"] == p["id"] and p["version"] == 1, "policy decision missing")
     if case["control"] == "rejected-admission":
         require(p["allowed"] is False and p["id"] == "audit-native-owner-admission-v1" and p["reason"] == "native-owner-admission-unavailable" and receipt["state"] == "unauthorized_effect" and receipt["complete"] is False and receipt["processTree"]["started"] is False and receipt["exitCode"] is None, "owner admission refusal differs")
+        same(receipt["executionPolicy"], OWNER_ADMISSION_POLICY, "owner admission execution policy differs")
+        same(receipt["executionPolicyIdentity"], {key: p[key] for key in ("id", "version", "digest")}, "owner admission policy identity differs")
+        require(p["digest"] == digest(encoded(receipt["executionPolicy"])), "owner admission policy digest differs")
     else:
         require(p["id"] == POLICY and p["allowed"] is True and p["digest"] == digest(encoded(policy)), "exact fixture admission digest differs")
         tree = receipt["processTree"]
@@ -336,6 +366,7 @@ def validate(repo, record, live=False):
     require(record["schema"] == "legion-dotnet-sdk-accuracy/1" and record["provider"] == ID and record["qualificationEligible"] is True and record["productionQualification"] is False and record["modelCalls"] == 0, "qualification envelope differs")
     require(record["kind"] == "dotnet-code-command-sdk-constructed" and record["claimScope"] == "known-answer-fixture-cases" and record["executionPath"] == "native-sdk-frozen-plan-self-sourced-code" and record["status"] == "observed-known-answer-controls" and record["missingControls"] == [] and record["executedScope"] == list(TASKS), "constructed execution scope differs")
     same(record["qualificationDigest"], digest(encoded({k: v for k, v in record.items() if k != "qualificationDigest"})), "qualification bytes changed")
+    record = resolve_shared(record)
     same(record["sourceBinding"], source_binding(repo), "production/harness/source closure changed")
     spec = {k: v for k, v in next(p for p in parsed((repo / "src/registry/providers.json").read_bytes())["providers"] if p["id"] == ID).items() if k != "benchmark"}
     same(record["providerSpec"], spec, "original provider spec changed")

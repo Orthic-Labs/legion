@@ -162,6 +162,176 @@ fn bytes(value: &Value) -> Vec<u8> {
     }
     serde_json::to_vec(&ordered(value)).unwrap()
 }
+
+// Identical large subtrees (the enrollment and installed-closure listings embedded in every native
+// input snapshot, tool receipt, and tool evidence run) are stored once under `sharedValues` and
+// referenced by `{"$sharedRef": digest}`; the validator verifies each stored value's digest, expands
+// every reference after checking the qualification digest, then runs its checks on the full data.
+// A stored value is keyed by the digest of its own canonical bytes, which may contain references to
+// smaller stored values (children are shared first), so each entry is bound by the digest chain.
+const SHARE_THRESHOLD: usize = 32 * 1024;
+
+/// Appends the canonical bytes of `value` (identical to `bytes`) to `out` in one pass and counts the
+/// digest of every object of at least `SHARE_THRESHOLD` bytes.
+fn count_large(value: &Value, out: &mut Vec<u8>, counts: &mut BTreeMap<String, usize>) {
+    let start = out.len();
+    match value {
+        Value::Object(map) => {
+            out.push(b'{');
+            let ordered: BTreeMap<&String, &Value> = map.iter().collect();
+            for (index, (key, child)) in ordered.into_iter().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                serde_json::to_writer(&mut *out, key).unwrap();
+                out.push(b':');
+                count_large(child, out, counts);
+            }
+            out.push(b'}');
+            if out.len() - start >= SHARE_THRESHOLD {
+                *counts.entry(sha256_text(&out[start..])).or_insert(0) += 1;
+            }
+        }
+        Value::Array(items) => {
+            out.push(b'[');
+            for (index, child) in items.iter().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                count_large(child, out, counts);
+            }
+            out.push(b']');
+        }
+        _ => serde_json::to_writer(&mut *out, value).unwrap(),
+    }
+}
+
+/// Replaces, children first, every object of at least `SHARE_THRESHOLD` bytes whose original
+/// digest occurs at least twice in `counts` by a `$sharedRef` to its stored (child-compacted) value.
+/// `out` receives the same canonical bytes of the original value that `count_large` counted;
+/// `keys` maps an original digest to the stored value's key so a repeat is not re-serialized.
+fn share_repeated(
+    value: &mut Value,
+    out: &mut Vec<u8>,
+    counts: &BTreeMap<String, usize>,
+    keys: &mut BTreeMap<String, String>,
+    shared: &mut serde_json::Map<String, Value>,
+) {
+    let start = out.len();
+    match &mut *value {
+        Value::Object(map) => {
+            out.push(b'{');
+            let mut names: Vec<String> = map.keys().cloned().collect();
+            names.sort();
+            for (index, name) in names.iter().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                serde_json::to_writer(&mut *out, name).unwrap();
+                out.push(b':');
+                share_repeated(map.get_mut(name).unwrap(), out, counts, keys, shared);
+            }
+            out.push(b'}');
+        }
+        Value::Array(items) => {
+            out.push(b'[');
+            for (index, child) in items.iter_mut().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                share_repeated(child, out, counts, keys, shared);
+            }
+            out.push(b']');
+        }
+        scalar => serde_json::to_writer(&mut *out, &*scalar).unwrap(),
+    }
+    if !value.is_object() || out.len() - start < SHARE_THRESHOLD {
+        return;
+    }
+    let original = sha256_text(&out[start..]);
+    if counts.get(&original).copied().unwrap_or(0) < 2 {
+        return;
+    }
+    if !keys.contains_key(&original) {
+        let key = sha256_text(&bytes(value));
+        shared.insert(key.clone(), std::mem::take(value));
+        keys.insert(original.clone(), key);
+    }
+    let key = keys[&original].clone();
+    *value = json!({"$sharedRef": key});
+}
+
+/// Stores each repeated large subtree of `cases` once and returns the table of stored values.
+fn share_repeated_values(cases: &mut [Value]) -> serde_json::Map<String, Value> {
+    let mut out = Vec::new();
+    let mut counts = BTreeMap::new();
+    for case in cases.iter() {
+        out.clear();
+        count_large(case, &mut out, &mut counts);
+    }
+    let mut keys = BTreeMap::new();
+    let mut shared = serde_json::Map::new();
+    for case in cases.iter_mut() {
+        out.clear();
+        share_repeated(case, &mut out, &counts, &mut keys, &mut shared);
+    }
+    shared
+}
+
+#[test]
+fn shared_values_round_trip_and_bind_every_reference_by_digest() {
+    fn big(tag: &str) -> Value {
+        json!({"tag": tag, "listing": "x".repeat(SHARE_THRESHOLD)})
+    }
+    fn expand(value: &Value, shared: &serde_json::Map<String, Value>) -> Value {
+        match value {
+            Value::Object(map) if map.len() == 1 && map.contains_key("$sharedRef") => {
+                let key = map["$sharedRef"].as_str().unwrap();
+                expand(shared.get(key).expect("shared reference resolves"), shared)
+            }
+            Value::Object(map) => Value::Object(
+                map.iter()
+                    .map(|(key, child)| (key.clone(), expand(child, shared)))
+                    .collect(),
+            ),
+            Value::Array(items) => {
+                Value::Array(items.iter().map(|child| expand(child, shared)).collect())
+            }
+            _ => value.clone(),
+        }
+    }
+    let original = vec![
+        json!({"id": 1, "snapshot": big("a"), "again": big("a"), "wrapper": {"nested": big("a"), "own": big("b")}}),
+        json!({"unique": big("c"), "id": 2, "snapshot": big("a")}),
+        json!({"id": 3, "outer": {"keep": big("d"), "inner": {"deep": big("a")}}, "twin": {"keep": big("d"), "inner": {"deep": big("a")}}}),
+    ];
+    // The one-pass writer must emit exactly `bytes`, or counted digests drift from stored keys.
+    for case in &original {
+        let mut out = Vec::new();
+        count_large(case, &mut out, &mut BTreeMap::new());
+        assert_eq!(out, bytes(case));
+    }
+    let mut cases = original.clone();
+    let shared = share_repeated_values(&mut cases);
+    assert!(!shared.is_empty());
+    for (key, value) in &shared {
+        assert_eq!(*key, sha256_text(&bytes(value)));
+    }
+    for (case, expected) in cases.iter().zip(&original) {
+        assert_eq!(&expand(case, &shared), expected);
+    }
+    // Repeated subtrees leave only a reference; unique ones stay inline; repeats nest.
+    assert!(cases[0]["snapshot"].get("$sharedRef").is_some());
+    assert_eq!(cases[0]["snapshot"], cases[0]["again"]);
+    assert_eq!(cases[0]["snapshot"], cases[1]["snapshot"]);
+    assert_eq!(cases[0]["wrapper"]["own"]["tag"], json!("b"));
+    assert_eq!(cases[1]["unique"]["tag"], json!("c"));
+    assert_eq!(cases[2]["outer"], cases[2]["twin"]);
+    let outer = shared[cases[2]["outer"]["$sharedRef"].as_str().unwrap()].clone();
+    assert!(outer["keep"].get("$sharedRef").is_some());
+    assert!(bytes(&Value::Array(cases)).len() < 4 * SHARE_THRESHOLD);
+}
+
 fn files(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn walk(root: &Path, path: &Path, output: &mut BTreeMap<String, Vec<u8>>) {
         assert!(!path.is_symlink());
@@ -1209,6 +1379,9 @@ fn original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls() {
         file_digests(Path::new(enrollment["packagesRoot"].as_str().unwrap()))
     );
     assert_eq!(enrollment_bytes, fs::read(&enrollment_path).unwrap());
+    // One 0.95 MB enrollment recurs in every native input snapshot, tool receipt, and tool
+    // evidence run (244 of the record's 274 MB); the record stores each repeated subtree once.
+    let shared_values = share_repeated_values(&mut cases);
     let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let mut source_binding = BTreeMap::new();
     for path in [
@@ -1235,8 +1408,11 @@ fn original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls() {
     }
     let mut record = json!({"schema":"legion-dotnet-sdk-accuracy/1","kind":"dotnet-code-command-sdk-constructed","provider":ID,"providerVersion":spec()["providerVersion"],"productionQualification":false,"qualificationEligible":true,"claimScope":"known-answer-fixture-cases","supportedSurface":"frozen SDK8 net8.0 simple projects; C#/VB Roslyn CA1822 & frozen-file FSharpLint FL0014; actual MSTest execution","executionPath":"native-sdk-frozen-plan-self-sourced-code","admissionScope":"explicit constructed SDK authorizer; genuine OwnerAdmissionRequired denial; no production owner-admission claim","status":"observed-known-answer-controls","missingControls":[],"executedScope":TASKS,"originalContract":{"variants":["csharp","fsharp","visualBasic"],"extensions":["cs","fs","vb"],"tasks":TASKS,"contexts":["targetFrameworks"]},"modelCalls":0,"providerSpec":spec(),"requiredForCleanClaim":required_for_clean_claim(),"sourceBinding":source_binding,"enrollment":enrollment,"enrollmentDigest":sha256_text(&enrollment_bytes),"sdkFiles":sdk_before,"packageFiles":packages_before,"cases":cases,"metrics":{"cases":33,"matched":33,"mismatched":0,"wholeProviderQualified":false,"boundedSdkAccuracyQualified":true}});
     record["sandboxAdmission"] = sandbox_admission();
+    record["sharedValues"] = Value::Object(shared_values);
     record["qualificationDigest"] = json!(sha256_text(&bytes(&record)));
-    let raw = serde_json::to_vec_pretty(&record).unwrap();
+    // Compact: the compacted record is committed, and pretty-printing its retained byte arrays
+    // (one line per byte) nearly triples it.
+    let raw = serde_json::to_vec(&record).unwrap();
     fs::write(
         output.parent().unwrap().join("dotnet-sdk-enrollment.json"),
         &enrollment_bytes,

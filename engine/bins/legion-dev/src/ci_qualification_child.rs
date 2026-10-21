@@ -55,7 +55,7 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         "--test-threads=1",
     ];
     // Run39520170497 macOS seq57: the .NET harness (three language SDK builds)
-    // exceeded the 300s default (exit124); local runs take about five minutes.
+    // exceeded the 300s default (exit124); run 39550845440 took 1297s of 1500s.
     let dotnet = [
         "test",
         "--locked",
@@ -103,7 +103,7 @@ fn command_timeout(argv: &[OsString]) -> Duration {
             (mobile.as_slice(), 1200),
             (javascript.as_slice(), 1800),
             (rust.as_slice(), 2400),
-            (dotnet.as_slice(), 1500),
+            (dotnet.as_slice(), 2400),
         ] {
             if argv.len() == selector.len() + 1
                 && argv[1..]
@@ -135,7 +135,7 @@ mod tests {
             (
                 "--lib",
                 "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",
-                1500,
+                2400,
             ),
         ]
         .into_iter()

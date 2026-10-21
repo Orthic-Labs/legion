@@ -290,6 +290,11 @@ const ARCHITECTURE_CUES: &[&str] = &[
     "respect ADRs and documented repo standards; identify valid dependency-injection seams",
 ];
 
+const DEAD_FILE_CUES: &[&str] = &[
+    "evidence standard: a file or export is orphaned only when the supplied set contains the root that would declare, import or route to it (crate or module root, package index, route table, manifest) and that root omits it, or the file itself states it was removed or is obsolete",
+    "a file whose declaring root is absent from the supplied set is unproven, not orphaned: report nothing for it",
+];
+
 const DOC_DRIFT_CUES: &[&str] = &[
     "compare doc/JSDoc/docstring params against the actual signature",
     "flag empty docstrings that only restate the name",
@@ -401,7 +406,7 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
             model_tier: ModelTier::Mechanical,
             requires_verify_pass: false,
             ponytail_tags: &[],
-            cues: &[],
+            cues: DEAD_FILE_CUES,
         },
         "schema" => LensPlan {
             lens: "schema",
