@@ -1,0 +1,1174 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "security.scanner-kubeconform",
+  "stage": "candidate",
+  "scope": "Constructed Pod schema type violation & clean control; not population accuracy, server-side validation or production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:0bce197a19d0f4f177570cf023752dd51217b4722c16e3370ed258fc1facafa0",
+    "harnessPath": "engine/crates/legion-audit/tests/kubeconform_accuracy.rs",
+    "harnessDigest": "sha256:98ee65c1bf186d98fc8ff9418f30cf368db7d85119100a4d43a0546430cf4ee2",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 278,
+      "digest": "sha256:ad3f2262a4db960fe5234528c7bae43568fcfbe54ea9eb0ccd682c0c3d0e637f"
+    },
+    "schemas": {
+      "directory": "/Users/runner/work/_temp/legion-kubeconform-schemas",
+      "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+      "template": "pod-v1.json",
+      "kubernetesVersion": "1.32.0",
+      "sourceRepository": "https://github.com/yannh/kubernetes-json-schema",
+      "sourceCommit": "074539312bcc717d5492d1448be088d7549c042b",
+      "sourceUrl": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json",
+      "provenanceScope": "kubeconform upstream conversion of Kubernetes OpenAPI; not server-side validation",
+      "files": [
+        {
+          "path": "pod-v1.json",
+          "digest": "sha256:4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66",
+          "bytes": 645686
+        }
+      ]
+    }
+  },
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "kubeconform-planted",
+      "source": {
+        "path": "pod.yaml",
+        "bytes": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: accuracy-control\nspec:\n  containers: invalid-container-list\n",
+        "digest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651"
+      },
+      "expected": [
+        "schema|pod.yaml|unresolved"
+      ],
+      "actual": [
+        "schema|pod.yaml|unresolved"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "coverage": {
+        "denominator_digest": "sha256:83d77e01f6ca0c6064143809ff59fb2fac3f80c3af4529146930fd612a5fb265",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "planDigest": "sha256:6e48c8ad21fdfa7596394f25d7503c2430fbaa2fd434bc3263a20479134a6a73",
+      "inventoryDigest": "sha256:fe01a1acf9c788e7efe4f0b662d74ca06f20aeed120a2608ca5e545dd749504f",
+      "schemas": {
+        "directory": "/Users/runner/work/_temp/legion-kubeconform-schemas",
+        "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+        "template": "pod-v1.json",
+        "kubernetesVersion": "1.32.0",
+        "sourceRepository": "https://github.com/yannh/kubernetes-json-schema",
+        "sourceCommit": "074539312bcc717d5492d1448be088d7549c042b",
+        "sourceUrl": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json",
+        "provenanceScope": "kubeconform upstream conversion of Kubernetes OpenAPI; not server-side validation",
+        "files": [
+          {
+            "path": "pod-v1.json",
+            "digest": "sha256:4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66",
+            "bytes": 645686
+          }
+        ]
+      },
+      "toolIdentity": {
+        "path": "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+        "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+        "version": {
+          "rawVersionOutput": "v0.8.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/dc60e339843224b4ead784208d3df6adb4bd959f119ea693b42603cc66f26571",
+            "requestId": "legion-audit/dc60e339843224b4ead784208d3df6adb4bd959f119ea693b42603cc66f26571",
+            "providerId": "security.scanner-kubeconform",
+            "planId": "sha256:fe01a1acf9c788e7efe4f0b662d74ca06f20aeed120a2608ca5e545dd749504f",
+            "taskId": "kubeconform-version-probe",
+            "policyId": "legion-real-kubeconform-benchmark-v1",
+            "policy": {
+              "id": "legion-real-kubeconform-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:34d772478af70e1cb647b2fa3c47462bae4d9880c020d6b1a224995f47093a03",
+              "allowed": true,
+              "reason": "exact real kubeconform fixture"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run/version-sandbox/audit-b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b.sb",
+                  "--",
+                  "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+                  "-v"
+                ],
+                "output": "v0.8.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792564298740,
+              "completedAtMs": 1792564298778,
+              "durationMs": 38
+            },
+            "stdout": {
+              "path": "legion-audit/dc60e339843224b4ead784208d3df6adb4bd959f119ea693b42603cc66f26571/stdout",
+              "digest": "sha256:7dfe51344c2f4d648ce2c54465c531fdc19f823c3aaf0ce9e8d4393416436ce2",
+              "bytes": 7,
+              "immutable": true,
+              "raw": "v0.8.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/dc60e339843224b4ead784208d3df6adb4bd959f119ea693b42603cc66f26571/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-real-kubeconform-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-kubeconform",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run",
+        "inventoryDigest": "sha256:fe01a1acf9c788e7efe4f0b662d74ca06f20aeed120a2608ca5e545dd749504f",
+        "tool": {
+          "path": "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+          "digest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "-output",
+          "json",
+          "-strict",
+          "-summary",
+          "-verbose",
+          "-kubernetes-version",
+          "1.32.0",
+          "-schema-location",
+          "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+          "--",
+          "./pod.yaml"
+        ],
+        "versionArgv": [
+          "-v"
+        ],
+        "schemas": {
+          "directory": "/Users/runner/work/_temp/legion-kubeconform-schemas",
+          "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+          "template": "pod-v1.json",
+          "kubernetesVersion": "1.32.0",
+          "sourceRepository": "https://github.com/yannh/kubernetes-json-schema",
+          "sourceCommit": "074539312bcc717d5492d1448be088d7549c042b",
+          "sourceUrl": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json",
+          "provenanceScope": "kubeconform upstream conversion of Kubernetes OpenAPI; not server-side validation",
+          "files": [
+            {
+              "path": "pod-v1.json",
+              "digest": "sha256:4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66",
+              "bytes": 645686
+            }
+          ]
+        },
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/dc60e339843224b4ead784208d3df6adb4bd959f119ea693b42603cc66f26571",
+          "providerId": "security.scanner-kubeconform",
+          "planId": "sha256:fe01a1acf9c788e7efe4f0b662d74ca06f20aeed120a2608ca5e545dd749504f",
+          "taskId": "kubeconform-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run/version-sandbox/audit-b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run/version-sandbox/audit-b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/0390d8acb1cda4af1605b251f36bf72c4a06a3b1b57ff5760b11432c3401bc9c",
+          "providerId": "security.scanner-kubeconform",
+          "planId": "sha256:fe01a1acf9c788e7efe4f0b662d74ca06f20aeed120a2608ca5e545dd749504f",
+          "taskId": "kubeconform",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run/legion-audit-security-73612-1792564298817340000-0/sandbox/audit-b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-output",
+            "json",
+            "-strict",
+            "-summary",
+            "-verbose",
+            "-kubernetes-version",
+            "1.32.0",
+            "-schema-location",
+            "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+            "--",
+            "./pod.yaml"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/run/legion-audit-security-73612-1792564298817340000-0/sandbox/audit-b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-true-73612-1792564298216577000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "kubeconform",
+          "version": "v0.8.0",
+          "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+        },
+        "version": "v0.8.0",
+        "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+        "argv": [
+          "kubeconform",
+          "-output",
+          "json",
+          "-strict",
+          "-summary",
+          "-verbose",
+          "-kubernetes-version",
+          "1.32.0",
+          "-schema-location",
+          "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+          "--",
+          "./pod.yaml"
+        ],
+        "exitCode": 1,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/0390d8acb1cda4af1605b251f36bf72c4a06a3b1b57ff5760b11432c3401bc9c",
+        "policyId": "legion-real-kubeconform-benchmark-v1",
+        "stdoutDigest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+        "stdoutBytes": 626,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+          "bytes": 626
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-kubeconform",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:83d77e01f6ca0c6064143809ff59fb2fac3f80c3af4529146930fd612a5fb265",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "candidates",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [
+              {
+                "id": "sha256:21dde692f32d57d167e61c6d2210f409f514c1227a56348e7c830a3ee1698f01",
+                "ruleId": "schema",
+                "claim": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+                "title": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+                "path": "pod.yaml",
+                "line": null,
+                "severityHint": "medium",
+                "domain": "reliability",
+                "adjudication": "required",
+                "anchorKind": "file",
+                "evidence": [
+                  {
+                    "path": "pod.yaml",
+                    "line": null,
+                    "rawFindingDigest": "sha256:3e96983be75fcaef4d902c32e15a4b05e76c90214f4ce99128ebbe0d133450f4",
+                    "sourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651"
+                  }
+                ],
+                "source": {
+                  "tool": "kubeconform",
+                  "ruleId": "schema",
+                  "rawFindingDigest": "sha256:3e96983be75fcaef4d902c32e15a4b05e76c90214f4ce99128ebbe0d133450f4",
+                  "recordOrdinal": 0,
+                  "raw": {
+                    "filename": "./pod.yaml",
+                    "kind": "Pod",
+                    "name": "accuracy-control",
+                    "version": "v1",
+                    "status": "statusInvalid",
+                    "msg": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+                    "validationErrors": [
+                      {
+                        "path": "/spec/containers",
+                        "msg": "got string, want array"
+                      }
+                    ]
+                  },
+                  "sourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651",
+                  "frozenSourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651"
+                },
+                "anchorStatus": "scanner-reported"
+              }
+            ],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:3e96983be75fcaef4d902c32e15a4b05e76c90214f4ce99128ebbe0d133450f4",
+                "path": "pod.yaml",
+                "candidateId": "sha256:21dde692f32d57d167e61c6d2210f409f514c1227a56348e7c830a3ee1698f01",
+                "disposition": "candidate"
+              }
+            ],
+            "selectionLedger": [
+              {
+                "kind": "offline-schema-identity",
+                "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+                "kubernetesVersion": "1.32.0"
+              }
+            ],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [
+            {
+              "id": "sha256:21dde692f32d57d167e61c6d2210f409f514c1227a56348e7c830a3ee1698f01",
+              "ruleId": "schema",
+              "claim": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+              "title": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+              "path": "pod.yaml",
+              "line": null,
+              "severityHint": "medium",
+              "domain": "reliability",
+              "adjudication": "required",
+              "anchorKind": "file",
+              "evidence": [
+                {
+                  "path": "pod.yaml",
+                  "line": null,
+                  "rawFindingDigest": "sha256:3e96983be75fcaef4d902c32e15a4b05e76c90214f4ce99128ebbe0d133450f4",
+                  "sourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651"
+                }
+              ],
+              "source": {
+                "tool": "kubeconform",
+                "ruleId": "schema",
+                "rawFindingDigest": "sha256:3e96983be75fcaef4d902c32e15a4b05e76c90214f4ce99128ebbe0d133450f4",
+                "recordOrdinal": 0,
+                "raw": {
+                  "filename": "./pod.yaml",
+                  "kind": "Pod",
+                  "name": "accuracy-control",
+                  "version": "v1",
+                  "status": "statusInvalid",
+                  "msg": "problem validating schema. Check JSON formatting: jsonschema validation failed with 'file:///Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json#' - at '/spec/containers': got string, want array",
+                  "validationErrors": [
+                    {
+                      "path": "/spec/containers",
+                      "msg": "got string, want array"
+                    }
+                  ]
+                },
+                "sourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651",
+                "frozenSourceDigest": "sha256:695e0a6cd77286dacfd0ce5632f35432df323569a7d33285cde87d26a7e8c651"
+              },
+              "anchorStatus": "scanner-reported"
+            }
+          ],
+          "executionReceipt": {
+            "tool": {
+              "name": "kubeconform",
+              "version": "v0.8.0",
+              "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+            },
+            "version": "v0.8.0",
+            "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+            "argv": [
+              "kubeconform",
+              "-output",
+              "json",
+              "-strict",
+              "-summary",
+              "-verbose",
+              "-kubernetes-version",
+              "1.32.0",
+              "-schema-location",
+              "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+              "--",
+              "./pod.yaml"
+            ],
+            "exitCode": 1,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/0390d8acb1cda4af1605b251f36bf72c4a06a3b1b57ff5760b11432c3401bc9c",
+            "policyId": "legion-real-kubeconform-benchmark-v1",
+            "stdoutDigest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+            "stdoutBytes": 626,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+              "bytes": 626
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "kubeconform",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "pod.yaml"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "kubeconform",
+                    "version": "v0.8.0",
+                    "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+                  },
+                  "version": "v0.8.0",
+                  "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+                  "argv": [
+                    "kubeconform",
+                    "-output",
+                    "json",
+                    "-strict",
+                    "-summary",
+                    "-verbose",
+                    "-kubernetes-version",
+                    "1.32.0",
+                    "-schema-location",
+                    "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+                    "--",
+                    "./pod.yaml"
+                  ],
+                  "exitCode": 1,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/0390d8acb1cda4af1605b251f36bf72c4a06a3b1b57ff5760b11432c3401bc9c",
+                  "policyId": "legion-real-kubeconform-benchmark-v1",
+                  "stdoutDigest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+                  "stdoutBytes": 626,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:b6646d1a2b37c5d2330a2ab21bf2769bf93c7f10feab69c604837cc94b62488b",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:40759b4d8847c0183e9484a3fd091828aaf2ffb0c28341604fa451fc86c7218b",
+                    "bytes": 626
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Native producer retains reduced scan receipt, normalized raw invalid resources & stdout digest; full scan stdout/process receipt is not retained. Real version output & full version receipt are retained."
+    },
+    {
+      "caseId": "kubeconform-clean",
+      "source": {
+        "path": "pod.yaml",
+        "bytes": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: accuracy-control\nspec:\n  containers: [{name: app, image: 'example.invalid/app:1'}]\n",
+        "digest": "sha256:2e3e8f44ed5c88b81e6ed060a9389096b86fdcd3b84b3699b5d1ecf569f969eb"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "coverage": {
+        "denominator_digest": "sha256:b8872c41cd1128a0e4c2cf52d43e30f3a01fddba37776013b7f42a8ae47832bb",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "planDigest": "sha256:eef113e14ec242a4749dc4f1a867318fe268917d872706362583c5a8a1d894c1",
+      "inventoryDigest": "sha256:e8db123469ca7682228c24f83921c55d292260675fd5a45d9b55e30545e4f3cf",
+      "schemas": {
+        "directory": "/Users/runner/work/_temp/legion-kubeconform-schemas",
+        "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+        "template": "pod-v1.json",
+        "kubernetesVersion": "1.32.0",
+        "sourceRepository": "https://github.com/yannh/kubernetes-json-schema",
+        "sourceCommit": "074539312bcc717d5492d1448be088d7549c042b",
+        "sourceUrl": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json",
+        "provenanceScope": "kubeconform upstream conversion of Kubernetes OpenAPI; not server-side validation",
+        "files": [
+          {
+            "path": "pod-v1.json",
+            "digest": "sha256:4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66",
+            "bytes": 645686
+          }
+        ]
+      },
+      "toolIdentity": {
+        "path": "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+        "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+        "version": {
+          "rawVersionOutput": "v0.8.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/da80753778ec549b3266a7d7d66098074f2b51c1d99cd50deb46cfbf78834d99",
+            "requestId": "legion-audit/da80753778ec549b3266a7d7d66098074f2b51c1d99cd50deb46cfbf78834d99",
+            "providerId": "security.scanner-kubeconform",
+            "planId": "sha256:e8db123469ca7682228c24f83921c55d292260675fd5a45d9b55e30545e4f3cf",
+            "taskId": "kubeconform-version-probe",
+            "policyId": "legion-real-kubeconform-benchmark-v1",
+            "policy": {
+              "id": "legion-real-kubeconform-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:d951a690405c3b77e784f81d4b4a7acec340913c1da18e2ac7fdcc1d101c828f",
+              "allowed": true,
+              "reason": "exact real kubeconform fixture"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run/version-sandbox/audit-ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961.sb",
+                  "--",
+                  "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+                  "-v"
+                ],
+                "output": "v0.8.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792564299604,
+              "completedAtMs": 1792564299639,
+              "durationMs": 35
+            },
+            "stdout": {
+              "path": "legion-audit/da80753778ec549b3266a7d7d66098074f2b51c1d99cd50deb46cfbf78834d99/stdout",
+              "digest": "sha256:7dfe51344c2f4d648ce2c54465c531fdc19f823c3aaf0ce9e8d4393416436ce2",
+              "bytes": 7,
+              "immutable": true,
+              "raw": "v0.8.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/da80753778ec549b3266a7d7d66098074f2b51c1d99cd50deb46cfbf78834d99/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-real-kubeconform-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-kubeconform",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run",
+        "inventoryDigest": "sha256:e8db123469ca7682228c24f83921c55d292260675fd5a45d9b55e30545e4f3cf",
+        "tool": {
+          "path": "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+          "digest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "-output",
+          "json",
+          "-strict",
+          "-summary",
+          "-verbose",
+          "-kubernetes-version",
+          "1.32.0",
+          "-schema-location",
+          "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+          "--",
+          "./pod.yaml"
+        ],
+        "versionArgv": [
+          "-v"
+        ],
+        "schemas": {
+          "directory": "/Users/runner/work/_temp/legion-kubeconform-schemas",
+          "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+          "template": "pod-v1.json",
+          "kubernetesVersion": "1.32.0",
+          "sourceRepository": "https://github.com/yannh/kubernetes-json-schema",
+          "sourceCommit": "074539312bcc717d5492d1448be088d7549c042b",
+          "sourceUrl": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json",
+          "provenanceScope": "kubeconform upstream conversion of Kubernetes OpenAPI; not server-side validation",
+          "files": [
+            {
+              "path": "pod-v1.json",
+              "digest": "sha256:4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66",
+              "bytes": 645686
+            }
+          ]
+        },
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/da80753778ec549b3266a7d7d66098074f2b51c1d99cd50deb46cfbf78834d99",
+          "providerId": "security.scanner-kubeconform",
+          "planId": "sha256:e8db123469ca7682228c24f83921c55d292260675fd5a45d9b55e30545e4f3cf",
+          "taskId": "kubeconform-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run/version-sandbox/audit-ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run/version-sandbox/audit-ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/4b59306047b79801ca275a53ed523b2bd489377b327bbd2c28a80be06870a538",
+          "providerId": "security.scanner-kubeconform",
+          "planId": "sha256:e8db123469ca7682228c24f83921c55d292260675fd5a45d9b55e30545e4f3cf",
+          "taskId": "kubeconform",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run/legion-audit-security-73612-1792564299650375000-1/sandbox/audit-ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-output",
+            "json",
+            "-strict",
+            "-summary",
+            "-verbose",
+            "-kubernetes-version",
+            "1.32.0",
+            "-schema-location",
+            "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+            "--",
+            "./pod.yaml"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/run/legion-audit-security-73612-1792564299650375000-1/sandbox/audit-ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961.sb",
+            "--",
+            "/opt/homebrew/Cellar/kubeconform/0.8.0/bin/kubeconform",
+            "-v"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-kubeconform-false-73612-1792564299251646000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "kubeconform",
+          "version": "v0.8.0",
+          "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+        },
+        "version": "v0.8.0",
+        "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+        "argv": [
+          "kubeconform",
+          "-output",
+          "json",
+          "-strict",
+          "-summary",
+          "-verbose",
+          "-kubernetes-version",
+          "1.32.0",
+          "-schema-location",
+          "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+          "--",
+          "./pod.yaml"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/4b59306047b79801ca275a53ed523b2bd489377b327bbd2c28a80be06870a538",
+        "policyId": "legion-real-kubeconform-benchmark-v1",
+        "stdoutDigest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+        "stdoutBytes": 282,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+          "bytes": 282
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-kubeconform",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:b8872c41cd1128a0e4c2cf52d43e30f3a01fddba37776013b7f42a8ae47832bb",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:b6160979b2879f4706d7654592a8fe02b848be6c762c56fd6ecb684c9cb24a74",
+                "path": "pod.yaml",
+                "disposition": "resource-valid"
+              }
+            ],
+            "selectionLedger": [
+              {
+                "kind": "offline-schema-identity",
+                "digest": "sha256:b4b83c0c79252496f7ae5f1f47840986e8bdc99be346fcb4fcc3638401c470ee",
+                "kubernetesVersion": "1.32.0"
+              }
+            ],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [],
+          "executionReceipt": {
+            "tool": {
+              "name": "kubeconform",
+              "version": "v0.8.0",
+              "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+            },
+            "version": "v0.8.0",
+            "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+            "argv": [
+              "kubeconform",
+              "-output",
+              "json",
+              "-strict",
+              "-summary",
+              "-verbose",
+              "-kubernetes-version",
+              "1.32.0",
+              "-schema-location",
+              "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+              "--",
+              "./pod.yaml"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/4b59306047b79801ca275a53ed523b2bd489377b327bbd2c28a80be06870a538",
+            "policyId": "legion-real-kubeconform-benchmark-v1",
+            "stdoutDigest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+            "stdoutBytes": 282,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+              "bytes": 282
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "kubeconform",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "pod.yaml"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "kubeconform",
+                    "version": "v0.8.0",
+                    "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835"
+                  },
+                  "version": "v0.8.0",
+                  "executableDigest": "sha256:0ec81bb855d547314f69915cd00ac1a6ccf04d0597d48b49e867aa9f4d8d7835",
+                  "argv": [
+                    "kubeconform",
+                    "-output",
+                    "json",
+                    "-strict",
+                    "-summary",
+                    "-verbose",
+                    "-kubernetes-version",
+                    "1.32.0",
+                    "-schema-location",
+                    "/Users/runner/work/_temp/legion-kubeconform-schemas/pod-v1.json",
+                    "--",
+                    "./pod.yaml"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/4b59306047b79801ca275a53ed523b2bd489377b327bbd2c28a80be06870a538",
+                  "policyId": "legion-real-kubeconform-benchmark-v1",
+                  "stdoutDigest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+                  "stdoutBytes": 282,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:ddccc56743388bd2ea5b2a067882c39d23a76d374c6ef352ecffaabec8913961",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:7ddd32f8e568b93dbe783f36c7c26e7ccb54ba93791452b23067d14f0a221668",
+                    "bytes": 282
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Native producer retains reduced scan receipt, normalized raw invalid resources & stdout digest; full scan stdout/process receipt is not retained. Real version output & full version receipt are retained."
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:68f784bb13fe4c435ae6141ce7988fe57355dc68ea9a85463e36022e30e38538"
+}

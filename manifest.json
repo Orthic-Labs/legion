@@ -354,7 +354,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "unproven"
+      "benchmark_status": "qualified"
     },
     {
       "provider": "security.secrets",
@@ -591,7 +591,7 @@
         "kind": "runtime-script",
         "module": "code.rust"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1450,7 +1450,7 @@
         "kind": "legacy-check",
         "check": "sast"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
