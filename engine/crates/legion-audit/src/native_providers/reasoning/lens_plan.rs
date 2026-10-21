@@ -591,7 +591,7 @@ pub fn semantic_review_contract(lens: &str) -> Option<Value> {
         "ai-slop" => (
             "standards",
             &["pass", "findings", "unproven", "not-applicable"][..],
-            "Review contextual repo standards and design heuristics. Standards/documented violations override generic heuristics; logic-specific findings require raw source excerpts.",
+            "Review contextual repo standards and design heuristics. Standards/documented violations override generic heuristics; logic-specific findings require raw source excerpts. No written style guide is not a gap: judge against the conventions the supplied files establish; pass when clean; unproven only when source was unreviewable.",
         ),
         _ => return None,
     };
