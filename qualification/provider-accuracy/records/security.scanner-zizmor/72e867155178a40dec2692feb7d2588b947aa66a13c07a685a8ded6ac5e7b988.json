@@ -1,0 +1,1258 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "security.scanner-zizmor",
+  "stage": "candidate",
+  "scope": "Constructed planted & clean controls; not population accuracy or production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:c984b4f2e9d39ee9ce12c5daf1f86c39888f416c8eceec9ff9063bcf63b936e5",
+    "harnessPath": "engine/crates/legion-audit/tests/additional_external_scanner_accuracy.rs",
+    "harnessDigest": "sha256:a4ee825e250653e2868b73e8e9ab9738dd269ceca31f19f9eb01e0f5f3141ca1",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 278,
+      "digest": "sha256:ad3f2262a4db960fe5234528c7bae43568fcfbe54ea9eb0ccd682c0c3d0e637f"
+    }
+  },
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "zizmor-planted",
+      "source": {
+        "path": ".github/workflows/ci.yml",
+        "bytes": "name: CI\non: [push]\npermissions:\n  contents: read\njobs:\n  check:\n    name: Check\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@main\n        with:\n          persist-credentials: false\n",
+        "digest": "sha256:b9b8b849c0be92af061f2020a960f49eae2aeb796ffdad9da1f5f60c41099006"
+      },
+      "expected": [
+        "unpinned-uses|.github/workflows/ci.yml|11"
+      ],
+      "actual": [
+        "unpinned-uses|.github/workflows/ci.yml|11"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:e7fcc110b1464ddcb2bbedf0eb5932d79ddb087cbff9f98a2cb1c7b00eb7b197",
+      "inventoryDigest": "sha256:2c8fa67b94ab22765f3be027b76a3ef99bf08b91cc3beb7934a6d7b1de904eb1",
+      "coverage": {
+        "denominator_digest": "sha256:6b92c0a123aef69299859b766ab70667e9af6e60db1696f09688dc00b4a23042",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+        "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+        "version": {
+          "rawVersionOutput": "zizmor 1.30.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/5c5c844509c2f87865e07e768bd1f23a96d0eb15716cb816bbec7e50cda159c7",
+            "requestId": "legion-audit/5c5c844509c2f87865e07e768bd1f23a96d0eb15716cb816bbec7e50cda159c7",
+            "providerId": "security.scanner-zizmor",
+            "planId": "sha256:2c8fa67b94ab22765f3be027b76a3ef99bf08b91cc3beb7934a6d7b1de904eb1",
+            "taskId": "zizmor-version-probe",
+            "policyId": "legion-additional-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-additional-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:0a5722da11417e7da47b1fe40cb6beca12e3f10e391117ef37756c8b02ac5b58",
+              "allowed": true,
+              "reason": "fixture-scoped real scanner benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run/version-sandbox/audit-f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119.sb",
+                  "--",
+                  "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+                  "--version"
+                ],
+                "output": "zizmor 1.30.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792557270483,
+              "completedAtMs": 1792557270498,
+              "durationMs": 15
+            },
+            "stdout": {
+              "path": "legion-audit/5c5c844509c2f87865e07e768bd1f23a96d0eb15716cb816bbec7e50cda159c7/stdout",
+              "digest": "sha256:9a03008af0f78abaa16984e982be1cacfb644c52fbd8b0cd7f5fdc2f3eb51a44",
+              "bytes": 14,
+              "immutable": true,
+              "raw": "zizmor 1.30.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/5c5c844509c2f87865e07e768bd1f23a96d0eb15716cb816bbec7e50cda159c7/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-additional-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-zizmor",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run",
+        "inventoryDigest": "sha256:2c8fa67b94ab22765f3be027b76a3ef99bf08b91cc3beb7934a6d7b1de904eb1",
+        "tool": {
+          "path": "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+          "digest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--offline",
+          "--no-config",
+          "--no-progress",
+          "--no-exit-codes",
+          "--color",
+          "never",
+          "--format",
+          "json-v1",
+          "--",
+          "./.github/workflows/ci.yml"
+        ],
+        "ownedConfig": null,
+        "versionArgv": [
+          "--version"
+        ],
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/5c5c844509c2f87865e07e768bd1f23a96d0eb15716cb816bbec7e50cda159c7",
+          "providerId": "security.scanner-zizmor",
+          "planId": "sha256:2c8fa67b94ab22765f3be027b76a3ef99bf08b91cc3beb7934a6d7b1de904eb1",
+          "taskId": "zizmor-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run/version-sandbox/audit-f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run/version-sandbox/audit-f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/486867908964c492b8be6641e9afbef51d88b5e97643adc7eb1b158ca34d2b6b",
+          "providerId": "security.scanner-zizmor",
+          "planId": "sha256:2c8fa67b94ab22765f3be027b76a3ef99bf08b91cc3beb7934a6d7b1de904eb1",
+          "taskId": "zizmor",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run/legion-audit-security-63092-1792557270500900000-2/sandbox/audit-f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--offline",
+            "--no-config",
+            "--no-progress",
+            "--no-exit-codes",
+            "--color",
+            "never",
+            "--format",
+            "json-v1",
+            "--",
+            "./.github/workflows/ci.yml"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/run/legion-audit-security-63092-1792557270500900000-2/sandbox/audit-f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-true-63092-1792557269988922000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "zizmor",
+          "version": "zizmor 1.30.0",
+          "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+        },
+        "version": "zizmor 1.30.0",
+        "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+        "argv": [
+          "zizmor",
+          "--offline",
+          "--no-config",
+          "--no-progress",
+          "--no-exit-codes",
+          "--color",
+          "never",
+          "--format",
+          "json-v1",
+          "--",
+          "./.github/workflows/ci.yml"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/486867908964c492b8be6641e9afbef51d88b5e97643adc7eb1b158ca34d2b6b",
+        "policyId": "legion-additional-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+        "stdoutBytes": 2728,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+          "bytes": 2728
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-zizmor",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:6b92c0a123aef69299859b766ab70667e9af6e60db1696f09688dc00b4a23042",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "candidates",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [
+              {
+                "id": "sha256:f228fc950a7e3979cf356e5767427f093987aabbef1cef295dbc420d64e89343",
+                "ruleId": "unpinned-uses",
+                "claim": "unpinned action reference",
+                "title": "unpinned action reference",
+                "path": ".github/workflows/ci.yml",
+                "line": 11,
+                "severityHint": "High",
+                "domain": "security",
+                "adjudication": "required",
+                "anchorKind": "line",
+                "evidence": [
+                  {
+                    "path": ".github/workflows/ci.yml",
+                    "line": 11,
+                    "rawFindingDigest": "sha256:7bbc08521d99215bd8efe93febbda53b8840d95a430fd962caa32b2209a59190"
+                  }
+                ],
+                "source": {
+                  "tool": "zizmor",
+                  "ruleId": "unpinned-uses",
+                  "rawFindingDigest": "sha256:7bbc08521d99215bd8efe93febbda53b8840d95a430fd962caa32b2209a59190",
+                  "recordOrdinal": 0,
+                  "raw": {
+                    "ident": "unpinned-uses",
+                    "desc": "unpinned action reference",
+                    "url": "https://docs.zizmor.sh/audits/#unpinned-uses",
+                    "determinations": {
+                      "confidence": "High",
+                      "severity": "High",
+                      "persona": "Regular"
+                    },
+                    "locations": [
+                      {
+                        "symbolic": {
+                          "key": {
+                            "Local": {
+                              "verbatim_path": "./.github/workflows/ci.yml"
+                            }
+                          },
+                          "annotation": "this step",
+                          "route": {
+                            "route": [
+                              {
+                                "Key": "jobs"
+                              },
+                              {
+                                "Key": "check"
+                              },
+                              {
+                                "Key": "steps"
+                              },
+                              {
+                                "Index": 0
+                              }
+                            ]
+                          },
+                          "feature_kind": "Normal",
+                          "kind": "Hidden"
+                        },
+                        "concrete": {
+                          "location": {
+                            "start_point": {
+                              "row": 9,
+                              "column": 8
+                            },
+                            "end_point": {
+                              "row": 13,
+                              "column": 0
+                            },
+                            "offset_span": {
+                              "start": 127,
+                              "end": 229
+                            }
+                          },
+                          "feature": "name: Checkout\n        uses: actions/checkout@main\n        with:\n          persist-credentials: false\n",
+                          "comments": []
+                        }
+                      },
+                      {
+                        "symbolic": {
+                          "key": {
+                            "Local": {
+                              "verbatim_path": "./.github/workflows/ci.yml"
+                            }
+                          },
+                          "annotation": "action is not pinned to a hash (required by blanket policy)",
+                          "route": {
+                            "route": [
+                              {
+                                "Key": "jobs"
+                              },
+                              {
+                                "Key": "check"
+                              },
+                              {
+                                "Key": "steps"
+                              },
+                              {
+                                "Index": 0
+                              },
+                              {
+                                "Key": "uses"
+                              }
+                            ]
+                          },
+                          "feature_kind": {
+                            "Subfeature": {
+                              "after": 0,
+                              "fragment": {
+                                "Raw": "actions/checkout@main"
+                              }
+                            }
+                          },
+                          "kind": "Primary"
+                        },
+                        "concrete": {
+                          "location": {
+                            "start_point": {
+                              "row": 10,
+                              "column": 14
+                            },
+                            "end_point": {
+                              "row": 10,
+                              "column": 35
+                            },
+                            "offset_span": {
+                              "start": 156,
+                              "end": 177
+                            }
+                          },
+                          "feature": "actions/checkout@main",
+                          "comments": []
+                        }
+                      }
+                    ],
+                    "ignored": false,
+                    "fixes": []
+                  }
+                },
+                "anchorStatus": "scanner-reported"
+              }
+            ],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:7bbc08521d99215bd8efe93febbda53b8840d95a430fd962caa32b2209a59190",
+                "path": ".github/workflows/ci.yml",
+                "candidateId": "sha256:f228fc950a7e3979cf356e5767427f093987aabbef1cef295dbc420d64e89343",
+                "disposition": "candidate"
+              }
+            ],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [
+            {
+              "id": "sha256:f228fc950a7e3979cf356e5767427f093987aabbef1cef295dbc420d64e89343",
+              "ruleId": "unpinned-uses",
+              "claim": "unpinned action reference",
+              "title": "unpinned action reference",
+              "path": ".github/workflows/ci.yml",
+              "line": 11,
+              "severityHint": "High",
+              "domain": "security",
+              "adjudication": "required",
+              "anchorKind": "line",
+              "evidence": [
+                {
+                  "path": ".github/workflows/ci.yml",
+                  "line": 11,
+                  "rawFindingDigest": "sha256:7bbc08521d99215bd8efe93febbda53b8840d95a430fd962caa32b2209a59190"
+                }
+              ],
+              "source": {
+                "tool": "zizmor",
+                "ruleId": "unpinned-uses",
+                "rawFindingDigest": "sha256:7bbc08521d99215bd8efe93febbda53b8840d95a430fd962caa32b2209a59190",
+                "recordOrdinal": 0,
+                "raw": {
+                  "ident": "unpinned-uses",
+                  "desc": "unpinned action reference",
+                  "url": "https://docs.zizmor.sh/audits/#unpinned-uses",
+                  "determinations": {
+                    "confidence": "High",
+                    "severity": "High",
+                    "persona": "Regular"
+                  },
+                  "locations": [
+                    {
+                      "symbolic": {
+                        "key": {
+                          "Local": {
+                            "verbatim_path": "./.github/workflows/ci.yml"
+                          }
+                        },
+                        "annotation": "this step",
+                        "route": {
+                          "route": [
+                            {
+                              "Key": "jobs"
+                            },
+                            {
+                              "Key": "check"
+                            },
+                            {
+                              "Key": "steps"
+                            },
+                            {
+                              "Index": 0
+                            }
+                          ]
+                        },
+                        "feature_kind": "Normal",
+                        "kind": "Hidden"
+                      },
+                      "concrete": {
+                        "location": {
+                          "start_point": {
+                            "row": 9,
+                            "column": 8
+                          },
+                          "end_point": {
+                            "row": 13,
+                            "column": 0
+                          },
+                          "offset_span": {
+                            "start": 127,
+                            "end": 229
+                          }
+                        },
+                        "feature": "name: Checkout\n        uses: actions/checkout@main\n        with:\n          persist-credentials: false\n",
+                        "comments": []
+                      }
+                    },
+                    {
+                      "symbolic": {
+                        "key": {
+                          "Local": {
+                            "verbatim_path": "./.github/workflows/ci.yml"
+                          }
+                        },
+                        "annotation": "action is not pinned to a hash (required by blanket policy)",
+                        "route": {
+                          "route": [
+                            {
+                              "Key": "jobs"
+                            },
+                            {
+                              "Key": "check"
+                            },
+                            {
+                              "Key": "steps"
+                            },
+                            {
+                              "Index": 0
+                            },
+                            {
+                              "Key": "uses"
+                            }
+                          ]
+                        },
+                        "feature_kind": {
+                          "Subfeature": {
+                            "after": 0,
+                            "fragment": {
+                              "Raw": "actions/checkout@main"
+                            }
+                          }
+                        },
+                        "kind": "Primary"
+                      },
+                      "concrete": {
+                        "location": {
+                          "start_point": {
+                            "row": 10,
+                            "column": 14
+                          },
+                          "end_point": {
+                            "row": 10,
+                            "column": 35
+                          },
+                          "offset_span": {
+                            "start": 156,
+                            "end": 177
+                          }
+                        },
+                        "feature": "actions/checkout@main",
+                        "comments": []
+                      }
+                    }
+                  ],
+                  "ignored": false,
+                  "fixes": []
+                }
+              },
+              "anchorStatus": "scanner-reported"
+            }
+          ],
+          "executionReceipt": {
+            "tool": {
+              "name": "zizmor",
+              "version": "zizmor 1.30.0",
+              "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+            },
+            "version": "zizmor 1.30.0",
+            "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+            "argv": [
+              "zizmor",
+              "--offline",
+              "--no-config",
+              "--no-progress",
+              "--no-exit-codes",
+              "--color",
+              "never",
+              "--format",
+              "json-v1",
+              "--",
+              "./.github/workflows/ci.yml"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/486867908964c492b8be6641e9afbef51d88b5e97643adc7eb1b158ca34d2b6b",
+            "policyId": "legion-additional-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+            "stdoutBytes": 2728,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+              "bytes": 2728
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "zizmor",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  ".github/workflows/ci.yml"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "zizmor",
+                    "version": "zizmor 1.30.0",
+                    "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+                  },
+                  "version": "zizmor 1.30.0",
+                  "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+                  "argv": [
+                    "zizmor",
+                    "--offline",
+                    "--no-config",
+                    "--no-progress",
+                    "--no-exit-codes",
+                    "--color",
+                    "never",
+                    "--format",
+                    "json-v1",
+                    "--",
+                    "./.github/workflows/ci.yml"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/486867908964c492b8be6641e9afbef51d88b5e97643adc7eb1b158ca34d2b6b",
+                  "policyId": "legion-additional-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+                  "stdoutBytes": 2728,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:f5f118a520c1b9ff56eeb57033ec6c2dc6179e02ac074817e6c54e4dafd9e119",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:bf4353ae321db50cc7c0a4499dc9cb5e7d4f8587967ea2f456bd4c4b74a09e8a",
+                    "bytes": 2728
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Qualification record retains actual reduced receipt, normalized raw findings & stdout digest. Kube-linter full actual scan receipt & raw streams are separately retained in private native diagnostics before parsing; Zizmor scan retention remains reduced. Separate real native version output & receipt are retained."
+    },
+    {
+      "caseId": "zizmor-clean",
+      "source": {
+        "path": ".github/workflows/ci.yml",
+        "bytes": "name: CI\non: [push]\npermissions:\n  contents: read\njobs:\n  check:\n    name: Check\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n        with:\n          persist-credentials: false\n",
+        "digest": "sha256:10a613c8adb145ebc34102fa952861b752a981071d49c325e7ab09909a17d937"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:7452c93b64e3dac9c1637cd9db83dc3fb70e88d713de3202e84231840741b013",
+      "inventoryDigest": "sha256:f3ea42166267847827cda8696a9c6dd9deac7041044a8573ccd65e9c284a4ed6",
+      "coverage": {
+        "denominator_digest": "sha256:db7413d0430f3be99957d33eea83e5e1116ef79626884cf1542b09e6dc4fc020",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+        "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+        "version": {
+          "rawVersionOutput": "zizmor 1.30.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/54e78231207d5e4ab62f729aebea9b496e348f35b431924648aa56baca244f9d",
+            "requestId": "legion-audit/54e78231207d5e4ab62f729aebea9b496e348f35b431924648aa56baca244f9d",
+            "providerId": "security.scanner-zizmor",
+            "planId": "sha256:f3ea42166267847827cda8696a9c6dd9deac7041044a8573ccd65e9c284a4ed6",
+            "taskId": "zizmor-version-probe",
+            "policyId": "legion-additional-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-additional-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:0ed7049def6e1dcaec693bd037c242af42de9c85003696ac52f84f50b489e26b",
+              "allowed": true,
+              "reason": "fixture-scoped real scanner benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run/version-sandbox/audit-2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31.sb",
+                  "--",
+                  "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+                  "--version"
+                ],
+                "output": "zizmor 1.30.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792557271417,
+              "completedAtMs": 1792557271434,
+              "durationMs": 17
+            },
+            "stdout": {
+              "path": "legion-audit/54e78231207d5e4ab62f729aebea9b496e348f35b431924648aa56baca244f9d/stdout",
+              "digest": "sha256:9a03008af0f78abaa16984e982be1cacfb644c52fbd8b0cd7f5fdc2f3eb51a44",
+              "bytes": 14,
+              "immutable": true,
+              "raw": "zizmor 1.30.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/54e78231207d5e4ab62f729aebea9b496e348f35b431924648aa56baca244f9d/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-additional-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-zizmor",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run",
+        "inventoryDigest": "sha256:f3ea42166267847827cda8696a9c6dd9deac7041044a8573ccd65e9c284a4ed6",
+        "tool": {
+          "path": "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+          "digest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--offline",
+          "--no-config",
+          "--no-progress",
+          "--no-exit-codes",
+          "--color",
+          "never",
+          "--format",
+          "json-v1",
+          "--",
+          "./.github/workflows/ci.yml"
+        ],
+        "ownedConfig": null,
+        "versionArgv": [
+          "--version"
+        ],
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/54e78231207d5e4ab62f729aebea9b496e348f35b431924648aa56baca244f9d",
+          "providerId": "security.scanner-zizmor",
+          "planId": "sha256:f3ea42166267847827cda8696a9c6dd9deac7041044a8573ccd65e9c284a4ed6",
+          "taskId": "zizmor-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run/version-sandbox/audit-2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run/version-sandbox/audit-2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/556d2dddd12292f7f836fde11ac284722641461d90824fec61a0c5d8a3a3d992",
+          "providerId": "security.scanner-zizmor",
+          "planId": "sha256:f3ea42166267847827cda8696a9c6dd9deac7041044a8573ccd65e9c284a4ed6",
+          "taskId": "zizmor",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run/legion-audit-security-63092-1792557271437624000-3/sandbox/audit-2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--offline",
+            "--no-config",
+            "--no-progress",
+            "--no-exit-codes",
+            "--color",
+            "never",
+            "--format",
+            "json-v1",
+            "--",
+            "./.github/workflows/ci.yml"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/run/legion-audit-security-63092-1792557271437624000-3/sandbox/audit-2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31.sb",
+            "--",
+            "/opt/homebrew/Cellar/zizmor/1.30.0/bin/zizmor",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-zizmor-false-63092-1792557270932324000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "zizmor",
+          "version": "zizmor 1.30.0",
+          "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+        },
+        "version": "zizmor 1.30.0",
+        "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+        "argv": [
+          "zizmor",
+          "--offline",
+          "--no-config",
+          "--no-progress",
+          "--no-exit-codes",
+          "--color",
+          "never",
+          "--format",
+          "json-v1",
+          "--",
+          "./.github/workflows/ci.yml"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/556d2dddd12292f7f836fde11ac284722641461d90824fec61a0c5d8a3a3d992",
+        "policyId": "legion-additional-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "stdoutBytes": 2,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "bytes": 2
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-zizmor",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:db7413d0430f3be99957d33eea83e5e1116ef79626884cf1542b09e6dc4fc020",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [],
+          "executionReceipt": {
+            "tool": {
+              "name": "zizmor",
+              "version": "zizmor 1.30.0",
+              "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+            },
+            "version": "zizmor 1.30.0",
+            "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+            "argv": [
+              "zizmor",
+              "--offline",
+              "--no-config",
+              "--no-progress",
+              "--no-exit-codes",
+              "--color",
+              "never",
+              "--format",
+              "json-v1",
+              "--",
+              "./.github/workflows/ci.yml"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/556d2dddd12292f7f836fde11ac284722641461d90824fec61a0c5d8a3a3d992",
+            "policyId": "legion-additional-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "stdoutBytes": 2,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "bytes": 2
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "zizmor",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  ".github/workflows/ci.yml"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "zizmor",
+                    "version": "zizmor 1.30.0",
+                    "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125"
+                  },
+                  "version": "zizmor 1.30.0",
+                  "executableDigest": "sha256:e43aa76b31b69309d83ea72544659bb0727497d362dbc8a9eda4a10ba5825125",
+                  "argv": [
+                    "zizmor",
+                    "--offline",
+                    "--no-config",
+                    "--no-progress",
+                    "--no-exit-codes",
+                    "--color",
+                    "never",
+                    "--format",
+                    "json-v1",
+                    "--",
+                    "./.github/workflows/ci.yml"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/556d2dddd12292f7f836fde11ac284722641461d90824fec61a0c5d8a3a3d992",
+                  "policyId": "legion-additional-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                  "stdoutBytes": 2,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:2299211e3efb4a180c52ed1b053c24b71fa5bec56bda123c40e52a557fbb9c31",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                    "bytes": 2
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Qualification record retains actual reduced receipt, normalized raw findings & stdout digest. Kube-linter full actual scan receipt & raw streams are separately retained in private native diagnostics before parsing; Zizmor scan retention remains reduced. Separate real native version output & receipt are retained."
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:72e867155178a40dec2692feb7d2588b947aa66a13c07a685a8ded6ac5e7b988"
+}
