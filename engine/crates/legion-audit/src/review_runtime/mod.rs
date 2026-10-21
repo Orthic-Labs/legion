@@ -1470,13 +1470,82 @@ fn normalize_finding_evidence(result: &mut Value) {
     }
 }
 
-fn host_result(request: &ReasoningInvocation, mut result: Value) -> Result<Value, AuditError> {
+/// Packets carry raw source without line numbers, so a model may miscount
+/// while quoting correctly. The verbatim text is the invariant: when a finding's
+/// anchor text occurs exactly once in the frozen file and not at the stated
+/// line, bind the anchor to that line here, before the strict ingest check.
+fn correct_anchor_lines(
+    snapshot: &FrozenSnapshot,
+    request: &ReasoningInvocation,
+    result: &mut Value,
+) {
+    let Some(findings) = result.get_mut("findings").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for finding in findings {
+        let (Some(path), Some(line), Some(text)) = (
+            finding
+                .pointer("/anchor/path")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            finding.pointer("/anchor/line").and_then(Value::as_u64),
+            finding
+                .pointer("/anchor/text")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        ) else {
+            continue;
+        };
+        let side = finding
+            .pointer("/anchor/sourceSide")
+            .and_then(Value::as_str)
+            .or_else(|| request.packet["sourceSides"][&path].as_str())
+            .unwrap_or("selected");
+        let side = if side == "base" {
+            crate::snapshot::SnapshotSide::Base
+        } else {
+            crate::snapshot::SnapshotSide::Selected
+        };
+        let Ok(bytes) = snapshot.read(&path, side, 32 * 1024 * 1024) else {
+            continue;
+        };
+        let content = String::from_utf8_lossy(&bytes).replace("\r\n", "\n");
+        let needle = text.replace("\r\n", "\n");
+        if needle.trim().is_empty() {
+            continue;
+        }
+        let lines: std::collections::BTreeSet<u64> = content
+            .match_indices(needle.as_str())
+            .map(|(index, _)| {
+                content[..index]
+                    .bytes()
+                    .filter(|byte| *byte == b'\n')
+                    .count() as u64
+                    + 1
+            })
+            .collect();
+        if lines.contains(&line) || lines.len() != 1 {
+            continue;
+        }
+        let actual = *lines.iter().next().expect("one match");
+        if let Some(anchor) = finding.get_mut("anchor") {
+            anchor["line"] = json!(actual);
+        }
+    }
+}
+
+fn host_result(
+    snapshot: &FrozenSnapshot,
+    request: &ReasoningInvocation,
+    mut result: Value,
+) -> Result<Value, AuditError> {
     let object = result
         .as_object_mut()
         .ok_or_else(|| invalid("finalResult must be object"))?;
     if object.get("complete").and_then(Value::as_bool) != Some(true) {
         return Err(invalid("incomplete:reviewer-did-not-complete"));
     }
+    correct_anchor_lines(snapshot, request, &mut result);
     normalize_finding_evidence(&mut result);
     let object = result
         .as_object_mut()
@@ -1638,7 +1707,8 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                             for (work, raw) in batch.items {
                                 let attempt = (|| -> Result<Value, AuditError> {
                                     partial::preserve_author(&run, &work, &raw, &batch.author)?;
-                                    let result = host_result(&work.request, raw)?;
+                                    let result =
+                                        host_result(&controller.snapshot, &work.request, raw)?;
                                     let index = works
                                         .iter()
                                         .position(|other| {
@@ -1773,7 +1843,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
                     if !staged {
                         partial::preserve_author(&run, &work, &raw, &author)?;
                     }
-                    let mut result = host_result(&work.request, raw)?;
+                    let mut result = host_result(&controller.snapshot, &work.request, raw)?;
                     if staged {
                         bind_stage_verdicts(
                             &mut result,

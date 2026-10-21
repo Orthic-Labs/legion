@@ -1332,13 +1332,6 @@ impl FrozenFiles<'_> {
         if lines.contains(&line) {
             return Ok((path.to_owned(), line));
         }
-        // Packets carry raw source without line numbers, so a model may miscount while
-        // quoting correctly. The verbatim text is the invariant: when it occurs exactly
-        // once in the frozen file, bind the anchor to that line instead of refusing.
-        if lines.len() == 1 {
-            let actual = *lines.iter().next().expect("one match");
-            return Ok((path.to_owned(), actual));
-        }
         Err(invalid(format!(
             "{who}: anchor text does not appear verbatim at {path}:{line} in the frozen file"
         )))
@@ -2280,15 +2273,7 @@ pub fn ingest_lens_result(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        // The anchor text was verified verbatim; when its line was corrected,
-        // evidence written against the model's original line still covers it.
-        let claimed_line = finding
-            .pointer("/anchor/line")
-            .and_then(Value::as_u64)
-            .unwrap_or(line);
-        if !evidence_covers(&evidence, &path, line)
-            && !evidence_covers(&evidence, &path, claimed_line)
-        {
+        if !evidence_covers(&evidence, &path, line) {
             return Err(invalid(format!(
                 "{label}: evidence must include a file:line entry covering the anchor {path}:{line}"
             )));
