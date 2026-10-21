@@ -407,6 +407,21 @@ PYTHON_CODE_SDK_ENV
     LEGION_PYTHON_SDK_BIN_DIR <<< "$values" || return "$?"
   export LEGION_PYTHON_SDK_ENROLLMENT_JSON LEGION_PYTHON_SDK_PYTHON LEGION_PYTHON_SDK_BIN_DIR
 }
+# macOS runners start the gate with ~13 GB free and each provisioned SDK tree
+# costs about a gigabyte; run 39536610919 ran out before the Rust and semgrep
+# spans. Release a family's tree once its validator has consumed it.
+release_qualification_scratch() {
+  local path
+  for path in "$@"; do
+    case "$path" in
+      "${RUNNER_TEMP}"/legion-*) ;;
+      *) printf '::warning::not releasing %s: outside RUNNER_TEMP\n' "$path" >&2; continue ;;
+    esac
+    [[ -e "$path" ]] || continue
+    printf 'AUDIT_QUALIFICATION_RELEASE %s %s\n' "$path" "$(du -sk "$path" 2>/dev/null | cut -f1)"
+    rm -rf "$path"
+  done
+}
 run_audit_qualification() {
   audit_qualification_sequence=$((audit_qualification_sequence + 1))
   local sequence="$audit_qualification_sequence"
@@ -437,6 +452,7 @@ PY
 # tests. Each registered provider must emit a current source/corpus-bound record.
 export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-provider-accuracy"
 mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
+printf 'AUDIT_QUALIFICATION_DISK 0 %s\n' "$(df -k . 2>/dev/null | tail -1 | tr -s ' ')"
 run_audit_qualification audit_cargo_test \
   --test security_packs --test architecture_input_producer \
   --test code_provider_accuracy --test suite_provider_accuracy \
@@ -880,6 +896,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   unset LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH LEGION_PHP_RUBY_SDK_ENROLLMENT_JSON \
     LEGION_PHP_RUBY_SDK_PHP LEGION_PHP_RUBY_SDK_RUBY LEGION_PHP_RUBY_SDK_BIN_DIR
+  release_qualification_scratch "${RUNNER_TEMP}/legion-php-ruby-sdk-tools"
   # Generic-source controls retain mandatory unsupported-language gaps in every native case.
   # Source facts only: exact original13 framework controls, no runtime/auth admission.
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/backend-source"
@@ -908,6 +925,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   if [[ -d "$LEGION_JVM_SDK_OUTPUT" ]]; then
     cp -R "$LEGION_JVM_SDK_OUTPUT" "${RUNNER_TEMP}/legion-provider-qualification/code-jvm-sdk"
   fi
+  release_qualification_scratch "${RUNNER_TEMP}/legion-jvm-sdk-tools"
   # Preserve partial native failures for authenticated CI inspection too.
   if [[ -d "${LEGION_CI_IPC_STORAGE}/jvm-confinement" ]]; then
     cp -R "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${RUNNER_TEMP}/legion-provider-qualification/jvm-confinement"
@@ -941,6 +959,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   unset LEGION_PYTHON_CODE_COMMAND_SCRATCH LEGION_PYTHON_SDK_ENROLLMENT_JSON \
     LEGION_PYTHON_SDK_PYTHON LEGION_PYTHON_SDK_BIN_DIR
+  release_qualification_scratch "${RUNNER_TEMP}/legion-python-code-sdk-tools"
   # Full installed input observations are independently rehashed by native harness.
   export LEGION_MOBILE_SDK_SCRATCH="${RUNNER_TEMP}/legion-mobile-sdk-fixtures"
   export LEGION_MOBILE_SDK_OUTPUT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/code_mobile.json"
@@ -956,6 +975,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification python3 scripts/ci/audit-mobile-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
   unset LEGION_MOBILE_SDK_SCRATCH LEGION_MOBILE_SDK_OUTPUT LEGION_MOBILE_SDK_ENROLLMENT LEGION_MOBILE_SOURCE_ENROLLMENT
+  release_qualification_scratch "${RUNNER_TEMP}/legion-mobile-sdk-fixtures"
   # Archive-only official JS tooling enrollment; no project install or scripts.
   run_audit_qualification provision_js_sdk
   if [[ -n "${LEGION_JS_SDK_ENROLLMENT:-}" ]]; then
@@ -970,6 +990,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     printf '::error::JavaScript SDK controls skipped: provisioning refused.\n' >&2
   fi
   unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH
+  release_qualification_scratch "${RUNNER_TEMP}/legion-js-sdk-tools" "${RUNNER_TEMP}/legion-js-sdk-fixtures"
   # Acquire pinned SDK/package inputs before native network-denied project execution.
   run_audit_qualification provision_dotnet_code_sdk
   export LEGION_DOTNET_ENROLLMENT="${RUNNER_TEMP}/legion-dotnet-code-sdk-tools/enrollment.json"
@@ -982,6 +1003,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification python3 scripts/ci/audit-dotnet-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_DOTNET_CHILD_OUTPUT"
   unset LEGION_DOTNET_ENROLLMENT LEGION_DOTNET_CHILD_OUTPUT LEGION_DOTNET_ACCURACY_OUTPUT
+  release_qualification_scratch "${RUNNER_TEMP}/legion-dotnet-code-sdk-tools"
   # Provision exact official vulnerability inputs before the network-denied SDK controls.
   run_audit_qualification provision_code_sdk_vulnerability_tool
   # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.
@@ -995,6 +1017,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   unset LEGION_CODE_COMMAND_SCRATCH LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT \
     LEGION_GOVULNCHECK_DB_ARCHIVE LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
   unset LEGION_GO_ROOT LEGION_GO_ARCHIVE LEGION_GOLANGCI_LINT_BIN LEGION_GOLANGCI_LINT_ARCHIVE
+  release_qualification_scratch "${RUNNER_TEMP}/legion-code-command-fixtures" "${RUNNER_TEMP}/legion-govulncheck"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-trivy-iac-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test trivy_iac_accuracy \
