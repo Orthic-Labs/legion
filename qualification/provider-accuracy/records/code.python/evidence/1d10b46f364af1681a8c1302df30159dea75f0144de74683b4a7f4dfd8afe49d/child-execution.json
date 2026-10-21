@@ -1,0 +1,19 @@
+{
+  "schema": "legion-python-code-command-child-execution/1",
+  "productionQualification": false,
+  "status": {
+    "success": true,
+    "exitCode": 0,
+    "signal": null
+  },
+  "stdout": {
+    "file": "child.stdout.log",
+    "bytes": 639,
+    "sha256": "sha256:b4ab53ec49f23d3741961875a40807ab0c94e54f8968b39cb9a7c37c21bfbed8"
+  },
+  "stderr": {
+    "file": "child.stderr.log",
+    "bytes": 0,
+    "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
