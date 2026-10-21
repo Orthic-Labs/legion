@@ -1,7 +1,0 @@
-
-running 1 test
-test native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls ... DOTNET_CODE_COMMAND_SDK_ACCURACY_ARTIFACT {"schema":"legion-dotnet-code-command-sdk-artifact/1","provider":"code.dotnet","file":"code_dotnet.json","digest":"sha256:1665d50be26ca423e7781f1e94101b6f060c851a06e2b40494e8d0bb95d73b1b","bytes":15102066,"qualificationDigest":"sha256:fbe6bf156503b72164601ffebbec22000b0dd28a6c0b783be80ce992eb1d2c7d","qualificationEligible":true,"productionQualification":false}
-ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 734 filtered out; finished in 1403.27s
-
