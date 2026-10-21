@@ -29,6 +29,18 @@ FIXTURES = {
     "missing-tool": ("print('fixed')\n", None),
 }
 
+def same_report(actual, expected):
+    if isinstance(actual, float) or isinstance(expected, float):
+        return (isinstance(actual, (int, float)) and isinstance(expected, (int, float))
+                and not isinstance(actual, bool) and not isinstance(expected, bool)
+                and math.isclose(float(actual), float(expected), rel_tol=1e-9, abs_tol=0.0))
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        return set(actual) == set(expected) and all(same_report(actual[k], expected[k]) for k in actual)
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(same_report(a, b) for a, b in zip(actual, expected))
+    return type(actual) is type(expected) and actual == expected
+
+
 def require(ok, message):
     if not ok:
         raise AssertionError(message)
@@ -309,7 +321,10 @@ def validate_record(repository_root, row, *, live=False, receipts=None, raw_reco
             rel = PurePosixPath(artifact["path"])
             require(not rel.is_absolute() and ".." not in rel.parts, "artifact escape")
         raw = json.loads(case["actualStdout"])
-        require(raw == case["actualRawReport"], "raw report differs")
+        # The retained report went through the harness's canonical JSON, which
+        # re-prints floats (semgrep profiling times) at a different precision;
+        # structure and values must agree, floats within round-trip tolerance.
+        require(same_report(raw, case["actualRawReport"]), "raw report differs")
         if failed:
             require(receipt["exitCode"] != 0 and receipt["complete"] is False and raw["errors"], "actual operational failure became clean")
         else:

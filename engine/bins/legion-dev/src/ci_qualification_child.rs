@@ -82,6 +82,18 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         && argv[2] == "--output-root"
         && argv[4] == "--";
     let argv: &[OsString] = if child_wrapped { &argv[5..] } else { argv };
+    // Run39526093982 macOS seq92: the Rust SDK validator (python) reads and
+    // re-derives the whole retained record and timed out at the 300s default.
+    let python_validator = argv.len() >= 2
+        && Path::new(&argv[0])
+            .file_name()
+            .is_some_and(|name| name == "python3" || name == "python3.exe" || name == "python")
+        && Path::new(&argv[1])
+            .file_name()
+            .is_some_and(|name| name == "audit-rust-code-sdk-accuracy.py");
+    if python_validator {
+        return Duration::from_secs(1500);
+    }
     let cargo = argv
         .first()
         .and_then(|value| Path::new(value).file_name())
@@ -172,6 +184,30 @@ mod tests {
         .collect();
         argv.extend(cargo_argv);
         assert_eq!(command_timeout(&argv), Duration::from_secs(seconds));
+    }
+
+    #[test]
+    fn rust_validator_gets_its_own_deadline() {
+        let argv: Vec<OsString> = [
+            "/usr/bin/python3",
+            "scripts/ci/audit-rust-code-sdk-accuracy.py",
+            "--root",
+            "/w",
+            "--receipts",
+            "/r",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+        assert_eq!(command_timeout(&argv), Duration::from_secs(1500));
+        let other: Vec<OsString> = [
+            "/usr/bin/python3",
+            "scripts/ci/audit-semgrep-provider-accuracy.py",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+        assert_eq!(command_timeout(&other), Duration::from_secs(300));
     }
 
     #[test]
