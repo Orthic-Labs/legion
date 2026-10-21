@@ -54,6 +54,34 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         "--nocapture",
         "--test-threads=1",
     ];
+    // Run39520170497 macOS seq57: the .NET harness (three language SDK builds)
+    // exceeded the 300s default (exit124); local runs take about five minutes.
+    let dotnet = [
+        "test",
+        "--locked",
+        "-p",
+        "legion-audit",
+        "--lib",
+        "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1",
+    ];
+    // The .NET span runs cargo through its recording child
+    // (`python3 run-dotnet-sdk-qualification-child.py --output-root DIR -- cargo ...`);
+    // the deadline belongs to the cargo command after the separator.
+    let child_wrapped = argv.len() > 4
+        && Path::new(&argv[0])
+            .file_name()
+            .is_some_and(|name| name == "python3" || name == "python3.exe" || name == "python")
+        && Path::new(&argv[1])
+            .file_name()
+            .is_some_and(|name| name == "run-dotnet-sdk-qualification-child.py")
+        && argv[2] == "--output-root"
+        && argv[4] == "--";
+    let argv: &[OsString] = if child_wrapped { &argv[5..] } else { argv };
     let cargo = argv
         .first()
         .and_then(|value| Path::new(value).file_name())
@@ -63,6 +91,7 @@ fn command_timeout(argv: &[OsString]) -> Duration {
             (mobile.as_slice(), 1200),
             (javascript.as_slice(), 1800),
             (rust.as_slice(), 2400),
+            (dotnet.as_slice(), 1500),
         ] {
             if argv.len() == selector.len() + 1
                 && argv[1..]
@@ -91,6 +120,11 @@ mod tests {
             ),
             ("--test", "real_javascript_sdk_accuracy", 1800),
             ("--test", "real_rust_code_accuracy", 2400),
+            (
+                "--lib",
+                "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",
+                1500,
+            ),
         ]
         .into_iter()
         .map(|(kind, target, seconds)| {
@@ -121,6 +155,23 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn dotnet_child_wrapped_command_gets_the_dotnet_deadline() {
+        let (cargo_argv, seconds) = matrix_commands().pop().unwrap();
+        let mut argv: Vec<OsString> = [
+            "/usr/bin/python3",
+            "/work/scripts/ci/run-dotnet-sdk-qualification-child.py",
+            "--output-root",
+            "/tmp/dotnet",
+            "--",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+        argv.extend(cargo_argv);
+        assert_eq!(command_timeout(&argv), Duration::from_secs(seconds));
     }
 
     #[test]

@@ -426,6 +426,8 @@ PY
     printf '::error::Audit qualification command failed (exit %s): %s\n' "$status" "$*" >&2
   fi
   printf 'AUDIT_QUALIFICATION_COMMAND_END %s %s\n' "$sequence" "$status"
+  # Runner disk after each control: run39520170497 macOS died of ENOSPC mid-gate.
+  printf 'AUDIT_QUALIFICATION_DISK %s %s\n' "$sequence" "$(df -k . 2>/dev/null | tail -1 | tr -s ' ')"
   # Continue independent controls, then refuse delivery below if any failed.
   return 0
 }

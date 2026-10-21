@@ -1497,11 +1497,104 @@ fn real_javascript_sdk_accuracy() {
         );
         assert!(config.required_context.is_empty());
         fs::write(retained.join("enrollment.json"), &enrollment_bytes).unwrap();
-        let cases: Vec<_> = CONTROLS
+        let mut cases: Vec<_> = CONTROLS
             .iter()
             .map(|control| case(&base, &retained, &enrollment, control))
             .collect();
         assert!(cases.iter().all(|c| c["matched"] == true));
+        // The sealed package closure (thousands of entries) recurs in every tool
+        // receipt's before/after snapshot and in each tool evidence run, for all
+        // 24 cases; the retained enrollment.json already carries the listing the
+        // validator derives its expectation from. Under nativeResult the record
+        // keeps each closure as a digest over the canonical listing plus a
+        // count; the validator recomputes and compares digests.
+        fn compact_closures(value: &mut Value) {
+            match value {
+                Value::Object(map) => {
+                    for (key, child) in map.iter_mut() {
+                        if key == "localPackages" || key == "projectManagerPackage" {
+                            if let Some(tree) = child.as_object_mut() {
+                                for listing_key in ["files", "links", "directories"] {
+                                    if let Some(listing) = tree.remove(listing_key) {
+                                        let count = listing
+                                            .as_object()
+                                            .map(|m| m.len())
+                                            .or_else(|| listing.as_array().map(|a| a.len()))
+                                            .unwrap_or(0);
+                                        tree.insert(
+                                            format!("{listing_key}Digest"),
+                                            json!(digest(&canonical_bytes(&listing))),
+                                        );
+                                        tree.insert(format!("{listing_key}Count"), json!(count));
+                                    }
+                                }
+                            }
+                        } else {
+                            compact_closures(child);
+                        }
+                    }
+                }
+                Value::Array(items) => items.iter_mut().for_each(compact_closures),
+                _ => {}
+            }
+        }
+        for case in &mut cases {
+            if let Some(native) = case.get_mut("nativeResult") {
+                compact_closures(native);
+            }
+        }
+        // Identical large subtrees (installed runtime listings repeated per case,
+        // per preparation, per policy) are stored once under `sharedValues` and
+        // referenced by digest; the validator resolves every `$sharedRef` after
+        // checking the qualification digest, then runs its checks on full data.
+        const SHARE_THRESHOLD: usize = 32 * 1024;
+        fn count_large(value: &Value, counts: &mut BTreeMap<String, usize>) {
+            match value {
+                Value::Object(map) => {
+                    let bytes = canonical_bytes(value);
+                    if bytes.len() >= SHARE_THRESHOLD {
+                        *counts.entry(digest(&bytes)).or_insert(0) += 1;
+                    }
+                    map.values().for_each(|child| count_large(child, counts));
+                }
+                Value::Array(items) => items.iter().for_each(|child| count_large(child, counts)),
+                _ => {}
+            }
+        }
+        fn share_repeated(
+            value: &mut Value,
+            counts: &BTreeMap<String, usize>,
+            shared: &mut serde_json::Map<String, Value>,
+        ) {
+            if value.is_object() {
+                let bytes = canonical_bytes(value);
+                if bytes.len() >= SHARE_THRESHOLD {
+                    let key = digest(&bytes);
+                    if counts.get(&key).copied().unwrap_or(0) >= 2 {
+                        let taken = std::mem::take(value);
+                        shared.entry(key.clone()).or_insert(taken);
+                        *value = json!({"$sharedRef": key});
+                        return;
+                    }
+                }
+            }
+            match value {
+                Value::Object(map) => {
+                    map.values_mut()
+                        .for_each(|child| share_repeated(child, counts, shared));
+                }
+                Value::Array(items) => items
+                    .iter_mut()
+                    .for_each(|child| share_repeated(child, counts, shared)),
+                _ => {}
+            }
+        }
+        let mut counts = BTreeMap::new();
+        cases.iter().for_each(|case| count_large(case, &mut counts));
+        let mut shared_values = serde_json::Map::new();
+        cases
+            .iter_mut()
+            .for_each(|case| share_repeated(case, &counts, &mut shared_values));
         assert_eq!(
             runtime_tree(Path::new(enrollment["toolRoot"].as_str().unwrap())),
             enrollment["runtime"]
@@ -1524,6 +1617,7 @@ fn real_javascript_sdk_accuracy() {
             })
             .collect();
         let mut record = json!({"schema":"legion-javascript-sdk-accuracy/1","kind":"javascript-sdk-known-answer","provider":JS,"providerVersion":registry_spec(JS)["providerVersion"],"productionQualification":false,"qualificationEligible":true,"claimScope":"known-answer-fixture-cases","executionPath":"native-sdk-frozen-plan-self-sourced-code","modelCalls":0,"admissionScope":"exact fixture policy only; genuine default-owner refusal control; no production owner admission","binding":binding(JS,&fixture_sources),"requiredContract":{"extensions":config.extensions,"variants":config.variants,"tools":config.tools,"requiredContext":config.required_context},"enrollment":{"file":"enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},"executedScope":["type","lint","build","test"],"cases":cases,"metrics":{"cases":CONTROLS.len(),"matched":CONTROLS.len(),"mismatched":0,"wholeProviderQualified":false,"boundedSdkAccuracyQualified":true},"runtimeLimitations":[{"scope":"package-manager","supported":"explicit pnpm@exact-version only; other/missing declarations remain gaps"},{"scope":"build","supported":"closed native tsc emit grammar; source maps bind every emitted selected input"},{"scope":"test","supported":"closed planned Node assertions over pure answer module forms; arbitrary sources/scripts remain gaps"},{"scope":"project-effects","mode":"authenticated deny-network; project writes allowed; default owner admission denied"}]});
+        record["sharedValues"] = Value::Object(shared_values);
         record["qualificationDigest"] = json!(digest(&canonical_bytes(&record)));
         // Compact: the 24-case record embeds the sealed package closure per tool; pretty-printing
         // pushed it past the validator's 256 MiB retained-input cap (417 MiB observed locally).

@@ -55,6 +55,38 @@ def parsed(data):
     return json.loads(data, object_pairs_hook=pairs, parse_constant=lambda _: require(False, "nonfinite JSON"))
 
 
+def resolve_shared(row):
+    """Expand `$sharedRef` digests from the record's `sharedValues` table into full subtrees.
+
+    The harness stores identical large subtrees once; each reference is bound by the digest
+    of the canonical value, checked here before any case-level comparison sees it."""
+    shared = row.get("sharedValues") or {}
+    require(isinstance(shared, dict) and all(digest(encoded(v)) == k for k, v in shared.items()), "shared value digest differs")
+
+    def expand(value):
+        if isinstance(value, dict):
+            if set(value) == {"$sharedRef"}:
+                require(value["$sharedRef"] in shared, "shared reference unresolved")
+                return expand(shared[value["$sharedRef"]])
+            return {k: expand(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [expand(v) for v in value]
+        return value
+
+    out = dict(row)
+    out["cases"] = expand(row["cases"])
+    return out
+
+
+def closure_bound(tree, key, expected, reason):
+    """A closure listing is bound either verbatim or by digest over its canonical form."""
+    if key in tree:
+        same(tree[key], expected, reason)
+        return
+    count = len(expected)
+    require(tree.get(key + "Digest") == digest(encoded(expected)) and tree.get(key + "Count") == count, reason)
+
+
 def same(actual, expected, reason):
     require(encoded(actual) == encoded(expected), reason)
 
@@ -528,6 +560,7 @@ def validate_record(root, row, enrollment=None, live=False):
     value = dict(row)
     claimed = value.pop("qualificationDigest")
     require(claimed == digest(encoded(value)), "qualification digest differs")
+    row = resolve_shared(row)
     spec = next(p for p in parsed(read(source(root, "src/registry/providers.json"), 4 * 1024 * 1024))["providers"] if p["id"] == PROVIDER)
     spec.pop("benchmark", None)
     same(row["binding"]["providerSpec"], spec, "original provider contract differs")
@@ -714,10 +747,12 @@ def validate_record(root, row, enrollment=None, live=False):
                 require(set(generated_install) == set(GENERATED_INSTALL_FILES), "generated install closure differs")
                 expected_local_files.update({p.removeprefix("node_modules/"): {k: v[k] for k in ("digest", "bytes")} for p, v in generated_install.items()})
                 expected_local_links = {p.removeprefix("node_modules/"): v for p, v in enrollment["runtime"]["links"].items()}
-                same(local["files"], expected_local_files, "production package source closure differs")
-                same(local["links"], expected_local_links, "production package aliases differ")
                 expected_local_directories = sorted({p.removeprefix("node_modules/") if p != "node_modules" else "" for p in enrollment["runtime"]["directories"]} | {".bin"})
-                same(local["directories"], expected_local_directories, "production package directory closure differs")
+                # The record binds each closure listing by digest over its canonical form; the
+                # expectation is rebuilt from the retained enrollment.json and compared the same way.
+                closure_bound(local, "files", expected_local_files, "production package source closure differs")
+                closure_bound(local, "links", expected_local_links, "production package aliases differ")
+                closure_bound(local, "directories", expected_local_directories, "production package directory closure differs")
                 require(local["nodes"] == len(expected_local_files) + len(expected_local_links) + len(expected_local_directories)
                         and local["bytes"] == sum(v["bytes"] for v in expected_local_files.values()), "production package node/byte accounting differs")
                 task = receipt["tool"]
@@ -735,8 +770,9 @@ def validate_record(root, row, enrollment=None, live=False):
                     require(snapshots["before"]["packageManagerVersion"] == "11.24.0", "frozen package manager version differs")
                     manager = snapshots["before"]["projectManagerPackage"]
                     expected_manager = {p.removeprefix("pnpm/"): v for p, v in expected_local_files.items() if p.startswith("pnpm/")}
-                    same(manager["files"], expected_manager, "pnpm runtime closure differs")
-                    require(manager["root"] == str(cwd / "node_modules/pnpm") and manager["links"] == {}, "pnpm runtime aliases differ")
+                    closure_bound(manager, "files", expected_manager, "pnpm runtime closure differs")
+                    require(manager["root"] == str(cwd / "node_modules/pnpm"), "pnpm runtime root differs")
+                    closure_bound(manager, "links", {}, "pnpm runtime aliases differ")
                 require(snapshots["before"]["node"]["digest"] == enrollment["node"]["digest"], "production Node differs")
         if control == "nonempty-clean":
             mutations = case["requestMutationControls"]
