@@ -1,7 +1,7 @@
 {
   "database": {
-    "bytes": 3513445,
-    "digest": "sha256:b3842157f9d3565c2a6bb486f6ebdf1f331339725e8065238f5a2d8e85f37056",
+    "bytes": 3514290,
+    "digest": "sha256:2078b194f64c8032800c110f934156298103d3e504ef58e9919faf5e0f5b05ed",
     "files": {
       "ID/GO-2020-0001.json": "sha256:115d14fbe1d1213925c39c963aa4203d0a18cba1b03b611038a9292d3b116068",
       "ID/GO-2020-0003.json": "sha256:80cb70e5c27801d4ec3c0a7771d5a1dcd701d03497485944023feed18adb9c82",
@@ -4712,13 +4712,15 @@
       "ID/GO-2026-6805.json": "sha256:b9dcd636b129cb69989e04b230fa710658e09ac8ed56d6a7fe80099c4083c094",
       "ID/GO-2026-6806.json": "sha256:04e468def7a43c52aa6f50e9b504a431eb055cbd00ef28037464b0ae3dd8eb32",
       "ID/GO-2026-6807.json": "sha256:6d825f6681d64c2da1cb9c755364fff102e1443517a1222282f1838ebbbc541b",
-      "index/db.json": "sha256:af5e0163025b554e3602961a13b824e25d216d6929b81a58747886f09af2529e",
-      "index/modules.json": "sha256:2d62c482ba2a5a78aff378ec43ecf61cc67515a63da158ea55af0b9b7bc25da6",
-      "index/vulns.json": "sha256:f040d8ac3b6749cfcee9028cc6b6c425c051a3755af4b983493a7f74764dbf0a"
+      "ID/GO-2026-6809.json": "sha256:67d1ae42283683c4fe26081cb174da0b945370d846ebafce11bedd14c1b99151",
+      "index/db.json": "sha256:304bd0085d28f65e0a5cad2c5691fdfd5fa73dad484b878da3aa69c9b943311c",
+      "index/modules.json": "sha256:236bebdf94008e31b70b20f22a0345940a2ea3c8823305bdb5706cef21936803",
+      "index/vulns.json": "sha256:0aceb073a92544798159e614bec6f841f8ca34b7ee7774392c0a7aa28d329942"
     },
-    "modified": "2026-10-20T00:20:56Z",
-    "sha256": "b44514e158d92382050d9286ada8d6ae406c1322946f87ca23ff59b25706961b",
-    "url": "https://vuln.go.dev/vulndb.zip"
+    "modified": "2026-10-21T00:27:29Z",
+    "sha256": "ac40b1349760605f07288ad78a600a9496cae9dffca21d352d188974f12d8447",
+    "url": "https://vuln.go.dev/vulndb.zip",
+    "vendored": "scripts/ci/fixtures/govulncheck/vulndb-2026-10-21.zip"
   },
   "go": {
     "archives": {

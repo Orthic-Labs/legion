@@ -808,11 +808,19 @@ def validate(root, entry, record):
         require(expected_paths and expected_paths <= set(request["denominatorPaths"]), "case frozen production denominator omits fixture files")
         # Source-reviewed fixed groundtruth measures FP=0; it does not create
         # a native scoped_clean certificate for a fragment of a mixed packet.
-        for relative in expected_paths:
+        # Staged adjudication reviews generator candidates, not whole files: its
+        # packet carries no excerpts, and staged_evidence() binds every delivered
+        # source slice to its candidate by digest. Every other lens must carry
+        # each control file in full.
+        excerpts = request["packet"].get("excerpts")
+        if excerpts is None:
+            require(entry["provider"] == "legacy.security.adjudication" and request["packet"].get("scannerCandidates"),
+                    "only staged adjudication may omit whole-file excerpts")
+        for relative in expected_paths if excerpts is not None else ():
             lines = source(root, FIXTURES + "/fixtures/" + relative).read_text().splitlines()
             require(any(excerpt.get("path") == relative and excerpt.get("mode") == "raw" and excerpt.get("startLine") == 1
                         and excerpt.get("truncated") is not True and not excerpt.get("redactedRanges")
-                        and excerpt.get("content", "").splitlines() == lines for excerpt in request["packet"].get("excerpts", [])), "fixed control source not fully included in native packet")
+                        and excerpt.get("content", "").splitlines() == lines for excerpt in excerpts), "fixed control source not fully included in native packet")
         findings = packet["_findings"]
         # A finding belongs to the case its own anchor names; supporting
         # evidence may cite the sibling control as contrast.
@@ -826,7 +834,8 @@ def validate(root, entry, record):
                 full = expected["fixtureRoot"].removeprefix("fixtures/") + "/" + anchor["path"]
                 lines = source(root, FIXTURES + "/fixtures/" + full).read_text().splitlines()
                 require(0 < anchor["line"] <= len(lines) and lines[anchor["line"] - 1] == anchor["text"], "planted source anchor drift")
-                require(any(any(item.get("path") == full and item.get("line") == anchor["line"] and item.get("text") == anchor["text"]
+                # Scanner-sourced anchors are stored trimmed; the line itself is already pinned verbatim above.
+                require(any(any(item.get("path") == full and item.get("line") == anchor["line"] and str(item.get("text", "")).strip() == anchor["text"].strip()
                             for item in row.get("evidence", []) + [row.get("authorFinding", {}).get("anchor", {})]) for row in findings), "positive native anchor differs")
         else:
             require(expected["expected"] == {"negative": {"noFindings": True}} and observed == [], "clean control has false positive")

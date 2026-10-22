@@ -289,7 +289,20 @@ def provision(args):
             validate_zip(path)
     complete_module_proxy(proxy, lock['moduleProxy'])
     db_zip = downloads / 'vulndb.zip'
-    fetch(lock['database'], db_zip)
+    database_row = lock['database']
+    if database_row.get('vendored'):
+        # vuln.go.dev serves the live database, replaced on every publish; the
+        # exact bytes the controls were pinned to are vendored and verified by
+        # the same size/hash accounting as a download.
+        vendored = (repository / database_row['vendored']).resolve(strict=True)
+        if not vendored.is_relative_to(repository / 'scripts/ci/fixtures/govulncheck') or vendored.is_symlink():
+            raise ValueError('vendored database path escaped its fixture directory')
+        vendored_bytes = vendored.read_bytes()
+        downloaded = account_download_response(database_row, vendored_bytes, downloaded, failure_root)
+        db_zip.parent.mkdir(parents=True, exist_ok=True)
+        db_zip.write_bytes(vendored_bytes)
+    else:
+        fetch(database_row, db_zip)
     validate_zip(db_zip, max_files=5000, max_bytes=16 * 1024 * 1024)
     db_root = output / 'database'
     db_root.mkdir()

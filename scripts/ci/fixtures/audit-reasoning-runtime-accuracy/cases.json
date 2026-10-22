@@ -478,8 +478,8 @@
         "positive": [
           {
             "path": "src/config-export.js",
-            "line": 3,
-            "text": "  fs.readFile(req.params.name, \"utf8\", (error, data) => { if (error) return res.sendStatus(404); res.type(\"text/plain\").send(data); });"
+            "line": 5,
+            "text": "  fs.promises.readFile(path.resolve(ROOT, req.params.name), \"utf8\").then((data) => res.type(\"text/plain\").send(data), () => res.sendStatus(404));"
           }
         ]
       }

@@ -165,7 +165,11 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
     // A direct child may exit while descendants still retain its pipes.  Run
     // the same group cleanup before awaiting readers, so no descendant can
     // escape or leave this future blocked on inherited stdout/stderr.
-    let cleanup = cleanup_group(pid, launch.termination_grace_ms).await;
+    let mut cleanup = cleanup_group(pid, launch.termination_grace_ms).await;
+    // The leader is already reaped here; Darwin can still refuse the group
+    // signal (EPERM) while a member is a zombie. Only a fresh ESRCH proves the
+    // group is gone, exactly as on the stop path above.
+    cleanup.confirm_after_reap(|| signal_group(pid, 0));
     let stdout_capture = stdout_task
         .await
         .map_err(|error| EffectError::Internal(error.to_string()))??;

@@ -439,7 +439,7 @@ def validate_go_inputs(case, native_receipts, result, scratch, enrollment):
         rest = rest[end:].lstrip()
     require(messages and set(messages[0]) == {"config"}, "scanner stream lacks initial Config")
     config = messages[0]["config"]
-    for key, value in {"protocol_version": "v1.0.0", "scanner_name": "govulncheck", "scanner_version": "v1.9.0", "scan_level": "symbol", "scan_mode": "source", "db_last_modified": "2026-10-20T00:20:56Z", "db": "file://" + quote(enrollment["database"]["root"], safe="/-._~:") + "/"}.items():
+    for key, value in {"protocol_version": "v1.0.0", "scanner_name": "govulncheck", "scanner_version": "v1.9.0", "scan_level": "symbol", "scan_mode": "source", "db_last_modified": "2026-10-21T00:27:29Z", "db": "file://" + quote(enrollment["database"]["root"], safe="/-._~:") + "/"}.items():
         require(config.get(key) == value, "actual scanner Config differs: " + key)
     require(sum("config" in message for message in messages) == 1 and sum("SBOM" in message for message in messages) == 1
             and all(next(iter(message)) in ("config", "SBOM", "progress", "osv", "finding") for message in messages), "scanner Config/SBOM/protocol envelope incomplete")

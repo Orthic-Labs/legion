@@ -1488,6 +1488,10 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     let runtime_before = runtime_closure(enrollment);
     let native_result = if control == "absent-sandbox" {
         let c = &policy.commands[0];
+        // The executor resolves the working directory before it checks the
+        // sandbox receipt, so the directory must exist for the missing-sandbox
+        // state to be the one reported (run 39690109447: state "internal").
+        fs::create_dir_all(c["cwd"].as_str().unwrap()).unwrap();
         let request = ExternalToolRequest {
             request_id: format!(
                 "legion-audit/{}",
