@@ -246,7 +246,7 @@ impl GradleBindOnlySandbox {
 #[cfg(target_os = "macos")]
 fn profile(project: &str) -> String {
     let project = project.replace('\\', "\\\\").replace('"', "\\\"");
-    format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{project}\"))\n(allow network-bind (local udp \"*:*\"))\n")
+    format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{project}\"))\n(allow file-write-data (require-all (subpath \"{project}\") (vnode-type DIRECTORY)))\n(allow network-bind (local udp \"*:*\"))\n")
 }
 
 #[cfg(target_os = "macos")]
@@ -355,6 +355,24 @@ mod tests {
             "native permission denial required: {error}"
         );
     }
+    /// An inherited descriptor must be absent (EBADF) in the sandboxed child:
+    /// stronger than a Seatbelt EPERM, because a connected socket cannot be
+    /// revoked by the sandbox.  Probes the raw number without wrapping it in an
+    /// owning type, so a reused descriptor number can never be double-closed.
+    fn absent(fd: std::os::fd::RawFd) {
+        let errno = || std::io::Error::last_os_error().raw_os_error();
+        assert_eq!(
+            unsafe { libc::fcntl(fd, libc::F_GETFD) },
+            -1,
+            "fd {fd} open"
+        );
+        assert_eq!(errno(), Some(libc::EBADF), "fd {fd} must be EBADF");
+        let sent = unsafe { libc::send(fd, b"forbidden".as_ptr().cast(), 9, 0) };
+        assert_eq!((sent, errno()), (-1, Some(libc::EBADF)), "fd {fd} send");
+        let mut buf = [0u8; 8];
+        let got = unsafe { libc::recv(fd, buf.as_mut_ptr().cast(), 8, libc::MSG_DONTWAIT) };
+        assert_eq!((got, errno()), (-1, Some(libc::EBADF)), "fd {fd} receive");
+    }
     fn inherit(fd: std::os::fd::RawFd) {
         let old = unsafe { libc::fcntl(fd, libc::F_GETFD) };
         assert!(old >= 0);
@@ -416,6 +434,10 @@ mod tests {
             ]
         );
         assert!(text.contains("(deny file-write* (subpath \"/owned/jvm-project\"))"));
+        // Gradle 9 rejects project directories that fail access(W_OK).
+        assert!(text.contains(
+            "(allow file-write-data (require-all (subpath \"/owned/jvm-project\") (vnode-type DIRECTORY)))"
+        ));
         assert!(!text.contains("*:0"));
     }
 
@@ -457,6 +479,17 @@ mod tests {
             std::thread::sleep(Duration::from_secs(60));
             return;
         }
+        // Probe inherited descriptors before opening anything, so no new socket
+        // can occupy an inherited descriptor number.
+        let fd_of =
+            |name: &str| -> std::os::fd::RawFd { std::env::var(name).unwrap().parse().unwrap() };
+        for name in [
+            "LEGION_GRADLE_INHERITED_UDP4",
+            "LEGION_GRADLE_INHERITED_UDP6",
+            "LEGION_GRADLE_INHERITED_TCP",
+        ] {
+            absent(fd_of(name));
+        }
         for (family, address) in [("4", "0.0.0.0:0"), ("6", "[::]:0")] {
             let socket =
                 UdpSocket::bind(address).expect("wildcard ephemeral bind must actually work");
@@ -486,16 +519,6 @@ mod tests {
                 .set_read_timeout(Some(Duration::from_millis(200)))
                 .unwrap();
             denied(socket.recv_from(&mut [0u8; 16]).unwrap_err());
-            let fd = std::env::var(format!("LEGION_GRADLE_INHERITED_UDP{family}"))
-                .unwrap()
-                .parse()
-                .unwrap();
-            let inherited = unsafe { UdpSocket::from_raw_fd(fd) };
-            denied(inherited.send_to(b"forbidden", target).unwrap_err());
-            inherited
-                .set_read_timeout(Some(Duration::from_millis(200)))
-                .unwrap();
-            denied(inherited.recv_from(&mut [0u8; 16]).unwrap_err());
             let tcp: std::net::SocketAddr = std::env::var(format!("LEGION_GRADLE_TCP{family}"))
                 .unwrap()
                 .parse()
@@ -512,13 +535,6 @@ mod tests {
             TcpStream::connect_timeout(&"192.0.2.1:9".parse().unwrap(), Duration::from_millis(200))
                 .unwrap_err(),
         );
-        let inherited = std::env::var("LEGION_GRADLE_INHERITED_TCP")
-            .unwrap()
-            .parse()
-            .unwrap();
-        let mut inherited = unsafe { TcpStream::from_raw_fd(inherited) };
-        denied(inherited.write(b"forbidden").unwrap_err());
-        denied(inherited.read(&mut [0u8; 8]).unwrap_err());
         denied(
             fs::write(
                 PathBuf::from(std::env::var_os("LEGION_GRADLE_NATIVE_PROJECT").unwrap())

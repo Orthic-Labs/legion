@@ -44,6 +44,77 @@ enum StopReason {
     OutputLimited,
 }
 
+/// Upper bound (exclusive) of descriptor numbers to mark close-on-exec.
+fn descriptor_limit() -> libc::c_int {
+    const CEILING: libc::rlim_t = 1 << 20;
+    let mut limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    let soft = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } == 0 {
+        limit.rlim_cur
+    } else {
+        CEILING
+    };
+    let ceiling = soft.min(CEILING) as libc::c_int;
+    // Sweeping the whole rlimit costs ~126 ms per spawn at a 1M soft limit.
+    // Bound the sweep by the highest descriptor actually open, read before
+    // fork (allocation is fine here). Residual race: a descriptor another
+    // thread opens without close-on-exec (raw libc calls, or an explicit
+    // clear) between this scan and fork, numbered above the scanned maximum,
+    // is inherited. Linux close_range marks every descriptor regardless.
+    highest_open_descriptor()
+        .map(|highest| (highest + 1).min(ceiling))
+        .unwrap_or(ceiling)
+}
+
+fn highest_open_descriptor() -> Option<libc::c_int> {
+    let directory = if cfg!(any(target_os = "linux", target_os = "android")) {
+        "/proc/self/fd"
+    } else {
+        "/dev/fd"
+    };
+    std::fs::read_dir(directory)
+        .ok()?
+        .filter_map(|entry| {
+            entry
+                .ok()?
+                .file_name()
+                .to_str()?
+                .parse::<libc::c_int>()
+                .ok()
+        })
+        .max()
+}
+
+/// Marks every descriptor in `3..limit` close-on-exec.  Async-signal-safe:
+/// only `syscall` and `fcntl`, no allocation, no locks.  The std exec-error
+/// pipe is already close-on-exec, so re-marking it is harmless.
+unsafe fn mark_descriptors_cloexec(limit: libc::c_int) {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        const SYS_CLOSE_RANGE: libc::c_long = 436;
+        const CLOSE_RANGE_CLOEXEC: libc::c_long = 1 << 2;
+        let done = libc::syscall(
+            SYS_CLOSE_RANGE,
+            3 as libc::c_long,
+            libc::c_int::MAX as libc::c_long,
+            CLOSE_RANGE_CLOEXEC,
+        );
+        if done == 0 {
+            return;
+        }
+    }
+    let mut fd: libc::c_int = 3;
+    while fd < limit {
+        let flags = libc::fcntl(fd, libc::F_GETFD);
+        if flags >= 0 {
+            libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC);
+        }
+        fd += 1;
+    }
+}
+
 async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError> {
     let started_at_ms = now_ms();
     let mut command = Command::new(&launch.executable);
@@ -56,15 +127,22 @@ async fn run_process(launch: ProcessLaunch) -> Result<ProcessOutput, EffectError
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    // Temporary Legion-side fix for rightkit#835: the child must not inherit
+    // any descriptor above stdio (an inherited connected socket would defeat
+    // the sandbox).  Mark each one close-on-exec so exec drops it and the
+    // child sees EBADF.  The bound is read here, before fork.
+    let fd_limit = descriptor_limit();
+
     // This hook runs in the child between fork and exec.  It must not capture
-    // Rust state or perform allocation: only the async-safe setpgid syscall.
+    // Rust state or perform allocation: only the async-signal-safe setpgid,
+    // fcntl and syscall calls, with a plain integer bound computed above.
     unsafe {
-        command.pre_exec(|| {
+        command.pre_exec(move || {
             if libc::setpgid(0, 0) == -1 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(())
+                return Err(std::io::Error::last_os_error());
             }
+            mark_descriptors_cloexec(fd_limit);
+            Ok(())
         });
     }
 

@@ -198,7 +198,7 @@
         "positive": [
           {
             "path": "src/orphan.rs",
-            "line": 2,
+            "line": 1,
             "text": "pub fn format_unused_record(id: u64) -> String { format!(\"record:{id}\") }"
           }
         ]

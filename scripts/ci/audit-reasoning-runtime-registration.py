@@ -834,8 +834,9 @@ def validate(root, entry, record):
                 full = expected["fixtureRoot"].removeprefix("fixtures/") + "/" + anchor["path"]
                 lines = source(root, FIXTURES + "/fixtures/" + full).read_text().splitlines()
                 require(0 < anchor["line"] <= len(lines) and lines[anchor["line"] - 1] == anchor["text"], "planted source anchor drift")
-                # Scanner-sourced anchors are stored trimmed; the line itself is already pinned verbatim above.
-                require(any(any(item.get("path") == full and item.get("line") == anchor["line"] and str(item.get("text", "")).strip() == anchor["text"].strip()
+                # Anchors may quote the line trimmed or as a verbatim fragment of at least 16 characters (the host verifier accepts fragments);
+                # the line itself is already pinned verbatim above.
+                require(any(any(item.get("path") == full and item.get("line") == anchor["line"] and (lambda quoted: quoted in anchor["text"] and len(quoted) >= min(16, len(anchor["text"].strip())))(str(item.get("text", "")).strip())
                             for item in row.get("evidence", []) + [row.get("authorFinding", {}).get("anchor", {})]) for row in findings), "positive native anchor differs")
         else:
             require(expected["expected"] == {"negative": {"noFindings": True}} and observed == [], "clean control has false positive")

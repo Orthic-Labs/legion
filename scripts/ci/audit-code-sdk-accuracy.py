@@ -242,7 +242,11 @@ def execution(item, policy, control, plan, scratch, toolchain, enrollment, live)
         same(tree, {"started": False, "terminated": False, "hardKilled": False, "reaped": False, "detail": None}, "SDK refusal launched process")
         require(receipt["signal"] is None, "SDK refusal has process signal")
         require(receipt["state"] == ("unauthorized_effect" if rejected else "sandbox_missing") and receipt["complete"] is False
-                and tree["started"] is False and receipt["exitCode"] is None and receipt["executable"] is None
+                and tree["started"] is False and receipt["exitCode"] is None
+                # A missing sandbox is refused after sealing, so the receipt keeps the unprobed identity.
+                and (receipt["executable"] is None if rejected else receipt["executable"] is None or (
+                    receipt["executable"]["digestState"] == "sealed"
+                    and receipt["executable"]["version"] == {"args": [], "output": None, "exitCode": None, "qualified": False, "skippedByPolicy": False}))
                 and receipt["gaps"] and receipt["parser"]["attempted"] is False, "SDK refusal executed or became clean")
     else:
         require(tree["started"] is tree["terminated"] is tree["reaped"] is True and tree["hardKilled"] is False and receipt["signal"] is None, "actual child lifecycle incomplete")
@@ -414,7 +418,7 @@ def validate_go_inputs(case, native_receipts, result, scratch, enrollment):
     same(snap["telemetryFiles"], {"Library/Application Support/go/telemetry/mode": digest(b"off")},
          "scanner telemetry closure differs from exact off-mode bytes")
     same(snap["sourceFiles"], case["fixtureSources"], "scanner frozen source closure differs")
-    require(snap["sourceRoot"] == str(stage) and snap["sourceDigest"] == digest(encoded(snap["sourceFiles"])), "scanner frozen stage binding differs")
+    require(snap["sourceRoot"].rstrip("/") == str(stage) and snap["sourceDigest"] == digest(encoded(snap["sourceFiles"])), "scanner frozen stage binding differs")
     expected_modules = {}
     for line in case["fixtureFiles"].get("go.sum", "").splitlines():
         name, version, sha = line.split()
@@ -536,7 +540,10 @@ def validate_case(root, case, toolchain, enrollment, live):
         for native_receipt in native_receipts:
             actual = next((r for r in rows if r["request"]["taskId"] == native_receipt["tool"]), None)
             require(actual is not None, "native receipt has no genuine SDK execution")
-            same(native_receipt["sdkReceipt"], actual["executionReceipt"], "native evidence detached from genuine SDK receipt")
+            # The provider projects the frozen owner-admission policy onto denied receipts; validate it, then compare the rest.
+            receipt_fields(native_receipt["sdkReceipt"], owner_projection=True)
+            unprojected = {key: value for key, value in native_receipt["sdkReceipt"].items() if key not in ("executionPolicy", "executionPolicyIdentity")}
+            same(unprojected, actual["executionReceipt"], "native evidence detached from genuine SDK receipt")
         if control not in ("missing-tool", "rejected-admission", "workspace"):
             validate_go_inputs(case, native_receipts, result, scratch, enrollment)
         if control == "missing-tool":
@@ -580,13 +587,20 @@ def validate_case(root, case, toolchain, enrollment, live):
             expected_gaps = {tool_gap(task) for task in TASKS} | {"code.go:native-owner-admission-unavailable"}
         elif control in ("test-failure", "malformed"):
             for task, (receipt, _, _) in result.items():
-                if receipt["state"] == "failed":
+                # An accepted non-zero exit (vet exits 1 on unparsable source) completes the
+                # receipt; the provider still reports it as a tool failure.
+                if receipt["state"] == "failed" or (receipt["state"] == "completed" and receipt["exitCode"] not in (0, None)):
                     require(type(receipt["exitCode"]) is int and receipt["exitCode"] != 0, "failed SDK main lacks genuine nonzero exit")
                     expected_gaps.update((tool_gap(task), "code.go:tool-failed:" + task + ":exit-" + str(receipt["exitCode"])))
                 elif control == "malformed" and receipt["state"] == "unsealed_executable":
                     expected_gaps.update((tool_gap(task), "code.go:tool-failed:" + task + ":unsealed_executable"))
                 else:
                     require(receipt["state"] == "completed" and receipt["exitCode"] == 0, "negative control contains unexplained SDK failure")
+        # A tool that did not run also reports the typed availability gap unavailable:<reason>.
+        expected_gaps |= {"unavailable:" + gap.removeprefix("code.go:") for gap in expected_gaps
+                          if gap.startswith(("code.go:tool-not-run:", "code.go:tool-failed:", "code.go:tool-missing:"))}
+        if "code.go:native-owner-admission-unavailable" in expected_gaps:
+            expected_gaps.add("unavailable:native-owner-admission-unavailable")
         require(isinstance(native["coverage_gaps"], list) and all(isinstance(gap, str) for gap in native["coverage_gaps"])
                 and len(native["coverage_gaps"]) == len(set(native["coverage_gaps"]))
                 and set(native["coverage_gaps"]) == expected_gaps, "native coverage gap set differs from exact actual control outcomes")

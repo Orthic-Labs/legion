@@ -386,7 +386,7 @@ impl ExactPolicy {
                 .unwrap(),
         )
         .join("bin/java");
-        let profile=format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{}\"))\n(allow network-bind (local udp \"*:*\"))\n",stage.to_string_lossy().replace('\\',"\\\\").replace('"',"\\\""));
+        let profile=format!("(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath \"{0}\"))\n(allow file-write-data (require-all (subpath \"{0}\") (vnode-type DIRECTORY)))\n(allow network-bind (local udp \"*:*\"))\n",stage.to_string_lossy().replace('\\',"\\\\").replace('"',"\\\""));
         let sha = digest(profile.as_bytes());
         let profile_path = self
             .scratch
@@ -724,9 +724,10 @@ fn child(control: &str, base: &Path, retained: &Path) {
         .inventory(control)
         .unwrap();
     // ProviderSpec's required benchmark field carries no execution semantics.
-    // Normalize it to null for plan serialization; retained providerSpec omits it.
+    // Normalize it to an empty object (the contract requires an object) so the
+    // plan never depends on enrollment state; retained providerSpec omits it.
     let mut execution_spec = spec();
-    execution_spec["benchmark"] = Value::Null;
+    execution_spec["benchmark"] = json!({});
     let frozen = AuditPlan::compile_with_root(
         Some(&root),
         &inventory,

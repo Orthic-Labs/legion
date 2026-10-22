@@ -60,13 +60,14 @@ tasks.register('legionCompile') {
         def target = out.path + '/lint-' + language
         doFirst { file(target).mkdirs() }
         if (language == 'java') {
-            commandLine [javacBin, '-Xlint:all', '-Werror', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.java.findAll { !it.contains('/test/') && !it.startsWith('support/') }
+            commandLine([javacBin, '-Xlint:all', '-Werror', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.java.findAll { !it.contains('/test/') && !it.startsWith('support/') })
         } else if (language == 'kotlin') {
             commandLine kotlinCompiler + ['-Werror', '-Xrender-internal-diagnostic-names', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.kotlin
         } else if (language == 'scala') {
             commandLine scalaCompiler + ['-Xlint', '-deprecation', '-Wunused:locals', '-Werror', '-classpath', configurations.compileClasspath.asPath, '-d', target] + sourceManifest.sourceSets.scala
         } else {
-            commandLine kotlinCompiler + ['-Werror', '-Xrender-internal-diagnostic-names', '-classpath', runtime(), '-script'] + sourceManifest.sourceSets.kts
+            // Kotlin 2.2 K2 script mode reports no warnings; K1 compile-only analysis does.
+            commandLine kotlinCompiler + ['-Werror', '-Xrender-internal-diagnostic-names', '-language-version', '1.9', '-Xsuppress-version-warnings', '-Xallow-any-scripts-in-source-roots', '-classpath', runtime(), '-d', target] + sourceManifest.sourceSets.kts
         }
         doLast { println 'LEGION_NATIVE_EXIT|' + language + '|' + executionResult.get().exitValue }
     }
@@ -93,11 +94,11 @@ tasks.register('legionDependency') {
 tasks.register('legionTestCompile', Exec) {
     dependsOn 'compileJava', 'legionKotlin', 'legionScala'
     doFirst { file(out.path + '/test').mkdirs() }
-    commandLine [javacBin, '-classpath', runtime(), '-d', out.path + '/test', 'src/test/java/KnownAnswerTest.java']
+    commandLine([javacBin, '-classpath', runtime(), '-d', out.path + '/test', 'src/test/java/KnownAnswerTest.java'])
 }
 tasks.register('legionAssertions', Exec) {
     dependsOn 'legionTestCompile'
-    commandLine [javaBin, '-classpath', runtime() + File.pathSeparator + out.path + '/test', 'KnownAnswerTest']
+    commandLine([javaBin, '-classpath', runtime() + File.pathSeparator + out.path + '/test', 'KnownAnswerTest'])
 }
 tasks.register('legionTest') {
     dependsOn 'legionAssertions', 'legionKts'

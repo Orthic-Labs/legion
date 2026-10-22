@@ -1183,7 +1183,11 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
                 for row in rows {
                     let task = row["request"]["taskId"].as_str().unwrap();
                     let receipt = &row["executionReceipt"];
-                    if receipt["state"] == "failed" {
+                    // An accepted non-zero exit (vet exits 1 on unparsable source) still
+                    // completes the receipt; the provider reports it as a tool failure.
+                    let nonzero_completion = receipt["state"] == "completed"
+                        && receipt["exitCode"].as_i64().is_some_and(|exit| exit != 0);
+                    if receipt["state"] == "failed" || nonzero_completion {
                         let exit = receipt["exitCode"].as_i64().unwrap();
                         assert_ne!(exit, 0);
                         expected_gaps.insert(tool_gap(task));

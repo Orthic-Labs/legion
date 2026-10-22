@@ -145,7 +145,8 @@ def native_request(row, case, enrollment, retained, live):
         daemon_args = "-Xmx512m -Xms256m -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.language=en -Duser.country=US -Duser.variant= -Djava.io.tmpdir=" + str(temp)
         out = ["-Xmx512m", "-Xms256m", "-XX:MaxMetaspaceSize=384m", "-XX:+HeapDumpOnOutOfMemoryError", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US", "-Duser.variant=", "-Djava.io.tmpdir=" + str(temp), "-javaagent:" + str(agent), "-Dgradle.user.home=" + str(home), "-cp", str(stage / "gradle/wrapper/gradle-wrapper.jar"), "org.gradle.wrapper.GradleWrapperMain", "-Dorg.gradle.jvmargs=" + daemon_args, "--offline", "--no-daemon", "--console=plain", "--no-configuration-cache", "--gradle-user-home", str(home), "--project-cache-dir", str(scratch / "cache/jvm-owned/project")]
         return out + (["--version"] if task == "wrapper" else ["--rerun-tasks", {"compile": "legionCompile", "lint": "legionLint", "test": "legionTest", "dependency": "legionDependency"}[task]])
-    profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(stage).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:*"))\n'
+    quoted = str(stage).replace('"', '\\"')
+    profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + quoted + '"))\n(allow file-write-data (require-all (subpath "' + quoted + '") (vnode-type DIRECTORY)))\n(allow network-bind (local udp "*:*"))\n'
     sha = digest(profile_text.encode()).removeprefix("sha256:")
     prefix = ["-f", str(scratch / "sandbox" / ("audit-gradle-" + sha + ".sb")), "--", str(java)]
     expected_args = prefix + args(task)
@@ -198,7 +199,8 @@ def validate_confinement(record, root, retained, live):
         mode, req, receipt = row["mode"], row["request"], row["receipt"]
         project = absolute(req["cwd"])
         require(project.name == "project" and project.parent.name == "gradle-native-control", "native confinement project differs")
-        profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + str(project).replace('"', '\\"') + '"))\n(allow network-bind (local udp "*:*"))\n'
+        quoted = str(project).replace('"', '\\"')
+        profile_text = '(version 1)\n(allow default)\n(deny network*)\n(deny file-write* (subpath "' + quoted + '"))\n(allow file-write-data (require-all (subpath "' + quoted + '") (vnode-type DIRECTORY)))\n(allow network-bind (local udp "*:*"))\n'
         sha = digest(profile_text.encode())
         require(row["profile"] == profile_text and row["profileDigest"] == sha, "bind-only owner profile differs")
         require(req["executable"] == "/usr/bin/sandbox-exec" and req["args"][:3] == ["-f", str(project.parent / "profiles" / ("audit-gradle-" + sha[7:] + ".sb")), "--"], "native control not wrapped")

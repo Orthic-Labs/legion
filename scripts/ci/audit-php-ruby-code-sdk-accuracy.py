@@ -293,7 +293,7 @@ def validate_case(root,case,enrollment,live):
         xml=ET.fromstring(raw);tests=xml.findall('.//testcase');require(control=="php-lint-positive" or (len(tests)>0 and sum(int(t.get('assertions','0')) for t in xml.findall('./testsuite'))>0),"real nonempty assertion report missing")
         if control=="php-test-failure":require(any(t.find('failure') is not None for t in tests),"actual failed PHP assertion absent")
         if full:require(junit["reportDigest"]==digest(raw),"actual assertion checker didn't bind original report")
-        if live:same(Path(report["path"]).read_bytes(),raw,"live JUnit raw bytes differ")
+        if live:require(Path(report["path"]).read_bytes()==raw,"live JUnit raw bytes differ")
     elif control in ("nonempty-clean","ruby-lint-positive","type-positive","security-positive","php-test-failure","ruby-test-failure","timeout","cancel"):require(False,"mandatory actual JUnit report absent")
     if control=="nonempty-clean":mutations(case,scratch,live)
     return {case["caseId"]+"/"+p:d for p,d in hashes.items()}
