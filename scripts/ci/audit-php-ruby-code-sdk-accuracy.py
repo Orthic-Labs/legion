@@ -231,7 +231,7 @@ def validate_case(root,case,enrollment,live):
     require(len({r["request"]["requestId"] for r in rows})==len(rows),"duplicate actual SDK identity")
     streams=[sdk(row,policy,control,case["planDigest"],scratch,enrollment,commands,live) for row in rows]
     if live:
-        for n,row in enumerate(rows):same(parsed((scratch/("sdk-execution-"+str(n)+".json")).read_bytes()),row,"original SDK bytes changed")
+        for n,row in enumerate(rows):same(parsed((Path(scratch)/("sdk-execution-"+str(n)+".json")).read_bytes()),row,"original SDK bytes changed")
     decisions=[] if control=="rejected-admission" else [{"requestId":r["request"]["requestId"],"taskId":r["request"]["taskId"],"allowed":True,"request":r["request"]} for r in rows]
     same(case["policyDecisions"],decisions,"actual authorizer decision differs")
     native=case["nativeResult"]

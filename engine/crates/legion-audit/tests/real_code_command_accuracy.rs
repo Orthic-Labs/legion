@@ -1200,6 +1200,23 @@ fn case(base: &Path, retained: &Path, go_root: &Path, control: &str) -> Value {
             }
             _ => {}
         }
+        // A tool that did not run also reports `unavailable:<reason>` (the
+        // typed availability gap); the reason is the tool gap without its
+        // provider prefix, and owner-admission denial reports its own reason.
+        let twins: Vec<String> = expected_gaps
+            .iter()
+            .filter_map(|gap| {
+                let rest = gap.strip_prefix("code.go:")?;
+                ["tool-not-run:", "tool-failed:", "tool-missing:"]
+                    .iter()
+                    .any(|prefix| rest.starts_with(prefix))
+                    .then(|| format!("unavailable:{rest}"))
+            })
+            .collect();
+        expected_gaps.extend(twins);
+        if expected_gaps.contains("code.go:native-owner-admission-unavailable") {
+            expected_gaps.insert("unavailable:native-owner-admission-unavailable".into());
+        }
         assert_eq!(
             actual_gaps, expected_gaps,
             "every runtime gap must match source-owned expected control disposition"

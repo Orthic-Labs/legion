@@ -317,12 +317,12 @@ pub fn invoke(
                 "--no-session-persistence",
                 "--permission-prompts",
                 "none",
-                // Two assistant turns: one structured answer plus at most one
-                // in-process re-emit after the host rejects unparsable JSON.
+                // Three assistant turns: one structured answer plus at most two
+                // in-process re-emits after the host rejects unparsable JSON.
                 // The decoder admits nothing else, so this stays one physical
                 // call with cumulative usage.
                 "--max-turns",
-                "2",
+                "3",
                 "--system-prompt",
                 system,
                 "--json-schema",
@@ -672,14 +672,14 @@ fn decode_stream_with_schema(
                         if raw["type"] != "assistant" {
                             strict_boundary = false;
                         }
-                        // A second tool use is admitted only as the single
-                        // re-emit after the host could not parse the first.
+                        // A further tool use is admitted only as one of the two
+                        // re-emits after the host could not parse the previous.
                         let reemit = !results.is_empty()
                             && results.len() == structured.len()
                             && results
                                 .last()
                                 .is_some_and(|(_, is_error, _, unparsed)| *is_error && *unparsed)
-                            && json_reemits < 1;
+                            && json_reemits < 2;
                         if observation.context_id.is_empty() || (!results.is_empty() && !reemit) {
                             protocol_error = Some("native tool use outside initialized call order");
                         } else if reemit {
@@ -786,7 +786,7 @@ fn decode_stream_with_schema(
                 && raw["subtype"] == "error_max_turns"
                 && raw["is_error"] == true
                 && raw["stop_reason"] == "tool_use"
-                && (raw["num_turns"] == 2 || raw["num_turns"] == 3)
+                && (2..=4).contains(&raw["num_turns"].as_u64().unwrap_or(0))
                 && raw.get("structured_output").is_none()
                 && raw["permission_denials"] == json!([])
                 && raw["safety_stops"] == 0

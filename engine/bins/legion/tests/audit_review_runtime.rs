@@ -232,7 +232,7 @@ fn assert_verifier_source(prompt: &Value) {
 fn simulate_native(args: &[String]) {
     assert_eq!(value_after(args, "--tools"), "");
     assert_eq!(value_after(args, "--mcp-config"), r#"{"mcpServers":{}}"#);
-    assert_eq!(value_after(args, "--max-turns"), "2");
+    assert_eq!(value_after(args, "--max-turns"), "3");
     let schema: Value = serde_json::from_str(value_after(args, "--json-schema")).unwrap();
     for unsupported in ["oneOf", "allOf", "anyOf"] {
         assert!(

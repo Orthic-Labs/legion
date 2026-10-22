@@ -293,6 +293,7 @@ const ARCHITECTURE_CUES: &[&str] = &[
 const DEAD_FILE_CUES: &[&str] = &[
     "evidence standard: a file or export is orphaned only when the supplied set contains the root that would declare, import or route to it (crate or module root, package index, route table, manifest) and that root omits it, or the file itself states it was removed or is obsolete",
     "a file whose declaring root is absent from the supplied set is unproven, not orphaned: report nothing for it",
+    "report only orphaned files; never list reviewed or reachable files (extra fields are discarded and only lengthen the JSON)",
 ];
 
 const DOC_DRIFT_CUES: &[&str] = &[
