@@ -1,0 +1,334 @@
+{
+  "schema": "legion-reasoning-runtime-dispatch-preflight/1",
+  "run": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run",
+  "memberId": "run-01",
+  "memberIndex": 0,
+  "caseIds": [
+    "legacy-security-adjudication-clean",
+    "legacy-security-adjudication-planted",
+    "legacy-security-variant-analysis-clean",
+    "legacy-security-variant-analysis-planted",
+    "reasoning-correctness-clean",
+    "reasoning-correctness-planted",
+    "reasoning-doc-drift-clean",
+    "reasoning-doc-drift-planted",
+    "reasoning-schema-clean",
+    "reasoning-schema-planted",
+    "reasoning-security-clean",
+    "reasoning-security-planted"
+  ],
+  "providerIds": [
+    "reasoning.security",
+    "legacy.security.adjudication",
+    "legacy.security.variant-analysis",
+    "reasoning.correctness",
+    "reasoning.doc-drift",
+    "reasoning.schema"
+  ],
+  "expectedPlantedPositives": 6,
+  "knownAnswerExpectedPositives": 6,
+  "expectedPairedCleanControls": 6,
+  "expectedVerifierItems": 6,
+  "logicalPendingRequestCount": 5,
+  "zeroFindingReviewHeadroom": 2,
+  "verifierItemCap": 8,
+  "verifierEnvelopeBasis": "known-answer expectation; logical requests are a lower bound, multiple findings and zero-finding reviews remain subject to native cap",
+  "plannedFreshBatchVerifierAdmissions": 1,
+  "plannedAuthorSeats": 4,
+  "remainingAdmissions": 44,
+  "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+  "dispatchDigest": "sha256:a45a247c4bf3cc27190e3e662bb5718f77e3ae535f46e67c1879f3a05005be8f",
+  "dispatch": {
+    "schemaVersion": 1,
+    "kind": "legion-lens-dispatch",
+    "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+    "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
+    "requestEncoding": "runtime-initial-v1",
+    "byteBasis": {
+      "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
+      "plannedRequestBytes": "exact serialized host envelope including transport framing, telemetry escaping, controls & execution metadata",
+      "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
+      "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+      "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+      "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+      "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+      "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+      "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests"
+    },
+    "reasoningBudget": {
+      "schemaVersion": 2,
+      "totalTokens": 6600000,
+      "perCallTokens": 150000,
+      "outputTokens": 4096,
+      "maxSeats": 44
+    },
+    "coverageMode": "exhaustive",
+    "boundedAudit": false,
+    "selectedPackets": [
+      "legacy.security.adjudication.json",
+      "reasoning.correctness.json",
+      "reasoning.security.json",
+      "reasoning.schema.json",
+      "reasoning.doc-drift.json"
+    ],
+    "deferredPackets": [],
+    "deferredWork": [],
+    "plannedSeats": 4,
+    "limits": {
+      "seatTokenBudget": 150000,
+      "waveWidth": 1,
+      "runTokenBudget": 6600000,
+      "maxTotalSeats": 44
+    },
+    "lenses": [
+      {
+        "provider": "legacy.security.adjudication",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 76984,
+        "estimatedTokens": 19246,
+        "largestPartBytes": 76984,
+        "largestPartEstimatedTokens": 19246
+      },
+      {
+        "provider": "reasoning.correctness",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 47783,
+        "estimatedTokens": 11946,
+        "largestPartBytes": 47783,
+        "largestPartEstimatedTokens": 11946
+      },
+      {
+        "provider": "reasoning.doc-drift",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 40191,
+        "estimatedTokens": 10048,
+        "largestPartBytes": 40191,
+        "largestPartEstimatedTokens": 10048
+      },
+      {
+        "provider": "reasoning.schema",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 39770,
+        "estimatedTokens": 9943,
+        "largestPartBytes": 39770,
+        "largestPartEstimatedTokens": 9943
+      },
+      {
+        "provider": "reasoning.security",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 40432,
+        "estimatedTokens": 10108,
+        "largestPartBytes": 40432,
+        "largestPartEstimatedTokens": 10108
+      }
+    ],
+    "bundles": [
+      {
+        "bundle": "ADJ",
+        "shareBp": 1000,
+        "seats": 1,
+        "estimatedTokens": 27593,
+        "budgetTokens": 660000,
+        "overBy": 0
+      },
+      {
+        "bundle": "J1",
+        "shareBp": 4000,
+        "seats": 2,
+        "estimatedTokens": 35472,
+        "budgetTokens": 2640000,
+        "overBy": 0
+      },
+      {
+        "bundle": "J2",
+        "shareBp": 1500,
+        "seats": 1,
+        "estimatedTokens": 15378,
+        "budgetTokens": 990000,
+        "overBy": 0
+      }
+    ],
+    "seats": [
+      {
+        "seat": 1,
+        "seatId": "seat-001",
+        "bundle": "ADJ",
+        "tier": "judgment",
+        "wave": 1,
+        "part": 1,
+        "estimatedTokens": 27593,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 27593,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 23497,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 58566,
+        "plannedModelInputBytes": 46994,
+        "modelVisibleInputBytes": 46994,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 58566,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "legacy.security.adjudication"
+        ],
+        "lensIds": [
+          "security"
+        ],
+        "packets": [
+          "legacy.security.adjudication.json"
+        ]
+      },
+      {
+        "seat": 2,
+        "seatId": "seat-002",
+        "bundle": "J1",
+        "tier": "judgment",
+        "wave": 2,
+        "part": 1,
+        "estimatedTokens": 20261,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 20261,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 16165,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 2000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 41126,
+        "plannedModelInputBytes": 32329,
+        "modelVisibleInputBytes": 32329,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 41126,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "shared-context-v1",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.correctness",
+          "reasoning.security"
+        ],
+        "lensIds": [
+          "correctness",
+          "security"
+        ],
+        "packets": [
+          "reasoning.correctness.json",
+          "reasoning.security.json"
+        ]
+      },
+      {
+        "seat": 3,
+        "seatId": "seat-003",
+        "bundle": "J1",
+        "tier": "judgment",
+        "wave": 3,
+        "part": 1,
+        "estimatedTokens": 15211,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15211,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11115,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 29041,
+        "plannedModelInputBytes": 22230,
+        "modelVisibleInputBytes": 22230,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 29041,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.schema"
+        ],
+        "lensIds": [
+          "schema"
+        ],
+        "packets": [
+          "reasoning.schema.json"
+        ]
+      },
+      {
+        "seat": 4,
+        "seatId": "seat-004",
+        "bundle": "J2",
+        "tier": "judgment",
+        "wave": 4,
+        "part": 1,
+        "estimatedTokens": 15378,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15378,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11282,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 29200,
+        "plannedModelInputBytes": 22563,
+        "modelVisibleInputBytes": 22563,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 29200,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.doc-drift"
+        ],
+        "lensIds": [
+          "doc-drift"
+        ],
+        "packets": [
+          "reasoning.doc-drift.json"
+        ]
+      }
+    ],
+    "waves": 4,
+    "requiredSeats": 4,
+    "requiredInitialCalls": 4,
+    "gatherCalls": 0,
+    "followupReserveCalls": 1,
+    "initialCallReservationTokens": 600000,
+    "followupReserveTokens": 150000,
+    "packetBytes": 157933,
+    "modelVisibleInputBytes": 124116,
+    "planningModelInputByteLimit": 295000,
+    "seatReadBytes": 157933,
+    "perLensPacketBytes": 245160,
+    "uniqueExcerptBytes": 36503,
+    "sharedExcerptBytesSaved": 11568,
+    "unsharedRequestBytes": 179727,
+    "universeUnsharedRequestBytes": 179727,
+    "physicalRequestBytesSaved": 21794,
+    "estimatedTokens": 78443,
+    "withinLimits": true,
+    "violations": [],
+    "violationCount": 0,
+    "warnings": []
+  },
+  "pending": [
+    "legacy.security.adjudication",
+    "reasoning.correctness",
+    "reasoning.doc-drift",
+    "reasoning.schema",
+    "reasoning.security"
+  ],
+  "modelCalls": 0,
+  "productionDispatchValidated": true,
+  "qualification": false
+}

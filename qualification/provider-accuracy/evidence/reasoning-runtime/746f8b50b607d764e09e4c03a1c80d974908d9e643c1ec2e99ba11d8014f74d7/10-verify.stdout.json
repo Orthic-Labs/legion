@@ -1,0 +1,557 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-verify",
+  "status": "complete",
+  "complete": true,
+  "repository": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a66c5d3356fd845ed816555dcd85af3051f10dcac7c5f3bc40ac2daac4b34857/audit-snapshots/cold-a78c62806efb72fc291e6ddf/selected",
+  "factsDigest": "0182c75d97c632391f76b207f36b2bbb27b1c5e95a8998d61fdd4a5fea53eae0",
+  "planContentDigest": "2e1efd9148c46b04f28789bf2a306e9589669213eb97f5a793e9895edddd1001",
+  "valid": true,
+  "contentErrors": [],
+  "verdict": {
+    "status": "findings",
+    "securityVariantFollowup": {
+      "status": "complete",
+      "planDigest": "sha256:12de5f6d85957c39953878774bb88377fe37eebaa2c57c66762d2ed20edf5f5d",
+      "parentPlanDigest": "sha256:031d94b8af7037bf1cf90cf27e25d3f60d3612582136ddfbe10b05784193909e",
+      "confirmedPaths": [
+        "legacy-security-adjudication/planted/src/handler.js",
+        "legacy-security-variant-analysis/planted/src/config-export.js",
+        "legacy-security-variant-analysis/planted/src/handler.js"
+      ],
+      "analysisPaths": [
+        "legacy-security-adjudication/clean/src/handler.js",
+        "legacy-security-adjudication/clean/src/server.js",
+        "legacy-security-adjudication/planted/src/handler.js",
+        "legacy-security-adjudication/planted/src/server.js",
+        "legacy-security-variant-analysis/clean/src/config-export.js",
+        "legacy-security-variant-analysis/clean/src/handler.js",
+        "legacy-security-variant-analysis/clean/src/server.js",
+        "legacy-security-variant-analysis/planted/src/config-export.js",
+        "legacy-security-variant-analysis/planted/src/handler.js",
+        "legacy-security-variant-analysis/planted/src/server.js",
+        "reasoning-security/clean/handler.rs",
+        "reasoning-security/planted/handler.rs"
+      ],
+      "findings": 1
+    },
+    "gaps": [],
+    "findingCount": 12,
+    "lensesRan": [
+      "correctness",
+      "doc-drift",
+      "schema",
+      "security"
+    ],
+    "ingestedLenses": [
+      "legacy.security.adjudication",
+      "reasoning.correctness",
+      "reasoning.doc-drift",
+      "reasoning.schema",
+      "reasoning.security"
+    ],
+    "pendingLenses": [],
+    "coverageNotes": [],
+    "clean": false
+  },
+  "runtimeCalls": {
+    "status": "verified",
+    "accountingRoot": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run",
+    "count": 14,
+    "receiptCount": 14,
+    "nativeReservationCount": 14,
+    "calls": [
+      {
+        "callId": "adj-1f8782da7d12:2f285578d3e0525a9e0a0dcbd8124c4d:10",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89287,
+          "contextId": "65102fb1-c7ad-423a-8b62-e9cc45ab5782",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634987,
+            "nanoseconds": 889210000
+          }
+        },
+        "usage": {
+          "reservationId": "50c01127c03d6222d1bfbd7d81ff164be8371f6c1bc815608609c2a17a5d3d53",
+          "receiptId": "usage:adj-1f8782da7d12:2f285578d3e0525a9e0a0dcbd8124c4d:10",
+          "inputTokens": 5046,
+          "outputTokens": 1314,
+          "cachedInputTokens": 1349,
+          "retryTokens": 0,
+          "thinkingTokens": 429,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.0280589",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-3692200ac137:2f285578d3e0525a9e0a0dcbd8124c4d:8",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89228,
+          "contextId": "33cd278b-5edc-4410-a31b-272ce29fc492",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634952,
+            "nanoseconds": 595595000
+          }
+        },
+        "usage": {
+          "reservationId": "78dcb8f689ca47a498acd66225be1a8bd2e11765ac2b48387bff3560323f404a",
+          "receiptId": "usage:adj-3692200ac137:2f285578d3e0525a9e0a0dcbd8124c4d:8",
+          "inputTokens": 5072,
+          "outputTokens": 1642,
+          "cachedInputTokens": 1349,
+          "retryTokens": 0,
+          "thinkingTokens": 260,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.0314429",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-0654d3c702f6:2f285578d3e0525a9e0a0dcbd8124c4d:9",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89258,
+          "contextId": "9615d5a8-9ac9-4873-9710-ca92617f222b",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634967,
+            "nanoseconds": 116050000
+          }
+        },
+        "usage": {
+          "reservationId": "b1a56b847f619fa6d33640cb6ddb0e78fca307551d15fb813a79f48782aa6bd4",
+          "receiptId": "usage:adj-0654d3c702f6:2f285578d3e0525a9e0a0dcbd8124c4d:9",
+          "inputTokens": 11735,
+          "outputTokens": 2346,
+          "cachedInputTokens": 6374,
+          "retryTokens": 0,
+          "thinkingTokens": 436,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.0455334",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-e4d9a7eb7c25:2f285578d3e0525a9e0a0dcbd8124c4d:6",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89159,
+          "contextId": "20c26f21-0f04-4d7c-a2f1-612b909170eb",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634910,
+            "nanoseconds": 958275000
+          }
+        },
+        "usage": {
+          "reservationId": "8e755ddaa50dcc91b06fed1fcd0ff69c368fccbba0e084edbc59a703c1dcb395",
+          "receiptId": "usage:adj-e4d9a7eb7c25:2f285578d3e0525a9e0a0dcbd8124c4d:6",
+          "inputTokens": 4757,
+          "outputTokens": 1726,
+          "cachedInputTokens": 1349,
+          "retryTokens": 0,
+          "thinkingTokens": 487,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.031022900000000003",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-70ca22fb9e1d:2f285578d3e0525a9e0a0dcbd8124c4d:5",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89128,
+          "contextId": "3d5cdf93-8568-4408-b57b-46fd611d2abb",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634886,
+            "nanoseconds": 518299000
+          }
+        },
+        "usage": {
+          "reservationId": "6a039e16b6d764d8d52a75569db33d8e6678e2634f719a36693a0595eb69e2a3",
+          "receiptId": "usage:adj-70ca22fb9e1d:2f285578d3e0525a9e0a0dcbd8124c4d:5",
+          "inputTokens": 8118,
+          "outputTokens": 3315,
+          "cachedInputTokens": 1349,
+          "retryTokens": 0,
+          "thinkingTokens": 895,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.06035689999999999",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "seat-002:2f285578d3e0525a9e0a0dcbd8124c4d:1",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89010,
+          "contextId": "a7a1032f-097b-4d20-b89d-a8803464f361",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634797,
+            "nanoseconds": 827985000
+          }
+        },
+        "usage": {
+          "reservationId": "f4cfa10bd676766769b1aecb3f4f73714dc82800386f385f0532bbf401c36626",
+          "receiptId": "usage:seat-002:2f285578d3e0525a9e0a0dcbd8124c4d:1",
+          "inputTokens": 14770,
+          "outputTokens": 5461,
+          "cachedInputTokens": 0,
+          "retryTokens": 0,
+          "thinkingTokens": 1885,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.113686",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-487d917d60f7:2f285578d3e0525a9e0a0dcbd8124c4d:4",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89086,
+          "contextId": "a1c4e216-d302-4e4e-8904-aa3a465c1087",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634855,
+            "nanoseconds": 916721000
+          }
+        },
+        "usage": {
+          "reservationId": "0c0db85cdd0dd37df57a67d7120b1f96cb09f772552b3799eecb52b72624b1fa",
+          "receiptId": "usage:adj-487d917d60f7:2f285578d3e0525a9e0a0dcbd8124c4d:4",
+          "inputTokens": 12736,
+          "outputTokens": 4268,
+          "cachedInputTokens": 0,
+          "retryTokens": 0,
+          "thinkingTokens": 1047,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.09362000000000001",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-17343dbec41a:2f285578d3e0525a9e0a0dcbd8124c4d:7",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89186,
+          "contextId": "ac9d77a9-c24e-435c-b9c5-55d5781712bf",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634926,
+            "nanoseconds": 228405000
+          }
+        },
+        "usage": {
+          "reservationId": "d8d55f00e0e8dd17773a9317e8caba2c5696704b02c842feb74bd7e750b5062f",
+          "receiptId": "usage:adj-17343dbec41a:2f285578d3e0525a9e0a0dcbd8124c4d:7",
+          "inputTokens": 11652,
+          "outputTokens": 3152,
+          "cachedInputTokens": 6390,
+          "retryTokens": 0,
+          "thinkingTokens": 289,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.053198999999999996",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "seat-002:2f285578d3e0525a9e0a0dcbd8124c4d:12",
+        "execution": {
+          "stage": "finding-verification",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89354,
+          "contextId": "aac053fe-ede1-402b-b080-14c6d0be9096",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792635014,
+            "nanoseconds": 92528000
+          }
+        },
+        "usage": {
+          "reservationId": "9d423ea90ea82dddcc0f9ed2dfae8ff8e845799693af45483fdb3d58b2d53165",
+          "receiptId": "usage:seat-002:2f285578d3e0525a9e0a0dcbd8124c4d:12",
+          "inputTokens": 30580,
+          "outputTokens": 5413,
+          "cachedInputTokens": 0,
+          "retryTokens": 0,
+          "thinkingTokens": 1744,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.176446",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "seat-003:2f285578d3e0525a9e0a0dcbd8124c4d:2",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89046,
+          "contextId": "28232a34-4685-4649-94aa-7f00a5381958",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634837,
+            "nanoseconds": 775653000
+          }
+        },
+        "usage": {
+          "reservationId": "34a1185b630f26e4f2f4479589b115e76f6b627beb5854d30aab688c8edbbbbc",
+          "receiptId": "usage:seat-003:2f285578d3e0525a9e0a0dcbd8124c4d:2",
+          "inputTokens": 10709,
+          "outputTokens": 1132,
+          "cachedInputTokens": 779,
+          "retryTokens": 0,
+          "thinkingTokens": 278,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.0511139",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "seat-004:2f285578d3e0525a9e0a0dcbd8124c4d:3",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89066,
+          "contextId": "475bd853-f094-414d-8051-149cd6230e46",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792634848,
+            "nanoseconds": 655104000
+          }
+        },
+        "usage": {
+          "reservationId": "1363663b418fc66fe560a5fdbe8feba1d677d833ae785e716804f39971bd5b13",
+          "receiptId": "usage:seat-004:2f285578d3e0525a9e0a0dcbd8124c4d:3",
+          "inputTokens": 10800,
+          "outputTokens": 730,
+          "cachedInputTokens": 779,
+          "retryTokens": 0,
+          "thinkingTokens": 198,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.0474579",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "adj-9a7014b67807:2f285578d3e0525a9e0a0dcbd8124c4d:11",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89325,
+          "contextId": "0ef7296a-e7f4-4a78-8c21-ce2448580543",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792635000,
+            "nanoseconds": 827425000
+          }
+        },
+        "usage": {
+          "reservationId": "5aff089904ab396b95c5dad5348e01d17889a7c247d5d9cc1e5a7fc37e664e59",
+          "receiptId": "usage:adj-9a7014b67807:2f285578d3e0525a9e0a0dcbd8124c4d:11",
+          "inputTokens": 4785,
+          "outputTokens": 1380,
+          "cachedInputTokens": 1349,
+          "retryTokens": 0,
+          "thinkingTokens": 454,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.027674900000000002",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run"
+      },
+      {
+        "callId": "seat-001:3ac4ef334ae97cf00c761bf3f842fd74:2",
+        "execution": {
+          "stage": "finding-verification",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89457,
+          "contextId": "37da6f1d-145a-4bf3-83f4-ae0da3c738dd",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792635075,
+            "nanoseconds": 736971000
+          }
+        },
+        "usage": {
+          "reservationId": "d7417bc90ef8041f17f8307a130b7f154178e10c4ed9d69dbeb73245816f368a",
+          "receiptId": "usage:seat-001:3ac4ef334ae97cf00c761bf3f842fd74:2",
+          "inputTokens": 4216,
+          "outputTokens": 997,
+          "cachedInputTokens": 1330,
+          "retryTokens": 0,
+          "thinkingTokens": 331,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.021643",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run/followup"
+      },
+      {
+        "callId": "seat-001:3ac4ef334ae97cf00c761bf3f842fd74:1",
+        "execution": {
+          "stage": "source-review",
+          "modelTier": "balanced-executor",
+          "authorizedModel": "sonnet"
+        },
+        "processIdentity": {
+          "processId": 89423,
+          "contextId": "22652146-537e-481b-a4ca-1d1bd768389b",
+          "processCreated": true,
+          "processCreationTicks": null,
+          "processCreationTime": {
+            "source": "macos-process-start",
+            "unixSeconds": 1792635052,
+            "nanoseconds": 616922000
+          }
+        },
+        "usage": {
+          "reservationId": "71357c3267d36160e12e06a40f0b4cce0596cd1eac548ab1a08f422542bca550",
+          "receiptId": "usage:seat-001:3ac4ef334ae97cf00c761bf3f842fd74:1",
+          "inputTokens": 28155,
+          "outputTokens": 2662,
+          "cachedInputTokens": 779,
+          "retryTokens": 0,
+          "thinkingTokens": 1371,
+          "failed": false
+        },
+        "reportedApiEquivalentCostUsd": "0.13619789999999998",
+        "observedModels": [
+          "claude-sonnet-5-5"
+        ],
+        "modelPolicyViolation": null,
+        "receiptRun": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/native-run/followup"
+      }
+    ]
+  },
+  "gaps": []
+}

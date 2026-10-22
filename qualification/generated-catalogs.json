@@ -1149,9 +1149,25 @@
       "role": "adjudicator",
       "family": "docs",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:2dc29d9ab977d123fb060559d62b6455b857de881feccee8e2b3d6476b5f21b8",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.doc-drift/342db60c954532e2495b840d2cef7ed11a8d51e52f42d508657308ae9935a3c7.json",
+          "recordSha256": "sha256:d181a55614a548b1c2e9fedb1da5bc7c81dee71468d72e9f6cf066af05589fb3",
+          "originalQualificationDigest": "sha256:342db60c954532e2495b840d2cef7ed11a8d51e52f42d508657308ae9935a3c7",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1161,9 +1177,25 @@
       "role": "adjudicator",
       "family": "architecture",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:3f4749bf72d7a82d3827c20735f22a166686da6ae7da8cee3ae1d5c9ee412a9c",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.architecture/f0019b66f23af260e8c6b15d0ba3cdc7e5b0c0bd40d13fea3f4185899be4aa2a.json",
+          "recordSha256": "sha256:144ae3e063b27aea9dcc95beae009c78b19f7fd98d31e48bd50ca2db911c81e3",
+          "originalQualificationDigest": "sha256:f0019b66f23af260e8c6b15d0ba3cdc7e5b0c0bd40d13fea3f4185899be4aa2a",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1173,9 +1205,25 @@
       "role": "adjudicator",
       "family": "correctness",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:5a12104ecb117c153c6731ce1ef4fe3679517a4766c4d1834c11935d426e0a0e",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.correctness/23dd6cb3987ffe3aa2c8b90f0bf54af130c7a61bb2480adefc2a4b6022250c60.json",
+          "recordSha256": "sha256:6bb38ef560e287a5fc20fd3f424e9d6c64034b1b49a45df508ad6d61d7d0010a",
+          "originalQualificationDigest": "sha256:23dd6cb3987ffe3aa2c8b90f0bf54af130c7a61bb2480adefc2a4b6022250c60",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1185,9 +1233,25 @@
       "role": "adjudicator",
       "family": "ai-slop",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:32fb035d44b13faece3015d041ef33d4bd34cced12b9618ed4653db351adb9b2",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.ai-slop/9fd608a73c1d91b22eb918d8bb3214eb5b192c9741b81b8df215a8d4e9a61490.json",
+          "recordSha256": "sha256:c7622f213ed4b00b9a67c9ac5bcff2310370a9481c3676b834d05ac1814beb2d",
+          "originalQualificationDigest": "sha256:9fd608a73c1d91b22eb918d8bb3214eb5b192c9741b81b8df215a8d4e9a61490",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1197,9 +1261,25 @@
       "role": "adjudicator",
       "family": "quality",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:149589b81b0894d5145967da04eab7be447098bce178fe1759a506787c27eef2",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.naming/1bf67d7798dc6c955da44271fae97ac5b3da6bdbae1abdb0efea238848926cc1.json",
+          "recordSha256": "sha256:2aeb2cd4297da45ef8152908b25a55a0aa1889dbbddc520f542ce59e4cd4ed05",
+          "originalQualificationDigest": "sha256:1bf67d7798dc6c955da44271fae97ac5b3da6bdbae1abdb0efea238848926cc1",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1209,9 +1289,25 @@
       "role": "adjudicator",
       "family": "quality",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:6b7710d8195f71b1e144e21d683bbe3dade911b17678050116c5ef4c30c49eee",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.dead-file/69e41efb43d5e7dcdc1b071469e022de58ddf1c388029f47ad5bd8586d66ffe0.json",
+          "recordSha256": "sha256:9220287ff7f3a93c6816ef572be0021faf5b958832511f9f4d49ee816f75167b",
+          "originalQualificationDigest": "sha256:69e41efb43d5e7dcdc1b071469e022de58ddf1c388029f47ad5bd8586d66ffe0",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1221,9 +1317,25 @@
       "role": "adjudicator",
       "family": "contracts",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:aab936190550d5eb42d47a57ac0034fc674256e86c7ca0e5c4f42584dd6fe3ca",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.schema/3929f0222eaa8dcf10b047b8434115442b49990078f2fa183ce6adc61717abf0.json",
+          "recordSha256": "sha256:ccc2c40b35e83e944528bf8703abec6a27ec314c56e479669171f713e70392a0",
+          "originalQualificationDigest": "sha256:3929f0222eaa8dcf10b047b8434115442b49990078f2fa183ce6adc61717abf0",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1233,9 +1345,25 @@
       "role": "adjudicator",
       "family": "security",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:62520c28fd7f9d12dcab5a531b9f23e6513eddf4ec451e00f8fafbb0f4d1cfa0",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.security/fb27f0ea109338476fe2ba80077877b460543e8ad51313f6ec26ee7d01007354.json",
+          "recordSha256": "sha256:61be3fda8c7ce4278c1bc8877a72bc2ee8b08b637711471c58cd42ecd44a2833",
+          "originalQualificationDigest": "sha256:fb27f0ea109338476fe2ba80077877b460543e8ad51313f6ec26ee7d01007354",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1245,9 +1373,25 @@
       "role": "adjudicator",
       "family": "architecture",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:b06d4d78ebe1b986658c1b9070e735087d98ab2bb5362f70a50f67f8e047b26d",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.minimize/1ca31eaff2727b1967fd07b6f49616a1c776e7ca2559b07e920f29d175e53808.json",
+          "recordSha256": "sha256:016cc109bea1d8bb9e6e0101cb8a17b96a60ded1562de8bce4dbb87e41a7f570",
+          "originalQualificationDigest": "sha256:1ca31eaff2727b1967fd07b6f49616a1c776e7ca2559b07e920f29d175e53808",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1257,9 +1401,25 @@
       "role": "adjudicator",
       "family": "performance",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:e0b740655f9f5817edf51d5c1f71d5947428c0e9a9cd84ed99a87e743228024a",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.performance/b867ee5dec7878123c5899b9fccb7813dc7d3560ad97ecb352e2c273cf23c30c.json",
+          "recordSha256": "sha256:a16b8c58920f4939e2b9ebef724be22340ffd0c6f661e83a2909dfb87c2affcc",
+          "originalQualificationDigest": "sha256:b867ee5dec7878123c5899b9fccb7813dc7d3560ad97ecb352e2c273cf23c30c",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1269,9 +1429,25 @@
       "role": "adjudicator",
       "family": "accessibility",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:c8a12ac93f0bbac49218e448e3c60a4b9c4f108f1a156e984d4f40cabae1e097",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.a11y/5e9d7e3a9739c4ebf4a7656a49d12bfb05ae21219172a6ac805bab328d2b0937.json",
+          "recordSha256": "sha256:c337314af1e0f402fa5572b9cc8157a50c547dba24563700aafade0214103f58",
+          "originalQualificationDigest": "sha256:5e9d7e3a9739c4ebf4a7656a49d12bfb05ae21219172a6ac805bab328d2b0937",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1281,9 +1457,25 @@
       "role": "adjudicator",
       "family": "data",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:8ca078296d14440e743d3ffbea61f894e557a04e6c11a0bcf8f3b22623071d3a",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.data-safety/e0cf86c4c93c9b24969e8c33a71494a2ef27a18d66457a3fbf0e40665a373f5f.json",
+          "recordSha256": "sha256:5e2f0d70b461a8735c2c2f641fd9aaa5a6a6388b64f68e9bce20ba5e48755058",
+          "originalQualificationDigest": "sha256:e0cf86c4c93c9b24969e8c33a71494a2ef27a18d66457a3fbf0e40665a373f5f",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1293,9 +1485,25 @@
       "role": "adjudicator",
       "family": "reliability",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:34cb9867ee79ec1a4f73b36409921870c47c49f288c6cdbbf000257fa317cf1e",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.resilience/3eed913728ba4580e2908ed506d75541cb5188aacb165d8648ed3fa8e6eea06f.json",
+          "recordSha256": "sha256:7462a1cf64a0a33bcbb4ba6c492fa36c43ee1ccb30e86f710304f9ccb9508c53",
+          "originalQualificationDigest": "sha256:3eed913728ba4580e2908ed506d75541cb5188aacb165d8648ed3fa8e6eea06f",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1305,9 +1513,25 @@
       "role": "adjudicator",
       "family": "platform",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:deaf9dc1041737e62d929e813b2cf8e2995fe4202419539d88c0bb4753020161",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.platform-parity/cb01c0908427e57f8889490b22712a7c2a72008e0b819798d5f0687ea458c475.json",
+          "recordSha256": "sha256:8a481f5256c3a2b0f7416af2dce35c51493ae2f5e454f792551e53040fdc1313",
+          "originalQualificationDigest": "sha256:cb01c0908427e57f8889490b22712a7c2a72008e0b819798d5f0687ea458c475",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },
@@ -1317,9 +1541,25 @@
       "role": "adjudicator",
       "family": "release",
       "benchmark": {
-        "status": "unproven",
+        "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": null
+        "qualificationDigest": "sha256:77699a84119415da95e69df1a275b5585ca6a2783617f996291316499ca5b4a0",
+        "qualification": {
+          "basis": "retained-provider-accuracy",
+          "index": "qualification/provider-accuracy/index.json",
+          "record": "qualification/provider-accuracy/records/reasoning.release-readiness/0efee426e8bc4505b3a68bbbf291c0a9d1bafb71268d6abe8cc227b9e4dd232c.json",
+          "recordSha256": "sha256:cc44927cc0d04d25a8db9f1f45014a5210af0b3c65ddff0a428ffcea83b7042f",
+          "originalQualificationDigest": "sha256:0efee426e8bc4505b3a68bbbf291c0a9d1bafb71268d6abe8cc227b9e4dd232c",
+          "validationBasis": "observed-native-runtime-maintainer-readback",
+          "stage": "finding",
+          "scope": "known-answer-fixture-cases",
+          "productionQualification": false,
+          "wholeProviderQualification": false,
+          "auditCleanClaim": false,
+          "fixtureScope": "known-answer-fixture-cases",
+          "negativeControlClaim": "known-answer FP=0; not native scoped_clean certification",
+          "coverageScope": "exact source-bound positive & clean fixture controls; no whole-repository claim"
+        }
       },
       "selectable": true
     },

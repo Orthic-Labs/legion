@@ -1,0 +1,995 @@
+{
+  "schemaVersion": 1,
+  "kind": "repository-audit-report",
+  "root": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/fixture-source",
+  "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/ff4561e51665dd0f14482c45742326e630eb1c18ac52d11997e3878b32f71d0a/audit-snapshots/cold-3f667ff601fc2f12c8c3ebe9/selected",
+  "snapshotManifest": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/ff4561e51665dd0f14482c45742326e630eb1c18ac52d11997e3878b32f71d0a/audit-snapshots/cold-3f667ff601fc2f12c8c3ebe9/manifest.json",
+  "profile": "standard",
+  "scope": {
+    "mode": "whole-repo",
+    "type": "all",
+    "base": null,
+    "baseCommit": null,
+    "dir": null,
+    "snapshot": {
+      "schemaVersion": 1,
+      "scope": {
+        "schemaVersion": 1,
+        "spec": {
+          "kind": "repo"
+        },
+        "sourceRoot": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/fixture-source",
+        "objectRoot": null,
+        "headOid": "8766dbb300ac43bab2aa1212c2c583093e6b433d",
+        "headKind": "worktree",
+        "selectedOid": "8766dbb300ac43bab2aa1212c2c583093e6b433d",
+        "baseRefOid": null,
+        "mergeBaseOid": null,
+        "baselineOid": null,
+        "changedPaths": [],
+        "pathPrefix": null,
+        "notices": [],
+        "selectedEntries": {
+          "reasoning-a11y/clean/button.html": {
+            "mode": "100644",
+            "oid": "355b6ed6447f5b9abcfc88c739ceccadcbc5cdad"
+          },
+          "reasoning-a11y/planted/button.html": {
+            "mode": "100644",
+            "oid": "8bcb5e399b1e66ac4753e01a915ff4da542a6b97"
+          },
+          "reasoning-data-safety/clean/keychain.rs": {
+            "mode": "100644",
+            "oid": "cbd6b2c745507bf0b0e6a1da7de3796dcaf4efb1"
+          },
+          "reasoning-data-safety/planted/keychain.rs": {
+            "mode": "100644",
+            "oid": "df29f164613e3141f2612d63255bd0dac39b7b93"
+          },
+          "reasoning-platform-parity/clean/src-tauri/path.rs": {
+            "mode": "100644",
+            "oid": "f8b879eacd31e09c606b426caf95a694521665c2"
+          },
+          "reasoning-platform-parity/planted/src-tauri/path.rs": {
+            "mode": "100644",
+            "oid": "6fa857edfaa28bd814ba2f788a99596b386f2e4e"
+          },
+          "reasoning-release-readiness/clean/.github/workflows/release.yml": {
+            "mode": "100644",
+            "oid": "0e12c333228c55cc8d7b97c5a7ce7e7d703dcd35"
+          },
+          "reasoning-release-readiness/clean/release.sh": {
+            "mode": "100644",
+            "oid": "af5ff4a7adfb658804fea61da70377b3c341581d"
+          },
+          "reasoning-release-readiness/clean/release/THIRD_PARTY_NOTICES.md": {
+            "mode": "100644",
+            "oid": "39f54b0ce1aca9b1d99d6132b802df9715f20fb7"
+          },
+          "reasoning-release-readiness/clean/release/bundles/macos.toml": {
+            "mode": "100644",
+            "oid": "d3c96a15e8c97f9b233045bc2a485cc7487b03cd"
+          },
+          "reasoning-release-readiness/clean/release/bundles/windows.toml": {
+            "mode": "100644",
+            "oid": "31423641405085ba51ecd5289feb92c05eb596f0"
+          },
+          "reasoning-release-readiness/clean/release/dependency-lock.json": {
+            "mode": "100644",
+            "oid": "98e935a623149064dcee8341c92a8e9c17e11b99"
+          },
+          "reasoning-release-readiness/clean/release/macos.entitlements": {
+            "mode": "100644",
+            "oid": "8d60d3855b0db4e8d3ecaa585681ce8cd72cd793"
+          },
+          "reasoning-release-readiness/clean/release/signing/macos.sh": {
+            "mode": "100644",
+            "oid": "6b4a84b1ab35a6bb7a6007db4d087cfa718c0198"
+          },
+          "reasoning-release-readiness/clean/release/signing/windows.ps1": {
+            "mode": "100644",
+            "oid": "5d1f3f5a74e715b60897a048bda425697ef28ede"
+          },
+          "reasoning-release-readiness/clean/release/surface.py": {
+            "mode": "100644",
+            "oid": "a5eb9fd4a414e28e53932c12bdf2f5c4e1369986"
+          },
+          "reasoning-release-readiness/clean/release/updater/macos.json": {
+            "mode": "100644",
+            "oid": "875cd0d77290b45985d1e31948c59e90d02401f7"
+          },
+          "reasoning-release-readiness/clean/release/updater/windows.json": {
+            "mode": "100644",
+            "oid": "875cd0d77290b45985d1e31948c59e90d02401f7"
+          },
+          "reasoning-release-readiness/planted/.github/workflows/release.yml": {
+            "mode": "100644",
+            "oid": "0e12c333228c55cc8d7b97c5a7ce7e7d703dcd35"
+          },
+          "reasoning-release-readiness/planted/release.sh": {
+            "mode": "100644",
+            "oid": "af5ff4a7adfb658804fea61da70377b3c341581d"
+          },
+          "reasoning-release-readiness/planted/release/THIRD_PARTY_NOTICES.md": {
+            "mode": "100644",
+            "oid": "39f54b0ce1aca9b1d99d6132b802df9715f20fb7"
+          },
+          "reasoning-release-readiness/planted/release/bundles/macos.toml": {
+            "mode": "100644",
+            "oid": "d3c96a15e8c97f9b233045bc2a485cc7487b03cd"
+          },
+          "reasoning-release-readiness/planted/release/bundles/windows.toml": {
+            "mode": "100644",
+            "oid": "31423641405085ba51ecd5289feb92c05eb596f0"
+          },
+          "reasoning-release-readiness/planted/release/dependency-lock.json": {
+            "mode": "100644",
+            "oid": "98e935a623149064dcee8341c92a8e9c17e11b99"
+          },
+          "reasoning-release-readiness/planted/release/macos.entitlements": {
+            "mode": "100644",
+            "oid": "8d60d3855b0db4e8d3ecaa585681ce8cd72cd793"
+          },
+          "reasoning-release-readiness/planted/release/signing/macos.sh": {
+            "mode": "100644",
+            "oid": "6b4a84b1ab35a6bb7a6007db4d087cfa718c0198"
+          },
+          "reasoning-release-readiness/planted/release/signing/windows.ps1": {
+            "mode": "100644",
+            "oid": "5d1f3f5a74e715b60897a048bda425697ef28ede"
+          },
+          "reasoning-release-readiness/planted/release/surface.py": {
+            "mode": "100644",
+            "oid": "a870071c44aa4daa9287971464020dd3bae2d9f5"
+          },
+          "reasoning-release-readiness/planted/release/updater/macos.json": {
+            "mode": "100644",
+            "oid": "875cd0d77290b45985d1e31948c59e90d02401f7"
+          },
+          "reasoning-resilience/clean/worker.rs": {
+            "mode": "100644",
+            "oid": "86ebcdb1ad3ba4bf29024118606467902cd7b457"
+          },
+          "reasoning-resilience/planted/worker.rs": {
+            "mode": "100644",
+            "oid": "280dfdfbfe7997b0347306d5c055c2160d35dd4e"
+          }
+        },
+        "baselineEntries": {},
+        "indexDigest": "sha256:b5d573f2dd496831b769c04c772a27967fb8a620161eb77452854a1e18abb2d2",
+        "statusDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "gitVersion": "git version 2.54.0 (Apple Git-157)",
+        "untrackedPaths": []
+      },
+      "key": "sha256:e383cae2ddcc4f32422d24c1da579f4b2dad071ed2b40f40fca5432a84e6f60b",
+      "files": {
+        "reasoning-a11y/clean/button.html": {
+          "digest": "sha256:bd0d91f0345a86ced975363921eb90ee90f30bf68b74eccda6e5e26d1b4fefe1",
+          "bytes": 67,
+          "mode": "100644"
+        },
+        "reasoning-a11y/planted/button.html": {
+          "digest": "sha256:97f3effa7360d285e6d40a2b25c01251fe777502695e6b008db5d03188352bd4",
+          "bytes": 48,
+          "mode": "100644"
+        },
+        "reasoning-data-safety/clean/keychain.rs": {
+          "digest": "sha256:82b1cbb0d79f941bdecfe769e49aa2de4cb4a9547740b521555ce24058e63bcf",
+          "bytes": 136,
+          "mode": "100644"
+        },
+        "reasoning-data-safety/planted/keychain.rs": {
+          "digest": "sha256:b372111b7968d8180f1e99110e44731419987cba4b1b3affaa5714cb6e7411bd",
+          "bytes": 75,
+          "mode": "100644"
+        },
+        "reasoning-platform-parity/clean/src-tauri/path.rs": {
+          "digest": "sha256:ac002ef5e17d5f3718348fd7b8645e96d1c170eaba6b17a2549c607b5bcf654e",
+          "bytes": 775,
+          "mode": "100644"
+        },
+        "reasoning-platform-parity/planted/src-tauri/path.rs": {
+          "digest": "sha256:048958082d1658a0377538c6dfbda85b0a5d95d01a956a0aba8bf742d8b96bea",
+          "bytes": 341,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/.github/workflows/release.yml": {
+          "digest": "sha256:09075602c9bb1c25dd929d6d1cbaaa4c7065548501d1c0a4eaec674be777201a",
+          "bytes": 1848,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release.sh": {
+          "digest": "sha256:7d01051a68f4718195da7a4b8fe0fa18c959fc8fcf7b1c0d6cb86ae9f0074c06",
+          "bytes": 206,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/THIRD_PARTY_NOTICES.md": {
+          "digest": "sha256:09cc3ac55077c64a01892825f32cf3e66ae649022502895495127477ce7ad50b",
+          "bytes": 83,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/bundles/macos.toml": {
+          "digest": "sha256:6fee5c054b39bccc3c5d8fa2a81115ffafce79e93e27ca0a059e1e53d1729f0a",
+          "bytes": 67,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/bundles/windows.toml": {
+          "digest": "sha256:6ff779443aa28542a300228c56e7f40bda6aeb302925c13567b40ae04d4d2652",
+          "bytes": 15,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/dependency-lock.json": {
+          "digest": "sha256:8365a05386cb17fe1a23a20b1a0421d80797be52b715ea00ba5312296a97ca5b",
+          "bytes": 38,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/macos.entitlements": {
+          "digest": "sha256:689d893d3d5c41dbd3982421f2121454b35198541f817febde4d6ba75576e6fd",
+          "bytes": 77,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/signing/macos.sh": {
+          "digest": "sha256:4deeb74dbf2f5688dea86893bdb42cc3e1cfc86d8dd7b829c2a3592c7cb76ed9",
+          "bytes": 1128,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/signing/windows.ps1": {
+          "digest": "sha256:1907cd7b646939a48eec9317b529091266604901dbefb1e89763e9351a61b1a1",
+          "bytes": 837,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/surface.py": {
+          "digest": "sha256:633bdb886073c624e18cdd65d9e5ecfd17ef210059c911f3f86a30ba87f151af",
+          "bytes": 916,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/updater/macos.json": {
+          "digest": "sha256:11a85ddcbc289c3cde107db01893bced5771a1889f6c59e0396ef1de1bcf3dfe",
+          "bytes": 48,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/clean/release/updater/windows.json": {
+          "digest": "sha256:11a85ddcbc289c3cde107db01893bced5771a1889f6c59e0396ef1de1bcf3dfe",
+          "bytes": 48,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/.github/workflows/release.yml": {
+          "digest": "sha256:09075602c9bb1c25dd929d6d1cbaaa4c7065548501d1c0a4eaec674be777201a",
+          "bytes": 1848,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release.sh": {
+          "digest": "sha256:7d01051a68f4718195da7a4b8fe0fa18c959fc8fcf7b1c0d6cb86ae9f0074c06",
+          "bytes": 206,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/THIRD_PARTY_NOTICES.md": {
+          "digest": "sha256:09cc3ac55077c64a01892825f32cf3e66ae649022502895495127477ce7ad50b",
+          "bytes": 83,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/bundles/macos.toml": {
+          "digest": "sha256:6fee5c054b39bccc3c5d8fa2a81115ffafce79e93e27ca0a059e1e53d1729f0a",
+          "bytes": 67,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/bundles/windows.toml": {
+          "digest": "sha256:6ff779443aa28542a300228c56e7f40bda6aeb302925c13567b40ae04d4d2652",
+          "bytes": 15,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/dependency-lock.json": {
+          "digest": "sha256:8365a05386cb17fe1a23a20b1a0421d80797be52b715ea00ba5312296a97ca5b",
+          "bytes": 38,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/macos.entitlements": {
+          "digest": "sha256:689d893d3d5c41dbd3982421f2121454b35198541f817febde4d6ba75576e6fd",
+          "bytes": 77,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/signing/macos.sh": {
+          "digest": "sha256:4deeb74dbf2f5688dea86893bdb42cc3e1cfc86d8dd7b829c2a3592c7cb76ed9",
+          "bytes": 1128,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/signing/windows.ps1": {
+          "digest": "sha256:1907cd7b646939a48eec9317b529091266604901dbefb1e89763e9351a61b1a1",
+          "bytes": 837,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/surface.py": {
+          "digest": "sha256:40d4a010b526985c4e6b21cdc8aa40700f879590101c61d5fbbae8e1054b7ef1",
+          "bytes": 890,
+          "mode": "100644"
+        },
+        "reasoning-release-readiness/planted/release/updater/macos.json": {
+          "digest": "sha256:11a85ddcbc289c3cde107db01893bced5771a1889f6c59e0396ef1de1bcf3dfe",
+          "bytes": 48,
+          "mode": "100644"
+        },
+        "reasoning-resilience/clean/worker.rs": {
+          "digest": "sha256:1e0df621bb47edc6986f1cc91e3147ab37ab7f182f093cff7b7efa86225a7867",
+          "bytes": 131,
+          "mode": "100644"
+        },
+        "reasoning-resilience/planted/worker.rs": {
+          "digest": "sha256:6697d6a3ae6b7303170122e065c4125faaf6e55984663fd56a0d3264935cde18",
+          "bytes": 138,
+          "mode": "100644"
+        }
+      },
+      "baseFiles": {},
+      "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/ff4561e51665dd0f14482c45742326e630eb1c18ac52d11997e3878b32f71d0a/audit-snapshots/cold-3f667ff601fc2f12c8c3ebe9/selected",
+      "baselineRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/ff4561e51665dd0f14482c45742326e630eb1c18ac52d11997e3878b32f71d0a/audit-snapshots/cold-3f667ff601fc2f12c8c3ebe9/base",
+      "gaps": [],
+      "dirtyDigest": "sha256:c21844bf0ab0c5f37e2159da9e8090b3b24c02b942f93a33b8958e76734ee4f9",
+      "sourceCache": {
+        "mode": "writable",
+        "immutableBlobHits": 0,
+        "misses": 20,
+        "verifiedBytes": 12259,
+        "contentHits": 11,
+        "factHits": 0,
+        "rejectedEntries": 0,
+        "skippedWrites": 0,
+        "maxBytes": 2147483648,
+        "storageBytes": 31229,
+        "storageEntries": 20,
+        "evictions": 0
+      },
+      "executionPolicy": "read-only-no-project-execution-without-host-isolation"
+    }
+  },
+  "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+  "planSignature": "hmac-sha256:9e545255c59179bacb4dcea5d52f5ef1cd5e48b24e82ee80a1609d920502c0f9",
+  "generation": "filesystem:sha256:ab51a83b020d8859a1dc658a45d67473e671e96b0770be27abeb85f63e215abd",
+  "inventoryDigest": "sha256:d630eee552c7a00c7ca4d12d826a0a554776c6cabe07a6587ab05d12c95c8704",
+  "plannedProviders": [
+    "reasoning.a11y",
+    "reasoning.data-safety",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness",
+    "reasoning.resilience",
+    "security.misuse-resistance"
+  ],
+  "resultCount": 6,
+  "findingCount": 0,
+  "selectedLenses": [
+    "a11y",
+    "data-safety",
+    "platform-parity",
+    "release-readiness",
+    "resilience",
+    "security"
+  ],
+  "lensesRan": [],
+  "reasoningLensesRan": [],
+  "reasoningLensesPending": [
+    "reasoning.a11y",
+    "reasoning.data-safety",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness",
+    "reasoning.resilience"
+  ],
+  "coverageNotes": [],
+  "reasoningEpochDigest": "sha256:027702b341aa0290f4fc3ac03470a4574dbc145e1ed12f3e9bbbd6170e137fbd",
+  "deterministicLensTagCounts": {
+    "security": 1
+  },
+  "lensWork": [
+    {
+      "provider": "reasoning.a11y",
+      "lensIds": [
+        "a11y"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/lens-packets/reasoning.a11y.json",
+      "packetDigest": "sha256:e9d493e4959e34b86c2b11359626300ae4e2a1992856a9301dae99554a40a115",
+      "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+      "bundle": "S2",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 5,
+          "wave": 5,
+          "part": 1,
+          "bundle": "S2",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.data-safety",
+      "lensIds": [
+        "data-safety"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/lens-packets/reasoning.data-safety.json",
+      "packetDigest": "sha256:593c2873cabfb09b5fc6271fa4b8456cb14d94bb535064d3f330f5d04dd02d4f",
+      "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+      "bundle": "S1",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 1,
+          "wave": 1,
+          "part": 1,
+          "bundle": "S1",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.platform-parity",
+      "lensIds": [
+        "platform-parity"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/lens-packets/reasoning.platform-parity.json",
+      "packetDigest": "sha256:2a7695094f36604f4d40826ab87a387bcf269b69bd007054d160a233004b760d",
+      "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+      "bundle": "S1",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "S1",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.release-readiness",
+      "lensIds": [
+        "release-readiness"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/lens-packets/reasoning.release-readiness.json",
+      "packetDigest": "sha256:1dc11f902527c76ab29121c479020e3946fe6843481d6e966107c46639f5a1b2",
+      "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+      "bundle": "S1",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 3,
+          "wave": 3,
+          "part": 1,
+          "bundle": "S1",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.resilience",
+      "lensIds": [
+        "resilience"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/lens-packets/reasoning.resilience.json",
+      "packetDigest": "sha256:7cddbbee724a2128231fa65733a1a4141d3fadc16a3cf593e932a9a525574b4f",
+      "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+      "bundle": "S1",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 4,
+          "wave": 4,
+          "part": 1,
+          "bundle": "S1",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    }
+  ],
+  "lensDispatch": {
+    "schemaVersion": 1,
+    "kind": "legion-lens-dispatch",
+    "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+    "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
+    "requestEncoding": "runtime-initial-v1",
+    "byteBasis": {
+      "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
+      "plannedRequestBytes": "exact serialized host envelope including transport framing, telemetry escaping, controls & execution metadata",
+      "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
+      "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+      "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+      "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+      "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+      "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+      "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests"
+    },
+    "reasoningBudget": {
+      "schemaVersion": 2,
+      "totalTokens": 6600000,
+      "perCallTokens": 150000,
+      "outputTokens": 4096,
+      "maxSeats": 44
+    },
+    "coverageMode": "exhaustive",
+    "boundedAudit": false,
+    "selectedPackets": [
+      "reasoning.data-safety.json",
+      "reasoning.platform-parity.json",
+      "reasoning.release-readiness.json",
+      "reasoning.resilience.json",
+      "reasoning.a11y.json"
+    ],
+    "deferredPackets": [],
+    "deferredWork": [],
+    "plannedSeats": 5,
+    "limits": {
+      "seatTokenBudget": 150000,
+      "waveWidth": 1,
+      "runTokenBudget": 6600000,
+      "maxTotalSeats": 44
+    },
+    "lenses": [
+      {
+        "provider": "reasoning.a11y",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 17165,
+        "estimatedTokens": 4292,
+        "largestPartBytes": 17165,
+        "largestPartEstimatedTokens": 4292
+      },
+      {
+        "provider": "reasoning.data-safety",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 21573,
+        "estimatedTokens": 5394,
+        "largestPartBytes": 21573,
+        "largestPartEstimatedTokens": 5394
+      },
+      {
+        "provider": "reasoning.platform-parity",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 18209,
+        "estimatedTokens": 4553,
+        "largestPartBytes": 18209,
+        "largestPartEstimatedTokens": 4553
+      },
+      {
+        "provider": "reasoning.release-readiness",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 51982,
+        "estimatedTokens": 12996,
+        "largestPartBytes": 51982,
+        "largestPartEstimatedTokens": 12996
+      },
+      {
+        "provider": "reasoning.resilience",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 38091,
+        "estimatedTokens": 9523,
+        "largestPartBytes": 38091,
+        "largestPartEstimatedTokens": 9523
+      }
+    ],
+    "bundles": [
+      {
+        "bundle": "S1",
+        "shareBp": 700,
+        "seats": 4,
+        "estimatedTokens": 55085,
+        "budgetTokens": 462000,
+        "overBy": 0
+      },
+      {
+        "bundle": "S2",
+        "shareBp": 800,
+        "seats": 1,
+        "estimatedTokens": 8529,
+        "budgetTokens": 528000,
+        "overBy": 0
+      }
+    ],
+    "seats": [
+      {
+        "seat": 1,
+        "seatId": "seat-001",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 1,
+        "part": 1,
+        "estimatedTokens": 9936,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 9936,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 5840,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 14864,
+        "plannedModelInputBytes": 11680,
+        "modelVisibleInputBytes": 11680,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 14864,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.data-safety"
+        ],
+        "lensIds": [
+          "data-safety"
+        ],
+        "packets": [
+          "reasoning.data-safety.json"
+        ]
+      },
+      {
+        "seat": 2,
+        "seatId": "seat-002",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 2,
+        "part": 1,
+        "estimatedTokens": 9202,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 9202,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 5106,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 13392,
+        "plannedModelInputBytes": 10211,
+        "modelVisibleInputBytes": 10211,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 13392,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.platform-parity"
+        ],
+        "lensIds": [
+          "platform-parity"
+        ],
+        "packets": [
+          "reasoning.platform-parity.json"
+        ]
+      },
+      {
+        "seat": 3,
+        "seatId": "seat-003",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 3,
+        "part": 1,
+        "estimatedTokens": 20314,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 20314,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 16218,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 41028,
+        "plannedModelInputBytes": 32435,
+        "modelVisibleInputBytes": 32435,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 41028,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.release-readiness"
+        ],
+        "lensIds": [
+          "release-readiness"
+        ],
+        "packets": [
+          "reasoning.release-readiness.json"
+        ]
+      },
+      {
+        "seat": 4,
+        "seatId": "seat-004",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 4,
+        "part": 1,
+        "estimatedTokens": 15633,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15633,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11537,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 30185,
+        "plannedModelInputBytes": 23074,
+        "modelVisibleInputBytes": 23074,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 30185,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.resilience"
+        ],
+        "lensIds": [
+          "resilience"
+        ],
+        "packets": [
+          "reasoning.resilience.json"
+        ]
+      },
+      {
+        "seat": 5,
+        "seatId": "seat-005",
+        "bundle": "S2",
+        "tier": "specialist",
+        "wave": 5,
+        "part": 1,
+        "estimatedTokens": 8529,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 8529,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 4433,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 11822,
+        "plannedModelInputBytes": 8866,
+        "modelVisibleInputBytes": 8866,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 11822,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.a11y"
+        ],
+        "lensIds": [
+          "a11y"
+        ],
+        "packets": [
+          "reasoning.a11y.json"
+        ]
+      }
+    ],
+    "waves": 5,
+    "requiredSeats": 5,
+    "requiredInitialCalls": 5,
+    "gatherCalls": 0,
+    "followupReserveCalls": 1,
+    "initialCallReservationTokens": 750000,
+    "followupReserveTokens": 150000,
+    "packetBytes": 111291,
+    "modelVisibleInputBytes": 86266,
+    "planningModelInputByteLimit": 295000,
+    "seatReadBytes": 111291,
+    "perLensPacketBytes": 147020,
+    "uniqueExcerptBytes": 38596,
+    "sharedExcerptBytesSaved": 0,
+    "unsharedRequestBytes": 111291,
+    "universeUnsharedRequestBytes": 111291,
+    "physicalRequestBytesSaved": 0,
+    "estimatedTokens": 63614,
+    "withinLimits": true,
+    "violations": [],
+    "violationCount": 0,
+    "warnings": []
+  },
+  "coverageMode": "exhaustive",
+  "auditLabel": null,
+  "lensCoverage": {
+    "reasoning.a11y": {
+      "mode": "exhaustive",
+      "bundle": "S2",
+      "denominator": 2,
+      "reviewSet": 2,
+      "reviewSetDigest": "sha256:fbfe830b668a97bf3b913a7147504c2c4713b5ae54f36003e2c400776bca7ae2",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:b1a68a6e1750a4f5221facc2647de6c8a8001a233479aeeefcea7a4e609d7899",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 2,
+          "n": 2,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.data-safety": {
+      "mode": "exhaustive",
+      "bundle": "S1",
+      "denominator": 2,
+      "reviewSet": 2,
+      "reviewSetDigest": "sha256:d09a5efd163795559190f96326978eefabe6b30ebd08659a0689c306d8eac11e",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:b1a68a6e1750a4f5221facc2647de6c8a8001a233479aeeefcea7a4e609d7899",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 2,
+          "n": 2,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.platform-parity": {
+      "mode": "exhaustive",
+      "bundle": "S1",
+      "denominator": 2,
+      "reviewSet": 2,
+      "reviewSetDigest": "sha256:d2c5dd22e6b982b06e5c9b9cb232f8cd81b667e4038903e04ffcb1d2b1864f1d",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:b1a68a6e1750a4f5221facc2647de6c8a8001a233479aeeefcea7a4e609d7899",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 2,
+          "n": 2,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.release-readiness": {
+      "mode": "exhaustive",
+      "bundle": "S1",
+      "denominator": 23,
+      "reviewSet": 23,
+      "reviewSetDigest": "sha256:a75a9ea6765170ca440d7e52644da49775bd79275abfd36255eb68d0024717e5",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:b1a68a6e1750a4f5221facc2647de6c8a8001a233479aeeefcea7a4e609d7899",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 23,
+          "n": 23,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.resilience": {
+      "mode": "exhaustive",
+      "bundle": "S1",
+      "denominator": 16,
+      "reviewSet": 16,
+      "reviewSetDigest": "sha256:14ae46df72cb3110b8127049ae1bbc71a28678a6dc38d4db94df315c21d6a910",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:b1a68a6e1750a4f5221facc2647de6c8a8001a233479aeeefcea7a4e609d7899",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 16,
+          "n": 16,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    }
+  },
+  "contextNotices": [
+    "External checks require native owner admission; unavailable checks remain explicit coverage gaps.",
+    "audit-run-dir-not-ignored: add `.audit/` to .gitignore (or .git/info/exclude); run directories under .audit/ are otherwise reported as untracked files"
+  ],
+  "gaps": [
+    "provider-degradation:reasoning.a11y:host-unavailable",
+    "provider-degradation:reasoning.a11y:pending-host",
+    "provider-degradation:reasoning.data-safety:host-unavailable",
+    "provider-degradation:reasoning.data-safety:pending-host",
+    "provider-degradation:reasoning.platform-parity:host-unavailable",
+    "provider-degradation:reasoning.platform-parity:pending-host",
+    "provider-degradation:reasoning.release-readiness:host-unavailable",
+    "provider-degradation:reasoning.release-readiness:pending-host",
+    "provider-degradation:reasoning.resilience:host-unavailable",
+    "provider-degradation:reasoning.resilience:pending-host",
+    "provider-incomplete:reasoning.a11y",
+    "provider-incomplete:reasoning.data-safety",
+    "provider-incomplete:reasoning.platform-parity",
+    "provider-incomplete:reasoning.release-readiness",
+    "provider-incomplete:reasoning.resilience",
+    "reasoning-budget-state-missing",
+    "reasoning-host-unavailable",
+    "reasoning-lens-pending-host:reasoning.a11y",
+    "reasoning-lens-pending-host:reasoning.data-safety",
+    "reasoning-lens-pending-host:reasoning.platform-parity",
+    "reasoning-lens-pending-host:reasoning.release-readiness",
+    "reasoning-lens-pending-host:reasoning.resilience",
+    "selected reasoning lenses did not complete"
+  ],
+  "artifacts": {
+    "plan": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/plan.json",
+    "reportJson": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/report.json",
+    "reportSarif": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/report.sarif",
+    "facts": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/facts.json",
+    "execution": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run/execution.json"
+  },
+  "effectArtifactsRoot": "artifacts",
+  "auditStatus": "incomplete",
+  "qualityGate": "unproven",
+  "processExecution": "complete",
+  "processState": "complete",
+  "completionValidation": "not-run"
+}

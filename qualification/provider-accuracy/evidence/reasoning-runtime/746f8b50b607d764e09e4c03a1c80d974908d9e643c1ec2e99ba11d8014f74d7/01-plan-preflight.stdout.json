@@ -1,0 +1,862 @@
+{
+  "schemaVersion": 1,
+  "kind": "repository-audit-report",
+  "root": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/fixture-source",
+  "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a66c5d3356fd845ed816555dcd85af3051f10dcac7c5f3bc40ac2daac4b34857/audit-snapshots/cold-bb7efc897b7c605e36e19e55/selected",
+  "snapshotManifest": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a66c5d3356fd845ed816555dcd85af3051f10dcac7c5f3bc40ac2daac4b34857/audit-snapshots/cold-bb7efc897b7c605e36e19e55/manifest.json",
+  "profile": "standard",
+  "scope": {
+    "mode": "whole-repo",
+    "type": "all",
+    "base": null,
+    "baseCommit": null,
+    "dir": null,
+    "snapshot": {
+      "schemaVersion": 1,
+      "scope": {
+        "schemaVersion": 1,
+        "spec": {
+          "kind": "repo"
+        },
+        "sourceRoot": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/fixture-source",
+        "objectRoot": null,
+        "headOid": "a1756e5c842c29b1024b163ce324caac88686987",
+        "headKind": "worktree",
+        "selectedOid": "a1756e5c842c29b1024b163ce324caac88686987",
+        "baseRefOid": null,
+        "mergeBaseOid": null,
+        "baselineOid": null,
+        "changedPaths": [],
+        "pathPrefix": null,
+        "notices": [],
+        "selectedEntries": {
+          "legacy-security-adjudication/clean/src/handler.js": {
+            "mode": "100644",
+            "oid": "8d3b121f0f9d14d9020a7c03ea58be2423b0bcc8"
+          },
+          "legacy-security-adjudication/clean/src/server.js": {
+            "mode": "100644",
+            "oid": "dbcb91048ee85b61b61bace905e55df1988c650d"
+          },
+          "legacy-security-adjudication/planted/src/handler.js": {
+            "mode": "100644",
+            "oid": "aefb9b020f757920b7ace025ed25ae92bbaac589"
+          },
+          "legacy-security-adjudication/planted/src/server.js": {
+            "mode": "100644",
+            "oid": "dbcb91048ee85b61b61bace905e55df1988c650d"
+          },
+          "legacy-security-variant-analysis/clean/src/config-export.js": {
+            "mode": "100644",
+            "oid": "3bb75a19493190c30e1dd986f0a53e3b7cbf207d"
+          },
+          "legacy-security-variant-analysis/clean/src/handler.js": {
+            "mode": "100644",
+            "oid": "351572e1b9e6d9ab8bbea29f5292c771195bdce1"
+          },
+          "legacy-security-variant-analysis/clean/src/server.js": {
+            "mode": "100644",
+            "oid": "922c415316632c2223b7c0c3b054584f1131cb18"
+          },
+          "legacy-security-variant-analysis/planted/src/config-export.js": {
+            "mode": "100644",
+            "oid": "e7f787d416304cde6dc2c5f0eef40136ba424dee"
+          },
+          "legacy-security-variant-analysis/planted/src/handler.js": {
+            "mode": "100644",
+            "oid": "aefb9b020f757920b7ace025ed25ae92bbaac589"
+          },
+          "legacy-security-variant-analysis/planted/src/server.js": {
+            "mode": "100644",
+            "oid": "922c415316632c2223b7c0c3b054584f1131cb18"
+          },
+          "reasoning-correctness/clean/correctness.rs": {
+            "mode": "100644",
+            "oid": "165ae0433653f3e0958f53d0380ce6976a69c0ce"
+          },
+          "reasoning-correctness/planted/correctness.rs": {
+            "mode": "100644",
+            "oid": "15bc89b7718432481dd79fddde010f1dd425342b"
+          },
+          "reasoning-doc-drift/clean/README.md": {
+            "mode": "100644",
+            "oid": "e0c65ad0360504ebad09d08ec2bc92d11917f07b"
+          },
+          "reasoning-doc-drift/clean/src/lib.rs": {
+            "mode": "100644",
+            "oid": "1d111888a99886ef5d8c19a0f20d8b3254a8d7cc"
+          },
+          "reasoning-doc-drift/planted/README.md": {
+            "mode": "100644",
+            "oid": "ed388c060b52f3ec250fc62afcf40c7ad6b19823"
+          },
+          "reasoning-doc-drift/planted/src/lib.rs": {
+            "mode": "100644",
+            "oid": "1d111888a99886ef5d8c19a0f20d8b3254a8d7cc"
+          },
+          "reasoning-schema/clean/model.rs": {
+            "mode": "100644",
+            "oid": "5b5cdc5654022bfced2c450ac8de516f42dd2a00"
+          },
+          "reasoning-schema/clean/schema.json": {
+            "mode": "100644",
+            "oid": "c1d44b9a689a312c4b663f308c485c2143351e88"
+          },
+          "reasoning-schema/planted/model.rs": {
+            "mode": "100644",
+            "oid": "5b5cdc5654022bfced2c450ac8de516f42dd2a00"
+          },
+          "reasoning-schema/planted/schema.json": {
+            "mode": "100644",
+            "oid": "3e7d60825ee88d9ff06009e3bd2b1978093e3a41"
+          },
+          "reasoning-security/clean/handler.rs": {
+            "mode": "100644",
+            "oid": "860a2bd8bd89d22052657987370b2f82ce64ba24"
+          },
+          "reasoning-security/planted/handler.rs": {
+            "mode": "100644",
+            "oid": "7298b6102a4b6dbf6dfcf28ffbfbd8d89e16c985"
+          }
+        },
+        "baselineEntries": {},
+        "indexDigest": "sha256:5339bbeb296daecac78bf6965d429f9a32c6db23217953cebc4644e7b9406c66",
+        "statusDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "gitVersion": "git version 2.54.0 (Apple Git-157)",
+        "untrackedPaths": []
+      },
+      "key": "sha256:82e2946d8cf46f6deca32530a8fcbee37e90f6102da573f963bf93c3658a50a7",
+      "files": {
+        "legacy-security-adjudication/clean/src/handler.js": {
+          "digest": "sha256:5f317cfa2a8f1fdabc6ca1d5d15a028510e9251ab2ca6ccdd5b81e2c5c889af2",
+          "bytes": 566,
+          "mode": "100644"
+        },
+        "legacy-security-adjudication/clean/src/server.js": {
+          "digest": "sha256:cd7695c4be4dc66bc0289a2bb2e4f965bb974db694bf4fb8633686394372ef7c",
+          "bytes": 169,
+          "mode": "100644"
+        },
+        "legacy-security-adjudication/planted/src/handler.js": {
+          "digest": "sha256:e4d6a20ffeecfb9a3447e1aba9f06615f306de421c64e48fbbdaaa9c97c02934",
+          "bytes": 556,
+          "mode": "100644"
+        },
+        "legacy-security-adjudication/planted/src/server.js": {
+          "digest": "sha256:cd7695c4be4dc66bc0289a2bb2e4f965bb974db694bf4fb8633686394372ef7c",
+          "bytes": 169,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/clean/src/config-export.js": {
+          "digest": "sha256:e554703c526db35e98b83b084dc51c850c0f920f6d8a9da31e04848a443302e1",
+          "bytes": 291,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/clean/src/handler.js": {
+          "digest": "sha256:f311191924d0d9b13f48a4ddd34dc69882419b00de8eac3c5037ca1a4f40559d",
+          "bytes": 576,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/clean/src/server.js": {
+          "digest": "sha256:1d95f9ccc3eb4a325e3cf16e97a61b4c0c76490eb4b78cac8f4daf3dfcaa4db7",
+          "bytes": 269,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/planted/src/config-export.js": {
+          "digest": "sha256:e12336392ea42350784d9e23028a47c3b7635ef487a734830d4910db4bcd58a0",
+          "bytes": 238,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/planted/src/handler.js": {
+          "digest": "sha256:e4d6a20ffeecfb9a3447e1aba9f06615f306de421c64e48fbbdaaa9c97c02934",
+          "bytes": 556,
+          "mode": "100644"
+        },
+        "legacy-security-variant-analysis/planted/src/server.js": {
+          "digest": "sha256:1d95f9ccc3eb4a325e3cf16e97a61b4c0c76490eb4b78cac8f4daf3dfcaa4db7",
+          "bytes": 269,
+          "mode": "100644"
+        },
+        "reasoning-correctness/clean/correctness.rs": {
+          "digest": "sha256:f8d530af4a2a778cc7707c9c0e59f441cbcda68cf21cd0717cfdc6f0490c8f7b",
+          "bytes": 211,
+          "mode": "100644"
+        },
+        "reasoning-correctness/planted/correctness.rs": {
+          "digest": "sha256:9921694940454ddeba31b6dcf1d36fa1fd5694d190431376b17a731e39b06c68",
+          "bytes": 114,
+          "mode": "100644"
+        },
+        "reasoning-doc-drift/clean/README.md": {
+          "digest": "sha256:01106feaf707652ba80eedfaaeb4bf2f2ecce26850e5fad9fa5d2a6866d55cd6",
+          "bytes": 64,
+          "mode": "100644"
+        },
+        "reasoning-doc-drift/clean/src/lib.rs": {
+          "digest": "sha256:7268c5ade6b96fe52435f1daddfe3bad20ee8dab09bb791862522ff689fc2fda",
+          "bytes": 70,
+          "mode": "100644"
+        },
+        "reasoning-doc-drift/planted/README.md": {
+          "digest": "sha256:00db7a6d028f915af9db8748f815408c15f38fdf3a314e083e4328a0f59db321",
+          "bytes": 65,
+          "mode": "100644"
+        },
+        "reasoning-doc-drift/planted/src/lib.rs": {
+          "digest": "sha256:7268c5ade6b96fe52435f1daddfe3bad20ee8dab09bb791862522ff689fc2fda",
+          "bytes": 70,
+          "mode": "100644"
+        },
+        "reasoning-schema/clean/model.rs": {
+          "digest": "sha256:29ac003ea18a3dc7c0e0997d9addf0143579be0ab0e6ad671bd18eef4ec7c0f9",
+          "bytes": 30,
+          "mode": "100644"
+        },
+        "reasoning-schema/clean/schema.json": {
+          "digest": "sha256:8a04b91458cde3f048635c664e067f3e49ad2ea793629abbb426d7afa92f0feb",
+          "bytes": 124,
+          "mode": "100644"
+        },
+        "reasoning-schema/planted/model.rs": {
+          "digest": "sha256:29ac003ea18a3dc7c0e0997d9addf0143579be0ab0e6ad671bd18eef4ec7c0f9",
+          "bytes": 30,
+          "mode": "100644"
+        },
+        "reasoning-schema/planted/schema.json": {
+          "digest": "sha256:0d5e2bf868a3aafd46cd809fb1a2229f6b1288a0cd43a8d4994000784e686d8e",
+          "bytes": 80,
+          "mode": "100644"
+        },
+        "reasoning-security/clean/handler.rs": {
+          "digest": "sha256:b0ce4738cbdb6fb4fa0b24082bdbe599f97631e27c4655e0498d51b539505b69",
+          "bytes": 205,
+          "mode": "100644"
+        },
+        "reasoning-security/planted/handler.rs": {
+          "digest": "sha256:60f39dda91d329ed13df19bad464143bd42747cb8a7ae89c43601d4a76a2e54d",
+          "bytes": 153,
+          "mode": "100644"
+        }
+      },
+      "baseFiles": {},
+      "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a66c5d3356fd845ed816555dcd85af3051f10dcac7c5f3bc40ac2daac4b34857/audit-snapshots/cold-bb7efc897b7c605e36e19e55/selected",
+      "baselineRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a66c5d3356fd845ed816555dcd85af3051f10dcac7c5f3bc40ac2daac4b34857/audit-snapshots/cold-bb7efc897b7c605e36e19e55/base",
+      "gaps": [],
+      "dirtyDigest": "sha256:86eab57bb2ae764b21e5be7ec24c081accc9ae1673257bebb27bf268ed58a1f8",
+      "sourceCache": {
+        "mode": "writable",
+        "immutableBlobHits": 0,
+        "misses": 17,
+        "verifiedBytes": 4875,
+        "contentHits": 5,
+        "factHits": 0,
+        "rejectedEntries": 0,
+        "skippedWrites": 0,
+        "maxBytes": 2147483648,
+        "storageBytes": 16989,
+        "storageEntries": 17,
+        "evictions": 0
+      },
+      "executionPolicy": "read-only-no-project-execution-without-host-isolation"
+    }
+  },
+  "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+  "planSignature": "hmac-sha256:099abded58ba2c1db0e4d6d96c8a18f60be00bb9a46bad028be553033c179710",
+  "generation": "filesystem:sha256:424fb9415b04f30cffd1e2b115e1c7f26e4d3470e09aeb2b73f63c32f52b025e",
+  "inventoryDigest": "sha256:c84c70296edf08803f0f4754e56bf832a4ee3e641baa71291e8e09b3fa960bb6",
+  "plannedProviders": [
+    "legacy.security.adjudication",
+    "legacy.security.variant-analysis",
+    "reasoning.correctness",
+    "reasoning.doc-drift",
+    "reasoning.schema",
+    "reasoning.security",
+    "security.misuse-resistance"
+  ],
+  "resultCount": 7,
+  "findingCount": 0,
+  "selectedLenses": [
+    "correctness",
+    "doc-drift",
+    "schema",
+    "security"
+  ],
+  "lensesRan": [],
+  "reasoningLensesRan": [],
+  "reasoningLensesPending": [
+    "legacy.security.adjudication",
+    "reasoning.correctness",
+    "reasoning.doc-drift",
+    "reasoning.schema",
+    "reasoning.security"
+  ],
+  "coverageNotes": [],
+  "reasoningEpochDigest": "sha256:39b9567d82dde66afff8e0ed30ad9e5606745fc1412bbceb826b27083568af36",
+  "deterministicLensTagCounts": {
+    "security": 1
+  },
+  "lensWork": [
+    {
+      "provider": "legacy.security.adjudication",
+      "lensIds": [
+        "security"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/lens-packets/legacy.security.adjudication.json",
+      "packetDigest": "sha256:0a1d99f8ac79bc171ab422ad346167fb8d699275cd19a0dec1899f61e2b40a54",
+      "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+      "bundle": "ADJ",
+      "tier": "judgment",
+      "seats": [
+        {
+          "seat": 1,
+          "wave": 1,
+          "part": 1,
+          "bundle": "ADJ",
+          "tier": "judgment"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.correctness",
+      "lensIds": [
+        "correctness"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/lens-packets/reasoning.correctness.json",
+      "packetDigest": "sha256:2dcb9b853b100f543b2edf6f1e6f856e37f32778052c7f6fa565a282b5e9fefa",
+      "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+      "bundle": "J1",
+      "tier": "judgment",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "J1",
+          "tier": "judgment"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.doc-drift",
+      "lensIds": [
+        "doc-drift"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/lens-packets/reasoning.doc-drift.json",
+      "packetDigest": "sha256:bcc11208ff03bec31fa9be5821d7f935e7763330ebd59fb48961998a2788cefc",
+      "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+      "bundle": "J2",
+      "tier": "judgment",
+      "seats": [
+        {
+          "seat": 4,
+          "wave": 4,
+          "part": 1,
+          "bundle": "J2",
+          "tier": "judgment"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.schema",
+      "lensIds": [
+        "schema"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/lens-packets/reasoning.schema.json",
+      "packetDigest": "sha256:095c70d467f68a785c1ecba7d5f085e4024633daac32efbb281c5e8cb1704ce8",
+      "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+      "bundle": "J1",
+      "tier": "judgment",
+      "seats": [
+        {
+          "seat": 3,
+          "wave": 3,
+          "part": 1,
+          "bundle": "J1",
+          "tier": "judgment"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.security",
+      "lensIds": [
+        "security"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/lens-packets/reasoning.security.json",
+      "packetDigest": "sha256:41faaefe6be45d96a5a4e68bcdb9180122189109425fcb5f7b3f846174fc79e4",
+      "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+      "bundle": "J1",
+      "tier": "judgment",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "J1",
+          "tier": "judgment"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    }
+  ],
+  "lensDispatch": {
+    "schemaVersion": 1,
+    "kind": "legion-lens-dispatch",
+    "planDigest": "sha256:705179660c1f78af3b4a5c0d1e6a438409f3f226d5c295f2aa7c617859a04600",
+    "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
+    "requestEncoding": "runtime-initial-v1",
+    "byteBasis": {
+      "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
+      "plannedRequestBytes": "exact serialized host envelope including transport framing, telemetry escaping, controls & execution metadata",
+      "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
+      "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+      "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+      "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+      "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+      "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+      "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests"
+    },
+    "reasoningBudget": {
+      "schemaVersion": 2,
+      "totalTokens": 6600000,
+      "perCallTokens": 150000,
+      "outputTokens": 4096,
+      "maxSeats": 44
+    },
+    "coverageMode": "exhaustive",
+    "boundedAudit": false,
+    "selectedPackets": [
+      "legacy.security.adjudication.json",
+      "reasoning.correctness.json",
+      "reasoning.security.json",
+      "reasoning.schema.json",
+      "reasoning.doc-drift.json"
+    ],
+    "deferredPackets": [],
+    "deferredWork": [],
+    "plannedSeats": 4,
+    "limits": {
+      "seatTokenBudget": 150000,
+      "waveWidth": 1,
+      "runTokenBudget": 6600000,
+      "maxTotalSeats": 44
+    },
+    "lenses": [
+      {
+        "provider": "legacy.security.adjudication",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 76984,
+        "estimatedTokens": 19246,
+        "largestPartBytes": 76984,
+        "largestPartEstimatedTokens": 19246
+      },
+      {
+        "provider": "reasoning.correctness",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 47783,
+        "estimatedTokens": 11946,
+        "largestPartBytes": 47783,
+        "largestPartEstimatedTokens": 11946
+      },
+      {
+        "provider": "reasoning.doc-drift",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 40191,
+        "estimatedTokens": 10048,
+        "largestPartBytes": 40191,
+        "largestPartEstimatedTokens": 10048
+      },
+      {
+        "provider": "reasoning.schema",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 39770,
+        "estimatedTokens": 9943,
+        "largestPartBytes": 39770,
+        "largestPartEstimatedTokens": 9943
+      },
+      {
+        "provider": "reasoning.security",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 40432,
+        "estimatedTokens": 10108,
+        "largestPartBytes": 40432,
+        "largestPartEstimatedTokens": 10108
+      }
+    ],
+    "bundles": [
+      {
+        "bundle": "ADJ",
+        "shareBp": 1000,
+        "seats": 1,
+        "estimatedTokens": 27593,
+        "budgetTokens": 660000,
+        "overBy": 0
+      },
+      {
+        "bundle": "J1",
+        "shareBp": 4000,
+        "seats": 2,
+        "estimatedTokens": 35472,
+        "budgetTokens": 2640000,
+        "overBy": 0
+      },
+      {
+        "bundle": "J2",
+        "shareBp": 1500,
+        "seats": 1,
+        "estimatedTokens": 15378,
+        "budgetTokens": 990000,
+        "overBy": 0
+      }
+    ],
+    "seats": [
+      {
+        "seat": 1,
+        "seatId": "seat-001",
+        "bundle": "ADJ",
+        "tier": "judgment",
+        "wave": 1,
+        "part": 1,
+        "estimatedTokens": 27593,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 27593,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 23497,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 58566,
+        "plannedModelInputBytes": 46994,
+        "modelVisibleInputBytes": 46994,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 58566,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "legacy.security.adjudication"
+        ],
+        "lensIds": [
+          "security"
+        ],
+        "packets": [
+          "legacy.security.adjudication.json"
+        ]
+      },
+      {
+        "seat": 2,
+        "seatId": "seat-002",
+        "bundle": "J1",
+        "tier": "judgment",
+        "wave": 2,
+        "part": 1,
+        "estimatedTokens": 20261,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 20261,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 16165,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 2000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 41126,
+        "plannedModelInputBytes": 32329,
+        "modelVisibleInputBytes": 32329,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 41126,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "shared-context-v1",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.correctness",
+          "reasoning.security"
+        ],
+        "lensIds": [
+          "correctness",
+          "security"
+        ],
+        "packets": [
+          "reasoning.correctness.json",
+          "reasoning.security.json"
+        ]
+      },
+      {
+        "seat": 3,
+        "seatId": "seat-003",
+        "bundle": "J1",
+        "tier": "judgment",
+        "wave": 3,
+        "part": 1,
+        "estimatedTokens": 15211,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15211,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11115,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 29041,
+        "plannedModelInputBytes": 22230,
+        "modelVisibleInputBytes": 22230,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 29041,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.schema"
+        ],
+        "lensIds": [
+          "schema"
+        ],
+        "packets": [
+          "reasoning.schema.json"
+        ]
+      },
+      {
+        "seat": 4,
+        "seatId": "seat-004",
+        "bundle": "J2",
+        "tier": "judgment",
+        "wave": 4,
+        "part": 1,
+        "estimatedTokens": 15378,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15378,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11282,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 29200,
+        "plannedModelInputBytes": 22563,
+        "modelVisibleInputBytes": 22563,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 29200,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.doc-drift"
+        ],
+        "lensIds": [
+          "doc-drift"
+        ],
+        "packets": [
+          "reasoning.doc-drift.json"
+        ]
+      }
+    ],
+    "waves": 4,
+    "requiredSeats": 4,
+    "requiredInitialCalls": 4,
+    "gatherCalls": 0,
+    "followupReserveCalls": 1,
+    "initialCallReservationTokens": 600000,
+    "followupReserveTokens": 150000,
+    "packetBytes": 157933,
+    "modelVisibleInputBytes": 124116,
+    "planningModelInputByteLimit": 295000,
+    "seatReadBytes": 157933,
+    "perLensPacketBytes": 245160,
+    "uniqueExcerptBytes": 36503,
+    "sharedExcerptBytesSaved": 11568,
+    "unsharedRequestBytes": 179727,
+    "universeUnsharedRequestBytes": 179727,
+    "physicalRequestBytesSaved": 21794,
+    "estimatedTokens": 78443,
+    "withinLimits": true,
+    "violations": [],
+    "violationCount": 0,
+    "warnings": []
+  },
+  "coverageMode": "exhaustive",
+  "auditLabel": null,
+  "lensCoverage": {
+    "reasoning.correctness": {
+      "mode": "exhaustive",
+      "bundle": "J1",
+      "denominator": 18,
+      "reviewSet": 18,
+      "reviewSetDigest": "sha256:d813a3e08e380286f96c23ba60ef7d152ac4bec0b9800494124ca57988a0cb8c",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:4f470d7d2226e08f140f69349e20103d8905b70fdeed42bc5c05137d7fdaf30a",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 18,
+          "n": 18,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.doc-drift": {
+      "mode": "exhaustive",
+      "bundle": "J2",
+      "denominator": 20,
+      "reviewSet": 20,
+      "reviewSetDigest": "sha256:7cbb916e73623174637122e29d433d907d971a0cc87666a26ed85e6eda7abdf6",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:4f470d7d2226e08f140f69349e20103d8905b70fdeed42bc5c05137d7fdaf30a",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 20,
+          "n": 20,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.schema": {
+      "mode": "exhaustive",
+      "bundle": "J1",
+      "denominator": 20,
+      "reviewSet": 20,
+      "reviewSetDigest": "sha256:53bef0389ac6475d61ca36bdb12aeb486117c023d91961b06fc5e0498dacd416",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:4f470d7d2226e08f140f69349e20103d8905b70fdeed42bc5c05137d7fdaf30a",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 20,
+          "n": 20,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.security": {
+      "mode": "exhaustive",
+      "bundle": "J1",
+      "denominator": 18,
+      "reviewSet": 18,
+      "reviewSetDigest": "sha256:d813a3e08e380286f96c23ba60ef7d152ac4bec0b9800494124ca57988a0cb8c",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:4f470d7d2226e08f140f69349e20103d8905b70fdeed42bc5c05137d7fdaf30a",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 18,
+          "n": 18,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    }
+  },
+  "contextNotices": [
+    "External checks require native owner admission; unavailable checks remain explicit coverage gaps.",
+    "audit-run-dir-not-ignored: add `.audit/` to .gitignore (or .git/info/exclude); run directories under .audit/ are otherwise reported as untracked files"
+  ],
+  "gaps": [
+    "provider-degradation:legacy.security.adjudication:host-unavailable",
+    "provider-degradation:legacy.security.adjudication:pending-host",
+    "provider-degradation:reasoning.correctness:host-unavailable",
+    "provider-degradation:reasoning.correctness:pending-host",
+    "provider-degradation:reasoning.doc-drift:host-unavailable",
+    "provider-degradation:reasoning.doc-drift:pending-host",
+    "provider-degradation:reasoning.schema:host-unavailable",
+    "provider-degradation:reasoning.schema:pending-host",
+    "provider-degradation:reasoning.security:host-unavailable",
+    "provider-degradation:reasoning.security:pending-host",
+    "provider-incomplete:legacy.security.adjudication",
+    "provider-incomplete:reasoning.correctness",
+    "provider-incomplete:reasoning.doc-drift",
+    "provider-incomplete:reasoning.schema",
+    "provider-incomplete:reasoning.security",
+    "reasoning-budget-state-missing",
+    "reasoning-host-unavailable",
+    "reasoning-lens-pending-host:legacy.security.adjudication",
+    "reasoning-lens-pending-host:reasoning.correctness",
+    "reasoning-lens-pending-host:reasoning.doc-drift",
+    "reasoning-lens-pending-host:reasoning.schema",
+    "reasoning-lens-pending-host:reasoning.security",
+    "selected reasoning lenses did not complete",
+    "semantic-review-unproven:spec"
+  ],
+  "artifacts": {
+    "plan": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/plan.json",
+    "reportJson": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/report.json",
+    "reportSarif": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/report.sarif",
+    "facts": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/facts.json",
+    "execution": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-01/preflight-run/execution.json"
+  },
+  "effectArtifactsRoot": "artifacts",
+  "auditStatus": "incomplete",
+  "qualityGate": "unproven",
+  "processExecution": "complete",
+  "processState": "complete",
+  "completionValidation": "not-run"
+}

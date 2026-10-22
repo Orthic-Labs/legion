@@ -1,0 +1,922 @@
+{
+  "schemaVersion": 1,
+  "kind": "repository-audit-report",
+  "root": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/fixture-source",
+  "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a0dc0358667292338b371ec1bd2f08b44ab8136784eb0c0a1e62e88afc7cf197/audit-snapshots/cold-d8c5b5da7410eaa471138ef5/selected",
+  "snapshotManifest": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a0dc0358667292338b371ec1bd2f08b44ab8136784eb0c0a1e62e88afc7cf197/audit-snapshots/cold-d8c5b5da7410eaa471138ef5/manifest.json",
+  "profile": "standard",
+  "scope": {
+    "mode": "whole-repo",
+    "type": "all",
+    "base": null,
+    "baseCommit": null,
+    "dir": null,
+    "snapshot": {
+      "schemaVersion": 1,
+      "scope": {
+        "schemaVersion": 1,
+        "spec": {
+          "kind": "repo"
+        },
+        "sourceRoot": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/fixture-source",
+        "objectRoot": null,
+        "headOid": "196590e5afe5d027b62f9b6ed3cc7947b630802e",
+        "headKind": "worktree",
+        "selectedOid": "196590e5afe5d027b62f9b6ed3cc7947b630802e",
+        "baseRefOid": null,
+        "mergeBaseOid": null,
+        "baselineOid": null,
+        "changedPaths": [],
+        "pathPrefix": null,
+        "notices": [],
+        "selectedEntries": {
+          "reasoning-ai-slop/clean/src/summary.rs": {
+            "mode": "100644",
+            "oid": "4edbbb040e1e9876fa4009fcbbe1e29cbeb76b9e"
+          },
+          "reasoning-ai-slop/planted/src/summary.rs": {
+            "mode": "100644",
+            "oid": "4c776683148ea1347b7a32868f538c4385237430"
+          },
+          "reasoning-architecture/clean/cache.rs": {
+            "mode": "100644",
+            "oid": "0797d76824bffbabcb316b21961856e525165c24"
+          },
+          "reasoning-architecture/clean/src/domain/order.rs": {
+            "mode": "100644",
+            "oid": "a110d62facd819df92b937ed59542411854bcf32"
+          },
+          "reasoning-architecture/clean/src/domain/repository.rs": {
+            "mode": "100644",
+            "oid": "b1ea99cc5eb4ad779a6c586edc9d8d08026bc8f8"
+          },
+          "reasoning-architecture/clean/src/infra/postgres/repository.rs": {
+            "mode": "100644",
+            "oid": "e133e66ea8c07cbd7c8421eb437e1e9c01f910b3"
+          },
+          "reasoning-architecture/planted/cache.rs": {
+            "mode": "100644",
+            "oid": "62292df35644f787cf112135095fffd43851db46"
+          },
+          "reasoning-architecture/planted/src/domain/order.rs": {
+            "mode": "100644",
+            "oid": "74a0f5a77d00f051ca0d397ef7196900a7304d3d"
+          },
+          "reasoning-architecture/planted/src/domain/repository.rs": {
+            "mode": "100644",
+            "oid": "b1ea99cc5eb4ad779a6c586edc9d8d08026bc8f8"
+          },
+          "reasoning-architecture/planted/src/infra/postgres/repository.rs": {
+            "mode": "100644",
+            "oid": "5a657a96a494e31382b91da10daf3c56b4985640"
+          },
+          "reasoning-dead-file/clean/src/main.rs": {
+            "mode": "100644",
+            "oid": "c5d9d384e8058b92637df162019cbdd1d77cad6d"
+          },
+          "reasoning-dead-file/clean/src/orphan.rs": {
+            "mode": "100644",
+            "oid": "f214b16983947402567b3cae0b0dfe8dc9b6e090"
+          },
+          "reasoning-dead-file/planted/src/main.rs": {
+            "mode": "100644",
+            "oid": "79b69be41c619a20c2bbcc017d2ed1a84ce36552"
+          },
+          "reasoning-dead-file/planted/src/orphan.rs": {
+            "mode": "100644",
+            "oid": "93e4e7e3da7e07ca9217933352835d2272d94c73"
+          },
+          "reasoning-dead-file/planted/src/records.rs": {
+            "mode": "100644",
+            "oid": "f214b16983947402567b3cae0b0dfe8dc9b6e090"
+          },
+          "reasoning-minimize/clean/format.rs": {
+            "mode": "100644",
+            "oid": "cb6a4b523f5cb39f8f6fed4c4f4fd91e07cba6c4"
+          },
+          "reasoning-minimize/planted/format.rs": {
+            "mode": "100644",
+            "oid": "bb0fc867a95e5e0cdc5a32b4959edf5c9b90e525"
+          },
+          "reasoning-naming/clean/config.rs": {
+            "mode": "100644",
+            "oid": "cbde126641660fd95d8d6ac19e066001165f9a0b"
+          },
+          "reasoning-naming/planted/config.rs": {
+            "mode": "100644",
+            "oid": "85db1e6443ba4e4079344a7af59dd64e8b45c85e"
+          },
+          "reasoning-performance/clean/lookup.rs": {
+            "mode": "100644",
+            "oid": "579159542ce3ba41633af0a7ed272fdaf50d4c3f"
+          },
+          "reasoning-performance/planted/lookup.rs": {
+            "mode": "100644",
+            "oid": "eb1664aabd61f1eaeb9cfb4658450eb34e017f86"
+          }
+        },
+        "baselineEntries": {},
+        "indexDigest": "sha256:6786978cfbea726969b14b9130f76642a362cccb8c8f0bb7f7b1b26279384f14",
+        "statusDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "gitVersion": "git version 2.54.0 (Apple Git-157)",
+        "untrackedPaths": []
+      },
+      "key": "sha256:fe59341af22921d0d2a730df4bdd03e65b4b1df2132ce8c316b3da78f796c2bc",
+      "files": {
+        "reasoning-ai-slop/clean/src/summary.rs": {
+          "digest": "sha256:125ea6cdecca14eb488f57e7cb7d40c958225a4581d97cdd53b53e38dfd1d360",
+          "bytes": 81,
+          "mode": "100644"
+        },
+        "reasoning-ai-slop/planted/src/summary.rs": {
+          "digest": "sha256:957afb4442b63b822fc84d2c13a4ce176edf23d813160b6419d0f9015bbed528",
+          "bytes": 145,
+          "mode": "100644"
+        },
+        "reasoning-architecture/clean/cache.rs": {
+          "digest": "sha256:56978429a0b684c908849978dcdd3e5ecd1d6d29b17c8afc9d2eb32ce3dee0a4",
+          "bytes": 170,
+          "mode": "100644"
+        },
+        "reasoning-architecture/clean/src/domain/order.rs": {
+          "digest": "sha256:55423d5749885b05503482859842b07c37bb891a08552dc4f77d707c81d74ef9",
+          "bytes": 260,
+          "mode": "100644"
+        },
+        "reasoning-architecture/clean/src/domain/repository.rs": {
+          "digest": "sha256:7904195239bdcd52f91d0cffde43471750c9a68c62c74ce3dfc7227cd9b08129",
+          "bytes": 78,
+          "mode": "100644"
+        },
+        "reasoning-architecture/clean/src/infra/postgres/repository.rs": {
+          "digest": "sha256:4036dc5c0019ce5f63dfdb4c4f23ad92ab04be9690914244940c67445c4979f9",
+          "bytes": 154,
+          "mode": "100644"
+        },
+        "reasoning-architecture/planted/cache.rs": {
+          "digest": "sha256:6c0a925ab326158a9dc16b5d240b91f7d2a43653067df669a009ab1db4b97dbe",
+          "bytes": 251,
+          "mode": "100644"
+        },
+        "reasoning-architecture/planted/src/domain/order.rs": {
+          "digest": "sha256:eec74db9ec3a979ebf5b936f2981629ba04175b204866b980f55b71b11b9fa52",
+          "bytes": 285,
+          "mode": "100644"
+        },
+        "reasoning-architecture/planted/src/domain/repository.rs": {
+          "digest": "sha256:7904195239bdcd52f91d0cffde43471750c9a68c62c74ce3dfc7227cd9b08129",
+          "bytes": 78,
+          "mode": "100644"
+        },
+        "reasoning-architecture/planted/src/infra/postgres/repository.rs": {
+          "digest": "sha256:7664041a52e11de7eb8118f59b8c2bc5be1f087acac4d1db2ed42dd04b81ffbb",
+          "bytes": 210,
+          "mode": "100644"
+        },
+        "reasoning-dead-file/clean/src/main.rs": {
+          "digest": "sha256:69e1411ee0284ee0e5b6429509ddaac42649dc97a093063d6fb351ba135181ee",
+          "bytes": 60,
+          "mode": "100644"
+        },
+        "reasoning-dead-file/clean/src/orphan.rs": {
+          "digest": "sha256:77e5ce0d669838872480fbe04d93729189914f7d49c5dd6287ecc1a22bb7de06",
+          "bytes": 67,
+          "mode": "100644"
+        },
+        "reasoning-dead-file/planted/src/main.rs": {
+          "digest": "sha256:b3cc34cabd74626b980e216b682ae6c21b912f5d6f462ea4afad5845fcb3668f",
+          "bytes": 62,
+          "mode": "100644"
+        },
+        "reasoning-dead-file/planted/src/orphan.rs": {
+          "digest": "sha256:c35c19973322b1c293a8164f63a71764f0855aea921211110e1da3dbb3961f93",
+          "bytes": 148,
+          "mode": "100644"
+        },
+        "reasoning-dead-file/planted/src/records.rs": {
+          "digest": "sha256:77e5ce0d669838872480fbe04d93729189914f7d49c5dd6287ecc1a22bb7de06",
+          "bytes": 67,
+          "mode": "100644"
+        },
+        "reasoning-minimize/clean/format.rs": {
+          "digest": "sha256:bcc2b6b1b8a3b6a8ea91656d9213f3b561cf8b91b52b302533b48a363ff7986b",
+          "bytes": 58,
+          "mode": "100644"
+        },
+        "reasoning-minimize/planted/format.rs": {
+          "digest": "sha256:c549a3c923efa35e9aa9e86b52884c9d48ee3d140e5756050df2ae18de4fab80",
+          "bytes": 85,
+          "mode": "100644"
+        },
+        "reasoning-naming/clean/config.rs": {
+          "digest": "sha256:658146000029b9695271f5092464b934132343b01b7a6932d127283b196197af",
+          "bytes": 54,
+          "mode": "100644"
+        },
+        "reasoning-naming/planted/config.rs": {
+          "digest": "sha256:db81a3d09bf64f0e06f258d4617280f69fccc9240359583df78e8c414329ea65",
+          "bytes": 49,
+          "mode": "100644"
+        },
+        "reasoning-performance/clean/lookup.rs": {
+          "digest": "sha256:f1419262ac98de921eb739730189b69ea1c427b1df67af49a393a2197ed3f766",
+          "bytes": 172,
+          "mode": "100644"
+        },
+        "reasoning-performance/planted/lookup.rs": {
+          "digest": "sha256:dc1e2f7df9953e59cdd2cad50d89375fa16aced5d4c2f8747ac3e06ee4fbf49a",
+          "bytes": 183,
+          "mode": "100644"
+        }
+      },
+      "baseFiles": {},
+      "executionRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a0dc0358667292338b371ec1bd2f08b44ab8136784eb0c0a1e62e88afc7cf197/audit-snapshots/cold-d8c5b5da7410eaa471138ef5/selected",
+      "baselineRoot": "/Users/adrdsouza/Library/Application Support/Orthic Labs/Legion/state/audit-cache/a0dc0358667292338b371ec1bd2f08b44ab8136784eb0c0a1e62e88afc7cf197/audit-snapshots/cold-d8c5b5da7410eaa471138ef5/base",
+      "gaps": [],
+      "dirtyDigest": "sha256:0f9daa65224c9f87550e32e408f7ef69a4ab2f922f6a6bc210b06f7b75edfbe2",
+      "sourceCache": {
+        "mode": "writable",
+        "immutableBlobHits": 0,
+        "misses": 19,
+        "verifiedBytes": 2717,
+        "contentHits": 2,
+        "factHits": 0,
+        "rejectedEntries": 0,
+        "skippedWrites": 0,
+        "maxBytes": 2147483648,
+        "storageBytes": 13204,
+        "storageEntries": 19,
+        "evictions": 0
+      },
+      "executionPolicy": "read-only-no-project-execution-without-host-isolation"
+    }
+  },
+  "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+  "planSignature": "hmac-sha256:9bf49a362eb66cb712d740d9a46999c8c1f8196ba7d193dbef5db98a96d2fb47",
+  "generation": "filesystem:sha256:a247d6b91359c4bfc4e6bacc68e816e60ad472ecf0f6c1b2e6fbf571a71359a6",
+  "inventoryDigest": "sha256:167a560e344aa076679bae14167ee873748414c323440e6755093755936bc91c",
+  "plannedProviders": [
+    "reasoning.ai-slop",
+    "reasoning.architecture",
+    "reasoning.dead-file",
+    "reasoning.minimize",
+    "reasoning.naming",
+    "reasoning.performance",
+    "security.misuse-resistance"
+  ],
+  "resultCount": 7,
+  "findingCount": 0,
+  "selectedLenses": [
+    "ai-slop",
+    "architecture",
+    "dead-file",
+    "minimize",
+    "naming",
+    "performance",
+    "security"
+  ],
+  "lensesRan": [],
+  "reasoningLensesRan": [],
+  "reasoningLensesPending": [
+    "reasoning.ai-slop",
+    "reasoning.architecture",
+    "reasoning.dead-file",
+    "reasoning.minimize",
+    "reasoning.naming",
+    "reasoning.performance"
+  ],
+  "coverageNotes": [],
+  "reasoningEpochDigest": "sha256:9e16d7af98d24ca35802084d830520c3758025dcde6fa98b66580bcfaec072e3",
+  "deterministicLensTagCounts": {
+    "security": 1
+  },
+  "lensWork": [
+    {
+      "provider": "reasoning.ai-slop",
+      "lensIds": [
+        "ai-slop"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.ai-slop.json",
+      "packetDigest": "sha256:e72b036fe5246929c554fefb6cc78050fd29135cafa411c083e948e9523898b3",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "S2",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "S2",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.architecture",
+      "lensIds": [
+        "architecture"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.architecture.json",
+      "packetDigest": "sha256:17cecd16f365653b101a0bdfb82edd5326d2cfc4ee49f0a8e7304f58e741a760",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "S2",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "S2",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.dead-file",
+      "lensIds": [
+        "dead-file"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.dead-file.json",
+      "packetDigest": "sha256:cb7e8073c77d0abb96a25b36488b8c82a587bcb38fd686a9abc26a33bfc3a9d6",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "M1",
+      "tier": "mechanical",
+      "seats": [
+        {
+          "seat": 3,
+          "wave": 3,
+          "part": 1,
+          "bundle": "M1",
+          "tier": "mechanical"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.minimize",
+      "lensIds": [
+        "minimize"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.minimize.json",
+      "packetDigest": "sha256:d3809ec686b81b0f62be598acf116f9c123fbebbc4e709e510554195a2c4cb32",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "S2",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "S2",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.naming",
+      "lensIds": [
+        "naming"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.naming.json",
+      "packetDigest": "sha256:8d3f261df279ea93af4b3ea3c3247c7b78f0592f959f21881677a94615b8fbd7",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "S2",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 2,
+          "wave": 2,
+          "part": 1,
+          "bundle": "S2",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    },
+    {
+      "provider": "reasoning.performance",
+      "lensIds": [
+        "performance"
+      ],
+      "status": "pending-host",
+      "packet": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/lens-packets/reasoning.performance.json",
+      "packetDigest": "sha256:ee9e0c1d632fe74c32b48379dd1e1a2b4c94c77a9ccc719f6e4d31d2b3970cc5",
+      "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+      "bundle": "S1",
+      "tier": "specialist",
+      "seats": [
+        {
+          "seat": 1,
+          "wave": 1,
+          "part": 1,
+          "bundle": "S1",
+          "tier": "specialist"
+        }
+      ],
+      "selectedParts": 1,
+      "deferredParts": 0,
+      "deferredWork": []
+    }
+  ],
+  "lensDispatch": {
+    "schemaVersion": 1,
+    "kind": "legion-lens-dispatch",
+    "planDigest": "sha256:02d7227070d51fb617a18a80f08076eb2bdf4de21d21f024dca188a2773325fe",
+    "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
+    "requestEncoding": "runtime-initial-v1",
+    "byteBasis": {
+      "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
+      "plannedRequestBytes": "exact serialized host envelope including transport framing, telemetry escaping, controls & execution metadata",
+      "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
+      "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+      "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+      "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+      "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+      "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+      "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests"
+    },
+    "reasoningBudget": {
+      "schemaVersion": 2,
+      "totalTokens": 6600000,
+      "perCallTokens": 150000,
+      "outputTokens": 4096,
+      "maxSeats": 44
+    },
+    "coverageMode": "exhaustive",
+    "boundedAudit": false,
+    "selectedPackets": [
+      "reasoning.performance.json",
+      "reasoning.ai-slop.json",
+      "reasoning.architecture.json",
+      "reasoning.minimize.json",
+      "reasoning.naming.json",
+      "reasoning.dead-file.json"
+    ],
+    "deferredPackets": [],
+    "deferredWork": [],
+    "plannedSeats": 3,
+    "limits": {
+      "seatTokenBudget": 150000,
+      "waveWidth": 1,
+      "runTokenBudget": 6600000,
+      "maxTotalSeats": 44
+    },
+    "lenses": [
+      {
+        "provider": "reasoning.ai-slop",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 38763,
+        "estimatedTokens": 9691,
+        "largestPartBytes": 38763,
+        "largestPartEstimatedTokens": 9691
+      },
+      {
+        "provider": "reasoning.architecture",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 36326,
+        "estimatedTokens": 9082,
+        "largestPartBytes": 36326,
+        "largestPartEstimatedTokens": 9082
+      },
+      {
+        "provider": "reasoning.dead-file",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 35580,
+        "estimatedTokens": 8895,
+        "largestPartBytes": 35580,
+        "largestPartEstimatedTokens": 8895
+      },
+      {
+        "provider": "reasoning.minimize",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 40594,
+        "estimatedTokens": 10149,
+        "largestPartBytes": 40594,
+        "largestPartEstimatedTokens": 10149
+      },
+      {
+        "provider": "reasoning.naming",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 35115,
+        "estimatedTokens": 8779,
+        "largestPartBytes": 35115,
+        "largestPartEstimatedTokens": 8779
+      },
+      {
+        "provider": "reasoning.performance",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 37159,
+        "estimatedTokens": 9290,
+        "largestPartBytes": 37159,
+        "largestPartEstimatedTokens": 9290
+      }
+    ],
+    "bundles": [
+      {
+        "bundle": "M1",
+        "shareBp": 1500,
+        "seats": 1,
+        "estimatedTokens": 13429,
+        "budgetTokens": 990000,
+        "overBy": 0
+      },
+      {
+        "bundle": "S1",
+        "shareBp": 700,
+        "seats": 1,
+        "estimatedTokens": 13908,
+        "budgetTokens": 462000,
+        "overBy": 0
+      },
+      {
+        "bundle": "S2",
+        "shareBp": 800,
+        "seats": 1,
+        "estimatedTokens": 23455,
+        "budgetTokens": 528000,
+        "overBy": 0
+      }
+    ],
+    "seats": [
+      {
+        "seat": 1,
+        "seatId": "seat-001",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 1,
+        "part": 1,
+        "estimatedTokens": 13908,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 13908,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 9812,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 25121,
+        "plannedModelInputBytes": 19624,
+        "modelVisibleInputBytes": 19624,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 25121,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.performance"
+        ],
+        "lensIds": [
+          "performance"
+        ],
+        "packets": [
+          "reasoning.performance.json"
+        ]
+      },
+      {
+        "seat": 2,
+        "seatId": "seat-002",
+        "bundle": "S2",
+        "tier": "specialist",
+        "wave": 2,
+        "part": 1,
+        "estimatedTokens": 23455,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 23455,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 19359,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 4000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 49587,
+        "plannedModelInputBytes": 38717,
+        "modelVisibleInputBytes": 38717,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 49587,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "shared-context-v1",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.ai-slop",
+          "reasoning.architecture",
+          "reasoning.minimize",
+          "reasoning.naming"
+        ],
+        "lensIds": [
+          "ai-slop",
+          "architecture",
+          "minimize",
+          "naming"
+        ],
+        "packets": [
+          "reasoning.ai-slop.json",
+          "reasoning.architecture.json",
+          "reasoning.minimize.json",
+          "reasoning.naming.json"
+        ]
+      },
+      {
+        "seat": 3,
+        "seatId": "seat-003",
+        "bundle": "M1",
+        "tier": "mechanical",
+        "wave": 3,
+        "part": 1,
+        "estimatedTokens": 13429,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 13429,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 9333,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 24066,
+        "plannedModelInputBytes": 18666,
+        "modelVisibleInputBytes": 18666,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 24066,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.dead-file"
+        ],
+        "lensIds": [
+          "dead-file"
+        ],
+        "packets": [
+          "reasoning.dead-file.json"
+        ]
+      }
+    ],
+    "waves": 3,
+    "requiredSeats": 3,
+    "requiredInitialCalls": 3,
+    "gatherCalls": 0,
+    "followupReserveCalls": 1,
+    "initialCallReservationTokens": 450000,
+    "followupReserveTokens": 150000,
+    "packetBytes": 98774,
+    "modelVisibleInputBytes": 77007,
+    "planningModelInputByteLimit": 295000,
+    "seatReadBytes": 98774,
+    "perLensPacketBytes": 223537,
+    "uniqueExcerptBytes": 31449,
+    "sharedExcerptBytesSaved": 31449,
+    "unsharedRequestBytes": 153718,
+    "universeUnsharedRequestBytes": 153718,
+    "physicalRequestBytesSaved": 54944,
+    "estimatedTokens": 50792,
+    "withinLimits": true,
+    "violations": [],
+    "violationCount": 0,
+    "warnings": []
+  },
+  "coverageMode": "exhaustive",
+  "auditLabel": null,
+  "lensCoverage": {
+    "reasoning.ai-slop": {
+      "mode": "exhaustive",
+      "bundle": "S2",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.architecture": {
+      "mode": "exhaustive",
+      "bundle": "J2",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.dead-file": {
+      "mode": "exhaustive",
+      "bundle": "M1",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.minimize": {
+      "mode": "exhaustive",
+      "bundle": "S3",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.naming": {
+      "mode": "exhaustive",
+      "bundle": "S2",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    },
+    "reasoning.performance": {
+      "mode": "exhaustive",
+      "bundle": "S1",
+      "denominator": 21,
+      "reviewSet": 21,
+      "reviewSetDigest": "sha256:cd237f24c54dafe87d7ebdd00dc5f501df0003f38adb004d002b816c3a71a054",
+      "examined": 0,
+      "declaredUnsampled": 0,
+      "excluded": 0,
+      "boundedAudit": false,
+      "mandatoryUniverse": [],
+      "mandatoryDeferred": [],
+      "seed": "sha256:112e5ae8d2f96233e534804a6826e510c31a0b5b78b3291430044e90ed882c4f",
+      "status": "pending",
+      "strata": [
+        {
+          "name": "all",
+          "N": 21,
+          "n": 21,
+          "findings": 0,
+          "highFindings": 0,
+          "confidence": {
+            "claim": "none",
+            "basis": "exhaustive-lens"
+          }
+        }
+      ]
+    }
+  },
+  "contextNotices": [
+    "External checks require native owner admission; unavailable checks remain explicit coverage gaps.",
+    "audit-run-dir-not-ignored: add `.audit/` to .gitignore (or .git/info/exclude); run directories under .audit/ are otherwise reported as untracked files"
+  ],
+  "gaps": [
+    "provider-degradation:reasoning.ai-slop:host-unavailable",
+    "provider-degradation:reasoning.ai-slop:pending-host",
+    "provider-degradation:reasoning.architecture:host-unavailable",
+    "provider-degradation:reasoning.architecture:pending-host",
+    "provider-degradation:reasoning.dead-file:host-unavailable",
+    "provider-degradation:reasoning.dead-file:pending-host",
+    "provider-degradation:reasoning.minimize:host-unavailable",
+    "provider-degradation:reasoning.minimize:pending-host",
+    "provider-degradation:reasoning.naming:host-unavailable",
+    "provider-degradation:reasoning.naming:pending-host",
+    "provider-degradation:reasoning.performance:host-unavailable",
+    "provider-degradation:reasoning.performance:pending-host",
+    "provider-incomplete:reasoning.ai-slop",
+    "provider-incomplete:reasoning.architecture",
+    "provider-incomplete:reasoning.dead-file",
+    "provider-incomplete:reasoning.minimize",
+    "provider-incomplete:reasoning.naming",
+    "provider-incomplete:reasoning.performance",
+    "reasoning-budget-state-missing",
+    "reasoning-host-unavailable",
+    "reasoning-lens-pending-host:reasoning.ai-slop",
+    "reasoning-lens-pending-host:reasoning.architecture",
+    "reasoning-lens-pending-host:reasoning.dead-file",
+    "reasoning-lens-pending-host:reasoning.minimize",
+    "reasoning-lens-pending-host:reasoning.naming",
+    "reasoning-lens-pending-host:reasoning.performance",
+    "selected reasoning lenses did not complete",
+    "semantic-review-unproven:standards"
+  ],
+  "artifacts": {
+    "plan": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/plan.json",
+    "reportJson": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/report.json",
+    "reportSarif": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/report.sarif",
+    "facts": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/facts.json",
+    "execution": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/preflight-run/execution.json"
+  },
+  "effectArtifactsRoot": "artifacts",
+  "auditStatus": "incomplete",
+  "qualityGate": "unproven",
+  "processExecution": "complete",
+  "processState": "complete",
+  "completionValidation": "not-run"
+}

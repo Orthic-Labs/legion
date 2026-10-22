@@ -1060,7 +1060,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-doc-drift-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1075,7 +1075,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-architecture-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1090,7 +1090,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-correctness-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1105,7 +1105,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-ai-slop-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1120,7 +1120,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-naming-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1135,7 +1135,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-dead-file-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1150,7 +1150,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-schema-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1165,7 +1165,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-security-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1180,7 +1180,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-minimize-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1195,7 +1195,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-performance-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1210,7 +1210,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-a11y-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1225,7 +1225,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-data-safety-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1240,7 +1240,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-resilience-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1255,7 +1255,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-platform-parity-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1270,7 +1270,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-release-readiness-v1"
       },
-      "benchmark_status": "unproven",
+      "benchmark_status": "qualified",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,

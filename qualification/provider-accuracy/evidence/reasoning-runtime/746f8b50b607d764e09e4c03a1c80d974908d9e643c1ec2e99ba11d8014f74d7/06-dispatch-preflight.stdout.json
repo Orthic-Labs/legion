@@ -1,0 +1,355 @@
+{
+  "schema": "legion-reasoning-runtime-dispatch-preflight/1",
+  "run": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/preflight-run",
+  "memberId": "run-03",
+  "memberIndex": 2,
+  "caseIds": [
+    "reasoning-a11y-clean",
+    "reasoning-a11y-planted",
+    "reasoning-data-safety-clean",
+    "reasoning-data-safety-planted",
+    "reasoning-platform-parity-clean",
+    "reasoning-platform-parity-planted",
+    "reasoning-release-readiness-clean",
+    "reasoning-release-readiness-planted",
+    "reasoning-resilience-clean",
+    "reasoning-resilience-planted"
+  ],
+  "providerIds": [
+    "reasoning.a11y",
+    "reasoning.data-safety",
+    "reasoning.resilience",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness"
+  ],
+  "expectedPlantedPositives": 5,
+  "knownAnswerExpectedPositives": 5,
+  "expectedPairedCleanControls": 5,
+  "expectedVerifierItems": 5,
+  "logicalPendingRequestCount": 5,
+  "zeroFindingReviewHeadroom": 3,
+  "verifierItemCap": 8,
+  "verifierEnvelopeBasis": "known-answer expectation; logical requests are a lower bound, multiple findings and zero-finding reviews remain subject to native cap",
+  "plannedFreshBatchVerifierAdmissions": 1,
+  "plannedAuthorSeats": 5,
+  "remainingAdmissions": 44,
+  "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+  "dispatchDigest": "sha256:cbb53eb0c5a1cc5f0984d5d7a75d3260287454e4f168e8db64ced27355463b1c",
+  "dispatch": {
+    "schemaVersion": 1,
+    "kind": "legion-lens-dispatch",
+    "planDigest": "sha256:d7c24207dfc6ff317b566ed1ac46a21afd36e64153879e4fd8b6a8c31e99b8dc",
+    "estimateBasis": "empirical estimate, not a provider token bound: ceil((canonical prompt UTF8 + system UTF8 + schema JSON UTF8 each once)/2) plus largest fitting output cap up to frozen ceiling, with 1000 tokens per logical lens when ceiling permits; unchanged 15% headroom capped at 1500 tokens; each physical call reserves full allowance & reconciles actual usage",
+    "requestEncoding": "runtime-initial-v1",
+    "byteBasis": {
+      "modelVisibleInputBytes": "canonical prompt UTF8 + system UTF8 + schema JSON UTF8 once; excludes transport/telemetry escaping, controls & execution metadata; provider conversion unknown",
+      "plannedRequestBytes": "exact serialized host envelope including transport framing, telemetry escaping, controls & execution metadata",
+      "packetBytes": "rendered author physical requests including model, effort, system, schemas, tools, framing & escaping",
+      "seatReadBytes": "same planned full physical requests; actual delivery requires authenticated host receipt",
+      "perLensPacketBytes": "logical serialized packet envelopes, each retaining its own excerpts",
+      "unsharedRequestBytes": "full initial rendered requests if every lens ran alone",
+      "uniqueExcerptBytes": "serialized excerpt arrays once per physical seat",
+      "sharedExcerptBytesSaved": "serialized excerpt array copies removed by actual shared-context-v1 host encoding",
+      "physicalRequestBytesSaved": "unsharedRequestBytes minus planned full shared requests"
+    },
+    "reasoningBudget": {
+      "schemaVersion": 2,
+      "totalTokens": 6600000,
+      "perCallTokens": 150000,
+      "outputTokens": 4096,
+      "maxSeats": 44
+    },
+    "coverageMode": "exhaustive",
+    "boundedAudit": false,
+    "selectedPackets": [
+      "reasoning.data-safety.json",
+      "reasoning.platform-parity.json",
+      "reasoning.release-readiness.json",
+      "reasoning.resilience.json",
+      "reasoning.a11y.json"
+    ],
+    "deferredPackets": [],
+    "deferredWork": [],
+    "plannedSeats": 5,
+    "limits": {
+      "seatTokenBudget": 150000,
+      "waveWidth": 1,
+      "runTokenBudget": 6600000,
+      "maxTotalSeats": 44
+    },
+    "lenses": [
+      {
+        "provider": "reasoning.a11y",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 17165,
+        "estimatedTokens": 4292,
+        "largestPartBytes": 17165,
+        "largestPartEstimatedTokens": 4292
+      },
+      {
+        "provider": "reasoning.data-safety",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 21573,
+        "estimatedTokens": 5394,
+        "largestPartBytes": 21573,
+        "largestPartEstimatedTokens": 5394
+      },
+      {
+        "provider": "reasoning.platform-parity",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 18209,
+        "estimatedTokens": 4553,
+        "largestPartBytes": 18209,
+        "largestPartEstimatedTokens": 4553
+      },
+      {
+        "provider": "reasoning.release-readiness",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 51982,
+        "estimatedTokens": 12996,
+        "largestPartBytes": 51982,
+        "largestPartEstimatedTokens": 12996
+      },
+      {
+        "provider": "reasoning.resilience",
+        "parts": 1,
+        "requiredSeats": 1,
+        "packetBytes": 38091,
+        "estimatedTokens": 9523,
+        "largestPartBytes": 38091,
+        "largestPartEstimatedTokens": 9523
+      }
+    ],
+    "bundles": [
+      {
+        "bundle": "S1",
+        "shareBp": 700,
+        "seats": 4,
+        "estimatedTokens": 55085,
+        "budgetTokens": 462000,
+        "overBy": 0
+      },
+      {
+        "bundle": "S2",
+        "shareBp": 800,
+        "seats": 1,
+        "estimatedTokens": 8529,
+        "budgetTokens": 528000,
+        "overBy": 0
+      }
+    ],
+    "seats": [
+      {
+        "seat": 1,
+        "seatId": "seat-001",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 1,
+        "part": 1,
+        "estimatedTokens": 9936,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 9936,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 5840,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 14864,
+        "plannedModelInputBytes": 11680,
+        "modelVisibleInputBytes": 11680,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 14864,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.data-safety"
+        ],
+        "lensIds": [
+          "data-safety"
+        ],
+        "packets": [
+          "reasoning.data-safety.json"
+        ]
+      },
+      {
+        "seat": 2,
+        "seatId": "seat-002",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 2,
+        "part": 1,
+        "estimatedTokens": 9202,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 9202,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 5106,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 13392,
+        "plannedModelInputBytes": 10211,
+        "modelVisibleInputBytes": 10211,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 13392,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.platform-parity"
+        ],
+        "lensIds": [
+          "platform-parity"
+        ],
+        "packets": [
+          "reasoning.platform-parity.json"
+        ]
+      },
+      {
+        "seat": 3,
+        "seatId": "seat-003",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 3,
+        "part": 1,
+        "estimatedTokens": 20314,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 20314,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 16218,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 41028,
+        "plannedModelInputBytes": 32435,
+        "modelVisibleInputBytes": 32435,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 41028,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.release-readiness"
+        ],
+        "lensIds": [
+          "release-readiness"
+        ],
+        "packets": [
+          "reasoning.release-readiness.json"
+        ]
+      },
+      {
+        "seat": 4,
+        "seatId": "seat-004",
+        "bundle": "S1",
+        "tier": "specialist",
+        "wave": 4,
+        "part": 1,
+        "estimatedTokens": 15633,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 15633,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 11537,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 30185,
+        "plannedModelInputBytes": 23074,
+        "modelVisibleInputBytes": 23074,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 30185,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.resilience"
+        ],
+        "lensIds": [
+          "resilience"
+        ],
+        "packets": [
+          "reasoning.resilience.json"
+        ]
+      },
+      {
+        "seat": 5,
+        "seatId": "seat-005",
+        "bundle": "S2",
+        "tier": "specialist",
+        "wave": 5,
+        "part": 1,
+        "estimatedTokens": 8529,
+        "gatherPolicy": "deterministic",
+        "initialPhysicalCalls": 1,
+        "estimatedInitialTokens": 8529,
+        "evidenceGatherer": null,
+        "estimatedInputTokens": 4433,
+        "outputTokenLimit": 4096,
+        "outputTokenCeiling": 4096,
+        "minimumOutputTokens": 1000,
+        "perCallTokenAllowance": 150000,
+        "plannedRequestBytes": 11822,
+        "plannedModelInputBytes": 8866,
+        "modelVisibleInputBytes": 8866,
+        "plannedGatherRequestBytes": 0,
+        "plannedInitialRequestBytes": 11822,
+        "gatheredContextReserveBytes": 0,
+        "transportEncoding": "literal",
+        "packetProjectionEncoding": "audit-packet-reference-v1",
+        "providers": [
+          "reasoning.a11y"
+        ],
+        "lensIds": [
+          "a11y"
+        ],
+        "packets": [
+          "reasoning.a11y.json"
+        ]
+      }
+    ],
+    "waves": 5,
+    "requiredSeats": 5,
+    "requiredInitialCalls": 5,
+    "gatherCalls": 0,
+    "followupReserveCalls": 1,
+    "initialCallReservationTokens": 750000,
+    "followupReserveTokens": 150000,
+    "packetBytes": 111291,
+    "modelVisibleInputBytes": 86266,
+    "planningModelInputByteLimit": 295000,
+    "seatReadBytes": 111291,
+    "perLensPacketBytes": 147020,
+    "uniqueExcerptBytes": 38596,
+    "sharedExcerptBytesSaved": 0,
+    "unsharedRequestBytes": 111291,
+    "universeUnsharedRequestBytes": 111291,
+    "physicalRequestBytesSaved": 0,
+    "estimatedTokens": 63614,
+    "withinLimits": true,
+    "violations": [],
+    "violationCount": 0,
+    "warnings": []
+  },
+  "pending": [
+    "reasoning.a11y",
+    "reasoning.data-safety",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness",
+    "reasoning.resilience"
+  ],
+  "modelCalls": 0,
+  "productionDispatchValidated": true,
+  "qualification": false
+}

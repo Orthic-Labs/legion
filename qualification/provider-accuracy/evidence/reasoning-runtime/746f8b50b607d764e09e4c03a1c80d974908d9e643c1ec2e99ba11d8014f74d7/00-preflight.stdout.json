@@ -1,0 +1,33 @@
+{
+  "schema": "legion-reasoning-runtime-preflight/1",
+  "casesDigest": "sha256:beb78243c80b6185ee35fdf2ffca69e4d11df91ae11dd7f6af6d9964e0ef5ccf",
+  "packetPlanDigest": "sha256:c5247d5eb4cf3819acb7a6576dac0a7d27c247b96bf1703ae04d1433077b326e",
+  "providers": [
+    "legacy.security.adjudication",
+    "legacy.security.variant-analysis",
+    "reasoning.a11y",
+    "reasoning.ai-slop",
+    "reasoning.architecture",
+    "reasoning.correctness",
+    "reasoning.data-safety",
+    "reasoning.dead-file",
+    "reasoning.doc-drift",
+    "reasoning.minimize",
+    "reasoning.naming",
+    "reasoning.performance",
+    "reasoning.platform-parity",
+    "reasoning.release-readiness",
+    "reasoning.resilience",
+    "reasoning.schema",
+    "reasoning.security"
+  ],
+  "cases": 34,
+  "proposedPackets": 8,
+  "maxCalls": 44,
+  "reservationCeilingTokens": 6600000,
+  "perCallReservationTokens": 150000,
+  "width": 1,
+  "modelCalls": 0,
+  "productionDispatchValidated": false,
+  "qualification": false
+}

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-audit-runtime",
+  "run": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run",
+  "dispatchStatus": "done",
+  "status": "done",
+  "complete": true,
+  "calls": 4,
+  "callAttempts": 4,
+  "artifacts": [
+    {
+      "provider": "reasoning.performance",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.performance.json",
+      "contextId": "d7f4b5b1-e6b5-456c-84e3-00a99c475571",
+      "processId": 89660,
+      "verification": "pending-fresh-batch"
+    },
+    {
+      "provider": "reasoning.minimize",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.minimize.json",
+      "contextId": "351a26bd-f6e5-4cad-9f9d-00eb2dedc2e7",
+      "sharedPhysicalCall": true,
+      "processId": 89680
+    },
+    {
+      "provider": "reasoning.naming",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.naming.json",
+      "contextId": "351a26bd-f6e5-4cad-9f9d-00eb2dedc2e7",
+      "sharedPhysicalCall": true,
+      "processId": 89680
+    },
+    {
+      "provider": "reasoning.ai-slop",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.ai-slop.json",
+      "contextId": "351a26bd-f6e5-4cad-9f9d-00eb2dedc2e7",
+      "sharedPhysicalCall": true,
+      "processId": 89680
+    },
+    {
+      "provider": "reasoning.architecture",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.architecture.json",
+      "contextId": "351a26bd-f6e5-4cad-9f9d-00eb2dedc2e7",
+      "sharedPhysicalCall": true,
+      "processId": 89680
+    },
+    {
+      "provider": "reasoning.dead-file",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/lens-results/reasoning.dead-file.json",
+      "contextId": "021e1bf6-5e1a-4bb6-ab1a-9e52a717401f",
+      "processId": 89716,
+      "verification": "pending-fresh-batch"
+    }
+  ],
+  "failures": [],
+  "snapshotKey": "sha256:fe59341af22921d0d2a730df4bdd03e65b4b1df2132ce8c316b3da78f796c2bc",
+  "snapshotGaps": [],
+  "pending": [],
+  "followup": null,
+  "budget": {
+    "admissionBasis": "ceil(visible input bytes/2) plus output is an empirical planning estimate, not a provider token bound; admission retains 15% headroom capped at 1500 tokens; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
+    "plannedTokens": 84534,
+    "reservedTokens": 600000,
+    "chargedByTier": {
+      "judgment": 150000,
+      "mechanical": 150000,
+      "specialist": 300000
+    },
+    "actual": {
+      "status": "known",
+      "inputTokens": 62441,
+      "outputTokens": 16256,
+      "cachedInputTokens": 2888,
+      "retryTokens": 0,
+      "knownInputTokens": 62441,
+      "knownOutputTokens": 16256,
+      "knownCachedInputTokens": 2888,
+      "knownRetryTokens": 0
+    },
+    "unknownUsageCalls": 0,
+    "legacyUnknownUsageCalls": 0,
+    "retryCalls": 0,
+    "failedCalls": 0,
+    "actualOverrunTokens": 0,
+    "outputCapOverrunTokens": 0,
+    "cost": {
+      "currency": "USD",
+      "basis": "provider-reported API-equivalent cost; not invoice charge",
+      "status": "known",
+      "reportedApiEquivalentCostUsd": "0.32854270000000001",
+      "knownReportedApiEquivalentSubtotalUsd": "0.32854270000000001",
+      "unknownCostCalls": 0,
+      "legacyUnknownCostCalls": 0,
+      "invoiceChargeStatus": "unknown",
+      "invoiceChargeUsd": null
+    },
+    "terminalStatus": null,
+    "contextLimitedSeats": [],
+    "historicalTerminalStatus": null,
+    "continuationDigest": null,
+    "leaseAttempts": 3
+  },
+  "report": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-02/native-run/report.json",
+  "reportStatus": "findings",
+  "gaps": []
+}

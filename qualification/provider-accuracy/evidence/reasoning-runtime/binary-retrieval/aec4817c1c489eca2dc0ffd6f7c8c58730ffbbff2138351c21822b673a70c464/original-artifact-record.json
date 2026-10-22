@@ -1,0 +1,21 @@
+{
+ "artifact": {
+  "id": 12394228288,
+  "jobId": 119533948022,
+  "name": "qa-evidence-macos-15-1",
+  "runId": 39690109447,
+  "sha256": "sha256:aec4817c1c489eca2dc0ffd6f7c8c58730ffbbff2138351c21822b673a70c464",
+  "sizeInBytes": 325956181
+ },
+ "binary": {
+  "member": "reasoning-native-runner/legion",
+  "sha256": "sha256:204efc588754a82ca583e7ae5a0772b049c0dfdf85bf18959424e03832f50e69"
+ },
+ "repository": "Orthic-Labs/legion",
+ "runner": {
+  "content": "{\"schema\":\"legion-reasoning-native-runner/1\",\"sourceRevision\":\"e0c087e89f001538a813cfb18f5943504adc2e99\",\"platform\":{\"os\":\"macOS\",\"architecture\":\"ARM64\"},\"binary\":{\"path\":\"legion\",\"sha256\":\"sha256:204efc588754a82ca583e7ae5a0772b049c0dfdf85bf18959424e03832f50e69\",\"bytes\":224544496,\"mode\":493},\"modelCalls\":0,\"qualification\":false}",
+  "member": "reasoning-native-runner/runner.json",
+  "sha256": "sha256:421b2856744bc22df7559c702e1ccd51fe6da32050763a5db8a4478df90dcd5a"
+ },
+ "schema": "legion-github-artifact-record/1"
+}

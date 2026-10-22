@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-audit-runtime",
+  "run": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run",
+  "dispatchStatus": "done",
+  "status": "done",
+  "complete": true,
+  "calls": 6,
+  "callAttempts": 6,
+  "artifacts": [
+    {
+      "provider": "reasoning.data-safety",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/lens-results/reasoning.data-safety.json",
+      "contextId": "1b2a6963-0477-4ae1-ad36-fbf6564a9df0",
+      "processId": 90034,
+      "verification": "pending-fresh-batch"
+    },
+    {
+      "provider": "reasoning.platform-parity",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/lens-results/reasoning.platform-parity.json",
+      "contextId": "a9ccb4e5-522c-4801-ac84-ed06d363e677",
+      "processId": 90100,
+      "verification": "pending-fresh-batch"
+    },
+    {
+      "provider": "reasoning.release-readiness",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/lens-results/reasoning.release-readiness.json",
+      "contextId": "041f437f-6d79-4bb8-9809-d37335be9640",
+      "processId": 90142,
+      "verification": "pending-fresh-batch"
+    },
+    {
+      "provider": "reasoning.resilience",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/lens-results/reasoning.resilience.json",
+      "contextId": "81e17d8e-cb5d-4921-860b-7adc6581de6c",
+      "processId": 90206,
+      "verification": "pending-fresh-batch"
+    },
+    {
+      "provider": "reasoning.a11y",
+      "result": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/lens-results/reasoning.a11y.json",
+      "contextId": "ba6ac68d-b288-4d68-a67e-53b2b2b7de7a",
+      "processId": 90264,
+      "verification": "pending-fresh-batch"
+    }
+  ],
+  "failures": [],
+  "snapshotKey": "sha256:e383cae2ddcc4f32422d24c1da579f4b2dad071ed2b40f40fca5432a84e6f60b",
+  "snapshotGaps": [],
+  "pending": [],
+  "followup": null,
+  "budget": {
+    "admissionBasis": "ceil(visible input bytes/2) plus output is an empirical planning estimate, not a provider token bound; admission retains 15% headroom capped at 1500 tokens; new physical calls reserve the full frozen per-call allowance; persisted earlier reservations retain their original amount; provider usage may exceed authorization",
+    "plannedTokens": 85227,
+    "reservedTokens": 900000,
+    "chargedByTier": {
+      "judgment": 150000,
+      "specialist": 750000
+    },
+    "actual": {
+      "status": "known",
+      "inputTokens": 59600,
+      "outputTokens": 9444,
+      "cachedInputTokens": 5225,
+      "retryTokens": 0,
+      "knownInputTokens": 59600,
+      "knownOutputTokens": 9444,
+      "knownCachedInputTokens": 5225,
+      "knownRetryTokens": 0
+    },
+    "unknownUsageCalls": 0,
+    "legacyUnknownUsageCalls": 0,
+    "retryCalls": 0,
+    "failedCalls": 0,
+    "actualOverrunTokens": 0,
+    "outputCapOverrunTokens": 0,
+    "cost": {
+      "currency": "USD",
+      "basis": "provider-reported API-equivalent cost; not invoice charge",
+      "status": "known",
+      "reportedApiEquivalentCostUsd": "0.3124385",
+      "knownReportedApiEquivalentSubtotalUsd": "0.3124385",
+      "unknownCostCalls": 0,
+      "legacyUnknownCostCalls": 0,
+      "invoiceChargeStatus": "unknown",
+      "invoiceChargeUsd": null
+    },
+    "terminalStatus": null,
+    "contextLimitedSeats": [],
+    "historicalTerminalStatus": null,
+    "continuationDigest": null,
+    "leaseAttempts": 5
+  },
+  "report": "/Volumes/D/scratch/legion-reasoning-capture-e0c087e8-20261022T020625Z/run-03/native-run/report.json",
+  "reportStatus": "findings",
+  "gaps": []
+}
