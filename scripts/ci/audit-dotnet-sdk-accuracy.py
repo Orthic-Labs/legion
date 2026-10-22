@@ -489,7 +489,7 @@ def validate(repo, record, live=False):
                         expected_request["args" if field == "args" else "versionArgs"].append("--unbound")
                     elif field in ("cwd", "plan", "policy"):
                         expected_request[{"cwd": "cwd", "plan": "planId", "policy": "policyId"}[field]] += "/unbound" if field == "cwd" else "0"
-                    elif field == "provider": expected_request["providerId"] = "code.rust"
+                    elif field == "provider": expected_request["providerId"] = "code.python"
                     elif field == "task": expected_request["taskId"] = "unbound"
                     elif field == "digest": expected_request["expectedDigest"] = "sha256:unbound"
                     elif field == "environment": expected_request["environment"]["UNBOUND"] = "1"
