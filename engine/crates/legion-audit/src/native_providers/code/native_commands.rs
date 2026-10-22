@@ -61,34 +61,6 @@ pub(super) fn plan(
     plan: &mut Plan,
 ) {
     match provider {
-        "code.go" => {
-            let dirs = cap_roots(
-                dirs_named(entries, &["go.mod"]).into_iter().collect(),
-                "go",
-                &mut plan.notes,
-            );
-            if dirs.is_empty() {
-                plan.not_planned.insert("test", "no-manifest");
-            }
-            for dir in dirs {
-                let mut test = command(
-                    "test",
-                    &["go"],
-                    &dir,
-                    vec!["test".into(), "-count=1".into(), "./...".into()],
-                );
-                test.parser = Parser::Process;
-                test.accepted = &[0];
-                test.sibling_of = Some("go");
-                test.env = vec![
-                    ("GOPROXY", "off".into()),
-                    ("GOSUMDB", "off".into()),
-                    ("GOTOOLCHAIN", "local".into()),
-                    ("GOENV", "off".into()),
-                ];
-                plan.commands.push(test);
-            }
-        }
         "code.jvm" => {
             for (tool, args) in [
                 (
@@ -124,43 +96,6 @@ pub(super) fn plan(
         "code.dotnet" => {
             super::dotnet_sdk::plan(root, entries, scratch, plan);
         }
-        "code.c-family" => {
-            // Both configuration & make -n may execute project code.
-            for dir in cap_roots(
-                dirs_named(entries, &["CMakeLists.txt"])
-                    .into_iter()
-                    .collect(),
-                "cmake",
-                &mut plan.notes,
-            ) {
-                let target = scratch
-                    .cache_dir()
-                    .join(format!("cmake-{}", plan.deferred.len()))
-                    .to_string_lossy()
-                    .into_owned();
-                plan.deferred.push(command(
-                    "compiler",
-                    &["cmake"],
-                    &dir,
-                    vec!["-S".into(), ".".into(), "-B".into(), target.clone()],
-                ));
-                plan.deferred.push(command(
-                    "compiler",
-                    &["cmake"],
-                    &dir,
-                    vec!["--build".into(), target],
-                ));
-            }
-            defer(
-                plan,
-                entries,
-                &["Makefile", "makefile", "GNUmakefile"],
-                &["make"],
-                "compiler",
-                &["-n"],
-            );
-        }
-        // PHP/Ruby project operations are staged & admitted by php_ruby_commands.
         "code.long-tail" => {
             defer(
                 plan,
@@ -216,7 +151,7 @@ fn syntax(
     scratch: &AuditScratch,
     plan: &mut Plan,
 ) {
-    if !matches!(provider, "code.php-ruby" | "code.long-tail") {
+    if provider != "code.long-tail" {
         return;
     }
     let mut count = 0;
@@ -326,11 +261,6 @@ mod tests {
                 &["gradle", "mvn"],
             ),
             (
-                "code.c-family",
-                &["CMakeLists.txt", "Makefile"],
-                &["cmake", "make"],
-            ),
-            (
                 "code.long-tail",
                 &["pubspec.yaml", "mix.exs", "rebar.config"],
                 &["dart", "mix", "rebar3"],
@@ -365,50 +295,6 @@ mod tests {
                 .iter()
                 .all(|item| !item.args.iter().any(|arg| arg == "--disable-sandbox")));
         }
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn offline_go_tests_enter_sdk_plan_without_accepting_failing_exit() {
-        let (root, scratch) = fixture();
-        let entries = vec![entry("go.mod"), entry("src/a.go")];
-        let mut planned = Plan::default();
-        plan(
-            "code.go",
-            &root,
-            &entries,
-            &BTreeSet::new(),
-            &scratch,
-            &mut planned,
-        );
-        assert!(planned.deferred.is_empty());
-        assert_eq!(planned.commands.len(), 1);
-        let command = &planned.commands[0];
-        assert_eq!(command.tool, "test");
-        assert_eq!(command.programs, &["go"]);
-        assert_eq!(command.args, ["test", "-count=1", "./..."]);
-        assert_eq!(command.accepted, &[0]);
-        assert_eq!(command.parser, Parser::Process);
-        assert_eq!(
-            command.env,
-            vec![
-                ("GOPROXY", "off".into()),
-                ("GOSUMDB", "off".into()),
-                ("GOTOOLCHAIN", "local".into()),
-                ("GOENV", "off".into())
-            ]
-        );
-        let mut absent = Plan::default();
-        plan(
-            "code.go",
-            &root,
-            &[],
-            &BTreeSet::new(),
-            &scratch,
-            &mut absent,
-        );
-        assert!(absent.commands.is_empty());
-        assert_eq!(absent.not_planned.get("test"), Some(&"no-manifest"));
         std::fs::remove_dir_all(root).unwrap();
     }
 

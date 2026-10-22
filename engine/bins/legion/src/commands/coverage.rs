@@ -87,7 +87,6 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
         "language",
         &["code.python", "security.python-dependencies"],
     ),
-    ("language.go", "language", &["code.go"]),
     (
         "framework.react",
         "framework",
@@ -162,7 +161,6 @@ impl Scan {
             "pyproject.toml" | "requirements.txt" | "setup.py" | "Pipfile" => {
                 self.note("language.python", relative)
             }
-            "go.mod" => self.note("language.go", relative),
             _ => {}
         }
     }
@@ -297,7 +295,7 @@ pub fn coverage_summary(scan: &Scan, rows: &[Value]) -> Value {
         .filter_map(|row| row["id"].as_str().map(str::to_owned))
         .collect::<Vec<_>>();
     json!({
-        "basis": "repository manifests (Cargo.toml, package.json, Package.swift, *.xcodeproj, pyproject.toml, requirements.txt, go.mod)",
+        "basis": "repository manifests (Cargo.toml, package.json, Package.swift, *.xcodeproj, pyproject.toml, requirements.txt)",
         "languages": ids_of("language"),
         "frameworks": ids_of("framework"),
         "unsupported": unsupported,
@@ -446,7 +444,6 @@ mod tests {
             r#"{"dependencies":{"react":"18"},"devDependencies":{"typescript":"5"}}"#,
         )
         .unwrap();
-        std::fs::write(root.join("go.mod"), "module x\n").unwrap();
         std::fs::create_dir_all(root.join("node_modules/dep")).unwrap();
         std::fs::write(root.join("node_modules/dep/pyproject.toml"), "").unwrap();
         let scan = scan(&root);
@@ -454,7 +451,6 @@ mod tests {
             "language.rust",
             "language.javascript",
             "language.typescript",
-            "language.go",
             "framework.react",
             "framework.tauri",
         ] {
@@ -468,7 +464,7 @@ mod tests {
     #[test]
     fn test_and_fixture_trees_do_not_report_languages() {
         let root = temp_repo("fixtures");
-        std::fs::write(root.join("go.mod"), "module x\n").unwrap();
+        std::fs::write(root.join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
         for dir in [
             "tests/app",
             "src/fixtures",
@@ -480,7 +476,7 @@ mod tests {
             std::fs::write(root.join(dir).join("Package.swift"), "").unwrap();
         }
         let scan = scan(&root);
-        assert!(scan.found.contains_key("language.go"));
+        assert!(scan.found.contains_key("language.rust"));
         assert!(!scan.found.contains_key("language.python"));
         assert!(!scan.found.contains_key("language.swift"));
         let _ = std::fs::remove_dir_all(root);

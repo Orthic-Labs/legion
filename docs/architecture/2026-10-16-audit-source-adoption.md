@@ -112,8 +112,7 @@ Scoped Oracle review passed budget/runtime after shared-schema repair and separa
 the typed-Redis review loop remains unapproved. The native [`audit run-reasoning`
 controller](../../engine/bins/legion/src/commands/audit_runtime.rs) uses frozen scopes, bounded tools,
 usage reconciliation, verification, and recomputed reports. Semantic cards add applicability, traces,
-falsifiers, and paired cases; offline integrations include Squawk, Zizmor, ShellCheck, TFLint,
-Kubeconform, Kube-Linter, Brakeman, and GolangCI-Lint. Planner/runtime share payload construction.
+falsifiers, and paired cases; offline integrations include Squawk, Zizmor, and ShellCheck. Planner/runtime share payload construction.
 Benchmark defaults are 100,000 aggregate and 10,000 per case; optional cache reports initialization
 failure as unavailable. Original ratings—Legion 5/10, OpenQodex 8/10, Alibaba 7/10—are
 preimplementation engineering judgments, not measured current rankings.

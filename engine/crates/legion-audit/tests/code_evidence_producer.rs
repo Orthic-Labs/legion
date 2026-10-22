@@ -160,7 +160,6 @@ fn planted_defects_are_found_with_exact_locations_and_counts() {
             ],
             1,
         ),
-        ("code.go", &["ignored-error@svc/main.go:3"], 1),
         ("code.jvm", &["duplicate-block@a/Two.java:3"], 2),
     ];
     for (id, expected, files) in cases {
@@ -437,9 +436,7 @@ fn javascript_only_inventory_makes_other_families_not_applicable() {
         ("src/app.js", "export const app = 1;\n"),
     ]);
     let paths = ["package.json", "src/app.js"];
-    for family in [
-        "c-family", "dotnet", "go", "jvm", "mobile", "php-ruby", "python", "rust",
-    ] {
+    for family in ["dotnet", "jvm", "mobile", "python", "rust"] {
         let id = format!("code.{family}");
         let result = run(&root, &paths, &id);
         assert!(!result.applicable, "{id}");
@@ -513,35 +510,6 @@ fn javascript_family_reads_source_and_project_context_without_claiming_tools() {
     fs::remove_dir_all(root).unwrap();
 }
 
-/// A present family file that cannot be selected keeps the family's gaps.
-#[test]
-fn c_sources_without_a_compile_database_keep_their_gaps() {
-    let root = fixture(&[("src/main.c", "int main(void) {\n    return 0;\n}\n")]);
-    let result = run(&root, &["src/main.c"], "code.c-family");
-    assert!(result.applicable);
-    assert!(!result.details.contains_key("applicability"));
-    assert!(!result.complete);
-    assert_eq!(result.status, ProviderStatus::Partial);
-    let coverage = result.coverage.as_ref().unwrap();
-    assert_eq!((coverage.expected, coverage.examined), (1, 1));
-    assert!(
-        result
-            .coverage_gaps
-            .contains(&"code.c-family:context-gap:compileDatabase".to_string()),
-        "{:?}",
-        result.coverage_gaps
-    );
-    assert!(
-        result
-            .coverage_gaps
-            .iter()
-            .any(|gap| gap.ends_with(":compiler")),
-        "compiler tool must stay a typed gap: {:?}",
-        result.coverage_gaps
-    );
-    fs::remove_dir_all(root).unwrap();
-}
-
 /// A family manifest with no source is still applicable, so its gaps stay.
 #[test]
 fn family_manifest_without_source_keeps_its_gaps() {
@@ -595,7 +563,7 @@ fn family_manifest_without_source_keeps_its_gaps() {
 #[test]
 fn empty_inventory_keeps_the_existing_denominator_accounting() {
     let root = fixture(&[("README.md", "# readme\n")]);
-    let result = run(&root, &[], "code.c-family");
+    let result = run(&root, &[], "code.rust");
     assert!(result.applicable);
     assert!(!result.details.contains_key("applicability"));
     assert!(!result.complete);
@@ -604,7 +572,7 @@ fn empty_inventory_keeps_the_existing_denominator_accounting() {
     assert!(
         result
             .coverage_gaps
-            .contains(&"code.c-family:denominator-gap:c-family".to_string()),
+            .contains(&"code.rust:denominator-gap:rust".to_string()),
         "{:?}",
         result.coverage_gaps
     );

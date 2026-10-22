@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate original bench, quality & scanner receipts; never promotes records."""
+"""Validate original bench, quality & IaC receipts; never promotes records."""
 
 import argparse
 import json
@@ -33,7 +33,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--receipts", required=True, type=Path)
-    parser.add_argument("--group", required=True, choices=("bench", "quality", "tflint", "kubeconform", "golangci", "trivy-iac"))
+    parser.add_argument("--group", required=True, choices=("bench", "quality", "trivy-iac"))
     args = parser.parse_args()
     result = validate(args.root, args.receipts, args.group)
     print("HARNESS_PROVIDER_ACCURACY_SUMMARY " + json.dumps(result, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False))

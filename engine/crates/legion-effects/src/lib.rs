@@ -21,9 +21,7 @@ pub use receipt::{
 };
 pub use request::{ExternalToolRequest, RedactedRequest, SandboxReceipt, Sensitivity, ToolOrigin};
 pub use sandbox::{
-    authenticate as authenticate_sandbox, authenticate_tflint_scoped,
-    validate_tflint_ipc_namespace, OwnedIpcNamespace, SandboxAuthentication, SandboxGap,
-    SandboxMode,
+    authenticate as authenticate_sandbox, SandboxAuthentication, SandboxGap, SandboxMode,
 };
 
 pub use gradle_sandbox::GradleBindOnlySandbox;

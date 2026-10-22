@@ -4,7 +4,7 @@ use serde_json::json;
 
 /// Report the languages and frameworks detected in the working directory from
 /// repository manifests (Cargo.toml, package.json, Package.swift, *.xcodeproj,
-/// pyproject.toml / requirements.txt, go.mod), each with the registry providers
+/// pyproject.toml / requirements.txt), each with the registry providers
 /// that cover it. An empty list means no recognised manifest was found.
 pub fn run(args: CommonArgs) -> CommandResult {
     // The first non-flag argument is the repository root; default to cwd.

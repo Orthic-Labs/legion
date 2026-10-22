@@ -271,113 +271,6 @@
         }
       }
     },
-    "codeSdkEvidence": {
-      "description": "Exact original code SDK proof metadata; full provider contract & authenticated CI remain mandatory.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "toolchainTree",
-        "childExecution",
-        "childStdout",
-        "childStderr",
-        "govulnEnrollment",
-        "providerRecords"
-      ],
-      "properties": {
-        "toolchainTree": {
-          "$ref": "#/$defs/reference"
-        },
-        "childExecution": {
-          "$ref": "#/$defs/reference"
-        },
-        "childStdout": {
-          "$ref": "#/$defs/reference"
-        },
-        "childStderr": {
-          "$ref": "#/$defs/reference"
-        },
-        "govulnEnrollment": {
-          "$ref": "#/$defs/reference"
-        },
-        "providerRecords": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "code.c-family",
-            "code.dotnet",
-            "code.go",
-            "code.javascript",
-            "code.jvm",
-            "code.long-tail",
-            "code.mobile",
-            "code.php-ruby",
-            "code.python",
-            "code.rust"
-          ],
-          "properties": {
-            "code.c-family": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.dotnet": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.go": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.javascript": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.jvm": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.long-tail": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.mobile": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.php-ruby": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.python": {
-              "$ref": "#/$defs/reference"
-            },
-            "code.rust": {
-              "$ref": "#/$defs/reference"
-            }
-          }
-        }
-      }
-    },
-    "phpRubySdkEvidence": {
-      "description": "Exact original PHP/Ruby SDK child/enrollment/record bytes; no production admission.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "childExecution",
-        "childStdout",
-        "childStderr",
-        "phpRubyEnrollment",
-        "providerRecord"
-      ],
-      "properties": {
-        "childExecution": {
-          "$ref": "#/$defs/reference"
-        },
-        "childStdout": {
-          "$ref": "#/$defs/reference"
-        },
-        "childStderr": {
-          "$ref": "#/$defs/reference"
-        },
-        "phpRubyEnrollment": {
-          "$ref": "#/$defs/reference"
-        },
-        "providerRecord": {
-          "$ref": "#/$defs/reference"
-        }
-      }
-    },
     "pythonSdkEvidence": {
       "description": "Exact original Python SDK child/enrollment/record bytes; no production admission.",
       "type": "object",
@@ -574,7 +467,6 @@
             "git",
             "extra-scanner",
             "linter",
-            "harness-scanner",
             "harness-iac",
             "bench-known-answer",
             "harness-quality",
@@ -592,15 +484,12 @@
             "semgrep-sdk",
             "harness-rust-outdated",
             "node-outdated",
-            "code-sdk",
             "code-long-tail",
             "code-python-sdk",
-            "code-php-ruby-sdk",
             "ownership-native",
             "compatibility-report",
             "code-jvm-sdk",
             "code-mobile-sdk",
-            "code-c-family-sdk",
             "javascript-sdk",
             "dotnet-sdk",
             "code-rust-sdk",
@@ -664,12 +553,6 @@
         },
         "codeMobileEvidence": {
           "$ref": "#/$defs/codeMobileEvidence"
-        },
-        "codeSdkEvidence": {
-          "$ref": "#/$defs/codeSdkEvidence"
-        },
-        "phpRubySdkEvidence": {
-          "$ref": "#/$defs/phpRubySdkEvidence"
         },
         "pythonSdkEvidence": {
           "$ref": "#/$defs/pythonSdkEvidence"
@@ -749,75 +632,6 @@
             "not": {
               "required": [
                 "codeMobileEvidence"
-              ]
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "family": {
-                "const": "code-c-family-sdk"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "provider": {
-                "const": "code.c-family"
-              },
-              "stage": {
-                "const": "finding"
-              },
-              "scope": {
-                "const": "source-bound CMake/Clang C-family operations/v1 known-answer SDK fixtures"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "family": {
-                "const": "code-sdk"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "codeSdkEvidence"
-            ]
-          },
-          "else": {
-            "not": {
-              "required": [
-                "codeSdkEvidence"
-              ]
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "family": {
-                "const": "code-php-ruby-sdk"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "phpRubySdkEvidence"
-            ],
-            "properties": {
-              "provider": {
-                "const": "code.php-ruby"
-              }
-            }
-          },
-          "else": {
-            "not": {
-              "required": [
-                "phpRubySdkEvidence"
               ]
             }
           }

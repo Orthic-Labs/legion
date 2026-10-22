@@ -32,22 +32,12 @@
 //! | | `type` | `mypy --no-incremental --cache-dir <scratch> --no-color-output --show-error-codes --no-pretty .` |
 //! | | `test` | `pytest --assert=plain -o cache_dir=<scratch> --basetemp <scratch>` |
 //! | | `package` | `python3 -I -B -m build --wheel --no-isolation --outdir <scratch> <frozen packageRoot>` plus actual wheel validation |
-//! | `code.go` | `module` | `go list -m` (`GOPROXY=off`, `GOTOOLCHAIN=local`) |
-//! | | `vet` | `go vet ./...` |
-//! | | `format` | `gofmt -l .` |
-//! | | `test` | `go test -count=1 ./...` (requires exact injected SDK authorization) |
 //! | `code.dotnet` | `restore` / `build` / `analyzer` / `test` | Enrolled SDK8, sealed expanded NuGet cache, Roslyn/FSharpLint & retained TRX (requires exact injected SDK authorization) |
-//! | `code.php-ruby` | `lint` / `ruby-syntax` | PHP `-n -l` / Ruby Ripper, isolated source snapshots |
-//! | | `ruby-lint` | RuboCop JSON lint, owned configuration & isolated Ruby snapshots |
-//! | | `package` / `type` | Composer validate original lock / PHPStan all selected PHP files |
-//! | | `test` | actual PHPUnit plus assertion report validation & `bundle exec rake test` |
-//! | | `security` | Composer locked audit using an enrolled official package-query snapshot |
 //! | `code.long-tail` | shell / PowerShell syntax | parse-only invocations, isolated source snapshots |
-//! | `code.c-family` | compiler/lint/analyzer/sanitizer/test | bounded CMake/Clang/clang-tidy/CTest, isolated source/build snapshots |
 //!
-//! Go/Rust/C-family builds & tests, PHP/Ruby tests & Python configured tools/backends execute project code only through
-//! supplied ExternalProjectTool; PHP/Ruby & Python use frozen staged inputs & deny writes
-//! to original audited tree. Explicit package/v1 never installs dependencies. The
+//! Rust builds & tests and Python configured tools/backends execute project code only through
+//! supplied ExternalProjectTool; Python uses frozen staged inputs & denies writes
+//! to the original audited tree. Explicit package/v1 never installs dependencies. The
 //! installed CLI's OwnerAdmissionRequired policy remains denied. An SDK
 //! caller must supply its own exact policy admission & authenticated sandbox.
 //! Other historical build/test contracts remain deferred plans; package installs
@@ -75,27 +65,19 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
-#[path = "c_family_native.rs"]
-mod c_family_native;
 #[path = "dotnet_sdk.rs"]
 mod dotnet_sdk;
 #[cfg(test)]
 #[path = "dotnet_sdk_accuracy.rs"]
 mod dotnet_sdk_accuracy;
-#[path = "govulncheck.rs"]
-mod govulncheck;
 #[path = "javascript_sdk.rs"]
 mod javascript_sdk;
 #[path = "mobile_sdk.rs"]
 mod mobile_sdk;
 #[path = "native_commands.rs"]
 mod native_commands;
-#[path = "php_ruby_commands.rs"]
-mod php_ruby_commands;
 #[path = "python_commands.rs"]
 mod python_commands;
-#[path = "rubocop.rs"]
-mod rubocop;
 #[path = "rust_dependency.rs"]
 mod rust_dependency;
 
@@ -227,28 +209,14 @@ enum Parser {
     PyCompile,
     Mypy,
     PythonWheel,
-    GoVet,
-    Gofmt,
-    GoList,
-    Govulncheck,
     Dotnet,
     RustDependency,
     /// Exit-only project command contract: failure is a gap, never a fabricated finding.
     Process,
     Syntax,
-    Rubocop,
-    ComposerValidate,
-    ComposerAudit,
-    PhpStan,
-    PhpUnit,
-    PhpUnitReport,
-    RubyRake,
     MobileCompiler,
     MobileLint,
     MobileProcess,
-    ClangCompiler,
-    ClangTidy,
-    CFamilyProcess,
 }
 
 struct Planned {
@@ -258,7 +226,7 @@ struct Planned {
     programs: &'static [&'static str],
     /// Look only in `node_modules/.bin` (walking up to the root).
     local_bin: bool,
-    /// Also resolve next to this already-resolved program (`gofmt` beside `go`).
+    /// Also resolve next to this already-resolved program (a cargo subcommand beside `cargo`).
     sibling_of: Option<&'static str>,
     /// Extra executable that must exist (`cargo-clippy`).
     requires: Option<&'static str>,
@@ -267,7 +235,7 @@ struct Planned {
     parser: Parser,
     accepted: &'static [i32],
     env: Vec<(&'static str, String)>,
-    /// Diagnostics are printed on stderr (`go vet`).
+    /// Diagnostics are printed on stderr rather than stdout.
     diagnostics_on_stderr: bool,
     /// Original denominator path for an isolated syntax input.
     source_path: Option<String>,
@@ -621,78 +589,11 @@ fn plan_python(
     python_commands::extend(entries, scratch, &stage, &input_digest, plan);
 }
 
-fn plan_go(entries: &[InventoryEntry], plan: &mut Plan) {
-    let modules = cap_roots(
-        dirs_named(entries, &["go.mod"]).into_iter().collect(),
-        "go",
-        &mut plan.notes,
-    );
-    if modules.is_empty() {
-        for tool in ["module", "vet", "format"] {
-            plan.not_planned.insert(tool, "no-manifest");
-        }
-        return;
-    }
-    for dir in modules {
-        let command = |tool: &'static str,
-                       programs: &'static [&'static str],
-                       args: &[&str],
-                       parser: Parser,
-                       accepted: &'static [i32],
-                       stderr: bool| Planned {
-            tool,
-            programs,
-            local_bin: false,
-            sibling_of: Some("go"),
-            requires: None,
-            cwd_rel: dir.clone(),
-            args: args.iter().map(|arg| (*arg).to_owned()).collect(),
-            parser,
-            accepted,
-            // No network, no toolchain download; module mode stays the
-            // project default (vendor directories keep working).
-            env: vec![
-                ("GOPROXY", "off".to_owned()),
-                ("GOSUMDB", "off".to_owned()),
-                ("GOTOOLCHAIN", "local".to_owned()),
-                ("GOENV", "off".to_owned()),
-            ],
-            diagnostics_on_stderr: stderr,
-            source_path: None,
-            source_digest: None,
-        };
-        plan.commands.push(command(
-            "module",
-            &["go"],
-            &["list", "-m"],
-            Parser::GoList,
-            &[0],
-            false,
-        ));
-        plan.commands.push(command(
-            "vet",
-            &["go"],
-            &["vet", "./..."],
-            Parser::GoVet,
-            &[0, 1, 2],
-            true,
-        ));
-        plan.commands.push(command(
-            "format",
-            &["gofmt"],
-            &["-l", "."],
-            Parser::Gofmt,
-            &[0],
-            false,
-        ));
-    }
-}
-
 /// Analyzer tool ids that are never run, with the typed reason.
 fn policy_tools(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "code.javascript" => &["build", "test"],
-        "code.rust" | "code.go" | "code.python" | "code.dotnet" | "code.php-ruby" => &[],
+        "code.rust" | "code.python" | "code.dotnet" => &[],
         _ => &["test"],
     }
 }
@@ -709,18 +610,10 @@ fn plan_commands(
         "code.rust" => plan_rust(root, entries, &mut plan),
         "code.javascript" => plan_javascript(root, entries, scratch, &mut plan),
         "code.python" => plan_python(root, entries, selected, scratch, &mut plan),
-        "code.go" => plan_go(entries, &mut plan),
-        "code.php-ruby" => {
-            rubocop::plan(root, entries, selected, scratch, &mut plan);
-            php_ruby_commands::plan(root, entries, selected, scratch, &mut plan);
-        }
         "code.mobile" => mobile_sdk::plan(root, entries, selected, scratch, &mut plan),
         _ => {}
     }
     native_commands::plan(provider_id, root, entries, selected, scratch, &mut plan);
-    if provider_id == "code.go" {
-        govulncheck::plan(root, entries, scratch, &mut plan);
-    }
     if provider_id == "code.rust" {
         rust_dependency::plan(root, entries, scratch, &mut plan);
     }
@@ -858,17 +751,8 @@ impl<'a> Resolver<'a> {
             return cached.clone();
         }
         let found = command.programs.iter().find_map(|name| {
-            if php_ruby_commands::is_php_ruby(command.parser) {
-                php_ruby_commands::resolve(self.ctx, command, name)
-            } else if mobile_sdk::is_mobile(command.parser) {
+            if mobile_sdk::is_mobile(command.parser) {
                 mobile_sdk::resolve(self.ctx, command, name)
-            } else if command.parser == Parser::Rubocop
-                || c_family_native::is_native(command.parser)
-            {
-                rubocop::search_dirs(self.ctx)
-                    .iter()
-                    .find_map(|dir| in_dir(dir, name))
-                    .filter(|path| rubocop::trusted_path(self.ctx.root, path))
             } else if command.local_bin {
                 self.local_bin(cwd, name)
             } else {
@@ -1020,22 +904,6 @@ async fn run_one(
     timeout_ms: u64,
     cancellation: CancellationToken,
 ) -> RunOutput {
-    // PHPStan/autoload, PHPUnit & Rake execute project code. The public
-    // Disabled override cannot bypass their required authenticated confinement,
-    // including version probes. Refuse before resolution, input inspection or
-    // SDK submission; an unsubmitted command has no execution receipt.
-    if (ctx.provider_id == "code.php-ruby" || php_ruby_commands::is_php_ruby(command.parser))
-        && ctx.sandbox != SandboxPolicy::Required
-    {
-        return RunOutput::failed(Outcome::NotRun(
-            "php-ruby-project-code-requires-authenticated-sandbox".into(),
-        ));
-    }
-    if command.parser == Parser::Rubocop && !rubocop::staged_input_valid(command) {
-        return RunOutput::failed(Outcome::Failed(
-            "tool-failed:ruby-lint:staged-input-changed".into(),
-        ));
-    }
     if mobile_sdk::is_mobile(command.parser) {
         if let Err(reason) = mobile_sdk::snapshot(command) {
             return RunOutput::failed(Outcome::Failed(format!(
@@ -1090,13 +958,7 @@ async fn run_one(
             environment.insert("PATH".into(), joined.to_string_lossy().into_owned());
         }
     }
-    for name in [
-        "CARGO_HOME",
-        "RUSTUP_HOME",
-        "GOPATH",
-        "GOROOT",
-        "GOMODCACHE",
-    ] {
+    for name in ["CARGO_HOME", "RUSTUP_HOME"] {
         if let Ok(value) = std::env::var(name) {
             environment.insert(name.into(), value);
             allowlist.insert(name.into());
@@ -1123,63 +985,12 @@ async fn run_one(
         environment.insert((*name).into(), value.clone());
         allowlist.insert((*name).into());
     }
-    if command.parser == Parser::Rubocop {
-        if let Ok(path) = std::env::join_paths(rubocop::search_dirs(ctx)) {
-            environment.insert("PATH".into(), path.to_string_lossy().into_owned());
-        } else {
-            return RunOutput::failed(Outcome::Failed(
-                "tool-failed:ruby-lint:invalid-search-path".into(),
-            ));
-        }
-        if let Some(gem_home) = rubocop::gem_home(ctx.root, &executable) {
-            for name in ["GEM_HOME", "GEM_PATH"] {
-                environment.insert(name.into(), gem_home.clone());
-                allowlist.insert(name.into());
-            }
-        }
-    }
-
     let executable_text = executable.to_string_lossy().into_owned();
     let cwd_text = cwd.to_string_lossy().into_owned();
-    // Go uses its version subcommand; gofmt has no version flag, so its
-    // exact sibling Go binary reads the original gofmt build info through
-    // the same authenticated wrapper. PowerShell uses its profile-free probe.
-    let mut version_probe_executable = executable_text.clone();
-    let mut version_probe_identity = None;
-    let tool_version_args = if php_ruby_commands::is_php_ruby(command.parser) {
-        php_ruby_commands::version_args(command)
-    } else if command.parser == Parser::Dotnet {
+    // PowerShell uses its profile-free probe.
+    let version_probe_executable = executable_text.clone();
+    let tool_version_args = if command.parser == Parser::Dotnet {
         dotnet_sdk::version_args(command)
-    } else if command.parser == Parser::Govulncheck {
-        match govulncheck::version_args() {
-            Ok(args) => args,
-            Err(reason) => {
-                return RunOutput::failed(Outcome::Failed(format!(
-                    "tool-failed:vulnerability:version-probe:{reason}"
-                )))
-            }
-        }
-    } else if command.parser == Parser::Gofmt {
-        if ctx.sandbox != SandboxPolicy::Required {
-            return RunOutput::failed(Outcome::NotRun(
-                "gofmt-build-info-probe-requires-authenticated-sandbox".into(),
-            ));
-        }
-        let Some(inspector) = executable.parent().and_then(|dir| in_dir(dir, "go")) else {
-            return RunOutput::failed(Outcome::NotRun("gofmt-build-info-inspector-missing".into()));
-        };
-        let Some(inspector_digest) = resolver.digest(&inspector) else {
-            return RunOutput::failed(Outcome::NotRun(
-                "gofmt-build-info-inspector-unreadable".into(),
-            ));
-        };
-        version_probe_executable = inspector.to_string_lossy().into_owned();
-        version_probe_identity = Some(json!({"kind":"go-binary-build-info",
-            "inspectorPath":inspector,"inspectorDigest":inspector_digest,
-            "targetPath":executable,"targetDigest":executable_digest}));
-        vec!["version".into(), executable_text.clone()]
-    } else if command.programs.contains(&"go") {
-        vec!["version".into()]
     } else if command.tool == "powershell-syntax" {
         vec![
             "-NoLogo".into(),
@@ -1188,8 +999,6 @@ async fn run_one(
             "-Command".into(),
             "$PSVersionTable.PSVersion.ToString()".into(),
         ]
-    } else if command.parser == Parser::Rubocop {
-        vec!["--no-server".into(), "--version".into()]
     } else {
         vec!["--version".into()]
     };
@@ -1206,16 +1015,12 @@ async fn run_one(
                 legion_effects::authenticate_sandbox(
                     &executable_text,
                     &command.args,
-                    if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
-                        || c_family_native::is_native(command.parser)
-                    {
+                    if ctx.provider_id == "code.python" {
                         ctx.root.to_str().unwrap_or("")
                     } else {
                         &cwd_text
                     },
-                    if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
-                        || c_family_native::is_native(command.parser)
-                    {
+                    if ctx.provider_id == "code.python" {
                         legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
                     } else {
                         legion_effects::SandboxMode::DenyNetwork
@@ -1309,30 +1114,20 @@ async fn run_one(
     let snapshot = || {
         if javascript_command {
             javascript_sdk::snapshot(ctx, command, &executable)
-        } else if php_ruby_commands::is_php_ruby(command.parser) {
-            php_ruby_commands::snapshot(command)
         } else if ctx.provider_id == "code.python" {
             python_commands::snapshot(command)
         } else if mobile_sdk::is_mobile(command.parser) {
             mobile_sdk::snapshot(command)
         } else if command.parser == Parser::Dotnet {
             dotnet_sdk::snapshot(command)
-        } else if command.parser == Parser::RustDependency {
-            rust_dependency::snapshot(command, rust_binding, &executable)
-        } else if c_family_native::is_native(command.parser) {
-            c_family_native::snapshot(command)
         } else {
-            govulncheck::snapshot(command)
+            rust_dependency::snapshot(command, rust_binding, &executable)
         }
     };
-    let native_input_before = if matches!(
-        command.parser,
-        Parser::Govulncheck | Parser::RustDependency | Parser::Dotnet
-    ) || javascript_command
+    let native_input_before = if matches!(command.parser, Parser::RustDependency | Parser::Dotnet)
+        || javascript_command
         || mobile_sdk::is_mobile(command.parser)
-        || c_family_native::is_native(command.parser)
         || ctx.provider_id == "code.python"
-        || php_ruby_commands::is_php_ruby(command.parser)
     {
         match snapshot() {
             Ok(snapshot) => Some(snapshot),
@@ -1393,10 +1188,7 @@ async fn run_one(
         command.cwd_rel.clone()
     };
     let sandbox_mode = match ctx.sandbox {
-        SandboxPolicy::Required
-            if matches!(ctx.provider_id, "code.python" | "code.php-ruby")
-                || c_family_native::is_native(command.parser) =>
-        {
+        SandboxPolicy::Required if ctx.provider_id == "code.python" => {
             "deny-network-deny-project-write"
         }
         SandboxPolicy::Required => "deny-network",
@@ -1411,7 +1203,6 @@ async fn run_one(
         "program": program_label,
         "sourcePath": command.source_path,
         "sourceDigest": command.source_digest,
-        "versionProbeIdentity": version_probe_identity,
         "nativeToolIdentity": native_tool_identity,
         "version": output.version,
         "argv": argv,
@@ -1433,15 +1224,6 @@ async fn run_one(
             "networkEnabled": receipt.sandbox.network_enabled,
         },
     });
-    let native_executable_after = c_family_native::is_native(command.parser).then(|| {
-        std::fs::read(&executable)
-            .ok()
-            .map(|bytes| sha256_text(&bytes))
-    });
-    if let Some(after) = &native_executable_after {
-        summary["nativeExecutableSnapshot"] =
-            json!({"path":executable,"before":executable_digest,"after":after});
-    }
     if let Some(before) = &native_input_before {
         summary["nativeInputSnapshots"] = json!({
             "before": before,
@@ -1487,16 +1269,6 @@ async fn run_one(
             return output;
         }
     }
-    if native_executable_after
-        .as_ref()
-        .is_some_and(|after| after.as_deref() != Some(executable_digest.as_str()))
-    {
-        output.outcome = Outcome::Failed(format!(
-            "tool-failed:{}:native-executable-changed",
-            command.tool
-        ));
-        return output;
-    }
     if let Some(reason) = native_input_error {
         output.outcome = Outcome::Failed(format!("tool-failed:{}:{reason}", command.tool));
         return output;
@@ -1514,39 +1286,11 @@ async fn run_one(
         ));
         return output;
     }
-    if let Some(identity) = &version_probe_identity {
-        let unchanged = [
-            ("inspectorPath", "inspectorDigest"),
-            ("targetPath", "targetDigest"),
-        ]
-        .iter()
-        .all(|(path, expected)| {
-            identity[*path]
-                .as_str()
-                .and_then(|path| std::fs::read(path).ok())
-                .is_some_and(|bytes| {
-                    identity[*expected]
-                        .as_str()
-                        .is_some_and(|expected| sha256_text(&bytes) == expected)
-                })
-        });
-        let expected_prefix = format!("{}: go", executable_text);
-        if !unchanged || !output.version.starts_with(&expected_prefix) {
-            output.outcome = Outcome::Failed(format!(
-                "tool-failed:{}:unbound-build-info-probe",
-                command.tool
-            ));
-            return output;
-        }
-    }
     if matches!(
         command.parser,
         Parser::Syntax
             | Parser::Dotnet
             | Parser::Process
-            | Parser::CFamilyProcess
-            | Parser::ClangCompiler
-            | Parser::ClangTidy
             | Parser::MobileCompiler
             | Parser::MobileLint
             | Parser::MobileProcess
@@ -1612,16 +1356,10 @@ async fn run_one(
         javascript_sdk::typescript(ctx, command, bytes, receipt.exit_code).map(|v| v.0)
     } else if javascript_command && command.parser == Parser::Eslint {
         javascript_sdk::eslint(bytes, receipt.exit_code).map(|v| v.0)
-    } else if php_ruby_commands::is_php_ruby(command.parser) {
-        php_ruby_commands::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if mobile_sdk::is_mobile(command.parser) {
         mobile_sdk::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
-    } else if command.parser == Parser::Govulncheck {
-        govulncheck::parse(bytes, receipt.exit_code, command)
     } else if command.parser == Parser::RustDependency {
         rust_dependency::parse(bytes, receipt.exit_code, command, rust_binding)
-    } else if command.parser == Parser::Rubocop {
-        rubocop::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else if command.parser == Parser::Mypy {
         if stderr.as_deref().is_none_or(|b| !b.is_empty()) {
             Err("mypy-stderr-unaccounted".into())
@@ -1639,9 +1377,6 @@ async fn run_one(
             Some(paths) => parse_py_compile(bytes, &paths),
             None => Err("compile-scope-unreadable".into()),
         }
-    } else if c_family_native::is_native(command.parser) && command.parser != Parser::CFamilyProcess
-    {
-        c_family_native::parse(bytes, stderr.as_deref(), receipt.exit_code, command)
     } else {
         parse(command.parser, bytes, receipt.exit_code)
     };
@@ -1695,26 +1430,14 @@ fn parse(parser: Parser, bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         Parser::Ruff => parse_ruff(bytes, exit),
         Parser::PyCompile => Err("compile-scope-required".into()),
         Parser::Mypy | Parser::PythonWheel => Err("python-frozen-context-required".into()),
-        Parser::GoVet => parse_go_vet(bytes, exit),
-        Parser::Gofmt => parse_gofmt(bytes),
-        Parser::GoList => Ok(Vec::new()),
-        Parser::Govulncheck => Err("govulncheck-source-binding-required".into()),
         Parser::Dotnet => Err("dotnet-context-required".into()),
         Parser::RustDependency => Err("rust-dependency-source-binding-required".into()),
-        Parser::ClangCompiler | Parser::ClangTidy => Err("c-family-source-binding-required".into()),
-        Parser::CFamilyProcess | Parser::Process => match exit {
+        Parser::Process => match exit {
             Some(0) => Ok(Vec::new()),
             Some(code) => Err(format!("exit-{code}")),
             None => Err("process-missing-exit-code".into()),
         },
         Parser::Syntax => parse_syntax(bytes, exit),
-        Parser::Rubocop => Err("rubocop-source-binding-required".into()),
-        Parser::ComposerValidate
-        | Parser::ComposerAudit
-        | Parser::PhpStan
-        | Parser::PhpUnit
-        | Parser::PhpUnitReport
-        | Parser::RubyRake => Err("php-ruby-frozen-context-required".into()),
         Parser::MobileCompiler | Parser::MobileLint | Parser::MobileProcess => {
             Err("mobile-source-platform-binding-required".into())
         }
@@ -2018,49 +1741,6 @@ fn parse_py_compile(bytes: &[u8], expected: &BTreeSet<String>) -> Result<Vec<Dia
     }
 }
 
-fn parse_go_vet(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, String> {
-    let located = Regex::new(r"^(?:vet: )?(.+?\.go):(\d+):(?:\d+:)?\s*(.*)$")
-        .map_err(|error| error.to_string())?;
-    let text = String::from_utf8_lossy(bytes);
-    let mut out = Vec::new();
-    for line in text.lines() {
-        if line.starts_with('#') {
-            continue;
-        }
-        if let Some(captures) = located.captures(line.trim_end()) {
-            out.push(Diag {
-                rule: "go-vet".to_owned(),
-                severity: "warning",
-                path: captures[1].to_owned(),
-                line: captures[2].parse::<usize>().unwrap_or(1).max(1),
-                message: shorten(&captures[3]),
-            });
-        }
-    }
-    if out.is_empty() && exit.is_some_and(|code| code != 0) {
-        return Err(format!("exit-{}", exit.unwrap_or(-1)));
-    }
-    Ok(out)
-}
-
-fn parse_gofmt(bytes: &[u8]) -> Result<Vec<Diag>, String> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut out = Vec::new();
-    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-        if !line.ends_with(".go") {
-            return Err("unexpected-output".into());
-        }
-        out.push(Diag {
-            rule: "gofmt".to_owned(),
-            severity: "warning",
-            path: line.to_owned(),
-            line: 1,
-            message: "file is not gofmt-formatted".to_owned(),
-        });
-    }
-    Ok(out)
-}
-
 // ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
@@ -2102,9 +1782,6 @@ pub async fn run(
         return super::jvm_sdk::run(ctx, entries, selected, cancellation).await;
     }
     let provider_id = ctx.provider_id;
-    if provider_id == "code.c-family" {
-        return c_family_native::run(ctx, entries, selected, cancellation).await;
-    }
     let plan = plan_commands(provider_id, ctx.root, entries, selected, ctx.scratch);
     let mut evidence = ToolEvidence::default();
     for command in &plan.deferred {
@@ -2145,22 +1822,16 @@ pub async fn run(
         }
     }
 
-    let php_ruby_closure_before =
-        (provider_id == "code.php-ruby").then(|| php_ruby_commands::closure_snapshot(ctx.root));
     let mobile_closure_before =
         (provider_id == "code.mobile").then(|| mobile_sdk::closure_snapshot(ctx.root));
     let started = Instant::now();
     let canonical_root = std::fs::canonicalize(ctx.root).unwrap_or_else(|_| ctx.root.to_path_buf());
     let mut resolver = Resolver::new(ctx);
     let mut accumulators: BTreeMap<&'static str, Accumulator> = BTreeMap::new();
-    let mut diagnostics: Vec<(String, Diag, bool)> = Vec::new();
+    let mut diagnostics: Vec<(String, Diag)> = Vec::new();
 
     for (sequence, command) in plan.commands.iter().enumerate() {
         let accumulator = accumulators.entry(command.tool).or_default();
-        if let Some(Err(reason)) = &php_ruby_closure_before {
-            accumulator.merge(Outcome::Failed(reason.clone()));
-            continue;
-        }
         if let Some(Err(reason)) = &mobile_closure_before {
             accumulator.merge(Outcome::Failed(reason.clone()));
             continue;
@@ -2225,25 +1896,7 @@ pub async fn run(
             } else {
                 command.cwd_rel.clone()
             };
-            diagnostics.push((
-                diagnostic_cwd,
-                diag,
-                command.parser == Parser::ComposerAudit,
-            ));
-        }
-    }
-    if let Some(before) = php_ruby_closure_before {
-        let after = php_ruby_commands::closure_snapshot(ctx.root);
-        evidence.receipts.push(json!({"kind":"php-ruby-native-enrollment-boundary", "before":before.as_ref().ok(),"after":after.as_ref().ok(),"beforeError":before.as_ref().err(),"afterError":after.as_ref().err()}));
-        if before.is_err() || after.is_err() || before.as_ref().ok() != after.as_ref().ok() {
-            for tool in config_tools {
-                accumulators
-                    .entry(*tool)
-                    .or_default()
-                    .merge(Outcome::Failed(
-                        "php-ruby-native-enrollment-boundary-failed".into(),
-                    ));
-            }
+            diagnostics.push((diagnostic_cwd, diag));
         }
     }
     if let Some(before) = mobile_closure_before {
@@ -2322,20 +1975,10 @@ pub async fn run(
     let mut outside = 0usize;
     let mut seen: BTreeSet<(String, String, usize)> = BTreeSet::new();
     let mut findings: Vec<NativeFinding> = Vec::new();
-    for (cwd_rel, diag, composer_lock_context) in diagnostics {
+    for (cwd_rel, diag) in diagnostics {
         let Some(path) =
             repo_relative(ctx.root, &canonical_root, &cwd_rel, &diag.path).filter(|path| {
                 selected.contains(path)
-                    || (composer_lock_context
-                        && path == "composer.lock"
-                        && entries.iter().any(|entry| {
-                            entry.path == "composer.lock"
-                                && entry.digest.as_deref().is_some_and(|digest| {
-                                    std::fs::read(ctx.root.join("composer.lock"))
-                                        .ok()
-                                        .is_some_and(|raw| sha256_text(&raw) == digest)
-                                })
-                        }))
                     || (provider_id == "code.rust"
                         && diag.rule.starts_with("cargo-audit:")
                         && entries.iter().any(|entry| {
@@ -2393,138 +2036,6 @@ pub async fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // This is a no-submission boundary test, not native scanner qualification.
-    // Real SDK/executor objects remain unused; no process output or receipt is
-    // substituted. A regression must not turn Disabled into a direct command.
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn php_ruby_disabled_sandbox_refuses_before_any_sdk_effect() {
-        use std::sync::{
-            atomic::{AtomicUsize, Ordering},
-            Arc,
-        };
-        struct CountAdmission(Arc<AtomicUsize>);
-        impl legion_effects::PolicyAuthorizer for CountAdmission {
-            fn authorize(&self, _: &ExternalToolRequest) -> legion_effects::PolicyDecision {
-                self.0.fetch_add(1, Ordering::SeqCst);
-                legion_effects::PolicyDecision {
-                    allowed: true,
-                    policy_id: "php-ruby-disabled-boundary-control".into(),
-                    policy_version: 1,
-                    policy_digest: sha256_text(b"unused exact boundary control"),
-                    reason: Some("must never be consulted with sandbox Disabled".into()),
-                }
-            }
-        }
-        struct ObservedSdk {
-            inner: legion_effects::EffectExecutor<
-                legion_effects::platform::unix::UnixProcess,
-                legion_effects::ArtifactWriter,
-                CountAdmission,
-            >,
-            submitted: AtomicUsize,
-        }
-        #[async_trait::async_trait]
-        impl ExternalProjectTool for ObservedSdk {
-            async fn execute(
-                &self,
-                request: ExternalToolRequest,
-                cancellation: CancellationToken,
-            ) -> ExecutionReceipt {
-                self.submitted.fetch_add(1, Ordering::SeqCst);
-                self.inner
-                    .execute_with_cancellation(&request, cancellation)
-                    .await
-            }
-        }
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let scratch = AuditScratch::create(root).unwrap();
-        let admitted = Arc::new(AtomicUsize::new(0));
-        let sdk = ObservedSdk {
-            inner: legion_effects::EffectExecutor::new(
-                legion_effects::platform::unix::UnixProcess::new(),
-                legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
-                CountAdmission(admitted.clone()),
-            ),
-            submitted: AtomicUsize::new(0),
-        };
-        let search = Vec::<PathBuf>::new();
-        for provider_id in ["code.php-ruby", "code.rust"] {
-            let ctx = ToolContext {
-                root,
-                tool: &sdk,
-                scratch: &scratch,
-                sandbox: SandboxPolicy::Disabled,
-                #[cfg(all(test, target_os = "macos"))]
-                dotnet_qualification_loopback: false,
-                search_path: Some(&search),
-                plan_digest: "sha256:frozen-php-ruby-plan",
-                inventory_digest: "sha256:frozen-php-ruby-inventory",
-                provider_id,
-                per_tool_timeout_ms: 1_000,
-                total_budget_ms: 5_000,
-                output_limit: 1024,
-            };
-            let mut resolver = Resolver::new(&ctx);
-            let mut parsers = vec![
-                Parser::ComposerValidate,
-                Parser::ComposerAudit,
-                Parser::PhpStan,
-                Parser::PhpUnit,
-                Parser::PhpUnitReport,
-                Parser::RubyRake,
-            ];
-            if provider_id == "code.php-ruby" {
-                // Provider-level invariant also covers existing parse/lint
-                // operations & any future project-command parser.
-                parsers.extend([Parser::Syntax, Parser::Rubocop, Parser::Process]);
-            }
-            for parser in parsers {
-                let command = Planned {
-                    tool: "disabled-control",
-                    programs: &["php"],
-                    local_bin: false,
-                    sibling_of: None,
-                    requires: None,
-                    cwd_rel: String::new(),
-                    args: vec!["--version".into()],
-                    parser,
-                    accepted: &[0],
-                    env: Vec::new(),
-                    diagnostics_on_stderr: false,
-                    source_path: None,
-                    source_digest: None,
-                };
-                let output = run_one(
-                    &ctx,
-                    &mut resolver,
-                    &command,
-                    None,
-                    0,
-                    1_000,
-                    CancellationToken::new(),
-                )
-                .await;
-                assert_eq!(
-                    output.outcome,
-                    Outcome::NotRun("php-ruby-project-code-requires-authenticated-sandbox".into())
-                );
-                assert_eq!(output.outcome.reason(command.tool), "tool-not-run:disabled-control:php-ruby-project-code-requires-authenticated-sandbox");
-                assert!(output.receipt.is_none());
-                assert!(output.diagnostics.is_empty());
-                assert!(output.stdout_digest.is_none());
-            }
-            assert!(resolver.cache.is_empty() && resolver.digests.is_empty());
-        }
-        assert_eq!(sdk.submitted.load(Ordering::SeqCst), 0);
-        assert_eq!(admitted.load(Ordering::SeqCst), 0);
-        assert_eq!(
-            std::fs::read_dir(scratch.artifacts_dir()).unwrap().count(),
-            0
-        );
-        assert_eq!(std::fs::read_dir(scratch.sandbox_dir()).unwrap().count(), 0);
-    }
 
     #[tokio::test]
     async fn owner_admission_denial_retains_effect_evidence_and_unavailable_reason() {
@@ -2654,7 +2165,7 @@ mod tests {
     }
 
     #[test]
-    fn tsc_and_vet_lines_parse() {
+    fn tsc_lines_parse() {
         let tsc = parse_tsc(
             b"src/a.ts(3,5): error TS2322: Type 'x' is not assignable.\n",
             Some(2),
@@ -2662,9 +2173,6 @@ mod tests {
         .unwrap();
         assert_eq!((tsc[0].path.as_str(), tsc[0].line), ("src/a.ts", 3));
         assert!(parse_tsc(b"error TS5058: bad path\n", Some(1)).is_err());
-        let vet = parse_go_vet(b"# pkg\n./main.go:12:3: printf format %d\n", Some(1)).unwrap();
-        assert_eq!((vet[0].path.as_str(), vet[0].line), ("./main.go", 12));
-        assert!(parse_go_vet(b"go: cannot find module\n", Some(1)).is_err());
     }
 }
 

@@ -12,7 +12,7 @@ class PythonSdkAdapterTests(unittest.TestCase):
     def test_python_family_has_exact_provider_stage_and_selector(self):
         row = {"provider": "code.python", "family": "code-python-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, row), ("code-python-sdk", "real_python_code_command_accuracy", "canonical-json", "real_python_code_command_accuracy"))
-        for changed in ({"provider": "code.go"}, {"stage": "candidate"}):
+        for changed in ({"provider": "code.rust"}, {"stage": "candidate"}):
             with self.assertRaises(AssertionError): gate["adapter"](ROOT, dict(row, **changed))
 
     def test_unobserved_or_partial_python_record_is_refused(self):
@@ -26,7 +26,7 @@ class PythonSdkAdapterTests(unittest.TestCase):
             gate["ADAPTERS"]["legacy.runtime.app"],
             ("runtime-app-sdk", "runtime_app_accuracy", "finding", "canonical-json", "real_runtime_app_accuracy"),
         )
-        self.assertEqual(len(gate["ADAPTERS"]), 39)
+        self.assertEqual(len(gate["ADAPTERS"]), 34)
 
 
 class PythonReceiptProjectionUnits(unittest.TestCase):
@@ -94,7 +94,7 @@ class PythonFrozenDenominatorUnits(unittest.TestCase):
             changed["frozenProvider"]["configuration"][field] = value
             with self.subTest(field=field), self.assertRaises(AssertionError):
                 python["frozen_denominator"](changed, self.spec, self.entries)
-        for field, value in (("id", "code.go"), ("version", "wrong")):
+        for field, value in (("id", "code.rust"), ("version", "wrong")):
             changed = copy.deepcopy(self.case)
             changed["frozenProvider"][field] = value
             with self.subTest(field=field), self.assertRaises(AssertionError):

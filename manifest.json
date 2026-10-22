@@ -449,21 +449,6 @@
       "may_close_own_candidates": true
     },
     {
-      "id": "code.c-family",
-      "role": "deterministic",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "code.c-family"
-      },
-      "benchmark_status": "unproven",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": false,
-      "fresh_context_required": false,
-      "may_close_own_candidates": true
-    },
-    {
       "id": "code.dotnet",
       "role": "deterministic",
       "phase": "facts",
@@ -472,21 +457,6 @@
         "module": "code.dotnet"
       },
       "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": false,
-      "fresh_context_required": false,
-      "may_close_own_candidates": true
-    },
-    {
-      "id": "code.go",
-      "role": "deterministic",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "code.go"
-      },
-      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -547,21 +517,6 @@
         "module": "code.mobile"
       },
       "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": false,
-      "fresh_context_required": false,
-      "may_close_own_candidates": true
-    },
-    {
-      "id": "code.php-ruby",
-      "role": "deterministic",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "code.php-ruby"
-      },
-      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1779,81 +1734,6 @@
       "runner": {
         "kind": "runtime-script",
         "module": "security.scanner-zizmor"
-      },
-      "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": true,
-      "fresh_context_required": false,
-      "may_close_own_candidates": false
-    },
-    {
-      "id": "security.scanner-tflint",
-      "role": "candidate-generator",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "security.scanner-tflint"
-      },
-      "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": true,
-      "fresh_context_required": false,
-      "may_close_own_candidates": false
-    },
-    {
-      "id": "security.scanner-kubeconform",
-      "role": "candidate-generator",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "security.scanner-kubeconform"
-      },
-      "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": true,
-      "fresh_context_required": false,
-      "may_close_own_candidates": false
-    },
-    {
-      "id": "security.scanner-kube-linter",
-      "role": "candidate-generator",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "security.scanner-kube-linter"
-      },
-      "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": true,
-      "fresh_context_required": false,
-      "may_close_own_candidates": false
-    },
-    {
-      "id": "security.scanner-brakeman",
-      "role": "candidate-generator",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "security.scanner-brakeman"
-      },
-      "benchmark_status": "qualified",
-      "required_for_clean_claim": true,
-      "allow_without_blueprint": false,
-      "produces_security_candidates": true,
-      "fresh_context_required": false,
-      "may_close_own_candidates": false
-    },
-    {
-      "id": "security.scanner-golangci-lint",
-      "role": "candidate-generator",
-      "phase": "facts",
-      "runner": {
-        "kind": "runtime-script",
-        "module": "security.scanner-golangci-lint"
       },
       "benchmark_status": "qualified",
       "required_for_clean_claim": true,

@@ -19,7 +19,7 @@ fn languages_scans_the_path_argument_not_the_cwd() {
     let elsewhere = base.join("elsewhere");
     std::fs::create_dir_all(&repo).unwrap();
     std::fs::create_dir_all(&elsewhere).unwrap();
-    std::fs::write(repo.join("go.mod"), "module example.com/x\n").unwrap();
+    std::fs::write(repo.join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
 
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .arg("languages")
@@ -28,7 +28,7 @@ fn languages_scans_the_path_argument_not_the_cwd() {
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("language.go"), "stdout: {stdout}");
+    assert!(stdout.contains("language.rust"), "stdout: {stdout}");
 
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .arg("languages")
@@ -36,7 +36,7 @@ fn languages_scans_the_path_argument_not_the_cwd() {
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("language.go"), "stdout: {stdout}");
+    assert!(stdout.contains("language.rust"), "stdout: {stdout}");
 
     let _ = std::fs::remove_dir_all(&base);
 }

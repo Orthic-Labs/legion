@@ -77,7 +77,6 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
-python3 -m unittest discover -s scripts/ci/tests -p test_c_family_sdk_bootstrap.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
@@ -241,15 +240,6 @@ provision_jvm_sdk() {
   export LEGION_JVM_SDK_ENROLLMENT_JSON="${output}/enrollment.json"
 }
 
-# Provision source-pinned PHP/Ruby tools against existing observed managed runtimes.
-provision_php_ruby_sdk() {
-  local output="${RUNNER_TEMP}/legion-php-ruby-sdk-tools"
-  audit_native_command python3 -I -S -B scripts/ci/audit-php-ruby-sdk-bootstrap.py \
-    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
-  test -f "$output/exports.sh" || return 1
-  . "$output/exports.sh"
-}
-
 # Provisioning refusal counts against delivery without stopping independent lanes.
 provision_js_sdk() {
   unset LEGION_JS_SDK_ENROLLMENT
@@ -302,15 +292,6 @@ LICENSE_ALIAS
   export LEGION_LICENSE_TOOL_ROOT="$tool"
 }
 
-audit_tflint_qualification() {
-  audit_effects_test --lib scoped_ipc_ci_storage_requires_private_canonical_owned_root -- --nocapture --test-threads=1 &&
-    audit_effects_test --lib scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools -- --nocapture --test-threads=1 &&
-    audit_effects_test --lib scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure -- --nocapture --test-threads=1 &&
-    audit_effects_test --lib scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace -- --nocapture --test-threads=1 &&
-    audit_effects_test --lib scoped_ipc_native_confinement -- --ignored --nocapture --test-threads=1 &&
-    audit_effects_test --lib scoped_ipc_timeout_and_cancel_cleanup_after_reaping -- --ignored --nocapture --test-threads=1 &&
-    audit_cargo_test --test tflint_accuracy real_scanner_accuracy_tflint -- --ignored --nocapture --test-threads=1
-}
 # Shared Python scanners use reviewed binary-wheel closures in private CI tools
 # storage. Each consumer calls this through run_audit_qualification before its
 # scanner selector; exports remain in this shell for actual SDK enrollment.
@@ -336,52 +317,6 @@ PYTHON_LAUNCHER
   else
     export LEGION_SEMGREP_BIN="$launcher"
   fi
-}
-provision_code_sdk_vulnerability_tool() {
-  local output="${RUNNER_TEMP}/legion-govulncheck"
-  audit_native_command python3 scripts/ci/audit-govulncheck-bootstrap.py \
-    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" \
-    --go-root "$LEGION_GO_ROOT" --go-archive "$LEGION_GO_ARCHIVE" || return "$?"
-  local values
-  values="$(audit_native_command python3 - "$output/enrollment.json" <<'CODE_SDK_ENV'
-import json
-import sys
-from pathlib import Path
-names = ["LEGION_GOVULNCHECK_BIN", "LEGION_GOVULNCHECK_DB_ROOT", "LEGION_GOVULNCHECK_DB_ARCHIVE", "LEGION_GOVULNCHECK_ENROLLMENT_JSON", "GOMODCACHE"]
-values = json.loads(Path(sys.argv[1]).read_bytes())["environment"]
-if set(values) != set(names) or any(not isinstance(value, str) or not Path(value).is_absolute() or any(c in value for c in "\0\t\r\n") for value in values.values()):
-    raise SystemExit("Exact code SDK bootstrap environment missing or malformed")
-print("\t".join(values[name] for name in names))
-CODE_SDK_ENV
-)" || return "$?"
-  IFS=$'\t' read -r LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT \
-    LEGION_GOVULNCHECK_DB_ARCHIVE LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE <<< "$values" || return "$?"
-  export LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT LEGION_GOVULNCHECK_DB_ARCHIVE \
-    LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
-}
-# Native tools are provisioned by managed macOS runner owner. Enroll observed
-# installed LLVM/CMake dependency roots; missing native tools fail this lane.
-provision_c_family_sdk() {
-  [[ "${RUNNER_OS}" == "macOS" && "${CI}" == "true" ]] || return 2
-  local llvm_root cmake_root sdk_root homebrew_prefix dependency prefix
-  homebrew_prefix="$(audit_native_command brew --prefix)" || return "$?"
-  llvm_root="$(audit_native_command brew --prefix llvm)" || return "$?"
-  cmake_root="$(audit_native_command brew --prefix cmake)" || return "$?"
-  sdk_root="$(audit_native_command xcrun --sdk macosx --show-sdk-path)" || return "$?"
-  local roots=(--runtime-root "$llvm_root" --runtime-root "$cmake_root")
-  local dependencies
-  dependencies="$(audit_native_command brew deps --installed --union llvm cmake)" || return "$?"
-  while IFS= read -r dependency; do
-    [[ -n "$dependency" ]] || continue
-    prefix="$(audit_native_command brew --prefix "$dependency")" || return "$?"
-    roots+=(--runtime-root "$prefix")
-  done <<< "$dependencies"
-  export LEGION_C_FAMILY_ENROLLMENT_JSON="${RUNNER_TEMP}/legion-provider-qualification/code-c-family-toolchain/enrollment.json"
-  audit_native_command python3 scripts/ci/audit-c-family-sdk-bootstrap.py \
-    --cmake "$cmake_root/bin/cmake" --ctest "$cmake_root/bin/ctest" \
-    --clang "$llvm_root/bin/clang" --clangxx "$llvm_root/bin/clang++" \
-    --clang-tidy "$llvm_root/bin/clang-tidy" --make /usr/bin/make \
-    "${roots[@]}" --homebrew-prefix "$homebrew_prefix" --sdk-root "$sdk_root" --out "$LEGION_C_FAMILY_ENROLLMENT_JSON"
 }
 provision_dotnet_code_sdk() {
   audit_native_command python3 scripts/ci/provision-dotnet-qualification-tools.py \
@@ -755,14 +690,7 @@ PY
 # sandbox-exec; provisions the scanners so a tool-missing class fails
 # instead of skipping green.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  brew install gitleaks shellcheck zizmor kube-linter kubeconform actionlint hadolint swiftlint ruby@3.3 php@8.4 llvm cmake
-  # Brakeman's published gem includes its Ruby parser; use provisioned Ruby's
-  # default gem directory because native scanner execution scrubs GEM_HOME.
-  export PATH="$(brew --prefix ruby@3.3)/bin:$PATH"
-  gem install brakeman --version 8.1.0 --no-document
-  LEGION_BRAKEMAN_GEM_ROOT="$(ruby -rrubygems -e 'print Gem::Specification.find_by_name("brakeman", "=8.1.0").full_gem_path')"
-  export LEGION_BRAKEMAN_GEM_ROOT
-  export PATH="$LEGION_BRAKEMAN_GEM_ROOT/bin:$PATH"
+  brew install gitleaks shellcheck zizmor actionlint hadolint swiftlint
   # Official native Squawk release; avoid npm/Python wrapper substitutions.
   squawk_dir="${RUNNER_TEMP}/legion-scanners"
   mkdir -p "$squawk_dir"
@@ -777,18 +705,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   printf '%s  %s\n' "$squawk_sha" "$squawk_dir/squawk" | shasum -a 256 --check
   chmod +x "$squawk_dir/squawk"
   export PATH="$squawk_dir:$PATH"
-  # Official TFLint archive includes its Terraform ruleset; never --init.
-  case "$(uname -m)" in
-    arm64) tflint_asset=tflint_darwin_arm64.zip; tflint_sha=2496e9cb3d24992d553b45e7c87a0fdc9449ca975233876247a9bfeda857e6c0 ;;
-    x86_64) tflint_asset=tflint_darwin_amd64.zip; tflint_sha=0f3a9fd17526014646a2dfc3f9122f7b4161abe3d6b0f0f03f9014483ddf4d19 ;;
-    *) echo "Unsupported TFLint host architecture" >&2; exit 1 ;;
-  esac
-  curl --fail --location --connect-timeout 20 --max-time 120 \
-    "https://github.com/terraform-linters/tflint/releases/download/v0.64.0/${tflint_asset}" \
-    --output "$squawk_dir/tflint.zip"
-  printf '%s  %s\n' "$tflint_sha" "$squawk_dir/tflint.zip" | shasum -a 256 --check
-  unzip -q "$squawk_dir/tflint.zip" tflint -d "$squawk_dir"
-  chmod +x "$squawk_dir/tflint"
   case "$(uname -m)" in
     arm64) trivy_asset=trivy_0.69.3_macOS-ARM64.tar.gz; trivy_sha=a2f2179afd4f8bb265ca3c7aefb56a666bc4a9a411663bc0f22c3549fbc643a5 ;;
     x86_64) trivy_asset=trivy_0.69.3_macOS-64bit.tar.gz; trivy_sha=fec4a9f7569b624dd9d044fca019e5da69e032700edbb1d7318972c448ec2f4e ;;
@@ -800,39 +716,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   printf '%s  %s\n' "$trivy_sha" "$squawk_dir/trivy.tar.gz" | shasum -a 256 --check
   tar -xzf "$squawk_dir/trivy.tar.gz" -C "$squawk_dir" trivy
   chmod +x "$squawk_dir/trivy"
-  # Real Go scanner/toolchain archives stay isolated from host installations.
-  case "$(uname -m)" in
-    arm64)
-      golangci_arch=arm64
-      golangci_sha=d1e409481a8ca846c4bc97e781eb5cb1bd5c23353a0b3977a1cbda1b1b6447d5
-      go_sha=020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d ;;
-    x86_64)
-      golangci_arch=amd64
-      golangci_sha=767b899a28285e88ded2823d5dcc4bc5ef681173eb2d80f029a7b17ee4ece3b8
-      go_sha=92e8b34bff3c89ab16404c595669ac8cb004cc2f676dcbd1f5b87a6b8def3b47 ;;
-    *) echo "Unsupported Go scanner host architecture" >&2; exit 1 ;;
-  esac
-  export LEGION_GOLANGCI_LINT_ARCHIVE="$squawk_dir/golangci-lint-2.15.0-darwin-${golangci_arch}.tar.gz"
-  export LEGION_GO_ARCHIVE="$squawk_dir/go1.26.7.darwin-${golangci_arch}.tar.gz"
-  curl --fail --location --connect-timeout 20 --max-time 120 \
-    "https://github.com/golangci/golangci-lint/releases/download/v2.15.0/$(basename "$LEGION_GOLANGCI_LINT_ARCHIVE")" \
-    --output "$LEGION_GOLANGCI_LINT_ARCHIVE"
-  curl --fail --location --connect-timeout 20 --max-time 120 \
-    "https://go.dev/dl/$(basename "$LEGION_GO_ARCHIVE")" --output "$LEGION_GO_ARCHIVE"
-  printf '%s  %s\n' "$golangci_sha" "$LEGION_GOLANGCI_LINT_ARCHIVE" "$go_sha" "$LEGION_GO_ARCHIVE" | shasum -a 256 --check
-  mkdir -p "$RUNNER_TEMP/legion-go-toolchain"
-  tar -xzf "$LEGION_GO_ARCHIVE" -C "$RUNNER_TEMP/legion-go-toolchain"
-  tar -xzf "$LEGION_GOLANGCI_LINT_ARCHIVE" -C "$squawk_dir"
-  export LEGION_GO_ROOT="$RUNNER_TEMP/legion-go-toolchain/go"
-  export LEGION_GOLANGCI_LINT_BIN="$squawk_dir/golangci-lint-2.15.0-darwin-${golangci_arch}/golangci-lint"
-  # Freeze an upstream Kubernetes schema for offline native validation.
-  export LEGION_KUBECONFORM_SCHEMA_DIR="${RUNNER_TEMP}/legion-kubeconform-schemas"
-  mkdir -p "$LEGION_KUBECONFORM_SCHEMA_DIR"
-  curl --fail --location --connect-timeout 20 --max-time 120 \
-    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/074539312bcc717d5492d1448be088d7549c042b/v1.32.0-standalone-strict/pod-v1.json" \
-    --output "$LEGION_KUBECONFORM_SCHEMA_DIR/pod-v1.json"
-  printf '%s  %s\n' 4912d4d8c79fd1e31cc8553cceecbf4dea2111b652e8ba6b8e0fee7bb7880b66 \
-    "$LEGION_KUBECONFORM_SCHEMA_DIR/pod-v1.json" | shasum -a 256 --check
   npm install -g knip jscpd typescript
   gitleaks version; knip --version; jscpd --version; tsc --version
   run_audit_qualification audit_cargo_test --test bench_recall \
@@ -869,38 +752,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test more_external_scanner_accuracy \
     real_scanner_accuracy_squawk -- --ignored --nocapture --test-threads=1
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-tflint-accuracy"
-  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_tflint_qualification
-  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group tflint
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-kubeconform-accuracy"
-  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test kubeconform_accuracy \
-    real_scanner_accuracy_kubeconform -- --ignored --nocapture --test-threads=1
-  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group kubeconform
-  unset LEGION_KUBECONFORM_SCHEMA_DIR
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-golangci-accuracy"
-  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  audit_rustc_bin="$(command -v rustc)"
-  PATH="$LEGION_GO_ROOT/bin:/usr/bin:/bin" RUSTC="$audit_rustc_bin" \
-    run_audit_qualification audit_cargo_test --test golangci_accuracy \
-      real_scanner_accuracy_golangci_lint -- --ignored --nocapture --test-threads=1
-  run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group golangci
-  # Actual PHP/Ruby SDK controls retain original selected-scope gaps.
-  run_audit_qualification provision_php_ruby_sdk
-  export LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-php-ruby-code-command-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-php-ruby-sdk"
-  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test real_php_ruby_code_command_accuracy \
-    real_php_ruby_code_command_accuracy -- --ignored --exact --nocapture --test-threads=1
-  run_audit_qualification python3 scripts/ci/audit-php-ruby-code-sdk-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
-  unset LEGION_PHP_RUBY_CODE_COMMAND_SCRATCH LEGION_PHP_RUBY_SDK_ENROLLMENT_JSON \
-    LEGION_PHP_RUBY_SDK_PHP LEGION_PHP_RUBY_SDK_RUBY LEGION_PHP_RUBY_SDK_BIN_DIR
-  release_qualification_scratch "${RUNNER_TEMP}/legion-php-ruby-sdk-tools"
   # Generic-source controls retain mandatory unsupported-language gaps in every native case.
   # Source facts only: exact original13 framework controls, no runtime/auth admission.
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/backend-source"
@@ -935,17 +786,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     cp -R "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${RUNNER_TEMP}/legion-provider-qualification/jvm-confinement"
   fi
   unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT LEGION_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
-  # Real CMake objects/link, clang-tidy/analyzer & normal/instrumented CTest.
-  run_audit_qualification provision_c_family_sdk
-  export LEGION_C_FAMILY_SCRATCH="${RUNNER_TEMP}/legion-provider-qualification/code-c-family"
-  mkdir -p "$LEGION_C_FAMILY_SCRATCH"
-  if [[ -f "${LEGION_C_FAMILY_ENROLLMENT_JSON:-/missing-c-family-enrollment}" ]]; then
-    run_audit_qualification audit_cargo_test --test c_family_sdk_accuracy \
-      c_family_sdk_accuracy -- --ignored --exact --nocapture --test-threads=1
-  fi
-  run_audit_qualification python3 scripts/ci/audit-c-family-sdk-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_C_FAMILY_SCRATCH"
-  unset LEGION_C_FAMILY_SCRATCH LEGION_C_FAMILY_ENROLLMENT_JSON
   export LEGION_RUNTIME_APP_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/runtime-app"
   mkdir -p "$LEGION_RUNTIME_APP_RECEIPTS"
   run_audit_qualification audit_runtime_app_qualification
@@ -1008,31 +848,12 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_DOTNET_CHILD_OUTPUT"
   unset LEGION_DOTNET_ENROLLMENT LEGION_DOTNET_CHILD_OUTPUT LEGION_DOTNET_ACCURACY_OUTPUT
   release_qualification_scratch "${RUNNER_TEMP}/legion-dotnet-code-sdk-tools"
-  # Provision exact official vulnerability inputs before the network-denied SDK controls.
-  run_audit_qualification provision_code_sdk_vulnerability_tool
-  # Constructed code SDK diagnostics preserve full-provider gaps; never promote partial controls.
-  export LEGION_CODE_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-code-command-fixtures"
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/code-sdk"
-  mkdir -p "$LEGION_CODE_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test real_code_command_accuracy \
-    real_code_command_accuracy -- --ignored --exact --nocapture --test-threads=1
-  run_audit_qualification python3 scripts/ci/audit-code-sdk-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
-  unset LEGION_CODE_COMMAND_SCRATCH LEGION_GOVULNCHECK_BIN LEGION_GOVULNCHECK_DB_ROOT \
-    LEGION_GOVULNCHECK_DB_ARCHIVE LEGION_GOVULNCHECK_ENROLLMENT_JSON GOMODCACHE
-  unset LEGION_GO_ROOT LEGION_GO_ARCHIVE LEGION_GOLANGCI_LINT_BIN LEGION_GOLANGCI_LINT_ARCHIVE
-  release_qualification_scratch "${RUNNER_TEMP}/legion-code-command-fixtures" "${RUNNER_TEMP}/legion-govulncheck"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-trivy-iac-accuracy"
   mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
   run_audit_qualification audit_cargo_test --test trivy_iac_accuracy \
     real_scanner_accuracy_trivy_iac -- --ignored --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-harness-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR" --group trivy-iac
-  export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-brakeman-accuracy"
-  mkdir -p "$LEGION_PROVIDER_BENCHMARK_DIR"
-  run_audit_qualification audit_cargo_test --test brakeman_accuracy \
-    real_scanner_accuracy_brakeman -- --ignored --nocapture --test-threads=1
-  unset LEGION_BRAKEMAN_GEM_ROOT
   export LEGION_REAL_LINTER_SCRATCH="${RUNNER_TEMP}/legion-real-linter-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/legion-real-linter-accuracy"
   mkdir -p "$LEGION_REAL_LINTER_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
@@ -1041,7 +862,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification python3 scripts/ci/audit-extra-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" \
     --squawk-receipts "${RUNNER_TEMP}/legion-provider-qualification/legion-squawk-accuracy" \
-    --brakeman-receipts "${RUNNER_TEMP}/legion-provider-qualification/legion-brakeman-accuracy" \
     --linter-receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
   # Official published JS entry + full installed closure, real native SDK controls.
   # Dependencies provision only here; sandboxed version/scan requests deny network.

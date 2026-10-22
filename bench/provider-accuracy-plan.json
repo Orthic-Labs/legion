@@ -14,27 +14,7 @@
       "measurementKind": "finding"
     },
     {
-      "provider": "code.c-family",
-      "testTarget": "code_provider_accuracy",
-      "stage": "finding",
-      "qualificationEligible": false,
-      "fixtures": [
-        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
-      ],
-      "measurementKind": "finding"
-    },
-    {
       "provider": "code.dotnet",
-      "testTarget": "code_provider_accuracy",
-      "stage": "finding",
-      "qualificationEligible": false,
-      "fixtures": [
-        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
-      ],
-      "measurementKind": "finding"
-    },
-    {
-      "provider": "code.go",
       "testTarget": "code_provider_accuracy",
       "stage": "finding",
       "qualificationEligible": false,
@@ -75,16 +55,6 @@
     },
     {
       "provider": "code.mobile",
-      "testTarget": "code_provider_accuracy",
-      "stage": "finding",
-      "qualificationEligible": false,
-      "fixtures": [
-        "engine/crates/legion-audit/tests/code_provider_accuracy.rs"
-      ],
-      "measurementKind": "finding"
-    },
-    {
-      "provider": "code.php-ruby",
       "testTarget": "code_provider_accuracy",
       "stage": "finding",
       "qualificationEligible": false,

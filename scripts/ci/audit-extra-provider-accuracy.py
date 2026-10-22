@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate source-bound Squawk, Brakeman & native legacy-linter controls."""
+"""Validate source-bound Squawk & native legacy-linter controls."""
 
 import argparse
 from collections import Counter
@@ -8,27 +8,17 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import runpy
-import shutil
 
 common = runpy.run_path(str(Path(__file__).with_name("audit-real-provider-accuracy.py")))
 compact, canonical, digest, require, is_digest, load, executable, artifact, native, sources = (
     common[name] for name in ("compact", "canonical", "digest", "require", "is_digest", "load", "executable", "artifact", "native", "sources"))
 BASE = "engine/crates/legion-audit/tests/"
-SQUAWK, BRAKEMAN = "security.scanner-squawk", "security.scanner-brakeman"
+SQUAWK = "security.scanner-squawk"
 ACTION, DOCKER, SWIFT = "legacy.security.github-actions-lint", "legacy.security.docker", "legacy.quality.swift-lint"
-HARNESSES = {SQUAWK: BASE + "more_external_scanner_accuracy.rs", BRAKEMAN: BASE + "brakeman_accuracy.rs",
+HARNESSES = {SQUAWK: BASE + "more_external_scanner_accuracy.rs",
              **{provider: BASE + "real_legacy_linter_accuracy.rs" for provider in (ACTION, DOCKER, SWIFT)}}
 SCANNER_SCOPE = "Constructed planted & clean controls; not population accuracy or production admission"
 RETENTION = "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
-BRAKEMAN_RETENTION = "Actual SDK scan receipt & verified raw streams retained before assertions; reduced producer receipt & separate native version receipt retained."
-ENTRYPOINT = '#!/usr/bin/env ruby\n#Adjust path in case called directly and not through gem\n$:.unshift "#{File.expand_path(File.dirname(__FILE__))}/../lib"\n\nEncoding.default_external = \'UTF-8\'\n\nrequire \'brakeman\'\nrequire \'brakeman/commandline\'\n\nBrakeman::Commandline.start\n'
-SUPPORT = {
-    "Gemfile": "source 'https://rubygems.org'\ngem 'rails', '8.1.0'\n",
-    "config/application.rb": "require 'rails/all'\nmodule BrakemanFixture\n  class Application < Rails::Application\n    config.load_defaults 8.1\n  end\nend\n",
-    "config/routes.rb": "Rails.application.routes.draw do\n  get '/users', to: 'users#index'\nend\n",
-    "app/controllers/application_controller.rb": "class ApplicationController < ActionController::Base\n  protect_from_forgery with: :exception\nend\n",
-    "app/models/user.rb": "class User < ActiveRecord::Base\nend\n",
-}
 LINTERS = {
     ACTION: ("actionlint", "ci_lint", ".github/workflows/ci.yml", ["-format", "{{json .}}", "--", "./.github/workflows/ci.yml"],
              "name: CI\non: push\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n        uses: actions/checkout@v4\n",
@@ -72,18 +62,16 @@ def profile_contract(root, writable=False):
 
 
 def scanner_args(tool, config="<owned-config-under-run>"):
-    return (["--reporter", "json", "-c", config, "--", "./migration.sql"] if tool == "squawk" else
-            ["-c", config, "-q", "-f", "json", "--no-progress", "--no-exit-on-warn", "--no-exit-on-error"])
+    require(tool == "squawk", "unsupported scanner argv")
+    return ["--reporter", "json", "-c", config, "--", "./migration.sql"]
 
 
 def fixture(provider, positive):
     if provider in LINTERS:
         _, _, path, _, planted, clean = LINTERS[provider]
         return path, planted if positive else clean
-    if provider == SQUAWK:
-        return "migration.sql", ("SET lock_timeout = '1s';\nSET statement_timeout = '5s';\nALTER TABLE public.items DROP COLUMN IF EXISTS obsolete;\n" if positive else "SELECT 1;\n")
-    query = '"name = \'#{params[:name]}\'"' if positive else '"name = ?", params[:name]'
-    return "app/controllers/users_controller.rb", f"class UsersController < ApplicationController\n  def index\n    @users = User.where({query})\n  end\nend\n"
+    require(provider == SQUAWK, "unsupported fixture provider")
+    return "migration.sql", ("SET lock_timeout = '1s';\nSET statement_timeout = '5s';\nALTER TABLE public.items DROP COLUMN IF EXISTS obsolete;\n" if positive else "SELECT 1;\n")
 
 
 def bind(root, row, spec, files):
@@ -115,85 +103,44 @@ def bind(root, row, spec, files):
         same(row["expectationSources"], re.findall(r'"(https://[^"\n]+)"', section), "expectation source inventory differs")
 
 
-def runtime_identity(identity, policy, root, live=True):
-    runtime = identity["runtime"]
-    same(runtime, policy["runtime"], "Brakeman runtime linkage differs")
-    gem = safe_absolute(runtime["gemRoot"])
-    require(not gem.is_relative_to(root.parent), "Brakeman gem location differs")
-    require(type(runtime["gemBinding"]["fileCount"]) is int and runtime["gemBinding"]["fileCount"] > 0
-            and is_digest(runtime["gemBinding"]["digest"]), "Brakeman retained gem binding malformed")
-    tool = common["shared"]["retained_executable"](identity["path"], identity["executableDigest"])
-    require(tool == gem / "bin/brakeman" and identity["executableDigest"] == digest(ENTRYPOINT.encode()), "Brakeman official entrypoint differs")
-    ruby = executable(runtime["ruby"]["path"], runtime["ruby"]["digest"], live=live)
-    require(not ruby.is_relative_to(root.parent) and isinstance(runtime["path"], str) and runtime["path"], "Brakeman Ruby identity differs")
-    for part in runtime["path"].split(":"):
-        safe_absolute(part)
-    if live:
-        gem = Path(gem)
-        require(gem.is_dir() and not gem.is_symlink(), "Brakeman gem missing/symlink")
-        files = []
-        for path in gem.rglob("*"):
-            require(not path.is_symlink(), "symlink in Brakeman gem binding")
-            if path.is_file():
-                files.append((path.relative_to(gem).as_posix(), digest(path.read_bytes())))
-        files.sort()
-        same(runtime["gemBinding"], {"fileCount": len(files), "digest": digest(compact([list(pair) for pair in files]))}, "Brakeman gem bytes differ")
-        tool = common["shared"]["canonical_executable"](identity["path"], "official Brakeman entrypoint")
-        require(os.access(tool, os.X_OK) and tool.read_bytes() == ENTRYPOINT.encode()
-                and digest(tool.read_bytes()) == identity["executableDigest"] and (gem / "lib/brakeman/checks/check_sql.rb").is_file(), "Brakeman entrypoint differs")
-        require(runtime["path"] == os.environ.get("PATH") and shutil.which("ruby", path=runtime["path"]) is not None
-                and Path(shutil.which("ruby", path=runtime["path"])).resolve() == ruby, "Brakeman Ruby resolution differs")
-    require(runtime["shebangInterpreter"]["path"] == "/usr/bin/env", "Brakeman shebang differs")
-    executable("/usr/bin/env", runtime["shebangInterpreter"]["digest"], live=live)
-    return tool
-
-
 def scanner_case(case, provider, positive, live=True):
     tool = provider.removeprefix("security.scanner-")
     path, source = fixture(provider, positive)
     require(case["caseId"] == f"{tool}-{'planted' if positive else 'clean'}", "scanner case inventory differs")
     same(case["source"], {"path": path, "bytes": source, "digest": digest(source.encode())}, "scanner fixture differs")
-    if provider == BRAKEMAN:
-        files = [{"path": name, "bytes": text, "digest": digest(text.encode())} for name, text in sorted({**SUPPORT, path: source}.items())]
-        same(case["fixture"]["files"], files, "Rails fixture inventory differs")
-        require(case["fixture"]["digest"] == digest(compact(files)), "Rails fixture digest differs")
     result, policy, receipt = case["actualProviderResult"], case["policy"], case["executionReceipt"]
     root, run = safe_absolute(policy["root"]), safe_absolute(policy["runDirectory"])
     require(root.name == "source" and run == root.parent / "run" and policy["provider"] == provider
             and policy["inventoryDigest"] == case["inventoryDigest"], "scanner fixture roots differ")
     policy_id = f"legion-{tool}-real-scanner-benchmark-v1"
-    config = "" if provider == SQUAWK else "--- {}\n"
+    config = ""
     same(policy["ownedConfig"], {"bytes": config, "digest": digest(config.encode())}, "scanner config differs")
     require(policy["id"] == policy_id and policy["version"] == 1 and policy["scannerArgv"] == scanner_args(tool)
             and policy["versionArgv"] == ["--version"] and policy["timeoutMsMaximum"] == 30000
             and policy["outputBytesMaximum"] == 1048576 and policy["sandbox"] == "native-macos-deny-network-deny-project-write", "scanner policy differs")
     require(case["complete"] is True and case["coverageGaps"] == case["expectedCoverageGaps"] == []
             and case["controlMatched"] is True and case["coverageContractMatched"] is True
-            and case["receiptRetentionLimit"] == (BRAKEMAN_RETENTION if provider == BRAKEMAN else RETENTION), "scanner evidence incomplete")
+            and case["receiptRetentionLimit"] == RETENTION, "scanner evidence incomplete")
     require(result["provider"] == provider and result["applicable"] is True and result["complete"] is True
             and result["findings"] == result["coverage_gaps"] == result["degradation"] == [] and "availability" not in result["details"], "scanner result unavailable")
     coverage = case["coverage"]
-    require(coverage == result["coverage"] and coverage["expected"] == coverage["examined"] == (5 if provider == BRAKEMAN else 1)
+    require(coverage == result["coverage"] and coverage["expected"] == coverage["examined"] == 1
             and coverage["gaps"] == [] and is_digest(coverage["denominator_digest"]), "scanner denominator differs")
-    label = f"{'SQL' if provider == BRAKEMAN else 'ban-drop-column'}|{path}|3"
+    label = f"ban-drop-column|{path}|3"
     labels = []
     for candidate in result["details"]["candidates"]:
         origin, evidence = candidate["source"], candidate["evidence"][0]
         raw = origin["raw"]
         require(origin["tool"] == tool and candidate["adjudication"] == "required" and origin["rawFindingDigest"] == digest(compact(raw))
                 and evidence["path"] == path and evidence["line"] == 3, "raw scanner candidate binding differs")
-        if provider == SQUAWK:
-            require(raw["rule_name"] == "ban-drop-column" and raw["line"] == 2 and raw["file"].removeprefix("./") == path, "Squawk raw diagnostic differs")
-        else:
-            require(raw["check_name"] == "SQL" and raw["warning_type"] == "SQL Injection" and raw["message"] == "Possible SQL injection"
-                    and raw["file"] == path and raw["line"] == 3, "Brakeman raw diagnostic differs")
+        require(raw["rule_name"] == "ban-drop-column" and raw["line"] == 2 and raw["file"].removeprefix("./") == path, "Squawk raw diagnostic differs")
         labels.append(f"{candidate['ruleId']}|{candidate['path']}|{candidate['line']}")
     same(case["expected"], [label] if positive else [], "scanner expected control differs")
     same(case["actual"], labels, "scanner actual projection differs")
     same(labels, case["expected"], "scanner native control differs")
     identity = case["toolIdentity"]
     same(policy["tool"], {"path": identity["path"], "digest": identity["executableDigest"]}, "scanner tool linkage differs")
-    tool_path = runtime_identity(identity, policy, root, live=live) if provider == BRAKEMAN else executable(identity["path"], identity["executableDigest"], live=live)
+    tool_path = executable(identity["path"], identity["executableDigest"], live=live)
     wrapper = executable(policy["wrapper"]["path"], policy["wrapper"]["digest"], live=live)
     require(wrapper == PurePosixPath("/usr/bin/sandbox-exec") and not tool_path.is_relative_to(root.parent), "scanner host tool differs")
     _, profile_name, sandbox_id = profile_contract(root)
@@ -226,7 +173,6 @@ def scanner_case(case, provider, positive, live=True):
     combined = out + ("\n" if out and err and not out.endswith("\n") else "") + err
     require(combined.strip() == version["rawVersionOutput"].strip() == probe["executable"]["version"]["output"].strip(), "scanner raw version differs")
     banner = next(line.strip() for line in combined.splitlines() if line.strip())
-    require(provider != BRAKEMAN or banner == "brakeman 8.1.0", "Brakeman release differs")
     require(receipt == result["details"]["executionReceipt"] and receipt["receiptId"] == "receipt:" + decisions[1]["requestId"]
             and receipt["state"] == "completed" and receipt["complete"] is True and receipt["offline"] is True and receipt["policyId"] == policy_id
             and receipt["tool"] == {"name": tool, "version": banner, "executableDigest": identity["executableDigest"]}
@@ -236,64 +182,7 @@ def scanner_case(case, provider, positive, live=True):
     same(probe["sandbox"], receipt["sandbox"], "probe sandbox differs")
     require(is_digest(receipt["stdoutDigest"]) and type(receipt["stdoutBytes"]) is int and receipt["stdoutBytes"] > 0
             and receipt["stdoutArtifact"] == {"digest": receipt["stdoutDigest"], "bytes": receipt["stdoutBytes"]}, "reduced scanner output binding differs")
-    if provider == BRAKEMAN:
-        brakeman_diagnostic(case, policy, decisions, receipt, live)
 
-
-
-def brakeman_diagnostic(case, policy, decisions, reduced, live):
-    rows = case["nativeDiagnostics"]
-    require(len(rows) == 1, "Brakeman actual scan diagnostic inventory differs")
-    retained = rows[0]
-    raw = retained["rawBytes"]
-    require(isinstance(raw, list) and all(type(value) is int and 0 <= value <= 255 for value in raw), "Brakeman diagnostic bytes malformed")
-    data = bytes(raw)
-    require(retained["digest"] == digest(data) and retained["bytes"] == len(data), "Brakeman full diagnostic digest differs")
-    diagnostic = json.loads(data)
-    same(retained["diagnostic"], diagnostic, "Brakeman diagnostic projection differs")
-    path, run = safe_absolute(retained["path"]), safe_absolute(policy["runDirectory"])
-    require(path.parent == run / "native-diagnostics" and path.name == BRAKEMAN + "-" + digest(data).removeprefix("sha256:") + ".json", "Brakeman diagnostic location differs")
-    copy = retained["retainedArtifact"]
-    copied = safe_absolute(copy["path"])
-    require(copied.parent.name == "native-diagnostics" and copied.name == "native-diagnostic-" + digest(data).removeprefix("sha256:") + ".json"
-            and copy["digest"] == digest(data) and copy["bytes"] == len(data) and copy["qualificationEligible"] is False, "Brakeman retained diagnostic differs")
-    if live:
-        require(Path(copied).is_file() and not Path(copied).is_symlink() and Path(copied).read_bytes() == data, "Brakeman retained diagnostic bytes differ")
-    require(diagnostic["schema"] == "legion-native-scanner-diagnostic/1" and diagnostic["provider"] == BRAKEMAN
-            and diagnostic["inventoryDigest"] == case["inventoryDigest"], "Brakeman full diagnostic binding differs")
-    original = safe_absolute(diagnostic["originalArtifactRoot"])
-    require(original.parent == run and original.name.startswith("legion-audit-security-"), "Brakeman original SDK root differs")
-    receipt = diagnostic["receipt"]
-    native(receipt, policy["id"], policy, compact)
-    require(receipt["schemaVersion"] == 1 and receipt["receiptId"] == reduced["receiptId"]
-            and receipt["requestId"] == decisions[1]["requestId"] and receipt["providerId"] == BRAKEMAN
-            and receipt["planId"] == case["inventoryDigest"] and receipt["taskId"] == "brakeman"
-            and receipt["cwd"] == policy["root"] and receipt["exitCode"] == 0 and receipt["signal"] is None
-            and receipt["executable"]["canonicalPath"] == policy["wrapper"]["path"]
-            and receipt["executable"]["digest"] == policy["wrapper"]["digest"]
-            and receipt["command"]["executable"] == decisions[1]["executable"]
-            and receipt["command"]["args"] == decisions[1]["args"], "Brakeman actual SDK request differs")
-    same(receipt["sandbox"], reduced["sandbox"], "Brakeman actual sandbox differs")
-    streams = {}
-    for stream in ("stdout", "stderr"):
-        item, descriptor = diagnostic[stream], receipt[stream]
-        raw = item["rawBytes"]
-        require(isinstance(raw, list) and all(type(value) is int and 0 <= value <= 255 for value in raw), "Brakeman stream bytes malformed")
-        data = bytes(raw)
-        same({key: item[key] for key in ("digest", "bytes", "immutable")},
-             {key: descriptor[key] for key in ("digest", "bytes", "immutable")}, "Brakeman original stream descriptor differs")
-        require(item["originalPath"] == descriptor["path"] and item["immutable"] is True
-                and item["digest"] == digest(data) and item["bytes"] == len(data), "Brakeman original stream bytes differ")
-        stream_path = PurePosixPath(descriptor["path"])
-        require(".." not in stream_path.parts and safe_absolute(item["originalAbsolutePath"]) == (stream_path if stream_path.is_absolute() else original / stream_path)
-                and safe_absolute(item["originalAbsolutePath"]).is_relative_to(original), "Brakeman stream escaped SDK root")
-        text = data.decode("utf-8")
-        require(item["raw"] == text, "Brakeman raw UTF-8 projection differs")
-        streams[stream] = text
-    require(digest(streams["stdout"].encode()) == reduced["stdoutDigest"] and len(streams["stdout"].encode()) == reduced["stdoutBytes"], "Brakeman full/reduced stdout differs")
-    output = json.loads(streams["stdout"])
-    require(isinstance(output["warnings"], list) and output["errors"] == [], "Brakeman actual output incomplete")
-    same(output["warnings"], [candidate["source"]["raw"] for candidate in case["actualProviderResult"]["details"]["candidates"]], "Brakeman actual warning reconciliation differs")
 
 def linter_case(case, provider, positive, live=True):
     tool, task, path, args, _, _ = LINTERS[provider]
@@ -421,7 +310,7 @@ def linter_case(case, provider, positive, live=True):
 
 
 def validate(root, directory, providers, registry, files):
-    diagnostic_required = BRAKEMAN in providers or any(provider in LINTERS for provider in providers)
+    diagnostic_required = any(provider in LINTERS for provider in providers)
     expected_names = {provider.replace(".", "_") + ".json" for provider in providers}
     if diagnostic_required:
         expected_names.add("native-diagnostics")
@@ -440,8 +329,7 @@ def validate(root, directory, providers, registry, files):
         expected = set()
         for row in records:
             for case in row["cases"]:
-                bundles = case["nativeDiagnostics"] if row["provider"] == BRAKEMAN else [case["nativeDiagnostic"]]
-                for bundle in bundles:
+                for bundle in [case["nativeDiagnostic"]]:
                     path = Path(bundle["retainedArtifact"]["path"])
                     require(path.parent == diagnostics.resolve() and path.is_file() and not path.is_symlink(), "diagnostic escaped retained root")
                     expected.add(path.name)
@@ -493,7 +381,7 @@ def validate_records(root, records, registry, files, live=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("root", "squawk-receipts", "brakeman-receipts", "linter-receipts"):
+    for name in ("root", "squawk-receipts", "linter-receipts"):
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
     root = args.root.resolve()
@@ -503,6 +391,6 @@ if __name__ == "__main__":
     require(all(sum(row["id"] == provider for row in rows) == 1 for provider in HARNESSES), "provider specification inventory differs")
     registry, files = {row["id"]: row for row in rows}, sources(root)
     summary = []
-    for directory, providers in ((args.squawk_receipts, [SQUAWK]), (args.brakeman_receipts, [BRAKEMAN]), (args.linter_receipts, [ACTION, DOCKER, SWIFT])):
+    for directory, providers in ((args.squawk_receipts, [SQUAWK]), (args.linter_receipts, [ACTION, DOCKER, SWIFT])):
         summary += validate(root, directory, providers, registry, files)
     print("EXTRA_PROVIDER_ACCURACY_SUMMARY " + json.dumps({"records": summary, "modelCalls": 0}, sort_keys=True, separators=(",", ":")))

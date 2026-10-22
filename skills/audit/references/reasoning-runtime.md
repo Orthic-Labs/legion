@@ -65,11 +65,9 @@ fail closed rather than creating a fresh allowance.
 
 Named security scanners run only when their frozen provider is selected and applicable. The runner
 requires each executable on host `PATH`; a missing binary is `tool-missing:<tool>`, never clean.
-Current named integrations are Squawk, Zizmor, ShellCheck, TFLint, Kubeconform, Kube-Linter,
-Brakeman, and GolangCI-Lint. Kubeconform additionally requires a host-pinned local schema tree with
-recorded version and digest; remote schema fetching is not a fallback. Project/root grouping and
-file applicability are provider-specific. Install/readiness checks belong to `legion doctor`; an
-absent tool remains a coverage gap.
+Current named integrations are Squawk, Zizmor, and ShellCheck. File applicability is
+provider-specific. Install/readiness checks belong to `legion doctor`; an absent tool remains a
+coverage gap.
 
 Pattern cards refine existing lens review and are selected only when lens metadata and repository
 applicability match. See [canonical pattern cards](pattern-cards.md) and

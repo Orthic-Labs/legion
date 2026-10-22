@@ -1,4 +1,4 @@
-//! Explicit real-tool controls; provision Zizmor & kube-linter before running
+//! Explicit real-tool controls; provision Zizmor before running
 //! --ignored real_scanner_accuracy. Missing tools or native sandbox fail closed.
 #![cfg(target_os = "macos")]
 
@@ -26,8 +26,6 @@ const SOURCE: &str = "engine/crates/legion-audit/tests/additional_external_scann
 const POLICY: &str = "legion-additional-real-scanner-benchmark-v1";
 const TIMEOUT: u64 = 30_000;
 const LIMIT: usize = 1024 * 1024;
-// Independently fixed expected production-owned configuration; never a project config.
-const KUBE_CONFIG: &str = "checks:\n  doNotAutoAddDefaults: true\n  include:\n    - privileged-container\n    - privilege-escalation-container\n    - host-network\n    - host-pid\n    - host-ipc\n    - sensitive-host-mounts\n    - wildcard-in-rules\n    - cluster-admin-role-binding\n    - writable-host-mount\n    - unsafe-proc-mount\n    - run-as-non-root\n    - no-read-only-root-fs\n";
 
 fn digest(bytes: &[u8]) -> String {
     let hex: String = Sha256::digest(bytes)
@@ -40,13 +38,11 @@ fn digest(bytes: &[u8]) -> String {
 #[derive(Clone, Copy)]
 enum Scanner {
     Zizmor,
-    KubeLinter,
 }
 impl Scanner {
     fn tool(self) -> &'static str {
         match self {
             Self::Zizmor => "zizmor",
-            Self::KubeLinter => "kube-linter",
         }
     }
     fn id(self) -> String {
@@ -55,17 +51,15 @@ impl Scanner {
     fn path(self) -> &'static str {
         match self {
             Self::Zizmor => ".github/workflows/ci.yml",
-            Self::KubeLinter => "pod.yaml",
         }
     }
     fn version_argv(self) -> Vec<String> {
         vec![match self {
             Self::Zizmor => "--version",
-            Self::KubeLinter => "version",
         }
         .into()]
     }
-    fn argv(self, config: &str) -> Vec<String> {
+    fn argv(self, _config: &str) -> Vec<String> {
         let args: Vec<&str> = match self {
             Self::Zizmor => vec![
                 "--offline",
@@ -79,22 +73,12 @@ impl Scanner {
                 "--",
                 "./.github/workflows/ci.yml",
             ],
-            Self::KubeLinter => vec![
-                "lint",
-                "--config",
-                config,
-                "--format",
-                "json",
-                "--",
-                "./pod.yaml",
-            ],
         };
         args.into_iter().map(str::to_owned).collect()
     }
     fn source(self, planted: bool) -> String {
         match self {
             Self::Zizmor => format!("name: CI\non: [push]\npermissions:\n  contents: read\njobs:\n  check:\n    name: Check\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout\n        uses: actions/checkout@{}\n        with:\n          persist-credentials: false\n", if planted { "main" } else { "11bd71901bbe5b1630ceea73d27597364c9af683" }),
-            Self::KubeLinter => format!("apiVersion: v1\nkind: Pod\nmetadata:\n  name: scanner-fixture\nspec:\n  hostNetwork: false\n  hostPID: false\n  hostIPC: false\n  securityContext:\n    runAsNonRoot: true\n  containers:\n    - name: app\n      image: example.invalid/app@sha256:{}\n      securityContext:\n        privileged: {}\n        allowPrivilegeEscalation: false\n        readOnlyRootFilesystem: true\n        runAsNonRoot: true\n", "a".repeat(64), planted),
         }
     }
     fn expected(self, planted: bool) -> Vec<String> {
@@ -103,12 +87,6 @@ impl Scanner {
         }
         match self {
             Self::Zizmor => vec!["unpinned-uses|.github/workflows/ci.yml|11".into()],
-            // Privileged also triggers pinned privilege-escalation check.
-            // Labels preserve absent lines; production binds file anchors.
-            Self::KubeLinter => vec![
-                "privilege-escalation-container|pod.yaml|unresolved".into(),
-                "privileged-container|pod.yaml|unresolved".into(),
-            ],
         }
     }
 }
@@ -204,7 +182,7 @@ impl ScopedPolicy {
         json!({"id": POLICY, "version": 1, "provider": self.scanner.id(), "root": self.root, "runDirectory": self.run,
             "inventoryDigest": self.inventory, "tool": {"path": self.tool, "digest": self.tool_digest},
             "wrapper": {"path": self.wrapper, "digest": self.wrapper_digest}, "scannerArgv": self.scanner.argv("<owned-config-under-run>"),
-            "ownedConfig": if matches!(self.scanner, Scanner::KubeLinter) { json!({"bytes": KUBE_CONFIG, "digest": digest(KUBE_CONFIG.as_bytes())}) } else { Value::Null },
+            "ownedConfig": Value::Null,
             "versionArgv": self.scanner.version_argv(), "timeoutMsMaximum": TIMEOUT, "outputBytesMaximum": LIMIT,
             "sandbox": "native-macos-deny-network-deny-project-write"})
     }
@@ -248,34 +226,13 @@ impl ScopedPolicy {
         if request.version_args != version {
             return false;
         }
-        let config = if scan && matches!(self.scanner, Scanner::KubeLinter) {
-            let Some(path) = request.args.get(6) else {
-                return false;
-            };
-            let Ok(canonical) = fs::canonicalize(path) else {
-                return false;
-            };
-            if !canonical.starts_with(&self.run)
-                || canonical.file_name().and_then(|v| v.to_str())
-                    != Some("kube-linter-owned-config.yaml")
-                || fs::read(canonical).ok().as_deref() != Some(KUBE_CONFIG.as_bytes())
-            {
-                return false;
-            }
-            path.as_str()
-        } else {
-            ""
-        };
+        let config = "";
         let suffix = if scan {
             self.scanner.argv(config)
         } else {
             self.scanner.version_argv()
         };
-        let accepted: BTreeSet<i32> = if scan && matches!(self.scanner, Scanner::KubeLinter) {
-            [0, 1].into_iter().collect()
-        } else {
-            [0].into_iter().collect()
-        };
+        let accepted: BTreeSet<i32> = [0].into_iter().collect();
         if request.args[4..] != suffix || request.accepted_exit_codes != accepted {
             return false;
         }
@@ -644,12 +601,6 @@ fn case(scanner: Scanner, planted: bool) -> Value {
     );
     let diagnostics = native_diagnostics(&run, &id, &inventory.digest);
     eprintln!("REAL_SCANNER_NATIVE_DIAGNOSTICS {}", json!(diagnostics));
-    if matches!(scanner, Scanner::KubeLinter) {
-        assert!(
-            !diagnostics.is_empty(),
-            "actual scanner diagnostics were not retained"
-        );
-    }
     assert_eq!(execution.planned_providers, vec![id.clone()]);
     assert_eq!(execution.results.len(), 1);
     let entry = &execution.results[0];
@@ -703,28 +654,13 @@ fn case(scanner: Scanner, planted: bool) -> Value {
         .as_str()
         .is_some_and(|v| v.starts_with("sha256:") && v.len() == 71));
     assert!(receipt["stdoutBytes"].as_u64().is_some_and(|n| n > 0));
-    assert_eq!(
-        receipt["exitCode"],
-        if planted && matches!(scanner, Scanner::KubeLinter) {
-            1
-        } else {
-            0
-        }
-    );
+    assert_eq!(receipt["exitCode"], 0);
     let candidates = result.details["candidates"].as_array().unwrap();
     let actual: Vec<String> = candidates
         .iter()
         .map(|candidate| {
             assert_eq!(candidate["source"]["tool"], scanner.tool());
             assert_eq!(candidate["adjudication"], "required");
-            if matches!(scanner, Scanner::KubeLinter) {
-                assert!(candidate["line"].is_null() && candidate["evidence"][0]["line"].is_null());
-                assert_eq!(candidate["anchorKind"], "file");
-                assert_eq!(candidate["anchorStatus"], "scanner-reported");
-                assert_eq!(candidate["source"]["sourceDigest"], source_digest);
-                assert_eq!(candidate["source"]["frozenSourceDigest"], source_digest);
-                assert_eq!(candidate["evidence"][0]["sourceDigest"], source_digest);
-            }
             format!(
                 "{}|{}|{}",
                 candidate["ruleId"].as_str().unwrap(),
@@ -768,7 +704,7 @@ fn case(scanner: Scanner, planted: bool) -> Value {
         "planDigest": frozen.digest(), "inventoryDigest": inventory.digest, "coverage": result.coverage,
         "toolIdentity": {"path": policy.tool, "executableDigest": policy.tool_digest, "version": version},
         "policy": policy.definition(), "policyDecisions": *decisions, "executionReceipt": receipt, "actualProviderResult": result,
-        "receiptRetentionLimit": "Qualification record retains actual reduced receipt, normalized raw findings & stdout digest. Kube-linter full actual scan receipt & raw streams are separately retained in private native diagnostics before parsing; Zizmor scan retention remains reduced. Separate real native version output & receipt are retained."})
+        "receiptRetentionLimit": "Qualification record retains actual reduced receipt, normalized raw findings & stdout digest. Zizmor scan retention remains reduced. Separate real native version output & receipt are retained."})
 }
 
 fn generated_session_provenance(relative: &Path) -> bool {
@@ -1004,10 +940,4 @@ fn qualify(scanner: Scanner) {
 #[ignore = "requires real provisioned Zizmor & native macOS sandbox"]
 fn real_scanner_accuracy_zizmor() {
     qualify(Scanner::Zizmor);
-}
-
-#[test]
-#[ignore = "requires real provisioned kube-linter & native macOS sandbox"]
-fn real_scanner_accuracy_kube_linter() {
-    qualify(Scanner::KubeLinter);
 }

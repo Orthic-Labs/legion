@@ -108,37 +108,6 @@
       }
     },
     {
-      "id": "language.go",
-      "kind": "language",
-      "aliases": [],
-      "extensions": [
-        "go"
-      ],
-      "manifests": [],
-      "providers": [
-        "code.go"
-      ],
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:9f497387aa8bae472542198783e9c9d8057166eb2ea7de59513e12181b793ca7",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusPath": "bench/corpora/go/qualification.json",
-      "corpusRoot": "bench/corpora/go",
-      "providerVersions": {
-        "code.go": "1.0.0"
-      }
-    },
-    {
       "id": "language.jvm",
       "kind": "language",
       "aliases": [],
@@ -202,70 +171,6 @@
       "corpusRoot": "bench/corpora/dotnet",
       "providerVersions": {
         "code.dotnet": "1.0.0"
-      }
-    },
-    {
-      "id": "language.c-family",
-      "kind": "language",
-      "aliases": [],
-      "extensions": [
-        "c",
-        "cc",
-        "cpp",
-        "h",
-        "hpp"
-      ],
-      "manifests": [],
-      "providers": [
-        "code.c-family"
-      ],
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:5a1b3e594d0e015a97dc174616d55f017c8a0395d07a6a899efcc36e4ea1e60d",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusPath": "bench/corpora/c-family/qualification.json",
-      "corpusRoot": "bench/corpora/c-family",
-      "providerVersions": {
-        "code.c-family": "1.0.0"
-      }
-    },
-    {
-      "id": "language.php-ruby",
-      "kind": "language",
-      "aliases": [],
-      "extensions": [],
-      "manifests": [],
-      "providers": [
-        "code.php-ruby"
-      ],
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "qualificationVersion": "1.0.0",
-      "corpusDigest": "sha256:266ace7cc70411d4a143ba64f404fecedc1106f23f7d4b6cd3f51122623e9c17",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusPath": "bench/corpora/php-ruby/qualification.json",
-      "corpusRoot": "bench/corpora/php-ruby",
-      "providerVersions": {
-        "code.php-ruby": "1.0.0"
       }
     },
     {

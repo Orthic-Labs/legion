@@ -59,77 +59,51 @@ ADAPTERS = {
     "legacy.visual.core": ("visual", "visual_accuracy", "finding", "native-insertion-json", "real_browser_accuracy_visual_regression"),
     "security.scanner-shellcheck": ("shellcheck", "external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_shellcheck"),
     "security.scanner-zizmor": ("scanner", "additional_external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy"),
-    "security.scanner-kube-linter": ("scanner", "additional_external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy"),
     "legacy.core.repo": ("git", "legacy_git_accuracy", "fact-output", "canonical-json", "real_legacy_git_accuracy"),
     "legacy.quality.debt-markers": ("git", "legacy_git_accuracy", "finding", "canonical-json", "real_legacy_git_accuracy"),
     "security.scanner-squawk": ("extra-scanner", "more_external_scanner_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_squawk"),
-    "security.scanner-brakeman": ("extra-scanner", "brakeman_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_brakeman"),
     "legacy.security.github-actions-lint": ("linter", "real_legacy_linter_accuracy", "candidate", "canonical-json", "real_legacy_linter_accuracy"),
     "legacy.security.docker": ("linter", "real_legacy_linter_accuracy", "candidate", "canonical-json", "real_legacy_linter_accuracy"),
     "legacy.quality.swift-lint": ("linter", "real_legacy_linter_accuracy", "finding", "canonical-json", "real_legacy_linter_accuracy"),
-    "security.scanner-tflint": ("harness-scanner", "tflint_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_tflint"),
-    "security.scanner-kubeconform": ("harness-scanner", "kubeconform_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_kubeconform"),
-    "security.scanner-golangci-lint": ("harness-scanner", "golangci_accuracy", "candidate", "native-insertion-json", "real_scanner_accuracy_golangci_lint"),
     "container.iac": ("harness-iac", "trivy_iac_accuracy", "finding", "native-insertion-json", "real_scanner_accuracy_trivy_iac"),
     "legacy.quality.build": ("harness-quality", "real_quality_command_accuracy", "finding", "canonical-json", "real_quality_command_accuracy"),
     "legacy.quality.lint": ("harness-quality", "real_quality_command_accuracy", "finding", "canonical-json", "real_quality_command_accuracy"),
     "structural.ast-grep": ("harness-ast-grep", "ast_grep_accuracy", "candidate", "canonical-json", "real_ast_grep_accuracy"),
 }
-# Bounded SDK records use a distinct route with original provider contracts
-# & complete fixed known-answer controls; runtime limitations remain explicit.
-CODE_SDK_PROVIDERS = frozenset("code." + name for name in (
-    "c-family", "dotnet", "go", "javascript", "jvm", "long-tail", "mobile", "php-ruby", "python", "rust"))
-HARNESS_CONTROLS = {"security.scanner-tflint": ("tflint", "tflint", "terraform_unused_declarations|main.tf|5"),
-                    "security.scanner-kubeconform": ("kubeconform", "kubeconform", "schema|pod.yaml|unresolved"),
-                    "security.scanner-golangci-lint": ("golangci-lint", "golangci", "gosec|main.go|4"),
-                    "container.iac": ("trivy", "trivy-iac", "DS-0002|Dockerfile")}
-VALIDATORS = {"supply-chain-native": "scripts/ci/audit-supply-chain-native-accuracy.py", "backend-source-facts": "scripts/ci/audit-backend-source-facts.py", "compatibility-report": "scripts/ci/validate-compatibility-report-accuracy.py", "code-php-ruby-sdk": "scripts/ci/audit-php-ruby-code-sdk-accuracy.py", "quality-test-native": "scripts/ci/audit-quality-test-accuracy.py", "code-rust-sdk": "scripts/ci/audit-rust-code-sdk-accuracy.py", "javascript-sdk": "scripts/ci/audit-javascript-sdk-accuracy.py", "code-c-family-sdk": "scripts/ci/audit-c-family-sdk-accuracy.py", "code-mobile-sdk": "scripts/ci/audit-mobile-sdk-accuracy.py", "code-jvm-sdk": "scripts/ci/audit-jvm-sdk-accuracy.py", "ownership-native": "scripts/ci/validate-ownership-native-accuracy.py", "code-python-sdk": "scripts/ci/audit-python-code-sdk-accuracy.py", "code-long-tail": "scripts/ci/audit-code-long-tail-accuracy.py", "code-sdk": "scripts/ci/audit-code-sdk-accuracy.py", "node-outdated": "scripts/ci/audit-node-outdated-accuracy.py", "harness-rust-outdated": "scripts/ci/audit-rust-outdated-provider-accuracy.py", "semgrep-sdk": "scripts/ci/audit-semgrep-provider-accuracy.py", "pip-audit": "scripts/ci/audit-pip-audit-provider-accuracy.py", "secrets-history": "scripts/ci/audit-secrets-history-provider-accuracy.py", "cargo-geiger": "scripts/ci/audit-cargo-geiger-accuracy.py", "cargo-deny": "scripts/ci/audit-cargo-deny-accuracy.py", "cargo-audit-sdk": "scripts/ci/audit-cargo-audit-provider-accuracy.py", "license-checker": "scripts/ci/audit-license-provider-accuracy.py", "harness-machete": "scripts/ci/audit-cargo-machete-provider-accuracy.py", "osv-artifact": "scripts/ci/audit-osv-artifact-accuracy.py", "opengrep-artifact": "scripts/ci/audit-opengrep-artifact-accuracy.py", "visual": "scripts/ci/audit-visual-provider-accuracy.py", "harness-ast-grep": "scripts/ci/audit-ast-grep-provider-accuracy.py", "file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
+HARNESS_CONTROLS = {"container.iac": ("trivy", "trivy-iac", "DS-0002|Dockerfile")}
+VALIDATORS = {"supply-chain-native": "scripts/ci/audit-supply-chain-native-accuracy.py", "backend-source-facts": "scripts/ci/audit-backend-source-facts.py", "compatibility-report": "scripts/ci/validate-compatibility-report-accuracy.py", "quality-test-native": "scripts/ci/audit-quality-test-accuracy.py", "code-rust-sdk": "scripts/ci/audit-rust-code-sdk-accuracy.py", "javascript-sdk": "scripts/ci/audit-javascript-sdk-accuracy.py", "code-mobile-sdk": "scripts/ci/audit-mobile-sdk-accuracy.py", "code-jvm-sdk": "scripts/ci/audit-jvm-sdk-accuracy.py", "ownership-native": "scripts/ci/validate-ownership-native-accuracy.py", "code-python-sdk": "scripts/ci/audit-python-code-sdk-accuracy.py", "code-long-tail": "scripts/ci/audit-code-long-tail-accuracy.py", "node-outdated": "scripts/ci/audit-node-outdated-accuracy.py", "harness-rust-outdated": "scripts/ci/audit-rust-outdated-provider-accuracy.py", "semgrep-sdk": "scripts/ci/audit-semgrep-provider-accuracy.py", "pip-audit": "scripts/ci/audit-pip-audit-provider-accuracy.py", "secrets-history": "scripts/ci/audit-secrets-history-provider-accuracy.py", "cargo-geiger": "scripts/ci/audit-cargo-geiger-accuracy.py", "cargo-deny": "scripts/ci/audit-cargo-deny-accuracy.py", "cargo-audit-sdk": "scripts/ci/audit-cargo-audit-provider-accuracy.py", "license-checker": "scripts/ci/audit-license-provider-accuracy.py", "harness-machete": "scripts/ci/audit-cargo-machete-provider-accuracy.py", "osv-artifact": "scripts/ci/audit-osv-artifact-accuracy.py", "opengrep-artifact": "scripts/ci/audit-opengrep-artifact-accuracy.py", "visual": "scripts/ci/audit-visual-provider-accuracy.py", "harness-ast-grep": "scripts/ci/audit-ast-grep-provider-accuracy.py", "file": VALIDATOR, "shellcheck": "scripts/ci/audit-external-provider-accuracy.py",
               "scanner": "scripts/ci/audit-real-provider-accuracy.py", "git": "scripts/ci/audit-real-provider-accuracy.py",
               "extra-scanner": "scripts/ci/audit-extra-provider-accuracy.py", "linter": "scripts/ci/audit-extra-provider-accuracy.py"}
 FILE_HARNESS = ["audit_cargo_test", "--test", "security_packs", "--test", "architecture_input_producer", "--test", "code_provider_accuracy",
                 "--test", "suite_provider_accuracy", "--test", "legacy_file_accuracy", "--test", "artifact_provider_accuracy",
                 "file_only_provider_accuracy", "--", "--nocapture", "--test-threads=1"]
 RUST_SDK_HARNESS = ["audit_cargo_test", "--test", "real_rust_code_accuracy", "real_rust_code_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
-PHP_RUBY_SDK_HARNESS = ["audit_cargo_test", "--test", "real_php_ruby_code_command_accuracy", "real_php_ruby_code_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 PYTHON_SDK_HARNESS = ["audit_cargo_test", "--test", "real_python_code_command_accuracy", "real_python_code_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 JVM_SDK_HARNESS = ["audit_jvm_qualification"]
 CODE_MOBILE_HARNESS = ["audit_cargo_test", "--lib", ADAPTERS["code.mobile"][4], "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 CODE_MOBILE_EVIDENCE = {"nativeBefore": "mobile-native-enrollment.json", "nativeAfter": "mobile-native-after.json", "sourceEnrollment": "mobile-source-enrollment.json"}
-CODE_SDK_HARNESS = ["audit_cargo_test", "--test", "real_code_command_accuracy", "real_code_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 QUALITY_HARNESS = ["audit_cargo_test", "--test", "real_quality_command_accuracy", "real_quality_command_accuracy", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 BENCH_HARNESS = ["audit_cargo_test", "--test", "bench_recall", "bench_recall_qualification_receipt", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 SUPPLY_CHAIN_HARNESS = ["audit_cargo_test", "--lib", ADAPTERS["supply-chain.license-sbom-provenance"][4], "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 SECRETS_HISTORY_HARNESS = ["audit_cargo_test", "--lib", "native_providers::security::producer::history_qualification_tests::native_current_history_qualification", "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 RUNTIME_APP_HARNESS = ["audit_runtime_app_qualification"]
 VALIDATORS["runtime-app-sdk"] = "scripts/ci/audit-runtime-app-accuracy.py"
-TFLINT_TESTS = ["scoped_ipc_ci_storage_requires_private_canonical_owned_root",
-                "scoped_ipc_rejects_long_paths_symlinks_modes_and_foreign_tools",
-                "scoped_ipc_native_acl_controls_empty_allow_deny_and_lookup_failure",
-                "scoped_ipc_failed_version_probe_preserves_lifecycle_and_namespace", "scoped_ipc_native_confinement",
-                "scoped_ipc_timeout_and_cancel_cleanup_after_reaping", "real_scanner_accuracy_tflint"]
 JAVASCRIPT_SDK_EVIDENCE = {"enrollment": "enrollment.json", "childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "providerRecord": "code_javascript.json"}
-CODE_SDK_EVIDENCE = {"toolchainTree": "toolchain-tree.json", "childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "govulnEnrollment": "govulncheck-enrollment.json"}
-PHP_RUBY_SDK_EVIDENCE = {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "phpRubyEnrollment": "php-ruby-sdk-enrollment.json", "providerRecord": "code_php-ruby.json"}
 PYTHON_SDK_EVIDENCE = {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "pythonEnrollment": "python-sdk-enrollment.json", "providerRecord": "code_python.json"}
 ENTRY_KEYS = {"provider", "family", "record", "stage", "scope", "sourceClosure", "provenance", "provenanceVerification"}
 DOTNET_SDK_SELECTOR = "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls"
 DOTNET_SDK_HARNESS = ["audit_cargo_test", "--lib", DOTNET_SDK_SELECTOR, "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"]
 DOTNET_SDK_EVIDENCE = {"childExecution": "child-execution.json", "childStdout": "child.stdout.log", "childStderr": "child.stderr.log", "dotnetEnrollment": "dotnet-sdk-enrollment.json", "providerRecord": "code_dotnet.json"}
 VALIDATORS["dotnet-sdk"] = "scripts/ci/audit-dotnet-sdk-accuracy.py"
-PAIRED_HARNESS_FAMILIES = frozenset(("harness-scanner", "harness-iac", "bench-known-answer", "harness-quality"))
+PAIRED_HARNESS_FAMILIES = frozenset(("harness-iac", "bench-known-answer", "harness-quality"))
 PAIRED_HARNESS_VALIDATOR = "scripts/ci/audit-harness-provider-accuracy.py"
 VALIDATORS.update({family: PAIRED_HARNESS_VALIDATOR for family in PAIRED_HARNESS_FAMILIES})
 PAIRED_HARNESS_GROUPS = {
     "bench": tuple(BENCH),
     "quality": ("legacy.quality.build", "legacy.quality.lint"),
-    "tflint": ("security.scanner-tflint",),
-    "kubeconform": ("security.scanner-kubeconform",),
-    "golangci": ("security.scanner-golangci-lint",),
     "trivy-iac": ("container.iac",),
 }
-PAIRED_HARNESS_RECEIPTS = {"bench": "bench", "quality": "quality", "tflint": "legion-tflint-accuracy",
-                           "kubeconform": "legion-kubeconform-accuracy", "golangci": "legion-golangci-accuracy",
-                           "trivy-iac": "legion-trivy-iac-accuracy"}
+PAIRED_HARNESS_RECEIPTS = {"bench": "bench", "quality": "quality", "trivy-iac": "legion-trivy-iac-accuracy"}
 
 
 def paired_harness_group(provider):
@@ -247,9 +221,6 @@ def adapter(root, entry):
     provider = entry["provider"]
     if entry["family"] == "reasoning-runtime":
         return helper("audit-reasoning-runtime-registration.py")["adapter"](entry)
-    if entry["family"] == "code-php-ruby-sdk":
-        require(provider == "code.php-ruby" and entry["stage"] == "finding", "PHP/Ruby SDK provider/stage differs")
-        return "code-php-ruby-sdk", "real_php_ruby_code_command_accuracy", "canonical-json", "real_php_ruby_code_command_accuracy"
     if entry["family"] == "dotnet-sdk":
         require(provider == "code.dotnet" and entry["stage"] == "finding", ".NET SDK provider/stage differs")
         return "dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", DOTNET_SDK_SELECTOR
@@ -259,14 +230,9 @@ def adapter(root, entry):
     if entry["family"] == "code-jvm-sdk":
         require(provider == "code.jvm" and entry["stage"] == "finding", "JVM SDK provider/stage differs")
         return "code-jvm-sdk", "real_jvm_sdk_accuracy", "canonical-json", "real_jvm_sdk_accuracy"
-    if entry["family"] == "code-c-family-sdk":
-        return helper("audit-c-family-sdk-registration.py")["adapter"](entry)
     if entry["family"] == "code-python-sdk":
         require(provider == "code.python" and entry["stage"] == "finding", "Python SDK provider/stage differs")
         return "code-python-sdk", "real_python_code_command_accuracy", "canonical-json", "real_python_code_command_accuracy"
-    if provider in CODE_SDK_PROVIDERS and entry["family"] == "code-sdk":
-        require(entry["stage"] == "finding", "code SDK stage differs")
-        return "code-sdk", "real_code_command_accuracy", "canonical-json", "real_code_command_accuracy"
     if provider in BENCH:
         require(entry["family"] == "bench-known-answer" and entry["stage"] == "outcome", "bench projection adapter/stage differs")
         return "bench-known-answer", "bench_recall", "canonical-json", "bench_recall_qualification_receipt"
@@ -304,8 +270,6 @@ def closure_paths(root, entry):
         paths.add(VALIDATORS["shellcheck"])
     elif family == "compatibility-report":
         paths.update(helper("validate-compatibility-report-accuracy.py")["source_manifest"](root))
-    elif family == "code-c-family-sdk":
-        paths.update(helper("audit-c-family-sdk-registration.py")["source_files"](root))
     elif family == "javascript-sdk":
         paths.update(helper("audit-javascript-sdk-accuracy.py")["source_files"](root))
     elif family == "code-mobile-sdk":
@@ -320,16 +284,10 @@ def closure_paths(root, entry):
     elif family == "code-jvm-sdk":
         paths.update(helper("audit-jvm-sdk-accuracy.py")["source_files"](root))
         paths.add("scripts/ci/tests/test_jvm_sdk_adapter.py")
-    elif family == "code-php-ruby-sdk":
-        paths.update(helper("audit-php-ruby-code-sdk-accuracy.py")["source_files"](root))
-        paths.add("scripts/ci/audit-code-sdk-accuracy.py")
-        paths.add("scripts/ci/tests/test_python_code_sdk_adapter.py")
     elif family == "code-python-sdk":
         paths.update(helper("audit-python-code-sdk-accuracy.py")["source_files"](root))
         paths.add("scripts/ci/audit-code-sdk-accuracy.py")
         paths.add("scripts/ci/tests/test_python_code_sdk_adapter.py")
-    elif family == "code-sdk":
-        paths.update(helper("audit-code-sdk-accuracy.py")["source_files"](root))
     elif family == "bench-known-answer":
         paths.add(BASE + harness + ".rs")
         paths.add(BENCH_MANIFEST)
@@ -457,7 +415,7 @@ def closure_paths(root, entry):
     else:
         paths.add(BASE + harness + ".rs")
         paths.add(VALIDATORS["shellcheck"])
-        if family in ("extra-scanner", "linter", "harness-scanner", "harness-iac"):
+        if family in ("extra-scanner", "linter", "harness-iac"):
             paths.add(VALIDATORS["scanner"])
     return sorted(paths)
 
@@ -541,8 +499,8 @@ def summary_projection(value, family, provider):
 def log_evidence(log, row, validated, family, code_artifact=None, provider=None):
     emissions, summaries = [], []
     provider = provider or row.get("provider", row.get("providerId"))
-    emission = "SUPPLY_CHAIN_NATIVE_ACCURACY" if family == "supply-chain-native" else "BACKEND_SOURCE_FACTS_ACCURACY" if family == "backend-source-facts" else "PHP_RUBY_CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-php-ruby-sdk" else "QUALITY_TEST_NATIVE_ACCURACY" if family == "quality-test-native" else "RUST_CODE_SDK_ACCURACY_ARTIFACT" if family == "code-rust-sdk" else "C_FAMILY_SDK_ACCURACY_ARTIFACT" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_ARTIFACT" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_ARTIFACT" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_ARTIFACT" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY" if family == "harness-ast-grep" else "QUALITY_COMMAND_SDK_ACCURACY" if family == "harness-quality" else "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
-    summary = "SUPPLY_CHAIN_NATIVE_ACCURACY_SUMMARY" if family == "supply-chain-native" else "BACKEND_SOURCE_FACTS_ACCURACY_SUMMARY" if family == "backend-source-facts" else "PHP_RUBY_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-php-ruby-sdk" else "QUALITY_TEST_NATIVE_ACCURACY_SUMMARY" if family == "quality-test-native" else "RUST_CODE_SDK_ACCURACY_SUMMARY" if family == "code-rust-sdk" else "C_FAMILY_SDK_ACCURACY_SUMMARY" if family == "code-c-family-sdk" else "JAVASCRIPT_SDK_ACCURACY_SUMMARY" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_SUMMARY" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_SUMMARY" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY_SUMMARY" if family == "code-long-tail" else "CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-sdk" else "NODE_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY_SUMMARY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY_SUMMARY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION_SUMMARY" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY_SUMMARY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY_SUMMARY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
+    emission = "SUPPLY_CHAIN_NATIVE_ACCURACY" if family == "supply-chain-native" else "BACKEND_SOURCE_FACTS_ACCURACY" if family == "backend-source-facts" else "QUALITY_TEST_NATIVE_ACCURACY" if family == "quality-test-native" else "RUST_CODE_SDK_ACCURACY_ARTIFACT" if family == "code-rust-sdk" else "JAVASCRIPT_SDK_ACCURACY_ARTIFACT" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_ARTIFACT" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_ARTIFACT" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_ARTIFACT" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY" if family == "code-long-tail" else "NODE_OUTDATED_PROVIDER_ACCURACY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY" if family == "harness-ast-grep" else "QUALITY_COMMAND_SDK_ACCURACY" if family == "harness-quality" else "LEGION_BENCH_KNOWN_ANSWER_RECORD" if family == "bench-known-answer" else "FILE_PROVIDER_ACCURACY" if family == "file" else "LEGACY_GIT_PROVIDER_ACCURACY" if family == "git" else "LEGACY_LINTER_PROVIDER_ACCURACY" if family == "linter" else "EXTERNAL_PROVIDER_ACCURACY"
+    summary = "SUPPLY_CHAIN_NATIVE_ACCURACY_SUMMARY" if family == "supply-chain-native" else "BACKEND_SOURCE_FACTS_ACCURACY_SUMMARY" if family == "backend-source-facts" else "QUALITY_TEST_NATIVE_ACCURACY_SUMMARY" if family == "quality-test-native" else "RUST_CODE_SDK_ACCURACY_SUMMARY" if family == "code-rust-sdk" else "JAVASCRIPT_SDK_ACCURACY_SUMMARY" if family == "javascript-sdk" else "CODE_MOBILE_SDK_ACCURACY_SUMMARY" if family == "code-mobile-sdk" else "JVM_SDK_ACCURACY_SUMMARY" if family == "code-jvm-sdk" else "OWNERSHIP_NATIVE_PROVIDER_ACCURACY_SUMMARY" if family == "ownership-native" else "PYTHON_CODE_COMMAND_SDK_ACCURACY_SUMMARY" if family == "code-python-sdk" else "CODE_LONG_TAIL_PROVIDER_ACCURACY_SUMMARY" if family == "code-long-tail" else "NODE_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "node-outdated" else "RUST_OUTDATED_PROVIDER_ACCURACY_SUMMARY" if family == "harness-rust-outdated" else "SEMGREP_PROVIDER_ACCURACY_SUMMARY" if family == "semgrep-sdk" else "PIP_AUDIT_SDK_ACCURACY_SUMMARY" if family == "pip-audit" else "SECRETS_HISTORY_NATIVE_QUALIFICATION_SUMMARY" if family == "secrets-history" else "CARGO_GEIGER_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-geiger" else "CARGO_DENY_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-deny" else "CARGO_AUDIT_PROVIDER_ACCURACY_SUMMARY" if family == "cargo-audit-sdk" else "LICENSE_CHECKER_PROVIDER_ACCURACY_SUMMARY" if family == "license-checker" else "CARGO_MACHETE_PROVIDER_ACCURACY_SUMMARY" if family == "harness-machete" else "OSV_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "osv-artifact" else "OPENGREP_SDK_ARTIFACT_ACCURACY_SUMMARY" if family == "opengrep-artifact" else "AST_GREP_PROVIDER_ACCURACY_SUMMARY" if family == "harness-ast-grep" else "VISUAL_PROVIDER_ACCURACY_SUMMARY" if family == "visual" else "FILE_PROVIDER_ACCURACY_SUMMARY" if family == "file" else "EXTERNAL_PROVIDER_ACCURACY_SUMMARY" if family == "shellcheck" else "REAL_PROVIDER_ACCURACY_SUMMARY" if family in ("scanner", "git") else "EXTRA_PROVIDER_ACCURACY_SUMMARY"
     if family == "compatibility-report":
         emission, summary = "COMPATIBILITY_REPORT_PROVIDER_ACCURACY", "COMPATIBILITY_REPORT_PROVIDER_ACCURACY_SUMMARY"
     if family == "runtime-app-sdk":
@@ -562,7 +520,7 @@ def log_evidence(log, row, validated, family, code_artifact=None, provider=None)
     originals = emissions if family == "bench-known-answer" else [(number, value) for number, value in emissions
         if value.get("provider", value.get("providerId")) == provider]
     require(len(originals) == 1, "CI log missing/duplicate original record emission")
-    same(originals[0][1], code_artifact if family in ("code-php-ruby-sdk", "dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
+    same(originals[0][1], code_artifact if family in ("dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-mobile-sdk", "code-python-sdk", "code-jvm-sdk") else row, "CI log original record/artifact differs")
     successful = [(number, value) for number, value in summaries if summary_projection(value, family, provider) is not None]
     require(len(successful) == 1, "CI log missing/duplicate successful validator summary")
     same(summary_projection(successful[0][1], family, provider), validated, "CI validator summary differs from validated record")
@@ -596,12 +554,12 @@ def terminal_checks(log, proof, record, summary_digest, original_line, summary_l
         require(sequence in ends, "qualification command never terminated")
         end, status = ends[sequence]
         require(start < evidence_line < end and status == 0, "qualification command failed/cancelled or evidence outside span")
-        paired_native = role == "harness" and (command in (BENCH_HARNESS, QUALITY_HARNESS, ["audit_tflint_qualification"])
+        paired_native = role == "harness" and (command in (BENCH_HARNESS, QUALITY_HARNESS)
             or command[:3] in [["audit_cargo_test", "--test", ADAPTERS[provider][1]] for provider in HARNESS_CONTROLS])
-        if summary_line is None or paired_native or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "ownership_native_accuracy"], ["audit_cargo_test", "--test", "backend_source_facts"], ["audit_cargo_test", "--test", "real_rust_code_accuracy"], ["audit_cargo_test", "--test", "c_family_sdk_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "real_code_command_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
+        if summary_line is None or paired_native or (role == "harness" and command == JVM_SDK_HARNESS) or (role == "harness" and command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS)) or (role == "harness" and command[:3] in (["audit_cargo_test", "--test", "ownership_native_accuracy"], ["audit_cargo_test", "--test", "backend_source_facts"], ["audit_cargo_test", "--test", "real_rust_code_accuracy"], ["audit_cargo_test", "--test", "code_long_tail_accuracy"], ["audit_cargo_test", "--test", "visual_accuracy"], ["audit_cargo_test", "--test", "opengrep_accuracy"], ["audit_cargo_test", "--test", "ast_grep_accuracy"], ["audit_cargo_test", "--test", "osv_accuracy"], ["audit_cargo_test", "--test", "real_cargo_machete_accuracy"], ["audit_cargo_test", "--test", "cargo_deny_accuracy"], ["audit_cargo_test", "--test", "cargo_audit_accuracy"], ["audit_cargo_test", "--test", "cargo_geiger_accuracy"], ["audit_cargo_test", "--test", "pip_audit_accuracy"], ["audit_cargo_test", "--test", "semgrep_accuracy"], ["audit_cargo_test", "--test", "real_rust_outdated_accuracy"], ["audit_cargo_test", "--test", "node_outdated_accuracy"])):
             span = b"".join(lines[start:end - 1]).decode("utf-8")
             outcomes = re.findall(r"test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", span)
-            expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else TFLINT_TESTS if command == ["audit_tflint_qualification"] else [command[2]] if command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS) else [command[3]]
+            expected_tests = ["gradle_sandbox::tests::gradle_bind_only_native_confinement", "real_jvm_sdk_accuracy"] if command == JVM_SDK_HARNESS else [command[2]] if command in (SUPPLY_CHAIN_HARNESS, SECRETS_HISTORY_HARNESS, CODE_MOBILE_HARNESS, DOTNET_SDK_HARNESS) else [command[3]]
             # Node retains & replays one child run of this same named fixture.
             expected_runs = 2 if command[:3] == ["audit_cargo_test", "--test", "node_outdated_accuracy"] else 1
             require(outcomes == [("1", "0", "0")] * (len(expected_tests) * expected_runs), "required harness tests did not execute expected successful count")
@@ -652,7 +610,7 @@ def provenance(root, entry, row, validated):
     validator = VALIDATORS.get(family)
     for args in proof["command"].values():
         require(isinstance(args, list) and 0 < len(args) <= 100 and all(isinstance(arg, str) and 0 < len(arg) <= 4096 for arg in args), "CI command missing")
-    wanted_harness = (SUPPLY_CHAIN_HARNESS if family == "supply-chain-native" else PHP_RUBY_SDK_HARNESS if family == "code-php-ruby-sdk" else RUST_SDK_HARNESS if family == "code-rust-sdk" else helper("audit-c-family-sdk-registration.py")["HARNESS_COMMAND"] if family == "code-c-family-sdk" else CODE_MOBILE_HARNESS if family == "code-mobile-sdk" else JVM_SDK_HARNESS if family == "code-jvm-sdk" else PYTHON_SDK_HARNESS if family == "code-python-sdk" else CODE_SDK_HARNESS if family == "code-sdk" else SECRETS_HISTORY_HARNESS if family == "secrets-history" else FILE_HARNESS if family == "file" else QUALITY_HARNESS if family == "harness-quality" else BENCH_HARNESS if family == "bench-known-answer" else ["audit_tflint_qualification"] if entry["provider"] == "security.scanner-tflint" else
+    wanted_harness = (SUPPLY_CHAIN_HARNESS if family == "supply-chain-native" else RUST_SDK_HARNESS if family == "code-rust-sdk" else CODE_MOBILE_HARNESS if family == "code-mobile-sdk" else JVM_SDK_HARNESS if family == "code-jvm-sdk" else PYTHON_SDK_HARNESS if family == "code-python-sdk" else SECRETS_HISTORY_HARNESS if family == "secrets-history" else FILE_HARNESS if family == "file" else QUALITY_HARNESS if family == "harness-quality" else BENCH_HARNESS if family == "bench-known-answer" else
                       ["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"])
     if family in ("backend-source-facts", "quality-test-native", "javascript-sdk", "ownership-native", "code-long-tail", "visual", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated"):
         wanted_harness.insert(wanted_harness.index("--nocapture"), "--exact")
@@ -669,7 +627,7 @@ def provenance(root, entry, row, validated):
         require(len(args) == 8 and Path(args[4]).is_absolute(), "native test validator repository root missing")
         same(args, ["python3", validator, row["evidenceRoot"] + "/legacy_quality_test.json", "--repository-root", args[4], "--evidence-root", row["evidenceRoot"], "--mutation-checks"], "native test validator exact selector differs")
     else:
-        options = ["--root", "--receipts"] if family in ("supply-chain-native", "backend-source-facts", "code-php-ruby-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-mobile-sdk", "code-jvm-sdk", "ownership-native", "code-python-sdk", "code-long-tail", "code-sdk", "file", "shellcheck", "visual", "secrets-history", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--brakeman-receipts", "--linter-receipts"]
+        options = ["--root", "--receipts"] if family in ("supply-chain-native", "backend-source-facts", "code-rust-sdk", "javascript-sdk", "code-mobile-sdk", "code-jvm-sdk", "ownership-native", "code-python-sdk", "code-long-tail", "file", "shellcheck", "visual", "secrets-history", "harness-ast-grep", "opengrep-artifact", "osv-artifact", "harness-machete", "license-checker", "cargo-deny", "cargo-audit-sdk", "cargo-geiger", "pip-audit", "semgrep-sdk", "harness-rust-outdated", "node-outdated") else ["--root", "--scanner-receipts", "--git-receipts"] if family in ("scanner", "git") else ["--root", "--squawk-receipts", "--linter-receipts"]
         args = proof["command"]["validator"]
         if family == "dotnet-sdk":
             options = ["--root", "--receipts"]
@@ -689,9 +647,6 @@ def provenance(root, entry, row, validated):
     if family == "supply-chain-native":
         require(Path(args[3]).is_absolute() and args[5] == str(PurePosixPath(row["cases"][0]["root"]).parent.parent)
                 and args[5].endswith("/legion-provider-qualification/supply-chain-native"), "supply-chain native original receipt root differs")
-    if family == "code-c-family-sdk":
-        require(Path(args[3]).is_absolute() and args[5] == str(helper("audit-c-family-sdk-registration.py")["receipt_root"](row))
-                and args[5].endswith("/legion-provider-qualification/code-c-family"), "C-family validator original receipt root differs")
     if family == "cargo-audit-sdk":
         require(Path(args[3]).is_absolute() and args[3] == row["binding"]["repositoryRoot"] and args[5] == row["binding"]["retainedRoot"]
                 and args[5].endswith("/legion-provider-qualification/cargo-audit"), "cargo-audit validator original root/receipt scope differs")
@@ -730,9 +685,6 @@ def provenance(root, entry, row, validated):
         require(Path(args[3]).is_absolute() and args[5] == row["retainedRoot"] and args[5].endswith("/legion-provider-qualification/code-rust-sdk"), "Rust SDK validator original root differs")
     if family == "code-jvm-sdk":
         require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-jvm-sdk"), "JVM SDK validator original receipt root differs")
-    if family == "code-php-ruby-sdk":
-        require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-php-ruby-sdk"),
-                "PHP/Ruby SDK validator root/receipt scope differs")
     if family == "code-python-sdk":
         require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-python-sdk"),
                 "Python SDK validator root/receipt scope differs")
@@ -741,9 +693,6 @@ def provenance(root, entry, row, validated):
     if family == "javascript-sdk":
         require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/javascript-sdk"),
                 "javascript SDK validator root/receipt scope differs")
-    if family == "code-sdk":
-        require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/code-sdk"),
-                "code SDK validator root/receipt scope differs")
     if family == "harness-ast-grep":
         require(Path(args[3]).is_absolute() and args[5].endswith("/legion-provider-qualification/ast-grep"),
                 "ast-grep validator root/receipt scope differs")
@@ -763,13 +712,6 @@ def provenance(root, entry, row, validated):
         raw = relative_file(root, entry["jvmSdkEvidence"]["code_jvm.json"]["path"]).read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed JVM SDK record is not original artifact bytes")
         code_artifact = helper("audit-jvm-sdk-accuracy.py")["artifact_locator"](row, raw)
-    if family == "code-c-family-sdk":
-        raw = relative_file(root, entry["record"]["path"]).read_bytes()
-        code_artifact = helper("audit-c-family-sdk-registration.py")["locator"](root, row, raw)
-    if family == "code-php-ruby-sdk":
-        raw = relative_file(root, entry["phpRubySdkEvidence"]["providerRecord"]["path"]).read_bytes()
-        require(digest(raw) == entry["record"]["sha256"], "indexed PHP/Ruby SDK record is not original artifact bytes")
-        code_artifact = helper("audit-php-ruby-code-sdk-accuracy.py")["artifact_locator"](row, raw)
     if family == "code-python-sdk":
         raw = relative_file(root, entry["pythonSdkEvidence"]["providerRecord"]["path"]).read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed Python SDK record is not original artifact bytes")
@@ -779,11 +721,6 @@ def provenance(root, entry, row, validated):
         raw = original_path.read_bytes()
         require(digest(raw) == entry["record"]["sha256"], "indexed javascript record is not original artifact bytes")
         code_artifact = helper("audit-javascript-sdk-accuracy.py")["artifact_locator"](row, raw)
-    if family == "code-sdk":
-        original_path = relative_file(root, entry["codeSdkEvidence"]["providerRecords"][entry["provider"]]["path"])
-        raw = original_path.read_bytes()
-        require(digest(raw) == entry["record"]["sha256"], "indexed code SDK record is not original artifact bytes")
-        code_artifact = helper("audit-code-sdk-accuracy.py")["artifact_locator"](row, raw)
     if family == "code-mobile-sdk":
         raw = relative_file(root, entry["record"]["path"]).read_bytes()
         code_artifact = helper("audit-mobile-sdk-accuracy.py")["artifact_locator"](row, raw)
@@ -872,8 +809,6 @@ def record_binding(root, entry, path, row, registry, raw_record=None):
     if family == "ownership-native":
         require(entry["provenance"]["platform"] == "macos-15", "ownership native platform differs")
         return helper("validate-ownership-native-accuracy.py")["validate_record"](root, row, live=False)
-    if family == "code-c-family-sdk":
-        return helper("audit-c-family-sdk-registration.py")["validate_record"](root, entry, row)
     if family == "javascript-sdk":
         require(entry["provenance"]["platform"] == "macos-15", "javascript SDK native platform differs")
         paths = {key: relative_file(root, ref["path"]) for key, ref in entry["javascriptSdkEvidence"].items()}
@@ -885,15 +820,9 @@ def record_binding(root, entry, path, row, registry, raw_record=None):
         require(entry["provenance"]["platform"] == "macos-15", "JVM SDK native platform differs")
         retained = relative_file(root, entry["jvmSdkEvidence"]["code_jvm.json"]["path"]).parent
         return helper("audit-jvm-sdk-accuracy.py")["validate_record"](root, row, live=False, retained=retained)
-    if family == "code-php-ruby-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "PHP/Ruby SDK native platform differs")
-        return helper("audit-php-ruby-code-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["phpRubySdkEvidence"]["phpRubyEnrollment"]["path"])))
     if family == "code-python-sdk":
         require(entry["provenance"]["platform"] == "macos-15", "Python SDK native platform differs")
         return helper("audit-python-code-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["pythonSdkEvidence"]["pythonEnrollment"]["path"])))
-    if family == "code-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "code SDK native platform differs")
-        return helper("audit-code-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["codeSdkEvidence"]["govulnEnrollment"]["path"])))
     if family == "file":
         return helper("audit-provider-accuracy.py")["validate"](root, path.parent, {provider: plan_for(root, provider)})[provider]
     require(entry["provenance"]["platform"] == "macos-15", "external native platform differs")
@@ -1059,20 +988,13 @@ def validate_harness_record(root, entry, row, registry, files, api):
                 and coverage["expected"] == coverage["examined"] == 1 and coverage["gaps"] == []
                 and is_digest(coverage["denominator_digest"]), "harness provider unavailable/incomplete")
         identity, receipt = case["toolIdentity"], case["executionReceipt"]
-        go_probe = provider == "security.scanner-golangci-lint"
-        probe = case["goToolchain"]["actualVersion"]["receipt"] if go_probe else identity["version"]["receipt"]
+        probe = identity["version"]["receipt"]
         api["executable"](identity["path"], identity["executableDigest"], live=False)
         api["executable"](policy["wrapper"]["path"], policy["wrapper"]["digest"], live=False)
         require(policy["tool"]["path"] == identity["path"] and policy["tool"]["digest"] == identity["executableDigest"]
                 and policy["provider"] == provider and policy["inventoryDigest"] == case["inventoryDigest"]
                 and policy["wrapper"]["path"] == "/usr/bin/sandbox-exec", "harness executable identity linkage differs")
-        if go_probe:
-            require(probe["state"] == "completed" and probe["complete"] is True and probe["exitCode"] == 0
-                    and all(probe["processTree"][key] is True for key in ("started", "terminated", "reaped"))
-                    and probe["policyId"] == policy["id"] and probe["sandbox"]["required"] is True
-                    and probe["sandbox"]["networkEnabled"] is True, "Go native version probe incomplete")
-        else:
-            api["native"](probe, policy["id"], policy, api["compact"])
+        api["native"](probe, policy["id"], policy, api["compact"])
         decisions = case["policyDecisions"]
         require(len(decisions) == 2 and all(item["allowed"] is True and item["providerId"] == provider
                 and item["planId"] == case["inventoryDigest"] for item in decisions), "harness native admissions missing")
@@ -1082,48 +1004,21 @@ def validate_harness_record(root, entry, row, registry, files, api):
                 and receipt["complete"] is True and receipt["executableDigest"] == identity["executableDigest"]
                 and receipt["policyId"] == policy["id"] and receipt["sandbox"]["required"] is True
                 and is_digest(receipt["stdoutDigest"]) and receipt["stdoutBytes"] > 0, "harness native receipt linkage differs")
-        if go_probe:
-            go, decision = case["goToolchain"], decisions[0]
-            api["executable"](go["binary"], go["digest"], live=False)
-            go_banner = go["actualVersion"]["version"]
-            require(go_banner.startswith("go version " + go["requiredVersion"] + " darwin/")
-                    and probe["stdout"]["raw"] == go_banner and probe["stdout"]["immutable"] is True
-                    and is_digest(probe["stdout"]["digest"]) and probe["stdout"]["bytes"] >= len(go_banner.encode())
-                    and probe["providerId"] == provider and probe["planId"] == case["inventoryDigest"]
-                    and probe["taskId"] == decision["taskId"] == "go-version-probe" and probe["cwd"] == policy["root"]
-                    and decision["args"] == decision["versionArgs"] and decision["args"][-2:] == [go["binary"], "version"],
-                    "Go native toolchain version linkage differs")
-            # Go probe retains trimmed output & original artifact digest, not raw bytes.
-            banner = identity["version"]
-            require(isinstance(banner, str) and banner.startswith(policy["tool"]["versionPrefix"])
-                    and receipt["tool"]["version"] == banner, "golangci reduced scanner version linkage differs")
-        else:
-            for stream in ("stdout", "stderr"):
-                api["artifact"](probe[stream], probe[stream]["raw"])
-            banner = identity["version"]["rawVersionOutput"].strip()
-            require(banner and probe["executable"]["version"]["output"].strip() == banner, "harness native version linkage differs")
+        for stream in ("stdout", "stderr"):
+            api["artifact"](probe[stream], probe[stream]["raw"])
+        banner = identity["version"]["rawVersionOutput"].strip()
+        require(banner and probe["executable"]["version"]["output"].strip() == banner, "harness native version linkage differs")
         identities.append((identity["path"], identity["executableDigest"], banner))
-        if family == "harness-scanner":
-            require(result["findings"] == [] and receipt == result["details"]["executionReceipt"]
-                    and receipt["tool"]["name"] == tool, "candidate harness stage differs")
-            labels = [f"{item['ruleId']}|{item['path']}|{item['line'] if item['line'] is not None else 'unresolved'}" for item in result["details"]["candidates"]]
-            require(all(item["adjudication"] == "required" for item in result["details"]["candidates"]), "candidate harness promoted adjudication")
-        else:
-            require(row["outputKind"] == "findings" and receipt == result["details"]["producer"] and receipt["tool"] == tool
-                    and result["details"]["candidates"] == [], "finding harness stage differs")
-            labels = [f"{item['ruleId']}|{item['target']}" for item in result["details"]["analysis"]["findings"]]
-            same(case["expectedNativeDatabaseLabel"], {"digest": digest(("trivy-builtin-checks\0" + banner).encode()),
-                 "kind": "shipped-producer-formula-version-derived-not-extracted-bundle-hash"}, "Trivy version-derived database label differs")
+        require(row["outputKind"] == "findings" and receipt == result["details"]["producer"] and receipt["tool"] == tool
+                and result["details"]["candidates"] == [], "finding harness stage differs")
+        labels = [f"{item['ruleId']}|{item['target']}" for item in result["details"]["analysis"]["findings"]]
+        same(case["expectedNativeDatabaseLabel"], {"digest": digest(("trivy-builtin-checks\0" + banner).encode()),
+             "kind": "shipped-producer-formula-version-derived-not-extracted-bundle-hash"}, "Trivy version-derived database label differs")
         same(case["actual"], labels, "harness actual native projection differs")
         for extra in ("schemas", "embeddedChecks"):
             if extra in bound:
                 same(case[extra], bound[extra], "harness data pin binding differs")
                 same(policy[extra], bound[extra], "harness policy pin binding differs")
-        if "goModule" in case:
-            require(case["goModule"]["digest"] == digest(case["goModule"]["bytes"].encode()), "Go module fixture digest differs")
-            go = case["goToolchain"]
-            require(all(go[key] == policy["goToolchain"][key] for key in ("root", "binary", "digest"))
-                    and go["requiredVersion"] == policy["goToolchain"]["version"], "Go runtime pin linkage differs")
     require(identities[0] == identities[1], "harness tool/version changed between controls")
     same(row["metrics"], {"truePositives": 1, "falsePositives": 0, "falseNegatives": 0, "precision": 1.0, "recall": 1.0,
                           "positiveCases": 1, "cleanCases": 1}, "harness duplicate-preserving metrics differ")
@@ -1348,12 +1243,6 @@ def controls(row, entry):
                 and row["matrixState"] == "complete" and row["status"] == "observed-known-answer-controls"
                 and type(row["modelCalls"]) is int and row["modelCalls"] == 0, "dedicated mobile native identity/bounded scope differs")
         return
-    if entry["family"] == "code-c-family-sdk":
-        helper("audit-c-family-sdk-registration.py")["adapter"](entry)
-        require(row["productionQualification"] is False and row["selfProducerQualification"] is False
-                and row["qualificationEligible"] is True and row["assertionsPassed"] is True
-                and type(row["modelCalls"]) is int and row["modelCalls"] == 0, "C-family fixture controls differ")
-        return
     if entry["family"] == "ownership-native":
         require(row["schema"] == "legion-ownership-native-sdk-controls/2"
                 and row["provider"] == entry["provider"] == "governance.capability-ownership"
@@ -1407,18 +1296,6 @@ def controls(row, entry):
                 and row.get("controls") == list(api["CONTROLS"]) and row.get("originalContract") == api["ORIGINAL"]
                 and row.get("scope") == entry["scope"] == api["SCOPE"], "incomplete JVM SDK original contract/controls cannot qualify")
         return
-    if entry["family"] == "code-php-ruby-sdk":
-        require(entry["provider"] == row.get("provider") == "code.php-ruby"
-                and row.get("schema") == "legion-php-ruby-code-command-sdk-accuracy/1"
-                and row.get("productionQualification") is False
-                and row.get("claimScope") == entry["scope"] == "known-answer-fixture-cases"
-                and row.get("qualificationEligible") is True and row.get("missingControls") == []
-                and row.get("status") == "observed-known-answer-controls"
-                and row.get("metrics", {}).get("boundedSdkAccuracyQualified") is True
-                and row.get("metrics", {}).get("wholeProviderQualified") is False
-                and type(row.get("modelCalls")) is int and row["modelCalls"] == 0,
-                "incomplete/unexecuted PHP/Ruby SDK controls cannot qualify")
-        return
     if entry["family"] == "code-python-sdk":
         require(entry["provider"] == row.get("provider") == "code.python"
                 and row.get("schema") == "legion-python-code-command-sdk-accuracy/1"
@@ -1430,21 +1307,6 @@ def controls(row, entry):
                 and row.get("metrics", {}).get("wholeProviderQualified") is False
                 and type(row.get("modelCalls")) is int and row["modelCalls"] == 0,
                 "incomplete/unexecuted Python SDK controls cannot qualify")
-        return
-    if entry["family"] == "code-sdk":
-        # Fixed SDK evidence never drops the original tool/language/platform contract.
-        require(row.get("schema") == "legion-code-command-sdk-accuracy/1"
-                and row.get("provider") == entry["provider"] in CODE_SDK_PROVIDERS
-                and row.get("productionQualification") is False
-                and row.get("claimScope") == entry["scope"] == "known-answer-fixture-cases",
-                "code SDK diagnostic identity/scope differs")
-        require(entry["provider"] == "code.go" and row.get("qualificationEligible") is True
-                and row.get("status") == "observed-known-answer-controls" and row.get("missingControls") == []
-                and row.get("metrics", {}).get("boundedSdkAccuracyQualified") is True
-                and row.get("metrics", {}).get("wholeProviderQualified") is False
-                and row.get("modelCalls") == 0 and type(row.get("modelCalls")) is int
-                and row.get("executedScope") == row.get("requiredContract", {}).get("tools"),
-                "partial code SDK tool/language/platform controls cannot qualify whole providers")
         return
     if entry["family"] == "secrets-history":
         require(row["schema"] == "legion-secrets-history-native-qualification/1"
@@ -1595,8 +1457,6 @@ def qualification(entry):
     if entry["family"] == "ownership-native":
         value.update({"productionQualification": False, "wholeProviderQualified": False, "auditCleanClaim": False,
                       "fixtureScope": entry["scope"], "admissionScope": "constructed exact SDK authorizer; actual Scanner production trust required"})
-    if entry["family"] == "code-c-family-sdk":
-        value.update(helper("audit-c-family-sdk-registration.py")["qualification_fields"]())
     if entry["family"] == "backend-source-facts":
         value.update({"productionQualification": False, "wholeProviderQualified": False, "auditCleanClaim": False,
                       "runtimeQualified": False, "authQualified": False, "certificationClaim": False, "runtimeExamined": 0,
@@ -1646,7 +1506,7 @@ def qualification(entry):
                       "admissionScope": "exact fixture SDK authorizer; production default owner admission denied"})
     if entry["family"] == "code-jvm-sdk":
         value.update({"productionQualification": False, "fixtureScope": entry["scope"], "operationContract": "jvm/v1", "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
-    if entry["family"] in ("dotnet-sdk", "code-sdk", "code-python-sdk", "code-php-ruby-sdk"):
+    if entry["family"] in ("dotnet-sdk", "code-python-sdk"):
         value.update({"productionQualification": False, "fixtureScope": "known-answer-fixture-cases",
                       "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"})
     if entry["family"] == "harness-quality":
@@ -1717,27 +1577,6 @@ def quality_test_evidence(root, entry, row):
     return retained
 
 
-def code_sdk_evidence(root, entry, row):
-    """Fixed code-family metadata references; never an arbitrary file escape."""
-    refs = entry["codeSdkEvidence"]
-    keys(refs, set(CODE_SDK_EVIDENCE) | {"providerRecords"})
-    directory = f"{ARCHIVE}/records/{entry['provider']}/evidence/{row['qualificationDigest'].removeprefix('sha256:')}/"
-    paths = {}
-    for key, filename in CODE_SDK_EVIDENCE.items():
-        ref = refs[key]
-        require(ref.get("path") == directory + filename, "code SDK retained metadata layout differs")
-        paths[key] = reference(root, ref, "records")
-    keys(refs["providerRecords"], CODE_SDK_PROVIDERS)
-    paths["providerRecords"] = {}
-    retained = {refs[key]["path"] for key in CODE_SDK_EVIDENCE}
-    for provider, ref in refs["providerRecords"].items():
-        require(ref.get("path") == directory + provider.replace(".", "_") + ".json", "code SDK original record layout differs")
-        paths["providerRecords"][provider] = reference(root, ref, "records")
-        retained.add(ref["path"])
-    helper("audit-code-sdk-accuracy.py")["validate_retained"](root, row, paths)
-    return retained
-
-
 def jvm_sdk_evidence(root, entry, row):
     api = helper("audit-jvm-sdk-accuracy.py")
     refs = entry["jvmSdkEvidence"]
@@ -1748,19 +1587,6 @@ def jvm_sdk_evidence(root, entry, row):
         reference(root, ref, "records")
     require(refs["code_jvm.json"]["sha256"] == entry["record"]["sha256"], "JVM original record differs")
     return {ref["path"] for ref in refs.values()}
-
-
-def php_ruby_sdk_evidence(root, entry, row):
-    refs = entry["phpRubySdkEvidence"]
-    keys(refs, PHP_RUBY_SDK_EVIDENCE)
-    directory = f"{ARCHIVE}/records/code.php-ruby/evidence/{row['qualificationDigest'].removeprefix('sha256:')}/"
-    paths = {}
-    for key, filename in PHP_RUBY_SDK_EVIDENCE.items():
-        require(refs[key].get("path") == directory + filename, "PHP/Ruby SDK original retained layout differs")
-        paths[key] = reference(root, refs[key], "records")
-    helper("audit-php-ruby-code-sdk-accuracy.py")["validate_retained"](root, row, paths)
-    return {ref["path"] for ref in refs.values()}
-
 
 
 def python_sdk_evidence(root, entry, row):
@@ -1822,7 +1648,7 @@ def check(root):
     require(len({row["id"] for row in registry}) == len(registry), "duplicate registry provider")
     specs, entries = {row["id"]: row for row in registry}, {}
     for entry in index["entries"]:
-        keys(entry, ENTRY_KEYS | {"backendSourceEvidence"} if entry.get("family") == "backend-source-facts" else ENTRY_KEYS | {"phpRubySdkEvidence"} if entry.get("family") == "code-php-ruby-sdk" else ENTRY_KEYS | {"qualityTestEvidence"} if entry.get("family") == "quality-test-native" else ENTRY_KEYS | {"rustSdkEvidence"} if entry.get("family") == "code-rust-sdk" else ENTRY_KEYS | {"dotnetSdkEvidence"} if entry.get("family") == "dotnet-sdk" else ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS | {"codeSdkEvidence"} if entry.get("family") == "code-sdk" else ENTRY_KEYS)
+        keys(entry, ENTRY_KEYS | {"backendSourceEvidence"} if entry.get("family") == "backend-source-facts" else ENTRY_KEYS | {"qualityTestEvidence"} if entry.get("family") == "quality-test-native" else ENTRY_KEYS | {"rustSdkEvidence"} if entry.get("family") == "code-rust-sdk" else ENTRY_KEYS | {"dotnetSdkEvidence"} if entry.get("family") == "dotnet-sdk" else ENTRY_KEYS | {"javascriptSdkEvidence"} if entry.get("family") == "javascript-sdk" else ENTRY_KEYS | {"codeMobileEvidence"} if entry.get("family") == "code-mobile-sdk" else ENTRY_KEYS | {"jvmSdkEvidence"} if entry.get("family") == "code-jvm-sdk" else ENTRY_KEYS | {"pythonSdkEvidence"} if entry.get("family") == "code-python-sdk" else ENTRY_KEYS)
         require(entry["provider"] in specs and entry["provider"] not in entries, "unexpected/duplicate index provider")
         entries[entry["provider"]] = entry
     retained = {INDEX, SCHEMA}
@@ -1864,8 +1690,6 @@ def check(root):
             retained.update(rust_sdk_evidence(root, entry, row))
         if entry["family"] == "code-jvm-sdk":
             retained.update(jvm_sdk_evidence(root, entry, row))
-        if entry["family"] == "code-php-ruby-sdk":
-            retained.update(php_ruby_sdk_evidence(root, entry, row))
         if entry["family"] == "code-mobile-sdk":
             retained.update(code_mobile_evidence(root, entry, row)[0])
         if entry["family"] == "quality-test-native":
@@ -1874,10 +1698,8 @@ def check(root):
             retained.update(dotnet_sdk_evidence(root, entry, row))
         if entry["family"] == "code-python-sdk":
             retained.update(python_sdk_evidence(root, entry, row))
-        if entry["family"] == "code-sdk":
-            retained.update(code_sdk_evidence(root, entry, row))
         controls(row, entry)
-        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("code-php-ruby-sdk", "quality-test-native", "dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-c-family-sdk", "code-python-sdk", "code-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
+        require(row.get("claimScope") == entry["scope"] if entry["family"] in ("quality-test-native", "dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-python-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
         validated = record_binding(root, entry, path, row, specs, raw_record=raw_record)
         retained.add(entry["record"]["path"])
         retained.update(provenance(root, entry, row, validated))

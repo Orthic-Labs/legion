@@ -20,7 +20,7 @@ CONTROLS = ("debt-positive", "nonempty-clean", "oversized-1500", "oversized-1501
             "missing", "drift", "symlink", "symlink-parent", "not-utf8", "file-byte-cap", "total-byte-cap",
             "findings-cap", "duplicate-window-cap", "skip-record-cap", "injected-no-rules", "empty-denominator")
 HISTORICAL = "astro bash bat cjs cts css cxx dart erl ex exs gql graphql hrl html kts mjs mts nsh nsi ps1 psm1 rb sh sql svelte vbs vue zsh".split()
-CLAIMED = "c cc cpp cxx h hpp cs fs vb go js jsx ts tsx cjs mjs cts mts java kt kts scala swift m mm php rb py rs".split()
+CLAIMED = "cs fs vb js jsx ts tsx cjs mjs cts mts java kt kts scala swift m mm py rs".split()
 UNSAFE_PATHS = ["../outside.sh", "/outside.sh", "directory/../outside.sh", "./outside.sh", ""]
 SOURCE_ROOTS = ["engine/crates/" + name + "/src" for name in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")] + ["src/registry/rules", "src/registry/controls"]
 SOURCE_FILES = ["engine/Cargo.toml", "engine/Cargo.lock", "engine/rust-toolchain.toml", HARNESS, CORPUS, VALIDATOR] + ["engine/crates/" + name + "/Cargo.toml" for name in ("legion-audit", "legion-effects", "legion-provider-sdk", "legion-contracts", "legion-rules")]

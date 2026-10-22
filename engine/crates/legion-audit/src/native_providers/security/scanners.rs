@@ -6,16 +6,7 @@ use serde_json::{json, Value};
 
 use super::common::{digest_json, exact_binding, valid_digest};
 
-pub const TOOLS: &[&str] = &[
-    "squawk",
-    "zizmor",
-    "shellcheck",
-    "tflint",
-    "kubeconform",
-    "kube-linter",
-    "brakeman",
-    "golangci-lint",
-];
+pub const TOOLS: &[&str] = &["squawk", "zizmor", "shellcheck"];
 
 pub fn tool_for(id: &str) -> Option<&'static str> {
     let tool = id.strip_prefix("security.scanner-")?;
@@ -43,14 +34,6 @@ pub fn selector(tool: &str) -> Value {
         "zizmor" => {
             json!({"op":"anyPath","patterns":[".github/workflows/*.yml",".github/workflows/*.yaml","**/.github/workflows/*.yml","**/.github/workflows/*.yaml","action.yml","action.yaml","**/action.yml","**/action.yaml",".github/dependabot.yml",".github/dependabot.yaml"]})
         }
-        "tflint" => json!({"op":"anyPath","patterns":["**/*.tf","**/*.tf.json"]}),
-        "kubeconform" | "kube-linter" => {
-            json!({"op":"anyExtension","extensions":["yml","yaml","json"]})
-        }
-        "brakeman" => {
-            json!({"op":"anyExtension","extensions":["rb","rake","erb","haml","slim","gemspec"]})
-        }
-        "golangci-lint" => json!({"op":"anyExtension","extensions":["go"]}),
         _ => Value::Null,
     }
 }
@@ -120,44 +103,6 @@ pub fn candidate_domain(tool: &str, rule: &str) -> &'static str {
         {
             "reliability"
         }
-        "tflint"
-            if matches!(
-                rule,
-                "terraform_unused_declarations"
-                    | "terraform_deprecated_interpolation"
-                    | "terraform_deprecated_index"
-                    | "terraform_empty_list_equality"
-                    | "terraform_module_pinned_source"
-                    | "terraform_module_version"
-                    | "terraform_required_providers"
-                    | "terraform_required_version"
-                    | "terraform_documented_outputs"
-                    | "terraform_documented_variables"
-                    | "terraform_typed_variables"
-            ) =>
-        {
-            "reliability"
-        }
-        "kubeconform" if rule == "schema" => "reliability",
-        "kube-linter"
-            if matches!(
-                rule,
-                "privileged-container"
-                    | "privilege-escalation-container"
-                    | "host-network"
-                    | "host-pid"
-                    | "host-ipc"
-                    | "sensitive-host-mounts"
-                    | "wildcard-in-rules"
-                    | "cluster-admin-role-binding"
-                    | "writable-host-mount"
-                    | "unsafe-proc-mount"
-                    | "run-as-non-root"
-                    | "no-read-only-root-fs"
-            ) =>
-        {
-            "security"
-        }
         "zizmor"
             if matches!(
                 rule,
@@ -185,28 +130,6 @@ pub fn candidate_domain(tool: &str, rule: &str) -> &'static str {
         {
             "security"
         }
-        // Brakeman's warning/check namespace is Rails SAST, not Ruby style lint.
-        "brakeman" if !rule.is_empty() && !rule.ends_with(".unknown") => "security",
-        "golangci-lint" if rule == "gosec" => "security",
-        "golangci-lint"
-            if matches!(
-                rule,
-                "typecheck"
-                    | "govet"
-                    | "staticcheck"
-                    | "errcheck"
-                    | "ineffassign"
-                    | "unused"
-                    | "bodyclose"
-                    | "nilerr"
-                    | "nilnil"
-                    | "errorlint"
-                    | "rowserrcheck"
-                    | "sqlclosecheck"
-            ) =>
-        {
-            "reliability"
-        }
         _ => "unknown",
     }
 }
@@ -215,42 +138,14 @@ pub fn candidate_domain(tool: &str, rule: &str) -> &'static str {
 /// candidates with unknown anchors, so normalization cannot erase scanner recall.
 pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normalized {
     let mut report = Normalized::default();
-    let key = match tool {
-        "squawk" | "zizmor" | "shellcheck" => None,
-        "tflint" => Some("issues"),
-        "kubeconform" => Some("resources"),
-        "kube-linter" => Some("Reports"),
-        "brakeman" => Some("warnings"),
-        "golangci-lint" => Some("Issues"),
-        _ => {
-            report
-                .gaps
-                .push(json!({"kind":"scanner-unsupported","tool":tool}));
-            return report;
-        }
-    };
-    let values = key.map_or(Some(output), |key| output.get(key));
-    // golangci explicitly reports Issues:null when no issues exist.
-    let empty = Vec::new();
-    let values = match values {
-        Some(Value::Array(values)) => values,
-        Some(Value::Null) if tool == "golangci-lint" => &empty,
-        // kube-linter v0.8.3 pkg/run/run.go leaves Reports nil when no
-        // diagnostics exist. Its JSON formatter therefore emits null, with
-        // an explicit Passed summary & populated enabled-check list.
-        Some(Value::Null)
-            if tool == "kube-linter"
-                && output
-                    .pointer("/Summary/ChecksStatus")
-                    .and_then(Value::as_str)
-                    == Some("Passed")
-                && output
-                    .get("Checks")
-                    .and_then(Value::as_array)
-                    .is_some_and(|checks| !checks.is_empty()) =>
-        {
-            &empty
-        }
+    if !matches!(tool, "squawk" | "zizmor" | "shellcheck") {
+        report
+            .gaps
+            .push(json!({"kind":"scanner-unsupported","tool":tool}));
+        return report;
+    }
+    let values = match output {
+        Value::Array(values) => values,
         _ => {
             let raw_digest = digest_json(output);
             let id = digest_json(&json!([tool, base, "invalid-schema", raw_digest]));
@@ -298,41 +193,6 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
                 text_at(raw, "/message"),
                 text_at(raw, "/level"),
             ),
-            "tflint" => (
-                text_at(raw, "/range/filename"),
-                raw.pointer("/range/start/line").and_then(Value::as_u64),
-                text_at(raw, "/rule/name"),
-                text_at(raw, "/message"),
-                text_at(raw, "/rule/severity"),
-            ),
-            "kubeconform" => (
-                text_at(raw, "/filename"),
-                None,
-                Some("schema"),
-                text_at(raw, "/msg"),
-                Some("medium"),
-            ),
-            "kube-linter" => (
-                text_at(raw, "/Object/Metadata/FilePath"),
-                None,
-                text_at(raw, "/Check"),
-                text_at(raw, "/Diagnostic/Message"),
-                Some("medium"),
-            ),
-            "brakeman" => (
-                text_at(raw, "/file"),
-                raw["line"].as_u64(),
-                text_at(raw, "/check_name"),
-                text_at(raw, "/message"),
-                Some("medium"),
-            ),
-            "golangci-lint" => (
-                text_at(raw, "/Pos/Filename"),
-                raw.pointer("/Pos/Line").and_then(Value::as_u64),
-                text_at(raw, "/FromLinter"),
-                text_at(raw, "/Text"),
-                Some("medium"),
-            ),
             _ => unreachable!(),
         };
         let raw_digest = digest_json(raw);
@@ -350,12 +210,6 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
                 })
             }
         });
-        let valid_resource =
-            tool == "kubeconform" && text_at(raw, "/status") == Some("statusValid");
-        if valid_resource && path.is_some() {
-            report.ledger.push(json!({"ordinal":ordinal,"rawFindingDigest":raw_digest,"path":path,"disposition":"resource-valid"}));
-            continue;
-        }
         let rule = if tool == "shellcheck" {
             raw["code"].as_u64().map(|code| format!("SC{code}"))
         } else {
@@ -365,13 +219,6 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
             || line.filter(|v| *v > 0).is_none()
             || rule.is_none()
             || message.is_none();
-        // These tools report resources/files, not source lines. Keep their
-        // anchor unresolved until producer binds it to scanned frozen bytes.
-        let file_anchor = (tool == "kube-linter"
-            || (tool == "kubeconform" && text_at(raw, "/status") == Some("statusInvalid")))
-            && path.is_some()
-            && rule.is_some()
-            && message.is_some();
         let rule = rule.unwrap_or_else(|| format!("{tool}.unknown"));
         let message = message.unwrap_or("Scanner record requires source inspection");
         let domain = candidate_domain(tool, &rule);
@@ -383,7 +230,7 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
             "ruleId":rule,"claim":message,"title":message,"path":path,
             "line":line.filter(|v| *v>0),"severityHint":severity.unwrap_or("unknown"),
             "domain":domain,"adjudication":"required",
-            "anchorKind":if file_anchor {"file"} else if line.is_some() {"line"} else {"unknown"},
+            "anchorKind":if line.is_some() {"line"} else {"unknown"},
             "evidence":[{"path":path,"line":line,"rawFindingDigest":raw_digest}],
             "source":{"tool":tool,"ruleId":rule,"rawFindingDigest":raw_digest,"recordOrdinal":ordinal,"raw":raw},
             "anchorStatus":if unresolved {"unresolved"} else {"scanner-reported"},
@@ -391,32 +238,13 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
         if unresolved {
             report.gaps.push(json!({"kind":"scanner-candidate-anchor-unresolved","tool":tool,"rawFindingDigest":raw_digest}));
         }
-        if tool == "golangci-lint" && rule == "typecheck" {
-            report.gaps.push(json!({"kind":"scanner-typecheck-failed","tool":tool,"rawFindingDigest":raw_digest}));
-        }
         if tool == "squawk" && rule == "syntax-error" {
             report.gaps.push(
                 json!({"kind":"scanner-parser-failed","tool":tool,"rawFindingDigest":raw_digest}),
             );
         }
-        if tool == "kubeconform" && text_at(raw, "/status") != Some("statusInvalid") {
-            report.gaps.push(json!({"kind":"scanner-schema-unavailable-or-error","tool":tool,"rawFindingDigest":raw_digest}));
-        }
         report.ledger.push(json!({"ordinal":ordinal,"rawFindingDigest":raw_digest,"path":path,"candidateId":candidate["id"],"disposition":if unresolved {"retained-unresolved"} else {"candidate"}}));
         report.candidates.push(candidate);
-    }
-    for error_key in match tool {
-        "tflint" => &["errors"][..],
-        "brakeman" => &["errors"][..],
-        _ => &[][..],
-    } {
-        if output
-            .get(*error_key)
-            .and_then(Value::as_array)
-            .is_some_and(|v| !v.is_empty())
-        {
-            report.gaps.push(json!({"kind":"scanner-analysis-errors","tool":tool,"errorDigest":digest_json(&output[*error_key])}));
-        }
     }
     report
 }
@@ -446,10 +274,7 @@ pub fn analyze(input: &Value) -> Value {
                 && valid_digest(row.get("sourceDigest"))
                 && matches!(
                     row["reason"].as_str(),
-                    Some(
-                        "no-kubernetes-object-identity"
-                            | "deleted-source-has-no-selected-tool-input"
-                    )
+                    Some("deleted-source-has-no-selected-tool-input")
                 )
         })
         .filter_map(|row| row["path"].as_str())
@@ -556,84 +381,14 @@ mod tests {
         assert!(!report.gaps.is_empty());
     }
     #[test]
-    fn malformed_schema_is_gap_and_go_typecheck_is_never_clean() {
-        assert!(!normalize("brakeman", &json!({}), Path::new("/repo"), "")
-            .gaps
-            .is_empty());
-        let go = normalize(
-            "golangci-lint",
-            &json!({"Issues":[{"FromLinter":"typecheck","Text":"cannot load","Pos":{"Filename":"x.go","Line":1}}]}),
-            Path::new("/repo"),
-            "",
-        );
-        assert_eq!(go.candidates.len(), 1);
-        assert!(go
-            .gaps
-            .iter()
-            .any(|g| g["kind"] == "scanner-typecheck-failed"));
+    fn malformed_schema_is_never_clean() {
+        let report = normalize("squawk", &json!({}), Path::new("/repo"), "");
+        assert!(!report.gaps.is_empty());
+        assert_eq!(report.candidates.len(), 1);
     }
 
     #[test]
-    fn kube_linter_nil_reports_require_passed_summary_and_enabled_checks() {
-        // Documented upstream zero-diagnostic Result; normalization alone
-        // grants no execution or coverage claim without producer receipts.
-        let clean = json!({
-            "Checks":[{"Name":"privileged-container"}],
-            "Reports":null,
-            "Summary":{"ChecksStatus":"Passed","KubeLinterVersion":"0.8.3"}
-        });
-        let report = normalize("kube-linter", &clean, Path::new("/repo"), "");
-        assert!(report.candidates.is_empty());
-        assert!(report.gaps.is_empty());
-        assert!(report.ledger.is_empty());
-
-        for invalid in [
-            json!({"Reports":null}),
-            json!({"Reports":null,"Checks":[],"Summary":{"ChecksStatus":"Passed"}}),
-            json!({"Reports":null,"Checks":[{}],"Summary":{"ChecksStatus":"Failed"}}),
-            json!({"Reports":null,"Checks":[{}],"Summary":{"ChecksStatus":"Unknown"}}),
-            json!({"Checks":[{}],"Summary":{"ChecksStatus":"Passed"}}),
-            json!({"Reports":{},"Checks":[{}],"Summary":{"ChecksStatus":"Passed"}}),
-        ] {
-            let report = normalize("kube-linter", &invalid, Path::new("/repo"), "");
-            assert_eq!(report.candidates.len(), 1, "{invalid}");
-            assert_eq!(report.ledger.len(), 1, "{invalid}");
-            assert!(
-                report
-                    .gaps
-                    .iter()
-                    .any(|gap| gap["kind"] == "scanner-output-schema-invalid"),
-                "{invalid}"
-            );
-        }
-    }
-
-    #[test]
-    fn kube_file_anchors_wait_for_source_binding_without_inventing_lines() {
-        for (tool, output) in [
-            (
-                "kubeconform",
-                json!({"resources":[{"filename":"pod.yaml","status":"statusInvalid","msg":"schema mismatch"}]}),
-            ),
-            (
-                "kube-linter",
-                json!({"Reports":[{"Check":"privileged-container","Object":{"Metadata":{"FilePath":"pod.yaml"}},"Diagnostic":{"Message":"privileged"}}]}),
-            ),
-        ] {
-            let report = normalize(tool, &output, Path::new("/repo"), "");
-            assert_eq!(report.candidates.len(), 1);
-            let candidate = &report.candidates[0];
-            assert_eq!(candidate["anchorKind"], "file");
-            assert_eq!(candidate["anchorStatus"], "unresolved");
-            assert!(candidate["line"].is_null());
-            assert!(candidate["evidence"][0]["line"].is_null());
-            assert_eq!(candidate["adjudication"], "required");
-            assert_eq!(report.ledger[0]["disposition"], "retained-unresolved");
-            assert!(report
-                .gaps
-                .iter()
-                .any(|gap| gap["kind"] == "scanner-candidate-anchor-unresolved"));
-        }
+    fn unlocated_records_stay_unresolved_without_inventing_lines() {
         let shell = normalize(
             "shellcheck",
             &json!([{"file":"run.sh","code":2086,"message":"quote"}]),
@@ -646,17 +401,6 @@ mod tests {
             .gaps
             .iter()
             .any(|gap| gap["kind"] == "scanner-candidate-anchor-unresolved"));
-        let error = normalize(
-            "kubeconform",
-            &json!({"resources":[{"filename":"pod.yaml","status":"statusError","msg":"schema unavailable"}]}),
-            Path::new("/repo"),
-            "",
-        );
-        assert_eq!(error.candidates[0]["anchorKind"], "unknown");
-        assert!(error
-            .gaps
-            .iter()
-            .any(|gap| gap["kind"] == "scanner-schema-unavailable-or-error"));
     }
 
     #[test]
@@ -673,26 +417,6 @@ mod tests {
             (
                 "shellcheck",
                 json!([{"file":"run.sh","line":2,"code":2086,"message":"quote expansion"}]),
-            ),
-            (
-                "tflint",
-                json!({"issues":[{"rule":{"name":"terraform_unused_declarations"},"range":{"filename":"main.tf","start":{"line":3}},"message":"unused"}]}),
-            ),
-            (
-                "kubeconform",
-                json!({"resources":[{"filename":"pod.yaml","status":"statusInvalid","msg":"schema mismatch"}]}),
-            ),
-            (
-                "kube-linter",
-                json!({"Reports":[{"Check":"privileged-container","Object":{"Metadata":{"FilePath":"pod.yaml"}},"Diagnostic":{"Message":"privileged"}}]}),
-            ),
-            (
-                "brakeman",
-                json!({"warnings":[{"file":"app/model.rb","line":4,"check_name":"SQL","message":"SQL injection"}]}),
-            ),
-            (
-                "golangci-lint",
-                json!({"Issues":[{"FromLinter":"gosec","Text":"unsafe permissions","Pos":{"Filename":"main.go","Line":5}}]}),
             ),
         ];
         for (tool, output) in cases {
@@ -713,39 +437,7 @@ mod tests {
     fn mixed_scanner_categories_do_not_inherit_security_namespace() {
         assert_eq!(candidate_domain("squawk", "ban-drop-column"), "data");
         assert_eq!(candidate_domain("shellcheck", "SC2086"), "reliability");
-        assert_eq!(
-            candidate_domain("tflint", "terraform_unused_declarations"),
-            "reliability"
-        );
-        assert_eq!(candidate_domain("kubeconform", "schema"), "reliability");
-        assert_eq!(candidate_domain("golangci-lint", "gosec"), "security");
-        assert_eq!(candidate_domain("golangci-lint", "govet"), "reliability");
-        assert_eq!(candidate_domain("golangci-lint", "new-linter"), "unknown");
-        assert_eq!(
-            candidate_domain("tflint", "terraform_naming_convention"),
-            "unknown"
-        );
-        let report = normalize(
-            "golangci-lint",
-            &json!({"Issues":[
-                {"FromLinter":"gosec","Text":"tainted input","Pos":{"Filename":"a.go","Line":1}},
-                {"FromLinter":"govet","Text":"bad format","Pos":{"Filename":"a.go","Line":2}},
-                {"FromLinter":"new-linter","Text":"unclassified","Pos":{"Filename":"a.go","Line":3}}
-            ]}),
-            Path::new("/repo"),
-            "",
-        );
-        assert_eq!(
-            report
-                .candidates
-                .iter()
-                .map(|c| c["domain"].as_str().unwrap())
-                .collect::<Vec<_>>(),
-            vec!["security", "reliability", "unknown"]
-        );
-        assert!(report
-            .gaps
-            .iter()
-            .any(|gap| gap["kind"] == "scanner-candidate-domain-unresolved"));
+        assert_eq!(candidate_domain("shellcheck", "not-a-code"), "unknown");
+        assert_eq!(candidate_domain("squawk", "new-rule"), "unknown");
     }
 }

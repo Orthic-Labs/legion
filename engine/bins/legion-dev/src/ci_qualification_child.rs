@@ -69,22 +69,6 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         "--nocapture",
         "--test-threads=1",
     ];
-    // Run 39658612542 macOS: the PHP/Ruby harness runs real composer, PHPStan,
-    // PHPUnit, rubocop and rake across its controls and exceeded 300s (exit124).
-    let php_ruby = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--test",
-        "real_php_ruby_code_command_accuracy",
-        "real_php_ruby_code_command_accuracy",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
     // The .NET span runs cargo through its recording child
     // (`python3 run-dotnet-sdk-qualification-child.py --output-root DIR -- cargo ...`);
     // the deadline belongs to the cargo command after the separator.
@@ -120,7 +104,6 @@ fn command_timeout(argv: &[OsString]) -> Duration {
             (javascript.as_slice(), 1800),
             (rust.as_slice(), 2400),
             (dotnet.as_slice(), 2400),
-            (php_ruby.as_slice(), 1500),
         ] {
             if argv.len() == selector.len() + 1
                 && argv[1..]
@@ -149,7 +132,6 @@ mod tests {
             ),
             ("--test", "real_javascript_sdk_accuracy", 1800),
             ("--test", "real_rust_code_accuracy", 2400),
-            ("--test", "real_php_ruby_code_command_accuracy", 1500),
             (
                 "--lib",
                 "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",

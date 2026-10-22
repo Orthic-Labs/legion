@@ -1257,7 +1257,7 @@ fn boundary_controls(
         match field {
             "args" => request.args.push("--unbound".into()),
             "cwd" => request.cwd.push_str("/unbound"),
-            "provider" => request.provider_id = "code.go".into(),
+            "provider" => request.provider_id = "code.python".into(),
             "plan" => request.plan_id.push('0'),
             "policy" => request.policy_id.push('0'),
             "task" => request.task_id = Some("unbound".into()),

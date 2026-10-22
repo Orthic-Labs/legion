@@ -60,24 +60,6 @@
       }
     },
     {
-      "id": "language.go",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "providerVersions": {
-        "code.go": "1.0.0"
-      }
-    },
-    {
       "id": "language.jvm",
       "tiers": {
         "inventory": 1,
@@ -111,42 +93,6 @@
       ],
       "providerVersions": {
         "code.dotnet": "1.0.0"
-      }
-    },
-    {
-      "id": "language.c-family",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "providerVersions": {
-        "code.c-family": "1.0.0"
-      }
-    },
-    {
-      "id": "language.php-ruby",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "limitations": [
-        "runtime and remediation unproven"
-      ],
-      "providerVersions": {
-        "code.php-ruby": "1.0.0"
       }
     },
     {
@@ -266,18 +212,6 @@
       "selectable": true
     },
     {
-      "id": "code.c-family",
-      "providerVersion": "1.0.0",
-      "role": "deterministic",
-      "family": "code",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": null
-      },
-      "selectable": true
-    },
-    {
       "id": "code.dotnet",
       "providerVersion": "1.0.0",
       "role": "deterministic",
@@ -299,18 +233,6 @@
           "fixtureScope": "known-answer-fixture-cases",
           "admissionScope": "explicit constructed SDK authorizer; no production CLI owner-admission claim"
         }
-      },
-      "selectable": true
-    },
-    {
-      "id": "code.go",
-      "providerVersion": "1.0.0",
-      "role": "deterministic",
-      "family": "code",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": null
       },
       "selectable": true
     },
@@ -407,18 +329,6 @@
           "admissionScope": "constructed exact SDK admission; production owner admission remains denied",
           "coverageScope": "macOS SwiftPM Swift/Objective-C/Objective-C++ Foundation/XCTest compiler/analyzer/test; explicit unsupported platform/framework gaps remain"
         }
-      },
-      "selectable": true
-    },
-    {
-      "id": "code.php-ruby",
-      "providerVersion": "1.0.0",
-      "role": "deterministic",
-      "family": "code",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": null
       },
       "selectable": true
     },
@@ -2359,116 +2269,6 @@
       "selectable": true
     },
     {
-      "id": "security.scanner-tflint",
-      "providerVersion": "1.0.0",
-      "role": "candidate-generator",
-      "family": "security",
-      "benchmark": {
-        "status": "qualified",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:0ab7835c1eb3b6dd928a494c12d8bd5d120091c18e5a1809207ebeca0ff097fc",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-tflint/d212c572bc6981cd82ad7694bbfcdfe151c4d058a6c7c3fd93dd660b63a66089.json",
-          "recordSha256": "sha256:a6e9026c9b9db8b31a3a63984d8e66d5d5cc47f7949cb4b7ef032ef6c298d7df",
-          "originalQualificationDigest": "sha256:d212c572bc6981cd82ad7694bbfcdfe151c4d058a6c7c3fd93dd660b63a66089",
-          "validationBasis": "native-family-validator",
-          "stage": "candidate",
-          "scope": "Constructed planted & clean controls; not population accuracy or production admission"
-        }
-      },
-      "selectable": true
-    },
-    {
-      "id": "security.scanner-kubeconform",
-      "providerVersion": "1.0.0",
-      "role": "candidate-generator",
-      "family": "security",
-      "benchmark": {
-        "status": "qualified",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b07b7baa8520778d282387f1f7d1dfff9374d7d5812c5858517b6ba275a6fb55",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-kubeconform/97021d74b569c8726e90b6f43c080a32409cfe5ac4a3f04fba88e0f2ac12140b.json",
-          "recordSha256": "sha256:3152850ad2fbba10299e425de965b9dee9b69766508f0820f5251dab85bdb158",
-          "originalQualificationDigest": "sha256:97021d74b569c8726e90b6f43c080a32409cfe5ac4a3f04fba88e0f2ac12140b",
-          "validationBasis": "native-family-validator",
-          "stage": "candidate",
-          "scope": "Constructed Pod schema type violation & clean control; not population accuracy, server-side validation or production admission"
-        }
-      },
-      "selectable": true
-    },
-    {
-      "id": "security.scanner-kube-linter",
-      "providerVersion": "1.0.0",
-      "role": "candidate-generator",
-      "family": "security",
-      "benchmark": {
-        "status": "qualified",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:cd3044e4266980d01b9153f0fe822d3c9e070ad0f413cf964cd2aabb05ce061e",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-kube-linter/17d08f6c0eb3634f4c927d771cbc0e0c73904de5aa91362a5fbfce2c264dad02.json",
-          "recordSha256": "sha256:9c7796e6730b71bcc2503a2ab825c501f8de0ee9259053d2e52084b1f70533aa",
-          "originalQualificationDigest": "sha256:17d08f6c0eb3634f4c927d771cbc0e0c73904de5aa91362a5fbfce2c264dad02",
-          "validationBasis": "native-family-validator",
-          "stage": "candidate",
-          "scope": "Constructed planted & clean controls; not population accuracy or production admission"
-        }
-      },
-      "selectable": true
-    },
-    {
-      "id": "security.scanner-brakeman",
-      "providerVersion": "1.0.0",
-      "role": "candidate-generator",
-      "family": "security",
-      "benchmark": {
-        "status": "qualified",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:3feed47a15f624fc0a83d82402ddbc348915b143d22fbabd7930381a4f56d02a",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-brakeman/8b841489bfc359d299db17190c6c2ded785441339a743bd1e5ccd1c037e53889.json",
-          "recordSha256": "sha256:fc16b3747a7cbbfa5f37834f9f7b5d061fe7d5eedf8c42f237735602114668d5",
-          "originalQualificationDigest": "sha256:8b841489bfc359d299db17190c6c2ded785441339a743bd1e5ccd1c037e53889",
-          "validationBasis": "native-family-validator",
-          "stage": "candidate",
-          "scope": "Constructed planted & clean controls; not population accuracy or production admission"
-        }
-      },
-      "selectable": true
-    },
-    {
-      "id": "security.scanner-golangci-lint",
-      "providerVersion": "1.0.0",
-      "role": "candidate-generator",
-      "family": "security",
-      "benchmark": {
-        "status": "qualified",
-        "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:41a4e80f9a8267b817acd93dc188ebc254a92e5cfebb6b32e2ce0caa40064000",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-golangci-lint/6c8df1ac92f69103a8c04fd8b8cc0509b5a6fe4445fb418aa2407359c49416a6.json",
-          "recordSha256": "sha256:7f8904b38bfc27a1b9ab313602852af1f87d5b6a7b53a534a9b9faf76c7a4f12",
-          "originalQualificationDigest": "sha256:6c8df1ac92f69103a8c04fd8b8cc0509b5a6fe4445fb418aa2407359c49416a6",
-          "validationBasis": "native-family-validator",
-          "stage": "candidate",
-          "scope": "Constructed planted & clean Go controls; not population accuracy or production admission"
-        }
-      },
-      "selectable": true
-    },
-    {
       "id": "security.suppression-changes",
       "providerVersion": "1.0.0",
       "role": "candidate-generator",
@@ -2532,19 +2332,6 @@
       "corpusDigest": "sha256:1a2ff75fc24fbb0b2331dfd49bc1e81a1b791b32188972a030130eca2134fa85"
     },
     {
-      "id": "language.go",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusDigest": "sha256:9f497387aa8bae472542198783e9c9d8057166eb2ea7de59513e12181b793ca7"
-    },
-    {
       "id": "language.jvm",
       "tiers": {
         "inventory": 1,
@@ -2569,32 +2356,6 @@
         "remediation": 0
       },
       "corpusDigest": "sha256:4dd9f7e73d44fcc4bc33da2bdfeb64dd28c265e72d8e49875e1f1374e9f15184"
-    },
-    {
-      "id": "language.c-family",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusDigest": "sha256:5a1b3e594d0e015a97dc174616d55f017c8a0395d07a6a899efcc36e4ea1e60d"
-    },
-    {
-      "id": "language.php-ruby",
-      "tiers": {
-        "inventory": 1,
-        "parser": 1,
-        "native": 1,
-        "cross-file": 0,
-        "measured-pack": 0,
-        "runtime": 0,
-        "remediation": 0
-      },
-      "corpusDigest": "sha256:266ace7cc70411d4a143ba64f404fecedc1106f23f7d4b6cd3f51122623e9c17"
     },
     {
       "id": "language.mobile",

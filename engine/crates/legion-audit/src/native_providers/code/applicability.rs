@@ -61,7 +61,7 @@ pub fn family_absence(provider_id: &str, entries: &[InventoryEntry]) -> Option<S
 }
 
 /// The not-applicable result for `provider_id`. `subject` names what was
-/// absent in the summary (`"c-family"`, `"frontend"`, ...).
+/// absent in the summary (`"mobile"`, `"frontend"`, ...).
 pub fn not_applicable_result(
     provider_id: &str,
     required: bool,
@@ -97,17 +97,12 @@ pub fn not_applicable_result(
 /// every language.
 fn is_family_manifest(provider_id: &str, name: &str) -> bool {
     match provider_id {
-        "code.c-family" => matches!(
-            name,
-            "compile_commands.json" | "CMakeLists.txt" | "meson.build"
-        ),
         "code.dotnet" => {
             [".csproj", ".fsproj", ".vbproj", ".sln"]
                 .iter()
                 .any(|suffix| name.ends_with(*suffix))
                 || matches!(name, "Directory.Build.props" | "Directory.Build.targets")
         }
-        "code.go" => matches!(name, "go.mod" | "go.work"),
         "code.javascript" => matches!(name, "package.json" | "tsconfig.json" | "jsconfig.json"),
         "code.jvm" => matches!(
             name,
@@ -120,7 +115,6 @@ fn is_family_manifest(provider_id: &str, name: &str) -> bool {
                 | "mvnw"
         ),
         "code.mobile" => matches!(name, "Package.swift" | "project.pbxproj" | "Podfile"),
-        "code.php-ruby" => matches!(name, "composer.json" | "composer.lock" | "Gemfile"),
         "code.python" => {
             matches!(
                 name,
@@ -168,8 +162,8 @@ mod tests {
     fn family_without_any_file_is_absent_with_a_typed_reason() {
         let entries = [entry("package.json"), entry("src/app.js")];
         assert_eq!(
-            family_absence("code.c-family", &entries).as_deref(),
-            Some("no-c-family-files-in-inventory")
+            family_absence("code.dotnet", &entries).as_deref(),
+            Some("no-dotnet-files-in-inventory")
         );
         assert_eq!(
             family_absence("code.mobile", &entries).as_deref(),
@@ -181,7 +175,7 @@ mod tests {
     #[test]
     fn a_single_family_file_or_manifest_keeps_the_family_applicable() {
         assert_eq!(
-            family_absence("code.c-family", &[entry("src/main.C")]),
+            family_absence("code.python", &[entry("src/main.PY")]),
             None,
             "extension match is case-insensitive"
         );
@@ -194,7 +188,7 @@ mod tests {
 
     #[test]
     fn empty_inventory_and_long_tail_keep_their_own_rules() {
-        assert_eq!(family_absence("code.go", &[]), None);
+        assert_eq!(family_absence("code.rust", &[]), None);
         assert_eq!(
             family_absence("code.long-tail", &[entry_with_source("README.md", false)]),
             Some("no-long-tail-files-in-inventory".to_owned())

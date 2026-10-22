@@ -23,7 +23,7 @@ class JvmSdkAdapterTests(unittest.TestCase):
         entry = {"provider": "code.jvm", "family": "code-jvm-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, entry), ("code-jvm-sdk", "real_jvm_sdk_accuracy", "canonical-json", "real_jvm_sdk_accuracy"))
         self.assertEqual(gate["JVM_SDK_HARNESS"], ["audit_jvm_qualification"])
-        for changed in ({"provider": "code.go"}, {"stage": "candidate"}):
+        for changed in ({"provider": "code.rust"}, {"stage": "candidate"}):
             with self.assertRaises(AssertionError):
                 gate["adapter"](ROOT, dict(entry, **changed))
 

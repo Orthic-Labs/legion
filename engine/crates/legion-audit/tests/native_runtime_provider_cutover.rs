@@ -15,16 +15,13 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 46] = [
+const TESTED_RUNTIME_IDS: [&str; 38] = [
     "architecture.core",
-    "code.c-family",
     "code.dotnet",
-    "code.go",
     "code.javascript",
     "code.jvm",
     "code.long-tail",
     "code.mobile",
-    "code.php-ruby",
     "code.python",
     "code.rust",
     "compatibility.core",
@@ -50,13 +47,8 @@ const TESTED_RUNTIME_IDS: [&str; 46] = [
     "security.insecure-defaults",
     "security.misuse-resistance",
     "security.opengrep",
-    "security.scanner-brakeman",
-    "security.scanner-golangci-lint",
-    "security.scanner-kube-linter",
-    "security.scanner-kubeconform",
     "security.scanner-shellcheck",
     "security.scanner-squawk",
-    "security.scanner-tflint",
     "security.scanner-zizmor",
     "security.suppression-changes",
     "structural.ast-grep",

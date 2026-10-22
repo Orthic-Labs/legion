@@ -16,10 +16,7 @@
 //! Every file that is not read is reported with its path; `examined` counts
 //! only files actually read.
 
-use super::{
-    c_family, common::LanguageConfig, dotnet, go, javascript, jvm, long_tail, mobile, php_ruby,
-    python, rust,
-};
+use super::{common::LanguageConfig, dotnet, javascript, jvm, long_tail, mobile, python, rust};
 use crate::{inventory::InventoryEntry, AuditError};
 use regex::Regex;
 use serde_json::{json, Map, Value};
@@ -32,15 +29,12 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-const PROVIDER_IDS: [&str; 10] = [
-    "code.c-family",
+const PROVIDER_IDS: [&str; 7] = [
     "code.dotnet",
-    "code.go",
     "code.javascript",
     "code.jvm",
     "code.long-tail",
     "code.mobile",
-    "code.php-ruby",
     "code.python",
     "code.rust",
 ];
@@ -102,7 +96,7 @@ pub struct Produced {
     pub expected: u64,
     /// In-language files actually read.
     pub examined: u64,
-    /// Frozen Go/Rust manifest, lock & toolchain inputs selected for context inspection.
+    /// Frozen Rust manifest, lock & toolchain inputs selected for context inspection.
     pub context_expected: u64,
     pub context_examined: u64,
     pub context_bytes_read: u64,
@@ -120,14 +114,11 @@ pub struct Produced {
 
 pub fn config_for(provider_id: &str) -> Option<&'static LanguageConfig> {
     Some(match provider_id {
-        "code.c-family" => &c_family::CONFIG,
         "code.dotnet" => &dotnet::CONFIG,
-        "code.go" => &go::CONFIG,
         "code.javascript" => &javascript::CONFIG,
         "code.jvm" => &jvm::CONFIG,
         "code.long-tail" => &long_tail::CONFIG,
         "code.mobile" => &mobile::CONFIG,
-        "code.php-ruby" => &php_ruby::CONFIG,
         "code.python" => &python::CONFIG,
         "code.rust" => &rust::CONFIG,
         _ => return None,
@@ -327,29 +318,6 @@ const PYTHON_RULES: &[RuleDef] = &[
         "eval/exec runs dynamic code",
     ),
 ];
-const GO_RULES: &[RuleDef] = &[
-    (
-        "ignored-error",
-        "medium",
-        r"^\s*_\s*(?:,\s*_\s*)?=\s*\S",
-        None,
-        "Result assigned to the blank identifier; any error is ignored",
-    ),
-    (
-        "empty-error-branch",
-        "medium",
-        r"\bif\s+err\s*!=\s*nil\s*\{\s*\}",
-        None,
-        "err != nil branch is empty",
-    ),
-    (
-        "empty-error-branch",
-        "medium",
-        r"\bif\s+err\s*!=\s*nil\s*\{\s*$",
-        Some("}"),
-        "err != nil branch is empty",
-    ),
-];
 const JVM_RULES: &[RuleDef] = &[
     EMPTY_CATCH,
     EMPTY_CATCH_MULTILINE,
@@ -372,13 +340,6 @@ const DOTNET_RULES: &[RuleDef] = &[
         "Debugger.Break left in source",
     ),
 ];
-const C_RULES: &[RuleDef] = &[(
-    "unsafe-call",
-    "medium",
-    r"(?:^|[^.\w>])(?:gets|strcpy|strcat|sprintf|vsprintf)\s*\(",
-    None,
-    "Unbounded string function; use a length-checked variant",
-)];
 const MOBILE_RULES: &[RuleDef] = &[
     (
         "force-try",
@@ -402,52 +363,15 @@ const MOBILE_RULES: &[RuleDef] = &[
         "Debug logging left in source",
     ),
 ];
-const PHP_RULES: &[RuleDef] = &[
-    EMPTY_CATCH,
-    EMPTY_CATCH_MULTILINE,
-    (
-        "debug-leftover",
-        "low",
-        r"(?:^|[^.\w>:$])(?:var_dump|print_r|dd)\s*\(",
-        None,
-        "Debug dump left in source",
-    ),
-    (
-        "dynamic-eval",
-        "medium",
-        r"(?:^|[^.\w>:$])eval\s*\(",
-        None,
-        "eval executes dynamic code",
-    ),
-];
-const RUBY_RULES: &[RuleDef] = &[
-    (
-        "debug-leftover",
-        "low",
-        r"\bbinding\.(?:pry|irb)\b",
-        None,
-        "Interactive debugger left in Ruby source",
-    ),
-    (
-        "error-swallowed",
-        "medium",
-        r"^\s*rescue(?:\s+[\w:]+)?\s*$",
-        Some("end"),
-        "Empty rescue block swallows the error",
-    ),
-];
 
 fn rule_defs(provider_id: &str) -> &'static [RuleDef] {
     match provider_id {
         "code.rust" => RUST_RULES,
         "code.javascript" => JS_RULES,
         "code.python" => PYTHON_RULES,
-        "code.go" => GO_RULES,
         "code.jvm" => JVM_RULES,
         "code.dotnet" => DOTNET_RULES,
-        "code.c-family" => C_RULES,
         "code.mobile" => MOBILE_RULES,
-        "code.php-ruby" => PHP_RULES,
         _ => &[],
     }
 }
@@ -476,10 +400,6 @@ fn compile_rule(
             message,
         })
         .map_err(|error| AuditError::Provider(format!("invalid code rule {id}: {error}")))
-}
-
-fn ruby_rules() -> Result<Vec<Rule>, AuditError> {
-    RUBY_RULES.iter().map(compile_rule).collect()
 }
 
 fn is_comment_line(trimmed: &str) -> bool {
@@ -792,11 +712,7 @@ fn manifest_dirs(entries: &[InventoryEntry], keep: impl Fn(&str) -> bool) -> Opt
     (!dirs.is_empty()).then(|| json!(dirs))
 }
 
-fn derive_context(
-    entries: &[InventoryEntry],
-    required: &[&str],
-    build_tags: Option<BTreeSet<String>>,
-) -> Map<String, Value> {
+fn derive_context(entries: &[InventoryEntry], required: &[&str]) -> Map<String, Value> {
     let mut context = Map::new();
     for key in required {
         let value = match *key {
@@ -825,10 +741,7 @@ fn derive_context(
             "platform" => manifest_paths(entries, |name| {
                 name == "Package.swift" || name == "project.pbxproj"
             }),
-            "compileDatabase" => manifest_paths(entries, |name| name == "compile_commands.json"),
             "features" | "targets" => manifest_paths(entries, |name| name == "Cargo.toml"),
-            "modules" => manifest_paths(entries, |name| name == "go.mod"),
-            "buildTags" => build_tags.as_ref().map(|tags| json!(tags)),
             _ => None,
         };
         if let Some(value) = value {
@@ -849,25 +762,14 @@ fn tool_candidates(provider_id: &str, tool: &str) -> &'static [&'static str] {
         ("code.python", "type") => &["mypy", "pyright"],
         ("code.python", "test") => &["pytest"],
         ("code.python", _) => &["python3", "python"],
-        ("code.go", "vulnerability") => &["govulncheck"],
-        ("code.go", _) => &["go"],
         ("code.jvm", "wrapper") => &["gradlew", "mvnw"],
         ("code.jvm", "compile") => &["javac", "kotlinc"],
         ("code.jvm", "lint") => &["ktlint", "checkstyle"],
         ("code.jvm", _) => &["gradle", "mvn"],
         ("code.dotnet", _) => &["dotnet"],
-        ("code.c-family", "compiler" | "sanitizer") => &["clang", "gcc", "cc"],
-        ("code.c-family", "lint") => &["clang-tidy"],
-        ("code.c-family", "analyzer") => &["clang-tidy", "cppcheck"],
-        ("code.c-family", _) => &["ctest"],
         ("code.mobile", "compiler") => &["swiftc", "swift", "clang", "xcodebuild"],
         ("code.mobile", "analyzer") => &["clang", "swiftlint", "xcodebuild"],
         ("code.mobile", _) => &["xcodebuild", "swift"],
-        ("code.php-ruby", "package" | "security") => &["composer"],
-        ("code.php-ruby", "lint") => &["php"],
-        ("code.php-ruby", "ruby-lint") => &["rubocop"],
-        ("code.php-ruby", "type") => &["phpstan", "psalm"],
-        ("code.php-ruby", _) => &["phpunit"],
         _ => &[],
     }
 }
@@ -936,11 +838,6 @@ pub fn produce(
 ) -> Result<Produced, AuditError> {
     let selected = select_entries(config, entries);
     let rules = compile_rules(provider_id)?;
-    let ruby = if provider_id == "code.php-ruby" {
-        ruby_rules()?
-    } else {
-        Vec::new()
-    };
     let debt = Regex::new(r"\b(?:TODO|FIXME|HACK|XXX)\b")
         .map_err(|error| AuditError::Provider(format!("invalid debt rule: {error}")))?;
     let long_tail = provider_id == "code.long-tail";
@@ -956,7 +853,6 @@ pub fn produce(
     let mut examined = 0u64;
     let mut bytes_read = 0u64;
     let mut lines_read = 0u64;
-    let mut build_tags: BTreeSet<String> = BTreeSet::new();
     let mut source_accounting = Vec::new();
     let mut unsafe_candidates = Vec::new();
     let mut rust_variant_gaps = Vec::new();
@@ -977,17 +873,6 @@ pub fn produce(
                 examined += 1;
                 bytes_read += text.len() as u64;
                 lines_read += text.lines().count() as u64;
-                if config.id == "go" {
-                    for line in text.lines() {
-                        let trimmed = line.trim();
-                        if let Some(tag) = trimmed
-                            .strip_prefix("//go:build ")
-                            .or_else(|| trimmed.strip_prefix("// +build "))
-                        {
-                            build_tags.insert(tag.trim().to_string());
-                        }
-                    }
-                }
                 if config.id == "rust" {
                     // Conservative inventory only: comments/strings may match too. No
                     // compiler or keyword inventory establishes unsafe soundness.
@@ -1002,13 +887,7 @@ pub fn produce(
                         }
                     }
                 }
-                let active_rules =
-                    if provider_id == "code.php-ruby" && extension_of(&entry.path) == "rb" {
-                        &ruby
-                    } else {
-                        &rules
-                    };
-                let sig = scan_text(&entry.path, &text, active_rules, &debt, &mut findings);
+                let sig = scan_text(&entry.path, &text, &rules, &debt, &mut findings);
                 duplicates.scan(&entry.path, &sig, &mut findings);
                 source_accounting.push(json!({
                     "path": entry.path, "extension": extension_of(&entry.path),
@@ -1041,12 +920,7 @@ pub fn produce(
     let mut verified_context = Vec::new();
     if matches!(
         provider_id,
-        "code.c-family"
-            | "code.go"
-            | "code.javascript"
-            | "code.python"
-            | "code.rust"
-            | "code.dotnet"
+        "code.javascript" | "code.python" | "code.rust" | "code.dotnet"
     ) {
         if provider_id == "code.python" {
             // setup.py already belongs to Python source coverage. Reuse only
@@ -1065,7 +939,6 @@ pub fn produce(
             );
         }
         for entry in entries.iter().filter(|entry| match provider_id {
-            "code.go" => matches!(file_name(&entry.path), "go.mod" | "go.sum"),
             "code.dotnet" => {
                 let name = file_name(&entry.path);
                 matches!(
@@ -1075,7 +948,6 @@ pub fn produce(
                     .iter()
                     .any(|extension| name.ends_with(extension))
             }
-            "code.c-family" => entry.path == "CMakeLists.txt",
             "code.javascript" => matches!(
                 file_name(&entry.path),
                 "package.json" | "tsconfig.json" | "tsconfig.build.json" | "pnpm-lock.yaml"
@@ -1135,8 +1007,8 @@ pub fn produce(
                     }
                     context_accounting.push(json!({
                         "path": entry.path, "status": "examined",
-                        "analysis": if provider_id == "code.dotnet" { "dotnet-sdk-frozen-context" } else if provider_id == "code.c-family" { "cmake-project-context" } else if provider_id == "code.python" { "package-root-context" } else if provider_id == "code.javascript" { "javascript-project-context" } else { match file_name(&entry.path) {
-                            "go.mod" | "Cargo.toml" => "module-context",
+                        "analysis": if provider_id == "code.dotnet" { "dotnet-sdk-frozen-context" } else if provider_id == "code.python" { "package-root-context" } else if provider_id == "code.javascript" { "javascript-project-context" } else { match file_name(&entry.path) {
+                            "Cargo.toml" => "module-context",
                             "rust-toolchain.toml" | "rust-toolchain" => "toolchain-context",
                             _ => "dependency-lock-context",
                         } },
@@ -1195,16 +1067,9 @@ pub fn produce(
     let findings_truncated = findings.len().saturating_sub(limits.max_findings);
     findings.truncate(limits.max_findings);
 
-    // Go build tags are only a complete fact when every Go file was read.
-    let tags = (examined as usize == selected.len()).then_some(build_tags);
     let context_entries = if matches!(
         provider_id,
-        "code.rust"
-            | "code.c-family"
-            | "code.go"
-            | "code.javascript"
-            | "code.python"
-            | "code.dotnet"
+        "code.rust" | "code.javascript" | "code.python" | "code.dotnet"
     ) {
         verified_context.as_slice()
     } else {
@@ -1213,11 +1078,10 @@ pub fn produce(
     let context = if provider_id == "code.jvm" {
         Map::new() // Resolved sourceSets require native JVM dependency evidence.
     } else {
-        derive_context(context_entries, config.required_context, tags)
+        derive_context(context_entries, config.required_context)
     };
 
     let mut rule_ids = rules.iter().map(|rule| rule.id).collect::<Vec<_>>();
-    rule_ids.extend(ruby.iter().map(|rule| rule.id));
     rule_ids.extend(["debt-marker", "oversized-file"]);
     rule_ids.push("duplicate-block");
     rule_ids.sort_unstable();
@@ -1255,13 +1119,7 @@ pub fn produce(
     });
     if matches!(
         provider_id,
-        "code.rust"
-            | "code.c-family"
-            | "code.go"
-            | "code.javascript"
-            | "code.python"
-            | "code.jvm"
-            | "code.dotnet"
+        "code.rust" | "code.javascript" | "code.python" | "code.jvm" | "code.dotnet"
     ) {
         input["contextAccounting"] = json!(context_accounting);
     }
@@ -1382,36 +1240,17 @@ mod historical_source_tests {
         assert_eq!(made.input["sourceAccounting"][0]["status"], "skipped");
         assert_eq!(long_tail::analyze(&made.input)["complete"], false);
     }
-
-    #[test]
-    fn ruby_has_its_own_static_rules() {
-        let rules = ruby_rules().unwrap();
-        let mut findings = Vec::new();
-        scan_text(
-            "app.rb",
-            "binding.pry\nbegin\nrescue\nend\n",
-            &rules,
-            &Regex::new("TODO").unwrap(),
-            &mut findings,
-        );
-        assert!(findings
-            .iter()
-            .any(|finding| finding.rule == "debug-leftover"));
-        assert!(findings
-            .iter()
-            .any(|finding| finding.rule == "error-swallowed"));
-    }
 }
 
 #[cfg(test)]
-mod go_context_tests {
+mod python_context_tests {
     use super::*;
 
     struct Fixture(PathBuf);
     impl Fixture {
         fn new() -> Self {
             let root = std::env::temp_dir().join(format!(
-                "go-context-{}-{}",
+                "python-context-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -1428,15 +1267,12 @@ mod go_context_tests {
                 symbols: Vec::new(),
                 dependencies: Vec::new(),
                 package_scripts: Vec::new(),
-                source_file: path.ends_with(".go"),
+                source_file: path.ends_with(".py"),
                 digest: Some(format!(
                     "sha256:{}",
                     hex::encode(Sha256::digest(text.as_bytes()))
                 )),
             }
-        }
-        fn produce(&self, entries: &[InventoryEntry], limits: &EvidenceLimits) -> Produced {
-            produce("code.go", &go::CONFIG, Some(&self.0), entries, limits).unwrap()
         }
     }
     impl Drop for Fixture {
@@ -1486,148 +1322,6 @@ mod go_context_tests {
         assert_eq!(
             missing.input["contextAccounting"][0]["reason"],
             "context-inventory-digest-missing"
-        );
-    }
-
-    #[test]
-    fn go_context_reads_preserve_source_facts_and_leave_unrelated_denominator_unexamined() {
-        let fixture = Fixture::new();
-        let source = "package sample\n";
-        let module = "module example.invalid/sample\n\ngo 1.26\n";
-        let entries = [
-            fixture.file("go.mod", module),
-            fixture.file("main.go", source),
-            fixture.file("main_test.go", source),
-            fixture.file("README.md", "unrelated\n"),
-            fixture.file(
-                "go.sum",
-                "example.invalid/dependency v1.0.0 h1:opaque-fixture-digest\n",
-            ),
-            fixture.file("go.work", "go 1.26\n\nuse .\n"),
-            fixture.file("go.work.sum", "unsupported workspace lock fixture\n"),
-        ];
-        let made = fixture.produce(&entries, &EvidenceLimits::default());
-        assert_eq!((made.expected, made.examined), (2, 2));
-        assert_eq!((made.context_expected, made.context_examined), (2, 2));
-        let context_bytes =
-            module.len() as u64 + std::fs::metadata(fixture.0.join("go.sum")).unwrap().len();
-        assert_eq!(made.context_bytes_read, context_bytes);
-        assert_eq!(made.bytes_read, 2 * source.len() as u64 + context_bytes);
-        assert_eq!(made.input["facts"][0]["filesRead"], 2);
-        assert_eq!(made.input["facts"][0]["bytesRead"], 2 * source.len());
-        assert_eq!(made.input["sourceAccounting"].as_array().unwrap().len(), 2);
-        assert_eq!(made.input["contextAccounting"].as_array().unwrap().len(), 2);
-        assert_eq!(
-            made.input["contextAccounting"][0]["digest"],
-            entries[0].digest.as_ref().unwrap().as_str()
-        );
-        assert_eq!(made.input["context"]["modules"], json!(["go.mod"]));
-        assert_eq!(made.input["context"]["buildTags"], json!([]));
-        assert_eq!(
-            made.input["contextAccounting"][0]["analysis"],
-            "module-context"
-        );
-        assert_eq!(
-            made.input["contextAccounting"][1]["analysis"],
-            "dependency-lock-context"
-        );
-        assert!(made.input["contextAccounting"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|item| {
-                !matches!(
-                    item["path"].as_str(),
-                    Some("go.work" | "go.work.sum" | "README.md")
-                )
-            }));
-        assert!(made.skips.is_empty());
-        assert!(made.expected + made.context_expected < entries.len() as u64);
-    }
-
-    #[test]
-    fn go_context_only_read_is_never_language_source_or_a_tool_pass() {
-        let fixture = Fixture::new();
-        let entries = [fixture.file("go.mod", "module example.invalid/sample\n")];
-        let made = fixture.produce(&entries, &EvidenceLimits::default());
-        assert_eq!((made.expected, made.examined), (0, 0));
-        assert_eq!((made.context_expected, made.context_examined), (1, 1));
-        assert_eq!(made.input["facts"][0]["filesRead"], 0);
-        assert_eq!(made.input["facts"][0]["bytesRead"], 0);
-        assert!(made.input["files"].as_array().unwrap().is_empty());
-        assert!(made.findings.is_empty());
-        assert!(made
-            .tool_discovery
-            .iter()
-            .all(|item| item["executed"] == false));
-    }
-
-    #[test]
-    fn changed_missing_unreadable_unbound_and_capped_context_never_receive_credit() {
-        for path in ["go.mod", "go.sum"] {
-            for (control, reason) in [
-                ("changed", "changed-since-inventory"),
-                ("missing", "missing"),
-                ("unreadable", "unreadable"),
-                ("unbound", "context-inventory-digest-missing"),
-                ("file-cap", "file-size-cap"),
-                ("total-cap", "total-size-cap"),
-            ] {
-                let fixture = Fixture::new();
-                let text = "module example.invalid/sample\n";
-                let mut entry = fixture.file(path, text);
-                let mut limits = EvidenceLimits::default();
-                match control {
-                    "changed" => {
-                        std::fs::write(fixture.0.join(path), "module changed.invalid/sample\n")
-                            .unwrap()
-                    }
-                    "missing" => std::fs::remove_file(fixture.0.join(path)).unwrap(),
-                    "unreadable" => {
-                        std::fs::remove_file(fixture.0.join(path)).unwrap();
-                        std::fs::create_dir(fixture.0.join(path)).unwrap();
-                    }
-                    "unbound" => entry.digest = None,
-                    "file-cap" => limits.max_file_bytes = text.len() as u64 - 1,
-                    "total-cap" => limits.max_total_bytes = text.len() as u64 - 1,
-                    _ => unreachable!(),
-                }
-                let made = fixture.produce(&[entry], &limits);
-                assert_eq!((made.expected, made.examined), (0, 0), "{control}");
-                assert_eq!(
-                    (made.context_expected, made.context_examined),
-                    (1, 0),
-                    "{control}"
-                );
-                assert_eq!(made.context_bytes_read, 0, "{control}");
-                assert!(made.input["context"].get("modules").is_none(), "{control}");
-                assert_eq!(
-                    made.input["contextAccounting"][0]["reason"], reason,
-                    "{control}"
-                );
-                assert_eq!(made.skips, vec![format!("{reason}:{path}")], "{control}");
-            }
-        }
-    }
-
-    #[test]
-    fn go_context_and_source_share_total_byte_budget() {
-        let fixture = Fixture::new();
-        let source = "package sample\n";
-        let module = "module example.invalid/sample\n";
-        let entries = [
-            fixture.file("main.go", source),
-            fixture.file("go.mod", module),
-        ];
-        let mut limits = EvidenceLimits::default();
-        limits.max_total_bytes = (source.len() + module.len() - 1) as u64;
-        let made = fixture.produce(&entries, &limits);
-        assert_eq!((made.expected, made.examined), (1, 1));
-        assert_eq!((made.context_expected, made.context_examined), (1, 0));
-        assert_eq!(made.bytes_read, source.len() as u64);
-        assert_eq!(
-            made.input["contextAccounting"][0]["reason"],
-            "total-size-cap"
         );
     }
 }

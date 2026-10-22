@@ -101,10 +101,8 @@ fn directives(text: &str) -> Vec<Directive> {
             "squawk",
             r"(?i)\bsquawk-ignore(?:-start)?\b\s*:?\s*([a-z0-9_, -]*)",
         ),
-        ("golangci-lint", r"(?i)\bnolint\b\s*:?\s*([a-z0-9_, -]*)"),
         ("zizmor", r"(?i)\bzizmor\s*:\s*ignore\[([^\]]*)\]"),
         ("checkov", r"(?i)\bcheckov\s*:\s*skip\s*=\s*([a-z0-9_]+)"),
-        ("tflint", r"(?i)\btflint-ignore\b\s*:?\s*([a-z0-9_, -]*)"),
         ("gitleaks", r"(?i)\bgitleaks\s*:\s*allow\b([a-z0-9_]*)"),
     ];
     let patterns: Vec<_> = patterns
@@ -137,19 +135,6 @@ fn directives(text: &str) -> Vec<Directive> {
             }
         }
     }
-    // Kubernetes suppressions are mapping keys, not comments. Retain per-check
-    // suffix so ignoring one check is distinct from blanket ignore-all.
-    let annotations=Regex::new(r#"(?:ignore-check\.kube-linter\.io/|ignore\.kube-linter\.io/)([A-Za-z0-9_-]+)["']?\s*:\s*(?:['"]?)([^\r\n]*)"#).expect("fixed annotation regex");
-    for (index, line) in text.lines().enumerate() {
-        if let Some(found) = annotations.captures(line) {
-            directives.push(Directive {
-                tool: "kube-linter".into(),
-                rules: vec![found[1].to_owned()],
-                context: digest(found[2].trim().as_bytes()),
-                line: index + 1,
-            });
-        }
-    }
     directives
 }
 
@@ -163,16 +148,6 @@ fn config_tool(path: &str) -> Option<&'static str> {
         Some("zizmor")
     } else if name.contains("squawk") {
         Some("squawk")
-    } else if name.contains("tflint") {
-        Some("tflint")
-    } else if name.contains("kube-linter") {
-        Some("kube-linter")
-    } else if name.contains("golangci") {
-        Some("golangci-lint")
-    } else if name.contains("brakeman") {
-        Some("brakeman")
-    } else if name.contains("rubocop") {
-        Some("rubocop")
     } else if name.contains("ruff") {
         Some("ruff")
     } else if name.contains("bandit") {
@@ -219,7 +194,7 @@ fn manifest_policy(path: &str, text: &str) -> Option<(String, Value)> {
 
 fn suppression_domain(tool: &str, rule: &str) -> &'static str {
     match tool {
-        "gitleaks" | "bandit" | "brakeman" => "security",
+        "gitleaks" | "bandit" => "security",
         "ruff"
             if rule.starts_with('S')
                 && rule[1..].chars().all(|c| c.is_ascii_digit())
@@ -505,7 +480,5 @@ mod tests {
         assert_eq!(suppression_domain("shellcheck", "SC2086"), "reliability");
         assert_eq!(suppression_domain("squawk", "ban-drop-column"), "data");
         assert_eq!(suppression_domain("python-sql-lint", "*"), "unknown");
-        assert_eq!(suppression_domain("golangci-lint", "gosec"), "security");
-        assert_eq!(suppression_domain("golangci-lint", "govet"), "reliability");
     }
 }

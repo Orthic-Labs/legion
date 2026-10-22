@@ -32,16 +32,9 @@
     "zsh"
   ],
   "claimedExtensions": [
-    "c",
-    "cc",
-    "cpp",
-    "cxx",
-    "h",
-    "hpp",
     "cs",
     "fs",
     "vb",
-    "go",
     "js",
     "jsx",
     "ts",
@@ -57,8 +50,6 @@
     "swift",
     "m",
     "mm",
-    "php",
-    "rb",
     "py",
     "rs"
   ],
@@ -530,6 +521,7 @@
         "historical.bash",
         "historical.bat",
         "historical.css",
+        "historical.cxx",
         "historical.dart",
         "historical.erl",
         "historical.ex",
@@ -542,6 +534,7 @@
         "historical.nsi",
         "historical.ps1",
         "historical.psm1",
+        "historical.rb",
         "historical.sh",
         "historical.sql",
         "historical.svelte",
@@ -571,6 +564,12 @@
         {
           "ruleId": "debt-marker",
           "path": "historical.css",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
+          "path": "historical.cxx",
           "line": 1,
           "message": "TODO marker left in source"
         },
@@ -648,6 +647,12 @@
         },
         {
           "ruleId": "debt-marker",
+          "path": "historical.rb",
+          "line": 1,
+          "message": "TODO marker left in source"
+        },
+        {
+          "ruleId": "debt-marker",
           "path": "historical.sh",
           "line": 1,
           "message": "TODO marker left in source"
@@ -685,7 +690,7 @@
       ],
       "expectedSkips": {},
       "extraGaps": [
-        "code.long-tail:selection-narrower-than-denominator:22of29"
+        "code.long-tail:selection-narrower-than-denominator:24of29"
       ],
       "limits": {},
       "mutation": "none",
@@ -745,36 +750,6 @@
       "caseId": "selection-owned-elsewhere",
       "files": [
         {
-          "path": "owned.c",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.cc",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.cpp",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.cxx",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.h",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.hpp",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
           "path": "owned.cs",
           "sourceFile": true,
           "text": "// TODO owned\n"
@@ -786,11 +761,6 @@
         },
         {
           "path": "owned.vb",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.go",
           "sourceFile": true,
           "text": "// TODO owned\n"
         },
@@ -866,16 +836,6 @@
         },
         {
           "path": "owned.mm",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.php",
-          "sourceFile": true,
-          "text": "// TODO owned\n"
-        },
-        {
-          "path": "owned.rb",
           "sourceFile": true,
           "text": "// TODO owned\n"
         },

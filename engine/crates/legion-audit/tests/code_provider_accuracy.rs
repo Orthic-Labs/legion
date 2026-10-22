@@ -18,15 +18,12 @@ use std::{
 };
 
 const KEY: &[u8] = b"code-provider-accuracy-fixture-key";
-const PROVIDER_IDS: [&str; 10] = [
-    "code.c-family",
+const PROVIDER_IDS: [&str; 7] = [
     "code.dotnet",
-    "code.go",
     "code.javascript",
     "code.jvm",
     "code.long-tail",
     "code.mobile",
-    "code.php-ruby",
     "code.python",
     "code.rust",
 ];
@@ -44,16 +41,7 @@ struct Control {
     clean_source: &'static str,
 }
 
-const CONTROLS: [Control; 10] = [
-    Control {
-        provider: "code.c-family",
-        positive_path: "src/copy.c",
-        positive_source:
-            "int copy(char *dst, const char *src) {\n    strcpy(dst, src);\n    return 0;\n}\n",
-        expected: &["unsafe-call@src/copy.c:2"],
-        clean_path: "src/copy.c",
-        clean_source: "int copy(char *dst, const char *src) {\n    return 0;\n}\n",
-    },
+const CONTROLS: [Control; 7] = [
     Control {
         provider: "code.dotnet",
         positive_path: "src/Worker.cs",
@@ -61,15 +49,6 @@ const CONTROLS: [Control; 10] = [
         expected: &["empty-catch@src/Worker.cs:2"],
         clean_path: "src/Worker.cs",
         clean_source: "class Worker {\n    void Run() { Work(); }\n}\n",
-    },
-    Control {
-        provider: "code.go",
-        positive_path: "src/worker.go",
-        positive_source: "package worker\nfunc run() {\n    _ = work()\n}\n",
-        expected: &["ignored-error@src/worker.go:3"],
-        clean_path: "src/worker.go",
-        clean_source:
-            "package worker\nfunc run() {\n    if err := work(); err != nil { return }\n}\n",
     },
     Control {
         provider: "code.javascript",
@@ -103,14 +82,6 @@ const CONTROLS: [Control; 10] = [
         expected: &["debug-leftover@Sources/Worker.swift:3"],
         clean_path: "Sources/Worker.swift",
         clean_source: "import Foundation\nfunc run() {\n    work()\n}\n",
-    },
-    Control {
-        provider: "code.php-ruby",
-        positive_path: "src/worker.php",
-        positive_source: "<?php\nfunction run() {\n    var_dump($value);\n}\n",
-        expected: &["debug-leftover@src/worker.php:3"],
-        clean_path: "src/worker.php",
-        clean_source: "<?php\nfunction run() {\n    return true;\n}\n",
     },
     Control {
         provider: "code.python",

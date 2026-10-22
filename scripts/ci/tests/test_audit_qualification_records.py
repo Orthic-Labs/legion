@@ -14,133 +14,6 @@ from unittest.mock import patch
 
 SOURCE_ROOT = Path(__file__).resolve().parents[3]
 gate = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/audit-qualification-records.py"))
-govuln = runpy.run_path(str(SOURCE_ROOT / "scripts/ci/audit-govulncheck-bootstrap.py"))
-
-
-class GovulncheckDownloadFailureTests(unittest.TestCase):
-    def test_rejected_bounded_response_is_retained_and_never_accounted_as_download(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-download-unit-") as temp:
-            root = Path(temp)
-            failure_root = root / "uploaded" / "downloads" / "govulncheck-failure-evidence"
-            expected = b"abc"
-            row = {"url": "https://proxy.golang.org/unit/@v/1.zip", "bytes": len(expected),
-                   "sha256": "0" * 64}
-            rejected = expected + b"x"
-            with self.assertRaisesRegex(ValueError, "retained bounded response evidence"):
-                govuln["account_download_response"](row, rejected, 0, failure_root)
-            key = govuln["digest"](row["url"].encode()).removeprefix("sha256:")
-            raw = failure_root / (key + ".response.bin")
-            metadata = json.loads((failure_root / (key + ".json")).read_text())
-            self.assertEqual(raw.read_bytes(), rejected)
-            self.assertEqual(metadata["url"], row["url"])
-            self.assertEqual(metadata["expectedBytes"], len(expected))
-            self.assertEqual(metadata["expectedDigest"], "sha256:" + row["sha256"])
-            self.assertEqual(metadata["observedBytes"], len(rejected))
-            self.assertEqual(metadata["observedDigest"], govuln["digest"](rejected))
-            self.assertTrue(metadata["responseMayBeTruncated"])
-            self.assertFalse((root / "downloads").exists())
-
-    def test_exact_size_hash_rejection_records_complete_bounded_response(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-download-unit-") as temp:
-            root = Path(temp)
-            data = b"abc"
-            row = {"url": "https://vuln.go.dev/unit.zip", "bytes": len(data), "sha256": "f" * 64}
-            failure_root = root / "uploaded"
-            with self.assertRaisesRegex(ValueError, "hash-mismatch"):
-                govuln["account_download_response"](row, data, 0, failure_root)
-            key = govuln["digest"](row["url"].encode()).removeprefix("sha256:")
-            metadata = json.loads((failure_root / (key + ".json")).read_text())
-            self.assertEqual(metadata["observedBytes"], row["bytes"])
-            self.assertFalse(metadata["responseMayBeTruncated"])
-
-
-class GovulncheckOfflineProxyTests(unittest.TestCase):
-    def proxy_row(self, proxy, module, version, extension, data):
-        path = proxy / module / "@v" / (version + "." + extension)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        return {"module": module, "version": version, "extension": extension,
-                "bytes": len(data), "sha256": govuln["digest"](data).removeprefix("sha256:")}
-
-    def test_historical_graph_leaf_gets_exact_version_metadata_without_source_archive(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
-            proxy = Path(temp)
-            version = "v0.0.0-20180917221912-90fa682c2a6e"
-            source = b"module golang.org/x/tools\n"
-            row = self.proxy_row(proxy, "golang.org/x/tools", version, "mod", source)
-            locked = json.loads((SOURCE_ROOT / "scripts/ci/audit-govulncheck-inputs.json").read_text())
-            official = next(item for item in locked["moduleProxy"] if item["module"] == row["module"]
-                            and item["version"] == version and item["extension"] == "mod")
-            self.assertEqual((row["bytes"], row["sha256"]), (official["bytes"], official["sha256"]))
-            govuln["complete_module_proxy"](proxy, [row])
-            directory = proxy / row["module"] / "@v"
-            self.assertEqual(json.loads((directory / (version + ".info")).read_bytes()), {"Version": version})
-            self.assertEqual((directory / (version + ".mod")).read_bytes(), source)
-            self.assertEqual((directory / "list").read_text(), version + "\n")
-            self.assertEqual({path.name for path in directory.iterdir()}, {version + ".mod", version + ".info", "list"})
-            self.assertFalse((proxy / row["module"] / "@latest").exists())
-
-    def test_downloaded_info_is_preserved_and_changed_go_mod_is_rejected_before_derivation(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
-            proxy = Path(temp)
-            module, version = "example.org/pinned", "v1.2.3"
-            official = b'{"Version":"v1.2.3","Time":"2020-01-02T03:04:05Z"}\n'
-            rows = [self.proxy_row(proxy, module, version, "mod", b"module example.org/pinned\n"),
-                    self.proxy_row(proxy, module, version, "info", official)]
-            govuln["complete_module_proxy"](proxy, rows)
-            directory = proxy / module / "@v"
-            self.assertEqual((directory / (version + ".info")).read_bytes(), official)
-            (directory / (version + ".mod")).write_bytes(b"module example.org/tampered\n")
-            with self.assertRaisesRegex(ValueError, "source changed"):
-                govuln["complete_module_proxy"](proxy, rows)
-
-    def test_metadata_cannot_be_derived_without_authenticated_module_or_from_unpinned_file(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-proxy-unit-") as temp:
-            proxy = Path(temp)
-            row = self.proxy_row(proxy, "example.org/pinned", "v1.0.0", "info", b'{"Version":"v1.0.0"}')
-            self.proxy_row(proxy, "example.org/unpinned", "v99.0.0", "mod", b"module example.org/unpinned\n")
-            with self.assertRaisesRegex(ValueError, "missing authenticated go.mod"):
-                govuln["complete_module_proxy"](proxy, [row])
-            self.assertFalse((proxy / "example.org/unpinned/@v/v99.0.0.info").exists())
-
-    def test_isolated_graph_preparation_populates_sums_before_readonly_recheck(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-graph-unit-") as temp:
-            prepare = Path(temp) / "prepare"
-            go = Path(temp) / "pinned-go/bin/go"
-            control = {"module": "golang.org/x/text", "version": "v0.3.6", "sum": "h1:source", "goModSum": "h1:module"}
-            commands = []
-            graph_sum = "golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:graph\n"
-
-            def retained_run(argv, cwd):
-                self.assertEqual(cwd, prepare)
-                self.assertEqual(argv[0], str(go))
-                commands.append(argv[1:])
-                if argv[1:3] == ["mod", "download"]:
-                    self.assertIn("require golang.org/x/text v0.3.6", (cwd / "go.mod").read_text())
-                    return {"stdout": json.dumps({"Sum": control["sum"], "GoModSum": control["goModSum"]})}
-                if "-mod=mod" in argv:
-                    with (cwd / "go.sum").open("a") as target:
-                        target.write(graph_sum)
-                else:
-                    self.assertIn(graph_sum, (cwd / "go.sum").read_text())
-                return {"stdout": ""}
-
-            govuln["prepare_module_cache"](go, prepare, control, retained_run)
-            self.assertEqual(commands, [["mod", "download", "-json", "golang.org/x/text@v0.3.6"],
-                                        ["list", "-mod=mod", "-m", "all"], ["list", "-m", "all"]])
-
-    def test_checksum_mismatch_stops_before_graph_preparation(self):
-        with tempfile.TemporaryDirectory(prefix="govulncheck-graph-unit-") as temp:
-            calls = []
-
-            def retained_run(argv, cwd):
-                calls.append(argv)
-                return {"stdout": json.dumps({"Sum": "h1:changed", "GoModSum": "h1:module"})}
-
-            with self.assertRaisesRegex(ValueError, "download checksum mismatch"):
-                govuln["prepare_module_cache"](Path(temp) / "go", Path(temp) / "prepare",
-                    {"module": "example.org/pinned", "version": "v1.0.0", "sum": "h1:source", "goModSum": "h1:module"}, retained_run)
-            self.assertEqual(len(calls), 1)
 
 
 class RegistrationGateTests(unittest.TestCase):
@@ -637,7 +510,7 @@ class RegistrationGateTests(unittest.TestCase):
                         function(self.root)
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 39)
+        self.assertEqual(len(gate["ADAPTERS"]), 34)
 
     def test_javascript_sdk_adapter_retains_fixed_family_scope_and_contract(self):
         api = gate["helper"]("audit-javascript-sdk-accuracy.py")
@@ -705,7 +578,7 @@ class RegistrationGateTests(unittest.TestCase):
             api["validate_record"](SOURCE_ROOT, {"schema": "legion-javascript-sdk-accuracy/1", "kind": "javascript-sdk-known-answer", "provider": "code.javascript", "productionQualification": False, "qualificationEligible": False})
 
     def test_fixed_external_adapters_preserve_stage_and_encoding(self):
-        self.assertEqual(len(gate["ADAPTERS"]), 39)
+        self.assertEqual(len(gate["ADAPTERS"]), 34)
         for provider, (family, _, stage, mode, _) in gate["ADAPTERS"].items():
             entry = {"provider": provider, "family": family, "stage": stage}
             if provider == "compatibility.core":
@@ -1114,26 +987,6 @@ class RegistrationGateTests(unittest.TestCase):
                 with self.subTest(harness=harness, parts=parts), self.assertRaises(AssertionError):
                     observed(parts)
 
-    def test_grouped_tflint_requires_all_seven_named_tests_to_execute(self):
-        command = ["audit_tflint_qualification"]
-        names = gate["TFLINT_TESTS"]
-        path = self.root / "terminal-checker-unit.log"
-        begin = "AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps({"sequence": 1, "argv": command})
-        results = [f"test tests::{name} ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n" for name in names]
-        record = {"sha256": "sha256:" + "a" * 64}
-
-        def observed(parts):
-            path.write_text(begin + "\n" + "".join(parts) + "original checker unit\nAUDIT_QUALIFICATION_COMMAND_END 1 0\n")
-            evidence = len(path.read_text().splitlines()) - 1
-            return gate["terminal_checks"](path, {"command": {"harness": command}}, record, None, evidence, None)
-
-        self.assertEqual(len(observed(results)), 1)
-        for parts in (results[:-1], [text.replace("1 passed", "0 passed") for text in results],
-                      [text.replace("0 ignored", "1 ignored") for text in results],
-                      [text.replace(names[-1], "different_test") for text in results]):
-            with self.subTest(parts=parts), self.assertRaises(AssertionError):
-                observed(parts)
-
     def test_known_answer_adapter_is_fixed_to_existing_five_outcomes(self):
         for provider in gate["BENCH"]:
             entry = {"provider": provider, "family": "bench-known-answer", "stage": "outcome"}
@@ -1246,9 +1099,9 @@ class RegistrationGateTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             gate["adapter"](self.root, {"provider": "legacy.quality.test", "family": "harness-quality", "stage": "finding"})
 
-    def test_paired_harness_groups_cover_exact_eleven_providers(self):
+    def test_paired_harness_groups_cover_exact_eight_providers(self):
         providers = [provider for group in gate["PAIRED_HARNESS_GROUPS"].values() for provider in group]
-        self.assertEqual(len(providers), 11)
+        self.assertEqual(len(providers), 8)
         self.assertEqual(set(providers), set(gate["BENCH"]) | set(gate["HARNESS_CONTROLS"]) |
                          {"legacy.quality.build", "legacy.quality.lint"})
         self.assertEqual(len(providers), len(set(providers)))
@@ -1319,11 +1172,8 @@ class RegistrationGateTests(unittest.TestCase):
 
     def test_paired_harness_native_counts_remain_required_with_validator_span(self):
         commands = [(gate["BENCH_HARNESS"], ["bench_recall_qualification_receipt"]),
-                    (gate["QUALITY_HARNESS"], ["real_quality_command_accuracy"]),
-                    (["audit_tflint_qualification"], gate["TFLINT_TESTS"])]
+                    (gate["QUALITY_HARNESS"], ["real_quality_command_accuracy"])]
         for provider in gate["HARNESS_CONTROLS"]:
-            if provider == "security.scanner-tflint":
-                continue
             _, harness, _, _, selector = gate["ADAPTERS"][provider]
             commands.append((["audit_cargo_test", "--test", harness, selector, "--", "--ignored", "--nocapture", "--test-threads=1"], [selector]))
         path = self.root / "paired-terminal-checker.log"
@@ -1587,49 +1437,6 @@ class RegistrationGateTests(unittest.TestCase):
             api["executable"]("/escaped/../tool", identity, live=False)
         with self.assertRaises(AssertionError):
             api["executable"](path, "not-a-digest", live=False)
-
-    def test_code_sdk_snapshot_binds_exact_off_mode_and_genuine_request_home(self):
-        api = gate["helper"]("audit-code-sdk-accuracy.py")
-        scratch = api["absolute"]("/legion-checker-unit/cases/code-go-malformed")
-        suffix = api["digest"](b"").removeprefix("sha256:")
-        stage = scratch / "cache" / "govulncheck" / suffix
-        home = stage.parent / ("home-" + suffix)
-        mode = "Library/Application Support/go/telemetry/mode"
-        source_files = {"go.mod": api["digest"](b"module unit\n\ngo not-a-version\n")}
-        database = {"root": "/unit/database", "files": {"index/db.json": api["digest"](b"unit")}, "digest": "unit-db"}
-        cache = {"root": "/unit/module-cache", "files": {}, "digest": "unit-cache"}
-        snapshot = {"schema": "legion-govulncheck-input-snapshot/1", "sourceRoot": str(stage),
-                    "sourceFiles": source_files, "sourceDigest": api["digest"](api["encoded"](source_files)),
-                    "verifiedModules": {}, "telemetryHome": str(home), "telemetryFiles": {mode: api["digest"](b"off")}}
-        for label, value in (("database", database), ("moduleCache", cache)):
-            snapshot.update({label + key[0].upper() + key[1:]: item for key, item in value.items()})
-        case = {"control": "malformed", "fixtureFiles": {}, "fixtureSources": source_files,
-                "sdkExecutions": [{"request": {"taskId": "vulnerability", "environment": {"HOME": str(home)}}}]}
-        result = {"vulnerability": ({"state": "failed", "complete": False, "exitCode": 1}, "", "")}
-        def check(snap, actual_case=case, after=None):
-            receipts = [{"tool": "vulnerability", "nativeInputSnapshots": {"before": snap,
-                        "after": copy.deepcopy(snap) if after is None else after, "afterError": None, "unchanged": True}}]
-            api["validate_go_inputs"](actual_case, receipts, result, scratch, {"database": database, "moduleCache": cache})
-        check(snapshot)
-        for label, mutate in (
-            ("home", lambda snap: snap.update(telemetryHome="/different/home")),
-            ("mode", lambda snap: snap["telemetryFiles"].update({mode: api["digest"](b"on")})),
-            ("extra", lambda snap: snap["telemetryFiles"].update({"unexpected": api["digest"](b"extra")})),
-            ("missing", lambda snap: snap.pop("telemetryFiles")),
-        ):
-            with self.subTest(label=label):
-                changed = copy.deepcopy(snapshot)
-                mutate(changed)
-                with self.assertRaises(AssertionError):
-                    check(changed)
-        changed_case = copy.deepcopy(case)
-        changed_case["sdkExecutions"][0]["request"]["environment"]["HOME"] = "/different/sdk-home"
-        with self.assertRaises(AssertionError):
-            check(snapshot, actual_case=changed_case)
-        after = copy.deepcopy(snapshot)
-        after["telemetryFiles"][mode] = api["digest"](b"on")
-        with self.assertRaises(AssertionError):
-            check(snapshot, after=after)
 
     def test_source_closure_cannot_omit_validator(self):
         self.entry["sourceClosure"]["sources"].pop("scripts/ci/audit-provider-accuracy.py")

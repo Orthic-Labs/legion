@@ -1,15 +1,12 @@
 pub mod applicability;
-pub mod c_family;
 pub mod common;
 pub mod dotnet;
 pub mod evidence;
-pub mod go;
 pub mod javascript;
 pub mod jvm;
 mod jvm_sdk;
 pub mod long_tail;
 pub mod mobile;
-pub mod php_ruby;
 pub mod python;
 pub mod rust;
 pub mod tools;
@@ -106,7 +103,7 @@ impl ProviderExecutorAdapter {
     }
 
     /// Plan-bound async path: self-sourced providers additionally run their
-    /// verification tools through `tool` (see [`tools`]), including Go tests
+    /// verification tools through `tool` (see [`tools`]), including Rust tests
     /// when that exact request receives SDK policy admission. This adapter grants
     /// no admission; installed owner-admission denial remains unchanged. Scratch,
     /// caches and artifacts live in `scratch`, which must be the same
@@ -179,14 +176,11 @@ impl ProviderExecutorAdapter {
 
 fn analyze(provider_id: &str, input: &Value) -> Result<Value, AuditError> {
     Ok(match provider_id {
-        "code.c-family" => c_family::analyze(input),
         "code.dotnet" => dotnet::analyze(input),
-        "code.go" => go::analyze(input),
         "code.javascript" => javascript::analyze(input),
         "code.jvm" => jvm::analyze(input),
         "code.long-tail" => long_tail::analyze(input),
         "code.mobile" => mobile::analyze(input),
-        "code.php-ruby" => php_ruby::analyze(input),
         "code.python" => python::analyze(input),
         "code.rust" => rust::analyze(input),
         other => {
@@ -332,17 +326,6 @@ impl ProviderExecutorAdapter {
                                 "context".into(),
                                 Value::Object(tools.validated_context.clone()),
                             );
-                        }
-                        if provider.id == "code.c-family" {
-                            if let Some(database) = tools
-                                .tools
-                                .get("compiler")
-                                .and_then(|v| v.pointer("/scope/compileDatabase"))
-                                .filter(|v| v.is_object())
-                            {
-                                object.entry("context").or_insert_with(|| json!({}))
-                                    ["compileDatabase"] = database.clone();
-                            }
                         }
                     }
                     made.findings.extend(tools.findings.iter().cloned());

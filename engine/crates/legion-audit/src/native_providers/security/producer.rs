@@ -295,22 +295,14 @@ fn is_executable(path: &Path) -> bool {
 }
 
 /// Probe through authenticated wrapper's existing `-f profile -- tool` prefix,
-/// or directly when sandboxing was explicitly disabled. kube-linter exposes
-/// a version subcommand, and kubeconform exposes `-v`; both differ from the
-/// `--version` flag used by the other producer tools.
-fn tool_version_args(tool: &str, wrapped_args: Option<&[String]>) -> Vec<String> {
+/// or directly when sandboxing was explicitly disabled. Every producer tool
+/// reports its version through the `--version` flag.
+fn tool_version_args(wrapped_args: Option<&[String]>) -> Vec<String> {
     let mut args: Vec<String> = wrapped_args
         .into_iter()
         .flat_map(|args| args.iter().take(4).cloned())
         .collect();
-    args.push(
-        match tool {
-            "kube-linter" => "version",
-            "kubeconform" => "-v",
-            _ => "--version",
-        }
-        .into(),
-    );
+    args.push("--version".into());
     args
 }
 
@@ -533,29 +525,6 @@ impl<'a> Run<'a> {
         for (name, value) in extra_env {
             environment.insert((*name).to_owned(), value.clone());
         }
-        // The guard is kept across the SDK's version probe, target execution &
-        // child-tree reap. No inherited plugin socket/group override survives.
-        let mut ipc_namespace =
-            if tool == "tflint" && self.producer.sandbox == SandboxPolicy::Required {
-                let namespace = legion_effects::OwnedIpcNamespace::create(cwd)
-                    .map_err(|gap| format!("sandbox-missing:{primary}:{}", gap.as_str()))?;
-                for key in [
-                    "PLUGIN_UNIX_SOCKET_DIR",
-                    "PLUGIN_UNIX_SOCKET_GROUP",
-                    "PLUGIN_MIN_PORT",
-                    "PLUGIN_MAX_PORT",
-                ] {
-                    environment.remove(key);
-                }
-                // Pin last, after caller env merges. Go's CreateTemp uses TMPDIR.
-                environment.insert(
-                    "TMPDIR".into(),
-                    namespace.path().to_string_lossy().into_owned(),
-                );
-                Some(namespace)
-            } else {
-                None
-            };
         let allowlist: BTreeSet<String> = environment.keys().cloned().collect();
 
         let (launch_executable, launch_args, sandbox, version_args, requires_sandbox) = match self
@@ -564,29 +533,19 @@ impl<'a> Run<'a> {
         {
             SandboxPolicy::Disabled => (executable_text.clone(), args.clone(), None, None, false),
             SandboxPolicy::Required => {
-                let authenticated = if let Some(namespace) = ipc_namespace.as_ref() {
-                    legion_effects::authenticate_tflint_scoped(
-                        &executable_text,
-                        &args,
-                        &root_text,
-                        &self.scratch.path.join("sandbox"),
-                        namespace,
-                    )
-                } else {
-                    legion_effects::authenticate_sandbox(
-                        &executable_text,
-                        &args,
-                        &root_text,
-                        // Source scanners never need to write into their project.
-                        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
-                        &self.scratch.path.join("sandbox"),
-                    )
-                };
+                let authenticated = legion_effects::authenticate_sandbox(
+                    &executable_text,
+                    &args,
+                    &root_text,
+                    // Source scanners never need to write into their project.
+                    legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+                    &self.scratch.path.join("sandbox"),
+                );
                 match authenticated {
                     Ok(auth) => {
                         // Probe the real tool's version through the same
                         // wrapper prefix (`-f profile -- tool`).
-                        let probe = tool_version_args(&tool, Some(&auth.wrapped_args));
+                        let probe = tool_version_args(Some(&auth.wrapped_args));
                         (
                             auth.wrapped_executable,
                             auth.wrapped_args,
@@ -601,9 +560,6 @@ impl<'a> Run<'a> {
                     }
                     // No authenticator: leave the receipt absent so the
                     // executor refuses (typed degradation, never unsandboxed).
-                    Err(gap) if ipc_namespace.is_some() => {
-                        return Err(format!("sandbox-missing:{primary}:{}", gap.as_str()));
-                    }
                     Err(_) => (executable_text.clone(), args.clone(), None, None, true),
                 }
             }
@@ -655,31 +611,15 @@ impl<'a> Run<'a> {
             timeout_ms,
             stdout_limit: self.producer.output_limit,
             stderr_limit: self.producer.output_limit,
-            version_args: version_args.unwrap_or_else(|| tool_version_args(&tool, None)),
+            version_args: version_args.unwrap_or_else(|| tool_version_args(None)),
             ..ExternalToolRequest::default()
         };
         let receipt = self.execute(request)?;
-        // Preserve potentially live IPC even when diagnostic retention fails.
-        let ipc_cleanup_error = ipc_namespace.as_mut().and_then(|namespace| {
-            namespace
-                .retain_if_process_tree_unconfirmed(&receipt)
-                .then(|| {
-                    format!(
-                        "sandbox-ipc-cleanup-unconfirmed:{primary}:{}",
-                        namespace.path().display()
-                    )
-                })
-        });
-        if matches!(
-            tool.as_str(),
-            "brakeman" | "kube-linter" | "trivy" | "tflint" | "golangci-lint"
-        ) || self.provider.id == "security.opengrep"
+        if tool == "trivy"
+            || self.provider.id == "security.opengrep"
             || self.provider.id == "supply-chain.license-sbom-provenance"
         {
             self.retain_scanner_diagnostic(&receipt)?;
-        }
-        if let Some(error) = ipc_cleanup_error {
-            return Err(error);
         }
         if self.provider.id != "secrets.current-history" {
             match receipt.state {
@@ -2510,23 +2450,14 @@ mod tests {
     }
 
     #[test]
-    fn tool_version_probe_uses_tool_specific_args_in_both_routes() {
+    fn tool_version_probe_uses_the_version_flag_in_both_routes() {
         for (tool, expected) in [
-            ("kube-linter", "version"),
-            ("kubeconform", "-v"),
             ("squawk", "--version"),
             ("zizmor", "--version"),
             ("shellcheck", "--version"),
-            ("tflint", "--version"),
-            ("brakeman", "--version"),
-            ("golangci-lint", "--version"),
             ("semgrep", "--version"),
         ] {
-            assert_eq!(
-                tool_version_args(tool, None),
-                vec![expected.to_owned()],
-                "{tool}"
-            );
+            assert_eq!(tool_version_args(None), vec![expected.to_owned()], "{tool}");
             let wrapped = vec![
                 "-f".into(),
                 "profile".into(),
@@ -2536,7 +2467,7 @@ mod tests {
                 "--format=json".into(),
             ];
             assert_eq!(
-                tool_version_args(tool, Some(&wrapped)),
+                tool_version_args(Some(&wrapped)),
                 vec![
                     "-f".to_owned(),
                     "profile".into(),

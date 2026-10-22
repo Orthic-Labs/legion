@@ -57,11 +57,11 @@ Sources: [base registry](../../src/registry/providers.json),
 | Dependencies | npm/pnpm/package audit, pip-audit, cargo-audit, cargo-deny, cargo-geiger, package/cargo outdated, license-checker; vendored dependencies, dependency pins & binary-download pins |
 | Secrets & SAST | Gitleaks, native credential patterns, OpenGrep/Semgrep, ast-grep; current-tree & history coverage must be distinguished |
 | Supply chain & imports | OSV Scanner, Trivy configuration scan, Syft SBOM output, imported SARIF, license/SBOM/provenance checks |
-| CI, infrastructure & languages | Actionlint, Hadolint, ShellCheck, Zizmor, Squawk, TFLint, Kubeconform with pinned local schemas, Kube-Linter, Brakeman, GolangCI-Lint |
+| CI, infrastructure & languages | Actionlint, Hadolint, ShellCheck, Zizmor, Squawk |
 | Native security packs | Credentials, insecure defaults, misuse resistance, agentic CI, agent-skill/MCP boundaries, suppression changes |
 | Tauri | Capability permissions & frontend/backend command mirror |
 | Static architecture & quality | Architecture, compatibility, documentation contracts, backend/data/frontend framework facts, requirements traceability, test-quality facts |
-| Language source adapters | C-family, .NET, Go, JavaScript, JVM, long-tail, mobile, PHP/Ruby, Python & Rust; adapter presence does not imply build/test support |
+| Language source adapters | .NET, JavaScript, JVM, long-tail, mobile, Python & Rust; adapter presence does not imply build/test support |
 | Runtime & rendered evidence | App runtime capture, accessibility, visual comparison; host capture/sandbox inputs required |
 | Framework/data/infrastructure suites | Native candidate generation for framework, data & infrastructure patterns |
 | Governance | Policy input & optional host-declared capability-ownership scan |

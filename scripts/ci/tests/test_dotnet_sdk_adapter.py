@@ -350,7 +350,7 @@ class DotnetSdkAdapterTests(unittest.TestCase):
         entry = {"provider": "code.dotnet", "family": "dotnet-sdk", "stage": "finding"}
         self.assertEqual(gate["adapter"](ROOT, entry), ("dotnet-sdk", "dotnet_sdk_accuracy", "canonical-json", gate["DOTNET_SDK_SELECTOR"]))
         self.assertEqual(gate["DOTNET_SDK_HARNESS"], ["audit_cargo_test", "--lib", gate["DOTNET_SDK_SELECTOR"], "--", "--ignored", "--exact", "--nocapture", "--test-threads=1"])
-        for changed in ({"provider": "code.go"}, {"stage": "candidate"}):
+        for changed in ({"provider": "code.rust"}, {"stage": "candidate"}):
             with self.assertRaises(AssertionError):
                 gate["adapter"](ROOT, dict(entry, **changed))
 
