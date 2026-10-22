@@ -1,0 +1,1135 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "security.scanner-tflint",
+  "stage": "candidate",
+  "scope": "Constructed planted & clean controls; not population accuracy or production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:6b186ebd0c83e947a96436f8d34fec87c00be5752a38602b6d9585510b761740",
+    "harnessPath": "engine/crates/legion-audit/tests/tflint_accuracy.rs",
+    "harnessDigest": "sha256:7e3e1e6d7382127c979cc356108dfc34720b63e08cef4ee9d5cbeb0cdc5f0299",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 278,
+      "digest": "sha256:2eb583f9210a93960ffac6c02af53efdc8d31a7ba5cf322bf18c5c03ea12d211"
+    }
+  },
+  "expectationSources": [
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/README.md",
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/go.mod",
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/plugin/discovery.go",
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/cmd/inspect.go",
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/cmd/version.go",
+    "https://raw.githubusercontent.com/hashicorp/go-plugin/v1.8.0/server.go",
+    "https://raw.githubusercontent.com/hashicorp/go-plugin/v1.8.0/constants.go",
+    "https://raw.githubusercontent.com/openai/codex/main/codex-rs/sandboxing/src/seatbelt.rs",
+    "https://raw.githubusercontent.com/terraform-linters/tflint/v0.64.0/formatter/json.go",
+    "https://raw.githubusercontent.com/terraform-linters/tflint-ruleset-terraform/v0.15.0/docs/rules/terraform_unused_declarations.md",
+    "https://raw.githubusercontent.com/terraform-linters/tflint-ruleset-terraform/v0.15.0/rules/terraform_unused_declarations.go"
+  ],
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "tflint-planted",
+      "source": {
+        "path": "main.tf",
+        "bytes": "terraform {\n  required_version = \">= 1.0\"\n}\n\nvariable \"unused\" {\n  type        = string\n  description = \"Fixture input\"\n  default     = \"example\"\n}\n",
+        "digest": "sha256:825e9f1ca1961f5f10ce7a0c4070d51d7778ad84f2ec0d4ebf54ebdb1b6ca1b6"
+      },
+      "expected": [
+        "terraform_unused_declarations|main.tf|5"
+      ],
+      "actual": [
+        "terraform_unused_declarations|main.tf|5"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:08bab0f67f1cd1f8663f550c01454e1f173c53dfae2a92ee2d6931497e4274db",
+      "inventoryDigest": "sha256:497e284ce5612c0f26ab02c6e282e7010e56d1b0124b36628e7536e349a8c6e3",
+      "coverage": {
+        "denominator_digest": "sha256:48a87defd2db91fcaf084320b1838916a4da26dd9e97664044c63b20b636d3da",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/tflint",
+        "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+        "version": {
+          "rawVersionOutput": "TFLint version 0.64.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/a0105e5397ba4c82b485466a5efa74b8b5f93a10c25d8d9014aed3fb32929504",
+            "requestId": "legion-audit/a0105e5397ba4c82b485466a5efa74b8b5f93a10c25d8d9014aed3fb32929504",
+            "providerId": "security.scanner-tflint",
+            "planId": "sha256:497e284ce5612c0f26ab02c6e282e7010e56d1b0124b36628e7536e349a8c6e3",
+            "taskId": "tflint-version-probe",
+            "policyId": "legion-tflint-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-tflint-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:6286f97097a8960f10c357d3e88ec955636d24c583060747dcc8ee7fd1dd366e",
+              "allowed": true,
+              "reason": "fixture-scoped real TFLint benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source",
+            "environmentNames": [
+              "HOME"
+            ],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/version-sandbox/audit-12df54ff097e2051dcc014ca1ddb768e518e1c93ebf19cdbb2f4732f07ea259b.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/tflint",
+                  "--version"
+                ],
+                "output": "TFLint version 0.64.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:12df54ff097e2051dcc014ca1ddb768e518e1c93ebf19cdbb2f4732f07ea259b",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792625573665,
+              "completedAtMs": 1792625573737,
+              "durationMs": 72
+            },
+            "stdout": {
+              "path": "legion-audit/a0105e5397ba4c82b485466a5efa74b8b5f93a10c25d8d9014aed3fb32929504/stdout",
+              "digest": "sha256:d374ce7322f6f694a47d0964a91a08d6a72d03150498b817f587ded4fa60388c",
+              "bytes": 22,
+              "immutable": true,
+              "raw": "TFLint version 0.64.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/a0105e5397ba4c82b485466a5efa74b8b5f93a10c25d8d9014aed3fb32929504/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-tflint-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-tflint",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run",
+        "inventoryDigest": "sha256:497e284ce5612c0f26ab02c6e282e7010e56d1b0124b36628e7536e349a8c6e3",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/tflint",
+          "digest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--config",
+          "<owned-config-under-run>",
+          "--format",
+          "json",
+          "--no-color",
+          "--call-module-type",
+          "none",
+          "--force"
+        ],
+        "ownedConfigTemplate": {
+          "bytes": "config {\n call_module_type = \"none\"\n plugin_dir = \"<producer-scratch-under-run>/empty-plugins\"\n}\nplugin \"terraform\" {\n enabled = true\n preset = \"recommended\"\n}\nrule \"terraform_map_duplicate_keys\" { enabled = false }\n",
+          "digest": "sha256:3798c95f31a97d409385ce18756c1366601e6fc79ac88076bfe4b68d645f2ebb"
+        },
+        "versionArgv": [
+          "--version"
+        ],
+        "requiredVersion": "TFLint version 0.64.0",
+        "bundledRuleset": "terraform@0.15.0",
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-ip-scoped-tflint-unix-deny-project-write",
+        "ipc": {
+          "owner": "effective-user",
+          "mode": "0700",
+          "storage": "CI RUNNER_TEMP or /Volumes/D/scratch",
+          "template": "li-<16 hex>/plugin<up to 10 decimal digits>",
+          "environment": "TMPDIR pinned after merges",
+          "overrides": "PLUGIN_UNIX_SOCKET_DIR/GROUP & port overrides forbidden"
+        }
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "ownedConfig": null,
+          "requestId": "legion-audit/a0105e5397ba4c82b485466a5efa74b8b5f93a10c25d8d9014aed3fb32929504",
+          "providerId": "security.scanner-tflint",
+          "planId": "sha256:497e284ce5612c0f26ab02c6e282e7010e56d1b0124b36628e7536e349a8c6e3",
+          "taskId": "tflint-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/version-sandbox/audit-12df54ff097e2051dcc014ca1ddb768e518e1c93ebf19cdbb2f4732f07ea259b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/version-sandbox/audit-12df54ff097e2051dcc014ca1ddb768e518e1c93ebf19cdbb2f4732f07ea259b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "HOME"
+          ],
+          "requiresNetworkSandbox": true,
+          "ipcNamespace": null,
+          "profile": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source\"))\n",
+          "profileDigest": "sha256:12df54ff097e2051dcc014ca1ddb768e518e1c93ebf19cdbb2f4732f07ea259b",
+          "ipcValidatedAtAdmission": false
+        },
+        {
+          "allowed": true,
+          "ownedConfig": {
+            "path": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/tflint-owned-config.hcl",
+            "digest": "sha256:92770f9fb7e6638fe1b8d06ded3107e573cb62e4f1d2e2697c38b9a6357cf327",
+            "bytes": "config {\n call_module_type = \"none\"\n plugin_dir = \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/empty-plugins\"\n}\nplugin \"terraform\" {\n enabled = true\n preset = \"recommended\"\n}\nrule \"terraform_map_duplicate_keys\" { enabled = false }\n",
+            "emptyPluginDirectory": true
+          },
+          "requestId": "legion-audit/3d8a85d7cbc3a971a0336b6f0990fb6c870a39aaa231396132d1b36806b9b072",
+          "providerId": "security.scanner-tflint",
+          "planId": "sha256:497e284ce5612c0f26ab02c6e282e7010e56d1b0124b36628e7536e349a8c6e3",
+          "taskId": "tflint",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/sandbox/audit-3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--config",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/tflint-owned-config.hcl",
+            "--format",
+            "json",
+            "--no-color",
+            "--call-module-type",
+            "none",
+            "--force"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/sandbox/audit-3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "TMPDIR",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true,
+          "ipcNamespace": "/private/tmp/li-ci.NXwdoC7N/li-866ba1f9684c62e7",
+          "profile": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/source\"))\n(allow network-bind (local unix-socket (subpath \"/private/tmp/li-ci.NXwdoC7N/li-866ba1f9684c62e7\")))\n(allow network-outbound (remote unix-socket (subpath \"/private/tmp/li-ci.NXwdoC7N/li-866ba1f9684c62e7\")))\n",
+          "profileDigest": "sha256:3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4",
+          "ipcValidatedAtAdmission": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "tflint",
+          "version": "TFLint version 0.64.0",
+          "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+        },
+        "version": "TFLint version 0.64.0",
+        "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+        "argv": [
+          "tflint",
+          "--config",
+          "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/tflint-owned-config.hcl",
+          "--format",
+          "json",
+          "--no-color",
+          "--call-module-type",
+          "none",
+          "--force"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/3d8a85d7cbc3a971a0336b6f0990fb6c870a39aaa231396132d1b36806b9b072",
+        "policyId": "legion-tflint-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+        "stdoutBytes": 412,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:tflint-ipc:3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "TMPDIR",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+          "bytes": 412
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-tflint",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:48a87defd2db91fcaf084320b1838916a4da26dd9e97664044c63b20b636d3da",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "candidates",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [
+              {
+                "id": "sha256:bca405319732dcca2aadc0caaf1116eaba632f120bb18544696f7dcfe8c001ff",
+                "ruleId": "terraform_unused_declarations",
+                "claim": "variable \"unused\" is declared but not used",
+                "title": "variable \"unused\" is declared but not used",
+                "path": "main.tf",
+                "line": 5,
+                "severityHint": "warning",
+                "domain": "reliability",
+                "adjudication": "required",
+                "anchorKind": "line",
+                "evidence": [
+                  {
+                    "path": "main.tf",
+                    "line": 5,
+                    "rawFindingDigest": "sha256:5fb15b13d1775bcbab112b36592d13f6368b4042c295c82153a70c73af69038c"
+                  }
+                ],
+                "source": {
+                  "tool": "tflint",
+                  "ruleId": "terraform_unused_declarations",
+                  "rawFindingDigest": "sha256:5fb15b13d1775bcbab112b36592d13f6368b4042c295c82153a70c73af69038c",
+                  "recordOrdinal": 0,
+                  "raw": {
+                    "rule": {
+                      "name": "terraform_unused_declarations",
+                      "severity": "warning",
+                      "link": "https://github.com/terraform-linters/tflint-ruleset-terraform/blob/v0.15.0/docs/rules/terraform_unused_declarations.md"
+                    },
+                    "message": "variable \"unused\" is declared but not used",
+                    "range": {
+                      "filename": "main.tf",
+                      "start": {
+                        "line": 5,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 5,
+                        "column": 18
+                      }
+                    },
+                    "callers": [],
+                    "fixable": true,
+                    "fixed": false
+                  }
+                },
+                "anchorStatus": "scanner-reported"
+              }
+            ],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:5fb15b13d1775bcbab112b36592d13f6368b4042c295c82153a70c73af69038c",
+                "path": "main.tf",
+                "candidateId": "sha256:bca405319732dcca2aadc0caaf1116eaba632f120bb18544696f7dcfe8c001ff",
+                "disposition": "candidate"
+              }
+            ],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [
+            {
+              "id": "sha256:bca405319732dcca2aadc0caaf1116eaba632f120bb18544696f7dcfe8c001ff",
+              "ruleId": "terraform_unused_declarations",
+              "claim": "variable \"unused\" is declared but not used",
+              "title": "variable \"unused\" is declared but not used",
+              "path": "main.tf",
+              "line": 5,
+              "severityHint": "warning",
+              "domain": "reliability",
+              "adjudication": "required",
+              "anchorKind": "line",
+              "evidence": [
+                {
+                  "path": "main.tf",
+                  "line": 5,
+                  "rawFindingDigest": "sha256:5fb15b13d1775bcbab112b36592d13f6368b4042c295c82153a70c73af69038c"
+                }
+              ],
+              "source": {
+                "tool": "tflint",
+                "ruleId": "terraform_unused_declarations",
+                "rawFindingDigest": "sha256:5fb15b13d1775bcbab112b36592d13f6368b4042c295c82153a70c73af69038c",
+                "recordOrdinal": 0,
+                "raw": {
+                  "rule": {
+                    "name": "terraform_unused_declarations",
+                    "severity": "warning",
+                    "link": "https://github.com/terraform-linters/tflint-ruleset-terraform/blob/v0.15.0/docs/rules/terraform_unused_declarations.md"
+                  },
+                  "message": "variable \"unused\" is declared but not used",
+                  "range": {
+                    "filename": "main.tf",
+                    "start": {
+                      "line": 5,
+                      "column": 1
+                    },
+                    "end": {
+                      "line": 5,
+                      "column": 18
+                    }
+                  },
+                  "callers": [],
+                  "fixable": true,
+                  "fixed": false
+                }
+              },
+              "anchorStatus": "scanner-reported"
+            }
+          ],
+          "executionReceipt": {
+            "tool": {
+              "name": "tflint",
+              "version": "TFLint version 0.64.0",
+              "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+            },
+            "version": "TFLint version 0.64.0",
+            "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+            "argv": [
+              "tflint",
+              "--config",
+              "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/tflint-owned-config.hcl",
+              "--format",
+              "json",
+              "--no-color",
+              "--call-module-type",
+              "none",
+              "--force"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/3d8a85d7cbc3a971a0336b6f0990fb6c870a39aaa231396132d1b36806b9b072",
+            "policyId": "legion-tflint-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+            "stdoutBytes": 412,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:tflint-ipc:3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "TMPDIR",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+              "bytes": 412
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "tflint",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "main.tf"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "tflint",
+                    "version": "TFLint version 0.64.0",
+                    "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+                  },
+                  "version": "TFLint version 0.64.0",
+                  "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+                  "argv": [
+                    "tflint",
+                    "--config",
+                    "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-true-72856-1792625572134100000/run/legion-audit-security-72856-1792625573788047000-0/tflint-owned-config.hcl",
+                    "--format",
+                    "json",
+                    "--no-color",
+                    "--call-module-type",
+                    "none",
+                    "--force"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/3d8a85d7cbc3a971a0336b6f0990fb6c870a39aaa231396132d1b36806b9b072",
+                  "policyId": "legion-tflint-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+                  "stdoutBytes": 412,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:tflint-ipc:3b57cb9db609c8c6fc20cf3fc377f1f9f65c32ed2f870e95d3b8dd864f9ea1f4",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "TMPDIR",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:caf67ee1a28e12e49d291b434c35685156ba04a1a4bdc91b35a0538e5beae065",
+                    "bytes": 412
+                  }
+                },
+                "ownedConfigDigest": "sha256:92770f9fb7e6638fe1b8d06ded3107e573cb62e4f1d2e2697c38b9a6357cf327"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
+    },
+    {
+      "caseId": "tflint-clean",
+      "source": {
+        "path": "main.tf",
+        "bytes": "terraform {\n  required_version = \">= 1.0\"\n}\n\nvariable \"unused\" {\n  type        = string\n  description = \"Fixture input\"\n  default     = \"example\"\n}\n\noutput \"example\" {\n  description = \"Referenced fixture input\"\n  value       = var.unused\n}\n",
+        "digest": "sha256:7d7af3752cdf478a4f93715530439d6c89d1c998a8a45d25438241871b9a917a"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:65244ce6e305788350ad5f7bd298087495a7bdb25be03df599e34f291896dc42",
+      "inventoryDigest": "sha256:234b82242a87bd9fab0ad36cca341a1a43f5d1caf73649db72b5a93fef3f155f",
+      "coverage": {
+        "denominator_digest": "sha256:48a2315918c297ddfcceb933cd612d7697ac43096f95eebbb5f605f8a464e006",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/tflint",
+        "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+        "version": {
+          "rawVersionOutput": "TFLint version 0.64.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/cb24ee0aa8eaf897b515d9bba602308af9b96c647688d4aea6712deafc724dbd",
+            "requestId": "legion-audit/cb24ee0aa8eaf897b515d9bba602308af9b96c647688d4aea6712deafc724dbd",
+            "providerId": "security.scanner-tflint",
+            "planId": "sha256:234b82242a87bd9fab0ad36cca341a1a43f5d1caf73649db72b5a93fef3f155f",
+            "taskId": "tflint-version-probe",
+            "policyId": "legion-tflint-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-tflint-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:1822e7cdfb6169b558585d0614a1d3f68b897a908ccd50941e8f569f6174e277",
+              "allowed": true,
+              "reason": "fixture-scoped real TFLint benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source",
+            "environmentNames": [
+              "HOME"
+            ],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/version-sandbox/audit-08d58547bbcc7f1790b51e38687e87dff2f4b4a1ff6f413aca52530cfcab7dc4.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/tflint",
+                  "--version"
+                ],
+                "output": "TFLint version 0.64.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:08d58547bbcc7f1790b51e38687e87dff2f4b4a1ff6f413aca52530cfcab7dc4",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792625576840,
+              "completedAtMs": 1792625576944,
+              "durationMs": 104
+            },
+            "stdout": {
+              "path": "legion-audit/cb24ee0aa8eaf897b515d9bba602308af9b96c647688d4aea6712deafc724dbd/stdout",
+              "digest": "sha256:d374ce7322f6f694a47d0964a91a08d6a72d03150498b817f587ded4fa60388c",
+              "bytes": 22,
+              "immutable": true,
+              "raw": "TFLint version 0.64.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/cb24ee0aa8eaf897b515d9bba602308af9b96c647688d4aea6712deafc724dbd/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-tflint-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-tflint",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run",
+        "inventoryDigest": "sha256:234b82242a87bd9fab0ad36cca341a1a43f5d1caf73649db72b5a93fef3f155f",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/tflint",
+          "digest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--config",
+          "<owned-config-under-run>",
+          "--format",
+          "json",
+          "--no-color",
+          "--call-module-type",
+          "none",
+          "--force"
+        ],
+        "ownedConfigTemplate": {
+          "bytes": "config {\n call_module_type = \"none\"\n plugin_dir = \"<producer-scratch-under-run>/empty-plugins\"\n}\nplugin \"terraform\" {\n enabled = true\n preset = \"recommended\"\n}\nrule \"terraform_map_duplicate_keys\" { enabled = false }\n",
+          "digest": "sha256:3798c95f31a97d409385ce18756c1366601e6fc79ac88076bfe4b68d645f2ebb"
+        },
+        "versionArgv": [
+          "--version"
+        ],
+        "requiredVersion": "TFLint version 0.64.0",
+        "bundledRuleset": "terraform@0.15.0",
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-ip-scoped-tflint-unix-deny-project-write",
+        "ipc": {
+          "owner": "effective-user",
+          "mode": "0700",
+          "storage": "CI RUNNER_TEMP or /Volumes/D/scratch",
+          "template": "li-<16 hex>/plugin<up to 10 decimal digits>",
+          "environment": "TMPDIR pinned after merges",
+          "overrides": "PLUGIN_UNIX_SOCKET_DIR/GROUP & port overrides forbidden"
+        }
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "ownedConfig": null,
+          "requestId": "legion-audit/cb24ee0aa8eaf897b515d9bba602308af9b96c647688d4aea6712deafc724dbd",
+          "providerId": "security.scanner-tflint",
+          "planId": "sha256:234b82242a87bd9fab0ad36cca341a1a43f5d1caf73649db72b5a93fef3f155f",
+          "taskId": "tflint-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/version-sandbox/audit-08d58547bbcc7f1790b51e38687e87dff2f4b4a1ff6f413aca52530cfcab7dc4.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/version-sandbox/audit-08d58547bbcc7f1790b51e38687e87dff2f4b4a1ff6f413aca52530cfcab7dc4.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "HOME"
+          ],
+          "requiresNetworkSandbox": true,
+          "ipcNamespace": null,
+          "profile": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source\"))\n",
+          "profileDigest": "sha256:08d58547bbcc7f1790b51e38687e87dff2f4b4a1ff6f413aca52530cfcab7dc4",
+          "ipcValidatedAtAdmission": false
+        },
+        {
+          "allowed": true,
+          "ownedConfig": {
+            "path": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/tflint-owned-config.hcl",
+            "digest": "sha256:8f035a4e29479bdf86186035e931f8803fc7ddca34fc17f6eff866bf1b761099",
+            "bytes": "config {\n call_module_type = \"none\"\n plugin_dir = \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/empty-plugins\"\n}\nplugin \"terraform\" {\n enabled = true\n preset = \"recommended\"\n}\nrule \"terraform_map_duplicate_keys\" { enabled = false }\n",
+            "emptyPluginDirectory": true
+          },
+          "requestId": "legion-audit/960768c224c098a140efaa5eb45977d72bbdbe130b371e92dfe89c3c3a25c2eb",
+          "providerId": "security.scanner-tflint",
+          "planId": "sha256:234b82242a87bd9fab0ad36cca341a1a43f5d1caf73649db72b5a93fef3f155f",
+          "taskId": "tflint",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/sandbox/audit-72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--config",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/tflint-owned-config.hcl",
+            "--format",
+            "json",
+            "--no-color",
+            "--call-module-type",
+            "none",
+            "--force"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/sandbox/audit-72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/tflint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "TMPDIR",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true,
+          "ipcNamespace": "/private/tmp/li-ci.NXwdoC7N/li-b4b09227e91401fd",
+          "profile": "(version 1)\n(allow default)\n(deny network*)\n(allow file-read* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source\"))\n(deny file-write* (subpath \"/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/source\"))\n(allow network-bind (local unix-socket (subpath \"/private/tmp/li-ci.NXwdoC7N/li-b4b09227e91401fd\")))\n(allow network-outbound (remote unix-socket (subpath \"/private/tmp/li-ci.NXwdoC7N/li-b4b09227e91401fd\")))\n",
+          "profileDigest": "sha256:72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c",
+          "ipcValidatedAtAdmission": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "tflint",
+          "version": "TFLint version 0.64.0",
+          "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+        },
+        "version": "TFLint version 0.64.0",
+        "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+        "argv": [
+          "tflint",
+          "--config",
+          "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/tflint-owned-config.hcl",
+          "--format",
+          "json",
+          "--no-color",
+          "--call-module-type",
+          "none",
+          "--force"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/960768c224c098a140efaa5eb45977d72bbdbe130b371e92dfe89c3c3a25c2eb",
+        "policyId": "legion-tflint-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+        "stdoutBytes": 25,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:tflint-ipc:72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "TMPDIR",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+          "bytes": 25
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-tflint",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:48a2315918c297ddfcceb933cd612d7697ac43096f95eebbb5f605f8a464e006",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [],
+          "executionReceipt": {
+            "tool": {
+              "name": "tflint",
+              "version": "TFLint version 0.64.0",
+              "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+            },
+            "version": "TFLint version 0.64.0",
+            "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+            "argv": [
+              "tflint",
+              "--config",
+              "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/tflint-owned-config.hcl",
+              "--format",
+              "json",
+              "--no-color",
+              "--call-module-type",
+              "none",
+              "--force"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/960768c224c098a140efaa5eb45977d72bbdbe130b371e92dfe89c3c3a25c2eb",
+            "policyId": "legion-tflint-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+            "stdoutBytes": 25,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:tflint-ipc:72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "TMPDIR",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+              "bytes": 25
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "tflint",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "main.tf"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "tflint",
+                    "version": "TFLint version 0.64.0",
+                    "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21"
+                  },
+                  "version": "TFLint version 0.64.0",
+                  "executableDigest": "sha256:9fe792a1ce75d97bd2fc587f217b80fd4cf24a8dc9e6ac6979e69bb4aac71d21",
+                  "argv": [
+                    "tflint",
+                    "--config",
+                    "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-tflint-false-72856-1792625575052866000/run/legion-audit-security-72856-1792625576962140000-1/tflint-owned-config.hcl",
+                    "--format",
+                    "json",
+                    "--no-color",
+                    "--call-module-type",
+                    "none",
+                    "--force"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/960768c224c098a140efaa5eb45977d72bbdbe130b371e92dfe89c3c3a25c2eb",
+                  "policyId": "legion-tflint-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+                  "stdoutBytes": 25,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:tflint-ipc:72193f6e7af45267abc15cfe1ea3f7679d1fd0dbd938678ae8028dd87a43579c",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "TMPDIR",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:eb0c9cd9ebc8cea0750088a7780d57e38d0340be03492abf96fd262edc821b6a",
+                    "bytes": 25
+                  }
+                },
+                "ownedConfigDigest": "sha256:8f035a4e29479bdf86186035e931f8803fc7ddca34fc17f6eff866bf1b761099"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:ff10e0da2fdb8f1de682cd6d59d33e671d5d0e93e6cd67f9d11e72d5fcae92f4"
+}

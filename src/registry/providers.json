@@ -59,13 +59,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:7a7983e712dd927d1f48d4825b5b1fb16512b69afeb1793de3e7dd89f02334bf",
+        "qualificationDigest": "sha256:689eaa3e26e8e6efb1a3634ad4167259187dca9dfda93ecc4dcdb4034bec2664",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/architecture.core/25c6a5035b3b7ebbea22edce420ce1923ed939bdfb14a6e1d23d0beac936ddc7.json",
-          "recordSha256": "sha256:b7779a81cf0f89c59feb81362c2bf871af9c2e2d296e453fb52c0209e1642860",
-          "originalQualificationDigest": "sha256:25c6a5035b3b7ebbea22edce420ce1923ed939bdfb14a6e1d23d0beac936ddc7",
+          "record": "qualification/provider-accuracy/records/architecture.core/4bb1f7993d11f3c947f91c300884395a4f4e522585f60499e412a2da81027b25.json",
+          "recordSha256": "sha256:805dae4e9109550c2c82bac6c13950b4eeebcd27a55f406657238b034ac8a7b1",
+          "originalQualificationDigest": "sha256:4bb1f7993d11f3c947f91c300884395a4f4e522585f60499e412a2da81027b25",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -205,13 +205,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:eec65b83eec83613302c03eea11dd7796aa9ff4605b7b304db8578b1780adce5",
+        "qualificationDigest": "sha256:8b5d9260f171c6489479b89d58b372786d71529850b7f1d06ac57532357b6886",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.dotnet/653ecaeb4a0815396193abba8495efff84d17e5b89dee1e3425bea8328f449e2.json",
-          "recordSha256": "sha256:f674ac2567243c051748485d92714e9abbc546d19dc3e034ac939cf7209aba22",
-          "originalQualificationDigest": "sha256:653ecaeb4a0815396193abba8495efff84d17e5b89dee1e3425bea8328f449e2",
+          "record": "qualification/provider-accuracy/records/code.dotnet/70b8d70827a5cb575732207089db18bcc8f303ed248dffb4f1980d5f9f30f115.json",
+          "recordSha256": "sha256:eaf14e3c8709cf97b42ae2bc9318c6a27bc4ddee7a0836f8276006930b9a8454",
+          "originalQualificationDigest": "sha256:70b8d70827a5cb575732207089db18bcc8f303ed248dffb4f1980d5f9f30f115",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -354,13 +354,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:794b1d3a82ad6010aceeef577bcd39afac9bbe0d8383d171b528d647dcbb6bf1",
+        "qualificationDigest": "sha256:79c090ddaf0295aebdcb228cdf19a4b490f5eec0e60cea6d42104cd21702d44d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.javascript/288fd463a1d4930b8207d085ff0d5d7cd40ddd568193b5cd849331ef9e042eee.json",
-          "recordSha256": "sha256:a251e0b17a561ef2806de9ebd43cab6bd2927588636bc3cbe89815fc8dc33ede",
-          "originalQualificationDigest": "sha256:288fd463a1d4930b8207d085ff0d5d7cd40ddd568193b5cd849331ef9e042eee",
+          "record": "qualification/provider-accuracy/records/code.javascript/473d016a684ef0c529331d81953c127bf220ac45e064c8ce1c00c9da8169f457.json",
+          "recordSha256": "sha256:d778e6f98ab1b489a68a13f954487c3bec130a29b44ff88b23c7e7cede4a3236",
+          "originalQualificationDigest": "sha256:473d016a684ef0c529331d81953c127bf220ac45e064c8ce1c00c9da8169f457",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -505,13 +505,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b7e5b507a2f90943ca2a36e9c569e2e9238be8c909a35651da4bf313c06f1226",
+        "qualificationDigest": "sha256:d45af0ffb562f3c2d310e75870fa177913d45f527d4db19b7a10406226d665b8",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.long-tail/b6eeff9cdfbc67fa2f61c79574d2c39ee83114023fca2f93496bfb0ee52c9e5b.json",
-          "recordSha256": "sha256:17e5c686340720b200a7c2b58d20f9e5fca848a0d61ad91dba9a4cf8f6ce74cf",
-          "originalQualificationDigest": "sha256:b6eeff9cdfbc67fa2f61c79574d2c39ee83114023fca2f93496bfb0ee52c9e5b",
+          "record": "qualification/provider-accuracy/records/code.long-tail/bedb720c239b6079a2678982f46c75a9ef0ffd74d7b252643db31d6d90003ace.json",
+          "recordSha256": "sha256:53596ff886c3c355c23545a13cf65f4d5b5e9a5f5b78160417e763ee57f6ec45",
+          "originalQualificationDigest": "sha256:bedb720c239b6079a2678982f46c75a9ef0ffd74d7b252643db31d6d90003ace",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed frozen native generic-source controls; unsupported-language coverage remains partial",
@@ -590,13 +590,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:e75ad1feba0f285f4a82b46bba87d0752d387ca614d79b6d43f3ba3b5def83e0",
+        "qualificationDigest": "sha256:cd70f735c8e713d21ace99d0ff5ba7efbaa6b7a02865f9ec81ffdadc70da042e",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.mobile/5d88ce322b76c4b2b698b9e2035ec145677a0a4a5da316b238692a839ea7cb46.json",
-          "recordSha256": "sha256:9721f7b9ba8737c42b3282a163e35c0d1154d795e4f395b5993f4b48eb152b3b",
-          "originalQualificationDigest": "sha256:5d88ce322b76c4b2b698b9e2035ec145677a0a4a5da316b238692a839ea7cb46",
+          "record": "qualification/provider-accuracy/records/code.mobile/a9e9c396663d56f3ba7091138709b1137e701512eb085ffa8f2e1a271848a859.json",
+          "recordSha256": "sha256:4fe0c6afbb5819360048e840bc716914123c05e5e5068db45ccc3d03a99850b1",
+          "originalQualificationDigest": "sha256:a9e9c396663d56f3ba7091138709b1137e701512eb085ffa8f2e1a271848a859",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed macOS SwiftPM Swift/Objective-C/Objective-C++ compiler/analyzer/XCTest controls",
@@ -742,13 +742,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:14b12413b5994ddde17ae5ed9ed0042b58900c92c763a316b13f91b5c3b9e46d",
+        "qualificationDigest": "sha256:db4e6810793186f42253303b4bd05ec23b53c846e18e2447b4dd631843209a3a",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.python/2707c2f781ff62bf3610e33cb30f6153cd3332562a696d64eb8810a990e0093d.json",
-          "recordSha256": "sha256:4e87d2ed49fdc1f7ebf1a3daef7f0eba5798621b1b47cf7a9346126f40c4255f",
-          "originalQualificationDigest": "sha256:2707c2f781ff62bf3610e33cb30f6153cd3332562a696d64eb8810a990e0093d",
+          "record": "qualification/provider-accuracy/records/code.python/15beb3eaf868379e3091edfb30761abec499a9b85121375dc57091fd0a729159.json",
+          "recordSha256": "sha256:6e8737c67153f027be050bf92ef5afba2bd2df3ee055fb99f31994b393d18abd",
+          "originalQualificationDigest": "sha256:15beb3eaf868379e3091edfb30761abec499a9b85121375dc57091fd0a729159",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -823,13 +823,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:fd5e53440192946488c2710c39b2e00c651d8e598705ca6d4b7c5227f5f61793",
+        "qualificationDigest": "sha256:973c1c60f27deb7c3adfe8f6695d9863fe7497a80d2b686f63e8f0e2fbefef50",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/code.rust/13fa18eeb9445d66e9681850cfaf6b27bb62d8d07aba243f7ee5db31abc72f28.json",
-          "recordSha256": "sha256:f29a02873b0e10f290f95193f7f2d93794203a3deb2d46065e351b13462c0432",
-          "originalQualificationDigest": "sha256:13fa18eeb9445d66e9681850cfaf6b27bb62d8d07aba243f7ee5db31abc72f28",
+          "record": "qualification/provider-accuracy/records/code.rust/05efc9b6c8ffb0ccb59526b68b5b178f1904bd01fcdee66bcae94ece2656398c.json",
+          "recordSha256": "sha256:78c21db8494b1f63e8722471d74ef95a807202dc847e02b5315bbeb6703ad4ba",
+          "originalQualificationDigest": "sha256:05efc9b6c8ffb0ccb59526b68b5b178f1904bd01fcdee66bcae94ece2656398c",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -908,13 +908,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:be640c653e19c17eee53d2473b4ec035af8820137aaab36985c557fae9376c68",
+        "qualificationDigest": "sha256:f441bf0ddd13f45e20e80a79debf675166b5d80f7c9c6d507300db1b06447215",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/compatibility.core/f4dac353da980a3464d8b0e33b92598eabbf546782ccc9a4ab3a698513686573.json",
-          "recordSha256": "sha256:cc40165a6074b2e0f57e9b006515ee40d57c814071233da276662a419e1b3746",
-          "originalQualificationDigest": "sha256:f4dac353da980a3464d8b0e33b92598eabbf546782ccc9a4ab3a698513686573",
+          "record": "qualification/provider-accuracy/records/compatibility.core/5baf37cef17eed01b02472a38c3e2c455f2410d487e3bf239dff2d05e41f4625.json",
+          "recordSha256": "sha256:c893847d8518ba874944671b16edaebb55d090eee7f86fca2ba154366229727f",
+          "originalQualificationDigest": "sha256:5baf37cef17eed01b02472a38c3e2c455f2410d487e3bf239dff2d05e41f4625",
           "validationBasis": "native-family-validator",
           "stage": "fact-output",
           "scope": "native Audit report v1/v2 v1-core preservation; excludes v2-only fields/extensions",
@@ -993,13 +993,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:83ac28aef1240cdb5c4bf749e31a7555cb0906fb68015ed6e75d8e288dce5ba0",
+        "qualificationDigest": "sha256:f4dd30e10ce92ed75fba4d8007b3ad566a1d1dc04848c289a0e760f9e47a190d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/container.iac/54cb99cd3c9fbf1ae334326687daec186880053e9d89ce4acaf92366e094b04b.json",
-          "recordSha256": "sha256:5884b22bc4f12a8b75b98952b1288bef6c5afb8a7f05554fd33c9272cd267800",
-          "originalQualificationDigest": "sha256:54cb99cd3c9fbf1ae334326687daec186880053e9d89ce4acaf92366e094b04b",
+          "record": "qualification/provider-accuracy/records/container.iac/b49a8cb64d5886023886fdc03df8b61c7c7e5779a2e766164c9711405ee7383b.json",
+          "recordSha256": "sha256:6ed62bb5354565c8ebe96c33d3610e449f66032ffa4730d326ce90a71d440701",
+          "originalQualificationDigest": "sha256:b49a8cb64d5886023886fdc03df8b61c7c7e5779a2e766164c9711405ee7383b",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "Constructed missing non-root USER & clean Dockerfile controls; actual Trivy config observations, not deployment rendering; no image/runtime/container-escape or population-accuracy claim; not production admission"
@@ -1071,13 +1071,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:92469b31715eae41e35e990f48bd5d72ba45c135444bc6fd4a4a517742002d33",
+        "qualificationDigest": "sha256:9b499bf1c473abb5fe3e4814078eef89c2334cb7aa159784b81bf7de0916a84f",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/dependency.osv/ab6c41410b5963aedbc3b0149a3c860b0d7ae57d24d5bf8bdf463f098d592021.json",
-          "recordSha256": "sha256:c0154dc2a12b4ccc68dd75a68574f78030e74316b1301b36b728c3a84fd2865e",
-          "originalQualificationDigest": "sha256:ab6c41410b5963aedbc3b0149a3c860b0d7ae57d24d5bf8bdf463f098d592021",
+          "record": "qualification/provider-accuracy/records/dependency.osv/4d782b604e0fd73c50e0bdca2d7e644c2f8f73c721cffb3f677df9a0522a6ad5.json",
+          "recordSha256": "sha256:3c3dd1ccc1f255a909becee6f462ec3d82d90d366722eb7017a99ddc90a8e5d7",
+          "originalQualificationDigest": "sha256:4d782b604e0fd73c50e0bdca2d7e644c2f8f73c721cffb3f677df9a0522a6ad5",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed native SDK + one official advisory offline cache + frozen registry artifact controls; manifest default locus only",
@@ -1153,13 +1153,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:5efdd390a02cd8ada4b059e6fe58e838a1255be36f2704064055c1cce44d1c16",
+        "qualificationDigest": "sha256:93055ef64784ecdb61c6a64cc4f6969c3637e91b60249c1638902c8c80fd2a3c",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/docs.contract/f13baf501e1d4518b15ec545837a5540a007855453170e8298912ca2ad7a9a4e.json",
-          "recordSha256": "sha256:c9eb2014c8ea5b755923bdbed253b8f025b3eba3f44d18f2c55b596604718760",
-          "originalQualificationDigest": "sha256:f13baf501e1d4518b15ec545837a5540a007855453170e8298912ca2ad7a9a4e",
+          "record": "qualification/provider-accuracy/records/docs.contract/0226dae82f7a4582e22b6539443b664136806dc55f019691d169f4e473ec4be3.json",
+          "recordSha256": "sha256:dedb304409460662c28a5ec50252e0291e8715c5e4cbd80873a23a2aa7249c98",
+          "originalQualificationDigest": "sha256:0226dae82f7a4582e22b6539443b664136806dc55f019691d169f4e473ec4be3",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1231,13 +1231,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:6c094c93238e57f1809be3274808237d0e29592c476b9eb0573a8f2b6553dd09",
+        "qualificationDigest": "sha256:5a2e4ef4c5cce51b568361e8fb7ab48c5c4a3b93209e8ef9a1f0cc082ab63a0d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/framework.backend/29d6446f5c0bdfe0e6054d0d1dabfcb89de36257096f7d6f126267e91c47ae53.json",
-          "recordSha256": "sha256:1b4c3617b2abf8023c907755a4e6d4374d017bc8c3e5e4969d7956c59290a7a6",
-          "originalQualificationDigest": "sha256:29d6446f5c0bdfe0e6054d0d1dabfcb89de36257096f7d6f126267e91c47ae53",
+          "record": "qualification/provider-accuracy/records/framework.backend/4be5f5a076ca9aeffa63f18574d932ed5bef251b4669cf765695a8a13ac876d5.json",
+          "recordSha256": "sha256:4940dacbc77193e9a914be5daa5f7caba106f9d2a8f25f93521c16fb5b326f50",
+          "originalQualificationDigest": "sha256:4be5f5a076ca9aeffa63f18574d932ed5bef251b4669cf765695a8a13ac876d5",
           "validationBasis": "native-family-validator",
           "stage": "fact-output",
           "scope": "exact thirteen named literal backend source-fact controls; runtime, mount composition & auth remain unproven",
@@ -1318,13 +1318,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b4e03d0a961b1fc1ca68769c8c35789d54ef102aa9c317fa39ef9cdb580c18d3",
+        "qualificationDigest": "sha256:d4378e6339db04f9a9f60f9da7c19c2079677ba6073afa15d8016dc4af16e11e",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/framework.data/3386621a32e60f737b96c43e40022c36db1d13d1ff0deda4891ffe2720647969.json",
-          "recordSha256": "sha256:db9e44d7a5570f57782c4b838b3d30ad34bc5cb16e6f5a8d7c1819a459d44173",
-          "originalQualificationDigest": "sha256:3386621a32e60f737b96c43e40022c36db1d13d1ff0deda4891ffe2720647969",
+          "record": "qualification/provider-accuracy/records/framework.data/23a164a6348d227f338f4df54e6196bf1ba9fd273257fd20c34ed5ff1e18ab1d.json",
+          "recordSha256": "sha256:522dcded6188d3c49cbda8ed2e460db89734a0b9304de22a87cf52c23003edde",
+          "originalQualificationDigest": "sha256:23a164a6348d227f338f4df54e6196bf1ba9fd273257fd20c34ed5ff1e18ab1d",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "constructed verifier acceptance & rejection controls; not a population accuracy estimate"
@@ -1396,13 +1396,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:af24e2c357af55b94b086079afbc13a19d52f974ad25ca572990eeb5d13d5532",
+        "qualificationDigest": "sha256:4c0416a2cd8a99986988ea1020555768b38f7747bbcb02b734010cc9461300ab",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/framework.frontend/0a037091571825c9363c80fa17ff8764ea5aa976d910a073e0c43ae615fa443b.json",
-          "recordSha256": "sha256:2294988baa194e997c388fc2a5b353734d3596c8e9b91c9c36d3f75683b06497",
-          "originalQualificationDigest": "sha256:0a037091571825c9363c80fa17ff8764ea5aa976d910a073e0c43ae615fa443b",
+          "record": "qualification/provider-accuracy/records/framework.frontend/20d092b5506ea59f4996816ae1f79e91cb3c7a38eeb4b8171f1f250103f3e299.json",
+          "recordSha256": "sha256:93e16c087f4648b932143924589ec27b2dfbb33cf65b39cde9ff4eb5c3df2511",
+          "originalQualificationDigest": "sha256:20d092b5506ea59f4996816ae1f79e91cb3c7a38eeb4b8171f1f250103f3e299",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "constructed verifier acceptance & rejection controls; not a population accuracy estimate"
@@ -1474,13 +1474,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:99d5348fa3ff1cd8234d977b58ffcdfcfd5ec7d8ab9432376e8b1fe1282c3977",
+        "qualificationDigest": "sha256:64867adb7392b00f00d626b7a2a68ba40e65b9182eaaf2d830c2723c3b8f79b3",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/governance.policy/f9fa1daa74afa643cecc4e3962f0ab8568ce2ddb11db9b8d669852267aece321.json",
-          "recordSha256": "sha256:6a1816e13ca51eae2ba6b928f9329aa9b3845643c2e5268b40965edb8c2c58ca",
-          "originalQualificationDigest": "sha256:f9fa1daa74afa643cecc4e3962f0ab8568ce2ddb11db9b8d669852267aece321",
+          "record": "qualification/provider-accuracy/records/governance.policy/307aa2421f78220d91ff1c49f4ac0d6a134ecf7031f008f15c69d05f7f4b83bb.json",
+          "recordSha256": "sha256:882e586ff432a161539fdefe427020625cffec7b6eb1baafe9e331b53bfe94ec",
+          "originalQualificationDigest": "sha256:307aa2421f78220d91ff1c49f4ac0d6a134ecf7031f008f15c69d05f7f4b83bb",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1625,13 +1625,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:c876446cb8b9b1c0981f267f3253bdb47ea43d0147ce227697424358636f3d37",
+        "qualificationDigest": "sha256:9a70951761e5c4b97299357e9a96c6acdb481664e9978b665d7336faca749508",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/imported.sarif/aa918da05ab866cc31e1657a77140e4bd6b6c03817ea65ca4121a6c8c1ee2ff6.json",
-          "recordSha256": "sha256:a507fa3a80a01e84a61428205d43a401430ce94edffcc74bbb74dc94fdd34fe4",
-          "originalQualificationDigest": "sha256:aa918da05ab866cc31e1657a77140e4bd6b6c03817ea65ca4121a6c8c1ee2ff6",
+          "record": "qualification/provider-accuracy/records/imported.sarif/2179a16ab705858921af038f9372ca91c8a64143f5b6328ce841d2f767dda893.json",
+          "recordSha256": "sha256:4c02d877d66d4622eb40d6d8bcc490b2806cd78fce0a9cf3895eeb05a5af4c41",
+          "originalQualificationDigest": "sha256:2179a16ab705858921af038f9372ca91c8a64143f5b6328ce841d2f767dda893",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1718,13 +1718,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:269740e5a59a6b6133675c2aa9a15ed65ee17b3af91f7e3357eca718beabd21b",
+        "qualificationDigest": "sha256:7bf03f22ee791bbc8d3ce9ad1b16fa74ef81148b7e77c953ea1f14f4e51c2eec",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.accessibility.internal-suite/70dc8ed7f80f2829bce703c41f2d65379cadecf4c1cd2eda6a94000970cf62eb.json",
-          "recordSha256": "sha256:9f52b6ea6e835b98213b9fe3c174c7f2d55e5ec3122b8f8693db4851c96a2c00",
-          "originalQualificationDigest": "sha256:70dc8ed7f80f2829bce703c41f2d65379cadecf4c1cd2eda6a94000970cf62eb",
+          "record": "qualification/provider-accuracy/records/legacy.accessibility.internal-suite/ed20af35c88d209edff7645c28e42b0150c45130978898462536fafac81cf31d.json",
+          "recordSha256": "sha256:5b921a2e824e967fb09f8e0a1cb93f77ac0159203a1ec176f80850bc6c9db3b8",
+          "originalQualificationDigest": "sha256:ed20af35c88d209edff7645c28e42b0150c45130978898462536fafac81cf31d",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1814,13 +1814,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:ca41a6b326f50cffe0d00c16c6b77692f149c37890a7eddc25078fdc35e310b2",
+        "qualificationDigest": "sha256:2c9a14afab0a49ece1e395ae58bcd1843503631380fcff076579f7d2e99a3567",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.apple.platform/6d739709e87f51b3dfa6c86df688d2af43d60b0a8b8f3d627788a0098987336c.json",
-          "recordSha256": "sha256:e7ed00fa562d4e83d7375831d8f600e053d0f56abec8e360a1a777f87f4df980",
-          "originalQualificationDigest": "sha256:6d739709e87f51b3dfa6c86df688d2af43d60b0a8b8f3d627788a0098987336c",
+          "record": "qualification/provider-accuracy/records/legacy.apple.platform/1e235f958cbf156c5d6c7e1972dcb397a5d4fe319b6ef6f38616fb682e020409.json",
+          "recordSha256": "sha256:75a64a497c1499d4121ec450f4b5e41bc39e6f5158dc1f8458f4ee6f74ceede8",
+          "originalQualificationDigest": "sha256:1e235f958cbf156c5d6c7e1972dcb397a5d4fe319b6ef6f38616fb682e020409",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1904,13 +1904,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:4d53e4b046b181e8e46d7f98e435de4c7da4a200621299ecc281dacfbabd1b85",
+        "qualificationDigest": "sha256:9d95f19ccea742b80a1ea808b3e7358172458ea43cbce4c5ba7fb8502e76f023",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.architecture.decomposition/cb51764861414985b7289ac0c548499a2652d39562b0b29b20edcf104c05dd05.json",
-          "recordSha256": "sha256:37e4995c1bfbaa654b8c132fc5b88ff9f3b492506dfc06ef6c036530e18aa91f",
-          "originalQualificationDigest": "sha256:cb51764861414985b7289ac0c548499a2652d39562b0b29b20edcf104c05dd05",
+          "record": "qualification/provider-accuracy/records/legacy.architecture.decomposition/e8ed01631f09447c4e474f73941a9bf1e6bba004176cece4b2254183e04dc36f.json",
+          "recordSha256": "sha256:8dd3335f2b91e95a485277b4be651b00b2e8200286d83a63ec2f96f1faefd577",
+          "originalQualificationDigest": "sha256:e8ed01631f09447c4e474f73941a9bf1e6bba004176cece4b2254183e04dc36f",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -1991,13 +1991,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b8505df8c9accfa50ec555eea84f974335cb17f88cb63ade78efaeba12b394c8",
+        "qualificationDigest": "sha256:15c3cac232d1e5ada2708ec54c539f9a0ee31e2c76a505ae5999b11a7e4f6d52",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.core.repo/ced8212619600cb403de27e898e26d62b5acf589d99a9d7d1eb23c46c8d25334.json",
-          "recordSha256": "sha256:9442685e47ea89763747d29e8614e070118ebd638d165306b1e3a32d0b8f8f35",
-          "originalQualificationDigest": "sha256:ced8212619600cb403de27e898e26d62b5acf589d99a9d7d1eb23c46c8d25334",
+          "record": "qualification/provider-accuracy/records/legacy.core.repo/0fb70ec4e77bd87f4de0cd7c3124b7526214ca30a931da260638a79af0ead90e.json",
+          "recordSha256": "sha256:e1a231257e9f9b6454b8824f28bb985ec10b3acb616d499b72def1ed4bcaa6ab",
+          "originalQualificationDigest": "sha256:0fb70ec4e77bd87f4de0cd7c3124b7526214ca30a931da260638a79af0ead90e",
           "validationBasis": "native-family-validator",
           "stage": "fact-output",
           "scope": "one dirty-path repository status & clean absence"
@@ -2131,13 +2131,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:5f893140f0c36aec12f02912e479ea0ef5e18388499df09548e72fc042a88169",
+        "qualificationDigest": "sha256:f7ea588043eaa0238019b45b50f805f83e25083485e4838d645f556d838d5c23",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.framework.major-suite/bd7c0e8af848bdc3730aa6010ca3c52135ca19621c64d424d20ec79e7ac83f85.json",
-          "recordSha256": "sha256:cb930b341c60c07efbf1aee595c6227aab0ba35c83331738013ffc2804446af6",
-          "originalQualificationDigest": "sha256:bd7c0e8af848bdc3730aa6010ca3c52135ca19621c64d424d20ec79e7ac83f85",
+          "record": "qualification/provider-accuracy/records/legacy.framework.major-suite/e8d11df049e44730d561b22ed6a40c52711b6896882a9551e3dd27718be47703.json",
+          "recordSha256": "sha256:c235154b3e733c2ac728734aadf16ca3934e9ea56ce944bf146f3950d8a4056a",
+          "originalQualificationDigest": "sha256:e8d11df049e44730d561b22ed6a40c52711b6896882a9551e3dd27718be47703",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -2227,13 +2227,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:5928e49d4e61c105927ff699a4beba38d5e9f24190fb14e10098dce3b9e3e90a",
+        "qualificationDigest": "sha256:410ec96fcef0163f2e6f3a0940fe7d9e5cdcf77b0aa85ead87a2e269d894a133",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.data.internal-suite/1a7bd200bf5ff9fa80cbedb7cf08bfa238ed3430177554b3818400d8643120ce.json",
-          "recordSha256": "sha256:9ce51c7c183665df5f52ac61a25557f89ed9c6db9a3f46326e43ba98cedc7924",
-          "originalQualificationDigest": "sha256:1a7bd200bf5ff9fa80cbedb7cf08bfa238ed3430177554b3818400d8643120ce",
+          "record": "qualification/provider-accuracy/records/legacy.data.internal-suite/cdfed0144c6d603bd2f2cf328b4bd5e97982a500988fee0580677df5be6f7514.json",
+          "recordSha256": "sha256:3237b9cb7bf23327c8fd0982d303ac0d13527b3fe5afe0dd2c5d36b98a359ca7",
+          "originalQualificationDigest": "sha256:cdfed0144c6d603bd2f2cf328b4bd5e97982a500988fee0580677df5be6f7514",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -2342,13 +2342,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:708e3cb23d6f7e80aab272eeb2f40fabdb913b0fc448fcbd3a184c68dc15b7e0",
+        "qualificationDigest": "sha256:0fc7fdee34917baa582f9292038f5f445e83dd4cc8ed1e65f1aa10fff232e664",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.infrastructure.internal-suite/e29a60eaaf5753d27afbbc94b9d5b90d2280ca55a8dfa06e43396e550cc15eb4.json",
-          "recordSha256": "sha256:c48423892c4ba1127f615b83021c8f88a630a070786d344c183bca3fe0edd062",
-          "originalQualificationDigest": "sha256:e29a60eaaf5753d27afbbc94b9d5b90d2280ca55a8dfa06e43396e550cc15eb4",
+          "record": "qualification/provider-accuracy/records/legacy.infrastructure.internal-suite/ead45dc6335b884f34f82a36b0c190ca1db57219cc96e09432127b856e3b2e0d.json",
+          "recordSha256": "sha256:ce6e3d06d26f916c532811dd67682a6d1cca4dfa53be71d2112c2ced52267934",
+          "originalQualificationDigest": "sha256:ead45dc6335b884f34f82a36b0c190ca1db57219cc96e09432127b856e3b2e0d",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -2443,13 +2443,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:9ddc7a551729287b8728d38d1de4b351950096f8c27e8ce19149e49138335419",
+        "qualificationDigest": "sha256:cd57895ce836d32f5b07f0ce72e11008e9162371f185dba1e10aa3f02ff1a3f4",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.build/7aa48e6cf76edbdaf3319220ceda405f5b368efbe094dc8e5c9df982b4bfbfca.json",
-          "recordSha256": "sha256:ad95dc6b248a1a13663ff85a9b81cf847fc40ab16f77acde4eab7792dd8d7afd",
-          "originalQualificationDigest": "sha256:7aa48e6cf76edbdaf3319220ceda405f5b368efbe094dc8e5c9df982b4bfbfca",
+          "record": "qualification/provider-accuracy/records/legacy.quality.build/d5c4ef694461e8cd42b621da7fd241f6a5e803b145717740264be7fe633a4514.json",
+          "recordSha256": "sha256:5ba41c355307ff078ec2c62485d98a107ffa82e1a31d09d8c8c97c465ebe02d9",
+          "originalQualificationDigest": "sha256:d5c4ef694461e8cd42b621da7fd241f6a5e803b145717740264be7fe633a4514",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -2629,13 +2629,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": "sha256:c2bde8ec12ee83a70654b2cd71737f3e4814b837d275caa8efbd1ced8ce9f406",
+        "qualificationDigest": "sha256:aa114375b2b1d567e4296df4e49b0a22840c7ce5bc6437115725e772d2ac7519",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.dead-code/e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c.json",
-          "recordSha256": "sha256:50099fd393751b26973a49f9744ed2541153cf31d7a8ceea51af0d66b3216cdc",
-          "originalQualificationDigest": "sha256:e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c",
+          "record": "qualification/provider-accuracy/records/legacy.quality.dead-code/3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34.json",
+          "recordSha256": "sha256:636450c7c2b40897010b583ee0937ffb93aafe8f0a41a98a19dcd0ee5bf5ff97",
+          "originalQualificationDigest": "sha256:3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "known-answer-fixture-cases",
@@ -2721,13 +2721,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:8ee212fdf34a92dee0c88dcf8a1e818b1f5d0792390da7683d8f5de96a71475a",
+        "qualificationDigest": "sha256:2ad4e3c6d5bdf508d5ee5754db3ef51b3b09dc1b2f9e56ea20dfadf8ab96b7d3",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.debt-markers/5b76dc5aa476f5558cd5cb51a4c1e5da5821597e2b5e16137d6fc4828b75aa47.json",
-          "recordSha256": "sha256:33a59bd0331688692879b3ba9428a7e8e7fcac567b194a93403ab485461fc4ee",
-          "originalQualificationDigest": "sha256:5b76dc5aa476f5558cd5cb51a4c1e5da5821597e2b5e16137d6fc4828b75aa47",
+          "record": "qualification/provider-accuracy/records/legacy.quality.debt-markers/92e560abd5afacd86f47215e00b7302ff92dae983bbc287dc79a69f0a00e698a.json",
+          "recordSha256": "sha256:9a78b9e3930fc52ad9124626ae8cbc6c21c860c5aaaf822df2f1094900c65b82",
+          "originalQualificationDigest": "sha256:92e560abd5afacd86f47215e00b7302ff92dae983bbc287dc79a69f0a00e698a",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "one summary finding & exact marker counts/raw grep; no marker-location accuracy claim"
@@ -2811,13 +2811,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": "sha256:2271358af9d6589ea6998cff2ee46fa4f4bfbdde1a8915e8e17f038fc455f3a1",
+        "qualificationDigest": "sha256:35958c065c3422517c2baa872c2217b412ad65e0512d1016c5a5d106c9f022b6",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.duplication/e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c.json",
-          "recordSha256": "sha256:50099fd393751b26973a49f9744ed2541153cf31d7a8ceea51af0d66b3216cdc",
-          "originalQualificationDigest": "sha256:e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c",
+          "record": "qualification/provider-accuracy/records/legacy.quality.duplication/3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34.json",
+          "recordSha256": "sha256:636450c7c2b40897010b583ee0937ffb93aafe8f0a41a98a19dcd0ee5bf5ff97",
+          "originalQualificationDigest": "sha256:3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "known-answer-fixture-cases",
@@ -2907,13 +2907,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:1d8b6c79348134abafedef21fa12affddc5ae5db1d69c71963548856f8f0e041",
+        "qualificationDigest": "sha256:23e20bc1a14486bc7e220d0b69d013d2b042c7b1694ba11b8b5f018f3b536de8",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.lint/dd79db0950f00846bf0ed2c71b30b030567e8857edbf18c8afd3133ae8efb6fd.json",
-          "recordSha256": "sha256:ff108fe7abfe13ee750ceec494855d282b7eee4471caea6a1f7eac72d88ff5e1",
-          "originalQualificationDigest": "sha256:dd79db0950f00846bf0ed2c71b30b030567e8857edbf18c8afd3133ae8efb6fd",
+          "record": "qualification/provider-accuracy/records/legacy.quality.lint/b7076586f50d6bab28e62cb926ec137a5e9d0759e1b6417fa22da5d57afeb049.json",
+          "recordSha256": "sha256:84a2f0094a34ab4d1ad7ed49990690fc900adc3eabe89860d1a953ff7c9b4eb5",
+          "originalQualificationDigest": "sha256:b7076586f50d6bab28e62cb926ec137a5e9d0759e1b6417fa22da5d57afeb049",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -2999,13 +2999,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:f335cc2ba310c0fbd48da4f0ce7b742a3afc5c1fa35ca88fc3149722265a8f01",
+        "qualificationDigest": "sha256:8e5bb9b16098b1d4a2e567098fabf731511d33fd8843ae7497ebdcf0b8635bdc",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.negative-space/401cc933998c2c7ebe3878313793a4fcd0cdabeb61cfcada16be6dd1d74738d8.json",
-          "recordSha256": "sha256:7c4a23bbeb39075602faf17f5b080c3313d43aca95e934fd032ed708cd608661",
-          "originalQualificationDigest": "sha256:401cc933998c2c7ebe3878313793a4fcd0cdabeb61cfcada16be6dd1d74738d8",
+          "record": "qualification/provider-accuracy/records/legacy.quality.negative-space/49404a1d65f6a827b65027fdb794b0155eeaacf9839b25059709dfd46cf3c7c0.json",
+          "recordSha256": "sha256:a4763ae32b0192ace8e1d570b0a28ede9813f8676bbab0bf687f3402f6dc1166",
+          "originalQualificationDigest": "sha256:49404a1d65f6a827b65027fdb794b0155eeaacf9839b25059709dfd46cf3c7c0",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -3092,13 +3092,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:36ba1e8284cff32200fb03639e3924d7e2f891d5f181d3a9c668411abfa2b794",
+        "qualificationDigest": "sha256:a58658bd1078873beaf73ead523164df6145be5631e763ad5ca38b9d14742f2f",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.rust-unused-deps/42b0085a832d4806ea8e29ec6a23ca1227aaba66c21f1b814fffc4fd3977e07d.json",
-          "recordSha256": "sha256:7dfad7e56876c008fd7ed7fbbf7ca7b70e047cef48552c8f1d7d59615bba0649",
-          "originalQualificationDigest": "sha256:42b0085a832d4806ea8e29ec6a23ca1227aaba66c21f1b814fffc4fd3977e07d",
+          "record": "qualification/provider-accuracy/records/legacy.quality.rust-unused-deps/d73981e8d793ba5c8d412c0fc18af6d6ab9127af6f622e2e92508c897c370788.json",
+          "recordSha256": "sha256:b67231951f425c8508a72ba0141cf2d03946af48f06929ef450e06f4991709fa",
+          "originalQualificationDigest": "sha256:d73981e8d793ba5c8d412c0fc18af6d6ab9127af6f622e2e92508c897c370788",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed-native-sdk-fixture",
@@ -3192,13 +3192,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:20a617959236bfd304c288da69d26a3dd576a299aebcca11dc7668762d4f0523",
+        "qualificationDigest": "sha256:8bf0bf2475698606ca953aa70e303e9bc9978c0a84893eb13f4186d8aad91b22",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.swift-lint/ba82c3e69a6ba580359beddf5b23c9286e85f01d45ed9c3df32ec214b6e4810d.json",
-          "recordSha256": "sha256:d3cba262e8f039769271c8caed018435e9de872eae721045f8958c760745a161",
-          "originalQualificationDigest": "sha256:ba82c3e69a6ba580359beddf5b23c9286e85f01d45ed9c3df32ec214b6e4810d",
+          "record": "qualification/provider-accuracy/records/legacy.quality.swift-lint/59bc5323bbc1cfaf2a4c46d2cd75af244adaabbf17dcf4514b15da244396fda0.json",
+          "recordSha256": "sha256:7174ac8fa59849858e2914bfe4aaeb6eec4f81ba85b51aa660d43c5f7d1c271c",
+          "originalQualificationDigest": "sha256:59bc5323bbc1cfaf2a4c46d2cd75af244adaabbf17dcf4514b15da244396fda0",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "one actual tool diagnostic and one clean input; deterministic summary finding only"
@@ -3281,13 +3281,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:7f78a5b6daaf5aef0705ed922718de3e4941b282ebecbaabd1cb6fb023a702da",
+        "qualificationDigest": "sha256:9c2733d95627f2889b32510f0817aaf7626912a0df3639fef4c7d49c529c2ecc",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.tool-coverage/6db7bdb3a8b8ff039c30c00b65b116e8152dff08c858016452ce1d54de3a0867.json",
-          "recordSha256": "sha256:839eca05105c9b9d3a5b1b0c518ef584672a2b37fe0d07ab46b354e659909fee",
-          "originalQualificationDigest": "sha256:6db7bdb3a8b8ff039c30c00b65b116e8152dff08c858016452ce1d54de3a0867",
+          "record": "qualification/provider-accuracy/records/legacy.quality.tool-coverage/637474af2fc3a3dec03d087bfaf0bba705a03b7925ef74d669719f6b6212e76d.json",
+          "recordSha256": "sha256:932e0a145ed1e3becf27a0b9c4b3074c77db9aec961552313a57538a99d46512",
+          "originalQualificationDigest": "sha256:637474af2fc3a3dec03d087bfaf0bba705a03b7925ef74d669719f6b6212e76d",
           "validationBasis": "native-family-validator",
           "stage": "fact-output",
           "scope": "exact native fact output on named constructed controls; not a population accuracy estimate"
@@ -3375,13 +3375,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": "sha256:17aefa9f7c6a5f3f0c60aee1308fe1b73f6ead7ba858f32014868ab9369b8d5f",
+        "qualificationDigest": "sha256:1a17a5d5bbacbfcf05bf2f59cb2cefaff7753e34efabbbbb58d0b5e2b6664770",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.quality.types/e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c.json",
-          "recordSha256": "sha256:50099fd393751b26973a49f9744ed2541153cf31d7a8ceea51af0d66b3216cdc",
-          "originalQualificationDigest": "sha256:e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c",
+          "record": "qualification/provider-accuracy/records/legacy.quality.types/3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34.json",
+          "recordSha256": "sha256:636450c7c2b40897010b583ee0937ffb93aafe8f0a41a98a19dcd0ee5bf5ff97",
+          "originalQualificationDigest": "sha256:3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "known-answer-fixture-cases",
@@ -3470,13 +3470,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:e934a2b252ca69b5ee5df036b6076ad8345a6a102f26be5e73a172e6220dba07",
+        "qualificationDigest": "sha256:66f7f075fc1725e3aa52d8d846ccc050db8cb08ad84bfa0f00a3985c47f89288",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.react.hooks-config/f0259d1beb06adc68f3ec9e474ec300293257f5a0410da8e12985d1164f05169.json",
-          "recordSha256": "sha256:9190eb5a2126be59c36dcabf19eeca21a594664be7fdfb66fe2b33427472c896",
-          "originalQualificationDigest": "sha256:f0259d1beb06adc68f3ec9e474ec300293257f5a0410da8e12985d1164f05169",
+          "record": "qualification/provider-accuracy/records/legacy.react.hooks-config/a34a3c885a3ef70f2a9166534131685a34a13a9f8e7a1efac6d9f87e4127b9c1.json",
+          "recordSha256": "sha256:de04c308efe8957d9c9fb26a9b1254ca2f10d7ee6778a57e1a9e9d393c02364d",
+          "originalQualificationDigest": "sha256:a34a3c885a3ef70f2a9166534131685a34a13a9f8e7a1efac6d9f87e4127b9c1",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -3565,25 +3565,10 @@
         "producerSeparation": true
       },
       "benchmark": {
-        "status": "qualified",
+        "status": "unproven",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:24ae17bd4a7baa40d8c02b5f2c7978dfab9b1d6ec5963864ecf9a748ee5ee1c3",
-        "qualification": {
-          "basis": "retained-provider-accuracy",
-          "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.runtime.app/a3ce2079b7762601ad941762dc996747b2514308aa763c43862af42aadc78887.json",
-          "recordSha256": "sha256:1b3894b5944610de02408deb7450c44f5967aae9d5ea2200a2bfef2964375edc",
-          "originalQualificationDigest": "sha256:a3ce2079b7762601ad941762dc996747b2514308aa763c43862af42aadc78887",
-          "validationBasis": "native-family-validator",
-          "stage": "finding",
-          "scope": "Constructed live URL/surface SDK controls via explicit attested fixture executable mapping; not production admission, unmodified resolver identity or whole-provider clean",
-          "productionQualification": false,
-          "wholeProviderQualified": false,
-          "unmodifiedResolverQualified": false,
-          "productionAdmissionQualified": false,
-          "fixtureScope": "Constructed live URL/surface SDK controls via explicit attested fixture executable mapping; not production admission, unmodified resolver identity or whole-provider clean",
-          "admissionScope": "explicit attested fixture executable mapping only"
-        }
+        "qualificationDigest": null,
+        "qualification": null
       },
       "cleanClaim": "evidence-only",
       "controlIds": [
@@ -4875,13 +4860,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:be647851143edeb73e1b9fcff3663e864c120c4bb6b831fec8675839d2c4eeb8",
+        "qualificationDigest": "sha256:9ac6ad9d4bd37f88d7aef7aa909193719eb8761c09597b2b00ae14c1f426f2da",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.binary-pins/4f1fec1c4ff1fbc9aaabb10045343d07d1144e086444582a64159041680a6734.json",
-          "recordSha256": "sha256:7845d4cda23d4f0bdf89f1bfaff94a5c4bf466a89a92262f889d43eb21236acc",
-          "originalQualificationDigest": "sha256:4f1fec1c4ff1fbc9aaabb10045343d07d1144e086444582a64159041680a6734",
+          "record": "qualification/provider-accuracy/records/legacy.security.binary-pins/a24fedbd328f713e97bd50092c951f0edcd85c3db722a7e8251706a7e4e48e92.json",
+          "recordSha256": "sha256:dd51efeb93f76173c03b88a3ed2f72ed9b36d73ebc68000aec06b8f47b757059",
+          "originalQualificationDigest": "sha256:a24fedbd328f713e97bd50092c951f0edcd85c3db722a7e8251706a7e4e48e92",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -4976,13 +4961,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b52d1087d7865f4fc69f27bd3fcc55fc5cab143520d39738be2e437ee7211f3a",
+        "qualificationDigest": "sha256:f65ae9d2d29d06477ffbcc181cf662de6da062b1e88bf19a02b105f9c3c29973",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.dependency-pinning/2c46df03d5b097cc49f09f9efb4e11f5d9561b04b75f4090aaafdfc144420845.json",
-          "recordSha256": "sha256:e560078e68345ebcb431ac1da8263d61ae1cad3dc6f18ec20b47cc2a9bd57cce",
-          "originalQualificationDigest": "sha256:2c46df03d5b097cc49f09f9efb4e11f5d9561b04b75f4090aaafdfc144420845",
+          "record": "qualification/provider-accuracy/records/legacy.security.dependency-pinning/d1d2c0c4ca79f951633a457f7364447b1c7eff4397c36482939fc9341f968713.json",
+          "recordSha256": "sha256:7d97eb3c55ec733144e799403d06b922ec94a5c9e153daefa1e886a42704d488",
+          "originalQualificationDigest": "sha256:d1d2c0c4ca79f951633a457f7364447b1c7eff4397c36482939fc9341f968713",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -5067,13 +5052,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:d44851323b0cf68afe70cce9436f5ed64569a13cbac9130491287c5d2bcd2000",
+        "qualificationDigest": "sha256:af4c21c86a1b14f6f97d888ee1701dfcda3e0a69de64f0567356f7e3326c4112",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.docker/a2ec8dba2f1f4f3ee68cd1e4f4f85da96f604993e139a0a370c4d397bf574d78.json",
-          "recordSha256": "sha256:64d1bdf8acde0e34fa6a7e2b34ed9f7ea4f53fe316411018a78955c442454dd9",
-          "originalQualificationDigest": "sha256:a2ec8dba2f1f4f3ee68cd1e4f4f85da96f604993e139a0a370c4d397bf574d78",
+          "record": "qualification/provider-accuracy/records/legacy.security.docker/3936d6b127555882bae932e73524b75c7bff95bdb264e105b0f4583573a9c880.json",
+          "recordSha256": "sha256:5374d095c7b9cc8815809b6c49dec17b24288f8811cdaeaa874e0255d107d05c",
+          "originalQualificationDigest": "sha256:3936d6b127555882bae932e73524b75c7bff95bdb264e105b0f4583573a9c880",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "one actual tool diagnostic and one clean input; candidates remain unadjudicated"
@@ -5157,13 +5142,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:394578f6b35742d8a977781f590c81ad1aa8e323cfe14a42c15526f9fe1da13f",
+        "qualificationDigest": "sha256:cce59d4aaa306eddb06490fb2ea900a249da6a9f7a6d1dcc1090df3372e475de",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.github-actions-lint/0f87fc52019e764ecfc5c40006e7e9387b4d363ca6c54e3ba0c0796c77d8e83f.json",
-          "recordSha256": "sha256:f5f4f9df562acdcf52633055b248ceb8028277e6862086a5b6d811afc127fcbf",
-          "originalQualificationDigest": "sha256:0f87fc52019e764ecfc5c40006e7e9387b4d363ca6c54e3ba0c0796c77d8e83f",
+          "record": "qualification/provider-accuracy/records/legacy.security.github-actions-lint/2ac624aac9f9cf445b1c6e560aeef4962fd3d7dc08d42314a56b3210a819ad82.json",
+          "recordSha256": "sha256:264c1b1d019ca5a602571fc89869aedf2006ac047af49bf37ea6c8cbcb5d45e8",
+          "originalQualificationDigest": "sha256:2ac624aac9f9cf445b1c6e560aeef4962fd3d7dc08d42314a56b3210a819ad82",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "one actual tool diagnostic and one clean input; candidates remain unadjudicated"
@@ -5249,13 +5234,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:d52262c2befa0b95ef32466934bde650e98bf95ea5a61a698c6cd17c1b104293",
+        "qualificationDigest": "sha256:0e96bdd2c8474f3fdc0fc8bd7a12e6d06270477c3acd467c24ef0cb71eaeb942",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.js-licenses/5ff7d3783f8978dc0d8c3be30b009792a2c0acd36f0bf3e17f068ab54563517b.json",
-          "recordSha256": "sha256:f0e05351d8b98f93d60ba10a480af80769b0dd1d6a7e7734223efce2e4d6314b",
-          "originalQualificationDigest": "sha256:5ff7d3783f8978dc0d8c3be30b009792a2c0acd36f0bf3e17f068ab54563517b",
+          "record": "qualification/provider-accuracy/records/legacy.security.js-licenses/067eb8082174daa966fde520c22eb4ee6f3318ca560736935af391521796306a.json",
+          "recordSha256": "sha256:b018e2668e67018693aaa1129011928deb59f7cc738481c9883856a7ac356edb",
+          "originalQualificationDigest": "sha256:067eb8082174daa966fde520c22eb4ee6f3318ca560736935af391521796306a",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed native SDK license-checker controls; two actual installed package licenses, summary candidate only",
@@ -5342,13 +5327,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": "sha256:387c677ef109b57696bc655cb552cde3367fd4e1f5f30fe79f76af29697a7f29",
+        "qualificationDigest": "sha256:b83ced01ee920b8c7152f85b99bd765d8a90403332a13758dd39666508fd5c5d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.node-dependencies/e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c.json",
-          "recordSha256": "sha256:50099fd393751b26973a49f9744ed2541153cf31d7a8ceea51af0d66b3216cdc",
-          "originalQualificationDigest": "sha256:e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c",
+          "record": "qualification/provider-accuracy/records/legacy.security.node-dependencies/3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34.json",
+          "recordSha256": "sha256:636450c7c2b40897010b583ee0937ffb93aafe8f0a41a98a19dcd0ee5bf5ff97",
+          "originalQualificationDigest": "sha256:3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "known-answer-fixture-cases",
@@ -5436,13 +5421,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:c320e08c002316fceae8c97fde3559dd7f676dbb672868c91deab666df687821",
+        "qualificationDigest": "sha256:7ec7ba15112414f8f963084700e5024aeea934ce22beface97ee78612d5e127e",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.python-dependencies/ede756e6400b3bccf6e3df4df8b071cd2976af14068092ef8985722d6852b96b.json",
-          "recordSha256": "sha256:3c5e238cecc6ea25ed066b2f3add43cbd918cf3b75c829e0541c97243d98388b",
-          "originalQualificationDigest": "sha256:ede756e6400b3bccf6e3df4df8b071cd2976af14068092ef8985722d6852b96b",
+          "record": "qualification/provider-accuracy/records/legacy.security.python-dependencies/d84d4085936649bef413926a33977d0d4a27b98807feb1e65ebceba8558cf5d9.json",
+          "recordSha256": "sha256:6b4f8b15513642c4e81d2ea7c9f48af1d9084d2a9e4a5eac0466e02dfabff524",
+          "originalQualificationDigest": "sha256:d84d4085936649bef413926a33977d0d4a27b98807feb1e65ebceba8558cf5d9",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "exact-listed-online-pins-fixture-controls",
@@ -5531,13 +5516,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:16a98a7cd5403f3032baf0cfbdeff766da6c5536bebc3b084f00a6bb2e6acb3d",
+        "qualificationDigest": "sha256:887044c7f152efbb401b49ae690c50b3774dcc8808e887b887ec26a33f764a39",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.rust-advisories/9968871a9161a2acb7e5c70e53870e1d893f57492b1e23b4301e0db219e05791.json",
-          "recordSha256": "sha256:aafdbf4010d5b0e1f57bb1e26f416acf47b1fa0446cb271166c7206bd1955d94",
-          "originalQualificationDigest": "sha256:9968871a9161a2acb7e5c70e53870e1d893f57492b1e23b4301e0db219e05791",
+          "record": "qualification/provider-accuracy/records/legacy.security.rust-advisories/dcca55f5180cd95189f5f17b858bfcce640a5d434c811703c9a1317244515afe.json",
+          "recordSha256": "sha256:2e5db000286cae6ddcd30b511e6d05e21603f90c367af08252120aa8d56ac6f8",
+          "originalQualificationDigest": "sha256:dcca55f5180cd95189f5f17b858bfcce640a5d434c811703c9a1317244515afe",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed native SDK + pinned unchanged official RustSec advisory subset; aggregate unadjudicated candidate only",
@@ -5628,13 +5613,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:15ae58a3156a32a56c2f3148df7dc9583c9cf874fb9df779ab32f44c2fadf418",
+        "qualificationDigest": "sha256:7de8986aed87bbbbe0ff2099f3adcbe3eaf9cf23fff3f12c0db2b67bf978f471",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/350898b591b632fe8bd4dd602d5cd809eb1e4ff2d65dfb2fbc25cfd3e73d7c5d.json",
-          "recordSha256": "sha256:19c23210a0c8b751ff03103e6ca484a8a30e62b9e46c2831c1b1d6748fc40fdb",
-          "originalQualificationDigest": "sha256:350898b591b632fe8bd4dd602d5cd809eb1e4ff2d65dfb2fbc25cfd3e73d7c5d",
+          "record": "qualification/provider-accuracy/records/legacy.security.rust-policy/fb1d5686ae4a6aa9d8dd39edbef2ffd2ca76929891c773f044597354e0ed530a.json",
+          "recordSha256": "sha256:c6a550e81e6417e8046c5e71081dac677ce4721c5ccd2d2ead2ef3c79a46058e",
+          "originalQualificationDigest": "sha256:fb1d5686ae4a6aa9d8dd39edbef2ffd2ca76929891c773f044597354e0ed530a",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed native SDK; local path dependency ban positive/absence + missing official-advisory-subset database error; all four checks executed, no advisory-detection claim",
@@ -5723,13 +5708,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:f79b5084b624b70997cf94c13fc0b015ca43f5393ea8a30f666fe7bb21069f34",
+        "qualificationDigest": "sha256:fc41cb3e606aa35e948d2c1d53be65a91ba911aff304e847df9d34cbf423dc13",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.rust-unsafe/85741911500bc8016f21b7a0c4b8ad8e762b7335a0f7d5d26b9e6dd24309ef6a.json",
-          "recordSha256": "sha256:89dc11c72195d770c4ec3c697d00822927290b26bcb71d45848620bb84d15032",
-          "originalQualificationDigest": "sha256:85741911500bc8016f21b7a0c4b8ad8e762b7335a0f7d5d26b9e6dd24309ef6a",
+          "record": "qualification/provider-accuracy/records/legacy.security.rust-unsafe/0351cad24ee57881176fa1718e3cd44f2c09eaf516f99216e6a2bbe736f5d23c.json",
+          "recordSha256": "sha256:4ec23ce65739a7a830c3dd1d935a301b5862cacd1eda5333c28d7764df89efa7",
+          "originalQualificationDigest": "sha256:0351cad24ee57881176fa1718e3cd44f2c09eaf516f99216e6a2bbe736f5d23c",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed native SDK; full SafetyReport unsafe positive/absence + compiler failure + missing-tool controls in disposable scratch; no production owner-admission claim",
@@ -5814,13 +5799,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:897ce35e7644723e521bc26663f566180320d74f2f570f635fd84fc326229134",
+        "qualificationDigest": "sha256:24d39e9275fa501850034d5e3e8f8ad7326a78905328f01d1849c2bf934a860c",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.sast/be89300b321e4c753c644a47c6db4df8018d7810155ce8b556fbb0a71ab76fdf.json",
-          "recordSha256": "sha256:65b14436501307d6bdd6a0c7d9e6efbe426d4764c5e18ae55d4f9fd7aa96230a",
-          "originalQualificationDigest": "sha256:be89300b321e4c753c644a47c6db4df8018d7810155ce8b556fbb0a71ab76fdf",
+          "record": "qualification/provider-accuracy/records/legacy.security.sast/6f2304462fba28c25032e96621c7400f5ed60b898b412f4736a9a09c1f833183.json",
+          "recordSha256": "sha256:e6a3f0999dac39d7b3924855bbbe96891b851b0b9db5d78155e3a68c28d61c07",
+          "originalQualificationDigest": "sha256:6f2304462fba28c25032e96621c7400f5ed60b898b412f4736a9a09c1f833183",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed Python controls for two packaged intrafile taint rules; no auto parity, population accuracy, production admission or vulnerability adjudication",
@@ -5904,13 +5889,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": true,
-        "qualificationDigest": "sha256:39f3a36683b2aa841aa66c25a1a35ea92de6ec995309979c5efde001962078d2",
+        "qualificationDigest": "sha256:c8280ba091f8390f8c0e524de4b44a2cf295f85eaf3f635ff7e251b3525cd68e",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.secrets/e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c.json",
-          "recordSha256": "sha256:50099fd393751b26973a49f9744ed2541153cf31d7a8ceea51af0d66b3216cdc",
-          "originalQualificationDigest": "sha256:e423d41b18aa62f0eabe5c634647deff4ddf2e6542f31ae32aa25c1c0314ab9c",
+          "record": "qualification/provider-accuracy/records/legacy.security.secrets/3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34.json",
+          "recordSha256": "sha256:636450c7c2b40897010b583ee0937ffb93aafe8f0a41a98a19dcd0ee5bf5ff97",
+          "originalQualificationDigest": "sha256:3e2389adec92dddec168b99a6d52fef3f75aa406d9e23198fa1cab741e4a5a34",
           "validationBasis": "native-family-validator",
           "stage": "outcome",
           "scope": "known-answer-fixture-cases",
@@ -6064,13 +6049,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:91eb04bb9252ca76503f5fb8a580408fceb0c6af120dafc7727ef1aa36703717",
+        "qualificationDigest": "sha256:dc7877c7a42513d5f0b15e987cf4c1576ad0211432c1b4e23ae8ad56c3972864",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.security.vendored-dependencies/52253423cdabf4b1cf3712873ce1fb956bf771f14df7db38d2b10ad8ef5fd299.json",
-          "recordSha256": "sha256:6f26ca9a5a8dd52372ba8acad4c94535933c2eba0c9d08c2830b156cd9a54112",
-          "originalQualificationDigest": "sha256:52253423cdabf4b1cf3712873ce1fb956bf771f14df7db38d2b10ad8ef5fd299",
+          "record": "qualification/provider-accuracy/records/legacy.security.vendored-dependencies/65157e6f2245abd2a771ebbea28cd3ea6725f238503e0a0dfee36040c893cc03.json",
+          "recordSha256": "sha256:5fc2d9be255e9bee180ceb7b2da1cdc38aaa1a13e7597eb2fefd40a6a5c172ae",
+          "originalQualificationDigest": "sha256:65157e6f2245abd2a771ebbea28cd3ea6725f238503e0a0dfee36040c893cc03",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -6154,13 +6139,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:c0b4de3044f7f0a8eebc18f581744ddf12dfe1854a57a88038b44661a334fadd",
+        "qualificationDigest": "sha256:3f6b714d5c06ef26bc575194bdf4710f6f47583dd52f02dee6e3d068363d4a4b",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.stack.node-outdated/f6baf9def07ca128519fddf5d868f22691962c504cacc59850f1bfd70baebbb3.json",
-          "recordSha256": "sha256:a4ae0b8d90dfcbd7fd894e7ac03867170bb551c61ece9d301ae0c62cfd7e970d",
-          "originalQualificationDigest": "sha256:f6baf9def07ca128519fddf5d868f22691962c504cacc59850f1bfd70baebbb3",
+          "record": "qualification/provider-accuracy/records/legacy.stack.node-outdated/f4cd430462e06a69abd33492ac1d4b53cb7a4bd123bb3167cace972be2fe3738.json",
+          "recordSha256": "sha256:8bf7f8f210d6fc6e855b2d4a21e34ba2249a653217be611becfd24279898ab4a",
+          "originalQualificationDigest": "sha256:f4cd430462e06a69abd33492ac1d4b53cb7a4bd123bb3167cace972be2fe3738",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed native SDK; official tiny-invariant installed-data npm outdated positive/nonempty absence + registry/process failure + missing-tool; run-scoped public registry responses only, no production owner-admission claim",
@@ -6247,13 +6232,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:c743bb60c48f1ab6e94cbf436a9dd4f7195b9fedbef3aa1e559d860168d75441",
+        "qualificationDigest": "sha256:ec03e0c8c24f1583d2f051d61a7584ab32cb6fd61865e3d413e35dc7e6c0c94f",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.stack.rust-outdated/b3beec7257bcb0a29bc8afe333c87c218fc176800a435be8efe9a91dbe4ef943.json",
-          "recordSha256": "sha256:b05d622428b07cf01a829feac181e3ad909c70ab78a1d2aeff49cdf969b8a98e",
-          "originalQualificationDigest": "sha256:b3beec7257bcb0a29bc8afe333c87c218fc176800a435be8efe9a91dbe4ef943",
+          "record": "qualification/provider-accuracy/records/legacy.stack.rust-outdated/4224df783cf2d373d99e9815054d27d36a4f45dc4f34c11bfbb853badcd4ce6c.json",
+          "recordSha256": "sha256:5bf1386d66234c0037c4671a667e2ae6442ddec3b487a599824ddcf8622cf675",
+          "originalQualificationDigest": "sha256:4224df783cf2d373d99e9815054d27d36a4f45dc4f34c11bfbb853badcd4ce6c",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed-native-sdk-fixture",
@@ -6343,13 +6328,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:ba3c64c53a2ff2d00a3112a5cf4035379b3a64a1365059b8612134aaaaba70c1",
+        "qualificationDigest": "sha256:c746942b39ab88b8e0379014a1193e120b099f531f63d7e3f4931bdf946755e2",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.tauri.capabilities/fe122ef083620833d26d1fc6bec4508b537db887da81f7c2a31bc3e71edd9195.json",
-          "recordSha256": "sha256:61ce36ad4c54a25f84fdacd26fb2dab148c8108d1b98d33418add2fe7b0b3073",
-          "originalQualificationDigest": "sha256:fe122ef083620833d26d1fc6bec4508b537db887da81f7c2a31bc3e71edd9195",
+          "record": "qualification/provider-accuracy/records/legacy.tauri.capabilities/8efc175830b6e8308204af8a6359fa1d4236ac6b977d62e60c3d30b5a264ab98.json",
+          "recordSha256": "sha256:5e4404cccfc3260eca748dfd35f34e0a09be1e246638dfc2a3808cce28e1a560",
+          "originalQualificationDigest": "sha256:8efc175830b6e8308204af8a6359fa1d4236ac6b977d62e60c3d30b5a264ab98",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -6437,13 +6422,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:9808174e38c78b6fb1b766d49a131f117f9d0ff1449d198117a21e71b3113e67",
+        "qualificationDigest": "sha256:edd635cbe235ca673c37275bb0c0dfa2c75336f00e6d8bc38c848c597489327d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.tauri.contract-mirror/75d789b3df5231d540c2ee3394ac6dd5f365407c71d9b4e39a237305bf10e2c8.json",
-          "recordSha256": "sha256:04346d6ef2ca54993f336bdb4e8ae4bda04a1fa153f4dfae5ef3979f36b90d12",
-          "originalQualificationDigest": "sha256:75d789b3df5231d540c2ee3394ac6dd5f365407c71d9b4e39a237305bf10e2c8",
+          "record": "qualification/provider-accuracy/records/legacy.tauri.contract-mirror/66086db7f5e63e2a74fcbaaba64f49bf0829dd04e3d85e597d9d5771a12ddaad.json",
+          "recordSha256": "sha256:9f4bfe04dde6977d10af47e3afb55c58ceb01710cc4ce1e99c32a20201d59177",
+          "originalQualificationDigest": "sha256:66086db7f5e63e2a74fcbaaba64f49bf0829dd04e3d85e597d9d5771a12ddaad",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -6518,13 +6503,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:214791b4ac21cb4a08c99f072dd09d0135d30846a32938ca3381ddd5a5cb19c3",
+        "qualificationDigest": "sha256:547fb471a6cbdcdff78dfabb5a765b9f055e175317af3dea9da78e22e7ffaed8",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/legacy.visual.core/4615c806558658887ae83aa9f0e72c35322013dd209907f168918db64f841709.json",
-          "recordSha256": "sha256:86d8c188d7eb8853e8a02a2ee66cafe00868c023d37875348e07b7de89b4b2ee",
-          "originalQualificationDigest": "sha256:4615c806558658887ae83aa9f0e72c35322013dd209907f168918db64f841709",
+          "record": "qualification/provider-accuracy/records/legacy.visual.core/790a9b56caf3c106662277303413b62c7180ee35f5f4fd16abcfca0157a2537b.json",
+          "recordSha256": "sha256:36532e679e2a6650747dc80f5c28e68ae88da1b3fab7930e56e5c9f1f9bd97d8",
+          "originalQualificationDigest": "sha256:790a9b56caf3c106662277303413b62c7180ee35f5f4fd16abcfca0157a2537b",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "Two flat-color constructed controls; explicit sealed PNG comparison only, not UI quality, runtime capture, population accuracy or production admission"
@@ -6596,13 +6581,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:3125b8dca1a5b742541000f5b2180bac2010488bc16e191fc42e2f567ac84ed0",
+        "qualificationDigest": "sha256:d753148c9399f496dcc7c8d8208e8f0d46471a54bebfedfbb1de98c5b3616fc3",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/requirements.traceability/396a1b5a331f9f7f212456f0fb06bd2f4e5feeec973822437c7b872d7d91b2b2.json",
-          "recordSha256": "sha256:f7c12303483e0190d8c1e6752549e8cdaec30846d3f923a171e303aa899b1f59",
-          "originalQualificationDigest": "sha256:396a1b5a331f9f7f212456f0fb06bd2f4e5feeec973822437c7b872d7d91b2b2",
+          "record": "qualification/provider-accuracy/records/requirements.traceability/0d3f7a62efd546db41a17c342cb7a6a0ec4a1771b4bbf205e75240551d73efa5.json",
+          "recordSha256": "sha256:135950107056a610d1be74e0e32179b2d7585a8ec1b6f3199f08056c27b38d31",
+          "originalQualificationDigest": "sha256:0d3f7a62efd546db41a17c342cb7a6a0ec4a1771b4bbf205e75240551d73efa5",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -6674,13 +6659,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:541267f6ff9e4baaebe8db302be35761dbceb917ae61a8e62d4730faccf510fd",
+        "qualificationDigest": "sha256:269451edd7d6966ed98a9cdacc8d26e76b6baf334f13ce31b56ff71e94596955",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/secrets.current-history/b1a9a94962aa6763f1a1e1e00ce3065a708e21fffd8ecfd16d0a4332cce78af5.json",
-          "recordSha256": "sha256:92be697a6dabf3e6636dc11f02edb6583f7f19203fbfbb880004b0c73fc19c49",
-          "originalQualificationDigest": "sha256:b1a9a94962aa6763f1a1e1e00ce3065a708e21fffd8ecfd16d0a4332cce78af5",
+          "record": "qualification/provider-accuracy/records/secrets.current-history/4fabc3fb40ef557d077eaf301070ef27cb849d95911f3e7ca997683f19b17c5d.json",
+          "recordSha256": "sha256:53188fef1bbe0bd505eec79f83e51ef59b99bd18f4689004e1e347aed9ac31f9",
+          "originalQualificationDigest": "sha256:4fabc3fb40ef557d077eaf301070ef27cb849d95911f3e7ca997683f19b17c5d",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "known-answer-fixture-cases",
@@ -6759,13 +6744,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:03eaf2adff9faf1c87018fc35e2bcdfa441a4ffe0669c58d335256a5ed1da3ca",
+        "qualificationDigest": "sha256:b4a3899f904f87a30f940a88ac5492cd09dc921e73d144dad5628407d32619dc",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.opengrep/c027efc7d8ff5dc9bf9204169c45d8b0d54e8d6919363167f0dcd07a7ff08c42.json",
-          "recordSha256": "sha256:1c2bd94c1e7ce193ba261be50963851390bfaf53cc4857aae2049de67d12cf69",
-          "originalQualificationDigest": "sha256:c027efc7d8ff5dc9bf9204169c45d8b0d54e8d6919363167f0dcd07a7ff08c42",
+          "record": "qualification/provider-accuracy/records/security.opengrep/2bddd2b7bbb9001655b1418bc3bc72da46e5d84ff28455d2399f153a18f43508.json",
+          "recordSha256": "sha256:7a4c12ca29b69bef373b37f4f575700d08984208c0390ae00f29f82d6c25b164",
+          "originalQualificationDigest": "sha256:2bddd2b7bbb9001655b1418bc3bc72da46e5d84ff28455d2399f153a18f43508",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed-native-sdk-artifact-fixture",
@@ -6864,13 +6849,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:35f781b57c1534077abeee6766c02ae8b2625aaa9894e0ff63ba8749f2a68a29",
+        "qualificationDigest": "sha256:242cd8cea453a0d9d273c16b9ab3ab219b098582a2c7fede693953031b68d5cb",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.credentials/7416afd68d8c792f616a1df0beae433c66d078872653251a282376f14a728ab5.json",
-          "recordSha256": "sha256:14ead60465ee7b0ba99e6fefa5b85e405a5604a4d43d60917d4a34e8cf3c239d",
-          "originalQualificationDigest": "sha256:7416afd68d8c792f616a1df0beae433c66d078872653251a282376f14a728ab5",
+          "record": "qualification/provider-accuracy/records/security.credentials/3a7a66c3c86e1e7fa793ad2f2964ec420e962c6fc64f52d4600fb46e1011b04a.json",
+          "recordSha256": "sha256:f0bf31ff18f53d1f5dc53fdaa0a6d91385e7f78275d068d5acdf3fdb10a756c5",
+          "originalQualificationDigest": "sha256:3a7a66c3c86e1e7fa793ad2f2964ec420e962c6fc64f52d4600fb46e1011b04a",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -6966,13 +6951,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:e58f3e958b36af29a40beba941ea098b7ecfb7529076a09c46c41d937b791b6d",
+        "qualificationDigest": "sha256:fe4e532ec08342d450d65f53dfbc2561376a8c84c09a12b03b4616ec6e05f167",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.insecure-defaults/55c33fba3b9acdedf41454c18f108dea726d77c5c2738efbb55c99431d674ac0.json",
-          "recordSha256": "sha256:22358d2ab5f9cc86567e904f383d7781abae25f1831990b1c3af5f09ec96bfe9",
-          "originalQualificationDigest": "sha256:55c33fba3b9acdedf41454c18f108dea726d77c5c2738efbb55c99431d674ac0",
+          "record": "qualification/provider-accuracy/records/security.insecure-defaults/3e91d0a968d02bab8b2528b6e30835d96f46067c19e9cdd2c8c5ed5713529a9e.json",
+          "recordSha256": "sha256:ecba454e0fa6c88a59e1063f8edaed0457ca7b19480aa023cabb9984f36401c1",
+          "originalQualificationDigest": "sha256:3e91d0a968d02bab8b2528b6e30835d96f46067c19e9cdd2c8c5ed5713529a9e",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -7047,13 +7032,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:ad42d6e58892861570b3ca530b6404e7767eb63b9d69ef11e4975aa71f23835c",
+        "qualificationDigest": "sha256:17f7e04e7addbfe4572c636d4efc87aee89e4cc55a9c1c490bcc5c8d01d0be0b",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.misuse-resistance/9ff17f3ad4a7f1affdb7324bed262c9f6b2022d2843aa90be6b4bae64546203d.json",
-          "recordSha256": "sha256:e6abd4f609692558a8e5985f3191d17389af8367a3c135492e3d3c4d3bedb196",
-          "originalQualificationDigest": "sha256:9ff17f3ad4a7f1affdb7324bed262c9f6b2022d2843aa90be6b4bae64546203d",
+          "record": "qualification/provider-accuracy/records/security.misuse-resistance/62b65c00d966f8a5a8911f2b9c428299f54f5fd56e19c2900d53a05c67cde88a.json",
+          "recordSha256": "sha256:3e3d8c295f5b6b298237dfb4702c75a3e526e90da352119db2d3d641facbfb53",
+          "originalQualificationDigest": "sha256:62b65c00d966f8a5a8911f2b9c428299f54f5fd56e19c2900d53a05c67cde88a",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -7144,13 +7129,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:883a80f2b6da37a92cddaabc882c0470492e1390dd06fd5d562f209bbb1b4440",
+        "qualificationDigest": "sha256:ddabca906c09ce84ac487e4121dbd16f6c6e2386b4527379bd9de4d857a8cf6b",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.agentic-ci/e401a87272b3d713855dc5e1135b69e753e6e60132d68ed200ba296856f553bd.json",
-          "recordSha256": "sha256:740bf32f24cf690b6defac499563bf305565a844682e3871f6eb3d44c345e98a",
-          "originalQualificationDigest": "sha256:e401a87272b3d713855dc5e1135b69e753e6e60132d68ed200ba296856f553bd",
+          "record": "qualification/provider-accuracy/records/security.agentic-ci/722ea253643a78f734b1843cadb77af97b3b546a3649be3e1afce43d3a87c0d2.json",
+          "recordSha256": "sha256:046dae73f876e61df3fb6604bffe2fc57ca5898076738d17230865571ac412b6",
+          "originalQualificationDigest": "sha256:722ea253643a78f734b1843cadb77af97b3b546a3649be3e1afce43d3a87c0d2",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -7239,13 +7224,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:26d0759c74b5e169e5f985de2e3639396b6e2ec87a8b5bd14683e3911b6e2ec0",
+        "qualificationDigest": "sha256:7747caad24e281f25e5537ad41437f0f7f29e88618664dec89eeee14b2949f6c",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.agent-skill-mcp/94cd9fac99a79f2b1be976eeb5f54aa7e133aed14f1720fbd3d61e3a1be352f9.json",
-          "recordSha256": "sha256:672d472c2910606dae8686b0a60730e7a997f111b513584337e0e8e11d11fbaf",
-          "originalQualificationDigest": "sha256:94cd9fac99a79f2b1be976eeb5f54aa7e133aed14f1720fbd3d61e3a1be352f9",
+          "record": "qualification/provider-accuracy/records/security.agent-skill-mcp/8aba18793d771b548b0f6df4503b55d4968e25188877dfefc2149c8ca07114b4.json",
+          "recordSha256": "sha256:5ead99c6c3aecfb010bebd1713a833533e09f6eda12f3aaab8e100ed0aa9d65a",
+          "originalQualificationDigest": "sha256:8aba18793d771b548b0f6df4503b55d4968e25188877dfefc2149c8ca07114b4",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -7317,13 +7302,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:376254c87217172f3069d120cc1a05c01cf3cfc933eb860c23e33be272118848",
+        "qualificationDigest": "sha256:7d0e7f29d562abb42cba4e5056b3dbdf8a394f0eaf745591938eac082120cd01",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/structural.ast-grep/9a0a2dfa759577bb8a03341933d973b2719d21681666b353fda6607a3562cee7.json",
-          "recordSha256": "sha256:28432e284d05bb6bfd75d34328d5a8fbf32c1597a902a543a5526c01a6d33fd9",
-          "originalQualificationDigest": "sha256:9a0a2dfa759577bb8a03341933d973b2719d21681666b353fda6607a3562cee7",
+          "record": "qualification/provider-accuracy/records/structural.ast-grep/79e8e8292bbe53c560ed17c7cb3d3829c54fa2dcd7ab6e55c62433822e8a8d2c.json",
+          "recordSha256": "sha256:63d433bc6289edcf2c242beef46ada9c222f487deade0566602ef0d70d70028d",
+          "originalQualificationDigest": "sha256:79e8e8292bbe53c560ed17c7cb3d3829c54fa2dcd7ab6e55c62433822e8a8d2c",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed-native-sdk-artifact-fixture",
@@ -7399,13 +7384,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:9afd6051b05082fcd23a7ed9767958e11cd16de1652a0f8a99e405ddc5d40870",
+        "qualificationDigest": "sha256:a14f4642a99feb3557fe4b063e7629d68ab9624287e440df323e7e7203e2d60c",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/supply-chain.license-sbom-provenance/0491adff0f8a97959f2cc10a7430526d96b562b6a8e97ce1d891ed9b580d208a.json",
-          "recordSha256": "sha256:3fb77c127b9ccf9159072bcbf1f57d6d8b61e33d5d52c97912a3e7721e6e8cc6",
-          "originalQualificationDigest": "sha256:0491adff0f8a97959f2cc10a7430526d96b562b6a8e97ce1d891ed9b580d208a",
+          "record": "qualification/provider-accuracy/records/supply-chain.license-sbom-provenance/020db902d42269f6d11855070428db227945cfde1330d62f57ab284d2fbaa090.json",
+          "recordSha256": "sha256:aec58118cb0fa71ec46975f28556d8ae761123385777c79960682ffd710f8775",
+          "originalQualificationDigest": "sha256:020db902d42269f6d11855070428db227945cfde1330d62f57ab284d2fbaa090",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "native Syft dual-format SBOM + explicit license policy; full constructed npm-v3 lock including dev/transitive; audited target build provenance unproven",
@@ -7485,13 +7470,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:b18f1fa31f4daebfcfa52d83b874bd84fed8cba6be8f801c2fca3bd83bdf5448",
+        "qualificationDigest": "sha256:4bba36660599035a64bc8849dedaa893f7a443dd44abeefe657c0de01926da8c",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/test-quality.core/70f31e341058211a7c96361fe127e6b4e285fb982200bf0f322928accd456459.json",
-          "recordSha256": "sha256:3cadcd6fa4e68eceee1c0304ee43b546a620aeeffc837c2126af66e884829a88",
-          "originalQualificationDigest": "sha256:70f31e341058211a7c96361fe127e6b4e285fb982200bf0f322928accd456459",
+          "record": "qualification/provider-accuracy/records/test-quality.core/11e05c38cd0256010f644e8b6ebb7908ece6c4f6eb4b28467023e675e4e9f023.json",
+          "recordSha256": "sha256:e01f3cc47b65295f6fc3d53b0a7d49406b0173a229027f4d1466268c4c222d28",
+          "originalQualificationDigest": "sha256:11e05c38cd0256010f644e8b6ebb7908ece6c4f6eb4b28467023e675e4e9f023",
           "validationBasis": "native-family-validator",
           "stage": "finding",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"
@@ -7568,13 +7553,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:120d12c2948d0234dd7f830d8f61e75fbf39148d3b52156e828b1ffe1706d08f",
+        "qualificationDigest": "sha256:d015f21e6c583723391af3312ca032fa403c65b15df6bcdf5d7b9906a5080297",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-squawk/7629d4a998e24586e22a7d112691a9ccb23ff1e5ed33699255e3dbad58db6b34.json",
-          "recordSha256": "sha256:f114c17bc08cf439c0b437d5a817f5fbb55c56807ad58d9b69ad9a83f08d5321",
-          "originalQualificationDigest": "sha256:7629d4a998e24586e22a7d112691a9ccb23ff1e5ed33699255e3dbad58db6b34",
+          "record": "qualification/provider-accuracy/records/security.scanner-squawk/474ffa85168ab135d70074aaa70baf4aa62d2d6b9921a1e948740d38c744df25.json",
+          "recordSha256": "sha256:8363605ddb3bc99eff95da42795a94fed2aba55abb1c2139bcaf3167712554b2",
+          "originalQualificationDigest": "sha256:474ffa85168ab135d70074aaa70baf4aa62d2d6b9921a1e948740d38c744df25",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -7654,13 +7639,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:8e3f97fb68890da1bfc57336cb4e73bb4a1e48d00f9635514eb354a0a863168b",
+        "qualificationDigest": "sha256:1fcd042debb7da9940a1c68ee1d19995d82694e9e8d65bfd8bdf383eb84b940d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-shellcheck/587dcc20ec0cbd505e0cf9f85e37bb252fe9a039658d5d44ddc6232ddacb1828.json",
-          "recordSha256": "sha256:86b68cc771d691825fd4c2a07c4cc0cc08ef57bb47e4111500cb3a369c7fe94e",
-          "originalQualificationDigest": "sha256:587dcc20ec0cbd505e0cf9f85e37bb252fe9a039658d5d44ddc6232ddacb1828",
+          "record": "qualification/provider-accuracy/records/security.scanner-shellcheck/744f7c7a45623c25c7a7b55ccef3f3dae52083b827b5a17f560635bacd938648.json",
+          "recordSha256": "sha256:7a80d5f9fd50a17c1f122a2130301afdbdffc870b150aee59069cc65e42ea0e4",
+          "originalQualificationDigest": "sha256:744f7c7a45623c25c7a7b55ccef3f3dae52083b827b5a17f560635bacd938648",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -7746,13 +7731,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:773150d94ad39495cd13c8164d667b8a5f6cb2f9df5965fac4f5eb1d8b6e93dd",
+        "qualificationDigest": "sha256:9fc1976c5dca81c17de305a098927898c87a6398aaa3477d8d8cea1d50dbfc6d",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-zizmor/939eb68a6dda34048314156a019b76492231d3cd35f3cd265d4b4112f343832d.json",
-          "recordSha256": "sha256:8c3a8ca4f713c26170a9bc86894ea851653db94ec68f5d7efcd1a1861d134abf",
-          "originalQualificationDigest": "sha256:939eb68a6dda34048314156a019b76492231d3cd35f3cd265d4b4112f343832d",
+          "record": "qualification/provider-accuracy/records/security.scanner-zizmor/4d10112d740d4f3a9d4a397a70fa3e81e901d58cee11cdaacafbfebbe2a08cf1.json",
+          "recordSha256": "sha256:90b04968de34b2a5052b181166e42ea20f2fdf181fca913a92fcceb1e1566219",
+          "originalQualificationDigest": "sha256:4d10112d740d4f3a9d4a397a70fa3e81e901d58cee11cdaacafbfebbe2a08cf1",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -7830,13 +7815,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:eb0b46c7f72f706e6f43a993b69ca1f2df627c1642b84c0e0d5791a23c3d89b0",
+        "qualificationDigest": "sha256:28656df7fd8f6aad0c738110d0c818f6661ac6851c576e7e1d94a5423c4756c6",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-tflint/59f560f6f7b70bd2847bb07a7913a80e43c7b3b6cba746b9a49ce7ed4a94b48e.json",
-          "recordSha256": "sha256:9033b4729b806e8f6af9317adfbd196adeeb707ea4d14838eeb334680a5d6cc3",
-          "originalQualificationDigest": "sha256:59f560f6f7b70bd2847bb07a7913a80e43c7b3b6cba746b9a49ce7ed4a94b48e",
+          "record": "qualification/provider-accuracy/records/security.scanner-tflint/ff10e0da2fdb8f1de682cd6d59d33e671d5d0e93e6cd67f9d11e72d5fcae92f4.json",
+          "recordSha256": "sha256:820a594d970b5f62d8c452b97f4f01b2b7026c6ff8d898abff5fc591bcc34b77",
+          "originalQualificationDigest": "sha256:ff10e0da2fdb8f1de682cd6d59d33e671d5d0e93e6cd67f9d11e72d5fcae92f4",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -7915,13 +7900,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:a8c29a0df1ada73d13902f4d9542470469494547576ee68a664d1535cc2bcb26",
+        "qualificationDigest": "sha256:e9c6c1984531382c51b4cc719ca8e53b546ca079ed4f40700d3d304b90c502b2",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-kubeconform/aee0986373f1244e1e6b571b011a712e5009d8381204609361faf4c0e3d37b1c.json",
-          "recordSha256": "sha256:e46e42b967c49f517da5e9a0e9589bb23afb4e89d168047d8e149fd90bfd76ad",
-          "originalQualificationDigest": "sha256:aee0986373f1244e1e6b571b011a712e5009d8381204609361faf4c0e3d37b1c",
+          "record": "qualification/provider-accuracy/records/security.scanner-kubeconform/f56f5c99d5390865201120eaf7c4416f5cb8283323b1733375726640bf1f1c49.json",
+          "recordSha256": "sha256:46585e78a61391e849a4415063e1da3e79241e10a57f1fdc7b671c72592edfda",
+          "originalQualificationDigest": "sha256:f56f5c99d5390865201120eaf7c4416f5cb8283323b1733375726640bf1f1c49",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed Pod schema type violation & clean control; not population accuracy, server-side validation or production admission"
@@ -8000,13 +7985,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:44029c47ac7bad6a9889361891b0ead397a3399dcb158d930a1ab004f3e5e387",
+        "qualificationDigest": "sha256:87b0e2d33dde194557ffcb1a106b9e79c27311a99173cb9ed1159eeb2fdee667",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-kube-linter/7bd06ba06bb992c56af6cc3f9f98f0c9f43e4bd832b29eac70d0645815f664f5.json",
-          "recordSha256": "sha256:7e642b1f3ecca3bd6a7d256090b452b89983abed0b185d829465dd79086fab56",
-          "originalQualificationDigest": "sha256:7bd06ba06bb992c56af6cc3f9f98f0c9f43e4bd832b29eac70d0645815f664f5",
+          "record": "qualification/provider-accuracy/records/security.scanner-kube-linter/695adbb4c5dbfdc5030ce15173fd1f8cbd1a729528945659bf9906850dc8598e.json",
+          "recordSha256": "sha256:1c2bfe2f3def1e9aca303af99285bf73872e5268c7f48b859d84b69b11d334b0",
+          "originalQualificationDigest": "sha256:695adbb4c5dbfdc5030ce15173fd1f8cbd1a729528945659bf9906850dc8598e",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -8088,13 +8073,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:13fda2120f3116cee5eb3c8bea3535d8f80a68d04e6f4d8a08395a52b4897836",
+        "qualificationDigest": "sha256:ebf90b5ab90f61045e3e4b29d57a06aa58573e4f0dceb50094576ac7445e20c9",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-brakeman/88393dfffe06e7113eaa8713d2de1d620d4dd7518155fc4f7ff96fd92dc32c74.json",
-          "recordSha256": "sha256:ffcc5be7a0ee798483449ead375cf50a87df11e3173ccfb5bc0fd72c4208df97",
-          "originalQualificationDigest": "sha256:88393dfffe06e7113eaa8713d2de1d620d4dd7518155fc4f7ff96fd92dc32c74",
+          "record": "qualification/provider-accuracy/records/security.scanner-brakeman/48107904db2803298166f0a3cfa5d395b33e8fc41debce11c69b332269c598b7.json",
+          "recordSha256": "sha256:2062e2aa772b5c7c892c932c6c382b7efbf2d0450f5c051a786510a080e94878",
+          "originalQualificationDigest": "sha256:48107904db2803298166f0a3cfa5d395b33e8fc41debce11c69b332269c598b7",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean controls; not population accuracy or production admission"
@@ -8171,13 +8156,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:371d28f157d52f20b9936d6e688b198a2c26ad3a39730dea4c0ed98be8dea102",
+        "qualificationDigest": "sha256:b252ee95983b011d74f1f91e076f71d5aedaf448046eae1ed06b96896195ff48",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.scanner-golangci-lint/fb6ed3fb2b0b600879f36e6eca52d4356897ce266d75dde7733e69b87fb15e13.json",
-          "recordSha256": "sha256:809e58d6a667724b4fe55bbf733b0e3f959f0b05f245992e0c730a655e0d30bc",
-          "originalQualificationDigest": "sha256:fb6ed3fb2b0b600879f36e6eca52d4356897ce266d75dde7733e69b87fb15e13",
+          "record": "qualification/provider-accuracy/records/security.scanner-golangci-lint/ef62177c5368d11b87a335363380f75c6feeaafb3906705ee2ab474a90f5f2a7.json",
+          "recordSha256": "sha256:cfa3960d4282f00b7faad0acbb08dbc36759dbda38ebaef212dc53eafa6d880b",
+          "originalQualificationDigest": "sha256:ef62177c5368d11b87a335363380f75c6feeaafb3906705ee2ab474a90f5f2a7",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "Constructed planted & clean Go controls; not population accuracy or production admission"
@@ -8251,13 +8236,13 @@
       "benchmark": {
         "status": "qualified",
         "requiredForCleanClaim": false,
-        "qualificationDigest": "sha256:e2496e59e16448ad0fa583895ac3c436baa4ea46ccdb7b5685173752f339ddde",
+        "qualificationDigest": "sha256:2043d7c34521bd4cdf272b660d71fb8c19af64245c8319436aaea801b0d4d432",
         "qualification": {
           "basis": "retained-provider-accuracy",
           "index": "qualification/provider-accuracy/index.json",
-          "record": "qualification/provider-accuracy/records/security.suppression-changes/2b45b2478725f57fff4bac6b78667002349407c189bdfb0be03d9528c95163e0.json",
-          "recordSha256": "sha256:ecc621e04940f44cc4014d2125b50c3e6e4c41f3908c37db39bdfc4a1bb1295f",
-          "originalQualificationDigest": "sha256:2b45b2478725f57fff4bac6b78667002349407c189bdfb0be03d9528c95163e0",
+          "record": "qualification/provider-accuracy/records/security.suppression-changes/5a272a390501e8941393fb142c0b3dfafc7c190cd150e8385464f87996880ed8.json",
+          "recordSha256": "sha256:0112f042393ae735f5f910b4324b4c680a9ef5b58839f77b28919affcfac7d82",
+          "originalQualificationDigest": "sha256:5a272a390501e8941393fb142c0b3dfafc7c190cd150e8385464f87996880ed8",
           "validationBasis": "native-family-validator",
           "stage": "candidate",
           "scope": "constructed planted & clean controls; not a population accuracy estimate"

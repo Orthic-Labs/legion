@@ -217,7 +217,7 @@
         "runtime",
         "a11y"
       ],
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "phase": "P2"
     },
     {
@@ -1045,7 +1045,7 @@
         "kind": "legacy-check",
         "check": "runtime"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
