@@ -419,7 +419,11 @@ release_qualification_scratch() {
     esac
     [[ -e "$path" ]] || continue
     printf 'AUDIT_QUALIFICATION_RELEASE %s %s\n' "$path" "$(du -sk "$path" 2>/dev/null | cut -f1)"
-    rm -rf "$path"
+    # Go's module cache is read-only by design; restore write permission first,
+    # and never let a failed release abort the qualification gate (run
+    # 39715337548 stopped after span 61 on "Permission denied").
+    chmod -R u+w "$path" 2>/dev/null || true
+    rm -rf "$path" || printf '::warning::could not fully release %s\n' "$path" >&2
   done
 }
 run_audit_qualification() {

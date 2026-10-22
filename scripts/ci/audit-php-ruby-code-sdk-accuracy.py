@@ -135,7 +135,11 @@ def sdk(item, policy, control, plan, scratch, enrollment, commands, live):
     keys(r["timing"], ("startedAtMs", "completedAtMs", "durationMs"))
     require(all(type(v) is int and v >= 0 for v in r["timing"].values()), "SDK timing malformed")
     if rejected or absent:
-        require(r["state"] == ("unauthorized_effect" if rejected else "sandbox_missing") and r["complete"] is False and r["exitCode"] is r["signal"] is r["executable"] is None and r["gaps"], "actual SDK refusal became execution/clean")
+        require(r["state"] == ("unauthorized_effect" if rejected else "sandbox_missing") and r["complete"] is False and r["exitCode"] is r["signal"] is None and r["gaps"], "actual SDK refusal became execution/clean")
+        if rejected:require(r["executable"] is None,"owner-admission refusal resolved an executable")
+        else:
+            # The executor seals the wrapper identity before it reports the missing sandbox, but never probes or runs it.
+            e=r["executable"];require(isinstance(e,dict) and e["canonicalPath"] == e["requestedPath"] == policy["wrapper"]["path"] and e["digest"] == policy["wrapper"]["digest"] and e["digestState"] == "sealed" and e["version"]["exitCode"] is None and e["version"]["output"] is None,"missing-sandbox refusal executable identity differs")
         same(r["processTree"], {"started": False, "terminated": False, "hardKilled": False, "reaped": False, "detail": None}, "SDK refusal launched process")
         same(r["timing"], {"startedAtMs": 0, "completedAtMs": 0, "durationMs": 0}, "SDK refusal launched timed process")
     else:
@@ -207,7 +211,7 @@ def validate_case(root,case,enrollment,live):
     same(inv["entries"],entries,"source-owned frozen inventory differs")
     require(inv["schemaVersion"]==1 and inv["repositoryId"]==case["caseId"] and inv["generation"]=="filesystem:"+digest(encoded(entries)) and inv["digest"]==digest(encoded([1,case["caseId"],inv["generation"],entries])),"inventory identity differs")
     spec=next(s for s in parsed(source_file(root,"src/registry/providers.json").read_bytes())["providers"] if s["id"]==PROVIDER);frozen=case["frozenProvider"]
-    require(is_digest(case["planDigest"]) and frozen["id"]==PROVIDER and frozen["version"]==spec["providerVersion"] and frozen["configuration"]["denominatorCount"]==len(entries) and frozen["configuration"]["denominatorDigest"]==digest(encoded([inv["digest"],spec["selector"],entries])),"original selected-scope denominator changed")
+    require(is_digest(case["planDigest"]) and frozen["id"]==PROVIDER and frozen["version"]==spec["providerVersion"] and frozen["configuration"]["denominatorCount"]==len(entries) and (frozen["configuration"]["denominatorDigest"]==inv["digest"] if spec["selector"]=={"op":"always"} else frozen["configuration"]["denominatorDigest"]==digest(encoded([inv["digest"],spec["selector"],entries]))),"original selected-scope denominator changed")
     policy=case["policyDefinition"];keys(policy,("id","version","scope","provider","planDigest","originalRoot","frozenInputs","toolIdentities","runtimeDigests","enrollmentDigest","wrapper","profile","commands","absentSandboxControl","stdoutLimit","stderrLimit"))
     original=absolute(policy["originalRoot"]);scratch=absolute(policy["profile"]["path"]).parent.parent
     require(original.name=="source" and original.parent.name==case["caseId"] and scratch.name==case["caseId"] and scratch.parent.name=="cases" and not(original==scratch or original in scratch.parents or scratch in original.parents),"original/private scratch boundary changed")
@@ -239,7 +243,15 @@ def validate_case(root,case,enrollment,live):
             require(native["coverage"]["examined"]==4 and native["coverage_gaps"]==["code.php-ruby:selection-narrower-than-denominator:4of10"],"honest source selection gap changed")
         producer=native["details"]["nativeProducer"];same(producer["deferredCommands"],[],"required commands deferred")
         receipts=producer["toolReceipts"];bound=[r for r in receipts if "sdkReceipt" in r]
-        same([r["sdkReceipt"] for r in bound],[r["executionReceipt"] for r in rows],"original SDK receipts omitted/reissued/reinterpreted")
+        def without_policy_annotation(receipt):
+            # The engine annotates owner-admission refusals with the execution policy it denied under;
+            # the annotation must be internally bound to the receipt's policy before it is set aside.
+            if receipt.get("state")!="unauthorized_effect":return receipt
+            pol=receipt["policy"]
+            require(digest(encoded(receipt["executionPolicy"]))==pol["digest"]
+                    and receipt["executionPolicyIdentity"]=={k:pol[k] for k in ("id","version","digest")},"refusal execution policy annotation differs")
+            return {k:v for k,v in receipt.items() if k not in ("executionPolicy","executionPolicyIdentity")}
+        same([without_policy_annotation(r["sdkReceipt"]) for r in bound],[r["executionReceipt"] for r in rows],"original SDK receipts omitted/reissued/reinterpreted")
         boundary=[r for r in receipts if r.get("kind")=="php-ruby-native-enrollment-boundary"];require(len(boundary)==1 and boundary[0]["before"]==boundary[0]["after"] and boundary[0]["beforeError"] is boundary[0]["afterError"] is None,"full native runtime boundary missing/changed")
         for receipt in bound:
             if "nativeInputSnapshots" in receipt:
