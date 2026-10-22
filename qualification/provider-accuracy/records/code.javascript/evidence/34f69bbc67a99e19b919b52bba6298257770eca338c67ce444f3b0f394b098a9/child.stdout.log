@@ -1,0 +1,8 @@
+
+running 1 test
+test real_javascript_sdk_accuracy has been running for over 60 seconds
+JAVASCRIPT_SDK_ACCURACY_ARTIFACT {"provider":"code.javascript","file":"code_javascript.json","digest":"sha256:7018f95f3d4fb8f5f3d647e3415a9502319b378774dd7f30cd31acbcc831ae11","bytes":23931697,"qualificationDigest":"sha256:34f69bbc67a99e19b919b52bba6298257770eca338c67ce444f3b0f394b098a9","qualificationEligible":true,"productionQualification":false}
+test real_javascript_sdk_accuracy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 743.00s
+

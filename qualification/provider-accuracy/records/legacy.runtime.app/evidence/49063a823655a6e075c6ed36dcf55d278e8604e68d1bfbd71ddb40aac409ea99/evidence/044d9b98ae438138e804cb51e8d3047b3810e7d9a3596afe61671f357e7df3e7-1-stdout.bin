@@ -1,0 +1,11 @@
+[qa] 1:eval ok
+[qa] 1:eval value {"ok":true,"href":"http://127.0.0.1:49650/planted/secondary.html","status":200}
+[qa] screenshot /Users/runner/work/_temp/legion-provider-qualification/runtime-app/run-planted/tmp/runtime-3/shots/runtime-shot-1.png
+[qa] 2:screenshot ok
+[qa] 3:eval ok
+[qa] 3:eval value {"domContentLoaded":16.7,"loadEventEnd":17,"responseStart":4.6,"ttfb":4.6,"firstContentfulPaint":148,"transferSize":0,"resourceCount":0}
+[qa] 4:eval ok
+[qa] 4:eval value {"status":"ran","totalViolations":1,"truncated":false,"violations":[{"id":"image-alt","impact":"critical","help":"Images must have alternative text","count":1,"target":"img","helpUrl":"https://dequeuniversity.com/rules/axe/4.14/image-alt?application=axeAPI"}]}
+[qa] actions complete /Users/runner/work/_temp/legion-provider-qualification/runtime-app/run-planted/tmp/runtime-3/surface-1/actions.json
+[qa] 1 console error/warning(s) — see /Users/runner/work/_temp/legion-provider-qualification/runtime-app/run-planted/tmp/runtime-3/surface-1/.cache/qa-console.log
+[qa]   console.error: "legion-runtime-planted"

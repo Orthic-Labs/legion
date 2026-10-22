@@ -1,0 +1,19 @@
+{
+  "schema": "legion-javascript-sdk-child/1",
+  "productionQualification": false,
+  "status": {
+    "success": true,
+    "exitCode": 0,
+    "signal": null
+  },
+  "stdout": {
+    "file": "child.stdout.log",
+    "digest": "sha256:c436211118e848c6f427c099ec72ea6d1cb5aa36461d5980ca87db64767e8a73",
+    "bytes": 577
+  },
+  "stderr": {
+    "file": "child.stderr.log",
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

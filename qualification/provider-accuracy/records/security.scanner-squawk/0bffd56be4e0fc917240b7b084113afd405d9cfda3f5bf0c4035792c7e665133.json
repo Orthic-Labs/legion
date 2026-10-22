@@ -1,0 +1,1024 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "security.scanner-squawk",
+  "stage": "candidate",
+  "scope": "Constructed planted & clean controls; not population accuracy or production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:0880c57a0e922c3be5547f2bc839c49a2e6aa754e9338591ab872b5ed6f94583",
+    "harnessPath": "engine/crates/legion-audit/tests/more_external_scanner_accuracy.rs",
+    "harnessDigest": "sha256:4f79d990a70f2774c2dfddcf43e545eef0883a46b49015ee7cfffffc722e65a2",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 278,
+      "digest": "sha256:8af74a9b7290d5b7136693debade154a0218037ca440e56381379f45c03e661e"
+    }
+  },
+  "expectationSources": [
+    "https://squawkhq.com/docs/ban-drop-column/",
+    "https://squawkhq.com/docs/require-timeout-settings/",
+    "https://raw.githubusercontent.com/sbdchd/squawk/v2.70.0/crates/squawk_linter/src/rules/ban_drop_column.rs",
+    "https://raw.githubusercontent.com/sbdchd/squawk/v2.70.0/crates/squawk_linter/src/rules/prefer_robust_stmts.rs",
+    "https://raw.githubusercontent.com/sbdchd/squawk/v2.70.0/crates/squawk/src/reporter.rs",
+    "https://raw.githubusercontent.com/sbdchd/squawk/v2.70.0/crates/squawk/src/file_finding.rs"
+  ],
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "squawk-planted",
+      "source": {
+        "path": "migration.sql",
+        "bytes": "SET lock_timeout = '1s';\nSET statement_timeout = '5s';\nALTER TABLE public.items DROP COLUMN IF EXISTS obsolete;\n",
+        "digest": "sha256:115546dd1c8cff586d669f2708444ef6f691f7877373da10378a64f0df126e83"
+      },
+      "expected": [
+        "ban-drop-column|migration.sql|3"
+      ],
+      "actual": [
+        "ban-drop-column|migration.sql|3"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:3885c3e36f0648372b2dbb3b06002b29a5fb6f982ef96dfea8d83d4d555fbe37",
+      "inventoryDigest": "sha256:df09e2cef0b08a2b72851efc3a6c9ee6670ddc2b182ea920d8f469029857ff9d",
+      "coverage": {
+        "denominator_digest": "sha256:df0cc0263e0ac6759eeaba537f83b49eaad25fae78353d263005d40a52949795",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/squawk",
+        "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+        "version": {
+          "rawVersionOutput": "squawk 2.70.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/466ae5de7274dc75285272a0391ce8c6c28ee1fed173a31e7d8b8c27d2480f1f",
+            "requestId": "legion-audit/466ae5de7274dc75285272a0391ce8c6c28ee1fed173a31e7d8b8c27d2480f1f",
+            "providerId": "security.scanner-squawk",
+            "planId": "sha256:df09e2cef0b08a2b72851efc3a6c9ee6670ddc2b182ea920d8f469029857ff9d",
+            "taskId": "squawk-version-probe",
+            "policyId": "legion-squawk-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-squawk-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:3db0575d33ea4ac48c7e2897bc1d5dce105f6ab9a73de3b1cec933fcddfe8e66",
+              "allowed": true,
+              "reason": "fixture-scoped real Squawk benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/version-sandbox/audit-724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/squawk",
+                  "--version"
+                ],
+                "output": "squawk 2.70.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792652416460,
+              "completedAtMs": 1792652416476,
+              "durationMs": 16
+            },
+            "stdout": {
+              "path": "legion-audit/466ae5de7274dc75285272a0391ce8c6c28ee1fed173a31e7d8b8c27d2480f1f/stdout",
+              "digest": "sha256:ba0e7f45c8eb36d207bf9bde9d35a7412c31177e08c678e6342fb6f6ec035b7c",
+              "bytes": 14,
+              "immutable": true,
+              "raw": "squawk 2.70.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/466ae5de7274dc75285272a0391ce8c6c28ee1fed173a31e7d8b8c27d2480f1f/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-squawk-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-squawk",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run",
+        "inventoryDigest": "sha256:df09e2cef0b08a2b72851efc3a6c9ee6670ddc2b182ea920d8f469029857ff9d",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/squawk",
+          "digest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--reporter",
+          "json",
+          "-c",
+          "<owned-config-under-run>",
+          "--",
+          "./migration.sql"
+        ],
+        "ownedConfig": {
+          "bytes": "",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "versionArgv": [
+          "--version"
+        ],
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/466ae5de7274dc75285272a0391ce8c6c28ee1fed173a31e7d8b8c27d2480f1f",
+          "providerId": "security.scanner-squawk",
+          "planId": "sha256:df09e2cef0b08a2b72851efc3a6c9ee6670ddc2b182ea920d8f469029857ff9d",
+          "taskId": "squawk-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/version-sandbox/audit-724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/version-sandbox/audit-724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/6d8622196b3154d1eaa7ece06587f9bd5ed303cd59ee16d02a46d5f59ba44b75",
+          "providerId": "security.scanner-squawk",
+          "planId": "sha256:df09e2cef0b08a2b72851efc3a6c9ee6670ddc2b182ea920d8f469029857ff9d",
+          "taskId": "squawk",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/sandbox/audit-724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--reporter",
+            "json",
+            "-c",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/squawk-owned-config",
+            "--",
+            "./migration.sql"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/sandbox/audit-724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "squawk",
+          "version": "squawk 2.70.0",
+          "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+        },
+        "version": "squawk 2.70.0",
+        "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+        "argv": [
+          "squawk",
+          "--reporter",
+          "json",
+          "-c",
+          "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/squawk-owned-config",
+          "--",
+          "./migration.sql"
+        ],
+        "exitCode": 1,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/6d8622196b3154d1eaa7ece06587f9bd5ed303cd59ee16d02a46d5f59ba44b75",
+        "policyId": "legion-squawk-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+        "stdoutBytes": 195,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+          "bytes": 195
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-squawk",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:df0cc0263e0ac6759eeaba537f83b49eaad25fae78353d263005d40a52949795",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "candidates",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [
+              {
+                "id": "sha256:504fc6187992a15e0bc7313c86fbb1ad0842891ce53a8cab516fd1555e37b856",
+                "ruleId": "ban-drop-column",
+                "claim": "Dropping a column may break existing clients.",
+                "title": "Dropping a column may break existing clients.",
+                "path": "migration.sql",
+                "line": 3,
+                "severityHint": "medium",
+                "domain": "data",
+                "adjudication": "required",
+                "anchorKind": "line",
+                "evidence": [
+                  {
+                    "path": "migration.sql",
+                    "line": 3,
+                    "rawFindingDigest": "sha256:2ed934d700a2e4bb75d6220b603b90030d58b1ebc81d30821540193f9bf340e1"
+                  }
+                ],
+                "source": {
+                  "tool": "squawk",
+                  "ruleId": "ban-drop-column",
+                  "rawFindingDigest": "sha256:2ed934d700a2e4bb75d6220b603b90030d58b1ebc81d30821540193f9bf340e1",
+                  "recordOrdinal": 0,
+                  "raw": {
+                    "file": "migration.sql",
+                    "line": 2,
+                    "column": 25,
+                    "level": "Warning",
+                    "message": "Dropping a column may break existing clients.",
+                    "help": null,
+                    "rule_name": "ban-drop-column",
+                    "column_end": 55,
+                    "line_end": 2
+                  }
+                },
+                "anchorStatus": "scanner-reported"
+              }
+            ],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:2ed934d700a2e4bb75d6220b603b90030d58b1ebc81d30821540193f9bf340e1",
+                "path": "migration.sql",
+                "candidateId": "sha256:504fc6187992a15e0bc7313c86fbb1ad0842891ce53a8cab516fd1555e37b856",
+                "disposition": "candidate"
+              }
+            ],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [
+            {
+              "id": "sha256:504fc6187992a15e0bc7313c86fbb1ad0842891ce53a8cab516fd1555e37b856",
+              "ruleId": "ban-drop-column",
+              "claim": "Dropping a column may break existing clients.",
+              "title": "Dropping a column may break existing clients.",
+              "path": "migration.sql",
+              "line": 3,
+              "severityHint": "medium",
+              "domain": "data",
+              "adjudication": "required",
+              "anchorKind": "line",
+              "evidence": [
+                {
+                  "path": "migration.sql",
+                  "line": 3,
+                  "rawFindingDigest": "sha256:2ed934d700a2e4bb75d6220b603b90030d58b1ebc81d30821540193f9bf340e1"
+                }
+              ],
+              "source": {
+                "tool": "squawk",
+                "ruleId": "ban-drop-column",
+                "rawFindingDigest": "sha256:2ed934d700a2e4bb75d6220b603b90030d58b1ebc81d30821540193f9bf340e1",
+                "recordOrdinal": 0,
+                "raw": {
+                  "file": "migration.sql",
+                  "line": 2,
+                  "column": 25,
+                  "level": "Warning",
+                  "message": "Dropping a column may break existing clients.",
+                  "help": null,
+                  "rule_name": "ban-drop-column",
+                  "column_end": 55,
+                  "line_end": 2
+                }
+              },
+              "anchorStatus": "scanner-reported"
+            }
+          ],
+          "executionReceipt": {
+            "tool": {
+              "name": "squawk",
+              "version": "squawk 2.70.0",
+              "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+            },
+            "version": "squawk 2.70.0",
+            "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+            "argv": [
+              "squawk",
+              "--reporter",
+              "json",
+              "-c",
+              "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/squawk-owned-config",
+              "--",
+              "./migration.sql"
+            ],
+            "exitCode": 1,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/6d8622196b3154d1eaa7ece06587f9bd5ed303cd59ee16d02a46d5f59ba44b75",
+            "policyId": "legion-squawk-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+            "stdoutBytes": 195,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+              "bytes": 195
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "squawk",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "migration.sql"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "squawk",
+                    "version": "squawk 2.70.0",
+                    "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+                  },
+                  "version": "squawk 2.70.0",
+                  "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+                  "argv": [
+                    "squawk",
+                    "--reporter",
+                    "json",
+                    "-c",
+                    "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-true-64568-1792652416053848000/run/legion-audit-security-64568-1792652416499022000-0/squawk-owned-config",
+                    "--",
+                    "./migration.sql"
+                  ],
+                  "exitCode": 1,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/6d8622196b3154d1eaa7ece06587f9bd5ed303cd59ee16d02a46d5f59ba44b75",
+                  "policyId": "legion-squawk-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+                  "stdoutBytes": 195,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:724ec3791721b41a66ee52c8511ab420bfab6ff85cf3ce9e318263f781e2a77b",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:e4c4e6643e569e73807771b5945d3eb18aeebebb5d4bc4ab0f62f3ec9973fa6b",
+                    "bytes": 195
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
+    },
+    {
+      "caseId": "squawk-clean",
+      "source": {
+        "path": "migration.sql",
+        "bytes": "SELECT 1;\n",
+        "digest": "sha256:b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "expectedCoverageGaps": [],
+      "planDigest": "sha256:bd38ecd0c3156400440f97658c48b40bef44d41f9afee91c28092396a22d128d",
+      "inventoryDigest": "sha256:aa38c3b642141d76c478a6d89710143c08963c094e5598d549ca22ca68813c1a",
+      "coverage": {
+        "denominator_digest": "sha256:37ab0aefd231d741b97fcd5f9a9ea409fc7fd6429c5f0d4fe2101c44206e580b",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/squawk",
+        "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+        "version": {
+          "rawVersionOutput": "squawk 2.70.0\n",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/84e382e23b8f1791a3d4c72dc84f3f6cce7c318b574b08735b3c78bdd79894ff",
+            "requestId": "legion-audit/84e382e23b8f1791a3d4c72dc84f3f6cce7c318b574b08735b3c78bdd79894ff",
+            "providerId": "security.scanner-squawk",
+            "planId": "sha256:aa38c3b642141d76c478a6d89710143c08963c094e5598d549ca22ca68813c1a",
+            "taskId": "squawk-version-probe",
+            "policyId": "legion-squawk-real-scanner-benchmark-v1",
+            "policy": {
+              "id": "legion-squawk-real-scanner-benchmark-v1",
+              "version": 1,
+              "digest": "sha256:7a34e7ce938f37e37bf81761677b3e9881649309680fbe317c86c74ca8d3935d",
+              "allowed": true,
+              "reason": "fixture-scoped real Squawk benchmark"
+            },
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/source",
+            "environmentNames": [],
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+              "version": {
+                "args": [
+                  "-f",
+                  "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/version-sandbox/audit-65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca.sb",
+                  "--",
+                  "/Users/runner/work/_temp/legion-scanners/squawk",
+                  "--version"
+                ],
+                "output": "squawk 2.70.0\n",
+                "exitCode": 0,
+                "qualified": true,
+                "skippedByPolicy": false
+              }
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "hardKilled": false,
+              "reaped": true,
+              "detail": "normal exit: process-group cleanup; term_errno=Some(3), kill_errno=None, post_reap_probe_errno=None, post_reap_group_absent=None"
+            },
+            "timing": {
+              "startedAtMs": 1792652417143,
+              "completedAtMs": 1792652417170,
+              "durationMs": 27
+            },
+            "stdout": {
+              "path": "legion-audit/84e382e23b8f1791a3d4c72dc84f3f6cce7c318b574b08735b3c78bdd79894ff/stdout",
+              "digest": "sha256:ba0e7f45c8eb36d207bf9bde9d35a7412c31177e08c678e6342fb6f6ec035b7c",
+              "bytes": 14,
+              "immutable": true,
+              "raw": "squawk 2.70.0\n"
+            },
+            "stderr": {
+              "path": "legion-audit/84e382e23b8f1791a3d4c72dc84f3f6cce7c318b574b08735b3c78bdd79894ff/stderr",
+              "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "immutable": true,
+              "raw": ""
+            },
+            "exitCode": 0,
+            "signal": null,
+            "parser": {
+              "attempted": false,
+              "succeeded": false,
+              "error": null
+            },
+            "gaps": []
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-squawk-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-squawk",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run",
+        "inventoryDigest": "sha256:aa38c3b642141d76c478a6d89710143c08963c094e5598d549ca22ca68813c1a",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/squawk",
+          "digest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "--reporter",
+          "json",
+          "-c",
+          "<owned-config-under-run>",
+          "--",
+          "./migration.sql"
+        ],
+        "ownedConfig": {
+          "bytes": "",
+          "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "versionArgv": [
+          "--version"
+        ],
+        "timeoutMsMaximum": 30000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write"
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/84e382e23b8f1791a3d4c72dc84f3f6cce7c318b574b08735b3c78bdd79894ff",
+          "providerId": "security.scanner-squawk",
+          "planId": "sha256:aa38c3b642141d76c478a6d89710143c08963c094e5598d549ca22ca68813c1a",
+          "taskId": "squawk-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/version-sandbox/audit-65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/version-sandbox/audit-65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/130db52e3847b1ecec6fce15c5ad28e3d25cb2dcaa947f6b82beef5c7b2bec73",
+          "providerId": "security.scanner-squawk",
+          "planId": "sha256:aa38c3b642141d76c478a6d89710143c08963c094e5598d549ca22ca68813c1a",
+          "taskId": "squawk",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/sandbox/audit-65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--reporter",
+            "json",
+            "-c",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/squawk-owned-config",
+            "--",
+            "./migration.sql"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/sandbox/audit-65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/squawk",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/source",
+          "timeoutMs": 30000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "squawk",
+          "version": "squawk 2.70.0",
+          "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+        },
+        "version": "squawk 2.70.0",
+        "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+        "argv": [
+          "squawk",
+          "--reporter",
+          "json",
+          "-c",
+          "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/squawk-owned-config",
+          "--",
+          "./migration.sql"
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/130db52e3847b1ecec6fce15c5ad28e3d25cb2dcaa947f6b82beef5c7b2bec73",
+        "policyId": "legion-squawk-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "stdoutBytes": 3,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+          "bytes": 3
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-squawk",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:37ab0aefd231d741b97fcd5f9a9ea409fc7fd6429c5f0d4fe2101c44206e580b",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [],
+          "executionReceipt": {
+            "tool": {
+              "name": "squawk",
+              "version": "squawk 2.70.0",
+              "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+            },
+            "version": "squawk 2.70.0",
+            "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+            "argv": [
+              "squawk",
+              "--reporter",
+              "json",
+              "-c",
+              "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/squawk-owned-config",
+              "--",
+              "./migration.sql"
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/130db52e3847b1ecec6fce15c5ad28e3d25cb2dcaa947f6b82beef5c7b2bec73",
+            "policyId": "legion-squawk-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+            "stdoutBytes": 3,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+              "bytes": 3
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "squawk",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "migration.sql"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "squawk",
+                    "version": "squawk 2.70.0",
+                    "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a"
+                  },
+                  "version": "squawk 2.70.0",
+                  "executableDigest": "sha256:6d96c07032109202a43802e212b2c592d48a11b208d661b2c8814a7eca4a984a",
+                  "argv": [
+                    "squawk",
+                    "--reporter",
+                    "json",
+                    "-c",
+                    "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-squawk-false-64568-1792652416775851000/run/legion-audit-security-64568-1792652417177857000-1/squawk-owned-config",
+                    "--",
+                    "./migration.sql"
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/130db52e3847b1ecec6fce15c5ad28e3d25cb2dcaa947f6b82beef5c7b2bec73",
+                  "policyId": "legion-squawk-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+                  "stdoutBytes": 3,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:65ab0b65918352acbbd8c9f486d817954ec333954dbd1e681febcfdb30989fca",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+                    "bytes": 3
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "Scanner producer retains its actual reduced receipt, normalized raw findings & stdout digest; full scanner stdout/process-tree receipt is not retained. Separate real native version output & receipt are retained."
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:0bffd56be4e0fc917240b7b084113afd405d9cfda3f5bf0c4035792c7e665133"
+}

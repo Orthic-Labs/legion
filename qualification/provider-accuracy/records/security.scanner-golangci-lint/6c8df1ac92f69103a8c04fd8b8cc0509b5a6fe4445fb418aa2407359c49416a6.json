@@ -1,0 +1,1081 @@
+{
+  "schema": "legion-external-provider-accuracy/1",
+  "provider": "security.scanner-golangci-lint",
+  "stage": "candidate",
+  "scope": "Constructed planted & clean Go controls; not population accuracy or production admission",
+  "modelCalls": 0,
+  "executionPath": "native-sdk-frozen-plan-real-external-scanner",
+  "qualificationEligible": true,
+  "coverageState": "complete",
+  "coverageGaps": [],
+  "binding": {
+    "providerSpecDigest": "sha256:ecd76f7957ec236c0b5b6abc61abb746ee8fe7a6f81dcfac501ec48e0f5cebb7",
+    "harnessPath": "engine/crates/legion-audit/tests/golangci_accuracy.rs",
+    "harnessDigest": "sha256:88999fefdce6bf062141b33055c23528380f054ac51cc01ed55a5da05d0df889",
+    "implementation": {
+      "roots": [
+        "engine/crates/legion-audit/src",
+        "engine/crates/legion-effects/src",
+        "engine/crates/legion-provider-sdk/src",
+        "engine/crates/legion-contracts/src",
+        "engine/crates/legion-rules/src",
+        "src/registry/rules",
+        "src/registry/controls"
+      ],
+      "fileCount": 278,
+      "digest": "sha256:8af74a9b7290d5b7136693debade154a0218037ca440e56381379f45c03e661e"
+    }
+  },
+  "expectationSources": [
+    "https://securego.io/docs/rules/g101"
+  ],
+  "metrics": {
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positiveCases": 1,
+    "cleanCases": 1
+  },
+  "cases": [
+    {
+      "caseId": "golangci-planted",
+      "source": {
+        "path": "main.go",
+        "bytes": "package main\n\nfunc main() {\n\tpassword := \"f62e5bcda4fae4f82370da0c6f20697b8f8447ef\"\n\t_ = password\n}\n",
+        "digest": "sha256:1c57f8bbe47e85b4f276342559784e31957e10a80fdbb3a7eaa688841b69226e"
+      },
+      "goModule": {
+        "path": "go.mod",
+        "bytes": "module example.invalid/legion-golangci-fixture\n\ngo 1.26.0\n",
+        "digest": "sha256:28c8a3145a59f6dd9883b231520e13241ab6f942a0f90dd06f349a6307676859"
+      },
+      "expected": [
+        "gosec|main.go|4"
+      ],
+      "actual": [
+        "gosec|main.go|4"
+      ],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "planDigest": "sha256:875ddffcedf50e17921f147b082da11aa3b5355d5c3f72aefd81e3f24ba2814a",
+      "inventoryDigest": "sha256:a527b6f36f8de8aad5befcb98e622df15a3dc773bdc24f8073076c7e29d9aed7",
+      "coverage": {
+        "denominator_digest": "sha256:3b9a82143341663d1a672edebc90287df5308f4744fa50f57a02b3433a268bc4",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+        "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+        "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z"
+      },
+      "goToolchain": {
+        "root": "/Users/runner/work/_temp/legion-go-toolchain/go",
+        "binary": "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+        "digest": "sha256:9da68c657a8344623d37fc9dc048d845011736409249bc924dd9af47a61594e6",
+        "requiredVersion": "go1.26.7",
+        "actualVersion": {
+          "version": "go version go1.26.7 darwin/arm64",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/b42eb209b74bd4aca322a6ed520a2b1dd9af7f04c8d4bcbb4afe4de8d10667ca",
+            "requestId": "legion-audit/b42eb209b74bd4aca322a6ed520a2b1dd9af7f04c8d4bcbb4afe4de8d10667ca",
+            "providerId": "security.scanner-golangci-lint",
+            "planId": "sha256:a527b6f36f8de8aad5befcb98e622df15a3dc773bdc24f8073076c7e29d9aed7",
+            "taskId": "go-version-probe",
+            "policyId": "legion-golangci-real-scanner-benchmark-v1",
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source",
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "reaped": true
+            },
+            "exitCode": 0,
+            "stdout": {
+              "path": "legion-audit/b42eb209b74bd4aca322a6ed520a2b1dd9af7f04c8d4bcbb4afe4de8d10667ca/stdout",
+              "digest": "sha256:b1b217d0bb4a51246bbf46c2844e09c39d598e70f5fdfe6709bbab9867c5b35b",
+              "bytes": 33,
+              "immutable": true,
+              "raw": "go version go1.26.7 darwin/arm64"
+            }
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-golangci-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-golangci-lint",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run",
+        "inventoryDigest": "sha256:a527b6f36f8de8aad5befcb98e622df15a3dc773bdc24f8073076c7e29d9aed7",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+          "digest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+          "versionPrefix": "golangci-lint has version 2.15.0",
+          "officialRelease": "https://github.com/golangci/golangci-lint/releases/tag/v2.15.0",
+          "archive": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64.tar.gz",
+          "archiveDigest": "sha256:d1e409481a8ca846c4bc97e781eb5cb1bd5c23353a0b3977a1cbda1b1b6447d5",
+          "asset": "golangci-lint-2.15.0-darwin-arm64.tar.gz"
+        },
+        "goToolchain": {
+          "root": "/Users/runner/work/_temp/legion-go-toolchain/go",
+          "binary": "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+          "digest": "sha256:9da68c657a8344623d37fc9dc048d845011736409249bc924dd9af47a61594e6",
+          "version": "go1.26.7",
+          "path": "/Users/runner/.cargo/bin:/Users/runner/work/_temp/legion-go-toolchain/go/bin:/usr/bin:/bin",
+          "officialRelease": "https://go.dev/dl/",
+          "archive": "/Users/runner/work/_temp/legion-scanners/go1.26.7.darwin-arm64.tar.gz",
+          "archiveDigest": "sha256:020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d",
+          "asset": "go1.26.7.darwin-arm64.tar.gz"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "run",
+          "--no-config",
+          "--modules-download-mode=readonly",
+          "--path-mode=abs",
+          "--output.json.path=stdout",
+          "--show-stats=false",
+          "--enable=gosec",
+          "./..."
+        ],
+        "versionArgv": [
+          "<native-sandbox-prefix>",
+          "--version"
+        ],
+        "timeoutMsMaximum": 120000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write",
+        "offlineEnvironment": {
+          "GOTOOLCHAIN": "local",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOWORK": "off",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/b42eb209b74bd4aca322a6ed520a2b1dd9af7f04c8d4bcbb4afe4de8d10667ca",
+          "providerId": "security.scanner-golangci-lint",
+          "planId": "sha256:a527b6f36f8de8aad5befcb98e622df15a3dc773bdc24f8073076c7e29d9aed7",
+          "taskId": "go-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/go-version-sandbox/audit-91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+            "version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/go-version-sandbox/audit-91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+            "version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source",
+          "timeoutMs": 120000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "environment": {},
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/8f0c867d1c6ddb7f6c81aed00b12505c7f702b9e0d0f6f5b651f3058fb04e667",
+          "providerId": "security.scanner-golangci-lint",
+          "planId": "sha256:a527b6f36f8de8aad5befcb98e622df15a3dc773bdc24f8073076c7e29d9aed7",
+          "taskId": "golangci-lint",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0/sandbox/audit-91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+            "run",
+            "--no-config",
+            "--modules-download-mode=readonly",
+            "--path-mode=abs",
+            "--output.json.path=stdout",
+            "--show-stats=false",
+            "--enable=gosec",
+            "./..."
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0/sandbox/audit-91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source",
+          "timeoutMs": 120000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "PYTHONNOUSERSITE",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "environment": {
+            "CGO_ENABLED": "0",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GOCACHE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0/go-build",
+            "GOLANGCI_LINT_CACHE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0/golangci-cache",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "HOME": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0",
+            "NO_COLOR": "1",
+            "PATH": "/Users/runner/.cargo/bin:/Users/runner/work/_temp/legion-go-toolchain/go/bin:/usr/bin:/bin",
+            "PYTHONNOUSERSITE": "1",
+            "SEMGREP_ENABLE_VERSION_CHECK": "0",
+            "SEMGREP_SEND_METRICS": "off",
+            "SYFT_CHECK_FOR_APP_UPDATE": "false",
+            "USERPROFILE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/run/legion-audit-security-65745-1792652446728855000-0"
+          },
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "golangci-lint",
+          "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+          "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+        },
+        "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+        "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+        "argv": [
+          "golangci-lint",
+          "run",
+          "--no-config",
+          "--modules-download-mode=readonly",
+          "--path-mode=abs",
+          "--output.json.path=stdout",
+          "--show-stats=false",
+          "--enable=gosec",
+          "./..."
+        ],
+        "exitCode": 1,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/8f0c867d1c6ddb7f6c81aed00b12505c7f702b9e0d0f6f5b651f3058fb04e667",
+        "policyId": "legion-golangci-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+        "stdoutBytes": 3140,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "PYTHONNOUSERSITE",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+          "bytes": 3140
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-golangci-lint",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:3b9a82143341663d1a672edebc90287df5308f4744fa50f57a02b3433a268bc4",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "candidates",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [
+              {
+                "id": "sha256:72e56fd4b182b2cc2fc70e21880888e65764c43b1966e7258621383ac8eb55fe",
+                "ruleId": "gosec",
+                "claim": "G101: Potential hardcoded credentials",
+                "title": "G101: Potential hardcoded credentials",
+                "path": "main.go",
+                "line": 4,
+                "severityHint": "medium",
+                "domain": "security",
+                "adjudication": "required",
+                "anchorKind": "line",
+                "evidence": [
+                  {
+                    "path": "main.go",
+                    "line": 4,
+                    "rawFindingDigest": "sha256:fe1c3db858ad94823f98c010e308b30ee0a667755b21e177b088a6bb73758003"
+                  }
+                ],
+                "source": {
+                  "tool": "golangci-lint",
+                  "ruleId": "gosec",
+                  "rawFindingDigest": "sha256:fe1c3db858ad94823f98c010e308b30ee0a667755b21e177b088a6bb73758003",
+                  "recordOrdinal": 0,
+                  "raw": {
+                    "FromLinter": "gosec",
+                    "Text": "G101: Potential hardcoded credentials",
+                    "Severity": "high",
+                    "SourceLines": [
+                      "\tpassword := \"f62e5bcda4fae4f82370da0c6f20697b8f8447ef\""
+                    ],
+                    "Pos": {
+                      "Filename": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source/main.go",
+                      "Offset": 0,
+                      "Line": 4,
+                      "Column": 2
+                    },
+                    "ExpectNoLint": false,
+                    "ExpectedNoLintLinter": ""
+                  }
+                },
+                "anchorStatus": "scanner-reported"
+              }
+            ],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [
+              {
+                "ordinal": 0,
+                "rawFindingDigest": "sha256:fe1c3db858ad94823f98c010e308b30ee0a667755b21e177b088a6bb73758003",
+                "path": "main.go",
+                "candidateId": "sha256:72e56fd4b182b2cc2fc70e21880888e65764c43b1966e7258621383ac8eb55fe",
+                "disposition": "candidate"
+              }
+            ],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [
+            {
+              "id": "sha256:72e56fd4b182b2cc2fc70e21880888e65764c43b1966e7258621383ac8eb55fe",
+              "ruleId": "gosec",
+              "claim": "G101: Potential hardcoded credentials",
+              "title": "G101: Potential hardcoded credentials",
+              "path": "main.go",
+              "line": 4,
+              "severityHint": "medium",
+              "domain": "security",
+              "adjudication": "required",
+              "anchorKind": "line",
+              "evidence": [
+                {
+                  "path": "main.go",
+                  "line": 4,
+                  "rawFindingDigest": "sha256:fe1c3db858ad94823f98c010e308b30ee0a667755b21e177b088a6bb73758003"
+                }
+              ],
+              "source": {
+                "tool": "golangci-lint",
+                "ruleId": "gosec",
+                "rawFindingDigest": "sha256:fe1c3db858ad94823f98c010e308b30ee0a667755b21e177b088a6bb73758003",
+                "recordOrdinal": 0,
+                "raw": {
+                  "FromLinter": "gosec",
+                  "Text": "G101: Potential hardcoded credentials",
+                  "Severity": "high",
+                  "SourceLines": [
+                    "\tpassword := \"f62e5bcda4fae4f82370da0c6f20697b8f8447ef\""
+                  ],
+                  "Pos": {
+                    "Filename": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-true-65745-1792652445493223000/source/main.go",
+                    "Offset": 0,
+                    "Line": 4,
+                    "Column": 2
+                  },
+                  "ExpectNoLint": false,
+                  "ExpectedNoLintLinter": ""
+                }
+              },
+              "anchorStatus": "scanner-reported"
+            }
+          ],
+          "executionReceipt": {
+            "tool": {
+              "name": "golangci-lint",
+              "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+              "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+            },
+            "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+            "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+            "argv": [
+              "golangci-lint",
+              "run",
+              "--no-config",
+              "--modules-download-mode=readonly",
+              "--path-mode=abs",
+              "--output.json.path=stdout",
+              "--show-stats=false",
+              "--enable=gosec",
+              "./..."
+            ],
+            "exitCode": 1,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/8f0c867d1c6ddb7f6c81aed00b12505c7f702b9e0d0f6f5b651f3058fb04e667",
+            "policyId": "legion-golangci-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+            "stdoutBytes": 3140,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GIT_CONFIG_NOSYSTEM",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "PYTHONNOUSERSITE",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+              "bytes": 3140
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "golangci-lint",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "main.go"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "golangci-lint",
+                    "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+                    "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+                  },
+                  "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+                  "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+                  "argv": [
+                    "golangci-lint",
+                    "run",
+                    "--no-config",
+                    "--modules-download-mode=readonly",
+                    "--path-mode=abs",
+                    "--output.json.path=stdout",
+                    "--show-stats=false",
+                    "--enable=gosec",
+                    "./..."
+                  ],
+                  "exitCode": 1,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/8f0c867d1c6ddb7f6c81aed00b12505c7f702b9e0d0f6f5b651f3058fb04e667",
+                  "policyId": "legion-golangci-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+                  "stdoutBytes": 3140,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:91166ac7e9f5a97722f5fe5589efab9cbc356581f3b941aadda5f6606a560e24",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GIT_CONFIG_NOSYSTEM",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "PYTHONNOUSERSITE",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:d6f7ad1954361864f8b870abd8fe85d38a2b1330fe4198e5c70cc48fe5b860b0",
+                    "bytes": 3140
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "production retains reduced native scanner receipt and stdout digest, not full scanner process-tree receipt"
+    },
+    {
+      "caseId": "golangci-clean",
+      "source": {
+        "path": "main.go",
+        "bytes": "package main\n\nfunc main() {\n\tpassword := \"secret\"\n\t_ = password\n}\n",
+        "digest": "sha256:aab718b639a8b40e311ff1fe8f45110afce5c542298d535e4aee604e21d3c1f4"
+      },
+      "goModule": {
+        "path": "go.mod",
+        "bytes": "module example.invalid/legion-golangci-fixture\n\ngo 1.26.0\n",
+        "digest": "sha256:28c8a3145a59f6dd9883b231520e13241ab6f942a0f90dd06f349a6307676859"
+      },
+      "expected": [],
+      "actual": [],
+      "controlMatched": true,
+      "coverageContractMatched": true,
+      "complete": true,
+      "coverageGaps": [],
+      "planDigest": "sha256:60aaacfd319d96454dbb8c9c173eb073ad732f1c7174d8123f16158ecbeb5e1d",
+      "inventoryDigest": "sha256:3d87d02696c83e0ce9d9fd89ec0bb92a7b266475d03bbdf5175718c11880053b",
+      "coverage": {
+        "denominator_digest": "sha256:e49391b488388d46cfda563ee55f4075074757012eb7f3aafc7e132bf1f2fd4c",
+        "expected": 1,
+        "examined": 1,
+        "gaps": []
+      },
+      "toolIdentity": {
+        "path": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+        "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+        "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z"
+      },
+      "goToolchain": {
+        "root": "/Users/runner/work/_temp/legion-go-toolchain/go",
+        "binary": "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+        "digest": "sha256:9da68c657a8344623d37fc9dc048d845011736409249bc924dd9af47a61594e6",
+        "requiredVersion": "go1.26.7",
+        "actualVersion": {
+          "version": "go version go1.26.7 darwin/arm64",
+          "receipt": {
+            "schemaVersion": 1,
+            "receiptId": "receipt:legion-audit/12aabdab235d96a7e0df8278ae426408007a4338dcb5a30a6a6d2ebe6e33a07b",
+            "requestId": "legion-audit/12aabdab235d96a7e0df8278ae426408007a4338dcb5a30a6a6d2ebe6e33a07b",
+            "providerId": "security.scanner-golangci-lint",
+            "planId": "sha256:3d87d02696c83e0ce9d9fd89ec0bb92a7b266475d03bbdf5175718c11880053b",
+            "taskId": "go-version-probe",
+            "policyId": "legion-golangci-real-scanner-benchmark-v1",
+            "state": "completed",
+            "complete": true,
+            "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/source",
+            "executable": {
+              "path": "/usr/bin/sandbox-exec",
+              "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+            },
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e",
+              "networkEnabled": true
+            },
+            "processTree": {
+              "started": true,
+              "terminated": true,
+              "reaped": true
+            },
+            "exitCode": 0,
+            "stdout": {
+              "path": "legion-audit/12aabdab235d96a7e0df8278ae426408007a4338dcb5a30a6a6d2ebe6e33a07b/stdout",
+              "digest": "sha256:b1b217d0bb4a51246bbf46c2844e09c39d598e70f5fdfe6709bbab9867c5b35b",
+              "bytes": 33,
+              "immutable": true,
+              "raw": "go version go1.26.7 darwin/arm64"
+            }
+          }
+        }
+      },
+      "policy": {
+        "id": "legion-golangci-real-scanner-benchmark-v1",
+        "version": 1,
+        "provider": "security.scanner-golangci-lint",
+        "root": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/source",
+        "runDirectory": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run",
+        "inventoryDigest": "sha256:3d87d02696c83e0ce9d9fd89ec0bb92a7b266475d03bbdf5175718c11880053b",
+        "tool": {
+          "path": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+          "digest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+          "versionPrefix": "golangci-lint has version 2.15.0",
+          "officialRelease": "https://github.com/golangci/golangci-lint/releases/tag/v2.15.0",
+          "archive": "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64.tar.gz",
+          "archiveDigest": "sha256:d1e409481a8ca846c4bc97e781eb5cb1bd5c23353a0b3977a1cbda1b1b6447d5",
+          "asset": "golangci-lint-2.15.0-darwin-arm64.tar.gz"
+        },
+        "goToolchain": {
+          "root": "/Users/runner/work/_temp/legion-go-toolchain/go",
+          "binary": "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+          "digest": "sha256:9da68c657a8344623d37fc9dc048d845011736409249bc924dd9af47a61594e6",
+          "version": "go1.26.7",
+          "path": "/Users/runner/.cargo/bin:/Users/runner/work/_temp/legion-go-toolchain/go/bin:/usr/bin:/bin",
+          "officialRelease": "https://go.dev/dl/",
+          "archive": "/Users/runner/work/_temp/legion-scanners/go1.26.7.darwin-arm64.tar.gz",
+          "archiveDigest": "sha256:020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d",
+          "asset": "go1.26.7.darwin-arm64.tar.gz"
+        },
+        "wrapper": {
+          "path": "/usr/bin/sandbox-exec",
+          "digest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea"
+        },
+        "scannerArgv": [
+          "run",
+          "--no-config",
+          "--modules-download-mode=readonly",
+          "--path-mode=abs",
+          "--output.json.path=stdout",
+          "--show-stats=false",
+          "--enable=gosec",
+          "./..."
+        ],
+        "versionArgv": [
+          "<native-sandbox-prefix>",
+          "--version"
+        ],
+        "timeoutMsMaximum": 120000,
+        "outputBytesMaximum": 1048576,
+        "sandbox": "native-macos-deny-network-deny-project-write",
+        "offlineEnvironment": {
+          "GOTOOLCHAIN": "local",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOWORK": "off",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "policyDecisions": [
+        {
+          "allowed": true,
+          "requestId": "legion-audit/12aabdab235d96a7e0df8278ae426408007a4338dcb5a30a6a6d2ebe6e33a07b",
+          "providerId": "security.scanner-golangci-lint",
+          "planId": "sha256:3d87d02696c83e0ce9d9fd89ec0bb92a7b266475d03bbdf5175718c11880053b",
+          "taskId": "go-version-probe",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/go-version-sandbox/audit-2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+            "version"
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/go-version-sandbox/audit-2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-go-toolchain/go/bin/go",
+            "version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/source",
+          "timeoutMs": 120000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0
+          ],
+          "environmentNames": [],
+          "environment": {},
+          "requiresNetworkSandbox": true
+        },
+        {
+          "allowed": true,
+          "requestId": "legion-audit/e090132a5c07c0250fcd278e8aa66db71e5458ad892950b866c31b106101f7c0",
+          "providerId": "security.scanner-golangci-lint",
+          "planId": "sha256:3d87d02696c83e0ce9d9fd89ec0bb92a7b266475d03bbdf5175718c11880053b",
+          "taskId": "golangci-lint",
+          "executable": "/usr/bin/sandbox-exec",
+          "expectedDigest": "sha256:2ff75194b3e5689debee061c69f27f873ca21ff8fc54b7d49cbf5f2fb673f6ea",
+          "args": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1/sandbox/audit-2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+            "run",
+            "--no-config",
+            "--modules-download-mode=readonly",
+            "--path-mode=abs",
+            "--output.json.path=stdout",
+            "--show-stats=false",
+            "--enable=gosec",
+            "./..."
+          ],
+          "versionArgs": [
+            "-f",
+            "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1/sandbox/audit-2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e.sb",
+            "--",
+            "/Users/runner/work/_temp/legion-scanners/golangci-lint-2.15.0-darwin-arm64/golangci-lint",
+            "--version"
+          ],
+          "cwd": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/source",
+          "timeoutMs": 120000,
+          "stdoutLimit": 1048576,
+          "stderrLimit": 1048576,
+          "acceptedExitCodes": [
+            0,
+            1
+          ],
+          "environmentNames": [
+            "CGO_ENABLED",
+            "GIT_CONFIG_NOSYSTEM",
+            "GOCACHE",
+            "GOLANGCI_LINT_CACHE",
+            "GOPROXY",
+            "GOSUMDB",
+            "GOTOOLCHAIN",
+            "GOWORK",
+            "HOME",
+            "NO_COLOR",
+            "PATH",
+            "PYTHONNOUSERSITE",
+            "SEMGREP_ENABLE_VERSION_CHECK",
+            "SEMGREP_SEND_METRICS",
+            "SYFT_CHECK_FOR_APP_UPDATE",
+            "USERPROFILE"
+          ],
+          "environment": {
+            "CGO_ENABLED": "0",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GOCACHE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1/go-build",
+            "GOLANGCI_LINT_CACHE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1/golangci-cache",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "HOME": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1",
+            "NO_COLOR": "1",
+            "PATH": "/Users/runner/.cargo/bin:/Users/runner/work/_temp/legion-go-toolchain/go/bin:/usr/bin:/bin",
+            "PYTHONNOUSERSITE": "1",
+            "SEMGREP_ENABLE_VERSION_CHECK": "0",
+            "SEMGREP_SEND_METRICS": "off",
+            "SYFT_CHECK_FOR_APP_UPDATE": "false",
+            "USERPROFILE": "/Users/runner/work/_temp/legion-real-scanner-fixtures/legion-real-golangci-false-65745-1792652449751615000/run/legion-audit-security-65745-1792652450726142000-1"
+          },
+          "requiresNetworkSandbox": true
+        }
+      ],
+      "executionReceipt": {
+        "tool": {
+          "name": "golangci-lint",
+          "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+          "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+        },
+        "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+        "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+        "argv": [
+          "golangci-lint",
+          "run",
+          "--no-config",
+          "--modules-download-mode=readonly",
+          "--path-mode=abs",
+          "--output.json.path=stdout",
+          "--show-stats=false",
+          "--enable=gosec",
+          "./..."
+        ],
+        "exitCode": 0,
+        "offline": true,
+        "complete": true,
+        "state": "completed",
+        "receiptId": "receipt:legion-audit/e090132a5c07c0250fcd278e8aa66db71e5458ad892950b866c31b106101f7c0",
+        "policyId": "legion-golangci-real-scanner-benchmark-v1",
+        "stdoutDigest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+        "stdoutBytes": 2756,
+        "sandbox": {
+          "required": true,
+          "receiptId": "sandbox:macos:2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e",
+          "networkEnabled": true
+        },
+        "environmentNames": [
+          "CGO_ENABLED",
+          "GIT_CONFIG_NOSYSTEM",
+          "GOCACHE",
+          "GOLANGCI_LINT_CACHE",
+          "GOPROXY",
+          "GOSUMDB",
+          "GOTOOLCHAIN",
+          "GOWORK",
+          "HOME",
+          "NO_COLOR",
+          "PATH",
+          "PYTHONNOUSERSITE",
+          "SEMGREP_ENABLE_VERSION_CHECK",
+          "SEMGREP_SEND_METRICS",
+          "SYFT_CHECK_FOR_APP_UPDATE",
+          "USERPROFILE"
+        ],
+        "evidence": "tool",
+        "stdoutArtifact": {
+          "digest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+          "bytes": 2756
+        }
+      },
+      "actualProviderResult": {
+        "schema_version": 1,
+        "provider": "security.scanner-golangci-lint",
+        "applicable": true,
+        "required": true,
+        "status": "complete",
+        "complete": true,
+        "coverage": {
+          "denominator_digest": "sha256:e49391b488388d46cfda563ee55f4075074757012eb7f3aafc7e132bf1f2fd4c",
+          "expected": 1,
+          "examined": 1,
+          "gaps": []
+        },
+        "findings": [],
+        "coverage_gaps": [],
+        "degradation": [],
+        "details": {
+          "analysis": {
+            "status": "pass",
+            "applicable": true,
+            "complete": true,
+            "denominator": {
+              "kind": "scanner-files",
+              "expected": 1,
+              "examined": 1
+            },
+            "candidates": [],
+            "findings": [],
+            "coverageGaps": [],
+            "lossLedger": [],
+            "selectionLedger": [],
+            "classificationOnly": false,
+            "executionMode": "scanner-required",
+            "deferredTools": {
+              "sqllint": "deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
+              "sqlfluff": "deferred: project dialect & policy required; formatting is not migration safety",
+              "rubocop": "deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
+              "checkov": "deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
+              "bandit": "deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
+              "oxlint": "deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
+            }
+          },
+          "candidates": [],
+          "executionReceipt": {
+            "tool": {
+              "name": "golangci-lint",
+              "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+              "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+            },
+            "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+            "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+            "argv": [
+              "golangci-lint",
+              "run",
+              "--no-config",
+              "--modules-download-mode=readonly",
+              "--path-mode=abs",
+              "--output.json.path=stdout",
+              "--show-stats=false",
+              "--enable=gosec",
+              "./..."
+            ],
+            "exitCode": 0,
+            "offline": true,
+            "complete": true,
+            "state": "completed",
+            "receiptId": "receipt:legion-audit/e090132a5c07c0250fcd278e8aa66db71e5458ad892950b866c31b106101f7c0",
+            "policyId": "legion-golangci-real-scanner-benchmark-v1",
+            "stdoutDigest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+            "stdoutBytes": 2756,
+            "sandbox": {
+              "required": true,
+              "receiptId": "sandbox:macos:2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e",
+              "networkEnabled": true
+            },
+            "environmentNames": [
+              "CGO_ENABLED",
+              "GIT_CONFIG_NOSYSTEM",
+              "GOCACHE",
+              "GOLANGCI_LINT_CACHE",
+              "GOPROXY",
+              "GOSUMDB",
+              "GOTOOLCHAIN",
+              "GOWORK",
+              "HOME",
+              "NO_COLOR",
+              "PATH",
+              "PYTHONNOUSERSITE",
+              "SEMGREP_ENABLE_VERSION_CHECK",
+              "SEMGREP_SEND_METRICS",
+              "SYFT_CHECK_FOR_APP_UPDATE",
+              "USERPROFILE"
+            ],
+            "evidence": "tool",
+            "stdoutArtifact": {
+              "digest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+              "bytes": 2756
+            }
+          },
+          "producer": {
+            "mode": "tool",
+            "offline": true,
+            "tool": "golangci-lint",
+            "runs": [
+              {
+                "base": "",
+                "paths": [
+                  "main.go"
+                ],
+                "receipt": {
+                  "tool": {
+                    "name": "golangci-lint",
+                    "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+                    "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9"
+                  },
+                  "version": "golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z",
+                  "executableDigest": "sha256:71b89744ef6dd92dad9026b70489d1ad660da79ef90dfb5aabe995d916bec8a9",
+                  "argv": [
+                    "golangci-lint",
+                    "run",
+                    "--no-config",
+                    "--modules-download-mode=readonly",
+                    "--path-mode=abs",
+                    "--output.json.path=stdout",
+                    "--show-stats=false",
+                    "--enable=gosec",
+                    "./..."
+                  ],
+                  "exitCode": 0,
+                  "offline": true,
+                  "complete": true,
+                  "state": "completed",
+                  "receiptId": "receipt:legion-audit/e090132a5c07c0250fcd278e8aa66db71e5458ad892950b866c31b106101f7c0",
+                  "policyId": "legion-golangci-real-scanner-benchmark-v1",
+                  "stdoutDigest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+                  "stdoutBytes": 2756,
+                  "sandbox": {
+                    "required": true,
+                    "receiptId": "sandbox:macos:2f700c0a336ceafc70974d23f378a8a4e34f6d2b322ce3887bf887503e44660e",
+                    "networkEnabled": true
+                  },
+                  "environmentNames": [
+                    "CGO_ENABLED",
+                    "GIT_CONFIG_NOSYSTEM",
+                    "GOCACHE",
+                    "GOLANGCI_LINT_CACHE",
+                    "GOPROXY",
+                    "GOSUMDB",
+                    "GOTOOLCHAIN",
+                    "GOWORK",
+                    "HOME",
+                    "NO_COLOR",
+                    "PATH",
+                    "PYTHONNOUSERSITE",
+                    "SEMGREP_ENABLE_VERSION_CHECK",
+                    "SEMGREP_SEND_METRICS",
+                    "SYFT_CHECK_FOR_APP_UPDATE",
+                    "USERPROFILE"
+                  ],
+                  "evidence": "tool",
+                  "stdoutArtifact": {
+                    "digest": "sha256:88f50f23fb38e14b56a24089716595ec5f75176083ae4f6e803168d916095588",
+                    "bytes": 2756
+                  }
+                },
+                "ownedConfigDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          }
+        }
+      },
+      "receiptRetentionLimit": "production retains reduced native scanner receipt and stdout digest, not full scanner process-tree receipt"
+    }
+  ],
+  "status": "pass",
+  "qualificationDigest": "sha256:6c8df1ac92f69103a8c04fd8b8cc0509b5a6fe4445fb418aa2407359c49416a6"
+}
