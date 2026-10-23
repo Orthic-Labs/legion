@@ -33,11 +33,13 @@ pub fn normalize_all(results: impl IntoIterator<Item = ProviderResult>) -> Vec<P
 //     wallClock, pid, hostname, host, machineId, runId, nonce, epoch,
 //     planKey, signature, planSignature, seal.signature (via `signature`),
 //     sourcePerformance, snapshotManifest, executionRoot, baselineRoot,
-//     sourceRepository, outDir, runDir, cwd, tempDir, scratchDir
+//     sourceRepository, outDir, runDir, cwd, tempDir, scratchDir, receiptId, packetDigest,
+//     reasoningEpochDigest
 //   * keys ending in `At`, `_at`, `Ms`, `_ms` (timestamps and durations)
 // Value rewrites:
 //   * a path segment chain rooted at a temporary directory (`/tmp/<x>`,
-//     `/private/tmp/<x>`, `/var/folders/<a>/<b>/T/<x>`, `\AppData\Local\Temp\<x>`)
+//     `/private/tmp/<x>`, `/var/folders/<a>/<b>/T/<x>`, `\AppData\Local\Temp\<x>`,
+//     or the host's own `std::env::temp_dir()`)
 //     becomes `<tmp>`; the remainder of the path is kept.
 // Ordering noise: arrays under these keys are order-insensitive and sorted by
 // canonical form: findings, coverageGaps, coverage_gaps, gaps, degradation,
@@ -83,6 +85,10 @@ const VOLATILE_KEYS: &[&str] = &[
     "cwd",
     "tempDir",
     "scratchDir",
+    "receiptId",
+    // Lens packets embed the run's own epoch identity, so their digest is per-run.
+    "packetDigest",
+    "reasoningEpochDigest",
 ];
 
 const UNORDERED_KEYS: &[&str] = &[
@@ -118,6 +124,49 @@ fn strip_temp_paths(text: &str) -> String {
         "/AppData/Local/Temp/",
     ];
     let mut output = text.to_owned();
+    // The host's own temp root (e.g. a managed build temp) also holds per-run
+    // directories; its first child is the unique run directory.
+    let host_temp = std::env::temp_dir();
+    let host_temp = host_temp.to_string_lossy();
+    let host_marker = format!("{}/", host_temp.trim_end_matches(['/', '\\']));
+    if host_marker.len() > 1 {
+        let mut from = 0;
+        while let Some(found) = output[from..].find(host_marker.as_str()) {
+            let start = from + found;
+            let after = start + host_marker.len();
+            let end = output[after..]
+                .find(['/', '\\'])
+                .map(|offset| after + offset)
+                .unwrap_or(output.len());
+            output.replace_range(start..end, "<tmp>");
+            from = start + "<tmp>".len();
+        }
+    }
+    // Per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`:
+    // keep the kind, drop the process/time digits.
+    let mut rebuilt = String::with_capacity(output.len());
+    for (index, segment) in output.split('/').enumerate() {
+        if index > 0 {
+            rebuilt.push('/');
+        }
+        if segment.starts_with("legion-audit-") && segment.chars().any(|c| c.is_ascii_digit()) {
+            let mut previous_digit = false;
+            for c in segment.chars() {
+                if c.is_ascii_digit() {
+                    if !previous_digit {
+                        rebuilt.push('N');
+                    }
+                    previous_digit = true;
+                } else {
+                    rebuilt.push(c);
+                    previous_digit = false;
+                }
+            }
+        } else {
+            rebuilt.push_str(segment);
+        }
+    }
+    output = rebuilt;
     // `/var/folders/<a>/<b>/T/<x>`
     while let Some(start) = output.find("/var/folders/") {
         let tail = &output[start + "/var/folders/".len()..];

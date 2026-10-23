@@ -193,6 +193,13 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     } else {
         None
     };
+    let journal = verify_journal(
+        &root,
+        &plan,
+        signing_key.as_deref(),
+        &mut errors,
+        &mut warnings,
+    );
     if let Some(signing_key) = signing_key {
         let application = super::audit::audit_application_for(
             &repository_id,
@@ -285,8 +292,185 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         "contentErrors":errors,
         "verdict":verdict,
         "runtimeCalls":runtime_calls,
+        "journal":journal,
         "gaps":gaps,
     }))
+}
+
+/// Verify the run's hash-chained event journal. A run that records no journal
+/// at all (it predates journaling) is a `journal-absent` warning, never a
+/// failure; any run that shows evidence of a journal (files, a plan marker or a
+/// report claim) must verify completely: chain, plan binding, ordering, head
+/// seal, finalization, the report's recorded head and the signed anchor.
+fn verify_journal(
+    root: &Path,
+    plan: &Value,
+    key: Option<&[u8]>,
+    errors: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Value {
+    use legion_audit::journal::{
+        bytes_digest, verify_dir, EventKind, Expectation, JournalAnchor, SealedHead, ANCHOR_FILE,
+        EVENTS_FILE, HEAD_FILE,
+    };
+    let report_bytes = std::fs::read(root.join("report.json")).ok();
+    let report: Option<Value> = report_bytes
+        .as_deref()
+        .and_then(|bytes| serde_json::from_slice(bytes).ok());
+    let claim = report
+        .as_ref()
+        .and_then(|report| report.pointer("/claims/journalSealedAt"))
+        .filter(|value| !value.is_null())
+        .cloned();
+    let plan_marker = plan.get("journal").is_some_and(|value| !value.is_null());
+    let files_present = [EVENTS_FILE, HEAD_FILE, ANCHOR_FILE]
+        .iter()
+        .any(|name| std::fs::symlink_metadata(root.join(name)).is_ok());
+    // A continuation run copies plan.json and report.json (with their journal
+    // marker) but never the parent's events: its history stays with the parent.
+    if !files_present
+        && root
+            .join(legion_audit::continuation::CONTINUATION_FILE)
+            .is_file()
+    {
+        warnings.push(
+            "journal-absent: continuation run; the event journal belongs to the parent run and was not carried over"
+                .into(),
+        );
+        return json!({"status": "absent", "reason": "continuation"});
+    }
+    if !files_present && claim.is_none() && !plan_marker {
+        warnings.push(
+            "journal-absent: the run records no event journal (it predates journaling); its history is not verifiable"
+                .into(),
+        );
+        return json!({"status": "absent"});
+    }
+    fn defect(errors: &mut Vec<String>, code: &str, detail: String) {
+        errors.push(format!("journal-defect:{code}: {detail}"));
+    }
+    let Some(plan_digest) = plan.pointer("/seal/digest").and_then(Value::as_str) else {
+        defect(
+            errors,
+            "plan_mismatch",
+            "plan.seal.digest is missing".into(),
+        );
+        return json!({"status": "failed"});
+    };
+    let expected_head = match &claim {
+        None => None,
+        Some(claim) => match (
+            claim.get("sequence").and_then(Value::as_u64),
+            claim.get("digest").and_then(Value::as_str),
+        ) {
+            (Some(sequence), Some(digest)) => Some(SealedHead {
+                plan_digest: plan_digest.to_owned(),
+                sequence,
+                digest: Some(digest.to_owned()),
+                finalized: false,
+            }),
+            _ => {
+                defect(
+                    errors,
+                    "expected_head_mismatch",
+                    "the report's recorded journal head is malformed".into(),
+                );
+                None
+            }
+        },
+    };
+    let anchor = match JournalAnchor::read(root) {
+        Ok(anchor) => anchor,
+        Err(error) => {
+            defect(errors, "anchor_invalid", error.to_string());
+            None
+        }
+    };
+    match (&anchor, key) {
+        (Some(anchor), Some(key)) => {
+            if !anchor.verify(key) {
+                defect(
+                    errors,
+                    "anchor_signature",
+                    "the journal anchor does not verify under the run plan key".into(),
+                );
+            }
+            if anchor.plan_digest != plan_digest {
+                defect(
+                    errors,
+                    "plan_mismatch",
+                    "the journal anchor is bound to a different plan".into(),
+                );
+            }
+        }
+        (Some(_), None) => defect(
+            errors,
+            "anchor_unverifiable",
+            "the run plan key is unavailable, so the anchor cannot be checked".into(),
+        ),
+        (None, _) => defect(
+            errors,
+            "anchor_missing",
+            format!(
+                "{ANCHOR_FILE} is missing: the run was never finalized or the anchor was removed"
+            ),
+        ),
+    }
+    let expectation = Expectation {
+        require_finalized: true,
+        expected_head,
+        final_plan_digest: anchor
+            .as_ref()
+            .map(|anchor| anchor.effective_plan_digest.clone()),
+    };
+    let verification = verify_dir(root, plan_digest, &expectation);
+    for item in &verification.defects {
+        let code = serde_json::to_value(item.code)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "unknown".into());
+        defect(errors, &code, item.detail.clone());
+    }
+    if verification.unsealed_tail > 0 {
+        defect(
+            errors,
+            "seal_mismatch",
+            format!(
+                "{} committed event(s) lie past the sealed head",
+                verification.unsealed_tail
+            ),
+        );
+    }
+    if let Some(anchor) = &anchor {
+        let last = verification.events.last();
+        if verification.events.len() as u64 != anchor.sequence
+            || last.map(|event| event.digest.as_str()) != Some(anchor.digest.as_str())
+        {
+            defect(
+                errors,
+                "anchor_mismatch",
+                "the journal does not end at the signed anchor head".into(),
+            );
+        }
+    }
+    if let (Some(last), Some(bytes)) = (verification.events.last(), report_bytes.as_deref()) {
+        if last.kind == EventKind::ReportFinalized && last.payload_digest != bytes_digest(bytes) {
+            // Expected after lens results are ingested: the report is rewritten
+            // after finalization while the journal keeps the original digest.
+            warnings.push(
+                "report-rewritten-after-finalization: report.json differs from the digest recorded by report_finalized"
+                    .into(),
+            );
+        }
+    }
+    json!({
+        "status": if verification.is_valid() && errors.iter().all(|e| !e.starts_with("journal-defect:")) { "verified" } else { "failed" },
+        "eventCount": verification.events.len(),
+        "headSequence": verification.head.as_ref().map(|head| head.sequence),
+        "headDigest": verification.head.as_ref().and_then(|head| head.digest.clone()),
+        "finalized": verification.finalized,
+        "defects": verification.defects.iter().map(|d| d.to_string()).collect::<Vec<_>>(),
+    })
 }
 
 /// Replay-equivalence comparison of two runs; never affects integrity status.

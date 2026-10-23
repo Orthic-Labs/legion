@@ -159,6 +159,33 @@ fn binding_matches(artifact: &Value, expected: &Value) -> bool {
             .unwrap_or(false)
 }
 
+/// The `security-model.json` binding is a richer object than the plan binding
+/// (`repositoryId`, `inventoryDigest`, ... versus `{repositoryRevision, digest}`),
+/// so it is checked on the fields both carry: `repositoryRevision` and
+/// `inventoryDigest` (plan `digest`). Exact equality still passes; a model whose
+/// binding shares no comparable field with the plan binding fails closed.
+pub fn model_binding_matches(model: &Value, expected: &Value) -> bool {
+    if binding_matches(model, expected) {
+        return true;
+    }
+    let (Some(binding), true) = (model.get("binding"), expected.is_object()) else {
+        return false;
+    };
+    let mut compared = 0usize;
+    for (model_key, plan_key) in [
+        ("repositoryRevision", "repositoryRevision"),
+        ("inventoryDigest", "digest"),
+    ] {
+        if let Some(want) = non_empty(expected, plan_key) {
+            if non_empty(binding, model_key) != Some(want) {
+                return false;
+            }
+            compared += 1;
+        }
+    }
+    compared > 0
+}
+
 fn strings(value: &Value, key: &str) -> Vec<String> {
     value
         .get(key)
@@ -660,12 +687,34 @@ fn slice_model_for_path(model: &Value, step_packets: &[Value]) -> Value {
             .cloned()
             .unwrap_or_default()
     };
+    // Candidates cite entities by id, name or evidence path (see
+    // `attack_paths` contract), so all three aliases select an entity.
+    let evidence_paths: HashMap<String, String> = list("evidence")
+        .iter()
+        .filter_map(|e| {
+            Some((
+                e.get("id")?.as_str()?.to_string(),
+                e.get("path")?.as_str()?.to_string(),
+            ))
+        })
+        .collect();
     let entities: Vec<Value> = list("entities")
         .into_iter()
         .filter(|e| {
-            e.get("id")
+            let by_id = e
+                .get("id")
                 .and_then(Value::as_str)
-                .map_or(false, |id| referenced.contains(id))
+                .is_some_and(|id| referenced.contains(id));
+            let by_name = e
+                .get("name")
+                .and_then(Value::as_str)
+                .is_some_and(|name| referenced.contains(name));
+            let by_path = strings(e, "evidenceRefs").iter().any(|r| {
+                evidence_paths
+                    .get(r)
+                    .is_some_and(|p| referenced.contains(p))
+            });
+            by_id || by_name || by_path
         })
         .collect();
     let entity_ids: HashSet<String> = entities
@@ -718,7 +767,7 @@ pub fn build_adjudication_packet(
     if !binding_matches(hypothesis, expected_binding) {
         return Err(ChainAdjudicationError::BindingMismatch("hypothesis".into()));
     }
-    if !model.get("binding").is_none() && !binding_matches(model, expected_binding) {
+    if model.get("binding").is_some() && !model_binding_matches(model, expected_binding) {
         return Err(ChainAdjudicationError::BindingMismatch("model".into()));
     }
     let syn_provider = non_empty(synthesizer, "provider")
@@ -795,6 +844,6 @@ pub fn build_adjudication_packet(
 /// Registry entry (providers.json) proposed for this adjudicator. Documented
 /// here so the owner of `src/registry/providers.json` can transcribe it.
 pub const REGISTRY_ENTRY_NOTE: &str =
-    "id=security.chain-adjudication role=adjudicator family=security phase=judgment \
-     consumes=[attack-path-hypotheses,security-verdicts] produces=[security-chain-verdicts] \
-     reasoning={requirement:review,freshContext:true,producerSeparation:true}";
+    "id=security.chain-adjudication role=adjudicator family=security phase=judgment runner=runtime-script \
+     consumes=[security-model,attack-path-hypotheses] produces=[security-chain-verdicts] \
+     reasoning={requirement:none,freshContext:true,producerSeparation:true}; registered in src/registry/providers.json";

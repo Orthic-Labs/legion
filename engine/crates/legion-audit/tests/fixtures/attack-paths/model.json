@@ -7,6 +7,6 @@
     { "id": "asset:customer-vault", "kind": "crown-jewel" }
   ],
   "relations": [
-    { "id": "rel:fetch-can-reach-metadata", "kind": "can-reach", "from": "source:http.fetch-url", "to": "sink:cloud-metadata", "assertion": "observed", "evidenceStrength": "strong-inference" }
+    { "id": "rel:fetch-can-reach-metadata", "kind": "reaches", "from": "source:http.fetch-url", "to": "sink:cloud-metadata", "assertion": "observed", "evidenceStrength": "strong-inference" }
   ]
 }

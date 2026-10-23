@@ -15,7 +15,7 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 46] = [
+const TESTED_RUNTIME_IDS: [&str; 49] = [
     "architecture.core",
     "architecture.structure",
     "code.android.lint",
@@ -51,6 +51,8 @@ const TESTED_RUNTIME_IDS: [&str; 46] = [
     "secrets.current-history",
     "security.agent-skill-mcp",
     "security.agentic-ci",
+    "security.attack-path-synthesis",
+    "security.chain-adjudication",
     "security.credentials",
     "security.insecure-defaults",
     "security.misuse-resistance",
@@ -59,6 +61,7 @@ const TESTED_RUNTIME_IDS: [&str; 46] = [
     "security.scanner-squawk",
     "security.scanner-zizmor",
     "security.suppression-changes",
+    "security.surface-model",
     "structural.ast-grep",
     "supply-chain.license-sbom-provenance",
     "test-quality.core",

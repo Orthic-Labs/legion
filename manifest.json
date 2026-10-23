@@ -1876,6 +1876,51 @@
       "produces_security_candidates": true,
       "fresh_context_required": false,
       "may_close_own_candidates": false
+    },
+    {
+      "id": "security.surface-model",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.surface-model"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "security.attack-path-synthesis",
+      "role": "deterministic",
+      "phase": "runtime",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.attack-path-synthesis"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "security.chain-adjudication",
+      "role": "adjudicator",
+      "phase": "reasoning",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.chain-adjudication"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": true,
+      "may_close_own_candidates": true
     }
   ]
 }

@@ -302,6 +302,12 @@ impl ProviderPolicy {
         }
     }
 
+    /// Safe to run a second time after an interrupted run: only providers with
+    /// no declared or derived effect. Everything else resumes as an explicit gap.
+    pub fn idempotent(&self) -> bool {
+        !self.effectful && self.invalid.is_none()
+    }
+
     /// Attempts actually allowed: effectful providers are never re-run.
     pub fn attempts_allowed(&self) -> u32 {
         if self.effectful {

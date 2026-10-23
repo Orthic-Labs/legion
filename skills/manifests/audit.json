@@ -97,7 +97,7 @@
     {
       "path": "evals/patterns/cases.json",
       "uri": "legion-skill://audit/evals/patterns/cases.json",
-      "digest": "sha256:e89d1a0427f7daf800caef4f933dc213187f8220f0ec9fabf19fa4948e7fd5eb"
+      "digest": "sha256:bf37073f1c65e0a12e4b122b5db7f8e2113f46515c573644b56087f002d92f3e"
     },
     {
       "path": "references/a11y-checklist.md",
@@ -157,7 +157,7 @@
     {
       "path": "references/pattern-cards.md",
       "uri": "legion-skill://audit/references/pattern-cards.md",
-      "digest": "sha256:cede31e8ecff3f0e468857791dfe2a08505b57264d79161b4a39c3c01e958332"
+      "digest": "sha256:958305d0bb02a17579ea21f8b9343c8611141679eb2db7bb4c352e9ce9588a9f"
     },
     {
       "path": "references/performance-checklist.md",
@@ -207,12 +207,12 @@
     {
       "path": "references/security-checklist.md",
       "uri": "legion-skill://audit/references/security-checklist.md",
-      "digest": "sha256:6790f51115b046a5129a2e516e6a5f59f32b5248ba86a355d64369393564aace"
+      "digest": "sha256:11368d47483ee062cfcaf8109da564cfa7994f2cafe624e24a84740990bcc2a3"
     },
     {
       "path": "references/security-lens-catalog.md",
       "uri": "legion-skill://audit/references/security-lens-catalog.md",
-      "digest": "sha256:44fd82dbc6ad4c324ce5b15bb58bb12f13f6814dd76c2da3ad69e0e3686ed86f"
+      "digest": "sha256:d89fa84027fbcc6dca8cc8d7724e6810f2a8c246c585f7266116a41f51a014fb"
     },
     {
       "path": "references/semantic-review.md",

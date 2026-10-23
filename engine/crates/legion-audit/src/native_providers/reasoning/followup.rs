@@ -31,14 +31,16 @@ use serde_json::{json, Value};
 
 use super::{
     ingest::{
-        create_epoch, expected_request_id, invalid, io, lens_packet_items, load_epoch, read_json,
-        recompute_run, write_atomic, write_lens_packets, LENS_PACKET_DIR,
+        create_epoch, expected_request_id, install_epoch_key, invalid, io, lens_packet_items,
+        load_epoch, read_json, recompute_run, write_atomic, write_lens_packets, LENS_PACKET_DIR,
+        LENS_RECEIPT_DIR,
     },
     pending_lens_work,
     security_adjudication::{confirmed_paths, ConfirmedSecurityFinding, ADJUDICATOR_PROVIDER_ID},
     PendingLensWork, ReasoningProviderExecutor,
 };
 use crate::{
+    amendment::{self, AmendmentChainRecord, AmendmentOperation},
     error::AuditError,
     execution::{execute, ExecutionReport},
     inventory::{FilesystemInventorySource, InventorySource},
@@ -55,10 +57,13 @@ pub const VARIANT_PROVIDER_ID: &str = "legacy.security.variant-analysis";
 
 /// File in the follow-up run directory holding the sealed [`VariantLedger`].
 pub const VARIANT_LEDGER_FILE: &str = "variant-ledger.json";
-/// When true, a follow-up without a ledger stays pending. Kept false only until
-/// the variant-lens ingest path writes the ledger; an absent ledger is then
-/// reported as `variantLedger.status = "absent"`, never as a complete pass.
-pub const VARIANT_LEDGER_REQUIRED: bool = false;
+/// Host-side per-part inputs the ledger aggregates (unresolved/matched claims).
+pub const VARIANT_LEDGER_INPUT_FILE: &str = "variant-ledger-input.json";
+/// Signed generation of the parent plan that adds this follow-up run.
+pub const FOLLOWUP_CHAIN_FILE: &str = "plan-amendments.json";
+/// A follow-up without a ledger stays pending: the variant-lens ingest writes
+/// the sealed ledger, so an absent ledger after ingest is an incomplete pass.
+pub const VARIANT_LEDGER_REQUIRED: bool = true;
 
 /// Root-cause signature (SEC 4.4, 9.5): digest over the normalized rule, sink
 /// class, and missing control that define the variant family.
@@ -217,6 +222,277 @@ impl VariantLedger {
             "ledgerDigest": self.ledger_digest,
         })
     }
+}
+
+/// Build the signed generation of the parent plan that adds this follow-up run
+/// (`amendment::apply_followup`). The executed follow-up plan stays the
+/// single-provider plan; this generation is its verifiable lineage. A parent
+/// that already lists the variant provider gets the run under a distinct
+/// `.followup` provider id (plan provider ids are unique).
+fn followup_generation(
+    parent_plan_json: &Value,
+    key: &[u8],
+    followup: &crate::plan::FrozenPlan,
+) -> Result<(AmendmentChainRecord, amendment::AppliedAmendment), AuditError> {
+    let base = amendment::frozen_plan_from_run_json(parent_plan_json, key)?;
+    let mut provider = followup
+        .plan()
+        .providers
+        .first()
+        .cloned()
+        .ok_or_else(|| invalid("follow-up plan holds no provider"))?;
+    if base
+        .plan()
+        .providers
+        .iter()
+        .any(|existing| existing.id == provider.id)
+    {
+        provider.id = format!("{}.followup", provider.id);
+    }
+    let binding = followup
+        .plan()
+        .followup_binding()
+        .cloned()
+        .ok_or_else(|| invalid("follow-up plan carries no parent binding"))?;
+    let (next, applied) = amendment::apply_followup(
+        &base,
+        provider,
+        binding,
+        "security variant analysis follow-up",
+        amendment::now_unix(),
+        key,
+    )?;
+    let chain = AmendmentChainRecord::new(&base, vec![applied.clone()], &next)?;
+    Ok((chain, applied))
+}
+
+/// Replay the recorded follow-up generation against the parent plan and bind
+/// it to the executed follow-up plan.
+fn verify_followup_generation(
+    dir: &Path,
+    parent_plan_json: &Value,
+    parent_digest: &str,
+    parent_key: &[u8],
+    frozen: &AuditPlan,
+) -> Result<(), AuditError> {
+    let bytes = fs::read(dir.join(FOLLOWUP_CHAIN_FILE)).map_err(|error| {
+        io(
+            error,
+            "follow-up carries no signed generation of the parent plan",
+        )
+    })?;
+    let record: AmendmentChainRecord = serde_json::from_slice(&bytes)
+        .map_err(|error| invalid(format!("follow-up plan generation is invalid: {error}")))?;
+    let base = amendment::frozen_plan_from_run_json(parent_plan_json, parent_key)?;
+    if base.digest() != parent_digest || record.genesis_plan_digest != base.digest() {
+        return Err(invalid(
+            "follow-up plan generation is bound to a different parent plan",
+        ));
+    }
+    let [link] = record.links.as_slice() else {
+        return Err(invalid("follow-up plan generation must be one link"));
+    };
+    let (next, applied) = amendment::apply(&base, &link.amendment, parent_key)?;
+    if applied.result_plan_digest != link.result_plan_digest
+        || applied.result_generation != link.result_generation
+        || record.result_digest() != Some(next.digest())
+    {
+        return Err(invalid(
+            "follow-up plan generation does not reproduce its recorded result",
+        ));
+    }
+    let [AmendmentOperation::AddFollowupRun { provider, followup }] =
+        link.amendment.body.operations.as_slice()
+    else {
+        return Err(invalid(
+            "follow-up plan generation is not a single follow-up run",
+        ));
+    };
+    let [executed] = frozen.providers.as_slice() else {
+        return Err(invalid("follow-up plan must hold exactly one provider"));
+    };
+    if Some(followup) != frozen.followup_binding()
+        || provider.configuration != executed.configuration
+        || provider.lens_ids != executed.lens_ids
+        || provider.role != executed.role
+    {
+        return Err(invalid(
+            "follow-up plan generation differs from the executed follow-up plan",
+        ));
+    }
+    Ok(())
+}
+
+/// (confirmed, rejected, rejection reasons) over every authenticated variant
+/// receipt of the follow-up run (single packet or every part).
+pub(super) fn variant_receipt_counts(
+    run_dir: &Path,
+) -> Result<(u64, u64, Vec<String>), AuditError> {
+    let dir = run_dir.join(LENS_RECEIPT_DIR);
+    let single = format!("{VARIANT_PROVIDER_ID}.json");
+    let prefix = format!("{VARIANT_PROVIDER_ID}.part-");
+    let (mut confirmed, mut rejected, mut reasons) = (0u64, 0u64, Vec::new());
+    let mut names = Vec::new();
+    for entry in fs::read_dir(&dir)
+        .map_err(|error| io(error, "could not list the variant receipts"))?
+        .filter_map(Result::ok)
+    {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == single || (name.starts_with(&prefix) && name.ends_with(".json")) {
+            names.push(entry.path());
+        }
+    }
+    names.sort();
+    for path in names {
+        let receipt = read_json(&path)?;
+        confirmed += receipt
+            .pointer("/result/details/lensFindings")
+            .and_then(Value::as_array)
+            .map_or(0, |items| items.len() as u64);
+        for entry in receipt
+            .pointer("/result/details/withdrawnFindings")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            rejected += 1;
+            reasons.push(
+                entry
+                    .get("reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+            );
+        }
+    }
+    Ok((confirmed, rejected, reasons))
+}
+
+/// Called by the variant-lens ingest: seal `<followup>/variant-ledger.json`
+/// from the authenticated receipts plus the host-recorded per-part inputs. The
+/// optional result field `variantLedger` carries `unresolved`, `matched` and
+/// `rootCause {rule, sink, missingControl}`; otherwise the signature derives
+/// from the packet's variant seeds. Unresolved variants keep the pass
+/// incomplete.
+pub(super) fn record_variant_pass(
+    run_dir: &Path,
+    plan: &Value,
+    packet: &Value,
+    result: &Value,
+    part: Option<u32>,
+) -> Result<(), AuditError> {
+    let binding = plan
+        .get("followupOf")
+        .ok_or_else(|| invalid("plan.json is not a follow-up"))?;
+    let text = |name: &str| {
+        binding
+            .get(name)
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| invalid(format!("followupOf.{name} is missing")))
+    };
+    let denominator = binding
+        .get("analysisPaths")
+        .and_then(Value::as_array)
+        .map(|paths| paths.len() as u64)
+        .ok_or_else(|| invalid("followupOf.analysisPaths is missing"))?;
+    let submitted = match result.get("variantLedger") {
+        None | Some(Value::Null) => json!({}),
+        Some(value) if value.is_object() => value.clone(),
+        Some(_) => return Err(invalid("variantLedger must be an object")),
+    };
+    let count = |name: &str| -> Result<u64, AuditError> {
+        match submitted.get(name) {
+            None | Some(Value::Null) => Ok(0),
+            Some(value) => value
+                .as_u64()
+                .ok_or_else(|| invalid(format!("variantLedger.{name} must be a count"))),
+        }
+    };
+    let mut input = match fs::read(run_dir.join(VARIANT_LEDGER_INPUT_FILE)) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes)
+            .map_err(|error| invalid(format!("variant ledger input is invalid: {error}")))?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => json!({"parts": {}}),
+        Err(error) => return Err(io(error, "could not read the variant ledger input")),
+    };
+    let key = part.map_or_else(|| "0".to_owned(), |number| number.to_string());
+    input["parts"][&key] =
+        json!({"unresolved": count("unresolved")?, "matched": count("matched")?});
+    if input.get("rootCause").is_none() {
+        let seeds = packet
+            .get("variantSeeds")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let field = |name: &str| -> String {
+            let mut values: BTreeSet<String> = seeds
+                .iter()
+                .filter_map(|seed| seed.get(name))
+                .filter_map(|value| match value {
+                    Value::Null => None,
+                    Value::String(text) => Some(text.trim().to_owned()),
+                    other => Some(other.to_string()),
+                })
+                .filter(|value| !value.is_empty())
+                .collect();
+            if values.is_empty() {
+                values.insert("unspecified".into());
+            }
+            values.into_iter().collect::<Vec<_>>().join("|")
+        };
+        let from = |name: &str, derived: String| {
+            submitted
+                .pointer(&format!("/rootCause/{name}"))
+                .and_then(Value::as_str)
+                .map_or(derived, ToOwned::to_owned)
+        };
+        input["rootCause"] = json!({
+            "rule": from("rule", field("rule")),
+            "sink": from("sink", field("sink")),
+            "missingControl": from("missingControl", field("missingControl")),
+        });
+    }
+    let cause = |name: &str| {
+        input["rootCause"][name]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let signature = root_cause_signature(&cause("rule"), &cause("sink"), &cause("missingControl"))?;
+    let (confirmed, rejected, rejection_reasons) = variant_receipt_counts(run_dir)?;
+    let parts = input["parts"].as_object().cloned().unwrap_or_default();
+    let sum = |name: &str| -> u64 {
+        parts
+            .values()
+            .map(|entry| entry.get(name).and_then(Value::as_u64).unwrap_or(0))
+            .sum()
+    };
+    let unresolved = sum("unresolved");
+    let examined = confirmed
+        .checked_add(rejected)
+        .and_then(|total| total.checked_add(unresolved))
+        .ok_or_else(|| invalid("variant ledger count overflow"))?;
+    let ledger = VariantLedger {
+        root_cause_signature: signature,
+        denominator_count: denominator,
+        matched: sum("matched").max(examined),
+        examined,
+        confirmed,
+        rejected,
+        unresolved,
+        rejection_reasons,
+        parent_plan_digest: text("parentPlanDigest")?,
+        followup_plan_digest: seal_digest(plan, "follow-up plan.json")?,
+        confirmed_digest: text("confirmedDigest")?,
+        ledger_digest: String::new(),
+    }
+    .seal()?;
+    let to_bytes = |value: &Value| {
+        serde_json::to_vec_pretty(value).map_err(|error| invalid(error.to_string()))
+    };
+    write_atomic(run_dir, VARIANT_LEDGER_INPUT_FILE, &to_bytes(&input)?)?;
+    write_atomic(run_dir, VARIANT_LEDGER_FILE, &to_bytes(&json!(ledger))?)?;
+    Ok(())
 }
 
 /// What `compile_followup` produced (or found already in place).
@@ -710,11 +986,22 @@ pub fn compile_followup(
         return Ok(Some(existing));
     }
 
-    // A fresh epoch for the follow-up run (also clears stale receipts); the
-    // plan is signed with its key.
-    let epoch = create_epoch(&dir)?;
-    let (key, loaded) = load_epoch(&dir)?;
-    debug_assert_eq!(epoch, loaded);
+    // The follow-up is signed with the PARENT's plan key (host custody), never
+    // a fresh key: it is a generation of the parent plan. The lens-receipt MAC
+    // epoch stays a fresh per-run key, except for a legacy parent whose plan
+    // key and epoch key are one run-directory key (inherited unchanged).
+    let (parent_key, key_source) =
+        match crate::integrity::resolve_plan_key(parent_run, &parent_plan) {
+            crate::integrity::PlanKeyResolution::Found { key, source } => (key, source),
+            crate::integrity::PlanKeyResolution::Unverifiable { reason } => {
+                return Err(invalid(format!("unverifiable-signature: {reason}")));
+            }
+        };
+    let epoch = if key_source == crate::integrity::PlanKeySource::LegacyRunDirEpoch {
+        install_epoch_key(&dir, &parent_key)?
+    } else {
+        create_epoch(&dir)?
+    };
     let plan = AuditPlan::compile_followup(
         &inventory,
         &variant_spec,
@@ -724,7 +1011,20 @@ pub fn compile_followup(
         &parent_digest,
         &digest_of_confirmed,
     )?
-    .freeze(Some(key.as_slice()))?;
+    .freeze(Some(parent_key.as_slice()))?;
+    let plan_key_record = match key_source {
+        crate::integrity::PlanKeySource::HostState => {
+            let run_id = crate::integrity::new_run_id()?;
+            let key_id =
+                crate::integrity::store_host_plan_key(&dir, &run_id, plan.digest(), &parent_key)?;
+            json!({"runId": run_id, "keyId": key_id, "custody": "host-state"})
+        }
+        _ => Value::Null,
+    };
+    // Signed generation of the parent plan adding this follow-up run; verified
+    // again by `evaluate`. Refusal (legacy schema 1 parent, unsigned parent,
+    // binding mismatch) fails the follow-up closed.
+    let (chain, applied) = followup_generation(&parent_plan, &parent_key, &plan)?;
     let execution = execute(
         &plan,
         &inventory,
@@ -806,6 +1106,7 @@ pub fn compile_followup(
         },
         "providers": execution.planned_providers,
         "epoch": {"digest": epoch, "keyFile": super::ingest::EPOCH_KEY_FILE},
+        "planKey": plan_key_record,
         "followupOf": {
             "kind": "security-variant-analysis",
             "parentPlanDigest": parent_digest,
@@ -822,6 +1123,16 @@ pub fn compile_followup(
         FROZEN_PLAN_FILE,
         &to_bytes(&serde_json::to_value(plan.plan()).map_err(|error| invalid(error.to_string()))?)?,
     )?;
+    write_atomic(&dir, FOLLOWUP_CHAIN_FILE, &to_bytes(&json!(chain))?)?;
+    // Journal event only on a live (unfinalized) parent journal at generation 1.
+    if chain.links.len() == 1 && applied.result_generation == 2 {
+        amendment::record_in_journal(
+            parent_run,
+            &parent_digest,
+            &applied,
+            applied.amendment.body.issued_at_unix,
+        )?;
+    }
     // Writes the single packet or every numbered part plus the part index, and
     // removes stale packet files of an earlier partitioning.
     write_lens_packets(&packet_dir, &works)?;
@@ -923,7 +1234,8 @@ fn reuse(
                 .and_then(|reasoning| reasoning.get("reviewContext"))
                 == Some(review_context)
         })
-        && dir.join("lens-dispatch.json").is_file();
+        && dir.join("lens-dispatch.json").is_file()
+        && dir.join(FOLLOWUP_CHAIN_FILE).is_file();
     let matches = context_matches
         && binding.get("parentPlanDigest").and_then(Value::as_str) == Some(parent_digest)
         && binding.get("confirmedDigest").and_then(Value::as_str) == Some(confirmed_digest)
@@ -1027,9 +1339,18 @@ fn check(
     let plan_json = read_json(&dir.join("plan.json"))?;
     let frozen: AuditPlan = serde_json::from_value(read_json(&dir.join(FROZEN_PLAN_FILE))?)
         .map_err(|error| invalid(format!("{FROZEN_PLAN_FILE} is invalid: {error}")))?;
-    let (key, epoch) = load_epoch(dir)?;
+    let (_, epoch) = load_epoch(dir)?;
     if plan_json.pointer("/epoch/digest").and_then(Value::as_str) != Some(epoch.as_str()) {
         return Err(invalid("follow-up epoch key does not match its plan.json"));
+    }
+    // The follow-up plan key resolves through its own host-custody binding and
+    // must be the parent's plan key: a fresh or substituted key is refused.
+    let key = crate::integrity::plan_signing_key_for_run(dir)?;
+    let parent_key = crate::integrity::plan_signing_key_for_run(run_dir)?;
+    if key != parent_key {
+        return Err(invalid(
+            "follow-up plan is not signed with the parent plan key",
+        ));
     }
     let digest = seal_digest(&plan_json, "follow-up plan.json")?;
     let signature = plan_json
@@ -1037,6 +1358,7 @@ fn check(
         .and_then(Value::as_str)
         .ok_or_else(|| invalid("follow-up plan.json carries no signature"))?;
     crate::integrity::verify(&frozen, &digest, Some(signature), Some(key.as_slice()))?;
+    verify_followup_generation(dir, parent_plan, &parent_digest, &parent_key, &frozen)?;
 
     let binding = frozen
         .bounds
@@ -1153,6 +1475,12 @@ fn check(
                 &digest_of_confirmed,
                 expected_analysis_paths.len() as u64,
             )?;
+            let (confirmed_receipts, rejected_receipts, _) = variant_receipt_counts(dir)?;
+            if ledger.confirmed != confirmed_receipts || ledger.rejected != rejected_receipts {
+                return Err(invalid(
+                    "variant ledger disagrees with the authenticated variant receipts",
+                ));
+            }
             match ledger.assess() {
                 LedgerAssessment::Complete => Some(ledger),
                 LedgerAssessment::Incomplete(reason) => {

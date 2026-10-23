@@ -472,3 +472,124 @@ pub fn apply_followup(
     let body = followup_amendment_body(base, provider, followup_binding, reason, issued_at_unix)?;
     apply(base, &SignedAmendment::sign(body, key)?, key)
 }
+
+pub const AMENDMENT_CHAIN_FORMAT: &str = "audit-plan-amendment-chain/v1";
+
+/// Current wall clock as unix seconds (amendment `issued_at_unix`).
+pub fn now_unix() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0)
+}
+
+/// Restore the signed native plan embedded in a run's `plan.json`
+/// (`nativePlan.{digest,signature,plan}`), authenticating it with `key`.
+/// Fails closed when the run carries no embedded signed plan.
+pub fn frozen_plan_from_run_json(plan_json: &Value, key: &[u8]) -> Result<FrozenPlan, AuditError> {
+    let native = plan_json
+        .get("nativePlan")
+        .filter(|value| value.is_object())
+        .ok_or_else(|| invalid("run plan.json embeds no native plan"))?;
+    let digest = native
+        .get("digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("embedded native plan has no digest"))?;
+    let signature = native
+        .get("signature")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("embedded native plan is unsigned"))?;
+    let plan: AuditPlan = serde_json::from_value(
+        native
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| invalid("embedded native plan body is missing"))?,
+    )
+    .map_err(|error| invalid(format!("embedded native plan is malformed: {error}")))?;
+    FrozenPlan::restore_verified(plan, digest, signature, key)
+}
+
+/// Persisted generation chain of one run: the genesis digest, every applied
+/// link, and the resulting signed plan. Verification replays the whole chain.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AmendmentChainRecord {
+    pub format: String,
+    pub genesis_plan_digest: String,
+    pub links: Vec<AppliedAmendment>,
+    /// `{digest, signature, plan}` of the final generation.
+    pub result_plan: Value,
+}
+
+impl AmendmentChainRecord {
+    pub fn new(
+        genesis: &FrozenPlan,
+        links: Vec<AppliedAmendment>,
+        result: &FrozenPlan,
+    ) -> Result<Self, AuditError> {
+        Ok(Self {
+            format: AMENDMENT_CHAIN_FORMAT.into(),
+            genesis_plan_digest: genesis.digest().to_owned(),
+            links,
+            result_plan: serde_json::json!({
+                "digest": result.digest(),
+                "signature": result.signature(),
+                "plan": serde_json::to_value(result.plan())
+                    .map_err(|error| invalid(error.to_string()))?,
+            }),
+        })
+    }
+
+    pub fn result_digest(&self) -> Option<&str> {
+        self.result_plan.get("digest").and_then(Value::as_str)
+    }
+
+    /// Replay the chain from `genesis` and require it to reproduce the
+    /// recorded result byte for byte.
+    pub fn verify(&self, genesis: &FrozenPlan, key: &[u8]) -> Result<FrozenPlan, AuditError> {
+        if self.format != AMENDMENT_CHAIN_FORMAT {
+            return Err(invalid("unsupported amendment chain format"));
+        }
+        if self.links.is_empty() || self.genesis_plan_digest != genesis.digest() {
+            return Err(invalid("amendment chain is not bound to this genesis plan"));
+        }
+        let end = verify_chain(genesis, &self.links, key)?;
+        let recorded = self
+            .result_plan
+            .get("plan")
+            .and_then(|plan| serde_json::from_value::<AuditPlan>(plan.clone()).ok());
+        if self.result_digest() != Some(end.digest())
+            || self.result_plan.get("signature").and_then(Value::as_str) != end.signature()
+            || recorded.as_ref() != Some(end.plan())
+        {
+            return Err(invalid(
+                "amendment chain result does not match the replayed generation",
+            ));
+        }
+        Ok(end)
+    }
+}
+
+/// Record an applied amendment in the run journal of `dir`, when one exists,
+/// is not finalized, and its effective plan is the amendment's base. Returns
+/// whether an event was appended. A finalized journal or one already moved to
+/// another generation cannot take the event (the chain file is then the
+/// record); any other journal defect fails closed.
+pub fn record_in_journal(
+    dir: &std::path::Path,
+    genesis_plan_digest: &str,
+    applied: &AppliedAmendment,
+    at: u64,
+) -> Result<bool, AuditError> {
+    if !dir.join(crate::journal::EVENTS_FILE).is_file() {
+        return Ok(false);
+    }
+    let mut journal = crate::journal::Journal::open(dir, genesis_plan_digest)?;
+    if journal.is_finalized()
+        || journal.effective_plan_digest() != applied.amendment.body.base_plan_digest
+    {
+        return Ok(false);
+    }
+    journal.append_amendment(&applied.result_plan_digest, &applied.amendment.digest, at)?;
+    Ok(true)
+}

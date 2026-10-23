@@ -67,6 +67,184 @@ pub fn event_digest(event: &AuditEvent) -> Result<String, AuditError> {
     legion_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
 }
 
+/// Digest used as the payload of the failure event that closes a provider
+/// that was started but never finished before a crash and is rerun.
+pub fn interrupted_payload_digest(provider: &str) -> String {
+    legion_contracts::canonical_digest(&serde_json::json!({"interrupted": provider}))
+        .unwrap_or_else(|_| "sha256:invalid".to_owned())
+}
+
+/// `sha256:<hex>` over raw bytes.
+pub fn bytes_digest(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let hex: String = Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    format!("sha256:{hex}")
+}
+
+const MAC_PREFIX: &str = "hmac-sha256:";
+
+/// Domain-separated HMAC-SHA256 over `bytes`, rendered `hmac-sha256:<hex>`.
+pub fn domain_mac(key: &[u8], domain: &[u8], bytes: &[u8]) -> Result<String, AuditError> {
+    use hmac::{Hmac, KeyInit, Mac};
+    let mut mac = <Hmac<sha2::Sha256> as KeyInit>::new_from_slice(key)
+        .map_err(|_| AuditError::Invalid("empty HMAC key".into()))?;
+    mac.update(domain);
+    mac.update(bytes);
+    let hex: String = mac
+        .finalize()
+        .into_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    Ok(format!("{MAC_PREFIX}{hex}"))
+}
+
+/// Constant-time check of a value produced by [`domain_mac`].
+pub fn domain_mac_verify(key: &[u8], domain: &[u8], bytes: &[u8], signature: &str) -> bool {
+    use hmac::{Hmac, KeyInit, Mac};
+    let Some(hex_part) = signature.strip_prefix(MAC_PREFIX) else {
+        return false;
+    };
+    let Ok(expected) = hex::decode(hex_part) else {
+        return false;
+    };
+    let Ok(mut mac) = <Hmac<sha2::Sha256> as KeyInit>::new_from_slice(key) else {
+        return false;
+    };
+    mac.update(domain);
+    mac.update(bytes);
+    mac.verify_slice(&expected).is_ok()
+}
+
+pub const ANCHOR_FILE: &str = "journal-anchor.json";
+const ANCHOR_FORMAT: &str = "audit-journal-anchor/v1";
+const ANCHOR_DOMAIN: &[u8] = b"legion-audit-journal-anchor-v1\0";
+
+/// Signed record of the finalized journal head. The signing key lives in host
+/// state (plan key custody), never in the run directory, so a run directory
+/// that is rewritten wholesale cannot produce a matching anchor.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct JournalAnchor {
+    pub format: String,
+    pub plan_digest: String,
+    pub effective_plan_digest: String,
+    pub sequence: u64,
+    pub digest: String,
+    pub signature: String,
+}
+
+impl JournalAnchor {
+    fn signed_bytes(
+        plan_digest: &str,
+        effective_plan_digest: &str,
+        sequence: u64,
+        digest: &str,
+    ) -> Result<Vec<u8>, AuditError> {
+        legion_contracts::canonical_json_bytes(&serde_json::json!({
+            "format": ANCHOR_FORMAT,
+            "planDigest": plan_digest,
+            "effectivePlanDigest": effective_plan_digest,
+            "sequence": sequence,
+            "digest": digest,
+        }))
+        .map_err(|e| AuditError::Invalid(e.to_string()))
+    }
+
+    pub fn sign(
+        plan_digest: &str,
+        effective_plan_digest: &str,
+        sequence: u64,
+        digest: &str,
+        key: &[u8],
+    ) -> Result<Self, AuditError> {
+        let bytes = Self::signed_bytes(plan_digest, effective_plan_digest, sequence, digest)?;
+        Ok(Self {
+            format: ANCHOR_FORMAT.to_owned(),
+            plan_digest: plan_digest.to_owned(),
+            effective_plan_digest: effective_plan_digest.to_owned(),
+            sequence,
+            digest: digest.to_owned(),
+            signature: domain_mac(key, ANCHOR_DOMAIN, &bytes)?,
+        })
+    }
+
+    pub fn verify(&self, key: &[u8]) -> bool {
+        self.format == ANCHOR_FORMAT
+            && Self::signed_bytes(
+                &self.plan_digest,
+                &self.effective_plan_digest,
+                self.sequence,
+                &self.digest,
+            )
+            .map(|bytes| domain_mac_verify(key, ANCHOR_DOMAIN, &bytes, &self.signature))
+            .unwrap_or(false)
+    }
+
+    pub fn write(&self, dir: &Path) -> Result<(), AuditError> {
+        let tmp = dir.join(format!("{ANCHOR_FILE}.tmp"));
+        let bytes = serde_json::to_vec(self).map_err(|e| AuditError::Invalid(e.to_string()))?;
+        let mut file = File::create(&tmp).map_err(|e| io_err("anchor create", e))?;
+        file.write_all(&bytes)
+            .map_err(|e| io_err("anchor write", e))?;
+        file.sync_all().map_err(|e| io_err("anchor fsync", e))?;
+        std::fs::rename(&tmp, dir.join(ANCHOR_FILE)).map_err(|e| io_err("anchor rename", e))?;
+        sync_dir(dir);
+        Ok(())
+    }
+
+    /// `Ok(None)` only when the file does not exist; any other problem is an error.
+    pub fn read(dir: &Path) -> Result<Option<Self>, AuditError> {
+        match std::fs::read(dir.join(ANCHOR_FILE)) {
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map(Some)
+                .map_err(|e| AuditError::Invalid(format!("{ANCHOR_FILE} is invalid: {e}"))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(io_err("anchor read", error)),
+        }
+    }
+}
+
+/// Remove the data files of a previous, finalized run so a fresh run can reuse
+/// the directory. Never removes the run lock and refuses an unfinalized or
+/// defective journal (it may be resumable evidence).
+pub fn clear_finalized_run(dir: &Path) -> Result<(), AuditError> {
+    if !dir.join(EVENTS_FILE).exists() {
+        return Ok(());
+    }
+    let bytes = std::fs::read(dir.join(EVENTS_FILE)).map_err(|e| io_err("read", e))?;
+    let mut parse_defects = Vec::new();
+    let events = parse_lines(&bytes, &mut parse_defects);
+    let finalized = parse_defects.is_empty()
+        && events
+            .last()
+            .map(|e| e.kind == EventKind::ReportFinalized)
+            .unwrap_or(false);
+    if !finalized {
+        return Err(AuditError::Invalid(format!(
+            "{} holds an unfinalized or unreadable audit journal; resume it with --resume or remove the run directory's journal files explicitly",
+            dir.display()
+        )));
+    }
+    for name in [EVENTS_FILE, HEAD_FILE, ANCHOR_FILE, "run-metrics.json"] {
+        match std::fs::remove_file(dir.join(name)) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                return Err(io_err("clear previous run", error))
+            }
+            _ => {}
+        }
+    }
+    match std::fs::remove_dir_all(dir.join(crate::resume::RECEIPT_DIR)) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            Err(io_err("clear previous receipts", error))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Digest used as the payload of the failure event that closes a gap.
 pub fn gap_payload_digest(provider: &str) -> String {
     legion_contracts::canonical_digest(&serde_json::json!({"gap": provider}))

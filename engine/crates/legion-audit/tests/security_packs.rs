@@ -23,7 +23,7 @@ use legion_audit::native_providers::reasoning::{
     security_adjudication::{
         adjudicate_scanner_candidates, adjudicate_scanner_candidates_isolated,
         adjudication_context_id, adjudication_work_items, ContextPolicy, ScannerCandidate,
-        SecurityAdjudicationError, SecurityVerdictKind, MIN_CONTENT_CHARS,
+        SecurityAdjudicationError, SecurityCandidateV2, SecurityVerdictKind, MIN_CONTENT_CHARS,
     },
     ADJUDICATOR_PROVIDER_ID,
 };
@@ -704,6 +704,127 @@ fn agentic_ci_pack_flags_prompt_flow_unsafe_execution_and_unvalidated_tool_bound
 fn agent_skill_mcp_pack_flags_hidden_unicode_and_exfiltration_but_not_ordinary_joiners() {
     let (planted, expected, clean) = agent_skill_mcp_fixture();
     assert_pack("security.agent-skill-mcp", planted, expected, clean, &[]);
+}
+
+// ---------------------------------------------------------------------
+// typed attack-path effects
+// ---------------------------------------------------------------------
+
+/// Expected (effects, preconditions) per rule family; `None` means the rule
+/// must stay untyped because its consequence is not visible to a heuristic.
+fn expected_typed(rule: &str) -> Option<(Vec<&'static str>, Vec<&'static str>)> {
+    match rule {
+        "security.credential-literal" | "security.insecure-default.secret" => {
+            Some((vec!["credential-possession:possess"], vec![]))
+        }
+        "security.insecure-default.auth-disabled" => Some((
+            vec!["principal-access:authenticate"],
+            vec!["attacker-position:reach-entrypoint"],
+        )),
+        "security.command-injection" => Some((
+            vec!["code-execution:execute:process-principal"],
+            vec!["attacker-position:reach-entrypoint"],
+        )),
+        "security.agent.prompt-injection-flow" => Some((
+            vec!["control-bypass:influence-model"],
+            vec!["attacker-position:reach-entrypoint"],
+        )),
+        "security.agent.unsafe-execution" => Some((
+            vec!["code-execution:execute:agent-runner"],
+            vec!["control-bypass:influence-model"],
+        )),
+        "security.agent.tool-boundary-taint" => Some((
+            vec!["capability:control-tool-arguments"],
+            vec!["control-bypass:influence-model"],
+        )),
+        "security.skill.exfiltration-chain" => {
+            Some((vec!["data-access:read:credential-material"], vec![]))
+        }
+        _ => None,
+    }
+}
+
+fn strings_of(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn every_pack_rule_family_declares_conservative_typed_effects() {
+    let packs: [(&str, (Files, Expected, Files)); 5] = [
+        ("security.credentials", credentials_fixture()),
+        ("security.insecure-defaults", insecure_defaults_fixture()),
+        ("security.misuse-resistance", misuse_resistance_fixture()),
+        ("security.agentic-ci", agentic_ci_fixture()),
+        ("security.agent-skill-mcp", agent_skill_mcp_fixture()),
+    ];
+    let mut typed_rules = BTreeSet::new();
+    let mut untyped_rules = BTreeSet::new();
+    for (id, (planted, _, _)) in packs {
+        let root = fixture("typed");
+        write_all(&root, &planted);
+        let run = run(&root, &[id]);
+        for candidate in candidates_of(run.result(id)) {
+            let rule = candidate["ruleId"].as_str().unwrap().to_owned();
+            match expected_typed(&rule) {
+                Some((effects, preconditions)) => {
+                    assert_eq!(strings_of(&candidate["effects"]), effects, "{rule}");
+                    assert_eq!(
+                        strings_of(&candidate["preconditions"]),
+                        preconditions,
+                        "{rule}"
+                    );
+                    let roles = strings_of(&candidate["chainRoles"]);
+                    assert!(!roles.is_empty(), "{rule}: typed rule needs chainRoles");
+                    // Effects only ever claim a hypothesis, never a verdict.
+                    assert_eq!(candidate["verdict"], "UNADJUDICATED");
+                    assert_eq!(candidate["evidenceStrength"], "possible");
+                    // The typed shape must remain a valid v2 candidate.
+                    SecurityCandidateV2::from_value(&candidate)
+                        .unwrap_or_else(|e| panic!("{rule}: {e}"));
+                    typed_rules.insert(rule);
+                }
+                None => {
+                    assert!(
+                        candidate.get("effects").is_none(),
+                        "{rule} must stay untyped"
+                    );
+                    assert!(candidate.get("chainRoles").is_none(), "{rule}");
+                    untyped_rules.insert(rule);
+                }
+            }
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+    for rule in [
+        "security.credential-literal",
+        "security.command-injection",
+        "security.agent.prompt-injection-flow",
+        "security.agent.unsafe-execution",
+        "security.agent.tool-boundary-taint",
+    ] {
+        assert!(
+            typed_rules.contains(rule),
+            "fixtures never raised {rule}: {typed_rules:?}"
+        );
+    }
+    for rule in [
+        "security.tls-verification-disabled",
+        "security.path-traversal",
+        "security.unsafe-deserialization",
+        "security.skill.hidden-unicode",
+    ] {
+        assert!(
+            untyped_rules.contains(rule),
+            "fixtures never raised {rule}: {untyped_rules:?}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------

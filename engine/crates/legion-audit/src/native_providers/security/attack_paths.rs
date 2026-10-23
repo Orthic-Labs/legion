@@ -9,6 +9,31 @@
 //! or zero usable candidates is an explicit `UNPROVEN` document, never "no
 //! paths".
 //!
+//! # Final JSON contract (surface model -> candidates -> synthesis -> adjudication)
+//!
+//! * Model (`security.surface-model`, `legion-security-model`): `entities[]`
+//!   (`id`, `kind` = entrypoint | asset | crown-jewel | ..., `name`,
+//!   `evidenceRefs`), `relations[]` (`id`, `kind`, `from`/`to` = entity ids),
+//!   `evidence[]` (`id`, `path`), `gaps[]` (`blocking`), `coverage.complete`.
+//!   The hand-written `entrypoints`/`assets`/`relations` shape is still read.
+//!   Every entity is indexed under three aliases (entity id, entity name,
+//!   cited evidence paths); a candidate `sources`/`sinks`/`assets`/entrypoint
+//!   string matching any alias of an entity (or of a relation endpoint) binds
+//!   to it. A model with blocking gaps or `coverage.complete != true` adds the
+//!   `security-model-incomplete` gap (coverage becomes TRUNCATED).
+//! * Candidates (v2): `effects`/`preconditions` are `{kind, action, scope}`
+//!   objects or `kind:action[:scope]` strings (the shape
+//!   `SecurityCandidateV2` serializes). A candidate without effects can never
+//!   compose. When no candidate carries effects the document reports the
+//!   distinct gap `no-composable-candidates` (UNPROVEN); effects without any
+//!   starter report `no-starter-candidates`; effects and starters without a
+//!   composable pair still report any untyped candidates as `untyped-candidates-excluded`.
+//! * Hypotheses (`attack-path-hypotheses`): each carries `id`,
+//!   `memberCandidateIds`, `steps[].candidateId`, `joins[{id,from,to,bridge}]`
+//!   (one per edge), `controls[]`, and, once `bind_hypotheses` ran, `binding`
+//!   (`{repositoryRevision, digest}` of the frozen inventory), `provider` and
+//!   `synthesisContextId`: exactly the fields `chain_adjudication` reads.
+//!
 //! Inputs are plain JSON values:
 //! - security model (`security-model.json`): `entrypoints`, `assets`
 //!   (`kind` may be `crown-jewel`), `relations` (`kind`, `from`, `to`).
@@ -28,7 +53,7 @@ pub const ARTIFACT_KIND: &str = "attack-path-hypotheses";
 
 /// Registry entry root should add to `src/registry/providers.json`.
 pub const REGISTRY_ENTRY_NOTE: &str =
-    "security.attack-path-synthesis: phase D, deterministic, input security-model + security-candidates v2, output attack-path-hypotheses.json";
+    "security.attack-path-synthesis: role deterministic, phase runtime, runtime-script, consumes security-model + security-candidates, produces attack-path-hypotheses (registered in src/registry/providers.json)";
 
 const OBJECTIVES_JSON: &str = include_str!("../../../../../../src/registry/attack-objectives.json");
 const BRIDGES_JSON: &str = include_str!("../../../../../../src/registry/attack-path-bridges.json");
@@ -353,11 +378,22 @@ struct Model {
     entrypoints: BTreeSet<String>,
     crown_assets: BTreeMap<String, String>, // id -> kind
     asset_kinds: BTreeMap<String, String>,
-    relations: Vec<(String, String, String, String)>, // id, kind, from, to
+    /// id, kind, from aliases, to aliases
+    relations: Vec<(String, String, BTreeSet<String>, BTreeSet<String>)>,
+    /// Model reports blocking gaps or incomplete coverage.
+    incomplete: bool,
 }
 
 fn parse_model(value: &Value) -> Option<Model> {
     let obj = value.as_object()?;
+    if obj.contains_key("entrypoints") {
+        return parse_legacy_model(obj);
+    }
+    parse_surface_model(obj)
+}
+
+/// Legacy/hand-authored shape: `entrypoints`, `assets`, `relations` with plain ids.
+fn parse_legacy_model(obj: &Map<String, Value>) -> Option<Model> {
     let ids =
         |key: &str| -> Option<Vec<&Value>> { obj.get(key)?.as_array().map(|a| a.iter().collect()) };
     let entrypoints = ids("entrypoints")?
@@ -382,8 +418,8 @@ fn parse_model(value: &Value) -> Option<Model> {
             Some((
                 text(r, "id").unwrap_or_default(),
                 text(r, "kind")?,
-                text(r, "from").unwrap_or_default(),
-                text(r, "to").unwrap_or_default(),
+                text(r, "from").into_iter().collect(),
+                text(r, "to").into_iter().collect(),
             ))
         })
         .collect();
@@ -392,6 +428,101 @@ fn parse_model(value: &Value) -> Option<Model> {
         crown_assets,
         asset_kinds,
         relations,
+        incomplete: false,
+    })
+}
+
+/// `legion-security-model` shape (`security.surface-model`): typed `entities`
+/// (`kind` entrypoint | asset | crown-jewel), `relations` whose `from`/`to` are
+/// entity ids, and `evidence` rows carrying paths. Candidates name sources,
+/// sinks and assets as entity ids, entity names or repository paths, so every
+/// entity is indexed under all three aliases (id, name, cited evidence paths).
+/// A relation endpoint matches a candidate when any alias of that endpoint
+/// matches. An entity without `kind` or a model without `entities` is rejected.
+fn parse_surface_model(obj: &Map<String, Value>) -> Option<Model> {
+    let entities = obj.get("entities")?.as_array()?;
+    let evidence_paths: BTreeMap<String, String> = obj
+        .get("evidence")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| Some((text(row, "id")?, text(row, "path")?)))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut aliases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut entrypoints = BTreeSet::new();
+    let mut asset_kinds = BTreeMap::new();
+    let mut crown_assets = BTreeMap::new();
+    for entity in entities {
+        let id = text(entity, "id")?;
+        let kind = text(entity, "kind")?;
+        let mut set = BTreeSet::new();
+        set.insert(id.clone());
+        if let Some(name) = text(entity, "name") {
+            set.insert(name);
+        }
+        for reference in strings(entity.get("evidenceRefs")) {
+            if let Some(path) = evidence_paths.get(&reference) {
+                set.insert(path.clone());
+            }
+        }
+        match kind.as_str() {
+            "entrypoint" => entrypoints.extend(set.iter().cloned()),
+            "crown-jewel" | "asset" => {
+                for alias in &set {
+                    if kind == "crown-jewel" {
+                        crown_assets.insert(alias.clone(), kind.clone());
+                    }
+                    asset_kinds.insert(alias.clone(), kind.clone());
+                }
+            }
+            _ => {}
+        }
+        aliases.insert(id, set);
+    }
+    let endpoint = |id: Option<String>| -> BTreeSet<String> {
+        let id = id.unwrap_or_default();
+        aliases
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| BTreeSet::from([id]))
+    };
+    let relations = obj
+        .get("relations")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|r| {
+                    Some((
+                        text(r, "id").unwrap_or_default(),
+                        text(r, "kind")?,
+                        endpoint(text(r, "from")),
+                        endpoint(text(r, "to")),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let blocking_gap = obj
+        .get("gaps")
+        .and_then(Value::as_array)
+        .is_some_and(|gaps| {
+            gaps.iter()
+                .any(|g| g.get("blocking").and_then(Value::as_bool) == Some(true))
+        });
+    let incomplete = blocking_gap
+        || obj
+            .get("coverage")
+            .and_then(|c| c.get("complete"))
+            .and_then(Value::as_bool)
+            != Some(true);
+    Some(Model {
+        entrypoints,
+        crown_assets,
+        asset_kinds,
+        relations,
+        incomplete,
     })
 }
 
@@ -470,8 +601,8 @@ fn compose(
                             .iter()
                             .filter(|(_, k, f, t)| {
                                 k == kind
-                                    && (touched.contains(f.as_str())
-                                        || touched.contains(t.as_str()))
+                                    && (f.iter().any(|a| touched.contains(a.as_str()))
+                                        || t.iter().any(|a| touched.contains(a.as_str())))
                             })
                             .map(|(id, ..)| id.clone())
                             .collect();
@@ -564,6 +695,33 @@ fn objective_hit<'a>(
     best
 }
 
+/// Stamp the identity the chain adjudicator checks onto every hypothesis of a
+/// synthesis `document`: the frozen plan `binding`, the synthesizing
+/// `provider` and its `synthesisContextId`. Hypothesis ids are unaffected.
+pub fn bind_hypotheses(document: &mut Value, binding: &Value, synthesis_context_id: &str) {
+    if let Some(list) = document.get_mut("hypotheses").and_then(Value::as_array_mut) {
+        for hypothesis in list {
+            if let Some(obj) = hypothesis.as_object_mut() {
+                obj.insert("binding".into(), binding.clone());
+                obj.insert("provider".into(), json!(PROVIDER_ID));
+                obj.insert("synthesisContextId".into(), json!(synthesis_context_id));
+            }
+        }
+    }
+}
+
+/// `UNPROVEN` document for a packaged registry that failed to load.
+pub fn registry_unavailable(bounds: &Bounds, error: &str) -> Value {
+    unproven(
+        bounds,
+        json!({ "modelPresent": false, "candidateCount": 0 }),
+        vec![gap(
+            "attack-registry-invalid",
+            format!("objective/bridge registry unavailable: {error}"),
+        )],
+    )
+}
+
 fn gap(code: &str, detail: String) -> Value {
     json!({ "code": code, "detail": detail })
 }
@@ -653,7 +811,7 @@ pub fn synthesize(
         )),
         (Some(_), None) => gaps.push(gap(
             "security-model-invalid",
-            "security model lacks an entrypoints array".into(),
+            "security model lacks an entrypoints array or a typed entities array".into(),
         )),
         _ => {}
     }
@@ -678,14 +836,34 @@ pub fn synthesize(
             "no-candidates",
             "zero usable security candidates; absence of paths is unproven, not established".into(),
         ));
+        gaps.push(gap(
+            "no-composable-candidates",
+            "no candidate carries typed effects, so nothing can compose; absence of paths is unproven".into(),
+        ));
     }
     let Some(model) = parsed_model else {
         return unproven(bounds, inputs, gaps);
     };
+    if model.incomplete {
+        gaps.push(gap(
+            "security-model-incomplete",
+            "security model reports blocking gaps or incomplete coverage; entrypoints, assets and relations may be missing".into(),
+        ));
+    }
     if by_id.is_empty() {
         return unproven(bounds, inputs, gaps);
     }
     let cands: Vec<Candidate> = by_id.into_values().collect();
+    if cands.iter().all(|c| c.effects.is_empty()) {
+        gaps.push(gap(
+            "no-composable-candidates",
+            format!(
+                "none of {} candidate(s) carries typed effects, so nothing can compose; absence of paths is unproven",
+                cands.len()
+            ),
+        ));
+        return unproven(bounds, inputs, gaps);
+    }
 
     // Adjacency, bounded per node.
     let mut adjacency: Vec<Vec<Edge>> = Vec::with_capacity(cands.len());
@@ -720,6 +898,19 @@ pub fn synthesize(
                 "expansion capped at {} for: {}",
                 bounds.max_branching,
                 branch_truncated.join(", ")
+            ),
+        ));
+    }
+
+    // Candidates without effects cannot compose; that exclusion is the real
+    // coverage gap. When every candidate is typed and none composes, the
+    // bounded search is complete (still never claimed exhaustive).
+    let untyped = cands.iter().filter(|c| c.effects.is_empty()).count();
+    if untyped > 0 {
+        gaps.push(gap(
+            "untyped-candidates-excluded",
+            format!(
+                "{untyped} candidate(s) carry no typed effects and were excluded from composition"
             ),
         ));
     }
@@ -1031,6 +1222,26 @@ fn build_hypothesis(
         "members": member_ids,
         "bridges": raw.edges.iter().map(|e| e.bridge.as_str()).collect::<Vec<_>>(),
     }));
+    // Joins are the composition edges the chain adjudicator must verify one by
+    // one (`joins[{id}]`); ids are stable digests of the edge, unique per path.
+    let joins: Vec<Value> = raw
+        .edges
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            json!({
+                "id": digest_json(&json!({
+                    "from": members[i].id,
+                    "to": members[i + 1].id,
+                    "bridge": e.bridge,
+                })),
+                "from": members[i].id,
+                "to": members[i + 1].id,
+                "bridge": e.bridge,
+                "state": if !e.supported { "unsupported" } else { "unverified" },
+            })
+        })
+        .collect();
     let steps: Vec<Value> = members
         .iter()
         .map(|m| {
@@ -1071,6 +1282,8 @@ fn build_hypothesis(
         "unsupportedEdgeCount": unsupported_edges,
         "weakestEdgeStrength": weakest.as_str(),
         "userInteractionAssumptions": user_interactions,
+        "joins": joins,
+        "controls": controls.iter().cloned().collect::<Vec<_>>(),
         "controlsThatMayBlock": controls,
         "missingRequiredControls": missing,
         "unsupportedAssertions": unsupported,

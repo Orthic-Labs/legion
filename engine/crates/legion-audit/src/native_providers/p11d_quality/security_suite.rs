@@ -1009,6 +1009,89 @@ fn redacted_excerpt(line: &str, redact_literals: bool) -> String {
     s.chars().take(160).collect()
 }
 
+/// Typed attack-path facts for one rule family (`kind:action[:scope]` strings,
+/// the shape `SecurityCandidateV2` serializes and synthesis parses).
+///
+/// Effects state what the weakness would grant an attacker *if real*;
+/// preconditions state what the attacker needs. Only kinds and actions the
+/// bridge/template/objective registries already use appear here. Rules whose
+/// consequence is unclear (TLS verification off, path traversal, unsafe
+/// deserialization, hidden Unicode: read/write, input origin or intent is not
+/// visible to a heuristic) declare nothing and therefore never compose. Roles
+/// are drawn from `CANDIDATE_CHAIN_ROLES`.
+struct Typed {
+    effects: &'static [&'static str],
+    preconditions: &'static [&'static str],
+    roles: &'static [&'static str],
+    /// Bind the file path as `sources` (the file hosts the attacker-controlled input).
+    source_is_file: bool,
+    /// Bind the file path as `sinks`.
+    sink_is_file: bool,
+    /// Bind the file path as `assets` (the file holds the credential material).
+    asset_is_file: bool,
+}
+
+const NO_TYPED: Typed = Typed {
+    effects: &[],
+    preconditions: &[],
+    roles: &[],
+    source_is_file: false,
+    sink_is_file: false,
+    asset_is_file: false,
+};
+
+fn typed_for(rule_id: &str) -> Typed {
+    match rule_id {
+        CREDENTIAL_RULE_ID | "security.insecure-default.secret" => Typed {
+            effects: &["credential-possession:possess"],
+            roles: &["enabler"],
+            asset_is_file: true,
+            ..NO_TYPED
+        },
+        "security.insecure-default.auth-disabled" => Typed {
+            effects: &["principal-access:authenticate"],
+            preconditions: &["attacker-position:reach-entrypoint"],
+            roles: &["starter"],
+            ..NO_TYPED
+        },
+        "security.command-injection" => Typed {
+            effects: &["code-execution:execute:process-principal"],
+            preconditions: &["attacker-position:reach-entrypoint"],
+            roles: &["starter", "terminal"],
+            source_is_file: true,
+            sink_is_file: true,
+            ..NO_TYPED
+        },
+        "security.agent.prompt-injection-flow" => Typed {
+            effects: &["control-bypass:influence-model"],
+            preconditions: &["attacker-position:reach-entrypoint"],
+            roles: &["starter"],
+            source_is_file: true,
+            ..NO_TYPED
+        },
+        "security.agent.unsafe-execution" => Typed {
+            effects: &["code-execution:execute:agent-runner"],
+            preconditions: &["control-bypass:influence-model"],
+            roles: &["terminal"],
+            sink_is_file: true,
+            ..NO_TYPED
+        },
+        "security.agent.tool-boundary-taint" => Typed {
+            effects: &["capability:control-tool-arguments"],
+            preconditions: &["control-bypass:influence-model"],
+            roles: &["pivot"],
+            source_is_file: true,
+            ..NO_TYPED
+        },
+        "security.skill.exfiltration-chain" => Typed {
+            effects: &["data-access:read:credential-material"],
+            roles: &["enabler"],
+            ..NO_TYPED
+        },
+        _ => NO_TYPED,
+    }
+}
+
 fn build_candidate(rule: &Rule, provider: &str, ctx: &FileCtx<'_>, hit: &Hit) -> Value {
     let line_text = ctx
         .lines
@@ -1025,6 +1108,24 @@ fn build_candidate(rule: &Rule, provider: &str, ctx: &FileCtx<'_>, hit: &Hit) ->
         "excerptDigest": digest_id(&["excerpt", &excerpt]),
         "redactedExcerpt": excerpt,
     });
+    let typed = typed_for(rule.id);
+    if !typed.effects.is_empty() {
+        obj["effects"] = json!(typed.effects);
+        obj["preconditions"] = json!(typed.preconditions);
+        obj["chainRoles"] = json!(typed.roles);
+        obj["uncertainty"] = json!([
+            "Effects state what the weakness would grant if real; a pattern match is not a vulnerability and composition is a hypothesis until adjudicated."
+        ]);
+        if typed.source_is_file {
+            obj["sources"] = json!([ctx.path]);
+        }
+        if typed.sink_is_file {
+            obj["sinks"] = json!([ctx.path]);
+        }
+        if typed.asset_is_file {
+            obj["assets"] = json!([ctx.path]);
+        }
+    }
     if let Some(metadata) = &hit.metadata {
         obj["detectorMetadata"] = metadata.clone();
     }

@@ -159,6 +159,16 @@ impl ProviderExecutor for NativeProviderRegistry {
         if provider.id.starts_with("code.") {
             return self.code.execute(provider, inventory);
         }
+        // Attack-path pipeline: derived from the frozen inventory and the
+        // injected artifacts only; never routed through scanner artifacts.
+        if security::pipeline::is_pipeline_provider(&provider.id) {
+            return security::pipeline::execute(
+                self.security.root.as_deref(),
+                &self.security.artifacts,
+                provider,
+                inventory,
+            );
+        }
         if provider.id.starts_with("security.")
             || provider.id.starts_with("structural.")
             || provider.id.starts_with("container.")

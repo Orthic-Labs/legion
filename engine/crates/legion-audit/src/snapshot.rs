@@ -561,13 +561,41 @@ impl FrozenSnapshot {
             &gaps,
         )?;
         let cache = StateDir::create(&cache_root.join("audit-snapshots")).map_err(io)?;
-        // Unique immutable run object. No speculative reuse or writable shared
-        // cache lease; RightKit cache integration can deduplicate this contract.
-        let mut nonce = [0u8; 12];
-        getrandom::fill(&mut nonce).map_err(io)?;
-        let object =
-            crate::source_cache::cache_child(&cache, &format!("cold-{}", hex::encode(nonce)))
-                .map_err(io)?;
+        // Content-addressed immutable object: the same sealed content always
+        // lands at the same location, so the frozen plan (which records the
+        // location) seals to the same digest across runs. An existing object is
+        // reused only when its manifest carries this exact key and re-verifies
+        // byte for byte; anything else at that name is never trusted and the
+        // capture falls back to a unique object.
+        let sealed_name = format!(
+            "sealed-{}",
+            key.trim_start_matches("sha256:")
+                .chars()
+                .filter(char::is_ascii_hexdigit)
+                .take(40)
+                .collect::<String>()
+        );
+        let sealed_path = cache.path().join(&sealed_name);
+        if sealed_path.join("manifest.json").is_file() {
+            let manifest_path = directory_location(&sealed_path)?.join("manifest.json");
+            if let Ok((existing, bytes)) = Self::load_manifest(&manifest_path) {
+                let canonical = serde_json::to_vec(&existing.manifest).ok();
+                if existing.manifest.key == key
+                    && canonical.as_deref() == Some(bytes.as_slice())
+                    && existing.verify().is_ok()
+                {
+                    return Ok(existing);
+                }
+            }
+        }
+        let object_name = if sealed_path.exists() {
+            let mut nonce = [0u8; 12];
+            getrandom::fill(&mut nonce).map_err(io)?;
+            format!("cold-{}", hex::encode(nonce))
+        } else {
+            sealed_name
+        };
+        let object = crate::source_cache::cache_child(&cache, &object_name).map_err(io)?;
         let selected_dir = crate::source_cache::cache_child(&object, "selected").map_err(io)?;
         let base_dir = crate::source_cache::cache_child(&object, "base").map_err(io)?;
         for (path, file) in &files {
@@ -1437,7 +1465,14 @@ pub(crate) mod tests {
     fn manifest_rejects_another_snapshot_root() {
         let fixture = Fixture::new();
         let snapshot = fixture.capture(scope::ScopeSpec::Repo);
+        // Snapshots are content-addressed; a different snapshot needs different
+        // content, otherwise both captures resolve to the same object.
+        std::fs::write(fixture.0.join("other-content.rs"), b"other\n").unwrap();
         let other = fixture.capture(scope::ScopeSpec::Repo);
+        assert_ne!(
+            snapshot.manifest.execution_root,
+            other.manifest.execution_root
+        );
         let mut substituted = snapshot.manifest.clone();
         substituted.execution_root = other.manifest.execution_root;
         let parent = StateDir::open(snapshot.manifest_path.parent().unwrap()).unwrap();

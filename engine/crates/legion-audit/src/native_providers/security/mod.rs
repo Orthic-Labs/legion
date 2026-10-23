@@ -11,6 +11,7 @@ pub(crate) mod history;
 pub mod imported_sarif;
 pub mod opengrep;
 pub mod packs;
+pub mod pipeline;
 pub mod producer;
 pub mod scanners;
 pub mod secrets;

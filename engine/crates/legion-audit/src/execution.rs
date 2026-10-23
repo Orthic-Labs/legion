@@ -2,6 +2,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     future::Future,
     pin::Pin,
+    sync::Arc,
     task::Poll,
 };
 
@@ -14,6 +15,7 @@ use crate::{
     error::AuditError,
     inventory::InventoryEnvelope,
     plan::{AuditProvider, FrozenPlan, PROVIDER_UNIVERSE_BOUND},
+    resume::{ambient_for, ProviderSeed, RunRecorder},
     scheduler::{
         Admission, FailurePolicy, FallbackEquivalence, ProviderPolicy, SchedulerConfig, WaveBuilder,
     },
@@ -381,7 +383,17 @@ pub fn execute(
     inventory: &InventoryEnvelope,
     executor: &dyn ProviderExecutor,
 ) -> Result<ExecutionReport, AuditError> {
-    execute_scheduled(plan, inventory, executor, &SchedulerConfig::default())
+    match ambient_for(plan.digest()) {
+        Some(ambient) => run_sync(
+            plan,
+            inventory,
+            executor,
+            &ambient.config,
+            ambient.recorder,
+            ambient.seeds,
+        ),
+        None => execute_scheduled(plan, inventory, executor, &SchedulerConfig::default()),
+    }
 }
 
 /// Execute the frozen plan in dependency-respecting waves. Results are
@@ -393,8 +405,21 @@ pub fn execute_scheduled(
     executor: &dyn ProviderExecutor,
     config: &SchedulerConfig,
 ) -> Result<ExecutionReport, AuditError> {
-    let mut engine = Engine::new(plan, inventory, config, true)?;
+    run_sync(plan, inventory, executor, config, None, BTreeMap::new())
+}
+
+fn run_sync(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    executor: &dyn ProviderExecutor,
+    config: &SchedulerConfig,
+    recorder: Option<Arc<RunRecorder>>,
+    seeds: BTreeMap<String, ProviderSeed>,
+) -> Result<ExecutionReport, AuditError> {
+    let mut engine = Engine::new(plan, inventory, config, true, recorder.clone(), seeds)?;
+    let sink = recorder.as_deref();
     while let Some(wave) = engine.next_wave()? {
+        engine.record_started(&wave)?;
         let inputs = engine.wave_inputs(&wave);
         let outcomes: Vec<UnitOutcome> = if inputs.len() == 1 {
             let (index, context, attempts) = &inputs[0];
@@ -405,6 +430,7 @@ pub fn execute_scheduled(
                 inventory,
                 context,
                 *attempts,
+                sink,
             )]
         } else {
             std::thread::scope(|scope| {
@@ -414,7 +440,9 @@ pub fn execute_scheduled(
                         let provider = &plan.providers()[*index];
                         let attempts = *attempts;
                         scope.spawn(move || {
-                            run_unit_sync(executor, plan, provider, inventory, context, attempts)
+                            run_unit_sync(
+                                executor, plan, provider, inventory, context, attempts, sink,
+                            )
                         })
                     })
                     .collect::<Vec<_>>();
@@ -442,6 +470,18 @@ pub async fn execute_with_cancellation(
     executor: &dyn ProviderExecutor,
     cancellation: CancellationToken,
 ) -> Result<ExecutionReport, AuditError> {
+    if let Some(ambient) = ambient_for(plan.digest()) {
+        return run_async(
+            plan,
+            inventory,
+            executor,
+            cancellation,
+            &ambient.config,
+            ambient.recorder,
+            ambient.seeds,
+        )
+        .await;
+    }
     execute_with_cancellation_scheduled(
         plan,
         inventory,
@@ -462,8 +502,31 @@ pub async fn execute_with_cancellation_scheduled(
     cancellation: CancellationToken,
     config: &SchedulerConfig,
 ) -> Result<ExecutionReport, AuditError> {
-    let mut engine = Engine::new(plan, inventory, config, false)?;
+    run_async(
+        plan,
+        inventory,
+        executor,
+        cancellation,
+        config,
+        None,
+        BTreeMap::new(),
+    )
+    .await
+}
+
+async fn run_async(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    executor: &dyn ProviderExecutor,
+    cancellation: CancellationToken,
+    config: &SchedulerConfig,
+    recorder: Option<Arc<RunRecorder>>,
+    seeds: BTreeMap<String, ProviderSeed>,
+) -> Result<ExecutionReport, AuditError> {
+    let mut engine = Engine::new(plan, inventory, config, false, recorder.clone(), seeds)?;
+    let sink = recorder.as_deref();
     while let Some(wave) = engine.next_wave()? {
+        engine.record_started(&wave)?;
         let inputs = engine.wave_inputs(&wave);
         let futures = inputs
             .iter()
@@ -476,6 +539,7 @@ pub async fn execute_with_cancellation_scheduled(
                     context,
                     *attempts,
                     cancellation.clone(),
+                    sink,
                 )) as Pin<Box<dyn Future<Output = UnitOutcome> + Send + '_>>
             })
             .collect::<Vec<_>>();
@@ -525,6 +589,7 @@ fn run_unit_sync(
     inventory: &InventoryEnvelope,
     prior: &[ProviderExecution],
     max_attempts: u32,
+    recorder: Option<&RunRecorder>,
 ) -> UnitOutcome {
     let context = ExecutionContext {
         plan_digest: plan.digest(),
@@ -534,7 +599,12 @@ fn run_unit_sync(
     loop {
         attempts += 1;
         match executor.execute_with_context(plan, provider, inventory, &context) {
-            Err(_) if attempts < max_attempts => continue,
+            Err(_) if attempts < max_attempts => {
+                if let Some(recorder) = recorder {
+                    recorder.retry_scheduled(&provider.id, attempts);
+                }
+                continue;
+            }
             result => return UnitOutcome { result, attempts },
         }
     }
@@ -548,6 +618,7 @@ async fn run_unit_async(
     prior: &[ProviderExecution],
     max_attempts: u32,
     cancellation: CancellationToken,
+    recorder: Option<&RunRecorder>,
 ) -> UnitOutcome {
     let context = ExecutionContext {
         plan_digest: plan.digest(),
@@ -560,7 +631,12 @@ async fn run_unit_async(
             .execute_async_with_context(plan, provider, inventory, cancellation.clone(), &context)
             .await
         {
-            Err(_) if attempts < max_attempts && !cancellation.is_cancelled() => continue,
+            Err(_) if attempts < max_attempts && !cancellation.is_cancelled() => {
+                if let Some(recorder) = recorder {
+                    recorder.retry_scheduled(&provider.id, attempts);
+                }
+                continue;
+            }
             result => return UnitOutcome { result, attempts },
         }
     }
@@ -605,6 +681,12 @@ struct Engine<'a> {
     /// The synchronous path historically skipped qualification accounting for
     /// an invalid provider result; the async path did not. Preserved as-is.
     skip_qualification_on_invalid: bool,
+    /// Journal sink; `None` for library callers without a run directory.
+    recorder: Option<Arc<RunRecorder>>,
+    /// Verified prior outcomes a resumed run feeds in instead of executing.
+    seeds: BTreeMap<String, ProviderSeed>,
+    /// Providers whose lifecycle is already in the journal (never re-recorded).
+    seeded: BTreeSet<String>,
 }
 
 impl<'a> Engine<'a> {
@@ -613,6 +695,8 @@ impl<'a> Engine<'a> {
         inventory: &'a InventoryEnvelope,
         config: &'a SchedulerConfig,
         skip_qualification_on_invalid: bool,
+        recorder: Option<Arc<RunRecorder>>,
+        seeds: BTreeMap<String, ProviderSeed>,
     ) -> Result<Self, AuditError> {
         reject_provider_universe_execution_plan(plan)?;
         inventory.validate()?;
@@ -720,7 +804,24 @@ impl<'a> Engine<'a> {
             selected_reasoning: selected_reasoning_lenses(plan),
             unsigned: gaps_unsigned,
             skip_qualification_on_invalid,
+            recorder,
+            seeded: seeds.keys().cloned().collect(),
+            seeds,
         })
+    }
+
+    /// Journal `provider_started` for every wave member before any executes,
+    /// so a crash mid-wave leaves the interrupted providers on record.
+    fn record_started(&self, wave: &[usize]) -> Result<(), AuditError> {
+        if let Some(recorder) = &self.recorder {
+            for &position in wave {
+                let id = &self.plan.providers()[position].id;
+                if !self.seeded.contains(id) {
+                    recorder.started(id)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn blocked(&self, position: usize) -> bool {
@@ -812,6 +913,13 @@ impl<'a> Engine<'a> {
                 fallback: None,
                 reason: None,
             });
+            if let Some(recorder) = self.recorder.clone() {
+                if !self.seeded.contains(&provider.id) {
+                    if let Some(execution) = self.slots[position].execution.as_ref() {
+                        recorder.not_applicable(&provider.id, execution)?;
+                    }
+                }
+            }
             self.close(position, false);
             return Ok(true);
         }
@@ -841,7 +949,27 @@ impl<'a> Engine<'a> {
                 "unschedulable",
             )
         } else {
-            return Ok(false);
+            // A resumed run feeds a prior verified outcome here instead of
+            // executing the provider again. Reaching this point means the
+            // provider would otherwise have been scheduled normally.
+            let Some(seed) = self.seeds.remove(&provider.id) else {
+                return Ok(false);
+            };
+            let outcome = match seed {
+                ProviderSeed::Reuse {
+                    execution,
+                    attempts,
+                } => UnitOutcome {
+                    result: Ok(execution.result),
+                    attempts,
+                },
+                ProviderSeed::Failed { reason } => UnitOutcome {
+                    result: Err(AuditError::Provider(reason)),
+                    attempts: 0,
+                },
+            };
+            self.settle(position, outcome)?;
+            return Ok(true);
         };
         self.settle_skipped(position, gap, label)?;
         Ok(true)
@@ -870,6 +998,13 @@ impl<'a> Engine<'a> {
             fallback: None,
             reason: Some(label.into()),
         });
+        if let Some(recorder) = self.recorder.clone() {
+            if !self.seeded.contains(&provider.id) {
+                if let Some(execution) = self.slots[position].execution.as_ref() {
+                    recorder.skipped(&provider.id, execution)?;
+                }
+            }
+        }
         self.close(position, true);
         Ok(())
     }
@@ -1019,12 +1154,13 @@ impl<'a> Engine<'a> {
         if attempts > 1 {
             notes.push(format!("retried:{}:{attempts}", provider.id));
         }
+        let mut newly_tripped = None;
         if infrastructure_failure {
             if let Some(group) = &policy.breaker_group {
                 let count = self.breaker_failures.entry(group.clone()).or_insert(0);
                 *count += 1;
-                if *count >= policy.breaker_threshold {
-                    self.tripped.insert(group.clone());
+                if *count >= policy.breaker_threshold && self.tripped.insert(group.clone()) {
+                    newly_tripped = Some(group.clone());
                 }
             }
         }
@@ -1051,6 +1187,16 @@ impl<'a> Engine<'a> {
         slot.pending_host = pending_host;
         slot.execution = Some(execution);
         slot.record = Some(record);
+        if let Some(recorder) = self.recorder.clone() {
+            if !self.seeded.contains(&provider.id) {
+                if let Some(execution) = self.slots[position].execution.as_ref() {
+                    recorder.settled(&provider.id, completed, attempts, execution)?;
+                }
+                if let Some(group) = &newly_tripped {
+                    recorder.breaker_tripped(&provider.id, group)?;
+                }
+            }
+        }
         self.close(position, qualify);
         Ok(())
     }
@@ -1126,6 +1272,24 @@ impl<'a> Engine<'a> {
 
     fn finish(mut self) -> Result<ExecutionReport, AuditError> {
         self.apply_fallbacks();
+        if let Some(recorder) = self.recorder.clone() {
+            for slot in &self.slots {
+                let Some(record) = &slot.record else { continue };
+                let Some(fallback) = &record.fallback else {
+                    continue;
+                };
+                if fallback.outcome.starts_with("covered")
+                    && !self.seeded.contains(&record.provider)
+                {
+                    recorder.fallback_used(
+                        &record.provider,
+                        &fallback.provider,
+                        &fallback.outcome,
+                    )?;
+                }
+            }
+            recorder.check()?;
+        }
         let plan = self.plan;
         let mut gaps = Vec::new();
         if self.unsigned {

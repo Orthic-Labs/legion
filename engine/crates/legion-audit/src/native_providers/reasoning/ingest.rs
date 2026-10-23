@@ -1197,6 +1197,22 @@ pub fn create_epoch(run_dir: &Path) -> Result<String, AuditError> {
     Ok(epoch_digest(&key))
 }
 
+/// Installs a caller-supplied epoch key (>= 16 bytes) as the run's epoch key,
+/// clearing stale lens receipts like `create_epoch`. Used by a follow-up of a
+/// legacy run whose plan key and epoch key are one run-directory key, so the
+/// follow-up inherits the parent's key instead of minting a fresh one.
+pub(crate) fn install_epoch_key(run_dir: &Path, key: &[u8]) -> Result<String, AuditError> {
+    if key.len() < 16 {
+        return Err(invalid("epoch key is too short"));
+    }
+    fs::create_dir_all(run_dir).map_err(|error| io(error, "could not create run directory"))?;
+    let path = run_dir.join(EPOCH_KEY_FILE);
+    let _ = fs::remove_file(&path);
+    let _ = fs::remove_dir_all(run_dir.join(LENS_RECEIPT_DIR));
+    write_private(&path, hex::encode(key).as_bytes())?;
+    Ok(epoch_digest(key))
+}
+
 /// Loads the epoch key of a run and its digest.
 pub fn load_epoch(run_dir: &Path) -> Result<(Vec<u8>, String), AuditError> {
     let path = run_dir.join(EPOCH_KEY_FILE);
@@ -2842,6 +2858,17 @@ pub fn ingest_lens_result(
         &receipt_name,
         &serde_json::to_vec_pretty(&stored).map_err(|error| invalid(error.to_string()))?,
     )?;
+    if provider_id == super::followup::VARIANT_PROVIDER_ID && plan.get("followupOf").is_some() {
+        // The follow-up's variant pass is accounted for in a sealed ledger
+        // written by the host, never taken from the model's say-so alone.
+        super::followup::record_variant_pass(
+            run_dir,
+            &plan,
+            &request.packet,
+            result,
+            part.map(|part| part.number),
+        )?;
+    }
     let mut ingested = IngestedLens {
         provider: provider_id.into(),
         lens_ids: work.lens_ids.clone(),

@@ -62,6 +62,9 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
             "quality.rust-unused-deps",
             "code.rust.targets",
             "architecture.structure",
+            "security.surface-model",
+            "security.attack-path-synthesis",
+            "security.chain-adjudication",
         ],
     ),
     (
@@ -74,12 +77,22 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
             "stack.node-outdated",
             "code.javascript.native",
             "architecture.structure",
+            "security.surface-model",
+            "security.attack-path-synthesis",
+            "security.chain-adjudication",
         ],
     ),
     (
         "language.typescript",
         "language",
-        &["code.javascript", "code.javascript.native", "quality.types"],
+        &[
+            "code.javascript",
+            "code.javascript.native",
+            "quality.types",
+            "security.surface-model",
+            "security.attack-path-synthesis",
+            "security.chain-adjudication",
+        ],
     ),
     (
         "language.swift",
@@ -94,7 +107,13 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
     (
         "language.python",
         "language",
-        &["code.python", "security.python-dependencies"],
+        &[
+            "code.python",
+            "security.python-dependencies",
+            "security.surface-model",
+            "security.attack-path-synthesis",
+            "security.chain-adjudication",
+        ],
     ),
     (
         "language.kotlin",
@@ -114,7 +133,13 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
     (
         "framework.tauri",
         "framework",
-        &["tauri.capabilities", "tauri.contract-mirror"],
+        &[
+            "tauri.capabilities",
+            "tauri.contract-mirror",
+            "security.surface-model",
+            "security.attack-path-synthesis",
+            "security.chain-adjudication",
+        ],
     ),
     ("framework.android", "framework", &["code.android.lint"]),
     ("framework.nginx", "framework", &["framework.nginx"]),

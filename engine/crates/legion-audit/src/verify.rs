@@ -602,5 +602,34 @@ pub fn replay_run_value(run_dir: &Path) -> Result<Value, AuditError> {
         };
         document.insert((*name).to_owned(), value);
     }
-    Ok(Value::Object(document))
+    // The run's own location is per-run, not content: rewrite it to `<run>`.
+    let mut roots = vec![run_dir.to_string_lossy().into_owned()];
+    if let Ok(canonical) = fs::canonicalize(run_dir) {
+        roots.push(canonical.to_string_lossy().into_owned());
+    }
+    roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
+    Ok(rewrite_run_root(Value::Object(document), &roots))
+}
+
+fn rewrite_run_root(value: Value, roots: &[String]) -> Value {
+    match value {
+        Value::String(text) => Value::String(
+            roots
+                .iter()
+                .filter(|root| root.len() > 1)
+                .fold(text, |text, root| text.replace(root.as_str(), "<run>")),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| rewrite_run_root(item, roots))
+                .collect(),
+        ),
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, child)| (key, rewrite_run_root(child, roots)))
+                .collect(),
+        ),
+        other => other,
+    }
 }

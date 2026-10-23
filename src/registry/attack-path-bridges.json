@@ -49,7 +49,7 @@
         "kind": "attacker-position",
         "action": "reach-entrypoint"
       },
-      "requiresModelRelation": "can-reach",
+      "requiresModelRelation": "reaches",
       "evidenceStrength": "strong-inference",
       "relation": "pivots-to"
     },
@@ -93,7 +93,7 @@
         "kind": "capability",
         "action": "control-tool-arguments"
       },
-      "requiresModelRelation": "invokes",
+      "requiresModelRelation": "calls",
       "evidenceStrength": "possible",
       "relation": "enables"
     },

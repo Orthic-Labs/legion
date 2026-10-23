@@ -16,6 +16,10 @@ use std::{
 };
 
 pub const CONTINUATION_FILE: &str = "continuation.json";
+/// Signed plan-generation chain recorded beside the child's frozen plan when
+/// the continuation raises an engagement budget (never replaces plan.json,
+/// which must stay byte-equal to the parent's frozen foundation).
+pub const PLAN_CHAIN_FILE: &str = "plan-amendments.json";
 const ACTIVE_FILE: &str = "continuation-active.json";
 const KIND: &str = "legion-audit-continuation";
 const STOP: &str = "incomplete:budget-overrun";
@@ -37,6 +41,10 @@ struct Manifest {
     parent_files: BTreeMap<String, String>,
     child_recipe: BTreeMap<String, String>,
     inherited_state: Value,
+    /// Present when the continuation produced a signed ExtendBudget plan
+    /// generation; binds the chain file to this manifest digest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    plan_generation: Option<Value>,
 }
 
 fn invalid(message: impl Into<String>) -> AuditError {
@@ -455,6 +463,9 @@ pub fn prepare(
             }
         }
     }
+    // Signed ExtendBudget generation (engagement plans only). Computed before
+    // anything is written so a refused amendment leaves the child untouched.
+    let generation = plan_generation(&child, operator_instruction, None)?;
     let manifest = Manifest {
         schema_version: 1,
         kind: KIND.into(),
@@ -464,6 +475,7 @@ pub fn prepare(
         parent_files: collect_files(&parent, false)?,
         child_recipe: collect_files(&child, true)?,
         inherited_state: state,
+        plan_generation: generation.as_ref().map(|(_, _, summary)| summary.clone()),
     };
     let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| invalid(e.to_string()))?;
     let digest = hash(&bytes);
@@ -473,8 +485,130 @@ pub fn prepare(
         &active_path,
         &json!({"schemaVersion":1,"kind":"legion-audit-continuation-owner","child":child,"manifestDigest":digest}),
     )?;
+    if let Some((record, applied, _)) = &generation {
+        write_new(&child.join(PLAN_CHAIN_FILE), record)?;
+        crate::amendment::record_in_journal(
+            &child,
+            &record.genesis_plan_digest,
+            applied,
+            applied.amendment.body.issued_at_unix,
+        )?;
+    }
     write_seed(&child, &manifest, &digest)?;
     validate_lineage(&child)?.ok_or_else(|| invalid("continuation ancestry missing"))
+}
+
+type Generation = (
+    crate::amendment::AmendmentChainRecord,
+    crate::amendment::AppliedAmendment,
+    Value,
+);
+
+/// Build the signed ExtendBudget generation for a continuation. Only plans
+/// that carry a finite-budget engagement have a budget to extend; every other
+/// plan returns `None` and keeps the ledger-only continuation unchanged. The
+/// target is `extended_max_tokens`, else the engagement authority ceiling; an
+/// engagement without headroom refuses (the amendment contract enforces it).
+fn plan_generation(
+    child: &Path,
+    operator_instruction: &str,
+    extended_max_tokens: Option<u64>,
+) -> Result<Option<Generation>, AuditError> {
+    let plan_json = json_file(&child.join("plan.json"))?;
+    let Some(native) = plan_json
+        .get("nativePlan")
+        .filter(|value| value.is_object())
+    else {
+        return Ok(None);
+    };
+    let Some(body) = native.get("plan").filter(|value| value.is_object()) else {
+        return Ok(None);
+    };
+    let plan: crate::plan::AuditPlan = serde_json::from_value(body.clone())
+        .map_err(|e| invalid(format!("continuation native plan malformed: {e}")))?;
+    if plan.schema_version < crate::plan::PLAN_SCHEMA_V2 {
+        return Ok(None);
+    }
+    let Some(engagement) = plan.engagement()? else {
+        return Ok(None);
+    };
+    let Some(current) = engagement.stop_conditions.max_tokens else {
+        return Ok(None);
+    };
+    let ceiling = engagement
+        .authority
+        .budget_ceiling_tokens
+        .ok_or_else(|| invalid("continuation: engagement declares no budget ceiling"))?;
+    let target = extended_max_tokens.unwrap_or(ceiling);
+    if target <= current {
+        return Err(invalid(
+            "continuation: engagement authority has no budget headroom to extend",
+        ));
+    }
+    let key = crate::integrity::plan_signing_key_for_run(child)?;
+    let base = crate::amendment::frozen_plan_from_run_json(&plan_json, &key)?;
+    if base.plan().generation()? != 1 {
+        return Err(invalid(
+            "continuation of an already amended plan generation is unsupported",
+        ));
+    }
+    let issued = crate::amendment::now_unix();
+    let mut amendment_body = crate::amendment::AmendmentBody::new(
+        &base,
+        format!("budget continuation: {}", operator_instruction.trim()),
+        issued,
+        vec![crate::amendment::AmendmentOperation::ExtendBudget { max_tokens: target }],
+    )?;
+    amendment_body.proposed_by = Some("continuation".into());
+    let signed = crate::amendment::SignedAmendment::sign(amendment_body, &key)?;
+    let (next, applied) = crate::amendment::apply(&base, &signed, &key)?;
+    let record = crate::amendment::AmendmentChainRecord::new(&base, vec![applied.clone()], &next)?;
+    let summary = json!({
+        "genesisPlanDigest": base.digest(),
+        "amendmentDigest": signed.digest,
+        "resultGeneration": applied.result_generation,
+        "resultPlanDigest": next.digest(),
+        "extendedMaxTokens": target,
+    });
+    Ok(Some((record, applied, summary)))
+}
+
+/// Replay the recorded generation chain of a continuation child.
+fn verify_plan_generation(run: &Path, manifest: &Manifest) -> Result<Option<Value>, AuditError> {
+    let chain_path = run.join(PLAN_CHAIN_FILE);
+    let Some(summary) = &manifest.plan_generation else {
+        if chain_path.exists() {
+            return Err(invalid(
+                "continuation plan generation chain is not bound by the manifest",
+            ));
+        }
+        return Ok(None);
+    };
+    let record: crate::amendment::AmendmentChainRecord =
+        serde_json::from_slice(&read(&chain_path)?)
+            .map_err(|e| invalid(format!("continuation plan generation chain invalid: {e}")))?;
+    let key = crate::integrity::plan_signing_key_for_run(run)?;
+    let genesis =
+        crate::amendment::frozen_plan_from_run_json(&json_file(&run.join("plan.json"))?, &key)?;
+    let end = record.verify(&genesis, &key)?;
+    let [link] = record.links.as_slice() else {
+        return Err(invalid("continuation plan generation must be one link"));
+    };
+    let op_ok = matches!(
+        link.amendment.body.operations.as_slice(),
+        [crate::amendment::AmendmentOperation::ExtendBudget { .. }]
+    );
+    if !op_ok
+        || summary["genesisPlanDigest"] != json!(genesis.digest())
+        || summary["amendmentDigest"] != json!(link.amendment.digest)
+        || summary["resultPlanDigest"] != json!(end.digest())
+        || summary["resultGeneration"] != json!(end.plan().generation()?)
+    {
+        return Err(invalid(
+            "continuation plan generation differs from its manifest binding",
+        ));
+    }
+    Ok(Some(summary.clone()))
 }
 fn write_seed(child: &Path, manifest: &Manifest, digest: &str) -> Result<(), AuditError> {
     let mut state = manifest.inherited_state.clone();
@@ -585,9 +719,12 @@ pub fn validate_lineage(run: &Path) -> Result<Option<Value>, AuditError> {
             return Err(invalid("continuation changed inherited attempts"));
         }
     }
-    Ok(Some(
-        json!({"schemaVersion":1,"kind":KIND,"parent":manifest.parent,"child":manifest.child,"manifestDigest":digest,"historicalTerminalStatus":STOP,"historicalGap":format!("reasoning-budget-history:{STOP}"),"operatorInstruction":manifest.operator_instruction}),
-    ))
+    let generation = verify_plan_generation(run, &manifest)?;
+    let mut lineage = json!({"schemaVersion":1,"kind":KIND,"parent":manifest.parent,"child":manifest.child,"manifestDigest":digest,"historicalTerminalStatus":STOP,"historicalGap":format!("reasoning-budget-history:{STOP}"),"operatorInstruction":manifest.operator_instruction});
+    if let Some(generation) = generation {
+        lineage["planGeneration"] = generation;
+    }
+    Ok(Some(lineage))
 }
 
 /// Express the budget continuation through the general signed-amendment
@@ -805,6 +942,121 @@ mod tests {
             }
             let _ = fs::remove_dir_all(&self.base);
         }
+    }
+
+    fn engagement_plan(key: &[u8]) -> crate::plan::FrozenPlan {
+        use crate::plan::{
+            AuditPlan, AuditProvider, AuthorityMode, Engagement, EngagementAuthority,
+            EngagementScope, ProviderKind, StopConditions, PLAN_SCHEMA_V2,
+        };
+        let mut configuration: BTreeMap<String, Value> = [
+            "schemaVersion",
+            "family",
+            "selector",
+            "denominatorKind",
+            "hostCapabilities",
+            "execution",
+            "reasoning",
+            "benchmark",
+            "controlIds",
+            "scopes",
+            "selectable",
+            "runnerClass",
+            "denominatorDigest",
+            "denominatorCount",
+        ]
+        .into_iter()
+        .map(|field| (field.to_owned(), Value::Null))
+        .collect();
+        configuration.insert("runner".into(), json!({"kind": "built-in"}));
+        configuration.insert("consumes".into(), json!([]));
+        configuration.insert("produces".into(), json!([]));
+        let provider = AuditProvider {
+            id: "p.a".into(),
+            version: "1".into(),
+            role: "deterministic".into(),
+            phase: "scan".into(),
+            lens_ids: Vec::new(),
+            dependencies: Vec::new(),
+            kind: ProviderKind::BuiltIn,
+            configuration,
+            bounds: BTreeMap::new(),
+            clean_claim: "claim".into(),
+            benchmark_status: "unqualified".into(),
+            benchmark_required_for_clean_claim: false,
+            qualification_digest: None,
+            required: true,
+        };
+        let plan = AuditPlan {
+            schema_version: PLAN_SCHEMA_V2,
+            repository_id: "/frozen/source".into(),
+            inventory_generation: "gen".into(),
+            inventory_digest: "inventory".into(),
+            providers: vec![provider],
+            bounds: crate::execution_policy::binding()
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+            excluded_conditional_providers: Vec::new(),
+        };
+        let engagement = Engagement {
+            format: "audit-engagement/v1".into(),
+            engagement_id: "eng-1".into(),
+            authority: EngagementAuthority {
+                mode: AuthorityMode::Explicit,
+                principal: "operator".into(),
+                approval_ref: Some("approval-1".into()),
+                expires_at_unix: Some(4_000_000_000),
+                budget_ceiling_tokens: Some(1000),
+            },
+            scope: EngagementScope {
+                include: vec!["**".into()],
+                exclude: vec![".git/**".into()],
+                revision: None,
+            },
+            strategy: vec!["security".into()],
+            stop_conditions: StopConditions {
+                max_tokens: Some(500),
+                max_seconds: Some(600),
+                stop_on_severity: Some("critical".into()),
+                breaker_failures: Some(3),
+            },
+        };
+        plan.with_engagement(&engagement)
+            .unwrap()
+            .with_objective_graph()
+            .unwrap()
+            .freeze(Some(key))
+            .unwrap()
+    }
+
+    #[test]
+    fn engagement_continuation_records_a_verified_budget_generation() {
+        let f = Fixture::new();
+        let key = ingest::load_epoch(&f.parent).unwrap().0;
+        let frozen = engagement_plan(&key);
+        let mut plan_json = json_file(&f.parent.join("plan.json")).unwrap();
+        plan_json["nativePlan"] = json!({"schemaVersion":1,"digest":frozen.digest(),
+            "signature":frozen.signature(),"plan":serde_json::to_value(frozen.plan()).unwrap()});
+        put(&f.parent.join("plan.json"), &plan_json);
+        fs::copy(f.parent.join("plan.json"), f.child.join("plan.json")).unwrap();
+        let lineage = f.prepare();
+        assert_eq!(lineage["planGeneration"]["resultGeneration"], 2);
+        assert_eq!(lineage["planGeneration"]["extendedMaxTokens"], 1000);
+        assert_eq!(f.prepare(), lineage, "replay re-verifies the same chain");
+        assert!(f.child.join(PLAN_CHAIN_FILE).is_file());
+        assert_eq!(validate_lineage(&f.child).unwrap().unwrap(), lineage);
+        // A forged chain link no longer verifies.
+        let mut chain = json_file(&f.child.join(PLAN_CHAIN_FILE)).unwrap();
+        chain["links"][0]["amendment"]["body"]["operations"][0]["maxTokens"] = json!(999);
+        fs::write(
+            f.child.join(PLAN_CHAIN_FILE),
+            serde_json::to_vec(&chain).unwrap(),
+        )
+        .unwrap();
+        assert!(validate_lineage(&f.child).is_err());
     }
 
     #[test]

@@ -2385,6 +2385,42 @@
         }
       },
       "selectable": true
+    },
+    {
+      "id": "security.surface-model",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.attack-path-synthesis",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "security.chain-adjudication",
+      "providerVersion": "1.0.0",
+      "role": "adjudicator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
     }
   ],
   "support": [

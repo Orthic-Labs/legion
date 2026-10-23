@@ -55,6 +55,31 @@ impl Drop for AuditPhase {
     }
 }
 
+/// Run-journal and scheduling controls for `legion audit`.
+#[derive(Debug, Args)]
+pub struct JournalArgs {
+    /// Resume an interrupted run in `<RUN>`: verified completed providers are
+    /// reused from their signed receipts, interrupted idempotent providers are
+    /// rerun, anything else is an explicit gap. Refuses any mismatch between the
+    /// journal, the receipts and the re-frozen plan. Pass the same root and
+    /// selection flags the run was started with.
+    #[arg(long = "resume", value_name = "RUN")]
+    pub resume: Option<PathBuf>,
+    /// Most providers scheduled concurrently. The default (1) is sequential;
+    /// results are recorded in frozen plan order at any value.
+    #[arg(long = "max-parallel", value_name = "N", default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=64))]
+    pub max_parallel: u32,
+}
+
+impl Default for JournalArgs {
+    fn default() -> Self {
+        Self {
+            resume: None,
+            max_parallel: 1,
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct AuditArgs {
     #[arg(default_value = ".", allow_hyphen_values = true)]
@@ -107,6 +132,8 @@ pub struct AuditArgs {
     pub profile: String,
     #[command(flatten)]
     pub assurance: super::audit_assurance::AssuranceArgs,
+    #[command(flatten)]
+    pub journal: JournalArgs,
     #[arg(long)]
     pub out: Option<PathBuf>,
     /// Largest estimated token count (packet JSON bytes / 4) one reasoning
@@ -708,7 +735,7 @@ fn stage_continuation_effect_artifacts(
     }
     Ok(())
 }
-pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
+pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
     if args.rightkit_trust.is_some() {
         if let Some(route) = rightkit_trust_early_subcommand(&args) {
             return Err(CommandError::usage(format!(
@@ -743,6 +770,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             args.root.display()
         )));
     }
+    let resume_context = prepare_resume(&mut args)?;
     let assurance_request = super::audit_assurance::request(&args.profile, &args.assurance)?;
     let source_root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let scope_spec = if let Some(base) = &args.base_commit {
@@ -889,6 +917,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // directory) and bound to the run by run id + plan digest once the plan is
     // frozen; the run records only the run id and a key id (`planKey`).
     let mut run_plan_key: Option<(String, String)> = None;
+    if resume_context.is_none() && !args.plan_only {
+        if let Some(out) = &args.out {
+            // A finished run's journal is cleared so the directory can be
+            // reused; an unfinished one is resumable evidence and refuses a
+            // fresh run.
+            legion_audit::journal::clear_finalized_run(out)
+                .map_err(|error| CommandError::usage(error.to_string()))?;
+        }
+    }
     let signing_key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
         .filter(|value| !value.is_empty())
     {
@@ -897,6 +934,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         // A run written to `--out` (including `--plan-only --out`) is signed
         // with a fresh per-run key kept in host state, so the run can be
         // verified later on this host without any extra environment.
+        // A resumed run keeps its original key: a fresh key would invalidate
+        // every receipt, and key creation would wipe the run's lens evidence.
+        None if resume_context.is_some() => resume_context.as_ref().map(|c| c.key.clone()),
         None => match args.out.as_ref() {
             Some(out) => {
                 let custody = |error: &dyn std::fmt::Display| {
@@ -1145,6 +1185,12 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // frozen plan to a fresh execution inventory instead of walking and
     // compiling a second time. Without a usable basis the application builds
     // its own and surfaces the same error.
+    let mut journal_run: Option<Arc<legion_audit::resume::RunRecorder>> = None;
+    let mut resume_plan: Option<legion_audit::resume::ResumePlan> = None;
+    let mut early_key_binding: Option<Value> = None;
+    let mut journal_gaps: Vec<String> = Vec::new();
+    let scheduler_config =
+        legion_audit::scheduler::SchedulerConfig::parallel(args.journal.max_parallel as usize);
     let result = match &lens_basis {
         Ok((plan, _)) if args.plan_only => legion_application::NativeOperationResult::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -1156,21 +1202,61 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 .map(|provider| provider.id.clone())
                 .collect(),
         },
-        Ok((plan, _)) => application
-            .invoke_with_cancellation(
-                legion_application::NativeOperation::AuditFrozen {
-                    repository_id: root.to_string_lossy().into_owned(),
-                    plan: plan.clone(),
-                    signing_key: signing_key.clone(),
-                },
-                cancellation,
-            )
-            .await
-            .map_err(|error| CommandError::incomplete(error.to_string()))?,
-        Err(_) => application
-            .invoke_with_cancellation(operation, cancellation)
-            .await
-            .map_err(|error| CommandError::incomplete(error.to_string()))?,
+        Ok((plan, _)) => {
+            let mut ambient = legion_audit::resume::AmbientRun {
+                config: scheduler_config.clone(),
+                recorder: None,
+                seeds: std::collections::BTreeMap::new(),
+            };
+            if let Some(out) = &args.out {
+                let begun = begin_journal(
+                    out,
+                    plan,
+                    signing_key.as_deref(),
+                    &run_plan_key,
+                    resume_context.as_ref(),
+                )?;
+                ambient.recorder = Some(begun.recorder.clone());
+                ambient.seeds = begun.seeds;
+                resume_plan = begun.resume_plan;
+                early_key_binding = begun.key_binding;
+                journal_run = Some(begun.recorder);
+            }
+            let _ambient = legion_audit::resume::install_ambient(ambient);
+            application
+                .invoke_with_cancellation(
+                    legion_application::NativeOperation::AuditFrozen {
+                        repository_id: root.to_string_lossy().into_owned(),
+                        plan: plan.clone(),
+                        signing_key: signing_key.clone(),
+                    },
+                    cancellation,
+                )
+                .await
+                .map_err(|error| CommandError::incomplete(error.to_string()))?
+        }
+        Err(_) => {
+            if resume_context.is_some() {
+                return Err(CommandError::integrity(
+                    "resume refused: the plan could not be frozen, so it cannot be compared with the interrupted run",
+                ));
+            }
+            if args.out.is_some() {
+                // The application froze its own plan, so no journal could be
+                // bound to a plan digest before execution. Never a clean run.
+                journal_gaps.push("journal-unavailable:no-frozen-plan".into());
+            }
+            let _ambient =
+                legion_audit::resume::install_ambient(legion_audit::resume::AmbientRun {
+                    config: scheduler_config.clone(),
+                    recorder: None,
+                    seeds: std::collections::BTreeMap::new(),
+                });
+            application
+                .invoke_with_cancellation(operation, cancellation)
+                .await
+                .map_err(|error| CommandError::incomplete(error.to_string()))?
+        }
     };
     match result {
         legion_application::NativeOperationResult::Plan {
@@ -1336,6 +1422,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     .push("visual-inputs-not-consumed:provider-not-applicable".into());
             }
             report.gaps.extend(direct_gaps.iter().cloned());
+            report.gaps.extend(journal_gaps.iter().cloned());
             // Reasoning lenses no in-process host executed are `pending-host`
             // work: emit their packets for the invoking session to run.
             let (lens_work, lens_work_gaps, lens_dispatch) = if execution.pending_host.is_empty() {
@@ -1491,6 +1578,22 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 )
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
             }
+            // Head of the journal before `report_finalized`. The key ends in `At`
+            // so replay-equivalence treats it as volatile like other timestamps.
+            if let Some(recorder) = &journal_run {
+                let head = recorder
+                    .head()
+                    .map_err(|error| CommandError::integrity(error.to_string()))?;
+                report.claims.insert(
+                    "journalSealedAt".into(),
+                    json!({
+                        "planDigest": recorder.plan_digest(),
+                        "sequence": head.sequence,
+                        "digest": head.digest,
+                        "eventCount": head.sequence,
+                    }),
+                );
+            }
             let report_json = render_report_json(
                 &report,
                 run_report_scope(
@@ -1537,8 +1640,19 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "executionPolicyIdentity": execution.execution_policy_identity,
                     "effectArtifactsRoot": effect_artifact_root,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
-                    "planKey": persist_plan_key(out, &run_plan_key, signing_key.as_deref(), execution.plan_digest.as_str())?,
+                    "planKey": match &early_key_binding {
+                        Some(binding) => binding.clone(),
+                        None => persist_plan_key(out, &run_plan_key, signing_key.as_deref(), execution.plan_digest.as_str())?,
+                    },
                 });
+                if journal_run.is_some() {
+                    plan["journal"] = json!({
+                        "format": legion_audit::journal::EVENT_FORMAT_VERSION,
+                        "events": legion_audit::journal::EVENTS_FILE,
+                        "anchor": legion_audit::journal::ANCHOR_FILE,
+                        "receipts": legion_audit::resume::RECEIPT_DIR,
+                    });
+                }
                 if !provider_scope_claims_allowed(trusted_scope_universe) {
                     if let Some(object) = plan.as_object_mut() {
                         object.remove("providerSelection");
@@ -1555,6 +1669,17 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     &serde_json::to_vec_pretty(&execution).map_err(super::io_error)?,
                 )?;
             }
+            // Every artifact is on disk: finalize the journal (digest of the
+            // report as written), then derive the non-authoritative metrics.
+            let journal_summary = match (&journal_run, &args.out) {
+                (Some(recorder), Some(out)) => Some(finalize_journal(
+                    recorder,
+                    out,
+                    report_json.as_bytes(),
+                    resume_plan.as_ref(),
+                )?),
+                _ => None,
+            };
             let status = match report.status {
                 legion_contracts::ReportStatus::Clean => "pass",
                 legion_contracts::ReportStatus::Findings => "findings",
@@ -1562,7 +1687,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 legion_contracts::ReportStatus::Failed => "failed",
                 legion_contracts::ReportStatus::Blocked => "blocked",
             };
-            Ok(json!({
+            let mut summary = json!({
                 "schemaVersion": 1,
                 "kind": "repository-audit-report",
                 "root": source_root,
@@ -1605,7 +1730,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "processExecution": "complete",
                 "processState": "complete",
                 "completionValidation": "not-run"
-            }))
+            });
+            if let Some(journal) = journal_summary {
+                summary["journal"] = journal;
+            }
+            Ok(summary)
         }
         _ => Err(CommandError::internal(
             "native audit application returned an incompatible result",
@@ -5335,6 +5464,233 @@ fn write_artifact(root: &std::path::Path, name: &str, bytes: &[u8]) -> Result<()
     std::fs::rename(&temporary, destination).map_err(super::io_error)
 }
 
+/// Run-directory file binding the journal to its plan and plan-key custody, so
+/// an interrupted run can be resumed without a finished `plan.json`.
+const JOURNAL_BINDING_FILE: &str = "journal-binding.json";
+
+struct ResumeContext {
+    plan_digest: String,
+    key: Vec<u8>,
+}
+
+/// Validate `--resume`, adopt the run directory as `--out` and resolve the
+/// run's original plan key. Nothing is created, removed or run here.
+fn prepare_resume(args: &mut AuditArgs) -> Result<Option<ResumeContext>, CommandError> {
+    let Some(run) = args.journal.resume.clone() else {
+        return Ok(None);
+    };
+    if args.plan_only {
+        return Err(CommandError::usage(
+            "--resume cannot be combined with --plan-only",
+        ));
+    }
+    let run = std::fs::canonicalize(&run).map_err(super::io_error)?;
+    if let Some(out) = &args.out {
+        let same = std::fs::canonicalize(out)
+            .map(|out| out == run)
+            .unwrap_or(false);
+        if !same {
+            return Err(CommandError::usage(
+                "--resume <RUN> and --out must name the same run directory",
+            ));
+        }
+    }
+    let refuse = |reason: String| CommandError::integrity(format!("resume refused: {reason}"));
+    let bytes = std::fs::read(run.join(JOURNAL_BINDING_FILE))
+        .map_err(|error| refuse(format!("{JOURNAL_BINDING_FILE}: {error}")))?;
+    let binding: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| refuse(format!("{JOURNAL_BINDING_FILE} is invalid: {error}")))?;
+    let plan_digest = binding
+        .get("planDigest")
+        .and_then(Value::as_str)
+        .filter(|digest| digest.starts_with("sha256:"))
+        .ok_or_else(|| refuse(format!("{JOURNAL_BINDING_FILE} names no plan digest")))?
+        .to_owned();
+    let plan_key = binding.get("planKey").cloned().unwrap_or(Value::Null);
+    let env_key = std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|v| !v.is_empty());
+    if plan_key.is_null() && env_key.is_none() {
+        return Err(refuse(
+            "the run was signed with a host-injected key; set AUDIT_PLAN_SIGNING_KEY".into(),
+        ));
+    }
+    let key_probe = json!({"planKey": plan_key, "seal": {"digest": plan_digest}});
+    let key = match legion_audit::resolve_plan_key(&run, &key_probe) {
+        legion_audit::PlanKeyResolution::Found { key, .. } => key,
+        legion_audit::PlanKeyResolution::Unverifiable { reason } => {
+            return Err(refuse(format!("plan key unavailable: {reason}")));
+        }
+    };
+    args.out = Some(run);
+    Ok(Some(ResumeContext { plan_digest, key }))
+}
+
+struct BegunJournal {
+    recorder: Arc<legion_audit::resume::RunRecorder>,
+    seeds: std::collections::BTreeMap<String, legion_audit::resume::ProviderSeed>,
+    resume_plan: Option<legion_audit::resume::ResumePlan>,
+    key_binding: Option<Value>,
+}
+
+/// Create the journal for a fresh run, or verify and reopen it for a resume.
+fn begin_journal(
+    out: &std::path::Path,
+    plan: &legion_audit::FrozenPlan,
+    key: Option<&[u8]>,
+    run_plan_key: &Option<(String, String)>,
+    resume: Option<&ResumeContext>,
+) -> Result<BegunJournal, CommandError> {
+    use legion_audit::resume::{ProviderSeed, ResumeDecision, ResumeInput, RunRecorder};
+    let key =
+        key.ok_or_else(|| CommandError::incomplete("the audit journal requires the run plan key"))?;
+    let digest = plan.digest();
+    let Some(resume) = resume else {
+        std::fs::create_dir_all(out).map_err(super::io_error)?;
+        let binding = persist_plan_key(out, run_plan_key, Some(key), digest)?;
+        write_control_artifact(
+            out,
+            JOURNAL_BINDING_FILE,
+            &json!({
+                "format": "audit-journal-binding/v1",
+                "planDigest": digest,
+                "planKey": binding,
+            }),
+        )?;
+        let recorder = RunRecorder::create(out, digest, key.to_vec()).map_err(|error| {
+            CommandError::incomplete(format!("audit journal could not be created: {error}"))
+        })?;
+        return Ok(BegunJournal {
+            recorder: Arc::new(recorder),
+            seeds: std::collections::BTreeMap::new(),
+            resume_plan: None,
+            key_binding: Some(binding),
+        });
+    };
+    let refuse = |reason: String| CommandError::integrity(format!("resume refused: {reason}"));
+    if resume.plan_digest != digest {
+        return Err(refuse(format!(
+            "the re-frozen plan {digest} differs from the interrupted run's plan {}; use the same root and selection flags",
+            resume.plan_digest
+        )));
+    }
+    let providers = plan.providers();
+    let receipts =
+        legion_audit::resume::load_receipts(out, key).map_err(|error| refuse(error.to_string()))?;
+    let input = ResumeInput {
+        plan_digest: digest.to_owned(),
+        effective_plan_digest: None,
+        planned_providers: providers.iter().map(|p| p.id.clone()).collect(),
+        receipts,
+        idempotent: providers
+            .iter()
+            .filter(|p| legion_audit::scheduler::ProviderPolicy::from_provider(p).idempotent())
+            .map(|p| p.id.clone())
+            .collect(),
+        retry_allowed: std::collections::BTreeSet::new(),
+        expected_head: None,
+    };
+    let (journal, resume_plan) =
+        legion_audit::resume::resume(out, &input, legion_audit::journal::now_ms())
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+    let mut seeds = std::collections::BTreeMap::new();
+    for (provider, decision) in &resume_plan.decisions {
+        let seed = match decision {
+            ResumeDecision::Reuse { receipt_digest } => {
+                let stored = legion_audit::resume::read_verified_receipt(out, provider, key)
+                    .map_err(|reason| refuse(format!("receipt for {provider}: {reason}")))?;
+                if &stored.digest != receipt_digest {
+                    return Err(refuse(format!(
+                        "receipt for {provider} changed during reconciliation"
+                    )));
+                }
+                ProviderSeed::Reuse {
+                    execution: stored.body.execution,
+                    attempts: stored.body.attempts,
+                }
+            }
+            ResumeDecision::Gap { reason } => ProviderSeed::Failed {
+                reason: format!("resume-gap:{provider}: {reason}"),
+            },
+            ResumeDecision::KeepFailed => ProviderSeed::Failed {
+                reason: format!("resume-kept-failure:{provider}"),
+            },
+            ResumeDecision::KeepSkipped => ProviderSeed::Failed {
+                reason: format!("resume-kept-skip:{provider}"),
+            },
+            ResumeDecision::Run | ResumeDecision::Rerun { .. } => continue,
+        };
+        seeds.insert(provider.clone(), seed);
+    }
+    let binding: Value = std::fs::read(out.join(JOURNAL_BINDING_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .and_then(|value: Value| value.get("planKey").cloned())
+        .unwrap_or(Value::Null);
+    let recorder = RunRecorder::from_journal(journal, out, digest, key.to_vec());
+    Ok(BegunJournal {
+        recorder: Arc::new(recorder),
+        seeds,
+        resume_plan: Some(resume_plan),
+        key_binding: Some(binding),
+    })
+}
+
+/// Append `report_finalized` (payload: digest of the written report), write the
+/// signed anchor and derive `run-metrics.json`. Metrics are derived and never
+/// authoritative, so a metrics problem is reported but does not fail the run.
+fn finalize_journal(
+    recorder: &legion_audit::resume::RunRecorder,
+    out: &std::path::Path,
+    report_bytes: &[u8],
+    resumed: Option<&legion_audit::resume::ResumePlan>,
+) -> Result<Value, CommandError> {
+    let head = recorder
+        .finalize(&legion_audit::journal::bytes_digest(report_bytes))
+        .map_err(|error| {
+            CommandError::integrity(format!("audit journal could not be finalized: {error}"))
+        })?;
+    let metrics = (|| -> Result<(), String> {
+        let events = recorder.events().map_err(|e| e.to_string())?;
+        let mut receipts = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(out.join(legion_audit::resume::RECEIPT_DIR)) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if let Some(provider) = name.strip_suffix(".json").filter(|n| !n.starts_with('.')) {
+                    receipts.push(legion_audit::metrics::ReceiptMetric {
+                        provider: provider.to_owned(),
+                        output_bytes: entry.metadata().map(|m| m.len()).unwrap_or(0),
+                        cache_hit: false,
+                    });
+                }
+            }
+        }
+        receipts.sort_by(|a, b| a.provider.cmp(&b.provider));
+        let input = legion_audit::metrics::MetricsInput {
+            plan_digest: recorder.plan_digest().to_owned(),
+            receipts,
+            budget: Vec::new(),
+            reused_providers: resumed.map(|plan| plan.reused()).unwrap_or_default(),
+        };
+        let derived = legion_audit::metrics::derive(&events, &input).map_err(|e| e.to_string())?;
+        let text = legion_audit::metrics::to_json(&derived).map_err(|e| e.to_string())?;
+        write_artifact(out, "run-metrics.json", text.as_bytes()).map_err(|e| e.message)
+    })();
+    Ok(json!({
+        "headSequence": head.sequence,
+        "headDigest": head.digest,
+        "eventCount": head.sequence,
+        "finalized": head.finalized,
+        "events": out.join(legion_audit::journal::EVENTS_FILE),
+        "anchor": out.join(legion_audit::journal::ANCHOR_FILE),
+        "metrics": match &metrics {
+            Ok(()) => json!(out.join("run-metrics.json")),
+            Err(error) => json!({"error": error}),
+        },
+        "resumed": resumed.is_some(),
+        "reusedProviders": resumed.map(|plan| plan.reused().into_iter().collect::<Vec<_>>()).unwrap_or_default(),
+        "gapProviders": resumed.map(|plan| plan.gaps()).unwrap_or_default(),
+    }))
+}
+
 #[cfg(test)]
 mod provider_plan_reader_tests {
     use super::*;
@@ -5486,6 +5842,7 @@ mod closure_tests {
             max_total_seats: 48,
             report_schema: 2,
             assurance: Default::default(),
+            journal: Default::default(),
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -6333,6 +6690,7 @@ mod closure_tests {
             max_total_seats: 48,
             report_schema: 2,
             assurance: Default::default(),
+            journal: Default::default(),
         }
     }
 
