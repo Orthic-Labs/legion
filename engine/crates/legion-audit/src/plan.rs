@@ -482,10 +482,24 @@ impl AuditPlan {
                             .get("required")
                             .and_then(Value::as_bool)
                             .unwrap_or(true));
-                let bounds = BTreeMap::from([
+                let mut bounds = BTreeMap::from([
                     ("required".into(), serde_json::json!(required)),
                     ("cleanClaim".into(), serde_json::json!(spec.clean_claim)),
                 ]);
+                // Freeze the registry's qualification scope so acceptance of
+                // the provider can be evaluated against the run context
+                // (fixture-scoped claims never qualify production).
+                for (key, bound) in [
+                    ("claimScope", crate::assurance::CLAIM_SCOPE_BOUND_KEY),
+                    (
+                        "qualificationScope",
+                        crate::assurance::QUALIFICATION_SCOPE_BOUND_KEY,
+                    ),
+                ] {
+                    if let Some(value) = spec.benchmark.get(key) {
+                        bounds.insert(bound.into(), value.clone());
+                    }
+                }
                 Ok::<_, AuditError>(AuditProvider {
                     id: spec.id.to_string(),
                     version: spec.provider_version.clone(),

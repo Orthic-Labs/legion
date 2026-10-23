@@ -3,6 +3,7 @@
 //! stay `unmet`; a pre-pr pass must never project a release pass; waived
 //! evidence must stay visibly waived. Authored edit-only — root runs.
 
+use legion_audit::assurance::is_host_proven_inapplicable;
 use legion_audit::assurance::{
     apply_evidence, apply_waiver, assurance_extensions, evaluate_qualification,
     resolve_obligations, summarize, AuditAssuranceV1, Completion, EvidenceKind, FindingOutcome,
@@ -393,4 +394,136 @@ fn fixture_assurance_validates_as_a_partial_release_claim() {
         ReleaseEligibility::NotEligible
     );
     assert_eq!(assurance.summary.waived, 1);
+}
+
+fn provider_candidate() -> ObligationCandidate {
+    ObligationCandidate {
+        concern: "source-static".into(),
+        evidence_kind: EvidenceKind::ProviderExecution,
+        required_in: vec![
+            AuditProfile::PrePr,
+            AuditProfile::Repository,
+            AuditProfile::Release,
+        ],
+        provider_ids: vec!["fixture.provider".into()],
+        required_denominator_digest: Some(DIGEST.into()),
+        proven_inapplicable_reason: None,
+    }
+}
+
+#[test]
+fn release_freeze_requires_every_profile_evidence_kind_and_is_never_eligible_without_it() {
+    let frozen = AuditAssuranceV1::freeze_for_profile(
+        release_profile(),
+        product_target(),
+        &[provider_candidate()],
+        &[],
+    )
+    .unwrap();
+    for kind in AuditProfile::Release.mandatory_evidence_kinds() {
+        assert!(
+            frozen
+                .obligations
+                .iter()
+                .any(|o| o.id.evidence_kind == kind && o.status == ObligationStatus::Unmet),
+            "release freeze lacks unmet obligation for {kind:?}"
+        );
+    }
+    assert_ne!(
+        frozen.summary.release_eligibility,
+        ReleaseEligibility::Eligible
+    );
+    // Even when the provider obligation is host-proven inapplicable, the
+    // mandated Test/Build/Runtime/Artifact/Review obligations keep it open.
+    let mut inapplicable = provider_candidate();
+    inapplicable.proven_inapplicable_reason =
+        Some("provider-not-applicable-at-freeze: nothing matched".into());
+    let frozen = AuditAssuranceV1::freeze_for_profile(
+        release_profile(),
+        product_target(),
+        &[inapplicable],
+        &[],
+    )
+    .unwrap();
+    assert_ne!(frozen.summary.completion, Completion::Complete);
+    assert_ne!(
+        frozen.summary.release_eligibility,
+        ReleaseEligibility::Eligible
+    );
+}
+
+#[test]
+fn repository_and_pre_pr_minimums_enter_the_denominator() {
+    for (profile, kinds) in [
+        (AuditProfile::PrePr, 1usize),
+        (AuditProfile::Repository, 3usize),
+    ] {
+        let frozen_profile =
+            FrozenProfile::freeze(profile, "rev-1", RuntimeConstraint::NoNodePython).unwrap();
+        let frozen =
+            AuditAssuranceV1::freeze_for_profile(frozen_profile, product_target(), &[], &[])
+                .unwrap();
+        assert_eq!(frozen.obligations.len(), kinds);
+        assert!(frozen
+            .obligations
+            .iter()
+            .all(|o| o.status == ObligationStatus::Unmet));
+    }
+}
+
+#[test]
+fn contract_cannot_remove_de_require_or_mark_inapplicable_a_host_obligation() {
+    let host = provider_candidate();
+    let mut hostile = provider_candidate();
+    hostile.required_in = vec![]; // de-require everywhere
+    hostile.proven_inapplicable_reason = Some("contract says not applicable".into());
+    let mut hostile_test = candidate("unit", EvidenceKind::Test, vec![AuditProfile::Release]);
+    hostile_test.proven_inapplicable_reason = Some("contract says not applicable".into());
+    let frozen = AuditAssuranceV1::freeze_for_profile(
+        release_profile(),
+        product_target(),
+        &[host],
+        &[hostile, hostile_test],
+    )
+    .unwrap();
+    let provider_obligation = frozen
+        .obligations
+        .iter()
+        .find(|o| o.id.concern == "source-static")
+        .expect("host obligation survives");
+    assert_eq!(provider_obligation.status, ObligationStatus::Unmet);
+    assert!(provider_obligation
+        .required_in
+        .contains(&AuditProfile::Release));
+    assert!(frozen
+        .obligations
+        .iter()
+        .all(|o| o.status != ObligationStatus::Inapplicable));
+    assert_ne!(
+        frozen.summary.release_eligibility,
+        ReleaseEligibility::Eligible
+    );
+}
+
+#[test]
+fn all_inapplicable_is_complete_only_when_host_proven() {
+    let mut obligations = resolve_obligations(
+        &product_target(),
+        &release_profile(),
+        &[{
+            let mut c = provider_candidate();
+            c.proven_inapplicable_reason = Some("contract says so".into());
+            c
+        }],
+    )
+    .unwrap();
+    assert!(!is_host_proven_inapplicable(
+        obligations[0].reason.as_deref()
+    ));
+    let summary = summarize(AuditProfile::Release, &obligations);
+    assert_ne!(summary.completion, Completion::Complete);
+    assert_ne!(summary.release_eligibility, ReleaseEligibility::Eligible);
+    obligations[0].reason = Some("host-proven: no such component".into());
+    let summary = summarize(AuditProfile::Release, &obligations);
+    assert_eq!(summary.completion, Completion::Complete);
 }

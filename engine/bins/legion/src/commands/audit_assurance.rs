@@ -286,15 +286,12 @@ impl AssuranceRequest {
             .as_ref()
             .map(|contract| contract.obligations.clone())
             .unwrap_or_default();
-        let mut candidates: Vec<ObligationCandidate> = plan
+        // Host/plan-derived obligations only; the unauthenticated contract
+        // may add or tighten (see `AuditAssuranceV1::freeze_for_profile`)
+        // but never replace, de-require or mark these inapplicable.
+        let candidates: Vec<ObligationCandidate> = plan
             .providers
             .iter()
-            .filter(|provider| {
-                !declared.iter().any(|item| {
-                    item.concern == provider.id
-                        && item.evidence_kind == EvidenceKind::ProviderExecution
-                })
-            })
             .map(|provider| ObligationCandidate {
                 concern: provider.id.clone(),
                 evidence_kind: EvidenceKind::ProviderExecution,
@@ -310,10 +307,10 @@ impl AssuranceRequest {
                 }),
             })
             .collect();
-        candidates.extend(declared);
         let profile = FrozenProfile::freeze(self.profile, PROFILE_REVISION, self.constraint)
             .map_err(|error| error.to_string())?;
-        AuditAssuranceV1::freeze(profile, target, &candidates).map_err(|error| error.to_string())
+        AuditAssuranceV1::freeze_for_profile(profile, target, &candidates, &declared)
+            .map_err(|error| error.to_string())
     }
 
     /// Compact structured summary for command output.

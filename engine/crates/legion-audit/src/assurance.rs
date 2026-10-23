@@ -888,6 +888,20 @@ impl AuditAssuranceV1 {
     }
 }
 
+/// Reason prefixes the host (never a repository/contract input) writes when
+/// it proves an obligation inapplicable at freeze.
+pub const HOST_PROVEN_INAPPLICABLE_PREFIXES: [&str; 2] =
+    ["host-proven:", "provider-not-applicable-at-freeze:"];
+
+/// True when an inapplicable obligation's reason carries a host-proof marker.
+pub fn is_host_proven_inapplicable(reason: Option<&str>) -> bool {
+    reason.is_some_and(|reason| {
+        HOST_PROVEN_INAPPLICABLE_PREFIXES
+            .iter()
+            .any(|prefix| reason.starts_with(prefix))
+    })
+}
+
 /// Recompute the three independent axes from obligations alone. Waived
 /// and deferred block completion; an empty inventory is `NotExamined`,
 /// never complete; only a `release`-profile run can be `Eligible`.
@@ -916,8 +930,14 @@ pub fn summarize(profile: AuditProfile, obligations: &[ProductionObligation]) ->
     }
     let applicable = summary.total - summary.inapplicable;
     let examined = summary.satisfied + summary.findings;
-    summary.completion = if applicable == 0 && summary.total > 0 {
-        // Proven-empty applicable universe: complete, nothing to examine.
+    let all_host_proven = obligations
+        .iter()
+        .filter(|o| o.status == ObligationStatus::Inapplicable)
+        .all(|o| is_host_proven_inapplicable(o.reason.as_deref()));
+    summary.completion = if applicable == 0 && summary.total > 0 && all_host_proven {
+        // Host-proven-empty applicable universe: complete, nothing to examine.
+        // Inapplicability that is not host-proven (e.g. asserted by a
+        // product contract) never shrinks the denominator to Complete.
         Completion::Complete
     } else if examined == 0 {
         Completion::NotExamined
@@ -970,6 +990,77 @@ impl AuditAssuranceV1 {
         let frozen = Self::new(profile, product_target, obligations);
         frozen.validate_frozen()?;
         Ok(frozen)
+    }
+
+    /// Freeze the profile-complete denominator. `host_candidates` are the
+    /// host/plan/provider-derived obligations (the only source that may be
+    /// proven inapplicable); `contract_candidates` come from the
+    /// unauthenticated product contract and may only ADD obligations or
+    /// TIGHTEN a host obligation (widen `required_in`, add providers, pin a
+    /// denominator when the host pinned none). A contract can never remove,
+    /// de-require or mark inapplicable a host obligation, and its own
+    /// inapplicability claims are discarded. Finally, every evidence kind the
+    /// selected profile mandates becomes an unmet obligation unless an
+    /// equivalent (same kind, required in this profile) obligation exists.
+    pub fn freeze_for_profile(
+        profile: FrozenProfile,
+        product_target: ProductTarget,
+        host_candidates: &[ObligationCandidate],
+        contract_candidates: &[ObligationCandidate],
+    ) -> Result<Self, AuditError> {
+        let mut merged: Vec<ObligationCandidate> = host_candidates.to_vec();
+        for contract in contract_candidates {
+            let mut contract = contract.clone();
+            contract.proven_inapplicable_reason = None;
+            let existing = merged.iter().position(|host| {
+                host.concern == contract.concern && host.evidence_kind == contract.evidence_kind
+            });
+            if let Some(index) = existing {
+                let host = &mut merged[index];
+                for required in &contract.required_in {
+                    if !host.required_in.contains(required) {
+                        host.required_in.push(*required);
+                    }
+                }
+                for provider in &contract.provider_ids {
+                    if !host.provider_ids.contains(provider) {
+                        host.provider_ids.push(provider.clone());
+                    }
+                }
+                if host.required_denominator_digest.is_none() {
+                    host.required_denominator_digest = contract.required_denominator_digest;
+                }
+            } else {
+                merged.push(contract);
+            }
+        }
+        for kind in profile.profile.mandatory_evidence_kinds() {
+            let covered = merged.iter().any(|candidate| {
+                candidate.evidence_kind == kind && candidate.required_in.contains(&profile.profile)
+            });
+            if covered {
+                continue;
+            }
+            merged.push(ObligationCandidate {
+                concern: format!(
+                    "profile-required:{}",
+                    format!("{kind:?}").to_ascii_lowercase()
+                ),
+                evidence_kind: kind,
+                required_in: [
+                    AuditProfile::PrePr,
+                    AuditProfile::Repository,
+                    AuditProfile::Release,
+                ]
+                .into_iter()
+                .filter(|p| p.mandatory_evidence_kinds().contains(&kind))
+                .collect(),
+                provider_ids: Vec::new(),
+                required_denominator_digest: None,
+                proven_inapplicable_reason: None,
+            });
+        }
+        Self::freeze(profile, product_target, &merged)
     }
 
     /// A frozen plan may carry only freeze-time states: `unmet` (not yet
@@ -1103,6 +1194,106 @@ pub fn reconcile(
     })
 }
 
+/// Host label a qualification record's `host` must equal: `<os>-<arch>` of
+/// the process that executed the run.
+pub fn run_host_label() -> String {
+    format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
+}
+
+/// Plan-bound key under which the registry's qualification scope record is
+/// frozen into `AuditProvider.bounds`.
+pub const QUALIFICATION_SCOPE_BOUND_KEY: &str = "qualificationScope";
+/// Plan-bound key carrying the registry claim scope (e.g.
+/// `known-answer-fixture-cases`) when no full scope record exists.
+pub const CLAIM_SCOPE_BOUND_KEY: &str = "claimScope";
+
+/// Every reason `provider`'s qualification does not apply to this run.
+/// Empty means accepted. The legacy `benchmark_status == "qualified"` plus
+/// digest is necessary but never sufficient for a release (production)
+/// profile: a frozen scope record must match the run through
+/// `evaluate_qualification`, and fixture-scoped claims never qualify.
+fn provider_qualification_mismatches(
+    provider: &crate::plan::AuditProvider,
+    frozen: &AuditAssuranceV1,
+) -> Vec<String> {
+    let id = &provider.id;
+    if provider.benchmark_status != "qualified" || provider.qualification_digest.is_none() {
+        return vec![format!("provider-unqualified:{id}")];
+    }
+    let production = frozen.profile.profile == AuditProfile::Release;
+    let claim_scope = provider
+        .bounds
+        .get(CLAIM_SCOPE_BOUND_KEY)
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let record: Option<QualificationScope> = provider
+        .bounds
+        .get(QUALIFICATION_SCOPE_BOUND_KEY)
+        .and_then(|value| serde_json::from_value(value.clone()).ok());
+    let mut out = Vec::new();
+    if production && claim_scope.to_ascii_lowercase().contains("fixture") {
+        out.push(format!(
+            "provider-fixture-scope-not-production:{id}:{claim_scope}"
+        ));
+    }
+    match record {
+        Some(record) => {
+            let context = QualificationContext {
+                provider_id: provider.id.clone(),
+                provider_version: provider.version.clone(),
+                rule_version: None,
+                host: run_host_label(),
+                // The execution report records no toolchain, so that one
+                // dimension is taken from the record and remains a documented
+                // gap; target and variant come from the frozen product target.
+                toolchain: record.toolchain.clone(),
+                target: frozen.product_target.target.clone(),
+                variant: frozen.product_target.variant.clone(),
+                features: Vec::new(),
+                requires_production_evidence: production,
+            };
+            let verdict = evaluate_qualification(Some(&record), &context, &now_utc_for_freshness());
+            out.extend(
+                verdict
+                    .mismatches
+                    .into_iter()
+                    .map(|m| format!("provider-qualification:{id}:{m}")),
+            );
+        }
+        None if production => out.push(format!(
+            "provider-qualification:{id}:missing-qualification-record"
+        )),
+        None => {}
+    }
+    out
+}
+
+fn now_utc_for_freshness() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // civil-from-days (Howard Hinnant)
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
+    )
+}
+
 /// Derive `ProviderExecution` evidence from a signed-plan execution. Only an
 /// execution bound to `plan` (digest + signature present) yields evidence;
 /// every listed provider must have run (not skipped) and carry coverage, and
@@ -1153,11 +1344,9 @@ pub fn evidence_from_execution(
             for finding in &row.result.findings {
                 finding_ids.insert(finding.id.as_str().to_owned());
             }
-            let qualified = plan.provider(provider_id).is_some_and(|p| {
-                p.benchmark_status == "qualified" && p.qualification_digest.is_some()
-            });
-            if !qualified {
-                mismatches.push(format!("provider-unqualified:{provider_id}"));
+            match plan.provider(provider_id) {
+                Some(p) => mismatches.extend(provider_qualification_mismatches(p, frozen)),
+                None => mismatches.push(format!("provider-unqualified:{provider_id}")),
             }
         }
         if !all_ran || coverages.is_empty() {

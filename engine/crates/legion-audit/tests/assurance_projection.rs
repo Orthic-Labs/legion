@@ -9,10 +9,10 @@
 use std::collections::BTreeMap;
 
 use legion_audit::assurance::{
-    frozen_mismatches, gate, gate_report_v1, gate_report_v2, reconcile, AuditAssuranceV1,
-    Completion, EvidenceKind, FindingOutcome, GateSubject, GateVerdict, ObligationCandidate,
-    ObligationEvidence, ObligationStatus, ProductTarget, ReleaseEligibility, SnapshotRef, Waiver,
-    AUDIT_ASSURANCE_EXTENSION_KEY,
+    frozen_mismatches, gate, gate_report_v1, gate_report_v2, reconcile, run_host_label,
+    AuditAssuranceV1, Completion, EvidenceKind, FindingOutcome, GateSubject, GateVerdict,
+    ObligationCandidate, ObligationEvidence, ObligationStatus, ProductTarget, ReleaseEligibility,
+    SnapshotRef, Waiver, AUDIT_ASSURANCE_EXTENSION_KEY,
 };
 use legion_audit::profiles::{AuditProfile, FrozenProfile, RuntimeConstraint};
 use legion_audit::{
@@ -64,7 +64,26 @@ fn frozen_assurance(p: AuditProfile) -> AuditAssuranceV1 {
     AuditAssuranceV1::freeze(profile(p), product_target(), &[candidate("source-static")]).unwrap()
 }
 
+/// Qualification scope record frozen into the provider bounds. `basis` is
+/// `production` or `fixture`.
+fn scope_record(basis: &str) -> Value {
+    json!({
+        "providerId": PROVIDER,
+        "providerVersion": "1",
+        "host": run_host_label(),
+        "toolchain": "fixture-toolchain",
+        "target": "aarch64-apple-darwin",
+        "evidenceBasis": basis,
+        "fixtureScope": if basis == "fixture" { "known-answer-fixture-cases" } else { "production-corpus" },
+        "digest": DIGEST,
+    })
+}
+
 fn provider(qualified: bool) -> AuditProvider {
+    provider_with_scope(qualified, "production")
+}
+
+fn provider_with_scope(qualified: bool, basis: &str) -> AuditProvider {
     let mut configuration: BTreeMap<String, Value> = [
         "schemaVersion",
         "family",
@@ -96,7 +115,11 @@ fn provider(qualified: bool) -> AuditProvider {
         dependencies: Vec::new(),
         kind: ProviderKind::BuiltIn,
         configuration,
-        bounds: BTreeMap::new(),
+        bounds: if qualified {
+            BTreeMap::from([("qualificationScope".to_owned(), scope_record(basis))])
+        } else {
+            BTreeMap::new()
+        },
         clean_claim: "fixture-claim".into(),
         benchmark_status: if qualified {
             "qualified"
@@ -111,12 +134,16 @@ fn provider(qualified: bool) -> AuditProvider {
 }
 
 fn base_plan(qualified: bool) -> AuditPlan {
+    base_plan_with(provider(qualified))
+}
+
+fn base_plan_with(provider: AuditProvider) -> AuditPlan {
     AuditPlan {
         schema_version: 1,
         repository_id: "/frozen/source".into(),
         inventory_generation: "frozen-generation".into(),
         inventory_digest: "frozen-inventory".into(),
-        providers: vec![provider(qualified)],
+        providers: vec![provider],
         bounds: legion_audit::execution_policy::binding()
             .as_object()
             .unwrap()
@@ -459,4 +486,47 @@ fn extension_survives_v2_lift_additively() {
     let v2 = ReportV2::from_v1_view(&report).unwrap();
     assert!(v2.assurance_extension().is_some());
     let _ = Value::Null;
+}
+
+#[test]
+fn fixture_only_qualified_provider_cannot_satisfy_release_obligation() {
+    let assurance = frozen_assurance(AuditProfile::Release);
+    let plan = base_plan_with(provider_with_scope(true, "fixture"))
+        .with_assurance(&assurance)
+        .unwrap()
+        .freeze(Some(KEY))
+        .unwrap();
+    let exec = execution(&plan, DIGEST, &[]);
+    let report = canonical_report_assured("/frozen/source", &plan, &exec, &[], &[], NOW).unwrap();
+    assert_ne!(report.status, ReportStatus::Clean);
+    let frozen = plan.plan().assurance_binding().unwrap().unwrap();
+    let decision = gate_report_v1(&report, Some(&frozen), AuditProfile::Release, NOW);
+    assert_ne!(decision.verdict, GateVerdict::Eligible, "{decision:?}");
+    assert!(report
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("assurance-unmet:")));
+}
+
+#[test]
+fn claim_scope_fixture_and_missing_record_do_not_qualify_release() {
+    // Registry claim scope marks the provider fixture-only.
+    let mut claim_only = provider(true);
+    claim_only.bounds =
+        BTreeMap::from([("claimScope".to_owned(), json!("known-answer-fixture-cases"))]);
+    // Legacy status+digest with no scope record at all.
+    let mut no_record = provider(true);
+    no_record.bounds = BTreeMap::new();
+    for candidate_provider in [claim_only, no_record] {
+        let assurance = frozen_assurance(AuditProfile::Release);
+        let plan = base_plan_with(candidate_provider)
+            .with_assurance(&assurance)
+            .unwrap()
+            .freeze(Some(KEY))
+            .unwrap();
+        let exec = execution(&plan, DIGEST, &[]);
+        let report =
+            canonical_report_assured("/frozen/source", &plan, &exec, &[], &[], NOW).unwrap();
+        assert_ne!(report.status, ReportStatus::Clean);
+    }
 }
