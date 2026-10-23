@@ -85,6 +85,356 @@ const RECOGNIZED_SOURCE_EXTENSIONS: &[&str] = &[
     ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".rs", ".swift", ".py", ".kt", ".kts", ".java",
 ];
 
+/// Evidence tier of a domain-grouped card. Groups select cards from path-level
+/// inventory evidence (file kinds, manifests, directory and file names); they
+/// never claim framework or dependency equivalence. Path evidence can only
+/// raise a group to `retained`; it can never prove a domain absent for a
+/// common group, so unproven applicability stays `unknown`, never `excluded`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DomainTier {
+    /// Common web/native/AI surfaces. Weak or absent path evidence keeps the
+    /// card `unknown` and in the packet.
+    Common,
+    /// Specialist domains (smart contracts, embedded, ICS/OT). Apply only on
+    /// strong path evidence; excluded only when every selected path is a
+    /// recognized source kind and none carries domain evidence.
+    Specialist,
+}
+
+/// Evidence-selected security card groups. The always-on core (secrets,
+/// injection, authorization, unsafe code, Tauri, serialization) carries no
+/// group; every card with a group is selected from path evidence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DomainEvidence {
+    Ssrf,
+    HttpProxyCache,
+    AuthSession,
+    WorkspaceTrust,
+    AiMemory,
+    AdminWorkflow,
+    SmartContract,
+    Embedded,
+    Ics,
+}
+
+struct DomainSignals {
+    /// File extensions (lowercase, with dot).
+    extensions: &'static [&'static str],
+    /// File-name prefixes (lowercase) such as `foundry.toml`.
+    basenames: &'static [&'static str],
+    /// Whole path tokens (split on non-alphanumerics).
+    tokens: &'static [&'static str],
+    /// Path-token prefixes of at least five characters.
+    token_prefixes: &'static [&'static str],
+}
+
+impl DomainEvidence {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Ssrf => "ssrf-egress",
+            Self::HttpProxyCache => "http-proxy-cache",
+            Self::AuthSession => "auth-session",
+            Self::WorkspaceTrust => "workspace-trust",
+            Self::AiMemory => "ai-memory-rag",
+            Self::AdminWorkflow => "admin-workflow",
+            Self::SmartContract => "smart-contract",
+            Self::Embedded => "embedded-iot",
+            Self::Ics => "ics-ot",
+        }
+    }
+
+    pub fn tier(self) -> DomainTier {
+        match self {
+            Self::SmartContract | Self::Embedded | Self::Ics => DomainTier::Specialist,
+            _ => DomainTier::Common,
+        }
+    }
+
+    fn signals(self) -> DomainSignals {
+        match self {
+            Self::Ssrf => DomainSignals {
+                extensions: &[],
+                basenames: &[],
+                tokens: &[
+                    "fetch", "webhook", "webhooks", "egress", "unfurl", "oembed", "crawler",
+                    "scraper", "callback", "download", "preview", "proxy",
+                ],
+                token_prefixes: &[
+                    "httpclient",
+                    "http_client",
+                    "webhook",
+                    "import_url",
+                    "remote_url",
+                ],
+            },
+            Self::HttpProxyCache => DomainSignals {
+                extensions: &[".vcl"],
+                basenames: &[
+                    "nginx",
+                    "haproxy",
+                    "envoy",
+                    "caddyfile",
+                    "varnish",
+                    "traefik",
+                    "httpd.conf",
+                    "apache",
+                ],
+                tokens: &[
+                    "proxy",
+                    "gateway",
+                    "cdn",
+                    "cache",
+                    "ingress",
+                    "nginx",
+                    "haproxy",
+                    "envoy",
+                    "caddy",
+                    "varnish",
+                    "traefik",
+                    "cloudfront",
+                    "rewrite",
+                ],
+                token_prefixes: &["reverse_proxy"],
+            },
+            Self::AuthSession => DomainSignals {
+                extensions: &[],
+                basenames: &[],
+                tokens: &[
+                    "auth",
+                    "login",
+                    "logout",
+                    "signin",
+                    "signup",
+                    "session",
+                    "sessions",
+                    "mfa",
+                    "totp",
+                    "otp",
+                    "oauth",
+                    "oidc",
+                    "saml",
+                    "password",
+                    "passwords",
+                    "recovery",
+                    "reset",
+                    "jwt",
+                    "passkey",
+                    "webauthn",
+                    "credential",
+                    "credentials",
+                ],
+                token_prefixes: &["authn", "authent", "refresh_token", "magic_link"],
+            },
+            Self::WorkspaceTrust => DomainSignals {
+                extensions: &[],
+                basenames: &[
+                    ".env",
+                    ".envrc",
+                    ".mcp.json",
+                    "mcp.json",
+                    "tauri.conf",
+                    "lefthook",
+                    "pre-commit",
+                    "tasks.json",
+                    "devcontainer",
+                ],
+                tokens: &[
+                    "hooks",
+                    "husky",
+                    "githooks",
+                    "mcp",
+                    "devcontainer",
+                    "direnv",
+                    "workspace",
+                    "plugin",
+                    "plugins",
+                    "extension",
+                    "extensions",
+                    "vscode",
+                    "claude",
+                    "cursor",
+                ],
+                token_prefixes: &["project_config", "workspace_trust"],
+            },
+            Self::AiMemory => DomainSignals {
+                extensions: &[],
+                basenames: &[],
+                tokens: &[
+                    "rag",
+                    "embedding",
+                    "embeddings",
+                    "vector",
+                    "vectors",
+                    "vectorstore",
+                    "memory",
+                    "retriever",
+                    "retrieval",
+                    "chroma",
+                    "pinecone",
+                    "qdrant",
+                    "weaviate",
+                    "pgvector",
+                    "faiss",
+                    "langchain",
+                    "llamaindex",
+                    "corpus",
+                    "llm",
+                ],
+                token_prefixes: &["retriev", "embedd", "vector_store", "knowledge_base"],
+            },
+            Self::AdminWorkflow => DomainSignals {
+                extensions: &[],
+                basenames: &[],
+                tokens: &[
+                    "admin",
+                    "admins",
+                    "impersonate",
+                    "impersonation",
+                    "backoffice",
+                    "support",
+                    "staff",
+                    "moderation",
+                    "moderator",
+                    "bulk",
+                    "refund",
+                    "refunds",
+                    "operator",
+                ],
+                token_prefixes: &[
+                    "impersonat",
+                    "back_office",
+                    "customer_support",
+                    "bulk_action",
+                ],
+            },
+            Self::SmartContract => DomainSignals {
+                extensions: &[".sol", ".vy", ".cairo", ".fe"],
+                basenames: &[
+                    "foundry.toml",
+                    "hardhat.config",
+                    "truffle-config",
+                    "anchor.toml",
+                    "move.toml",
+                    "brownie-config",
+                    "slither.config",
+                ],
+                tokens: &[],
+                token_prefixes: &[],
+            },
+            Self::Embedded => DomainSignals {
+                extensions: &[".ino", ".dts", ".dtsi", ".ld", ".s19", ".ioc"],
+                basenames: &[
+                    "platformio.ini",
+                    "sdkconfig",
+                    "prj.conf",
+                    "west.yml",
+                    "kconfig",
+                    "partitions.csv",
+                    "openocd",
+                    "cubemx",
+                ],
+                tokens: &[
+                    "firmware",
+                    "bootloader",
+                    "mcuboot",
+                    "freertos",
+                    "zephyr",
+                    "esp32",
+                    "stm32",
+                    "nrf52",
+                    "uboot",
+                    "jtag",
+                    "swd",
+                    "fota",
+                ],
+                token_prefixes: &["ota_update", "ota-update", "esp_idf", "esp-idf"],
+            },
+            Self::Ics => DomainSignals {
+                extensions: &[".scl", ".l5x", ".l5k", ".plcproj", ".fbd"],
+                basenames: &[],
+                tokens: &[
+                    "modbus",
+                    "opcua",
+                    "dnp3",
+                    "iec61850",
+                    "iec104",
+                    "profinet",
+                    "scada",
+                    "plc",
+                    "hmi",
+                    "interlock",
+                    "interlocks",
+                    "ladder",
+                ],
+                token_prefixes: &[
+                    "opc_ua",
+                    "opc-ua",
+                    "iec_61850",
+                    "iec-61131",
+                    "iec61131",
+                    "ethernet_ip",
+                ],
+            },
+        }
+    }
+
+    /// True when the path carries evidence for this group.
+    pub fn path_matches(self, path: &str) -> bool {
+        let lower = path.to_ascii_lowercase();
+        let signals = self.signals();
+        if signals.extensions.iter().any(|ext| lower.ends_with(ext)) {
+            return true;
+        }
+        let basename = lower.rsplit('/').next().unwrap_or(&lower);
+        if signals
+            .basenames
+            .iter()
+            .any(|name| basename.starts_with(name))
+        {
+            return true;
+        }
+        lower
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .filter(|token| !token.is_empty())
+            .any(|token| {
+                signals.tokens.contains(&token)
+                    || signals
+                        .token_prefixes
+                        .iter()
+                        .any(|prefix| token.starts_with(prefix))
+            })
+            || signals
+                .token_prefixes
+                .iter()
+                .any(|prefix| prefix.contains(['-', '_']) && lower.contains(prefix))
+    }
+
+    fn fit(self, paths: &[&str]) -> (&'static str, &'static str) {
+        if paths.is_empty() {
+            return ("unknown", "selected-source-paths-empty");
+        }
+        if paths.iter().any(|path| self.path_matches(path)) {
+            return ("retained", "domain-path-evidence-present");
+        }
+        match self.tier() {
+            DomainTier::Common => ("unknown", "domain-evidence-not-established-by-paths"),
+            DomainTier::Specialist => {
+                let all_recognized = paths.iter().all(|path| {
+                    let lower = path.to_ascii_lowercase();
+                    RECOGNIZED_SOURCE_EXTENSIONS
+                        .iter()
+                        .any(|extension| lower.ends_with(extension))
+                });
+                if all_recognized {
+                    ("excluded", "specialist-domain-evidence-absent")
+                } else {
+                    ("unknown", "selected-source-language-unknown")
+                }
+            }
+        }
+    }
+}
+
 /// Rule maturity. Authored cards start as `Draft`. Only a root-owned,
 /// independently measured qualification record may move a card; routing,
 /// packet binding, and fixture tests never promote a card.
@@ -117,6 +467,9 @@ pub struct PatternCard {
     pub version_applicability: Option<&'static str>,
     /// Configuration evidence the card reads, when it needs any.
     pub config_applicability: Option<&'static str>,
+    /// Inventory-evidence group that selects this card. `None` keeps the card
+    /// in the always-on core of its owner lens.
+    pub domain_evidence: Option<DomainEvidence>,
     pub trigger_evidence: &'static str,
     pub required_source_trace: &'static str,
     pub falsifier: &'static str,
@@ -136,6 +489,7 @@ impl PatternCard {
         language_applicability: None,
         version_applicability: None,
         config_applicability: None,
+        domain_evidence: None,
         trigger_evidence: "",
         required_source_trace: "",
         falsifier: "",
@@ -169,6 +523,15 @@ impl PatternCard {
         }
         if let Some(config) = self.config_applicability {
             value["configApplicability"] = json!(config);
+        }
+        if let Some(domain) = self.domain_evidence {
+            value["domainApplicability"] = json!({
+                "group": domain.label(),
+                "tier": match domain.tier() {
+                    DomainTier::Common => "evidence-selected",
+                    DomainTier::Specialist => "specialist-strong-evidence-only",
+                },
+            });
         }
         value
     }
@@ -753,6 +1116,134 @@ pub const PATTERN_CARDS: &[PatternCard] = &[
         negative_case: "The finding names three responsibilities, the state each owns, the callers, and the invariant to preserve.",
         ..PatternCard::BASE
     },
+    PatternCard {
+        id: "ssrf-egress-url-fetch",
+        owner_lens: "security",
+        applicability: "Server-side code that fetches, proxies, unfurls, imports, or posts to a URL, host, or address derived from request, stored, or model-supplied data.",
+        domain_evidence: Some(DomainEvidence::Ssrf),
+        config_applicability: Some("Egress policy, network policy, cloud metadata settings, and HTTP client configuration when present."),
+        trigger_evidence: "An outbound client call takes a user-influenced URL or host and no allow-list, resolved-address check, or egress restriction precedes it.",
+        required_source_trace: "Trace the URL from its entry through parsing, redirect handling, and DNS resolution to the client call, then the allow-list or address-class check and any egress control.",
+        falsifier: "The destination is fixed or chosen from a server-side allow-list, the resolved address is checked after redirects, or egress is restricted outside the code.",
+        no_evidence: "If the client wrapper, redirect policy, or network egress controls are outside the supplied source, report reachability of internal addresses as unknown.",
+        positive_case: "A link-preview endpoint calls the HTTP client on a request-supplied URL and follows redirects with no address check.",
+        negative_case: "The endpoint accepts only hosts from a configured allow-list and re-checks the resolved address on every redirect.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "http-proxy-cache-smuggling",
+        owner_lens: "security",
+        applicability: "Reverse-proxy, gateway, CDN, and cache configuration or code that forwards, rewrites, keys, or caches HTTP requests and responses.",
+        domain_evidence: Some(DomainEvidence::HttpProxyCache),
+        config_applicability: Some("Proxy, ingress, CDN, and cache-key configuration files and the origin server's framing behavior."),
+        trigger_evidence: "A forwarding layer passes hop-by-hop or length headers through, trusts client-set forwarding headers, or caches a response whose key omits a request attribute that changes the body.",
+        required_source_trace: "Trace each header from the client through the proxy rules to the origin, the framing headers both tiers honor, and the cache key against what varies the response.",
+        falsifier: "The proxy normalizes framing headers, strips or overwrites forwarding headers, and the cache key or Vary covers every attribute that changes the response.",
+        no_evidence: "If only one tier of the proxy and origin pair is supplied, report framing disagreement and cache-key coverage as unknown.",
+        positive_case: "A proxy forwards client X-Forwarded-Host to an origin that builds absolute links from it, and the response is cached without that header in the key.",
+        negative_case: "The proxy overwrites X-Forwarded-Host with its own value and the cache key includes the host.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "auth-session-state-machine",
+        owner_lens: "security",
+        applicability: "Login, MFA, account recovery, logout, and session or token rotation flows.",
+        domain_evidence: Some(DomainEvidence::AuthSession),
+        config_applicability: Some("Session store, cookie, token lifetime, and identity-provider configuration when present."),
+        trigger_evidence: "A flow step can be reached or replayed out of order, a recovery or MFA path grants a weaker session than the main login, or a session or token survives logout, password change, or privilege change.",
+        required_source_trace: "Enumerate states and transitions for login, second factor, recovery, and logout, then trace session or token issuance, binding, rotation, and invalidation at each transition.",
+        falsifier: "Each transition checks the prior state, recovery and MFA yield the same assurance as login, and credentials change or logout invalidates and rotates the session.",
+        no_evidence: "If the session store or identity-provider behavior is not in the supplied source, report session invalidation and rotation as unknown.",
+        positive_case: "A password-reset confirmation signs the user in with a session that skips the MFA step and the old session stays valid.",
+        negative_case: "Reset requires the second factor, issues a new session identifier, and revokes all earlier sessions.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "native-workspace-trust-auto-exec",
+        owner_lens: "security",
+        applicability: "Desktop apps, CLIs, editors, and agents that load .env files, git hooks, project configuration, tasks, plugins, or MCP servers from a repository or workspace they open.",
+        domain_evidence: Some(DomainEvidence::WorkspaceTrust),
+        config_applicability: Some("Workspace trust settings, project configuration precedence, hook directories, and MCP or plugin discovery paths."),
+        trigger_evidence: "Opening an untrusted directory causes configuration to execute a process, change environment or PATH, register a tool server, or run a hook before a trust decision.",
+        required_source_trace: "Trace startup from path selection through configuration discovery and precedence to process spawn or environment injection, and locate the trust prompt, its default, and where it is persisted.",
+        falsifier: "Execution-capable configuration loads only after an explicit per-workspace trust decision that defaults to untrusted, or is read only from the user's own configuration.",
+        no_evidence: "If the trust prompt or discovery path is outside the supplied source, report pre-trust execution as unknown.",
+        positive_case: "The app reads .mcp.json from the opened folder and launches the listed command at startup with no trust prompt.",
+        negative_case: "Project configuration is parsed as data until the user trusts the folder, and trust defaults to off.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "ai-memory-rag-poisoning-grounding",
+        owner_lens: "security",
+        applicability: "Agent memory, retrieval-augmented generation, vector stores, and knowledge bases whose contents feed model context.",
+        domain_evidence: Some(DomainEvidence::AiMemory),
+        config_applicability: Some("Vector store collections, namespaces, access policy, and ingestion pipeline configuration when present."),
+        trigger_evidence: "Content from an untrusted or lower-trust writer is stored and later retrieved as trusted context, memory is shared across users or tenants, or retrieved text can issue instructions or override grounding sources.",
+        required_source_trace: "Trace each ingestion source to the store with its writer identity and trust label, then retrieval to prompt assembly, checking tenant filters and whether provenance reaches the model.",
+        falsifier: "Writes carry provenance and are scoped per tenant, retrieval enforces that scope, and retrieved content is delimited as data with grounding sources kept separate from instructions.",
+        no_evidence: "If ingestion writers or retrieval filters are outside the supplied source, report poisoning and cross-tenant retrieval as unknown.",
+        positive_case: "Support tickets from any customer are embedded into one shared collection that every agent run retrieves from as trusted context.",
+        negative_case: "Each tenant has its own namespace, ingested text is labeled untrusted data, and retrieval filters on the caller's tenant.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "admin-workflow-impersonation-bulk-abuse",
+        owner_lens: "security",
+        applicability: "Admin consoles, support tooling, impersonation, refunds, and bulk or batch actions operated by staff.",
+        domain_evidence: Some(DomainEvidence::AdminWorkflow),
+        config_applicability: Some("Staff role definitions, impersonation settings, and audit log configuration when present."),
+        trigger_evidence: "A staff action acts as or on another account, or applies to many records, without a distinct role check, scope limit, confirmation, or audit record.",
+        required_source_trace: "Trace the action from the admin route through role and scope checks to the effect, noting impersonation session labeling, bulk size limits, and the audit write.",
+        falsifier: "The action requires a specific staff role, labels impersonated sessions, bounds and confirms bulk scope, and records actor and target.",
+        no_evidence: "If staff role definitions or audit sinks are outside the supplied source, report privilege and traceability of the action as unknown.",
+        positive_case: "Any support user can impersonate any account with full permissions and no audit entry, and a bulk refund endpoint accepts an unbounded id list.",
+        negative_case: "Impersonation needs an elevated role, is read-only by default, is audited with actor and target, and bulk actions cap size and require confirmation.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "smart-contract-reentrancy-access-oracle",
+        owner_lens: "security",
+        applicability: "Smart contracts (Solidity, Vyper, and similar) that hold value, gate roles, or read external price or data feeds.",
+        domain_evidence: Some(DomainEvidence::SmartContract),
+        version_applicability: Some("Compiler version and chain semantics; checked-arithmetic defaults differ by Solidity version."),
+        config_applicability: Some("foundry.toml, hardhat configuration, and deployment scripts for proxy and initializer use."),
+        trigger_evidence: "A function makes an external call before updating state it depends on, a privileged function lacks an access modifier, or a price or rate comes from a single manipulable on-chain source.",
+        required_source_trace: "Trace external calls against state writes in each value-moving function, then each privileged entry point to its role check, then each price input to its source and staleness or manipulation bounds.",
+        falsifier: "State is updated before the external call or a reentrancy guard applies, privileged functions enforce roles including initializers, and prices use bounded or time-weighted sources.",
+        no_evidence: "If called contracts, proxies, or oracle implementations are not supplied, report reentrancy reach and oracle trust as unknown.",
+        positive_case: "withdraw() sends funds with call{value} and zeroes the balance afterward, and setOwner() has no access modifier.",
+        negative_case: "withdraw() zeroes the balance first under a reentrancy guard, and setOwner() is restricted to the owner role.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "embedded-firmware-update-debug-keys",
+        owner_lens: "security",
+        applicability: "Embedded, IoT, and edge-device firmware, bootloaders, and provisioning code.",
+        domain_evidence: Some(DomainEvidence::Embedded),
+        version_applicability: Some("Bootloader and SDK version; secure-boot and flash-encryption options differ by vendor release."),
+        config_applicability: Some("Board configuration, partition tables, fuse or option-byte settings, and debug-port configuration."),
+        trigger_evidence: "A firmware image is accepted without signature and version verification, a debug interface stays enabled in the release configuration, or a device holds a hardcoded shared key or credential.",
+        required_source_trace: "Trace update download to verification and flash write, the release build configuration for debug ports and logging, and each key or credential from its definition to its use and provisioning source.",
+        falsifier: "Updates are verified against a device-held public key with rollback protection, debug access is disabled or locked in release, and keys are per-device and provisioned, not embedded.",
+        no_evidence: "If bootloader, fuse, or release-profile configuration is not supplied, report update authentication and debug exposure as unknown.",
+        positive_case: "The OTA handler writes any downloaded image to flash after a CRC check, and a shared AES key is a constant in the source.",
+        negative_case: "The bootloader verifies an image signature and a monotonic version, and keys are unique per device and read from secure storage.",
+        ..PatternCard::BASE
+    },
+    PatternCard {
+        id: "ics-ot-unauthenticated-control-safety",
+        owner_lens: "security",
+        applicability: "ICS/OT repositories and configuration: PLC projects, Modbus, OPC UA, DNP3, and IEC 61850 integrations, HMI and SCADA code. Repository and configuration review only; no live probing.",
+        domain_evidence: Some(DomainEvidence::Ics),
+        config_applicability: Some("Protocol security modes, endpoint and security-policy settings, and interlock or simulation-mode flags."),
+        trigger_evidence: "A control-capable protocol endpoint is configured without authentication or with a security mode of none, a write command path bypasses an interlock or operator confirmation, or simulation or maintenance mode is the default.",
+        required_source_trace: "Trace each write or command path from its network entry through authentication and authorization to the actuator output, the interlock or permissive checks on it, and default-mode configuration.",
+        falsifier: "Control endpoints require authenticated, authorized sessions, write paths enforce interlocks and fail safe, and unsafe modes are off by default and gated.",
+        no_evidence: "If protocol security settings or interlock logic are outside the supplied source, report control authorization and safety enforcement as unknown.",
+        positive_case: "An OPC UA server is configured with security mode None and exposes writable setpoint nodes that no interlock check guards.",
+        negative_case: "The server requires signed and encrypted sessions with role-based write access, and setpoint writes pass interlock validation.",
+        ..PatternCard::BASE
+    },
 ];
 
 /// Returns only cards owned by the lens already selected for this seat.
@@ -820,9 +1311,10 @@ pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[Strin
     let mut retained = Vec::new();
     let mut accounting = Vec::new();
     for card in cards_for_lens(lens) {
-        let (state, reason) = match card.language_applicability {
-            None => ("retained", "no-language-restriction"),
-            Some(language) => language_fit(language, &source_paths),
+        let (state, reason) = match (card.domain_evidence, card.language_applicability) {
+            (Some(domain), _) => domain.fit(&source_paths),
+            (None, None) => ("retained", "no-language-restriction"),
+            (None, Some(language)) => language_fit(language, &source_paths),
         };
         if state != "excluded" {
             retained.push(card.to_packet_value());
@@ -1327,5 +1819,193 @@ mod tests {
             assert!(card["pairedCases"]["positive"].is_string());
             assert!(card["pairedCases"]["negative"].is_string());
         }
+    }
+
+    const SPECIALIST_CARDS: [&str; 3] = [
+        "smart-contract-reentrancy-access-oracle",
+        "embedded-firmware-update-debug-keys",
+        "ics-ot-unauthenticated-control-safety",
+    ];
+    const COMMON_GROUP_CARDS: [&str; 6] = [
+        "ssrf-egress-url-fetch",
+        "http-proxy-cache-smuggling",
+        "auth-session-state-machine",
+        "native-workspace-trust-auto-exec",
+        "ai-memory-rag-poisoning-grounding",
+        "admin-workflow-impersonation-bulk-abuse",
+    ];
+
+    fn state_of<'a>(packet: &'a Value, id: &str) -> (&'a str, &'a str) {
+        let row = packet["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == id)
+            .unwrap_or_else(|| panic!("no accounting row for {id}"));
+        (
+            row["state"].as_str().unwrap(),
+            row["reason"].as_str().unwrap(),
+        )
+    }
+
+    #[test]
+    fn security_card_groups_are_exactly_the_declared_evidence_set() {
+        let grouped = cards_for_lens("security")
+            .filter(|card| card.domain_evidence.is_some())
+            .map(|card| card.id)
+            .collect::<BTreeSet<_>>();
+        let expected = COMMON_GROUP_CARDS
+            .iter()
+            .chain(SPECIALIST_CARDS.iter())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(grouped, expected);
+        for id in SPECIALIST_CARDS {
+            let card = PATTERN_CARDS.iter().find(|card| card.id == id).unwrap();
+            assert_eq!(card.domain_evidence.unwrap().tier(), DomainTier::Specialist);
+            assert_eq!(card.owner_lens, "security");
+        }
+        for id in COMMON_GROUP_CARDS {
+            let card = PATTERN_CARDS.iter().find(|card| card.id == id).unwrap();
+            assert_eq!(card.domain_evidence.unwrap().tier(), DomainTier::Common);
+        }
+        // The always-on core keeps no group, so it never depends on path evidence.
+        for id in [
+            "secret-serialization-through-logs-and-telemetry",
+            "tenant-authorization-scope",
+            "postgres-definer-searchpath-and-public-execute",
+            "rust-unsafe-invariant-evidence",
+            "qwik-loader-action-validation",
+        ] {
+            let card = PATTERN_CARDS.iter().find(|card| card.id == id).unwrap();
+            assert!(card.domain_evidence.is_none(), "{id}");
+        }
+    }
+
+    #[test]
+    fn specialist_cards_apply_only_on_strong_path_evidence() {
+        let plain = bound_for("security", &["src/lib.rs", "src/app.ts"]);
+        for id in SPECIALIST_CARDS {
+            assert_eq!(
+                state_of(&plain, id),
+                ("excluded", "specialist-domain-evidence-absent"),
+                "{id}"
+            );
+            assert!(!card_ids(&plain).contains(id), "{id}");
+        }
+        for (path, id) in [
+            (
+                "contracts/Vault.sol",
+                "smart-contract-reentrancy-access-oracle",
+            ),
+            ("foundry.toml", "smart-contract-reentrancy-access-oracle"),
+            (
+                "firmware/src/main.rs",
+                "embedded-firmware-update-debug-keys",
+            ),
+            ("platformio.ini", "embedded-firmware-update-debug-keys"),
+            ("plc/pump.scl", "ics-ot-unauthenticated-control-safety"),
+            (
+                "src/modbus_client.rs",
+                "ics-ot-unauthenticated-control-safety",
+            ),
+            (
+                "src/opc-ua/server.rs",
+                "ics-ot-unauthenticated-control-safety",
+            ),
+        ] {
+            let bound = bound_for("security", &[path, "src/lib.rs"]);
+            assert_eq!(
+                state_of(&bound, id),
+                ("retained", "domain-path-evidence-present"),
+                "{path}"
+            );
+            assert!(card_ids(&bound).contains(id), "{path}");
+        }
+        // Weak lookalikes are not strong evidence.
+        for path in ["src/quota.rs", "src/storage/garage.rs", "docs/plcement.rs"] {
+            let bound = bound_for("security", &[path]);
+            for id in SPECIALIST_CARDS {
+                assert_eq!(state_of(&bound, id).0, "excluded", "{path} {id}");
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_applicability_stays_unknown_and_retained_never_excluded() {
+        for paths in [
+            vec![],
+            vec!["config/app.yaml"],
+            vec!["Cargo.toml", "src/lib.rs"],
+            vec!["src/driver.c", "src/lib.rs"],
+        ] {
+            let bound = bound_for("security", &paths);
+            for id in SPECIALIST_CARDS {
+                assert_eq!(state_of(&bound, id).0, "unknown", "{paths:?} {id}");
+                assert!(card_ids(&bound).contains(id), "{paths:?} {id}");
+            }
+            for id in COMMON_GROUP_CARDS {
+                assert!(card_ids(&bound).contains(id), "{paths:?} {id}");
+                assert_ne!(state_of(&bound, id).0, "excluded", "{paths:?} {id}");
+            }
+        }
+    }
+
+    #[test]
+    fn common_groups_are_never_excluded_and_report_evidence_state() {
+        let none = bound_for("security", &["src/lib.rs"]);
+        for id in COMMON_GROUP_CARDS {
+            assert_eq!(
+                state_of(&none, id),
+                ("unknown", "domain-evidence-not-established-by-paths"),
+                "{id}"
+            );
+        }
+        for (path, id) in [
+            ("src/ssrf/fetch_url.rs", "ssrf-egress-url-fetch"),
+            ("deploy/nginx.conf", "http-proxy-cache-smuggling"),
+            ("src/auth/login.ts", "auth-session-state-machine"),
+            ("repo/.mcp.json", "native-workspace-trust-auto-exec"),
+            (".githooks/pre-commit", "native-workspace-trust-auto-exec"),
+            ("src/rag/retriever.py", "ai-memory-rag-poisoning-grounding"),
+            (
+                "src/admin/impersonate.ts",
+                "admin-workflow-impersonation-bulk-abuse",
+            ),
+        ] {
+            let bound = bound_for("security", &[path]);
+            assert_eq!(
+                state_of(&bound, id),
+                ("retained", "domain-path-evidence-present"),
+                "{path}"
+            );
+        }
+        // Group tokens match whole path tokens, not substrings.
+        assert!(!DomainEvidence::AiMemory.path_matches("src/storage/fragment.rs"));
+        assert!(!DomainEvidence::AuthSession.path_matches("src/author/list.ts"));
+    }
+
+    #[test]
+    fn domain_cards_emit_applicability_group_and_keep_core_unchanged() {
+        let security = packet_cards_for_lens("security");
+        let ics = security
+            .iter()
+            .find(|card| card["id"] == "ics-ot-unauthenticated-control-safety")
+            .unwrap();
+        assert_eq!(ics["domainApplicability"]["group"], "ics-ot");
+        assert_eq!(
+            ics["domainApplicability"]["tier"],
+            "specialist-strong-evidence-only"
+        );
+        let ssrf = security
+            .iter()
+            .find(|card| card["id"] == "ssrf-egress-url-fetch")
+            .unwrap();
+        assert_eq!(ssrf["domainApplicability"]["tier"], "evidence-selected");
+        let core = security
+            .iter()
+            .find(|card| card["id"] == "tenant-authorization-scope")
+            .unwrap();
+        assert!(core.get("domainApplicability").is_none());
     }
 }

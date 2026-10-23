@@ -14,31 +14,19 @@ pub struct VerifyArgs {
     /// Accepted for CLI consistency; verify output is always JSON.
     #[arg(long)]
     pub json: bool,
+    /// Compare this run with another run by replay-equivalence digest
+    /// (volatile fields removed); reports `equivalent` or `differs` with
+    /// field paths. Byte-integrity checks are unaffected.
+    #[arg(long, value_name = "OTHER_RUN")]
+    pub replay: Option<PathBuf>,
 }
 
-/// Plan signing key for a run: an explicit `AUDIT_PLAN_SIGNING_KEY` wins, else
-/// the run's `epoch.key`. The key only verifies the plan binding (the plan is
-/// re-frozen under it and must bind to the same inventory); it never re-signs
-/// the stored plan.
+/// Plan signing key for a run directory, under host custody (see
+/// `legion_audit::resolve_plan_key`). A missing key is an error mentioning
+/// `unverifiable-signature`; it is never treated as a pass.
 fn verification_key(root: &std::path::Path) -> Result<Vec<u8>, CommandError> {
-    if let Some(value) = std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|v| !v.is_empty()) {
-        return Ok(value.to_string_lossy().as_bytes().to_vec());
-    }
-    let key_file = root.join(legion_audit::native_providers::reasoning::ingest::EPOCH_KEY_FILE);
-    if !key_file.is_file() {
-        return Err(CommandError::usage(format!(
-            "verify needs the run's plan signing key: {} is missing and AUDIT_PLAN_SIGNING_KEY is not set",
-            key_file.display()
-        )));
-    }
-    legion_audit::native_providers::reasoning::ingest::load_epoch(root)
-        .map(|(key, _)| key)
-        .map_err(|error| {
-            CommandError::usage(format!(
-                "cannot load plan signing key {}: {error}",
-                key_file.display()
-            ))
-        })
+    legion_audit::plan_signing_key_for_run(root)
+        .map_err(|error| CommandError::usage(error.to_string()))
 }
 
 /// Verify persisted Audit artifacts and reconcile facts against its frozen plan.
@@ -47,6 +35,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     if cancellation.is_cancelled() {
         return Err(CommandError::cancelled());
     }
+    let args_replay = args.replay.clone();
     let supplied = if args.run.is_absolute() {
         args.run
     } else {
@@ -174,8 +163,37 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     // the stored report to agree with it.
     let verdict = lens_verdict(&root, &mut errors);
     let runtime_calls = runtime_calls(&root, &mut errors);
-    if errors.is_empty() {
-        let signing_key = verification_key(&root)?;
+    // The plan key lives in host state (or AUDIT_PLAN_SIGNING_KEY). A run
+    // whose key cannot be found is unverifiable, never a pass.
+    let mut signature_unverifiable = false;
+    let mut warnings: Vec<String> = Vec::new();
+    let mut key_custody = "none";
+    let signing_key = if errors.is_empty() {
+        match legion_audit::resolve_plan_key(&root, &plan) {
+            legion_audit::PlanKeyResolution::Found { key, source } => {
+                key_custody = match source {
+                    legion_audit::PlanKeySource::Environment => "environment",
+                    legion_audit::PlanKeySource::HostState => "host-state",
+                    legion_audit::PlanKeySource::LegacyRunDirEpoch => {
+                        warnings.push(
+                            "weak-custody: plan key was read from <run>/epoch.key beside the data it signs; re-run to move it into host state"
+                                .into(),
+                        );
+                        "legacy-run-dir"
+                    }
+                };
+                Some(key)
+            }
+            legion_audit::PlanKeyResolution::Unverifiable { reason } => {
+                signature_unverifiable = true;
+                errors.push(format!("unverifiable-signature: {reason}"));
+                None
+            }
+        }
+    } else {
+        None
+    };
+    if let Some(signing_key) = signing_key {
         let application = super::audit::audit_application_for(
             &repository_id,
             super::audit::inventory_filter_from_facts(&facts).as_ref(),
@@ -225,7 +243,16 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         .get("status")
         .and_then(Value::as_str)
         .map(str::to_owned);
-    let (status, complete) = if !errors.is_empty() {
+    // A missing plan key can surface first in an earlier step (e.g. lens
+    // verdict recomputation); it is still an unverifiable signature, not a
+    // generic failure.
+    let signature_unverifiable = signature_unverifiable
+        || errors
+            .iter()
+            .any(|error| error.contains("unverifiable-signature:"));
+    let (status, complete) = if signature_unverifiable {
+        ("unverifiable-signature".to_owned(), false)
+    } else if !errors.is_empty() {
         ("failed".to_owned(), false)
     } else {
         match verdict_status.as_deref() {
@@ -239,9 +266,16 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     } else {
         Vec::new()
     };
+    let replay = match &args_replay {
+        Some(other) => replay_comparison(&root, other),
+        None => Value::Null,
+    };
     Ok(json!({
         "schemaVersion":1,
         "kind":"legion-verify",
+        "keyCustody":key_custody,
+        "warnings":warnings,
+        "replay":replay,
         "status":status,
         "complete":complete,
         "repository":repository_id,
@@ -253,6 +287,47 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         "runtimeCalls":runtime_calls,
         "gaps":gaps,
     }))
+}
+
+/// Replay-equivalence comparison of two runs; never affects integrity status.
+fn replay_comparison(run: &Path, other: &Path) -> Value {
+    let other = if other.is_absolute() {
+        other.to_path_buf()
+    } else {
+        match std::env::current_dir() {
+            Ok(cwd) => cwd.join(other),
+            Err(error) => return json!({"status":"unverifiable","error":error.to_string()}),
+        }
+    };
+    let other = if other.is_file() {
+        other.parent().map(Path::to_path_buf).unwrap_or(other)
+    } else {
+        other
+    };
+    let load = |dir: &Path| legion_audit::replay_run_value(dir);
+    match (load(run), load(&other)) {
+        (Ok(left), Ok(right)) => {
+            let differences = legion_audit::replay_differences(&left, &right);
+            let digests = (
+                legion_audit::replay_digest(&left),
+                legion_audit::replay_digest(&right),
+            );
+            match digests {
+                (Ok(a), Ok(b)) => json!({
+                    "status": if differences.is_empty() && a == b { "equivalent" } else { "differs" },
+                    "digest": a,
+                    "otherDigest": b,
+                    "differences": differences,
+                }),
+                (Err(error), _) | (_, Err(error)) => {
+                    json!({"status":"unverifiable","error":error.to_string()})
+                }
+            }
+        }
+        (Err(error), _) | (_, Err(error)) => {
+            json!({"status":"unverifiable","error":error.to_string()})
+        }
+    }
 }
 
 const MAX_RUNTIME_CALLS: usize = 4_096;

@@ -1020,7 +1020,7 @@ fn build_candidate(rule: &Rule, provider: &str, ctx: &FileCtx<'_>, hit: &Hit) ->
         "id": digest_id(&[provider, rule.id, &format!("{}:{}", ctx.path, hit.line)]),
         "ruleId": rule.id, "provider": provider, "role": "candidate-generator", "claim": rule.claim,
         "severityHint": rule.severity_hint, "threatModel": rule.threat_model,
-        "evidence": [{ "file": ctx.path, "line": hit.line }], "evidenceStrength": "candidate",
+        "evidence": [{ "file": ctx.path, "line": hit.line }], "evidenceStrength": "possible",
         "verdict": "UNADJUDICATED", "adjudicationRequired": true,
         "excerptDigest": digest_id(&["excerpt", &excerpt]),
         "redactedExcerpt": excerpt,

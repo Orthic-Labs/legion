@@ -7,7 +7,7 @@ use legion_contracts::ProviderSpec;
 
 use crate::{
     assurance::{AuditAssuranceV1, ASSURANCE_BOUND},
-    dag::topological,
+    dag::{topological, topological_with_artifacts, ObjectiveGraph},
     error::AuditError,
     integrity::{plan_digest, sign},
     inventory::{InventoryDenominator, InventoryEnvelope},
@@ -20,6 +20,207 @@ pub const FOLLOWUP_BOUND: &str = "followup";
 /// ordinary selected execution plan. This marker is valid only in the
 /// provider-selection scope plan, never in an executable native plan.
 pub const PROVIDER_UNIVERSE_BOUND: &str = "providerUniverse";
+
+/// Legacy plan schema (no engagement, objective graph binding or lineage).
+pub const PLAN_SCHEMA_V1: u32 = 1;
+/// Current plan schema: adds the frozen objective-graph binding and allows the
+/// additive engagement section and generation lineage. Schema 1 stays readable.
+pub const PLAN_SCHEMA_V2: u32 = 2;
+/// `AuditPlan::bounds` key carrying the frozen engagement (CP section 9).
+pub const ENGAGEMENT_BOUND: &str = "engagement";
+/// `AuditPlan::bounds` key binding the compiled objective graph digest.
+pub const OBJECTIVE_GRAPH_BOUND: &str = "objectiveGraph";
+/// `AuditPlan::bounds` key linking a plan generation to its parent and the
+/// signed amendment that produced it. Absent on generation 1.
+pub const LINEAGE_BOUND: &str = "planLineage";
+/// `AuditPlan::bounds` key listing follow-up runs added by signed amendment.
+pub const FOLLOWUP_RUNS_BOUND: &str = "followupRuns";
+pub const ENGAGEMENT_FORMAT: &str = "audit-engagement/v1";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthorityMode {
+    /// An operator explicitly authorised the run; carries principal + expiry.
+    Explicit,
+    /// Generated read-only package: no approval, no budget or scope authority.
+    ImplicitReadOnly,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EngagementAuthority {
+    pub mode: AuthorityMode,
+    pub principal: String,
+    #[serde(default)]
+    pub approval_ref: Option<String>,
+    /// Unix seconds. Required for explicit authority.
+    #[serde(default)]
+    pub expires_at_unix: Option<u64>,
+    /// Hard ceiling an amendment may extend the token budget to.
+    #[serde(default)]
+    pub budget_ceiling_tokens: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EngagementScope {
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+    #[serde(default)]
+    pub revision: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StopConditions {
+    #[serde(default)]
+    pub max_tokens: Option<u64>,
+    #[serde(default)]
+    pub max_seconds: Option<u64>,
+    /// Stop when a finding at or above this category appears
+    /// (`critical|high|medium|low`).
+    #[serde(default)]
+    pub stop_on_severity: Option<String>,
+    /// Consecutive provider failures that open the breaker.
+    #[serde(default)]
+    pub breaker_failures: Option<u32>,
+}
+
+/// Frozen engagement package (`audit-engagement/v1`): authority, scope,
+/// strategy and stop conditions. Absent from a plan = legacy behaviour.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Engagement {
+    pub format: String,
+    pub engagement_id: String,
+    pub authority: EngagementAuthority,
+    pub scope: EngagementScope,
+    /// Ordered intents, highest priority first.
+    pub strategy: Vec<String>,
+    #[serde(default)]
+    pub stop_conditions: StopConditions,
+}
+
+impl AuditPlan {
+    /// Schema 2 additions. A schema 1 plan must not carry any of them (legacy
+    /// plans are read as-is, never reinterpreted); a schema 2 plan must carry a
+    /// matching objective-graph binding.
+    fn validate_v2_bounds(&self) -> Result<(), AuditError> {
+        let v2_keys = [
+            ENGAGEMENT_BOUND,
+            OBJECTIVE_GRAPH_BOUND,
+            LINEAGE_BOUND,
+            FOLLOWUP_RUNS_BOUND,
+        ];
+        if self.schema_version == PLAN_SCHEMA_V1 {
+            if let Some(key) = v2_keys.iter().find(|key| self.bounds.contains_key(**key)) {
+                return Err(AuditError::Invalid(format!(
+                    "schema 1 audit plan cannot carry schema 2 bound {key}"
+                )));
+            }
+            return Ok(());
+        }
+        self.engagement()?;
+        self.generation()?;
+        let graph = self.objective_graph()?;
+        let binding = self.bounds.get(OBJECTIVE_GRAPH_BOUND).ok_or_else(|| {
+            AuditError::Invalid("schema 2 audit plan lacks objective graph binding".into())
+        })?;
+        if binding.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+            || binding.get("digest").and_then(Value::as_str) != Some(graph.digest()?.as_str())
+            || binding.get("objectiveCount").and_then(Value::as_u64)
+                != Some(graph.objectives.len() as u64)
+        {
+            return Err(AuditError::Invalid(
+                "objective graph binding does not match the plan providers".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl Engagement {
+    pub fn validate(&self) -> Result<(), AuditError> {
+        let bad = |message: &str| Err(AuditError::Invalid(format!("engagement: {message}")));
+        if self.format != ENGAGEMENT_FORMAT {
+            return bad("unsupported format");
+        }
+        if self.engagement_id.trim().is_empty() || self.authority.principal.trim().is_empty() {
+            return bad("engagement id and authority principal are required");
+        }
+        match self.authority.mode {
+            AuthorityMode::Explicit => {
+                if self.authority.expires_at_unix.is_none() {
+                    return bad("explicit authority requires an expiry");
+                }
+                if self
+                    .authority
+                    .approval_ref
+                    .as_deref()
+                    .is_some_and(|value| value.trim().is_empty())
+                {
+                    return bad("approval reference is blank");
+                }
+            }
+            AuthorityMode::ImplicitReadOnly => {
+                if self.authority.approval_ref.is_some()
+                    || self.authority.budget_ceiling_tokens.is_some()
+                {
+                    return bad("implicit read-only authority carries no approval or ceiling");
+                }
+            }
+        }
+        if self.scope.include.is_empty()
+            || self
+                .scope
+                .include
+                .iter()
+                .chain(&self.scope.exclude)
+                .any(|pattern| pattern.trim().is_empty())
+        {
+            return bad("scope needs non-empty include and non-blank patterns");
+        }
+        let unique: BTreeSet<&String> = self.strategy.iter().collect();
+        if self.strategy.is_empty()
+            || unique.len() != self.strategy.len()
+            || self.strategy.iter().any(|intent| intent.trim().is_empty())
+        {
+            return bad("strategy must be a non-empty list of unique intents");
+        }
+        let stop = &self.stop_conditions;
+        if stop.max_tokens == Some(0)
+            || stop.max_seconds == Some(0)
+            || stop.breaker_failures == Some(0)
+        {
+            return bad("stop condition limits must be positive");
+        }
+        if let Some(severity) = &stop.stop_on_severity {
+            if !matches!(severity.as_str(), "critical" | "high" | "medium" | "low") {
+                return bad("unknown severity category");
+            }
+        }
+        if let (Some(max), Some(ceiling)) = (stop.max_tokens, self.authority.budget_ceiling_tokens)
+        {
+            if max > ceiling {
+                return bad("token budget exceeds authority ceiling");
+            }
+        }
+        Ok(())
+    }
+
+    /// Expiry check against a caller-supplied clock. Implicit read-only
+    /// packages never expire.
+    pub fn check_unexpired(&self, now_unix: u64) -> Result<(), AuditError> {
+        match (self.authority.mode, self.authority.expires_at_unix) {
+            (AuthorityMode::ImplicitReadOnly, _) => Ok(()),
+            (AuthorityMode::Explicit, Some(expiry)) if now_unix < expiry => Ok(()),
+            _ => Err(AuditError::Invalid(
+                "engagement authority is expired or has no expiry".into(),
+            )),
+        }
+    }
+}
 
 /// A conditional-lens provider excluded from a frozen plan because its
 /// deterministic trigger was checked over the frozen inventory and did not
@@ -532,7 +733,7 @@ impl AuditPlan {
                 })
             })
             .collect::<Result<Vec<_>, AuditError>>()?;
-        let order = topological(&providers)?;
+        let order = topological_with_artifacts(&providers)?;
         let mut by_id: BTreeMap<_, _> = providers
             .into_iter()
             .map(|provider| (provider.id.clone(), provider))
@@ -544,8 +745,8 @@ impl AuditPlan {
         if let Some(source) = &trigger_source {
             source.revalidate()?;
         }
-        Ok(Self {
-            schema_version: 1,
+        let mut plan = Self {
+            schema_version: PLAN_SCHEMA_V2,
             repository_id: inventory.repository_id.clone(),
             inventory_generation: inventory.generation.clone(),
             inventory_digest: inventory.digest.clone(),
@@ -557,7 +758,82 @@ impl AuditPlan {
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect(),
             excluded_conditional_providers,
-        })
+        };
+        plan.refresh_objective_graph()?;
+        Ok(plan)
+    }
+
+    /// Compile the objective DAG of this plan (stable content-derived ids,
+    /// declared + producer/consumer edges). Fails closed on a consumed
+    /// artifact without producer or frozen fact source, and on cycles.
+    pub fn objective_graph(&self) -> Result<ObjectiveGraph, AuditError> {
+        ObjectiveGraph::compile(self)
+    }
+
+    /// Recompute and freeze the objective graph binding into `bounds`.
+    /// Only meaningful for schema 2 plans; must be called after any provider
+    /// set change and before `freeze`.
+    pub(crate) fn refresh_objective_graph(&mut self) -> Result<(), AuditError> {
+        let graph = self.objective_graph()?;
+        self.bounds.insert(
+            OBJECTIVE_GRAPH_BOUND.into(),
+            serde_json::json!({
+                "schemaVersion": 1,
+                "digest": graph.digest()?,
+                "objectiveCount": graph.objectives.len(),
+            }),
+        );
+        Ok(())
+    }
+
+    /// Public form of the objective-graph freeze: computes the graph (failing
+    /// closed on a missing producer or a cycle) and binds its digest.
+    pub fn with_objective_graph(mut self) -> Result<Self, AuditError> {
+        self.refresh_objective_graph()?;
+        Ok(self)
+    }
+
+    /// Freeze the engagement package into `bounds` (schema 2 only). Call
+    /// before `freeze`; narrowing scope is only possible before sealing.
+    pub fn with_engagement(mut self, engagement: &Engagement) -> Result<Self, AuditError> {
+        if self.schema_version < PLAN_SCHEMA_V2 {
+            return Err(AuditError::Invalid(
+                "engagement requires plan schema 2".into(),
+            ));
+        }
+        engagement.validate()?;
+        if self.bounds.contains_key(ENGAGEMENT_BOUND) {
+            return Err(AuditError::Invalid(
+                "audit plan already carries a frozen engagement".into(),
+            ));
+        }
+        self.bounds.insert(
+            ENGAGEMENT_BOUND.into(),
+            serde_json::to_value(engagement)
+                .map_err(|error| AuditError::Invalid(error.to_string()))?,
+        );
+        Ok(self)
+    }
+
+    /// The frozen engagement, `None` for legacy plans. Present but malformed
+    /// is an error, never silently absent.
+    pub fn engagement(&self) -> Result<Option<Engagement>, AuditError> {
+        let Some(value) = self.bounds.get(ENGAGEMENT_BOUND) else {
+            return Ok(None);
+        };
+        let engagement: Engagement = serde_json::from_value(value.clone())
+            .map_err(|error| AuditError::Invalid(format!("engagement is malformed: {error}")))?;
+        engagement.validate()?;
+        Ok(Some(engagement))
+    }
+
+    /// Plan generation: 1 for an original plan, otherwise the generation
+    /// recorded by the signed amendment lineage. Malformed lineage is an error.
+    pub fn generation(&self) -> Result<u64, AuditError> {
+        match self.bounds.get(LINEAGE_BOUND) {
+            None => Ok(1),
+            Some(binding) => lineage_generation(binding),
+        }
     }
 
     /// Compile the complete provider universe used to derive Audit coverage,
@@ -725,7 +1001,7 @@ impl AuditPlan {
 
     pub fn validate(&self) -> Result<(), AuditError> {
         self.validate_execution_policy()?;
-        if self.schema_version != 1
+        if !matches!(self.schema_version, PLAN_SCHEMA_V1 | PLAN_SCHEMA_V2)
             || self.repository_id.trim().is_empty()
             || self.inventory_generation.trim().is_empty()
             || self.providers.is_empty()
@@ -738,6 +1014,7 @@ impl AuditPlan {
             ));
         }
         self.assurance_binding()?;
+        self.validate_v2_bounds()?;
         if let Some(binding) = self.bounds.get(PROVIDER_UNIVERSE_BOUND) {
             let object = binding.as_object().ok_or_else(|| {
                 AuditError::Invalid("provider universe bound is not an object".into())
@@ -912,6 +1189,34 @@ impl AuditPlan {
             signature,
         })
     }
+}
+
+/// Parse and validate a lineage binding; returns its generation (>= 2).
+fn lineage_generation(binding: &Value) -> Result<u64, AuditError> {
+    let malformed = || AuditError::Invalid("plan lineage binding is malformed".into());
+    let object = binding.as_object().ok_or_else(malformed)?;
+    let generation = binding
+        .get("generation")
+        .and_then(Value::as_u64)
+        .filter(|generation| *generation >= 2)
+        .ok_or_else(malformed)?;
+    let digests_ok = ["parentPlanDigest", "amendmentDigest"].iter().all(|key| {
+        binding
+            .get(*key)
+            .and_then(Value::as_str)
+            .is_some_and(valid_sha256_label)
+    });
+    if object.len() != 5
+        || binding.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || !digests_ok
+        || !binding
+            .get("amendmentSignature")
+            .and_then(Value::as_str)
+            .is_some_and(|signature| signature.starts_with("hmac-sha256:"))
+    {
+        return Err(malformed());
+    }
+    Ok(generation)
 }
 
 fn valid_sha256_label(value: &str) -> bool {

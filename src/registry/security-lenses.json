@@ -1,456 +1,661 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "security-lens-registry",
+  "statusVocabulary": {
+    "native-provider": "A registered native provider in src/registry/providers.json implements the lens's detection rules.",
+    "partial-native-provider": "One or more native providers or scanners cover part of the lens; the gaps field names what is not covered.",
+    "card-only": "Draft semantic pattern cards on the reasoning.security lens (native_providers/reasoning/pattern_cards.rs) are the only engine consumer; no deterministic detector exists.",
+    "not-implemented": "No engine consumer. The lens is a planning label only and supports no coverage claim."
+  },
   "lenses": [
     {
       "id": "security.credentials",
-      "version": "1",
+      "version": "2",
       "family": "credentials",
       "description": "Credential material in repository artifacts.",
-      "module": "src/providers/security/packs/credentials.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
+      "implementationState": "native-provider",
+      "backedBy": {
+        "providers": [
+          "security.credentials",
+          "legacy.security.secrets"
+        ],
+        "nativeRules": [
+          "credential pack"
+        ],
+        "patternCards": []
       },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Provider selectors in src/registry/providers.json (source and configuration files)."
+      },
+      "gaps": "Git-history and client-bundle exposure depend on the history and secrets providers' own coverage.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.injection",
-      "version": "1",
+      "version": "2",
       "family": "injection",
       "description": "Injection into interpreter, query, template, and process sinks.",
-      "module": "src/providers/security/packs/injection.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.misuse-resistance",
+          "security.opengrep",
+          "legacy.security.sast"
+        ],
+        "nativeRules": [
+          "security.command-injection",
+          "security.unsafe-deserialization"
+        ],
+        "patternCards": []
       },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Provider selectors in src/registry/providers.json."
+      },
+      "gaps": "Native rule coverage is command injection and unsafe deserialization only; SQL, NoSQL, template, LDAP, and XML injection rely on external scanner rulesets and reasoning.security, and are not lens-owned.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.insecure-defaults",
-      "version": "1",
+      "version": "2",
       "family": "insecure-defaults",
       "description": "Authentication/TLS/debug fail-open defaults.",
-      "module": "src/providers/security/packs/insecure-defaults.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
+      "implementationState": "native-provider",
+      "backedBy": {
+        "providers": [
+          "security.insecure-defaults"
+        ],
+        "nativeRules": [
+          "security.insecure-default.secret",
+          "security.insecure-default.auth-disabled",
+          "security.tls-verification-disabled"
+        ],
+        "patternCards": []
       },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Provider selectors in src/registry/providers.json (source and configuration files)."
+      },
+      "gaps": "Framework-specific defaults beyond the three native rules are not covered.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.cicd-automation",
-      "version": "1",
+      "version": "2",
       "family": "cicd-automation",
       "description": "CI/CD event, permission, secret, and release trust.",
-      "module": "src/providers/security/packs/cicd-automation.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "anyPath",
-            "patterns": [
-              ".github/workflows/**",
-              ".gitlab-ci.yml",
-              "azure-pipelines.yml"
-            ]
-          }
-        ]
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.agentic-ci",
+          "legacy.security.github-actions-lint",
+          "security.scanner-zizmor"
+        ],
+        "nativeRules": [],
+        "patternCards": []
       },
-      "modelRequirements": [
-        "entrypoint",
-        "identity",
-        "sink"
-      ],
-      "denominatorKind": "workflow-files",
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Provider selectors: workflow and agent-source paths in src/registry/providers.json."
+      },
+      "gaps": "Cloud, IaC, and release-signing trust paths are outside this lens.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.native-workspace",
-      "version": "1",
+      "version": "2",
       "family": "native-workspace",
       "description": "Workspace config, plugin, tool, and process trust.",
-      "module": "src/providers/security/packs/native-workspace.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.agent-skill-mcp",
+          "legacy.tauri.capabilities"
+        ],
+        "nativeRules": [],
+        "patternCards": [
+          "tauri-ipc-command-boundary",
+          "tauri-capability-scope-breadth",
+          "tauri-deeplink-and-update-trust",
+          "native-workspace-trust-auto-exec"
+        ],
+        "reasoningLens": "security"
       },
-      "modelRequirements": [
-        "entrypoint",
-        "repository-artifact",
-        "sink"
-      ],
-      "denominatorKind": "security-relevant-source-files",
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Provider selectors plus path evidence for the workspace-trust group (.env, hooks, project configuration, MCP and plugin discovery)."
+      },
+      "gaps": "Pre-trust execution in non-agent CLIs and editors is covered only by the draft card.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.authorization-tenant",
-      "version": "1",
+      "version": "2",
       "family": "authorization",
       "description": "Object, function, role, and tenant authorization.",
-      "module": "src/providers/security/packs/authorization-tenant.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "tenant-authorization-scope"
+        ],
+        "reasoningLens": "security"
       },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
+      "applicability": {
+        "mode": "always-on-core",
+        "evidence": "Always-on core card on reasoning.security."
+      },
+      "gaps": "No deterministic detector; IDOR, function-level, and mass-assignment review are reasoning-only.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
       "benchmark": {
         "status": "unproven",
         "requiredForCleanClaim": true
       },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.ai-prompt-injection",
-      "version": "1",
-      "family": "ai",
-      "description": "Untrusted content influencing model decisions.",
-      "module": "src/providers/security/packs/ai-prompt-injection.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
-      },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.ai-output-handling",
-      "version": "1",
-      "family": "ai",
-      "description": "Model output reaching security-sensitive sinks.",
-      "module": "src/providers/security/packs/ai-output-handling.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
-      },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.ai-excessive-agency",
-      "version": "1",
-      "family": "ai",
-      "description": "Agent tool authority, identity scope, approval, and side-effect bounds.",
-      "module": "src/providers/security/packs/ai-excessive-agency.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
-      },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.mobile",
-      "version": "1",
-      "family": "mobile",
-      "description": "Android/iOS/mobile framework manifests and source.",
-      "module": "src/providers/security/packs/mobile.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "anyPath",
-            "patterns": [
-              "**/AndroidManifest.xml",
-              "**/*.swift",
-              "**/*.kt",
-              "**/Info.plist"
-            ]
-          }
-        ]
-      },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.repository-footprint",
-      "version": "1",
-      "family": "repository-footprint",
-      "description": "Repository contents and release artifacts.",
-      "module": "src/providers/security/packs/repository-footprint.mjs",
-      "selector": {
-        "op": "any",
-        "selectors": [
-          {
-            "op": "sourceFilesAtLeast",
-            "count": 1
-          }
-        ]
-      },
-      "modelRequirements": [
-        "repository-artifact"
-      ],
-      "denominatorKind": "repository-contents",
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "cleanClaim": "none"
     },
     {
       "id": "security.authentication-session",
-      "version": "1",
+      "version": "2",
       "family": "authentication-session",
       "description": "Authentication, recovery, session, and token lifecycle.",
-      "module": "src/providers/security/packs/authentication-session.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "auth-session-state-machine"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Path evidence for the auth-session group (auth, login, session, mfa, oauth, jwt, recovery tokens)."
+      },
+      "gaps": "No deterministic detector; session-store and identity-provider behavior outside the source stays unknown.",
+      "producesSecurityCandidates": false,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
       "id": "security.business-logic",
-      "version": "1",
+      "version": "2",
       "family": "business-logic",
       "description": "Workflow invariants, idempotency, and state-transition authority.",
-      "module": "src/providers/security/packs/business-logic.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "admin-workflow-impersonation-bulk-abuse",
+          "commerce-money-and-inventory-invariants",
+          "webhook-idempotency-and-verification-order"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Admin-workflow group path evidence; the commerce and webhook cards are owned by the data-safety lens and apply under its own trigger."
+      },
+      "gaps": "Two of the three cards belong to data-safety, not reasoning.security.",
+      "producesSecurityCandidates": false,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.output-handling",
-      "version": "1",
-      "family": "output-handling",
-      "description": "Untrusted output crossing HTML, redirect, header, and command boundaries.",
-      "module": "src/providers/security/packs/output-handling.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.browser-http",
-      "version": "1",
-      "family": "browser-http",
-      "description": "Browser, CORS, cache, proxy, and HTTP protocol controls.",
-      "module": "src/providers/security/packs/browser-http.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
       "id": "security.request-boundaries",
-      "version": "1",
+      "version": "2",
       "family": "request-boundaries",
       "description": "SSRF, filesystem, upload, parser, and serialization boundaries.",
-      "module": "src/providers/security/packs/request-boundaries.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.misuse-resistance"
+        ],
+        "nativeRules": [
+          "security.path-traversal",
+          "security.unsafe-deserialization"
+        ],
+        "patternCards": [
+          "ssrf-egress-url-fetch",
+          "qwik-loader-action-validation",
+          "qwik-server-client-serialization"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Provider rules plus path evidence for the SSRF/egress group."
+      },
+      "gaps": "Upload and archive boundaries are not covered by any provider or card.",
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.browser-http",
+      "version": "2",
+      "family": "browser-http",
+      "description": "Browser, CORS, cache, proxy, and HTTP protocol controls.",
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "http-proxy-cache-smuggling"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Path evidence for the HTTP proxy/cache group (proxy, gateway, nginx, cache, ingress configuration)."
+      },
+      "gaps": "CORS, CSP, and CSRF review are reasoning-only with no card; framing disagreement needs both tiers in the source.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
       "id": "security.crypto-data-privacy",
-      "version": "1",
+      "version": "2",
       "family": "crypto-data-privacy",
       "description": "Cryptography, identity protocols, data protection, and privacy.",
-      "module": "src/providers/security/packs/crypto-data-privacy.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.insecure-defaults"
+        ],
+        "nativeRules": [
+          "security.tls-verification-disabled"
+        ],
+        "patternCards": [
+          "secret-serialization-through-logs-and-telemetry",
+          "privacy-collection-consent-and-disclosure"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "always-on-core",
+        "evidence": "Provider rule for TLS verification; privacy card is owned by data-safety."
+      },
+      "gaps": "Weak-primitive, randomness, and encryption-at-rest checks have no detector.",
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
-    },
-    {
-      "id": "security.abuse-observability",
-      "version": "1",
-      "family": "abuse-observability",
-      "description": "Abuse resistance, webhook integrity, resilience, and forensics.",
-      "module": "src/providers/security/packs/abuse-observability.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
-      "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
       "id": "security.supply-developer",
-      "version": "1",
+      "version": "2",
       "family": "supply-developer",
       "description": "Supply-chain, developer-machine, automation, and update trust.",
-      "module": "src/providers/security/packs/supply-developer.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "legacy.security.dependency-pinning",
+          "legacy.security.node-dependencies",
+          "legacy.security.python-dependencies",
+          "legacy.security.rust-advisories",
+          "legacy.security.vendored-dependencies",
+          "legacy.security.binary-pins",
+          "legacy.security.docker",
+          "legacy.security.js-licenses"
+        ],
+        "nativeRules": [],
+        "patternCards": [
+          "tauri-deeplink-and-update-trust"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Provider selectors in src/registry/providers.json."
+      },
+      "gaps": "Developer-machine trust is covered only through the workspace-trust lens.",
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.ai-prompt-injection",
+      "version": "2",
+      "family": "ai",
+      "description": "Untrusted content influencing model decisions.",
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.agent-skill-mcp"
+        ],
+        "nativeRules": [
+          "security.agent.prompt-injection-flow",
+          "security.agent.tool-boundary-taint"
+        ],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Agent, skill, hook, and MCP path selector."
+      },
+      "gaps": "Application prompt assembly outside agent and skill files is reasoning-only.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.ai-excessive-agency",
+      "version": "2",
+      "family": "ai",
+      "description": "Agent tool authority, identity scope, approval, and side-effect bounds.",
+      "implementationState": "partial-native-provider",
+      "backedBy": {
+        "providers": [
+          "security.agent-skill-mcp"
+        ],
+        "nativeRules": [
+          "security.agent.unsafe-execution",
+          "security.skill.exfiltration-chain"
+        ],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "provider-selector",
+        "evidence": "Agent, skill, hook, and MCP path selector."
+      },
+      "gaps": "Approval and identity-scope review are reasoning-only.",
+      "producesSecurityCandidates": true,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
       "id": "security.ai-integrity",
-      "version": "1",
+      "version": "2",
       "family": "ai",
-      "description": "RAG poisoning, model abuse, unsafe policy use, and evaluation integrity.",
-      "module": "src/providers/security/packs/ai-integrity.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
+      "description": "RAG poisoning, memory abuse, grounding, and evaluation integrity.",
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "ai-memory-rag-poisoning-grounding"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "evidence-selected",
+        "evidence": "Path evidence for the AI memory/RAG group (rag, embedding, vector store, retrieval, memory)."
+      },
+      "gaps": "Evaluation-integrity review has no card.",
+      "producesSecurityCandidates": false,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     },
     {
-      "id": "security.high-consequence",
-      "version": "1",
+      "id": "security.smart-contract",
+      "version": "2",
       "family": "high-consequence",
-      "description": "Smart-contract, embedded, industrial, and physical safety boundaries.",
-      "module": "src/providers/security/packs/high-consequence.mjs",
-      "selector": { "op": "any", "selectors": [{ "op": "sourceFilesAtLeast", "count": 1 }] },
-      "modelRequirements": ["repository-artifact"],
-      "denominatorKind": "security-relevant-source-files",
-      "benchmark": { "status": "unproven", "requiredForCleanClaim": true },
-      "producesSecurityCandidates": true,
+      "description": "Smart-contract access control, reentrancy, and oracle trust.",
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "smart-contract-reentrancy-access-oracle"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "specialist-strong-evidence",
+        "evidence": "Applies only on strong path evidence (.sol, .vy, foundry or hardhat configuration); excluded only when every selected path is recognized source with none."
+      },
+      "gaps": "Signature replay, upgradeability, and bridge assumptions are not carded.",
+      "producesSecurityCandidates": false,
       "mayCloseOwnCandidates": false,
-      "implementationState": "implemented"
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.embedded-iot",
+      "version": "2",
+      "family": "high-consequence",
+      "description": "Embedded and IoT firmware update authentication, debug interfaces, and device keys.",
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "embedded-firmware-update-debug-keys"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "specialist-strong-evidence",
+        "evidence": "Applies only on strong path evidence (firmware, bootloader, platformio, sdkconfig, device-tree, linker scripts)."
+      },
+      "gaps": "Native parser safety and radio configuration are not carded.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.ics-ot",
+      "version": "2",
+      "family": "high-consequence",
+      "description": "ICS/OT control-protocol authentication and safety interlocks (repository and configuration review only).",
+      "implementationState": "card-only",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": [
+          "ics-ot-unauthenticated-control-safety"
+        ],
+        "reasoningLens": "security"
+      },
+      "applicability": {
+        "mode": "specialist-strong-evidence",
+        "evidence": "Applies only on strong path evidence (PLC project files, modbus, opcua, dnp3, iec61850 paths)."
+      },
+      "gaps": "Never performs live probing; segmentation and remote-maintenance review are not carded.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.ai-output-handling",
+      "version": "2",
+      "family": "ai",
+      "description": "Model output reaching security-sensitive sinks.",
+      "implementationState": "not-implemented",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "none",
+        "evidence": "No engine consumer."
+      },
+      "gaps": "No provider, pattern card, or reasoning cue is bound to this lens; it must not support any coverage or clean claim.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.mobile",
+      "version": "2",
+      "family": "mobile",
+      "description": "Android/iOS/mobile framework manifests and source.",
+      "implementationState": "not-implemented",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "none",
+        "evidence": "No engine consumer."
+      },
+      "gaps": "No provider, pattern card, or reasoning cue is bound to this lens; it must not support any coverage or clean claim.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.repository-footprint",
+      "version": "2",
+      "family": "repository-footprint",
+      "description": "Repository contents and release artifacts.",
+      "implementationState": "not-implemented",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "none",
+        "evidence": "No engine consumer."
+      },
+      "gaps": "No provider, pattern card, or reasoning cue is bound to this lens; it must not support any coverage or clean claim.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.output-handling",
+      "version": "2",
+      "family": "output-handling",
+      "description": "Untrusted output crossing HTML, redirect, header, and command boundaries.",
+      "implementationState": "not-implemented",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "none",
+        "evidence": "No engine consumer."
+      },
+      "gaps": "No provider, pattern card, or reasoning cue is bound to this lens; it must not support any coverage or clean claim.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
+    },
+    {
+      "id": "security.abuse-observability",
+      "version": "2",
+      "family": "abuse-observability",
+      "description": "Abuse resistance, forensics, and resilience.",
+      "implementationState": "not-implemented",
+      "backedBy": {
+        "providers": [],
+        "nativeRules": [],
+        "patternCards": []
+      },
+      "applicability": {
+        "mode": "none",
+        "evidence": "No engine consumer."
+      },
+      "gaps": "No provider, pattern card, or reasoning cue is bound to this lens; it must not support any coverage or clean claim.",
+      "producesSecurityCandidates": false,
+      "mayCloseOwnCandidates": false,
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true
+      },
+      "cleanClaim": "none"
     }
   ]
 }

@@ -53,6 +53,172 @@ pub const FROZEN_PLAN_FILE: &str = "frozen-plan.json";
 /// The provider the follow-up plan exists for.
 pub const VARIANT_PROVIDER_ID: &str = "legacy.security.variant-analysis";
 
+/// File in the follow-up run directory holding the sealed [`VariantLedger`].
+pub const VARIANT_LEDGER_FILE: &str = "variant-ledger.json";
+/// When true, a follow-up without a ledger stays pending. Kept false only until
+/// the variant-lens ingest path writes the ledger; an absent ledger is then
+/// reported as `variantLedger.status = "absent"`, never as a complete pass.
+pub const VARIANT_LEDGER_REQUIRED: bool = false;
+
+/// Root-cause signature (SEC 4.4, 9.5): digest over the normalized rule, sink
+/// class, and missing control that define the variant family.
+pub fn root_cause_signature(
+    rule: &str,
+    sink: &str,
+    missing_control: &str,
+) -> Result<String, AuditError> {
+    let parts = [rule, sink, missing_control].map(|part| part.trim().to_lowercase());
+    if parts.iter().any(String::is_empty) {
+        return Err(invalid(
+            "root-cause signature needs a rule, a sink, and a missing control",
+        ));
+    }
+    canonical_digest(&json!({"rule": parts[0], "sink": parts[1], "missingControl": parts[2]}))
+        .map_err(|error| invalid(error.to_string()))
+}
+
+/// Outcome of assessing a ledger.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LedgerAssessment {
+    Complete,
+    /// Counts are consistent but variants remain unexamined or unresolved.
+    Incomplete(String),
+    /// Counts contradict each other; never trusted.
+    Inconsistent(String),
+}
+
+/// Variant ledger: the denominator-bound accounting of a pattern-exhaustion
+/// pass. It is sealed with a digest and bound to the parent plan, the
+/// follow-up plan, and the confirmed verdicts, so a stale or hand-edited
+/// ledger cannot clear the variant pass.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantLedger {
+    pub root_cause_signature: String,
+    /// Repository denominator size the pass was bound to.
+    pub denominator_count: u64,
+    /// Matches enumerated for the root-cause signature.
+    pub matched: u64,
+    /// Matches actually looked at: confirmed + rejected + unresolved.
+    pub examined: u64,
+    pub confirmed: u64,
+    pub rejected: u64,
+    pub unresolved: u64,
+    /// One reason per rejected variant (required when `rejected > 0`).
+    #[serde(default)]
+    pub rejection_reasons: Vec<String>,
+    pub parent_plan_digest: String,
+    pub followup_plan_digest: String,
+    pub confirmed_digest: String,
+    #[serde(default)]
+    pub ledger_digest: String,
+}
+
+impl VariantLedger {
+    fn unsealed_digest(&self) -> Result<String, AuditError> {
+        let mut copy = self.clone();
+        copy.ledger_digest = String::new();
+        canonical_digest(&json!(copy)).map_err(|error| invalid(error.to_string()))
+    }
+
+    /// Seal the ledger with its own digest.
+    pub fn seal(mut self) -> Result<Self, AuditError> {
+        self.ledger_digest = self.unsealed_digest()?;
+        Ok(self)
+    }
+
+    pub fn assess(&self) -> LedgerAssessment {
+        if self.root_cause_signature.trim().is_empty() {
+            return LedgerAssessment::Inconsistent("root-cause signature is empty".into());
+        }
+        let accounted = self
+            .confirmed
+            .checked_add(self.rejected)
+            .and_then(|sum| sum.checked_add(self.unresolved));
+        if accounted != Some(self.examined) {
+            return LedgerAssessment::Inconsistent(format!(
+                "examined {} != confirmed {} + rejected {} + unresolved {}",
+                self.examined, self.confirmed, self.rejected, self.unresolved
+            ));
+        }
+        if self.examined > self.matched {
+            return LedgerAssessment::Inconsistent(format!(
+                "examined {} exceeds matched {}",
+                self.examined, self.matched
+            ));
+        }
+        if self.rejected > 0 && self.rejection_reasons.len() < self.rejected as usize {
+            return LedgerAssessment::Inconsistent(
+                "rejected variants lack recorded reasons".into(),
+            );
+        }
+        if self
+            .rejection_reasons
+            .iter()
+            .any(|reason| reason.trim().is_empty())
+        {
+            return LedgerAssessment::Inconsistent("a rejection reason is blank".into());
+        }
+        if self.unresolved > 0 {
+            return LedgerAssessment::Incomplete(format!(
+                "{} unresolved variant(s) of {} matched",
+                self.unresolved, self.matched
+            ));
+        }
+        if self.examined < self.matched {
+            return LedgerAssessment::Incomplete(format!(
+                "{} of {} matched variant(s) not yet examined",
+                self.matched - self.examined,
+                self.matched
+            ));
+        }
+        LedgerAssessment::Complete
+    }
+
+    /// True only when every matched variant was confirmed or rejected.
+    pub fn is_complete(&self) -> bool {
+        self.assess() == LedgerAssessment::Complete
+    }
+
+    /// Verify the seal and the binding to this follow-up.
+    pub fn verify_binding(
+        &self,
+        parent_plan_digest: &str,
+        followup_plan_digest: &str,
+        confirmed_digest: &str,
+        denominator_count: u64,
+    ) -> Result<(), AuditError> {
+        if self.ledger_digest != self.unsealed_digest()? {
+            return Err(invalid("variant ledger digest does not match its content"));
+        }
+        if self.parent_plan_digest != parent_plan_digest
+            || self.followup_plan_digest != followup_plan_digest
+            || self.confirmed_digest != confirmed_digest
+            || self.denominator_count != denominator_count
+        {
+            return Err(invalid(
+                "variant ledger is not bound to this parent plan, follow-up plan, confirmed verdicts, and denominator",
+            ));
+        }
+        Ok(())
+    }
+
+    /// The `variantLedger` receipt claim.
+    pub fn claim(&self) -> Value {
+        json!({
+            "status": if self.is_complete() { "complete" } else { "incomplete" },
+            "rootCauseSignature": self.root_cause_signature,
+            "denominatorCount": self.denominator_count,
+            "matched": self.matched,
+            "examined": self.examined,
+            "confirmed": self.confirmed,
+            "rejected": self.rejected,
+            "unresolved": self.unresolved,
+            "ledgerDigest": self.ledger_digest,
+        })
+    }
+}
+
 /// What `compile_followup` produced (or found already in place).
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,6 +260,9 @@ pub struct FollowupDone {
     pub confirmed_paths: Vec<String>,
     pub analysis_paths: Vec<String>,
     pub findings: Vec<Finding>,
+    /// Sealed, binding-verified variant ledger; `None` while the ingest path
+    /// has not produced one (reported as `variantLedger.status = "absent"`).
+    pub variant_ledger: Option<VariantLedger>,
 }
 
 impl FollowupState {
@@ -110,6 +279,10 @@ impl FollowupState {
                 "confirmedPaths": done.confirmed_paths,
                 "analysisPaths": done.analysis_paths,
                 "findings": done.findings.len(),
+                "variantLedger": done
+                    .variant_ledger
+                    .as_ref()
+                    .map_or_else(|| json!({"status": "absent"}), VariantLedger::claim),
             }),
         }
     }
@@ -970,7 +1143,40 @@ fn check(
             recomputed.report.gaps.join("; ")
         )));
     }
+    let variant_ledger = match fs::read(dir.join(VARIANT_LEDGER_FILE)) {
+        Ok(bytes) => {
+            let ledger: VariantLedger = serde_json::from_slice(&bytes)
+                .map_err(|error| invalid(format!("variant ledger is invalid: {error}")))?;
+            ledger.verify_binding(
+                &parent_digest,
+                &digest,
+                &digest_of_confirmed,
+                expected_analysis_paths.len() as u64,
+            )?;
+            match ledger.assess() {
+                LedgerAssessment::Complete => Some(ledger),
+                LedgerAssessment::Incomplete(reason) => {
+                    return Ok(FollowupState::Pending(format!(
+                        "variant pass incomplete: {reason}"
+                    )));
+                }
+                LedgerAssessment::Inconsistent(reason) => {
+                    return Err(invalid(format!("variant ledger is inconsistent: {reason}")));
+                }
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if VARIANT_LEDGER_REQUIRED {
+                return Ok(FollowupState::Pending(
+                    "variant pass incomplete: no variant ledger recorded".into(),
+                ));
+            }
+            None
+        }
+        Err(error) => return Err(io(error, "could not read the variant ledger")),
+    };
     Ok(FollowupState::Complete(FollowupDone {
+        variant_ledger,
         plan_digest: digest,
         parent_plan_digest: parent_digest,
         confirmed_paths: paths,

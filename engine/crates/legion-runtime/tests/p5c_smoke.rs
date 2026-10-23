@@ -8,10 +8,9 @@
 use serde_json::json;
 
 use legion_runtime::p5_core::{
-    bound_packet_evidence, create_chain_adjudication_packet, escape_for_reasoning,
-    finalize_chain_verdict, read_ecosystem_manifests, untrusted_evidence_envelope, validate_lenses,
-    verification_digest, verification_receipt, CreateChainAdjudicationPacketInput, EvidenceInput,
-    LensRecord,
+    bound_packet_evidence, escape_for_reasoning, read_ecosystem_manifests,
+    untrusted_evidence_envelope, validate_lenses, verification_digest, verification_receipt,
+    EvidenceInput, LensRecord,
 };
 
 #[test]
@@ -78,65 +77,4 @@ fn validate_lenses_rejects_a_record_missing_a_required_field() {
         fields,
     };
     assert!(validate_lenses(&[record]).is_err());
-}
-
-#[test]
-fn chain_adjudication_rejects_a_verdict_for_the_wrong_path() {
-    let plan = json!({
-        "seal": {"digest": "sha256:plan"},
-        "binding": {
-            "repositoryRevision": "rev1",
-            "dirtyPatchDigest": serde_json::Value::Null,
-            "blueprint": {"generationId": "gen1", "manifestDigest": "sha256:manifest"},
-            "registryDigest": "sha256:registry",
-        },
-    });
-    let binding = json!({
-        "planDigest": "sha256:plan",
-        "repositoryRevision": "rev1",
-        "dirtyPatchDigest": serde_json::Value::Null,
-        "blueprintGenerationId": "gen1",
-        "blueprintManifestDigest": "sha256:manifest",
-        "registryDigest": "sha256:registry",
-    });
-    let artifact = json!({"binding": binding.clone(), "candidates": [], "verdicts": []});
-    let path = json!({
-        "id": "path-1",
-        "provider": "synth",
-        "binding": binding,
-        "steps": [],
-        "joins": [],
-    });
-    let adjudicator = json!({"provider": "adj", "contextId": "ctx-2"});
-    let packet = create_chain_adjudication_packet(CreateChainAdjudicationPacketInput {
-        plan: &plan,
-        path: &path,
-        candidates: &artifact,
-        candidate_adjudication: &artifact,
-        model: &artifact,
-        adjudicator: &adjudicator,
-    })
-    .unwrap();
-
-    let wrong_path_verdict = json!({
-        "pathId": "not-path-1",
-        "contextId": "ctx-2",
-        "verdict": "UNPROVEN",
-        "stepAssessments": [],
-        "joinAssessments": [],
-        "rationale": "r",
-        "devilsAdvocate": "d",
-    });
-    assert!(finalize_chain_verdict(&packet, &wrong_path_verdict).is_err());
-
-    let ok_verdict = json!({
-        "pathId": "path-1",
-        "contextId": "ctx-2",
-        "verdict": "UNPROVEN",
-        "stepAssessments": [],
-        "joinAssessments": [],
-        "rationale": "r",
-        "devilsAdvocate": "d",
-    });
-    assert!(finalize_chain_verdict(&packet, &ok_verdict).is_ok());
 }

@@ -5,8 +5,8 @@
 
 use legion_audit::native_providers::reasoning::security_adjudication::{
     create_adjudication_packet, create_security_candidate, finalize_security_verdict,
-    verify_adjudication_packet, EvidenceStrength, NewSecurityCandidate, SecurityAdjudicationError,
-    SecurityVerdictInput, SecurityVerdictKind,
+    verify_adjudication_packet, EvidenceStrength, NegativeControl, NewSecurityCandidate,
+    SecurityAdjudicationError, SecurityVerdictInput, SecurityVerdictKind,
 };
 
 fn candidate() -> legion_audit::native_providers::reasoning::security_adjudication::SecurityCandidate
@@ -57,6 +57,11 @@ fn independent_adjudication_can_close_a_true_positive_with_full_evidence() {
         &packet,
         SecurityVerdictInput {
             verdict: SecurityVerdictKind::TruePositive,
+            negative_control: Some(NegativeControl {
+                hypothesis: "injection disappears when the argument is a fixed literal".into(),
+                method: "replayed with the dangerous branch disabled".into(),
+                outcome: "no command executed in the control run".into(),
+            }),
             evidence_strength: Some(EvidenceStrength::Verified),
             severity: Some("critical".into()),
             exploitability: Some("network".into()),
@@ -95,6 +100,11 @@ fn surviving_verdict_without_proof_is_rejected() {
         &packet,
         SecurityVerdictInput {
             verdict: SecurityVerdictKind::LikelyTruePositive,
+            negative_control: Some(NegativeControl {
+                hypothesis: "injection disappears when the argument is a fixed literal".into(),
+                method: "replayed with the dangerous branch disabled".into(),
+                outcome: "no command executed in the control run".into(),
+            }),
             evidence_strength: Some(EvidenceStrength::Observed),
             severity: Some("high".into()),
             exploitability: None,
@@ -131,6 +141,7 @@ fn false_positive_verdict_needs_no_proof_but_rejects_severity() {
         &packet,
         SecurityVerdictInput {
             verdict: SecurityVerdictKind::FalsePositive,
+            negative_control: None,
             evidence_strength: Some(EvidenceStrength::Possible),
             severity: None,
             exploitability: None,

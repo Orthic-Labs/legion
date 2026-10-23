@@ -2910,6 +2910,50 @@ mod tests {
     }
 
     #[test]
+    fn security_card_groups_bind_per_part_from_path_evidence() {
+        // Totals: 18 security cards = 9 always-on core + 9 evidence-selected.
+        // A part with only Rust source drops the 3 specialist cards (no strong
+        // evidence) and the 2 JS/TS-only core cards, and keeps the 6 common
+        // groups as `unknown`.
+        let base = lens_plan::lens_plan_packet_value("reasoning.security").unwrap();
+        assert_eq!(base["patternCards"].as_array().unwrap().len(), 18);
+        let plain = lens_plan_for_part(Some(&base), &["src/lib.rs".into()]).unwrap();
+        assert_eq!(plain["patternCards"].as_array().unwrap().len(), 13);
+        let rows = plain["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap();
+        let state = |id: &str| {
+            rows.iter()
+                .find(|row| row["id"] == id)
+                .map(|row| row["state"].as_str().unwrap().to_owned())
+                .unwrap()
+        };
+        assert_eq!(state("ssrf-egress-url-fetch"), "unknown");
+        assert_eq!(state("smart-contract-reentrancy-access-oracle"), "excluded");
+        // Strong specialist evidence in the part keeps the card; empty source
+        // stays unknown for every group and drops nothing.
+        let contract = lens_plan_for_part(
+            Some(&base),
+            &["contracts/Vault.sol".into(), "src/lib.rs".into()],
+        )
+        .unwrap();
+        // `.sol` is not a recognized source extension, so the part is no longer
+        // all-recognized source and nothing is excluded: the contract card is
+        // retained on evidence and every other group stays unknown (fail-safe).
+        assert_eq!(contract["patternCards"].as_array().unwrap().len(), 18);
+        let contract_state = contract["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == "smart-contract-reentrancy-access-oracle")
+            .map(|row| row["state"].as_str().unwrap().to_owned())
+            .unwrap();
+        assert_eq!(contract_state, "retained");
+        let empty = lens_plan_for_part(Some(&base), &selected_part_source_paths(None)).unwrap();
+        assert_eq!(empty["patternCards"].as_array().unwrap().len(), 18);
+    }
+
+    #[test]
     fn language_card_binding_preserves_whole_lens_scope_and_packet_identity() {
         let base = lens_plan::lens_plan_packet_value("reasoning.correctness").unwrap();
         let mut bound = lens_plan_for_part(Some(&base), &["src/lib.rs".into()]).unwrap();

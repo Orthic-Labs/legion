@@ -358,6 +358,11 @@ fn verdict(id: &str, confirmed: bool) -> Value {
             "candidateId": id,
             "verdict": "TRUE_POSITIVE",
             "evidenceStrength": "observed",
+            "negativeControl": {
+                "hypothesis": "a parameterized query removes the injection path",
+                "method": "same handler with the input bound as a query parameter",
+                "outcome": "the input no longer reaches the query text"
+            },
             "severity": "high",
             "threatModel": "remote unauthenticated attacker",
             "attackerControl": "full",

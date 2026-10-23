@@ -534,6 +534,12 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     init_fixture_git(&root);
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
+    // The per-run plan key lives in host state; isolate it from the real user state.
+    let state = std::env::temp_dir().join(format!(
+        "legion-native-audit-unsigned-state-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("fixture")
+    ));
     let out = root.join("audit");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
@@ -546,6 +552,7 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
         ])
         .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
         .env_remove("AUDIT_PLAN_SIGNING_KEY")
+        .env("LEGION_STATE_ROOT", &state)
         .output()
         .unwrap();
     assert_eq!(
@@ -582,5 +589,15 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     let plan: serde_json::Value =
         serde_json::from_slice(&std::fs::read(out.join("plan.json")).unwrap()).unwrap();
     assert_eq!(plan["seal"]["authenticity"], "hmac-sha256");
+    // The key is held in host state, never in the run directory.
+    assert!(!out.join("epoch.key").exists());
+    assert_eq!(plan["planKey"]["custody"], "host-state");
+    assert_eq!(
+        std::fs::read_dir(state.join("audit-plan-keys"))
+            .unwrap()
+            .count(),
+        1
+    );
+    let _ = std::fs::remove_dir_all(&state);
     remove_fixture(&root);
 }

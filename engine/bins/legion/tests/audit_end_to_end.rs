@@ -13,6 +13,7 @@ struct Fixture {
     repo: PathBuf,
     out: PathBuf,
     home: PathBuf,
+    state: PathBuf,
 }
 
 impl Fixture {
@@ -32,6 +33,7 @@ impl Fixture {
             repo: base.join("repo"),
             out: base.join("run"),
             home: base.join("home"),
+            state: base.join("state"),
         };
         fs::create_dir_all(fixture.repo.join("src")).unwrap();
         fs::create_dir_all(&fixture.home).unwrap();
@@ -88,6 +90,12 @@ impl Fixture {
         fs::write(path, text).unwrap();
     }
 
+    fn key_files(&self) -> Vec<PathBuf> {
+        fs::read_dir(self.state.join("audit-plan-keys"))
+            .map(|entries| entries.flatten().map(|entry| entry.path()).collect())
+            .unwrap_or_default()
+    }
+
     fn base(&self) -> PathBuf {
         self.repo.parent().unwrap().to_path_buf()
     }
@@ -104,6 +112,7 @@ impl Fixture {
             .env("USERPROFILE", &self.home)
             .env("LOCALAPPDATA", self.home.join("AppData/Local"))
             .env("XDG_DATA_HOME", self.home.join(".local/share"))
+            .env("LEGION_STATE_ROOT", &self.state)
             .env("LEGION_PROVIDER_REGISTRY", registry)
             .env_remove("AUDIT_PLAN_SIGNING_KEY")
             .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
@@ -382,13 +391,12 @@ fn audit_then_verify_an_ordinary_run() {
 }
 
 #[test]
-fn plan_only_with_out_signs_with_the_run_epoch_key() {
+fn plan_only_with_out_holds_the_plan_key_in_host_state_not_the_run_dir() {
     let fixture = Fixture::new();
     let repo = fixture.repo.to_str().unwrap();
     let run = fixture.out.to_str().unwrap();
-
-    // No host key in the environment (`legion()` removes it): `--out` supplies
-    // the run's epoch key, as a normal run does.
+    // No host key in the environment (`legion()` removes it): `--out` mints a
+    // per-run key that is held in host state, never in the run directory.
     let plan = fixture.legion(&["audit", repo, "--plan-only", "--out", run, "--json"]);
     let stderr = String::from_utf8_lossy(&plan.stderr).into_owned();
     assert!(
@@ -404,17 +412,30 @@ fn plan_only_with_out_signs_with_the_run_epoch_key() {
     let signature = summary["planSignature"].as_str().unwrap_or_default();
     assert!(!signature.is_empty(), "plan is not signed: {summary:#}");
     assert_eq!(summary["seal"]["signature"], summary["planSignature"]);
-    assert!(fixture.out.join("epoch.key").is_file(), "epoch key missing");
+    assert!(
+        !fixture.out.join("epoch.key").exists(),
+        "plan key must not be written into the run directory"
+    );
+    assert_eq!(
+        fixture.key_files().len(),
+        1,
+        "exactly one host plan key expected: {:?}",
+        fixture.key_files()
+    );
 
-    // The persisted plan is the signed one and the key that signed it loads
-    // the way `legion verify` loads it.
+    // The persisted plan is the signed one and records the host key binding.
     let stored: Value =
         serde_json::from_slice(&fs::read(fixture.out.join("plan.json")).unwrap()).unwrap();
     assert_eq!(stored["planSignature"], summary["planSignature"]);
     assert_eq!(stored["planDigest"], summary["planDigest"]);
-    let (key, _digest) =
-        legion_audit::native_providers::reasoning::ingest::load_epoch(&fixture.out).unwrap();
-    assert!(key.len() >= 16);
+    assert_eq!(stored["planKey"]["custody"], "host-state");
+    assert!(stored["planKey"]["runId"].as_str().is_some());
+    assert!(stored["planKey"]["keyId"].as_str().is_some());
+    assert!(!fs::read_to_string(fixture.out.join("plan.json"))
+        .unwrap()
+        .contains(&fs::read_to_string(&fixture.key_files()[0]).unwrap()));
+    // A plan-only run has no facts.json, so `legion verify` does not apply;
+    // host-key verification of a full run is covered by plan_key_custody.rs.
 }
 
 #[test]

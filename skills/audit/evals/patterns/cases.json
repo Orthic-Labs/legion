@@ -353,6 +353,87 @@
         { "id": "component-decomposition-recommendation-contract-valid", "expected": "no-finding", "scenario": "The finding names three responsibilities, the state each owns, the callers, and the invariant to preserve." },
         { "id": "component-decomposition-recommendation-contract-unknown", "expected": "unknown", "scenario": "A large component is visible, but its callers and state ownership are outside the selected source." }
       ]
+    },
+    {
+      "card": "ssrf-egress-url-fetch",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "ssrf-egress-url-fetch-broken", "expected": "finding", "scenario": "A link-preview endpoint fetches a request-supplied URL, follows redirects, and checks no resolved address." },
+        { "id": "ssrf-egress-url-fetch-valid", "expected": "no-finding", "scenario": "The endpoint fetches only hosts from a configured allow-list and re-checks the resolved address after each redirect." },
+        { "id": "ssrf-egress-url-fetch-unknown", "expected": "unknown", "scenario": "The fetch goes through a shared egress client whose allow-list and redirect policy are outside the selected source." }
+      ]
+    },
+    {
+      "card": "http-proxy-cache-smuggling",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "http-proxy-cache-smuggling-broken", "expected": "finding", "scenario": "A proxy forwards client X-Forwarded-Host to an origin that builds links from it, and the cached response key omits the header." },
+        { "id": "http-proxy-cache-smuggling-valid", "expected": "no-finding", "scenario": "The proxy overwrites X-Forwarded-Host and the cache key includes the host." },
+        { "id": "http-proxy-cache-smuggling-unknown", "expected": "unknown", "scenario": "Only the proxy configuration is visible; the origin's request framing behavior is not supplied." }
+      ]
+    },
+    {
+      "card": "auth-session-state-machine",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "auth-session-state-machine-broken", "expected": "finding", "scenario": "Password-reset confirmation signs the user in without the second factor and earlier sessions remain valid." },
+        { "id": "auth-session-state-machine-valid", "expected": "no-finding", "scenario": "Reset requires the second factor, issues a new session identifier, and revokes earlier sessions." },
+        { "id": "auth-session-state-machine-unknown", "expected": "unknown", "scenario": "Session issuance is delegated to an identity provider whose rotation and revocation settings are not in the selected source." }
+      ]
+    },
+    {
+      "card": "native-workspace-trust-auto-exec",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "native-workspace-trust-auto-exec-broken", "expected": "finding", "scenario": "The app reads .mcp.json from an opened folder and launches the listed command at startup with no trust prompt." },
+        { "id": "native-workspace-trust-auto-exec-valid", "expected": "no-finding", "scenario": "Project configuration is parsed as data until the user trusts the folder, and trust defaults to off." },
+        { "id": "native-workspace-trust-auto-exec-unknown", "expected": "unknown", "scenario": "A configuration loader is visible, but the startup path that calls it and any trust prompt are outside the selected source." }
+      ]
+    },
+    {
+      "card": "ai-memory-rag-poisoning-grounding",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "ai-memory-rag-poisoning-grounding-broken", "expected": "finding", "scenario": "Tickets from any customer are embedded into one shared collection retrieved as trusted context for every agent run." },
+        { "id": "ai-memory-rag-poisoning-grounding-valid", "expected": "no-finding", "scenario": "Each tenant has its own namespace, ingested text is labeled untrusted data, and retrieval filters on the caller's tenant." },
+        { "id": "ai-memory-rag-poisoning-grounding-unknown", "expected": "unknown", "scenario": "Retrieval code is visible, but ingestion writers and collection access policy are not supplied." }
+      ]
+    },
+    {
+      "card": "admin-workflow-impersonation-bulk-abuse",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "admin-workflow-impersonation-bulk-abuse-broken", "expected": "finding", "scenario": "Any support user can impersonate any account with full permissions and no audit entry, and bulk refund accepts an unbounded list." },
+        { "id": "admin-workflow-impersonation-bulk-abuse-valid", "expected": "no-finding", "scenario": "Impersonation needs an elevated role, is read-only by default and audited, and bulk actions cap size and require confirmation." },
+        { "id": "admin-workflow-impersonation-bulk-abuse-unknown", "expected": "unknown", "scenario": "The admin route calls a policy service whose role definitions and audit sink are not in the selected source." }
+      ]
+    },
+    {
+      "card": "smart-contract-reentrancy-access-oracle",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "smart-contract-reentrancy-access-oracle-broken", "expected": "finding", "scenario": "withdraw() sends funds before zeroing the balance, and setOwner() has no access modifier." },
+        { "id": "smart-contract-reentrancy-access-oracle-valid", "expected": "no-finding", "scenario": "withdraw() zeroes the balance first under a reentrancy guard, and setOwner() is restricted to the owner role." },
+        { "id": "smart-contract-reentrancy-access-oracle-unknown", "expected": "unknown", "scenario": "The contract calls an external oracle and token whose implementations are not supplied." }
+      ]
+    },
+    {
+      "card": "embedded-firmware-update-debug-keys",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "embedded-firmware-update-debug-keys-broken", "expected": "finding", "scenario": "The OTA handler flashes any downloaded image after a CRC check, and a shared AES key is a source constant." },
+        { "id": "embedded-firmware-update-debug-keys-valid", "expected": "no-finding", "scenario": "The bootloader verifies an image signature and monotonic version, and keys are per-device from secure storage." },
+        { "id": "embedded-firmware-update-debug-keys-unknown", "expected": "unknown", "scenario": "Application update code is visible, but bootloader verification and release fuse settings are not supplied." }
+      ]
+    },
+    {
+      "card": "ics-ot-unauthenticated-control-safety",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "ics-ot-unauthenticated-control-safety-broken", "expected": "finding", "scenario": "An OPC UA server configuration uses security mode None and exposes writable setpoint nodes with no interlock check." },
+        { "id": "ics-ot-unauthenticated-control-safety-valid", "expected": "no-finding", "scenario": "The server requires signed and encrypted sessions with role-based write access, and setpoint writes pass interlock validation." },
+        { "id": "ics-ot-unauthenticated-control-safety-unknown", "expected": "unknown", "scenario": "A Modbus client library is imported, but the endpoint security settings and interlock logic are not in the selected source." }
+      ]
     }
   ]
 }

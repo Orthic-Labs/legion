@@ -82,6 +82,79 @@ pub const REASONING_REQUIREMENT: &[&str] = &[
 /// `src/providers/security/contracts.mjs` — `EVIDENCE_STRENGTH`.
 pub const EVIDENCE_STRENGTH: &[&str] = &["possible", "strong-inference", "verified"];
 
+/// Legacy spellings accepted on read and mapped to the canonical value.
+/// `observed` came from the pre-v2 adjudication ranking; `candidate` from
+/// unadjudicated generator output. Neither is ever emitted.
+pub const EVIDENCE_STRENGTH_LEGACY: &[(&str, &str)] =
+    &[("observed", "strong-inference"), ("candidate", "possible")];
+
+/// The one canonical evidence-strength vocabulary. Deserialization accepts the
+/// canonical wire spellings plus [`EVIDENCE_STRENGTH_LEGACY`]; serialization
+/// always emits the canonical spelling. Unknown spellings are rejected.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum EvidenceStrength {
+    #[default]
+    Possible,
+    StrongInference,
+    Verified,
+}
+
+impl EvidenceStrength {
+    /// Legacy `observed` alias for source compatibility; it is
+    /// [`EvidenceStrength::StrongInference`] and serializes as such.
+    #[allow(non_upper_case_globals)]
+    pub const Observed: EvidenceStrength = EvidenceStrength::StrongInference;
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            EvidenceStrength::Possible => "possible",
+            EvidenceStrength::StrongInference => "strong-inference",
+            EvidenceStrength::Verified => "verified",
+        }
+    }
+
+    /// Ordering rank: possible 0, strong-inference 1, verified 2.
+    pub fn rank(self) -> u8 {
+        match self {
+            EvidenceStrength::Possible => 0,
+            EvidenceStrength::StrongInference => 1,
+            EvidenceStrength::Verified => 2,
+        }
+    }
+
+    /// Canonical or legacy spelling to the canonical value; `None` if unknown.
+    pub fn from_wire(text: &str) -> Option<Self> {
+        match text {
+            "possible" | "candidate" => Some(EvidenceStrength::Possible),
+            "strong-inference" | "observed" => Some(EvidenceStrength::StrongInference),
+            "verified" => Some(EvidenceStrength::Verified),
+            _ => None,
+        }
+    }
+
+    /// True when `text` is a legacy (non-canonical) spelling.
+    pub fn is_legacy_spelling(text: &str) -> bool {
+        EVIDENCE_STRENGTH_LEGACY.iter().any(|(old, _)| *old == text)
+    }
+}
+
+impl serde::Serialize for EvidenceStrength {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for EvidenceStrength {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = <String as serde::Deserialize>::deserialize(deserializer)?;
+        EvidenceStrength::from_wire(&text).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "unknown evidenceStrength {text:?}; expected possible, strong-inference, or verified"
+            ))
+        })
+    }
+}
+
 /// `src/providers/security/contracts.mjs` — `SECURITY_VERDICTS`
 /// (`PRIMITIVE_VERDICTS` is an alias of this same list in the JS).
 pub const SECURITY_VERDICTS: &[&str] = &[

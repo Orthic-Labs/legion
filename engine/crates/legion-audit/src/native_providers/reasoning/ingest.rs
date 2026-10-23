@@ -5657,10 +5657,7 @@ pub fn frozen_reasoning_basis(
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
     let plan = verify_persisted_native_plan(&outer, &execution, run_dir)?
         .ok_or_else(|| invalid("continuation requires a sealed native plan"))?;
-    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
-        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
-        _ => load_epoch(run_dir)?.0,
-    };
+    let key = crate::integrity::plan_signing_key_for_run(run_dir)?;
     let frozen = FrozenPlan::restore_verified(
         plan,
         &execution.plan_digest,
@@ -5777,10 +5774,7 @@ fn verify_persisted_native_plan(
     {
         return Err(invalid("nativePlan identity differs from frozen execution"));
     }
-    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
-        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
-        _ => load_epoch(run_dir)?.0,
-    };
+    let key = crate::integrity::plan_signing_key_for_run(run_dir)?;
     crate::integrity::verify(&plan, digest, Some(signature), Some(&key))?;
     Ok(Some(plan))
 }
@@ -5816,10 +5810,7 @@ fn verify_provider_selection_claim(
             .ok_or_else(|| invalid("provider selection scope-plan body is missing"))?,
     )
     .map_err(|error| invalid(format!("provider selection scope-plan is invalid: {error}")))?;
-    let key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY") {
-        Some(value) if !value.is_empty() => value.to_string_lossy().as_bytes().to_vec(),
-        _ => load_epoch(run_dir)?.0,
-    };
+    let key = crate::integrity::plan_signing_key_for_run(run_dir)?;
     crate::integrity::verify(&frozen, digest, Some(signature), Some(&key))?;
     if frozen.inventory_generation != execution.generation
         || frozen.inventory_digest != execution.inventory_digest

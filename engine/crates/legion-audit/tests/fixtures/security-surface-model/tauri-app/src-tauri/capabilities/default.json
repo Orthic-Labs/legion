@@ -1,0 +1,8 @@
+{
+  "identifier": "default",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    { "identifier": "fs:allow-read-file" }
+  ]
+}

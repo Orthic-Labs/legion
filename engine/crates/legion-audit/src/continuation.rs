@@ -590,6 +590,37 @@ pub fn validate_lineage(run: &Path) -> Result<Option<Value>, AuditError> {
     ))
 }
 
+/// Express the budget continuation through the general signed-amendment
+/// contract. `lineage` is the value returned by `prepare`/`validate_lineage`
+/// (it must be a continuation lineage). The returned body raises the frozen
+/// engagement token budget to `extended_max_tokens`; applying it (sign, then
+/// `amendment::apply`) enforces the engagement authority ceiling and produces
+/// a new signed plan generation. The filesystem ledger API above is unchanged.
+pub fn budget_amendment_body(
+    base: &crate::plan::FrozenPlan,
+    lineage: &Value,
+    extended_max_tokens: u64,
+    issued_at_unix: u64,
+) -> Result<crate::amendment::AmendmentBody, AuditError> {
+    if lineage["kind"] != KIND || lineage["historicalTerminalStatus"] != STOP {
+        return Err(invalid("budget amendment requires a continuation lineage"));
+    }
+    let manifest_digest = lineage["manifestDigest"]
+        .as_str()
+        .filter(|digest| !digest.is_empty())
+        .ok_or_else(|| invalid("continuation lineage lacks a manifest digest"))?;
+    let mut body = crate::amendment::AmendmentBody::new(
+        base,
+        format!("budget continuation {manifest_digest}: explicit operator resume"),
+        issued_at_unix,
+        vec![crate::amendment::AmendmentOperation::ExtendBudget {
+            max_tokens: extended_max_tokens,
+        }],
+    )?;
+    body.proposed_by = Some(format!("continuation:{manifest_digest}"));
+    Ok(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

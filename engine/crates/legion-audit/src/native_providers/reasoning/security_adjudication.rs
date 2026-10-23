@@ -86,21 +86,30 @@ impl SecurityVerdictKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EvidenceStrength {
-    Possible,
-    Observed,
-    Verified,
+/// One canonical vocabulary, owned by `legion-contracts`: possible,
+/// strong-inference, verified. Legacy `observed` and `candidate` spellings are
+/// accepted on read and re-emitted canonically.
+pub use legion_contracts::enums::EvidenceStrength;
+
+/// Typed negative control (SEC 5.7, 9.4): the check that would have made the
+/// claimed behavior disappear, and what happened when it was run or reasoned.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NegativeControl {
+    /// What should differ or vanish in the control case.
+    pub hypothesis: String,
+    /// How the control was exercised (clean config, unprivileged principal,
+    /// dangerous branch disabled, canonicalized path, ...).
+    pub method: String,
+    /// What was observed.
+    pub outcome: String,
 }
 
-impl EvidenceStrength {
-    fn rank(self) -> u8 {
-        match self {
-            EvidenceStrength::Possible => 0,
-            EvidenceStrength::Observed => 1,
-            EvidenceStrength::Verified => 2,
-        }
+impl NegativeControl {
+    pub fn is_complete(&self) -> bool {
+        [&self.hypothesis, &self.method, &self.outcome]
+            .iter()
+            .all(|text| !text.trim().is_empty())
     }
 }
 
@@ -121,6 +130,152 @@ pub struct SecurityCandidate {
     pub alleged_impact: Option<String>,
     pub evidence: Vec<Value>,
     pub generated_at: String,
+}
+
+/// Chain roles a candidate may declare (SEC 9.2). Unknown roles are rejected,
+/// never silently dropped, so synthesis cannot lean on free-text roles.
+pub const CANDIDATE_CHAIN_ROLES: &[&str] = &[
+    "starter",
+    "enabler",
+    "amplifier",
+    "pivot",
+    "privilege-escalation",
+    "terminal",
+];
+
+/// Security candidate v2 (SEC 9.2): a security primitive, not just a message.
+/// Every typed field is optional on read so v1 generator output upgrades via
+/// [`SecurityCandidateV2::from_value`]; absence means "not asserted", never
+/// "none exist". A candidate never carries a verdict other than UNADJUDICATED.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityCandidateV2 {
+    pub schema_version: u32,
+    pub kind: String,
+    pub id: String,
+    pub provider: String,
+    #[serde(default)]
+    pub rule_id: String,
+    pub claim: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sinks: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attacker_capabilities: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preconditions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trust_boundary_crossings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_controls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_controls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chain_roles: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entrypoint_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub asset_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub uncertainty: Vec<String>,
+    /// Always `possible` or `strong-inference` at generation; a generator can
+    /// never assert `verified`.
+    #[serde(default)]
+    pub evidence_strength: EvidenceStrength,
+    pub verdict: String,
+}
+
+impl SecurityCandidateV2 {
+    /// Read a v1 or v2 candidate object. Legacy `evidenceStrength` spellings
+    /// (`candidate`, `observed`) map to the canonical enum; v1 objects get the
+    /// typed fields defaulted empty and are re-emitted as schemaVersion 2.
+    pub fn from_value(value: &Value) -> Result<Self, SecurityAdjudicationError> {
+        let mut object = value
+            .as_object()
+            .cloned()
+            .ok_or(SecurityAdjudicationError::IncompleteCandidate)?;
+        object.insert("schemaVersion".into(), json!(2));
+        object.insert("kind".into(), json!("security-candidate"));
+        object
+            .entry("verdict")
+            .or_insert_with(|| json!("UNADJUDICATED"));
+        if !object.contains_key("claim") {
+            return Err(SecurityAdjudicationError::IncompleteCandidate);
+        }
+        let candidate: SecurityCandidateV2 = serde_json::from_value(Value::Object(object))
+            .map_err(|error| SecurityAdjudicationError::MalformedVerdict {
+                id: value
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("<unknown>")
+                    .to_owned(),
+                reason: error.to_string(),
+            })?;
+        candidate.validate()?;
+        Ok(candidate)
+    }
+
+    /// Structural validation. Never infers: only rejects what is asserted
+    /// wrongly.
+    pub fn validate(&self) -> Result<(), SecurityAdjudicationError> {
+        if self.id.trim().is_empty()
+            || self.provider.trim().is_empty()
+            || self.claim.trim().is_empty()
+        {
+            return Err(SecurityAdjudicationError::IncompleteCandidate);
+        }
+        if self.verdict != "UNADJUDICATED" || self.evidence_strength == EvidenceStrength::Verified {
+            return Err(SecurityAdjudicationError::SelfAdjudication(
+                self.provider.clone(),
+                self.id.clone(),
+            ));
+        }
+        for role in &self.chain_roles {
+            if !CANDIDATE_CHAIN_ROLES.contains(&role.as_str()) {
+                return Err(SecurityAdjudicationError::CandidateSetup {
+                    id: self.id.clone(),
+                    reason: format!("unknown chainRole {role:?}"),
+                });
+            }
+        }
+        for (field, items) in [
+            ("sources", &self.sources),
+            ("sinks", &self.sinks),
+            ("effects", &self.effects),
+            ("preconditions", &self.preconditions),
+            ("requiredControls", &self.required_controls),
+            ("observedControls", &self.observed_controls),
+            ("entrypointRefs", &self.entrypoint_refs),
+            ("assetRefs", &self.asset_refs),
+        ] {
+            if items.iter().any(|item| item.trim().is_empty()) {
+                return Err(SecurityAdjudicationError::EmptyField {
+                    candidate: self.id.clone(),
+                    field,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Required controls with no observed counterpart: the unproven
+    /// control surface a chain adjudicator must still evaluate.
+    pub fn unobserved_controls(&self) -> Vec<&str> {
+        self.required_controls
+            .iter()
+            .filter(|control| !self.observed_controls.contains(control))
+            .map(String::as_str)
+            .collect()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -155,6 +310,8 @@ pub enum SecurityAdjudicationError {
     MissingProof(SecurityVerdictKind),
     #[error("surviving security verdict {0:?} requires evidenceStrength above possible")]
     WeakEvidenceStrength(SecurityVerdictKind),
+    #[error("security verdict {0:?} claims evidence above possible and cannot be verified without a complete negativeControl {{hypothesis, method, outcome}}")]
+    MissingNegativeControl(SecurityVerdictKind),
     #[error("surviving security verdict {0:?} requires devilsAdvocate false-positive challenge")]
     MissingDevilsAdvocate(SecurityVerdictKind),
     #[error("digest computation failed: {0}")]
@@ -416,6 +573,8 @@ pub struct SecurityVerdictInput {
     pub rationale: Option<String>,
     #[serde(default)]
     pub devils_advocate: Option<String>,
+    #[serde(default)]
+    pub negative_control: Option<NegativeControl>,
 }
 
 /// Nonsecurity findings bind a concrete invariant & trigger to their domain.
@@ -461,6 +620,9 @@ pub struct SecurityVerdict {
     pub impact: String,
     pub rationale: Option<String>,
     pub devils_advocate: Option<String>,
+    /// Required for any security verdict whose strength is above possible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub negative_control: Option<NegativeControl>,
     /// Evidence locations the adjudicator cited (`{file, line}`); a surviving
     /// verdict from the batch path always carries at least one in the
     /// candidate's file.
@@ -606,6 +768,22 @@ fn finalize_for_domain(
         }
     }
 
+    if security
+        && result
+            .evidence_strength
+            .unwrap_or(EvidenceStrength::Possible)
+            .rank()
+            > 0
+        && !result
+            .negative_control
+            .as_ref()
+            .is_some_and(NegativeControl::is_complete)
+    {
+        return Err(SecurityAdjudicationError::MissingNegativeControl(
+            result.verdict,
+        ));
+    }
+
     let unsigned = SecurityVerdict {
         domain: domain.into(),
         domain_proof,
@@ -637,6 +815,11 @@ fn finalize_for_domain(
         impact,
         rationale: result.rationale,
         devils_advocate: result.devils_advocate,
+        negative_control: if security {
+            result.negative_control
+        } else {
+            None
+        },
         cited_evidence,
         cluster_id: None,
         variant_analysis_required: surviving && security,
@@ -807,10 +990,6 @@ fn excerpt_line(root: &Path, path: &str, line: u64) -> Option<String> {
     Some(redacted.chars().take(240).collect())
 }
 
-fn detail_entry<'a>(result: &'a ProviderResult, key: &str, id: &str) -> Option<&'a Value> {
-    result.details.get(key)?.as_object()?.get(id)
-}
-
 /// Routing remains explicit: unknown families do not become security claims.
 pub fn candidate_domain(provider: &str, rule: &str) -> &'static str {
     // Current framework rules are mixed-domain despite security-candidates in
@@ -932,35 +1111,42 @@ fn domain_required_evidence(domain: &str) -> Vec<String> {
     ]
 }
 
-/// Candidates a candidate-generator `result` raised, in finding-id order.
+/// Contract gap for a candidate generator that emitted `findings`. Candidates
+/// come only from the declared channel (`details.candidates`); findings are
+/// reserved for independently survived results, so a generator that emits any
+/// is a contract error and its findings are never promoted to candidates.
+pub fn candidate_generator_contract_gap(provider: &str, result: &ProviderResult) -> Option<String> {
+    if result.findings.is_empty() {
+        return None;
+    }
+    let ids = result
+        .findings
+        .iter()
+        .map(|finding| finding.id.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(format!(
+        "candidate generator {provider} emitted {} finding(s) ({ids}) instead of details.candidates; findings are not candidates and were not adjudicated",
+        result.findings.len()
+    ))
+}
+
+/// Candidates a candidate-generator `result` raised, in candidate-id order.
+/// Only the declared `details.candidates` channel is read; stray `findings`
+/// are a contract gap reported by [`candidate_generator_contract_gap`].
 pub fn scanner_candidates(
     root: &Path,
     provider: &str,
     result: &ProviderResult,
 ) -> Vec<ScannerCandidate> {
-    let mut raw = result.findings.iter().map(|finding| {
-        let id = finding.id.as_str();
-        let locations = detail_entry(result, "findingLocations", id).cloned().unwrap_or(Value::Null);
-        let evidence = detail_entry(result, "findingEvidence", id).cloned().unwrap_or(Value::Null);
-        let location = locations.as_array().and_then(|items| items.first()).and_then(Value::as_str);
-        let (file, line, end) = location.map(parse_location).unwrap_or_default();
-        let rule = ["ruleId", "rule", "checkId"].iter()
-            .find_map(|key| evidence.get(*key).and_then(Value::as_str)).unwrap_or(provider);
-        let message = ["findingMessages", "findingTitles"].iter()
-            .find_map(|key| detail_entry(result, key, id).and_then(Value::as_str)).unwrap_or_default();
-        json!({"id": id, "ruleId": rule, "severityHint": finding.severity,
-            "claim": message, "file": if file.is_empty() { None } else { Some(file) },
-            "line": line, "endLine": if line.is_some() && end.is_none() { Some(0) } else { end }, "adapterLocations": locations, "adapterEvidence": evidence})
-    }).collect::<Vec<_>>();
-    raw.extend(
-        result
-            .details
-            .get("candidates")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .cloned(),
-    );
+    let raw: Vec<Value> = result
+        .details
+        .get("candidates")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect();
     let mut candidates = raw
         .into_iter()
         .enumerate()
@@ -1441,6 +1627,22 @@ fn validate_content(
             }
             None => {}
         }
+    }
+    if security
+        && input
+            .evidence_strength
+            .is_some_and(|strength| strength.rank() > 0)
+    {
+        let control = input
+            .negative_control
+            .as_ref()
+            .filter(|control| control.is_complete())
+            .ok_or(SecurityAdjudicationError::MissingNegativeControl(
+                input.verdict,
+            ))?;
+        check_text(id, "negativeControl.hypothesis", &control.hypothesis, false)?;
+        check_text(id, "negativeControl.method", &control.method, false)?;
+        check_text(id, "negativeControl.outcome", &control.outcome, true)?;
     }
     if let Some(proof) = domain_proof {
         forms.push((
@@ -3898,10 +4100,18 @@ mod tests {
         assert!(!verify_adjudication_packet(&packet));
     }
 
+    fn test_negative_control() -> NegativeControl {
+        NegativeControl {
+            hypothesis: "a parameterized query removes the injection".into(),
+            method: "replaced the format call with a bound parameter in the same handler".into(),
+            outcome: "the interpolated text no longer reaches db.execute".into(),
+        }
+    }
+
     fn surviving_result() -> SecurityVerdictInput {
         SecurityVerdictInput {
             verdict: SecurityVerdictKind::TruePositive,
-            evidence_strength: Some(EvidenceStrength::Observed),
+            evidence_strength: Some(EvidenceStrength::StrongInference),
             severity: Some("high".into()),
             exploitability: None,
             threat_model: Some("remote unauthenticated attacker".into()),
@@ -3915,6 +4125,7 @@ mod tests {
             impact: Some("data exfiltration".into()),
             rationale: None,
             devils_advocate: Some("checked for parameterization; none found".into()),
+            negative_control: Some(test_negative_control()),
         }
     }
 
@@ -4008,7 +4219,7 @@ mod tests {
     }
 
     fn scanner_fixture() -> (std::path::PathBuf, ProviderResult) {
-        use legion_contracts::{FindingId, FindingRef, ProviderId, ProviderStatus};
+        use legion_contracts::{ProviderId, ProviderStatus};
         // Parallel tests share the process id; the counter keeps fixtures apart.
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
@@ -4023,10 +4234,6 @@ mod tests {
             "fn run(q: &str) {\n    db.execute(&format!(\"select {q}\"));\n}\n",
         )
         .unwrap();
-        let finding = |id: &str| FindingRef {
-            id: FindingId::new(id).unwrap(),
-            severity: "high".into(),
-        };
         let result = ProviderResult {
             schema_version: 1,
             provider: ProviderId::new("legacy.security.sast").unwrap(),
@@ -4035,23 +4242,18 @@ mod tests {
             status: ProviderStatus::Ok,
             complete: false,
             coverage: None,
-            findings: vec![finding("cand-sql"), finding("cand-doc")],
+            findings: Vec::new(),
             coverage_gaps: Vec::new(),
             degradation: Vec::new(),
-            details: BTreeMap::from([
-                (
-                    "findingLocations".to_owned(),
-                    json!({"cand-sql": ["src/db.rs:2"], "cand-doc": ["docs/x.md:1"]}),
-                ),
-                (
-                    "findingMessages".to_owned(),
-                    json!({"cand-sql": "query built by concatenation", "cand-doc": "doc note"}),
-                ),
-                (
-                    "findingEvidence".to_owned(),
-                    json!({"cand-sql": {"ruleId": "sql-concat"}}),
-                ),
-            ]),
+            details: BTreeMap::from([(
+                "candidates".to_owned(),
+                json!([
+                    {"id": "cand-sql", "ruleId": "sql-concat", "severityHint": "high",
+                     "claim": "query built by concatenation", "file": "src/db.rs", "line": 2},
+                    {"id": "cand-doc", "severityHint": "high",
+                     "claim": "doc note", "file": "docs/x.md", "line": 1}
+                ]),
+            )]),
         };
         (root, result)
     }
@@ -4061,6 +4263,11 @@ mod tests {
             "candidateId": id,
             "verdict": "TRUE_POSITIVE",
             "evidenceStrength": "observed",
+            "negativeControl": {
+                "hypothesis": "a bound parameter removes the injection path",
+                "method": "same handler with the query parameterized",
+                "outcome": "q no longer reaches the query text"
+            },
             "severity": "high",
             "threatModel": "remote unauthenticated attacker supplying the query fragment",
             "attackerControl": "full",
@@ -4281,6 +4488,14 @@ mod scaled_tests {
             object.insert("severity".into(), json!("high"));
             object.insert("attackerControl".into(), json!("full"));
             object.insert("evidenceStrength".into(), json!("observed"));
+            object.insert(
+                "negativeControl".into(),
+                json!({
+                    "hypothesis": format!("{tag} {id}: sanitizer would neutralize the path"),
+                    "method": format!("{tag} {id}: same flow with the sanitizer enabled"),
+                    "outcome": format!("{tag} {id}: path no longer reaches the sink"),
+                }),
+            );
             object.insert(
                 "proof".into(),
                 json!(format!("{tag} {id}: trace into {path}")),

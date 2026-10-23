@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "security-model",
+  "entrypoints": [{ "id": "source:http.fetch-url", "assertion": "observed", "evidenceStrength": "strong-inference" }],
+  "assets": [
+    { "id": "asset:cloud-control-plane", "kind": "service" },
+    { "id": "asset:customer-vault", "kind": "crown-jewel" }
+  ],
+  "relations": [
+    { "id": "rel:fetch-can-reach-metadata", "kind": "can-reach", "from": "source:http.fetch-url", "to": "sink:cloud-metadata", "assertion": "observed", "evidenceStrength": "strong-inference" }
+  ]
+}

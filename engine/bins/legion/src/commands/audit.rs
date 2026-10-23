@@ -314,15 +314,24 @@ pub fn continue_command(args: ContinueAuditArgs) -> CommandResult {
             copy_continuation_file(&parent, &child, name)?;
         }
     }
-    copy_continuation_file(&parent, &child, ingest::EPOCH_KEY_FILE)?;
-    #[cfg(unix)]
+    // New runs hold no run-dir key (the plan key stays in host state and is
+    // found by the copied plan's run id + digest); only a legacy parent that
+    // still has an epoch key (lens receipt MAC key) carries it forward.
+    if parent
+        .join(ingest::EPOCH_KEY_FILE)
+        .try_exists()
+        .map_err(super::io_error)?
     {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(
-            child.join(ingest::EPOCH_KEY_FILE),
-            std::fs::Permissions::from_mode(0o600),
-        )
-        .map_err(super::io_error)?;
+        copy_continuation_file(&parent, &child, ingest::EPOCH_KEY_FILE)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(
+                child.join(ingest::EPOCH_KEY_FILE),
+                std::fs::Permissions::from_mode(0o600),
+            )
+            .map_err(super::io_error)?;
+        }
     }
     stage_continuation_effect_artifacts(&parent, &child, &execution)?;
     ingest::write_lens_packets(&child.join(ingest::LENS_PACKET_DIR), &work)
@@ -876,31 +885,35 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     }
     // Key creation removes the run's prior epoch key and lens receipts, so it
     // runs only after every argument and provider-ID check above has passed.
-    // Digest of the run's epoch key when that key (not a host-injected one)
-    // also signs the plan; `legion verify` reloads it from `<out>/epoch.key`.
-    let mut run_epoch_digest: Option<String> = None;
+    // The run's plan-signing key is held in host state (never in the run
+    // directory) and bound to the run by run id + plan digest once the plan is
+    // frozen; the run records only the run id and a key id (`planKey`).
+    let mut run_plan_key: Option<(String, String)> = None;
     let signing_key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY")
         .filter(|value| !value.is_empty())
     {
         // A host-injected key always wins, plan-only or not.
         Some(value) => Some(value.to_string_lossy().as_bytes().to_vec()),
         // A run written to `--out` (including `--plan-only --out`) is signed
-        // with the run's epoch key (persisted 0600 as `epoch.key`), so lens
-        // packets can be ingested and the run verified later without any
-        // extra environment.
+        // with a fresh per-run key kept in host state, so the run can be
+        // verified later on this host without any extra environment.
         None => match args.out.as_ref() {
             Some(out) => {
-                let ingest = legion_audit::native_providers::reasoning::ingest::create_epoch(out)
-                    .and_then(|_| {
-                        legion_audit::native_providers::reasoning::ingest::load_epoch(out)
-                    })
-                    .map_err(|error| {
-                        CommandError::incomplete(format!(
-                            "could not create the run epoch key: {error}"
-                        ))
-                    })?;
-                run_epoch_digest = Some(ingest.1);
-                Some(ingest.0)
+                let custody = |error: &dyn std::fmt::Display| {
+                    CommandError::incomplete(format!("could not create the run plan key: {error}"))
+                };
+                std::fs::create_dir_all(out).map_err(|error| custody(&error))?;
+                // A previous run's epoch key and lens receipts never carry over.
+                let _ = std::fs::remove_file(
+                    out.join(legion_audit::native_providers::reasoning::ingest::EPOCH_KEY_FILE),
+                );
+                let _ = std::fs::remove_dir_all(
+                    out.join(legion_audit::native_providers::reasoning::ingest::LENS_RECEIPT_DIR),
+                );
+                let key = legion_audit::new_plan_key().map_err(|error| custody(&error))?;
+                let run_id = legion_audit::new_run_id().map_err(|error| custody(&error))?;
+                run_plan_key = Some((run_id, legion_audit::plan_key_id(&key)));
+                Some(key)
             }
             // A plan with nowhere to keep a run key still needs the host key.
             None if args.plan_only => Some(super::audit_signing_key()?),
@@ -1239,6 +1252,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 }
             }
             if let Some(out) = &args.out {
+                let binding = persist_plan_key(
+                    out,
+                    &run_plan_key,
+                    signing_key.as_deref(),
+                    plan_digest.as_str(),
+                )?;
+                if !binding.is_null() {
+                    output["planKey"] = binding;
+                }
                 write_control_artifact(out, "plan.json", &output)?;
             }
             Ok(output)
@@ -1358,9 +1380,6 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             // The CLI process is the trusted reasoning host for ingest: generate this
             // run's epoch key (0600, never in a report) and record only its digest.
             let epoch_digest = match (&args.out, execution.pending_host.is_empty()) {
-                // The epoch key already signs this run's plan; regenerating it
-                // would orphan the plan signature.
-                (Some(_), false) if run_epoch_digest.is_some() => run_epoch_digest.clone(),
                 (Some(out), false) => {
                     match legion_audit::native_providers::reasoning::ingest::create_epoch(out) {
                         Ok(digest) => Some(digest),
@@ -1518,6 +1537,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "executionPolicyIdentity": execution.execution_policy_identity,
                     "effectArtifactsRoot": effect_artifact_root,
                     "epoch": epoch_digest.as_ref().map(|digest| json!({"digest": digest, "keyFile": "epoch.key"})),
+                    "planKey": persist_plan_key(out, &run_plan_key, signing_key.as_deref(), execution.plan_digest.as_str())?,
                 });
                 if !provider_scope_claims_allowed(trusted_scope_universe) {
                     if let Some(object) = plan.as_object_mut() {
@@ -5114,32 +5134,31 @@ fn plan_claimed_signature(value: &serde_json::Value) -> Option<&str> {
 }
 
 /// Key that verifies a sealed plan, resolved like `legion verify` does: an
-/// explicit `AUDIT_PLAN_SIGNING_KEY` wins, else the `epoch.key` stored next to
-/// the plan file.
+/// explicit `AUDIT_PLAN_SIGNING_KEY` wins, else the host-state key bound to the
+/// plan's run id and digest, else (legacy runs only) the `epoch.key` stored
+/// next to the plan file.
 fn plan_verification_key(plan_path: &std::path::Path) -> Result<Vec<u8>, CommandError> {
-    if let Some(value) = std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|v| !v.is_empty()) {
-        return Ok(value.to_string_lossy().as_bytes().to_vec());
-    }
     let directory = plan_path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or_else(|| std::path::Path::new("."));
-    let key_file =
-        directory.join(legion_audit::native_providers::reasoning::ingest::EPOCH_KEY_FILE);
-    if !key_file.is_file() {
-        return Err(CommandError::usage(format!(
-            "the provider plan is signed but its key is unavailable: {} is missing and AUDIT_PLAN_SIGNING_KEY is not set",
-            key_file.display()
-        )));
+    let plan: serde_json::Value =
+        std::fs::read(plan_path)
+            .map_err(super::io_error)
+            .and_then(|bytes| {
+                serde_json::from_slice(&bytes).map_err(|error| {
+                    CommandError::usage(format!(
+                        "cannot read plan {}: {error}",
+                        plan_path.display()
+                    ))
+                })
+            })?;
+    match legion_audit::resolve_plan_key(directory, &plan) {
+        legion_audit::PlanKeyResolution::Found { key, .. } => Ok(key),
+        legion_audit::PlanKeyResolution::Unverifiable { reason } => Err(CommandError::usage(
+            format!("unverifiable-signature: the provider plan is signed but its key is unavailable: {reason}"),
+        )),
     }
-    legion_audit::native_providers::reasoning::ingest::load_epoch(directory)
-        .map(|(key, _)| key)
-        .map_err(|error| {
-            CommandError::usage(format!(
-                "cannot load plan signing key {}: {error}",
-                key_file.display()
-            ))
-        })
 }
 
 /// Re-freezes the plan from its provider specifications over the current
@@ -5269,6 +5288,29 @@ fn named_plan_digest(value: &serde_json::Value) -> Option<String> {
                 .and_then(serde_json::Value::as_str)
         })
         .map(ToOwned::to_owned)
+}
+
+/// Moves the run's plan key into host state, bound to this run id and the
+/// frozen plan digest, and returns the `planKey` record for plan.json (run id
+/// and key id only). Returns null when the plan is signed by a host-injected
+/// key. Fails closed: a key that cannot be stored never yields a signed run.
+fn persist_plan_key(
+    out: &std::path::Path,
+    run: &Option<(String, String)>,
+    key: Option<&[u8]>,
+    plan_digest: &str,
+) -> Result<Value, CommandError> {
+    let (Some((run_id, key_id)), Some(key)) = (run, key) else {
+        return Ok(Value::Null);
+    };
+    let stored = legion_audit::store_host_plan_key(out, run_id, plan_digest, key)
+        .map_err(|error| CommandError::incomplete(format!("plan key custody failed: {error}")))?;
+    if &stored != key_id {
+        return Err(CommandError::integrity(
+            "plan key id changed during custody",
+        ));
+    }
+    Ok(json!({"runId": run_id, "keyId": key_id, "custody": "host-state"}))
 }
 
 fn write_control_artifact(

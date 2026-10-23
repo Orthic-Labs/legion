@@ -367,15 +367,11 @@ pub fn gate(args: GateArgs) -> CommandResult {
         return Err(CommandError::integrity("plan seal differs from nativePlan"));
     }
     let signature = native.get("signature").and_then(Value::as_str);
-    let key = match (signature, std::env::var_os("AUDIT_PLAN_SIGNING_KEY")) {
-        (None, _) => None,
-        (Some(_), Some(value)) if !value.is_empty() => {
-            Some(value.to_string_lossy().as_bytes().to_vec())
-        }
-        (Some(_), _) => Some(
-            legion_audit::native_providers::reasoning::ingest::load_epoch(&run)
-                .map_err(|error| CommandError::integrity(error.to_string()))?
-                .0,
+    let key = match signature {
+        None => None,
+        Some(_) => Some(
+            legion_audit::plan_signing_key_for_run(&run)
+                .map_err(|error| CommandError::integrity(error.to_string()))?,
         ),
     };
     legion_audit::verify(&plan, digest, signature, key.as_deref())

@@ -233,3 +233,153 @@ fn domain_contract_binding_carries_digest_and_absence_is_explicit() {
     assert_eq!(plan["domainContract"]["evaluation"], evaluation);
     assert_eq!(plan["domainContract"]["executionAuthority"], false);
 }
+
+// Totals after the evidence-selected security card groups (issue #114):
+// 39 prior cards + 9 new security cards (SSRF/egress, HTTP proxy/cache,
+// auth-session state machine, workspace trust, AI memory/RAG, admin workflow,
+// smart contracts, embedded/IoT, ICS/OT) = 48. The security lens owns 18: nine
+// always-on core cards and nine evidence-selected group cards.
+const EXPECTED_TOTAL_CARDS: usize = 48;
+const EXPECTED_SECURITY_CARDS: usize = 18;
+const EXPECTED_SECURITY_GROUPED_CARDS: usize = 9;
+
+#[test]
+fn card_totals_match_the_documented_security_group_expansion() {
+    assert_eq!(PATTERN_CARDS.len(), EXPECTED_TOTAL_CARDS);
+    assert_eq!(cards_for_lens("security").count(), EXPECTED_SECURITY_CARDS);
+    let grouped = cards_for_lens("security")
+        .filter(|card| card.domain_evidence.is_some())
+        .count();
+    assert_eq!(grouped, EXPECTED_SECURITY_GROUPED_CARDS);
+    for card in cards_for_lens("security").filter(|card| card.domain_evidence.is_some()) {
+        assert_eq!(card.maturity, RuleMaturity::Draft, "{}", card.id);
+    }
+}
+
+#[test]
+fn specialist_groups_need_strong_evidence_and_unknown_never_excludes() {
+    let specialists = [
+        "smart-contract-reentrancy-access-oracle",
+        "embedded-firmware-update-debug-keys",
+        "ics-ot-unauthenticated-control-safety",
+    ];
+    let state = |plan: &Value, id: &str| -> String {
+        plan["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == id)
+            .unwrap()["state"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    for (paths, expected) in [
+        (vec!["src/lib.rs"], "excluded"),
+        (vec!["src/lib.rs", "Cargo.toml"], "unknown"),
+        (vec![], "unknown"),
+        (vec!["config/app.yaml"], "unknown"),
+    ] {
+        let mut plan = json!({"lens": "security"});
+        let owned = paths.iter().map(|p| (*p).to_owned()).collect::<Vec<_>>();
+        bind_packet_cards_to_paths(&mut plan, &owned);
+        for id in specialists {
+            assert_eq!(state(&plan, id), expected, "{paths:?} {id}");
+        }
+        // Common groups are never excluded by missing path evidence.
+        for card in cards_for_lens("security")
+            .filter(|card| card.domain_evidence.is_some() && !specialists.contains(&card.id))
+        {
+            assert_ne!(state(&plan, card.id), "excluded", "{paths:?} {}", card.id);
+        }
+    }
+}
+
+#[test]
+fn security_lens_registry_is_truthful_and_has_no_dead_module_paths() {
+    let text = fs::read_to_string(repo_path("src/registry/security-lenses.json")).unwrap();
+    assert!(!text.contains(".mjs"), "dead module path remains");
+    let registry: Value = serde_json::from_str(&text).unwrap();
+    let providers: Value = serde_json::from_str(
+        &fs::read_to_string(repo_path("src/registry/providers.json")).unwrap(),
+    )
+    .unwrap();
+    let provider_ids = providers["providers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|provider| provider["id"].as_str().unwrap().to_owned())
+        .collect::<BTreeSet<_>>();
+    let mut ids = BTreeSet::new();
+    for lens in registry["lenses"].as_array().unwrap() {
+        let id = lens["id"].as_str().unwrap();
+        assert!(ids.insert(id), "duplicate lens {id}");
+        assert!(lens.get("module").is_none(), "{id} keeps a module path");
+        assert_eq!(lens["cleanClaim"], "none", "{id}");
+        assert_eq!(lens["mayCloseOwnCandidates"], false, "{id}");
+        let providers_backing = lens["backedBy"]["providers"].as_array().unwrap();
+        let cards_backing = lens["backedBy"]["patternCards"].as_array().unwrap();
+        for provider in providers_backing {
+            assert!(
+                provider_ids.contains(provider.as_str().unwrap()),
+                "{id} names unregistered provider {provider}"
+            );
+        }
+        for card in cards_backing {
+            assert!(
+                PATTERN_CARDS
+                    .iter()
+                    .any(|candidate| candidate.id == card.as_str().unwrap()),
+                "{id} names missing card {card}"
+            );
+        }
+        match lens["implementationState"].as_str().unwrap() {
+            "native-provider" | "partial-native-provider" => {
+                assert!(!providers_backing.is_empty(), "{id}")
+            }
+            "card-only" => {
+                assert!(providers_backing.is_empty(), "{id}");
+                assert!(!cards_backing.is_empty(), "{id}");
+            }
+            "not-implemented" => {
+                assert!(
+                    providers_backing.is_empty() && cards_backing.is_empty(),
+                    "{id}"
+                );
+                assert_eq!(lens["producesSecurityCandidates"], false, "{id}");
+            }
+            other => panic!("{id} has unknown state {other}"),
+        }
+        if lens["producesSecurityCandidates"] == true {
+            assert!(!providers_backing.is_empty(), "{id}");
+        }
+    }
+    // The catalogue lists every lens id and no dead module path.
+    let catalog = fs::read_to_string(repo_path(
+        "skills/audit/references/security-lens-catalog.md",
+    ))
+    .unwrap();
+    assert!(!catalog.contains(".mjs"));
+    for id in &ids {
+        assert!(catalog.contains(&format!("`{id}`")), "catalogue omits {id}");
+    }
+}
+
+#[test]
+fn security_checklist_uses_audit_cues_not_remediation_prompts() {
+    let checklist = fs::read_to_string(repo_path("skills/audit/references/security-checklist.md"))
+        .unwrap()
+        .to_ascii_lowercase();
+    for phrase in [
+        "tell me which",
+        "give me a list",
+        "walk me through",
+        "describe the design you implemented",
+        "my app",
+        "summarize what you found and changed",
+    ] {
+        assert!(!checklist.contains(phrase), "prescriptive phrase: {phrase}");
+    }
+    assert!(checklist.matches("audit cue:").count() >= 100);
+    assert!(checklist.contains("never a clean result"));
+}

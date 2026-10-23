@@ -1,0 +1,15 @@
+[
+  {
+    "id": "sha256:n1-starter",
+    "sources": ["source:http.fetch-url"],
+    "chainRoles": ["starter"],
+    "preconditions": [],
+    "effects": [{ "kind": "availability-impact", "action": "degrade" }]
+  },
+  {
+    "id": "sha256:n2-unrelated",
+    "chainRoles": ["enabler"],
+    "preconditions": [{ "kind": "credential-possession", "action": "possess" }],
+    "effects": [{ "kind": "integrity-impact", "action": "modify" }]
+  }
+]

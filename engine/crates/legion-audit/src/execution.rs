@@ -1,4 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    future::Future,
+    pin::Pin,
+    task::Poll,
+};
 
 use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde::{Deserialize, Serialize};
@@ -9,11 +14,16 @@ use crate::{
     error::AuditError,
     inventory::InventoryEnvelope,
     plan::{AuditProvider, FrozenPlan, PROVIDER_UNIVERSE_BOUND},
+    scheduler::{
+        Admission, FailurePolicy, FallbackEquivalence, ProviderPolicy, SchedulerConfig, WaveBuilder,
+    },
 };
 
 /// Immutable outputs available to a provider from earlier steps in this
-/// frozen plan execution. Consumers must still validate provider-specific
-/// evidence before using it.
+/// frozen plan execution. `prior_results` holds only the results of the
+/// provider's declared dependencies, its frozen visual capture source and any
+/// frozen `contextProviders`, in plan order; never every prior result.
+/// Consumers must still validate provider-specific evidence before using it.
 pub struct ExecutionContext<'a> {
     pub plan_digest: &'a str,
     pub prior_results: &'a [ProviderExecution],
@@ -98,6 +108,67 @@ pub struct ProviderExecution {
     pub skipped: bool,
 }
 
+/// Whether a provider's claim is established, independent of whether it ran.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProofState {
+    /// Completed with exact denominator reconciliation and a valid result.
+    Validated,
+    /// Not established: skipped, blocked, incomplete, pending host, or covered
+    /// only by a degraded fallback. Never read as clean.
+    #[default]
+    Unproven,
+    NotApplicable,
+    /// Ran (or tried to) and errored, returned an invalid result, or failed.
+    Failed,
+}
+
+/// What the scheduler did with a provider.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RunState {
+    #[default]
+    Ran,
+    /// Never invoked: dependency failure, open breaker, invalid or
+    /// unschedulable policy, or scheduler deadlock.
+    Skipped,
+    NotApplicable,
+}
+
+/// Frozen fallback and what it did for its primary. `outcome` is one of
+/// `unused`, `covered-equivalent`, `covered-degraded`, `covered-none`,
+/// `unavailable`, `invalid`. Only `covered-equivalent` retires the primary's
+/// failure gaps.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FallbackRecord {
+    pub provider: String,
+    pub equivalence: FallbackEquivalence,
+    pub outcome: String,
+}
+
+/// Per-provider execution record: run state and proof state kept separate.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderRecord {
+    pub provider: String,
+    #[serde(default)]
+    pub run_state: RunState,
+    #[serde(default)]
+    pub proof_state: ProofState,
+    /// Executor invocations (0 when never invoked).
+    #[serde(default)]
+    pub attempts: u32,
+    #[serde(default)]
+    pub effectful: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub breaker_group: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<FallbackRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExecutionReport {
@@ -136,6 +207,11 @@ pub struct ExecutionReport {
     #[serde(default)]
     pub coverage_notes: Vec<String>,
     pub gaps: Vec<String>,
+    /// Per-provider run/proof state in frozen plan order. Absent in reports
+    /// produced before scheduler enforcement; absent means unrecorded, never
+    /// validated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_records: Vec<ProviderRecord>,
 }
 
 fn sorted_unique(mut values: Vec<String>) -> Vec<String> {
@@ -297,191 +373,67 @@ fn not_applicable_execution(provider: &AuditProvider) -> Result<ProviderExecutio
     })
 }
 
+/// Execute the frozen plan sequentially (the historical behaviour). Use
+/// [`execute_scheduled`] to enforce the frozen execution policy against a host
+/// capacity with bounded deterministic parallelism.
 pub fn execute(
     plan: &FrozenPlan,
     inventory: &InventoryEnvelope,
     executor: &dyn ProviderExecutor,
 ) -> Result<ExecutionReport, AuditError> {
-    reject_provider_universe_execution_plan(plan)?;
-    inventory.validate()?;
-    if inventory.repository_id != plan.plan().repository_id
-        || inventory.generation != plan.plan().inventory_generation
-        || inventory.digest != plan.plan().inventory_digest
-    {
-        return Err(AuditError::SourceDrift(
-            "inventory no longer matches frozen plan".into(),
-        ));
-    }
-    let mut completed = BTreeSet::new();
-    let mut failed = BTreeSet::new();
-    let mut results = Vec::new();
-    let mut gaps = Vec::new();
-    if plan.signature().is_none() {
-        gaps.push("unsigned-plan".into());
-    }
-    let mut selected_lenses = plan
-        .providers()
-        .iter()
-        .flat_map(|provider| provider.lens_ids.iter().cloned())
-        .collect::<Vec<_>>();
-    selected_lenses.sort();
-    selected_lenses.dedup();
-    let selected_reasoning = selected_reasoning_lenses(plan);
-    let mut lenses_ran = Vec::new();
-    let mut pending_host = Vec::new();
-    let mut coverage_notes = Vec::new();
-    let mut deterministic_lens_tags = BTreeMap::new();
-    let planned_providers = plan
-        .providers()
-        .iter()
-        .map(|provider| provider.id.clone())
-        .collect::<Vec<_>>();
-    let candidate_denominators = plan
-        .providers()
-        .iter()
-        .filter(|provider| provider.role == "candidate-generator")
-        .map(|provider| {
-            let selector = provider.configuration.get("selector").ok_or_else(|| {
-                AuditError::Invalid(format!("provider {} is missing selector", provider.id))
-            })?;
-            inventory.denominator_entries(selector)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for provider in plan.providers() {
-        // Readiness is success of every dependency, not merely absence from
-        // the failure set. This also blocks transitive dependents after a
-        // skipped provider and keeps the frozen topological order intact.
-        let blocked = provider
-            .dependencies
-            .iter()
-            .any(|dependency| !completed.contains(dependency) || failed.contains(dependency));
-        // An unsigned plan still runs every provider; its only consequence is
-        // the `unsigned-plan` gap recorded above, which keeps the verdict
-        // non-clean. Providers that do not apply to this repository are
-        // reported not-applicable, not failed.
-        let execution = if provider.not_applicable() {
-            completed.insert(provider.id.clone());
-            not_applicable_execution(provider)?
-        } else if blocked {
-            let gap = format!("dependency-failed:{}", provider.id);
-            gaps.push(gap.clone());
-            failed.insert(provider.id.clone());
-            failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
+    execute_scheduled(plan, inventory, executor, &SchedulerConfig::default())
+}
+
+/// Execute the frozen plan in dependency-respecting waves. Results are
+/// recorded in frozen plan order regardless of completion order, so the report
+/// is byte-identical for identical inputs at any parallelism.
+pub fn execute_scheduled(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    executor: &dyn ProviderExecutor,
+    config: &SchedulerConfig,
+) -> Result<ExecutionReport, AuditError> {
+    let mut engine = Engine::new(plan, inventory, config, true)?;
+    while let Some(wave) = engine.next_wave()? {
+        let inputs = engine.wave_inputs(&wave);
+        let outcomes: Vec<UnitOutcome> = if inputs.len() == 1 {
+            let (index, context, attempts) = &inputs[0];
+            vec![run_unit_sync(
+                executor,
+                plan,
+                &plan.providers()[*index],
+                inventory,
+                context,
+                *attempts,
+            )]
         } else {
-            let context = ExecutionContext {
-                plan_digest: plan.digest(),
-                prior_results: &results,
-            };
-            match executor.execute_with_context(plan, provider, inventory, &context) {
-                // A provider that finds nothing of its kind in the frozen
-                // inventory declares itself not applicable; that settles it
-                // like a plan-level not-applicable, with no gap.
-                Ok(result) if declares_not_applicable(provider, &result) => {
-                    completed.insert(provider.id.clone());
-                    ProviderExecution {
-                        provider: provider.id.clone(),
-                        result,
-                        skipped: false,
-                    }
-                }
-                Ok(result) => {
-                    let denominator =
-                        provider_denominator(provider, inventory, &candidate_denominators)?;
-                    let result_error = result
-                        .validate()
-                        .err()
-                        .map(|error| error.to_string())
-                        .or_else(|| {
-                            (result.provider.to_string() != provider.id)
-                                .then(|| "provider result identity mismatch".to_owned())
+            std::thread::scope(|scope| {
+                let handles = inputs
+                    .iter()
+                    .map(|(index, context, attempts)| {
+                        let provider = &plan.providers()[*index];
+                        let attempts = *attempts;
+                        scope.spawn(move || {
+                            run_unit_sync(executor, plan, provider, inventory, context, attempts)
                         })
-                        .or_else(|| {
-                            (result.required != provider.required)
-                                .then(|| "provider result required flag mismatch".to_owned())
+                    })
+                    .collect::<Vec<_>>();
+                handles
+                    .into_iter()
+                    .map(|handle| {
+                        handle.join().unwrap_or_else(|_| UnitOutcome {
+                            result: Err(AuditError::Provider("provider execution panicked".into())),
+                            attempts: 1,
                         })
-                        .or_else(|| {
-                            (!result.applicable)
-                                .then(|| "selected provider reported not applicable".to_owned())
-                        })
-                        .or_else(|| validate_result(provider, &result, &denominator).err());
-                    if let Some(error) = result_error {
-                        let gap = format!("invalid-provider-result:{}:{error}", provider.id);
-                        gaps.push(gap.clone());
-                        failed.insert(provider.id.clone());
-                        results.push(failed_execution_with_diagnostic(
-                            provider,
-                            gap,
-                            "invalid-provider-result",
-                            false,
-                            Some(serde_json::to_value(&result).unwrap_or_else(|serialization_error| {
-                                serde_json::json!({"serializationError":serialization_error.to_string()})
-                            })),
-                        )?);
-                        continue;
-                    }
-                    if result.complete
-                        && matches!(result.status, ProviderStatus::Ok | ProviderStatus::Complete)
-                    {
-                        completed.insert(provider.id.clone());
-                        record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
-                    } else {
-                        failed.insert(provider.id.clone());
-                        if is_advisory_ownership(provider) {
-                            coverage_notes.extend(advisory_ownership_notes(&result));
-                        } else if let Some(note) = declared_capability_note(&result) {
-                            coverage_notes.push(note);
-                        } else {
-                            gaps.push(format!("provider-incomplete:{}", provider.id));
-                            gaps.extend(result.coverage_gaps.iter().cloned());
-                        }
-                        if is_pending_host(provider, &result) {
-                            gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
-                            pending_host.push(provider.id.clone());
-                        }
-                    }
-                    ProviderExecution {
-                        provider: provider.id.clone(),
-                        result,
-                        skipped: false,
-                    }
-                }
-                Err(error) => {
-                    failed.insert(provider.id.clone());
-                    let gap = error.to_string();
-                    gaps.push(gap.clone());
-                    failed_execution(provider, gap, "provider-error", false)?
-                }
-            }
+                    })
+                    .collect()
+            })
         };
-        results.push(execution);
-        record_qualification(provider, &completed, &mut gaps, &mut coverage_notes);
+        for ((index, _, _), outcome) in inputs.iter().zip(outcomes) {
+            engine.settle(*index, outcome)?;
+        }
     }
-    gaps.sort();
-    gaps.dedup();
-    lenses_ran.sort();
-    lenses_ran.dedup();
-    if lenses_ran != selected_reasoning {
-        gaps.push("selected reasoning lenses did not complete".into());
-    }
-    gaps.sort();
-    gaps.dedup();
-    Ok(ExecutionReport {
-        plan_digest: plan.digest().into(),
-        plan_signature: plan.signature().map(ToOwned::to_owned),
-        execution_policy: plan.plan().bounds["executionPolicy"].clone(),
-        execution_policy_identity: plan.plan().bounds["executionPolicyIdentity"].clone(),
-        generation: inventory.generation.clone(),
-        inventory_digest: inventory.digest.clone(),
-        planned_providers,
-        results,
-        selected_lenses,
-        lenses_ran,
-        selected_reasoning_lenses: selected_reasoning,
-        pending_host,
-        deterministic_lens_tags,
-        coverage_notes: sorted_unique(coverage_notes),
-        gaps,
-    })
+    engine.finish()
 }
 
 pub async fn execute_with_cancellation(
@@ -490,197 +442,746 @@ pub async fn execute_with_cancellation(
     executor: &dyn ProviderExecutor,
     cancellation: CancellationToken,
 ) -> Result<ExecutionReport, AuditError> {
-    // Keep validation/report assembly identical to legacy synchronous path;
-    // host execution is selected through the async executor seam.
-    reject_provider_universe_execution_plan(plan)?;
-    inventory.validate()?;
-    if inventory.repository_id != plan.plan().repository_id
-        || inventory.generation != plan.plan().inventory_generation
-        || inventory.digest != plan.plan().inventory_digest
-    {
-        return Err(AuditError::SourceDrift(
-            "inventory no longer matches frozen plan".into(),
-        ));
-    }
-    let mut completed = BTreeSet::new();
-    let mut failed = BTreeSet::new();
-    let mut results = Vec::new();
-    let mut gaps = Vec::new();
-    if plan.signature().is_none() {
-        gaps.push("unsigned-plan".into());
-    }
-    let mut selected_lenses = plan
-        .providers()
-        .iter()
-        .flat_map(|p| p.lens_ids.iter().cloned())
-        .collect::<Vec<_>>();
-    selected_lenses.sort();
-    selected_lenses.dedup();
-    let selected_reasoning = selected_reasoning_lenses(plan);
-    let mut lenses_ran = Vec::new();
-    let mut pending_host = Vec::new();
-    let mut coverage_notes = Vec::new();
-    let mut deterministic_lens_tags = BTreeMap::new();
-    let planned_providers = plan
-        .providers()
-        .iter()
-        .map(|p| p.id.clone())
-        .collect::<Vec<_>>();
-    let candidate_denominators = plan
-        .providers()
-        .iter()
-        .filter(|p| p.role == "candidate-generator")
-        .map(|p| {
-            let selector = p.configuration.get("selector").ok_or_else(|| {
-                AuditError::Invalid(format!("provider {} is missing selector", p.id))
-            })?;
-            inventory.denominator_entries(selector)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for provider in plan.providers() {
-        let blocked = provider
-            .dependencies
+    execute_with_cancellation_scheduled(
+        plan,
+        inventory,
+        executor,
+        cancellation,
+        &SchedulerConfig::default(),
+    )
+    .await
+}
+
+/// Async counterpart of [`execute_scheduled`]. Wave members are driven
+/// concurrently on the calling task; settlement order stays the frozen plan
+/// order.
+pub async fn execute_with_cancellation_scheduled(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    executor: &dyn ProviderExecutor,
+    cancellation: CancellationToken,
+    config: &SchedulerConfig,
+) -> Result<ExecutionReport, AuditError> {
+    let mut engine = Engine::new(plan, inventory, config, false)?;
+    while let Some(wave) = engine.next_wave()? {
+        let inputs = engine.wave_inputs(&wave);
+        let futures = inputs
             .iter()
-            .any(|d| !completed.contains(d) || failed.contains(d));
-        // An unsigned plan still runs every provider; its only consequence is
-        // the `unsigned-plan` gap recorded above, which keeps the verdict
-        // non-clean. Providers that do not apply to this repository are
-        // reported not-applicable, not failed.
-        let execution = if provider.not_applicable() {
-            completed.insert(provider.id.clone());
-            not_applicable_execution(provider)?
-        } else if blocked {
-            let gap = format!("dependency-failed:{}", provider.id);
-            gaps.push(gap.clone());
-            failed.insert(provider.id.clone());
-            failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
-        } else {
-            let context = ExecutionContext {
-                plan_digest: plan.digest(),
-                prior_results: &results,
-            };
-            match executor
-                .execute_async_with_context(
+            .map(|(index, context, attempts)| {
+                Box::pin(run_unit_async(
+                    executor,
                     plan,
-                    provider,
+                    &plan.providers()[*index],
                     inventory,
+                    context,
+                    *attempts,
                     cancellation.clone(),
-                    &context,
-                )
-                .await
-            {
-                // A provider that finds nothing of its kind in the frozen
-                // inventory declares itself not applicable; that settles it
-                // like a plan-level not-applicable, with no gap.
-                Ok(result) if declares_not_applicable(provider, &result) => {
-                    completed.insert(provider.id.clone());
-                    ProviderExecution {
+                )) as Pin<Box<dyn Future<Output = UnitOutcome> + Send + '_>>
+            })
+            .collect::<Vec<_>>();
+        let outcomes = join_ordered(futures).await;
+        for ((index, _, _), outcome) in inputs.iter().zip(outcomes) {
+            engine.settle(*index, outcome)?;
+        }
+    }
+    engine.finish()
+}
+
+async fn join_ordered<T>(mut futures: Vec<Pin<Box<dyn Future<Output = T> + Send + '_>>>) -> Vec<T> {
+    let mut done: Vec<Option<T>> = futures.iter().map(|_| None).collect();
+    std::future::poll_fn(|cx| {
+        let mut pending = false;
+        for (slot, future) in done.iter_mut().zip(futures.iter_mut()) {
+            if slot.is_none() {
+                match future.as_mut().poll(cx) {
+                    Poll::Ready(value) => *slot = Some(value),
+                    Poll::Pending => pending = true,
+                }
+            }
+        }
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(())
+        }
+    })
+    .await;
+    done.into_iter()
+        .map(|value| value.expect("joined future completed"))
+        .collect()
+}
+
+struct UnitOutcome {
+    result: Result<ProviderResult, AuditError>,
+    attempts: u32,
+}
+
+/// Run one provider with bounded retry. `max_attempts` is already 1 for any
+/// effectful provider, so an effect is never repeated.
+fn run_unit_sync(
+    executor: &dyn ProviderExecutor,
+    plan: &FrozenPlan,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    prior: &[ProviderExecution],
+    max_attempts: u32,
+) -> UnitOutcome {
+    let context = ExecutionContext {
+        plan_digest: plan.digest(),
+        prior_results: prior,
+    };
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        match executor.execute_with_context(plan, provider, inventory, &context) {
+            Err(_) if attempts < max_attempts => continue,
+            result => return UnitOutcome { result, attempts },
+        }
+    }
+}
+
+async fn run_unit_async(
+    executor: &dyn ProviderExecutor,
+    plan: &FrozenPlan,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    prior: &[ProviderExecution],
+    max_attempts: u32,
+    cancellation: CancellationToken,
+) -> UnitOutcome {
+    let context = ExecutionContext {
+        plan_digest: plan.digest(),
+        prior_results: prior,
+    };
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        match executor
+            .execute_async_with_context(plan, provider, inventory, cancellation.clone(), &context)
+            .await
+        {
+            Err(_) if attempts < max_attempts && !cancellation.is_cancelled() => continue,
+            result => return UnitOutcome { result, attempts },
+        }
+    }
+}
+
+#[derive(Default)]
+struct Slot {
+    execution: Option<ProviderExecution>,
+    /// Gaps describing this provider's own failure; an equivalent fallback may
+    /// retire them. Everything else stays in `gaps`.
+    failure_gaps: Vec<String>,
+    gaps: Vec<String>,
+    notes: Vec<String>,
+    pending_host: bool,
+    completed: bool,
+    failed: bool,
+    /// The executor was actually invoked for this provider.
+    ran: bool,
+    record: Option<ProviderRecord>,
+}
+
+struct Engine<'a> {
+    plan: &'a FrozenPlan,
+    inventory: &'a InventoryEnvelope,
+    config: &'a SchedulerConfig,
+    candidates: Vec<crate::inventory::InventoryDenominator>,
+    policies: Vec<ProviderPolicy>,
+    dependencies: Vec<Vec<Option<usize>>>,
+    /// Providers whose results this provider may read, ascending plan index.
+    context: Vec<Vec<usize>>,
+    /// Providers that must settle before this one is scheduled.
+    predecessors: Vec<Vec<usize>>,
+    slots: Vec<Slot>,
+    settled: Vec<bool>,
+    lenses_ran: Vec<String>,
+    tags: BTreeMap<String, usize>,
+    breaker_failures: BTreeMap<String, u32>,
+    tripped: BTreeSet<String>,
+    selected_lenses: Vec<String>,
+    selected_reasoning: Vec<String>,
+    unsigned: bool,
+    /// The synchronous path historically skipped qualification accounting for
+    /// an invalid provider result; the async path did not. Preserved as-is.
+    skip_qualification_on_invalid: bool,
+}
+
+impl<'a> Engine<'a> {
+    fn new(
+        plan: &'a FrozenPlan,
+        inventory: &'a InventoryEnvelope,
+        config: &'a SchedulerConfig,
+        skip_qualification_on_invalid: bool,
+    ) -> Result<Self, AuditError> {
+        reject_provider_universe_execution_plan(plan)?;
+        inventory.validate()?;
+        if inventory.repository_id != plan.plan().repository_id
+            || inventory.generation != plan.plan().inventory_generation
+            || inventory.digest != plan.plan().inventory_digest
+        {
+            return Err(AuditError::SourceDrift(
+                "inventory no longer matches frozen plan".into(),
+            ));
+        }
+        let providers = plan.providers();
+        let mut selected_lenses = providers
+            .iter()
+            .flat_map(|provider| provider.lens_ids.iter().cloned())
+            .collect::<Vec<_>>();
+        selected_lenses.sort();
+        selected_lenses.dedup();
+        let candidates = providers
+            .iter()
+            .filter(|provider| provider.role == "candidate-generator")
+            .map(|provider| {
+                let selector = provider.configuration.get("selector").ok_or_else(|| {
+                    AuditError::Invalid(format!("provider {} is missing selector", provider.id))
+                })?;
+                inventory.denominator_entries(selector)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let policies = providers
+            .iter()
+            .map(ProviderPolicy::from_provider)
+            .collect::<Vec<_>>();
+        let index = providers
+            .iter()
+            .enumerate()
+            .map(|(position, provider)| (provider.id.as_str(), position))
+            .collect::<BTreeMap<_, _>>();
+        let dependencies = providers
+            .iter()
+            .map(|provider| {
+                provider
+                    .dependencies
+                    .iter()
+                    .map(|dependency| index.get(dependency.as_str()).copied())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let mut context = Vec::with_capacity(providers.len());
+        let mut predecessors = vec![BTreeSet::new(); providers.len()];
+        for (position, provider) in providers.iter().enumerate() {
+            // Least context: declared dependencies, the visual capture source
+            // (an ordering-only declaration), and explicit frozen context ids.
+            let mut allowed = dependencies[position]
+                .iter()
+                .flatten()
+                .copied()
+                .collect::<BTreeSet<_>>();
+            if let Ok(Some(source)) = crate::dag::capture_source_provider(provider) {
+                allowed.extend(index.get(source).copied());
+            }
+            allowed.extend(
+                policies[position]
+                    .context_providers
+                    .iter()
+                    .filter_map(|id| index.get(id.as_str()).copied()),
+            );
+            allowed.remove(&position);
+            predecessors[position].extend(allowed.iter().copied());
+            context.push(allowed.into_iter().collect::<Vec<_>>());
+        }
+        // A frozen fallback is scheduled after its primary so it can settle
+        // the primary's coverage; it never reads the primary's result.
+        for (position, policy) in policies.iter().enumerate() {
+            if let Some(fallback) = &policy.fallback {
+                if let Some(target) = index.get(fallback.provider.as_str()).copied() {
+                    if target != position {
+                        predecessors[target].insert(position);
+                    }
+                }
+            }
+        }
+        let mut gaps_unsigned = false;
+        if plan.signature().is_none() {
+            gaps_unsigned = true;
+        }
+        Ok(Self {
+            plan,
+            inventory,
+            config,
+            candidates,
+            policies,
+            dependencies,
+            context,
+            predecessors: predecessors
+                .into_iter()
+                .map(|set| set.into_iter().collect())
+                .collect(),
+            slots: (0..providers.len()).map(|_| Slot::default()).collect(),
+            settled: vec![false; providers.len()],
+            lenses_ran: Vec::new(),
+            tags: BTreeMap::new(),
+            breaker_failures: BTreeMap::new(),
+            tripped: BTreeSet::new(),
+            selected_lenses,
+            selected_reasoning: selected_reasoning_lenses(plan),
+            unsigned: gaps_unsigned,
+            skip_qualification_on_invalid,
+        })
+    }
+
+    fn blocked(&self, position: usize) -> bool {
+        self.dependencies[position].iter().any(|dependency| {
+            let Some(dependency) = dependency else {
+                return true;
+            };
+            let slot = &self.slots[*dependency];
+            if slot.completed && !slot.failed {
+                return false;
+            }
+            // `continue` lets dependents proceed past a dependency that ran
+            // and failed; its own gap still keeps the verdict non-clean.
+            !(slot.ran
+                && slot.failed
+                && self.policies[*dependency].failure_policy == FailurePolicy::Continue)
+        })
+    }
+
+    fn predecessors_settled(&self, position: usize) -> bool {
+        self.predecessors[position]
+            .iter()
+            .all(|predecessor| self.settled[*predecessor])
+    }
+
+    /// Settle every provider that needs no execution (not applicable, blocked,
+    /// invalid policy, open breaker, unschedulable claim), then offer the ready
+    /// remainder to the wave builder in frozen plan order.
+    fn next_wave(&mut self) -> Result<Option<Vec<usize>>, AuditError> {
+        let count = self.slots.len();
+        loop {
+            loop {
+                let mut progress = false;
+                for position in 0..count {
+                    if !self.settled[position]
+                        && self.predecessors_settled(position)
+                        && self.settle_instant(position)?
+                    {
+                        progress = true;
+                    }
+                }
+                if !progress {
+                    break;
+                }
+            }
+            let mut builder = WaveBuilder::new(self.config);
+            for position in 0..count {
+                if self.settled[position] || !self.predecessors_settled(position) {
+                    continue;
+                }
+                match builder.try_admit(position, &self.policies[position]) {
+                    Admission::Admitted | Admission::Deferred => {}
+                    Admission::Barrier => break,
+                }
+            }
+            let wave = builder.finish();
+            if !wave.is_empty() {
+                return Ok(Some(wave));
+            }
+            if self.settled.iter().all(|settled| *settled) {
+                return Ok(None);
+            }
+            // Unsettled providers with no admissible member: a scheduling cycle
+            // (for example through a frozen context or fallback edge). Fail
+            // closed rather than hang.
+            for position in 0..count {
+                if !self.settled[position] {
+                    let gap = format!("scheduler-deadlock:{}", self.plan.providers()[position].id);
+                    self.settle_skipped(position, gap, "scheduler-deadlock")?;
+                }
+            }
+        }
+    }
+
+    fn settle_instant(&mut self, position: usize) -> Result<bool, AuditError> {
+        let plan = self.plan;
+        let provider = &plan.providers()[position];
+        if provider.not_applicable() {
+            let slot = &mut self.slots[position];
+            slot.completed = true;
+            slot.execution = Some(not_applicable_execution(provider)?);
+            slot.record = Some(ProviderRecord {
+                provider: provider.id.clone(),
+                run_state: RunState::NotApplicable,
+                proof_state: ProofState::NotApplicable,
+                attempts: 0,
+                effectful: self.policies[position].effectful,
+                breaker_group: None,
+                fallback: None,
+                reason: None,
+            });
+            self.close(position, false);
+            return Ok(true);
+        }
+        let policy = &self.policies[position];
+        let (gap, label) = if self.blocked(position) {
+            (
+                format!("dependency-failed:{}", provider.id),
+                "skipped-after-dependency-failure",
+            )
+        } else if let Some(reason) = &policy.invalid {
+            (
+                format!("execution-policy-invalid:{}:{reason}", provider.id),
+                "execution-policy-invalid",
+            )
+        } else if let Some(group) = policy
+            .breaker_group
+            .as_ref()
+            .filter(|group| self.tripped.contains(*group))
+        {
+            (
+                format!("breaker-open:{group}:{}", provider.id),
+                "breaker-open",
+            )
+        } else if let Some(resource) = policy.exceeds_capacity(self.config) {
+            (
+                format!("resource-claim-exceeds-capacity:{}:{resource}", provider.id),
+                "unschedulable",
+            )
+        } else {
+            return Ok(false);
+        };
+        self.settle_skipped(position, gap, label)?;
+        Ok(true)
+    }
+
+    fn settle_skipped(
+        &mut self,
+        position: usize,
+        gap: String,
+        label: &str,
+    ) -> Result<(), AuditError> {
+        let plan = self.plan;
+        let provider = &plan.providers()[position];
+        let policy = &self.policies[position];
+        let slot = &mut self.slots[position];
+        slot.failed = true;
+        slot.failure_gaps.push(gap.clone());
+        slot.execution = Some(failed_execution(provider, gap, label, true)?);
+        slot.record = Some(ProviderRecord {
+            provider: provider.id.clone(),
+            run_state: RunState::Skipped,
+            proof_state: ProofState::Unproven,
+            attempts: 0,
+            effectful: policy.effectful,
+            breaker_group: policy.breaker_group.clone(),
+            fallback: None,
+            reason: Some(label.into()),
+        });
+        self.close(position, true);
+        Ok(())
+    }
+
+    /// Mark settled and apply qualification accounting.
+    fn close(&mut self, position: usize, qualify: bool) {
+        let plan = self.plan;
+        let provider = &plan.providers()[position];
+        if qualify {
+            let completed = if self.slots[position].completed {
+                BTreeSet::from([provider.id.clone()])
+            } else {
+                BTreeSet::new()
+            };
+            let slot = &mut self.slots[position];
+            record_qualification(provider, &completed, &mut slot.gaps, &mut slot.notes);
+        }
+        self.settled[position] = true;
+    }
+
+    /// Owned inputs for each wave member: only the declared context results,
+    /// in plan order, plus the attempt bound.
+    fn wave_inputs(&self, wave: &[usize]) -> Vec<(usize, Vec<ProviderExecution>, u32)> {
+        wave.iter()
+            .map(|&position| {
+                let prior = self.context[position]
+                    .iter()
+                    .filter_map(|source| self.slots[*source].execution.clone())
+                    .collect::<Vec<_>>();
+                (position, prior, self.policies[position].attempts_allowed())
+            })
+            .collect()
+    }
+
+    fn settle(&mut self, position: usize, outcome: UnitOutcome) -> Result<(), AuditError> {
+        let plan = self.plan;
+        let provider = &plan.providers()[position];
+        let attempts = outcome.attempts;
+        let mut qualify = true;
+        let mut infrastructure_failure = false;
+        let mut failure_gaps = Vec::new();
+        let mut notes = Vec::new();
+        let mut pending_host = false;
+        let mut completed = false;
+        let mut failed = false;
+        let proof;
+        let reason: Option<String>;
+        let execution;
+        match outcome.result {
+            Ok(result) if declares_not_applicable(provider, &result) => {
+                completed = true;
+                proof = ProofState::NotApplicable;
+                reason = None;
+                execution = ProviderExecution {
+                    provider: provider.id.clone(),
+                    result,
+                    skipped: false,
+                };
+            }
+            Ok(result) => {
+                let denominator = provider_denominator(provider, self.inventory, &self.candidates)?;
+                let result_error = result
+                    .validate()
+                    .err()
+                    .map(|error| error.to_string())
+                    .or_else(|| {
+                        (result.provider.to_string() != provider.id)
+                            .then(|| "provider result identity mismatch".to_owned())
+                    })
+                    .or_else(|| {
+                        (result.required != provider.required)
+                            .then(|| "provider result required flag mismatch".to_owned())
+                    })
+                    .or_else(|| {
+                        (!result.applicable)
+                            .then(|| "selected provider reported not applicable".to_owned())
+                    })
+                    .or_else(|| validate_result(provider, &result, &denominator).err());
+                if let Some(error) = result_error {
+                    let gap = format!("invalid-provider-result:{}:{error}", provider.id);
+                    failure_gaps.push(gap.clone());
+                    failed = true;
+                    proof = ProofState::Failed;
+                    reason = Some("invalid-provider-result".into());
+                    qualify = !self.skip_qualification_on_invalid;
+                    execution = failed_execution_with_diagnostic(
+                        provider,
+                        gap,
+                        "invalid-provider-result",
+                        false,
+                        Some(serde_json::to_value(&result).unwrap_or_else(|serialization_error| {
+                            serde_json::json!({"serializationError":serialization_error.to_string()})
+                        })),
+                    )?;
+                } else {
+                    if result.complete
+                        && matches!(result.status, ProviderStatus::Ok | ProviderStatus::Complete)
+                    {
+                        completed = true;
+                        proof = ProofState::Validated;
+                        reason = None;
+                        record_lenses(provider, &mut self.lenses_ran, &mut self.tags);
+                    } else {
+                        failed = true;
+                        infrastructure_failure = matches!(result.status, ProviderStatus::Failed);
+                        proof = if infrastructure_failure {
+                            ProofState::Failed
+                        } else {
+                            ProofState::Unproven
+                        };
+                        reason = Some("provider-incomplete".into());
+                        if is_advisory_ownership(provider) {
+                            notes.extend(advisory_ownership_notes(&result));
+                        } else if let Some(note) = declared_capability_note(&result) {
+                            notes.push(note);
+                        } else {
+                            failure_gaps.push(format!("provider-incomplete:{}", provider.id));
+                            failure_gaps.extend(result.coverage_gaps.iter().cloned());
+                        }
+                        if is_pending_host(provider, &result) {
+                            failure_gaps
+                                .push(format!("reasoning-lens-pending-host:{}", provider.id));
+                            pending_host = true;
+                        }
+                    }
+                    execution = ProviderExecution {
                         provider: provider.id.clone(),
                         result,
                         skipped: false,
-                    }
-                }
-                Ok(result) => {
-                    let denominator =
-                        provider_denominator(provider, inventory, &candidate_denominators)?;
-                    let result_error = result
-                        .validate()
-                        .err()
-                        .map(|e| e.to_string())
-                        .or_else(|| {
-                            (result.provider.to_string() != provider.id)
-                                .then(|| "provider result identity mismatch".into())
-                        })
-                        .or_else(|| {
-                            (result.required != provider.required)
-                                .then(|| "provider result required flag mismatch".into())
-                        })
-                        .or_else(|| {
-                            (!result.applicable)
-                                .then(|| "selected provider reported not applicable".into())
-                        })
-                        .or_else(|| validate_result(provider, &result, &denominator).err());
-                    if let Some(error) = result_error {
-                        let gap = format!("invalid-provider-result:{}:{error}", provider.id);
-                        gaps.push(gap.clone());
-                        failed.insert(provider.id.clone());
-                        failed_execution_with_diagnostic(
-                            provider,
-                            gap,
-                            "invalid-provider-result",
-                            false,
-                            Some(serde_json::to_value(&result).unwrap_or_else(|serialization_error| {
-                                serde_json::json!({"serializationError":serialization_error.to_string()})
-                            })),
-                        )?
-                    } else {
-                        if result.complete
-                            && matches!(
-                                result.status,
-                                ProviderStatus::Ok | ProviderStatus::Complete
-                            )
-                        {
-                            completed.insert(provider.id.clone());
-                            record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
-                        } else {
-                            failed.insert(provider.id.clone());
-                            if is_advisory_ownership(provider) {
-                                coverage_notes.extend(advisory_ownership_notes(&result));
-                            } else if let Some(note) = declared_capability_note(&result) {
-                                coverage_notes.push(note);
-                            } else {
-                                gaps.push(format!("provider-incomplete:{}", provider.id));
-                                gaps.extend(result.coverage_gaps.iter().cloned());
-                            }
-                            if is_pending_host(provider, &result) {
-                                gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
-                                pending_host.push(provider.id.clone());
-                            }
-                        }
-                        ProviderExecution {
-                            provider: provider.id.clone(),
-                            result,
-                            skipped: false,
-                        }
-                    }
-                }
-                Err(error) => {
-                    failed.insert(provider.id.clone());
-                    let gap = error.to_string();
-                    gaps.push(gap.clone());
-                    failed_execution(provider, gap, "provider-error", false)?
+                    };
                 }
             }
+            Err(error) => {
+                failed = true;
+                infrastructure_failure = true;
+                proof = ProofState::Failed;
+                reason = Some("provider-error".into());
+                let gap = error.to_string();
+                failure_gaps.push(gap.clone());
+                execution = failed_execution(provider, gap, "provider-error", false)?;
+            }
+        }
+        let policy = &self.policies[position];
+        if policy.retry_denied_for_effect() {
+            notes.push(format!("retry-denied-effectful:{}", provider.id));
+        }
+        if attempts > 1 {
+            notes.push(format!("retried:{}:{attempts}", provider.id));
+        }
+        if infrastructure_failure {
+            if let Some(group) = &policy.breaker_group {
+                let count = self.breaker_failures.entry(group.clone()).or_insert(0);
+                *count += 1;
+                if *count >= policy.breaker_threshold {
+                    self.tripped.insert(group.clone());
+                }
+            }
+        }
+        let record = ProviderRecord {
+            provider: provider.id.clone(),
+            run_state: if proof == ProofState::NotApplicable {
+                RunState::NotApplicable
+            } else {
+                RunState::Ran
+            },
+            proof_state: proof,
+            attempts,
+            effectful: policy.effectful,
+            breaker_group: policy.breaker_group.clone(),
+            fallback: None,
+            reason,
         };
-        results.push(execution);
-        record_qualification(provider, &completed, &mut gaps, &mut coverage_notes);
+        let slot = &mut self.slots[position];
+        slot.ran = true;
+        slot.completed = completed;
+        slot.failed = failed;
+        slot.failure_gaps.extend(failure_gaps);
+        slot.notes.extend(notes);
+        slot.pending_host = pending_host;
+        slot.execution = Some(execution);
+        slot.record = Some(record);
+        self.close(position, qualify);
+        Ok(())
     }
-    gaps.sort();
-    gaps.dedup();
-    lenses_ran.sort();
-    lenses_ran.dedup();
-    if lenses_ran != selected_reasoning {
-        gaps.push("selected reasoning lenses did not complete".into());
+
+    /// Apply frozen fallbacks. Only a declared-equivalent fallback that itself
+    /// completed retires its primary's failure gaps; a degraded fallback never
+    /// counts as equivalent coverage and leaves the gap and an explicit note.
+    fn apply_fallbacks(&mut self) {
+        let plan = self.plan;
+        let index = plan
+            .providers()
+            .iter()
+            .enumerate()
+            .map(|(position, provider)| (provider.id.as_str(), position))
+            .collect::<BTreeMap<_, _>>();
+        for position in 0..self.slots.len() {
+            let Some(spec) = self.policies[position].fallback.clone() else {
+                continue;
+            };
+            let primary = plan.providers()[position].id.clone();
+            let target = index.get(spec.provider.as_str()).copied();
+            let outcome = match target {
+                Some(target) if target != position => {
+                    if !self.slots[position].failed || !self.slots[position].ran {
+                        "unused"
+                    } else if self.slots[target].completed && !self.slots[target].failed {
+                        match spec.equivalence {
+                            FallbackEquivalence::Equivalent => {
+                                self.slots[position].failure_gaps.clear();
+                                self.slots[position].notes.push(format!(
+                                    "fallback-equivalent:{primary}:{}",
+                                    spec.provider
+                                ));
+                                "covered-equivalent"
+                            }
+                            FallbackEquivalence::Degraded => {
+                                self.slots[position]
+                                    .notes
+                                    .push(format!("fallback-degraded:{primary}:{}", spec.provider));
+                                "covered-degraded"
+                            }
+                            FallbackEquivalence::None => {
+                                self.slots[position].notes.push(format!(
+                                    "fallback-no-equivalence:{primary}:{}",
+                                    spec.provider
+                                ));
+                                "covered-none"
+                            }
+                        }
+                    } else {
+                        self.slots[position]
+                            .notes
+                            .push(format!("fallback-unavailable:{primary}:{}", spec.provider));
+                        "unavailable"
+                    }
+                }
+                _ => {
+                    self.slots[position]
+                        .notes
+                        .push(format!("fallback-invalid:{primary}"));
+                    "invalid"
+                }
+            };
+            if let Some(record) = self.slots[position].record.as_mut() {
+                record.fallback = Some(FallbackRecord {
+                    provider: spec.provider,
+                    equivalence: spec.equivalence,
+                    outcome: outcome.into(),
+                });
+            }
+        }
     }
-    gaps.sort();
-    gaps.dedup();
-    Ok(ExecutionReport {
-        plan_digest: plan.digest().into(),
-        plan_signature: plan.signature().map(ToOwned::to_owned),
-        execution_policy: plan.plan().bounds["executionPolicy"].clone(),
-        execution_policy_identity: plan.plan().bounds["executionPolicyIdentity"].clone(),
-        generation: inventory.generation.clone(),
-        inventory_digest: inventory.digest.clone(),
-        planned_providers,
-        results,
-        selected_lenses,
-        lenses_ran,
-        selected_reasoning_lenses: selected_reasoning,
-        pending_host,
-        deterministic_lens_tags,
-        coverage_notes: sorted_unique(coverage_notes),
-        gaps,
-    })
+
+    fn finish(mut self) -> Result<ExecutionReport, AuditError> {
+        self.apply_fallbacks();
+        let plan = self.plan;
+        let mut gaps = Vec::new();
+        if self.unsigned {
+            gaps.push("unsigned-plan".into());
+        }
+        let mut coverage_notes = Vec::new();
+        let mut pending_host = Vec::new();
+        let mut results = Vec::new();
+        let mut records = Vec::new();
+        for (position, slot) in self.slots.into_iter().enumerate() {
+            let execution = slot.execution.ok_or_else(|| {
+                AuditError::Invalid(format!(
+                    "provider {} was never settled",
+                    plan.providers()[position].id
+                ))
+            })?;
+            gaps.extend(slot.failure_gaps);
+            gaps.extend(slot.gaps);
+            coverage_notes.extend(slot.notes);
+            if slot.pending_host {
+                pending_host.push(plan.providers()[position].id.clone());
+            }
+            results.push(execution);
+            records.extend(slot.record);
+        }
+        let mut lenses_ran = self.lenses_ran;
+        lenses_ran.sort();
+        lenses_ran.dedup();
+        if lenses_ran != self.selected_reasoning {
+            gaps.push("selected reasoning lenses did not complete".into());
+        }
+        gaps.sort();
+        gaps.dedup();
+        Ok(ExecutionReport {
+            plan_digest: plan.digest().into(),
+            plan_signature: plan.signature().map(ToOwned::to_owned),
+            execution_policy: plan.plan().bounds["executionPolicy"].clone(),
+            execution_policy_identity: plan.plan().bounds["executionPolicyIdentity"].clone(),
+            generation: self.inventory.generation.clone(),
+            inventory_digest: self.inventory.digest.clone(),
+            planned_providers: plan
+                .providers()
+                .iter()
+                .map(|provider| provider.id.clone())
+                .collect(),
+            results,
+            selected_lenses: self.selected_lenses,
+            lenses_ran,
+            selected_reasoning_lenses: self.selected_reasoning,
+            pending_host,
+            deterministic_lens_tags: self.tags,
+            coverage_notes: sorted_unique(coverage_notes),
+            gaps,
+            provider_records: records,
+        })
+    }
 }
 
 fn reject_provider_universe_execution_plan(plan: &FrozenPlan) -> Result<(), AuditError> {

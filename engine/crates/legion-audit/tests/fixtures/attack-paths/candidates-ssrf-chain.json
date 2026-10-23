@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "candidates": [
+    {
+      "id": "sha256:c1-ssrf",
+      "ruleId": "ssrf.fetch.unvalidated-url",
+      "sources": ["source:http.fetch-url"],
+      "sinks": ["sink:http.client"],
+      "chainRoles": ["starter"],
+      "attackerCapabilities": ["unauthenticated"],
+      "preconditions": [{ "kind": "attacker-position", "action": "reach-entrypoint" }],
+      "effects": [{ "kind": "network-reachability", "action": "connect" }],
+      "requiredControls": ["control:egress-allowlist"],
+      "uncertainty": ["an egress proxy may block link-local addresses"],
+      "evidenceRefs": ["evidence:fetch-ts-12"]
+    },
+    {
+      "id": "sha256:c2-metadata-read",
+      "ruleId": "ssrf.metadata.credential-read",
+      "sinks": ["sink:cloud-metadata"],
+      "chainRoles": ["enabler"],
+      "preconditions": [{ "kind": "attacker-position", "action": "reach-entrypoint" }],
+      "effects": [{ "kind": "data-access", "action": "read", "scope": "credential-material" }],
+      "evidenceRefs": ["evidence:metadata-ts-4"]
+    },
+    {
+      "id": "sha256:c3-control-plane",
+      "ruleId": "iam.token.control-plane-use",
+      "assets": ["asset:cloud-control-plane"],
+      "chainRoles": ["privilege-escalation"],
+      "preconditions": [{ "kind": "credential-possession", "action": "possess" }],
+      "effects": [{ "kind": "principal-access", "action": "authenticate", "scope": "control-plane" }],
+      "evidenceRefs": ["evidence:iam-ts-40"]
+    }
+  ]
+}

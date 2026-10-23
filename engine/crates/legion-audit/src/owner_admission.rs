@@ -441,7 +441,9 @@ impl OwnerBackedPolicy {
             let escapes = path
                 .components()
                 .any(|part| matches!(part, Component::ParentDir));
-            if path.is_absolute() || escapes {
+            // `has_root` also catches Windows drive-relative roots such as
+            // `/etc/passwd`, which `is_absolute` reports as relative there.
+            if path.is_absolute() || path.has_root() || escapes {
                 let joined = if path.is_absolute() {
                     path.to_path_buf()
                 } else {

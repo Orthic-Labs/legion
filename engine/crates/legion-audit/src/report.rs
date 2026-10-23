@@ -469,6 +469,7 @@ mod tests {
             deterministic_lens_tags: BTreeMap::new(),
             coverage_notes: Vec::new(),
             gaps: Vec::new(),
+            provider_records: Vec::new(),
         }
     }
 

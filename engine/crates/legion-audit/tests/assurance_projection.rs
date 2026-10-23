@@ -209,6 +209,7 @@ fn execution(plan: &FrozenPlan, coverage_digest: &str, findings: &[&str]) -> Exe
         deterministic_lens_tags: BTreeMap::new(),
         coverage_notes: Vec::new(),
         gaps: Vec::new(),
+        provider_records: Vec::new(),
     }
 }
 

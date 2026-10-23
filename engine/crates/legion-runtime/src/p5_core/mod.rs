@@ -3,7 +3,7 @@
 //! src/lib/index.mjs, src/lib/version.mjs, src/lib/verification (excl.
 //! arcane), src/lib/verification-projection.mjs, src/lib/adapters,
 //! src/adapters/{ecosystem-manifests,security-adjudication,
-//! security-chain-adjudication,untrusted-evidence-envelope}.mjs,
+//! untrusted-evidence-envelope}.mjs (chain adjudication now lives in legion-audit),
 //! src/packages/kernel, src/packages/context (Membrane/Blueprint dropped).
 //!
 //! See the per-file port status table in a session scratch directory
@@ -17,7 +17,6 @@ pub mod exit_taxonomy;
 pub mod core_records;
 pub mod core_scheduler;
 
-pub mod adapters_chain_adjudication;
 pub mod adapters_ecosystem_manifests;
 pub mod adapters_untrusted_evidence;
 pub mod contracts_enums;
@@ -40,10 +39,6 @@ pub use core_scheduler::{
     ScheduleOptions, ScheduleResult, SchedulerError, SchedulerProvider,
 };
 
-pub use adapters_chain_adjudication::{
-    create_chain_adjudication_packet, finalize_chain_verdict, ChainAdjudicationError,
-    ChainAdjudicationPacket, ChainVerdict, CreateChainAdjudicationPacketInput,
-};
 pub use adapters_ecosystem_manifests::{read_ecosystem_manifests, EcosystemManifest};
 pub use adapters_untrusted_evidence::{
     bound_packet_evidence, escape_for_reasoning, untrusted_evidence_envelope, BoundEvidence,

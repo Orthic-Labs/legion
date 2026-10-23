@@ -209,7 +209,7 @@ fn assert_generator_contract(run: &Run, id: &str, expected_files: u64) {
     for candidate in candidates_of(result) {
         assert_eq!(candidate["verdict"], "UNADJUDICATED");
         assert_eq!(candidate["adjudicationRequired"], true);
-        assert_eq!(candidate["evidenceStrength"], "candidate");
+        assert_eq!(candidate["evidenceStrength"], "possible");
         assert!(candidate["id"].as_str().unwrap().starts_with("sha256:"));
         assert!(candidate["claim"].as_str().is_some_and(|c| !c.is_empty()));
         assert!(candidate["severityHint"].as_str().is_some());
@@ -972,6 +972,11 @@ fn good_tp(candidate: &ScannerCandidate, tag: &str) -> Value {
         "candidateId": candidate.finding_id,
         "verdict": "TRUE_POSITIVE",
         "evidenceStrength": "observed",
+        "negativeControl": {
+            "hypothesis": format!("an allowlisted fixed program removes the {tag} injection path"),
+            "method": format!("same {tag} handler with the argument validated against an allowlist"),
+            "outcome": format!("the {tag} request body no longer reaches the command line"),
+        },
         "severity": "high",
         "threatModel": format!("remote caller controlling the {tag} request body"),
         "attackerControl": "full",

@@ -288,7 +288,9 @@ fn scratch(tag: &str) -> PathBuf {
             .as_nanos()
     ));
     std::fs::create_dir_all(root.join(".audit/state/reports")).unwrap();
-    root
+    // macOS temp dirs sit under the /var -> /private/var symlink, which the
+    // state-dir guard rightly refuses; use the resolved path.
+    root.canonicalize().unwrap()
 }
 
 fn put_report(root: &PathBuf, body: &str) -> String {

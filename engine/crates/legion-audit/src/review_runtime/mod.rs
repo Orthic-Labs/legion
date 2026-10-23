@@ -1376,11 +1376,7 @@ fn prepared_snapshot(run: &Path, plan: &Value) -> Result<FrozenSnapshot, AuditEr
         .pointer("/seal/signature")
         .and_then(Value::as_str)
         .ok_or_else(|| invalid("sealed plan signature missing"))?;
-    let signing_key = match std::env::var_os("AUDIT_PLAN_SIGNING_KEY").filter(|key| !key.is_empty())
-    {
-        Some(key) => key.to_string_lossy().as_bytes().to_vec(),
-        None => ingest::load_epoch(run)?.0,
-    };
+    let signing_key = crate::integrity::plan_signing_key_for_run(run)?;
     crate::integrity::verify(&native, seal, Some(signature), Some(&signing_key))?;
     native.validate()?;
     let mut matched = false;

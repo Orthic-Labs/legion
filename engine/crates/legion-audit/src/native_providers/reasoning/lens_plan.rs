@@ -325,7 +325,9 @@ const SECURITY_CUES: &[&str] = &[
     "desktop: env-var escape hatches without #[cfg(debug_assertions)], prod CSP with dev origins, contract_mirror uncalled-handler surface, tauri_capabilities broad-grant flags + exposed-command count",
     "positive assurance: answer a fixed question set with grep evidence (TLS/cert bypass, secret-to-log, mutating routes without auth/validation)",
     "invariant falsification: test the app's own stated security invariants against the command/IPC/network surface",
-    "app-level taxonomy: authn, authz/IDOR, injection classes, XSS/CSP, CSRF/CORS, SSRF, crypto, uploads, API hardening",
+    "always-on core: secrets, injection classes, authn/authz/IDOR, and the app's own stated security invariants; these never depend on path evidence",
+    "evidence-selected card groups (SSRF/egress, HTTP proxy/cache, auth-session state machine, workspace trust, AI memory/RAG, admin workflow): the packet's patternCardApplicability row says `retained` when path evidence is present and `unknown` otherwise; unknown is never a clean answer",
+    "specialist groups (smart contracts, embedded/IoT, ICS/OT): apply only when the card is retained on strong path evidence; an `excluded` row records absent evidence, not a clean result, and review of configuration-only evidence (for example a dependency in a manifest) remains the reviewer's call",
     "debt_markers.meta: ponytail: shortcuts with no upgrade trigger",
     "scanner/config absence is NOT-SCANNED, never a clean security answer",
 ];
@@ -422,7 +424,7 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
         },
         "security" => LensPlan {
             lens: "security",
-            question: "Beyond the scanners, does the application logic contain authn/authz/IDOR, injection, XSS/CSP, CSRF/CORS, SSRF, crypto, upload, or API-hardening defects, and do the app's own stated security invariants hold against its command/IPC/network surface?",
+            question: "Beyond the scanners, does the application logic contain secret, injection, or authn/authz/IDOR defects in the always-on core, or defects in any evidence-selected group (SSRF, proxy/cache, session state, workspace trust, AI memory, admin workflow, smart-contract, embedded, ICS) whose card the packet retains, and do the app's own stated security invariants hold against its command/IPC/network surface?",
             applicability: Applicability::Always,
             excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.security.v1",
@@ -763,6 +765,26 @@ mod tests {
         ] {
             assert!(obj.contains_key(key), "missing key {key}");
         }
+    }
+
+    #[test]
+    fn security_stays_an_always_on_core_with_evidence_selected_card_groups() {
+        let plan = lens_plan_for("security").expect("security plan");
+        // The core lens remains always-on so secrets, injection, and authz never
+        // depend on applicability evidence; groups are selected per card.
+        assert_eq!(plan.applicability, Applicability::Always);
+        let packet = lens_plan_packet_value("reasoning.security").expect("packet");
+        let cards = packet["patternCards"].as_array().expect("cards");
+        let grouped = cards
+            .iter()
+            .filter(|card| card.get("domainApplicability").is_some())
+            .count();
+        let core = cards.len() - grouped;
+        assert_eq!(grouped, 9, "nine evidence-selected groups");
+        assert!(core >= 8, "core security cards stay always-on: {core}");
+        let cues = packet["cues"].to_string();
+        assert!(cues.contains("always-on core"));
+        assert!(cues.contains("unknown is never a clean answer"));
     }
 
     #[test]

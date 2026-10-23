@@ -5,17 +5,35 @@
     {
       "id": "bridge.credential-data-to-possession",
       "description": "Access to credential material may yield possession of the represented credential.",
-      "from": { "kind": "data-access", "action": "read", "scope": "credential-material" },
-      "to": { "kind": "credential-possession", "action": "possess" },
-      "fieldMap": { "subject": "subject", "object": "object", "environment": "environment", "tenant": "tenant" },
+      "from": {
+        "kind": "data-access",
+        "action": "read",
+        "scope": "credential-material"
+      },
+      "to": {
+        "kind": "credential-possession",
+        "action": "possess"
+      },
+      "fieldMap": {
+        "subject": "subject",
+        "object": "object",
+        "environment": "environment",
+        "tenant": "tenant"
+      },
       "evidenceStrength": "strong-inference",
       "relation": "leaks"
     },
     {
       "id": "bridge.credential-to-principal-access",
       "description": "Possession of a credential may enable access as its represented identity when an identity relation exists.",
-      "from": { "kind": "credential-possession", "action": "possess" },
-      "to": { "kind": "principal-access", "action": "authenticate" },
+      "from": {
+        "kind": "credential-possession",
+        "action": "possess"
+      },
+      "to": {
+        "kind": "principal-access",
+        "action": "authenticate"
+      },
       "requiresModelRelation": "authenticates-as",
       "evidenceStrength": "strong-inference",
       "relation": "grants"
@@ -23,8 +41,14 @@
     {
       "id": "bridge.internal-reach-to-service-entry",
       "description": "Internal network reach can satisfy reachability of an internal service entrypoint.",
-      "from": { "kind": "network-reachability", "action": "connect" },
-      "to": { "kind": "attacker-position", "action": "reach-entrypoint" },
+      "from": {
+        "kind": "network-reachability",
+        "action": "connect"
+      },
+      "to": {
+        "kind": "attacker-position",
+        "action": "reach-entrypoint"
+      },
       "requiresModelRelation": "can-reach",
       "evidenceStrength": "strong-inference",
       "relation": "pivots-to"
@@ -32,8 +56,14 @@
     {
       "id": "bridge.code-execution-to-runtime-principal",
       "description": "Code execution in a process may grant the process identity and its scopes.",
-      "from": { "kind": "code-execution", "action": "execute" },
-      "to": { "kind": "principal-access", "action": "act-as" },
+      "from": {
+        "kind": "code-execution",
+        "action": "execute"
+      },
+      "to": {
+        "kind": "principal-access",
+        "action": "act-as"
+      },
       "requiresModelRelation": "runs-as",
       "evidenceStrength": "strong-inference",
       "relation": "grants"
@@ -41,16 +71,28 @@
     {
       "id": "bridge.object-write-to-workflow-state",
       "description": "Object write may alter privileged workflow state.",
-      "from": { "kind": "object-access", "action": "write" },
-      "to": { "kind": "workflow-state", "action": "alter" },
+      "from": {
+        "kind": "object-access",
+        "action": "write"
+      },
+      "to": {
+        "kind": "workflow-state",
+        "action": "alter"
+      },
       "evidenceStrength": "possible",
       "relation": "mutates"
     },
     {
       "id": "bridge.prompt-injection-to-tool-control",
       "description": "Prompt injection may control tool arguments only when a tool-selection relation exists.",
-      "from": { "kind": "control-bypass", "action": "influence-model" },
-      "to": { "kind": "capability", "action": "control-tool-arguments" },
+      "from": {
+        "kind": "control-bypass",
+        "action": "influence-model"
+      },
+      "to": {
+        "kind": "capability",
+        "action": "control-tool-arguments"
+      },
       "requiresModelRelation": "invokes",
       "evidenceStrength": "possible",
       "relation": "enables"
@@ -58,8 +100,14 @@
     {
       "id": "bridge.tool-control-to-side-effect",
       "description": "Tool-argument control may lead to a side effect only when the tool capability and identity are modeled.",
-      "from": { "kind": "capability", "action": "control-tool-arguments" },
-      "to": { "kind": "object-access", "action": "write" },
+      "from": {
+        "kind": "capability",
+        "action": "control-tool-arguments"
+      },
+      "to": {
+        "kind": "object-access",
+        "action": "write"
+      },
       "requiresModelRelation": "runs-as",
       "evidenceStrength": "possible",
       "relation": "causes"
@@ -67,19 +115,192 @@
     {
       "id": "bridge.cross-tenant-object-access-to-impact",
       "description": "Cross-tenant object access may constitute a confidentiality or integrity impact.",
-      "from": { "kind": "object-access", "action": "read", "scope": "cross-tenant" },
-      "to": { "kind": "confidentiality-impact", "action": "disclose" },
+      "from": {
+        "kind": "object-access",
+        "action": "read",
+        "scope": "cross-tenant"
+      },
+      "to": {
+        "kind": "confidentiality-impact",
+        "action": "disclose"
+      },
       "evidenceStrength": "strong-inference",
       "relation": "results-in"
     },
     {
       "id": "bridge.persistence-to-future-execution",
       "description": "Persistence write may lead to future execution only when an autoload relation exists.",
-      "from": { "kind": "persistence", "action": "write" },
-      "to": { "kind": "code-execution", "action": "execute" },
+      "from": {
+        "kind": "persistence",
+        "action": "write"
+      },
+      "to": {
+        "kind": "code-execution",
+        "action": "execute"
+      },
       "requiresModelRelation": "loads",
       "evidenceStrength": "possible",
       "relation": "enables"
+    }
+  ],
+  "templates": [
+    {
+      "id": "template.information-disclosure-to-credential-to-privileged-action",
+      "description": "Information disclosure, credential or token exposure, then privileged action",
+      "stepKinds": [
+        "data-access",
+        "credential-possession",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.object-authorization-gap-to-privilege-escalation",
+      "description": "Object authorization gap, role/recovery/config mutation, then privilege escalation",
+      "stepKinds": [
+        "object-access",
+        "workflow-state",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.prompt-injection-to-excessive-agency",
+      "description": "Prompt injection, tool selection or argument control, then excessive-agency impact",
+      "stepKinds": [
+        "control-bypass",
+        "capability",
+        "object-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.untrusted-workspace-config-to-process-execution",
+      "description": "Untrusted workspace config, environment/tool/plugin loading, then process execution",
+      "stepKinds": [
+        "persistence",
+        "code-execution"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.ssrf-to-credential-to-control-plane",
+      "description": "SSRF, internal or metadata reach, credential or authority, then control-plane action",
+      "stepKinds": [
+        "network-reachability",
+        "data-access",
+        "credential-possession",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.xss-or-unsafe-output-to-account-impact",
+      "description": "XSS or unsafe model output, victim-context action or token access, then account impact",
+      "stepKinds": [
+        "control-bypass",
+        "credential-possession",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.weak-recovery-to-session-to-protected-action",
+      "description": "Weak reset or recovery, session establishment, then protected action",
+      "stepKinds": [
+        "control-bypass",
+        "principal-access",
+        "object-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.ci-event-injection-to-release-compromise",
+      "description": "CI event injection, privileged workflow execution, then release or repository compromise",
+      "stepKinds": [
+        "control-bypass",
+        "code-execution",
+        "integrity-impact"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.supply-chain-gap-to-endpoint-compromise",
+      "description": "Supply-chain provenance gap, installer or update execution, then endpoint compromise",
+      "stepKinds": [
+        "integrity-impact",
+        "code-execution"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.secret-exposure-to-higher-authority-pivot",
+      "description": "Secret exposure, scope discovery, service access, then higher-authority pivot",
+      "stepKinds": [
+        "credential-possession",
+        "principal-access",
+        "credential-possession",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.file-boundary-weakness-to-execution-or-persistence",
+      "description": "Path, upload or archive weakness, sensitive read or write, then execution or persistence",
+      "stepKinds": [
+        "object-access",
+        "persistence",
+        "code-execution"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.parser-weakness-to-execution-or-data-access",
+      "description": "Parser or deserialization weakness, object construction or entity expansion, then execution, data access or denial of service",
+      "stepKinds": [
+        "control-bypass",
+        "code-execution",
+        "confidentiality-impact"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.cross-tenant-access-to-impact",
+      "description": "Cross-tenant retrieval or write, then sensitive data or control-plane mutation",
+      "stepKinds": [
+        "object-access",
+        "confidentiality-impact"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.broad-agent-identity-to-cross-system-side-effect",
+      "description": "Broad agent tool identity, prompt or output manipulation, then cross-system side effect",
+      "stepKinds": [
+        "control-bypass",
+        "capability",
+        "object-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.public-exposure-to-downstream-access",
+      "description": "Public storage or artifact exposure, secret or source disclosure, then downstream access",
+      "stepKinds": [
+        "data-access",
+        "credential-possession",
+        "principal-access"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
+    },
+    {
+      "id": "template.race-or-idempotency-to-state-impact",
+      "description": "Race or idempotency failure, repeated state transition, then economic or authorization impact",
+      "stepKinds": [
+        "workflow-state",
+        "integrity-impact"
+      ],
+      "note": "Typed composition routing rule only; labels a synthesized hypothesis and never establishes a path."
     }
   ]
 }

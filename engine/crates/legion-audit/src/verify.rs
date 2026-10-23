@@ -577,3 +577,30 @@ mod effect_artifact_tests {
         fs::remove_dir_all(run).unwrap();
     }
 }
+
+/// Run artifacts that make up a run's replay-comparison view.
+pub const REPLAY_RUN_FILES: &[&str] = &["plan.json", "facts.json", "execution.json", "report.json"];
+
+/// Reads a persisted run into one document `{ "<file>": <json> }` for
+/// replay comparison (`normalize::replay_digest` / `replay_differences`).
+/// A missing artifact is recorded as `null`, so a run lacking evidence can
+/// never compare equal to one that has it.
+pub fn replay_run_value(run_dir: &Path) -> Result<Value, AuditError> {
+    let mut document = serde_json::Map::new();
+    for name in REPLAY_RUN_FILES {
+        let path = run_dir.join(name);
+        let value = match fs::symlink_metadata(&path) {
+            Ok(meta) if meta.is_file() => {
+                let bytes = fs::read(&path)
+                    .map_err(|error| AuditError::Invalid(format!("cannot read {name}: {error}")))?;
+                serde_json::from_slice(&bytes)
+                    .map_err(|error| AuditError::Invalid(format!("{name} is invalid: {error}")))?
+            }
+            Ok(_) => return Err(AuditError::Invalid(format!("{name} is not a regular file"))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Value::Null,
+            Err(error) => return Err(AuditError::Invalid(format!("cannot stat {name}: {error}"))),
+        };
+        document.insert((*name).to_owned(), value);
+    }
+    Ok(Value::Object(document))
+}
