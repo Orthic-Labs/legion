@@ -118,6 +118,42 @@ selection defers mandatory paths, record their exact paths and digest as `mandat
 explicit coverage gaps, and keep the run `incomplete`; never call deferred mandatory coverage clean
 or convert it into confidence. Explicit `exhaustive` mode remains strict and refuses when it cannot fit.
 
+## Production assurance profiles
+
+Assurance profiles are strength-ordered: `pre-pr` < `repository` < `release`. They are frozen into
+the plan before solving; a pass under a weaker profile never projects to a stronger one. The legacy
+`--profile standard` behavior is unchanged. Details: [execution contract](references/execution-contract.md#production-assurance-profiles-target-cli).
+
+- `--profile pre-pr|repository|release` selects the required evidence set for that claim.
+- `--runtime-policy no-node-python` constrains Audit-owned execution only (no Node/Python launchers,
+  plugins, TS-loaded configs, or child interpreters). Evidence produced by Node or Python in application
+  CI and imported with authenticated provenance is allowed and discloses its upstream runtime.
+- `--product-contract <json>` and repeatable `--artifact-manifest <json>` import the product obligations
+  and authenticated artifact evidence. Imports never widen scope or substitute for missing evidence.
+- Per-stack coverage is distinct and never borrowed: Kotlin source detekt is separate from typed detekt
+  and needs no JVM contract for source-only checks; Android Lint runs per variant; Xcode/iOS targets need
+  their own workspace/scheme/destination evidence and cannot reuse macOS SwiftPM results; native JS/TS lint
+  (Oxlint/Biome) runs without Node; PostgreSQL, Nginx, dependency health, structure, domain contracts, and
+  runtime journeys each keep their own denominators and gaps.
+- Four separate claims, reported distinctly and never merged:
+  - **implemented**: source integrated and relevant checks passed;
+  - **fixture-qualified**: rule/provider exercised on broken and valid fixtures with recorded error rates;
+  - **host-qualified**: trusted owner invocation, containment, and receipts on an exact host/toolchain;
+  - **app-qualified**: exact repository set, artifacts, and required journeys satisfy the selected profile.
+  A rule can be implemented but shadow-only; a complete audit can carry blocking findings; a
+  fixture-qualified provider can leave release incomplete. Never state a claim that was not reached.
+- Selectors over saved reports: `legion report <report.json> --report assurance|trend|debt [--format json|markdown]`.
+  `assurance` projects the claims above, `trend` projects finding history over saved runs, and `debt`
+  projects open debt. These are projections only; they add no scan.
+- `legion audit gate --run <dir>` reports one outcome: `eligible`, `blocked-findings`, or `incomplete`,
+  with reasons. It validates the frozen run and requirements; it adds no second policy engine. Anything
+  other than `eligible` is not a release-ready claim.
+- External tools (scanners, linters, build/type/test commands) need native owner admission. Without it,
+  each tool stays an explicit typed gap (`native-owner-admission-unavailable`), never a clean result and
+  never a direct fallback.
+- CLI wiring for these flags, the gate, and the new selectors is root-integration work; until it is
+  verified in a built binary, describe them as target behavior, not as runnable commands.
+
 Read [full manual](references/manual.md) only for complex runtime, migration, desktop/Tauri,
 data-safety, or report-schema edges. Frozen provider order, executable registry truth, real
 `file:line` evidence, secret redaction, full security-candidate challenge, & no mutable external

@@ -12,15 +12,26 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::Coverage;
+use legion_contracts::{Coverage, ReportStatus, ReportV1, ReportV2};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::AuditError;
+use crate::execution::ExecutionReport;
+use crate::plan::FrozenPlan;
 use crate::profiles::{AuditProfile, FrozenProfile, RuntimeConstraint};
 
-/// Report extension key (`ReportV1.extensions` / projected ReportV2).
-pub const AUDIT_ASSURANCE_EXTENSION_KEY: &str = "auditAssuranceV1";
+/// Report extension key (`ReportV1.extensions` / projected ReportV2); the
+/// canonical constant lives with the report contract.
+pub use legion_contracts::report::AUDIT_ASSURANCE_EXTENSION_KEY;
+
+/// The frozen plan form (profile, runtime constraint, obligations). At
+/// freeze every applicable obligation is `unmet`; the same type, reconciled,
+/// is the projected report extension.
+pub type AssurancePlan = AuditAssuranceV1;
+
+/// Evaluation instant used only where no waiver can exist (frozen plans).
+const FROZEN_NOW: &str = "9999-12-31T23:59:59Z";
 /// `AuditPlan::bounds` key under which root freezes obligations + profile.
 pub const ASSURANCE_BOUND: &str = "auditAssuranceV1";
 /// Current (and only supported) extension schema version.
@@ -945,6 +956,487 @@ pub fn assurance_extensions(
         AUDIT_ASSURANCE_EXTENSION_KEY.to_owned(),
         assurance.to_value()?,
     )]))
+}
+
+impl AuditAssuranceV1 {
+    /// Resolve the mandatory inventory for `profile` and build the frozen
+    /// plan form. Every applicable obligation starts `unmet`.
+    pub fn freeze(
+        profile: FrozenProfile,
+        product_target: ProductTarget,
+        candidates: &[ObligationCandidate],
+    ) -> Result<Self, AuditError> {
+        let obligations = resolve_obligations(&product_target, &profile, candidates)?;
+        let frozen = Self::new(profile, product_target, obligations);
+        frozen.validate_frozen()?;
+        Ok(frozen)
+    }
+
+    /// A frozen plan may carry only freeze-time states: `unmet` (not yet
+    /// examined) or proven `inapplicable`. Pre-satisfied obligations,
+    /// evidence, waivers or deferrals in a plan are claims, not a
+    /// denominator, and are rejected.
+    pub fn validate_frozen(&self) -> Result<(), AuditError> {
+        self.validate(FROZEN_NOW)?;
+        for (index, obligation) in self.obligations.iter().enumerate() {
+            let path = format!("auditAssuranceV1.obligations[{index}]");
+            match obligation.status {
+                ObligationStatus::Unmet => {
+                    if !obligation.evidence_refs.is_empty() || obligation.waiver.is_some() {
+                        return Err(invalid(path, "frozen unmet obligation carries a claim"));
+                    }
+                }
+                ObligationStatus::Inapplicable => {
+                    if obligation.waiver.is_some() {
+                        return Err(invalid(path, "frozen inapplicable obligation is waived"));
+                    }
+                }
+                other => {
+                    return Err(invalid(
+                        path,
+                        format!("frozen plan cannot pre-assert status {other:?}"),
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse the plan-bound frozen form (no clock needed; no waivers exist).
+    pub fn from_frozen_value(value: &Value) -> Result<Self, AuditError> {
+        let parsed = Self::from_value(value, FROZEN_NOW)?;
+        parsed.validate_frozen()?;
+        Ok(parsed)
+    }
+}
+
+/// Obligation identity rendered for reasons/diagnostics.
+fn label(id: &ObligationId) -> String {
+    format!("{}/{}/{:?}", id.target, id.concern, id.evidence_kind)
+}
+
+/// Result of reconciling evidence and waivers against a frozen plan.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Reconciliation {
+    pub assurance: AuditAssuranceV1,
+    /// Evidence or waivers that matched no frozen obligation (or failed
+    /// validation) and were ignored. They never add or remove denominator.
+    pub rejected: Vec<String>,
+}
+
+/// Reconcile evidence against the frozen denominator. Only identities in
+/// `frozen` exist in the result; absent evidence leaves an obligation
+/// `unmet` (gap retained); several evidence entries for one obligation must
+/// all validate; a waiver applies only to an obligation that has no
+/// execution evidence and is never an execution claim.
+pub fn reconcile(
+    frozen: &AuditAssuranceV1,
+    evidence: &[ObligationEvidence],
+    waivers: &[(ObligationId, Waiver)],
+    now_rfc3339_utc: &str,
+) -> Result<Reconciliation, AuditError> {
+    frozen.validate_frozen()?;
+    let known: BTreeSet<&ObligationId> = frozen.obligations.iter().map(|o| &o.id).collect();
+    let mut rejected = Vec::new();
+    for item in evidence {
+        if !known.contains(&item.obligation) {
+            rejected.push(format!(
+                "evidence-unknown-obligation:{}",
+                label(&item.obligation)
+            ));
+        }
+    }
+    let mut obligations = Vec::with_capacity(frozen.obligations.len());
+    for base in &frozen.obligations {
+        if base.status == ObligationStatus::Inapplicable {
+            obligations.push(base.clone());
+            continue;
+        }
+        let applied: Vec<ProductionObligation> = evidence
+            .iter()
+            .filter(|item| item.obligation == base.id)
+            .map(|item| apply_evidence(base, item))
+            .collect();
+        let mut current = if applied.is_empty() {
+            let mut open = base.clone();
+            open.status = ObligationStatus::Unmet;
+            open.reason = Some("not-examined: no evidence for frozen obligation".to_owned());
+            open
+        } else if let Some(failed) = applied.iter().find(|o| o.status == ObligationStatus::Unmet) {
+            failed.clone()
+        } else if let Some(with_findings) = applied
+            .iter()
+            .find(|o| o.status == ObligationStatus::Findings)
+        {
+            with_findings.clone()
+        } else {
+            applied[0].clone()
+        };
+        if current.status == ObligationStatus::Unmet {
+            if let Some((_, waiver)) = waivers.iter().find(|(id, _)| id == &base.id) {
+                match apply_waiver(&current, waiver.clone(), now_rfc3339_utc) {
+                    Ok(waived) => current = waived,
+                    Err(error) => {
+                        rejected.push(format!("waiver-rejected:{}:{error}", label(&base.id)))
+                    }
+                }
+            }
+        }
+        obligations.push(current);
+    }
+    for (id, _) in waivers {
+        if !known.contains(id) {
+            rejected.push(format!("waiver-unknown-obligation:{}", label(id)));
+        }
+    }
+    rejected.sort();
+    rejected.dedup();
+    let assurance = AuditAssuranceV1::new(
+        frozen.profile.clone(),
+        frozen.product_target.clone(),
+        obligations,
+    );
+    assurance.validate(now_rfc3339_utc)?;
+    Ok(Reconciliation {
+        assurance,
+        rejected,
+    })
+}
+
+/// Derive `ProviderExecution` evidence from a signed-plan execution. Only an
+/// execution bound to `plan` (digest + signature present) yields evidence;
+/// every listed provider must have run (not skipped) and carry coverage, and
+/// a provider unqualified in the frozen plan cannot discharge an obligation.
+pub fn evidence_from_execution(
+    frozen: &AuditAssuranceV1,
+    plan: &FrozenPlan,
+    execution: &ExecutionReport,
+) -> Vec<ObligationEvidence> {
+    if execution.plan_signature.is_none()
+        || plan.signature().is_none()
+        || execution.plan_digest != plan.digest()
+    {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for obligation in &frozen.obligations {
+        if obligation.status == ObligationStatus::Inapplicable
+            || obligation.id.evidence_kind != EvidenceKind::ProviderExecution
+            || obligation.provider_ids.is_empty()
+        {
+            continue;
+        }
+        let mut coverages: Vec<&Coverage> = Vec::new();
+        let mut finding_ids = BTreeSet::new();
+        let mut mismatches = Vec::new();
+        let mut all_ran = true;
+        for provider_id in &obligation.provider_ids {
+            let ran = execution
+                .results
+                .iter()
+                .find(|row| &row.provider == provider_id && !row.skipped);
+            let Some(row) = ran else {
+                all_ran = false;
+                break;
+            };
+            if !row.result.complete || !row.result.applicable {
+                all_ran = false;
+                break;
+            }
+            match &row.result.coverage {
+                Some(coverage) => coverages.push(coverage),
+                None => {
+                    all_ran = false;
+                    break;
+                }
+            }
+            for finding in &row.result.findings {
+                finding_ids.insert(finding.id.as_str().to_owned());
+            }
+            let qualified = plan.provider(provider_id).is_some_and(|p| {
+                p.benchmark_status == "qualified" && p.qualification_digest.is_some()
+            });
+            if !qualified {
+                mismatches.push(format!("provider-unqualified:{provider_id}"));
+            }
+        }
+        if !all_ran || coverages.is_empty() {
+            continue; // gap retained: obligation stays unmet
+        }
+        let digests: BTreeSet<&str> = coverages
+            .iter()
+            .map(|c| c.denominator_digest.as_str())
+            .collect();
+        let combined = Coverage {
+            denominator_digest: digests.iter().copied().collect::<Vec<_>>().join("+"),
+            expected: coverages.iter().map(|c| c.expected).sum(),
+            examined: coverages.iter().map(|c| c.examined).sum(),
+            gaps: coverages.iter().flat_map(|c| c.gaps.clone()).collect(),
+        };
+        out.push(ObligationEvidence {
+            obligation: obligation.id.clone(),
+            kind: EvidenceKind::ProviderExecution,
+            provider_id: Some(obligation.provider_ids.join("+")),
+            coverage: Some(combined),
+            finding_ids: finding_ids.into_iter().collect(),
+            evidence_refs: vec![format!(
+                "execution:{}:{}",
+                execution.plan_digest,
+                obligation.provider_ids.join("+")
+            )],
+            artifact_digest: None,
+            attested_by: None,
+            authenticated: false,
+            produced_by_runtime: None,
+            qualification: (!mismatches.is_empty()).then_some(QualificationVerdict {
+                applicable: false,
+                mismatches,
+            }),
+        });
+    }
+    out
+}
+
+/// Differences between the frozen plan and a reported assurance. A report
+/// may only move obligations from `unmet` to an evidenced state; it cannot
+/// drop, add, re-identify, re-scope or newly declare inapplicable any
+/// frozen obligation, nor change the frozen profile/target/constraint.
+pub fn frozen_mismatches(frozen: &AuditAssuranceV1, reported: &AuditAssuranceV1) -> Vec<String> {
+    let mut out = Vec::new();
+    if frozen.profile != reported.profile {
+        out.push("profile-changed".to_owned());
+    }
+    if frozen.runtime_constraint != reported.runtime_constraint {
+        out.push("runtime-constraint-changed".to_owned());
+    }
+    if frozen.product_target != reported.product_target {
+        out.push("product-target-changed".to_owned());
+    }
+    let reported_by: BTreeMap<&ObligationId, &ProductionObligation> =
+        reported.obligations.iter().map(|o| (&o.id, o)).collect();
+    for base in &frozen.obligations {
+        match reported_by.get(&base.id) {
+            None => out.push(format!("obligation-dropped:{}", label(&base.id))),
+            Some(got) => {
+                if got.required_in != base.required_in
+                    || got.provider_ids != base.provider_ids
+                    || got.required_denominator_digest != base.required_denominator_digest
+                {
+                    out.push(format!("obligation-weakened:{}", label(&base.id)));
+                }
+                if (base.status == ObligationStatus::Inapplicable)
+                    != (got.status == ObligationStatus::Inapplicable)
+                {
+                    out.push(format!("inapplicability-changed:{}", label(&base.id)));
+                }
+            }
+        }
+    }
+    let frozen_ids: BTreeSet<&ObligationId> = frozen.obligations.iter().map(|o| &o.id).collect();
+    for got in &reported.obligations {
+        if !frozen_ids.contains(&got.id) {
+            out.push(format!("obligation-added:{}", label(&got.id)));
+        }
+    }
+    out
+}
+
+/// Gate verdict. Three independent outcomes: eligible, blocked by
+/// findings, or incomplete (including legacy/unproven reports).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GateVerdict {
+    Eligible,
+    BlockedFindings,
+    Incomplete,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GateDecision {
+    pub verdict: GateVerdict,
+    pub reasons: Vec<String>,
+}
+
+/// Report fields the gate reads; independent of v1/v2 type.
+pub struct GateSubject<'a> {
+    pub status: ReportStatus,
+    /// Blocking (non-advisory) findings.
+    pub finding_count: usize,
+    pub gaps: &'a [String],
+    pub extensions: &'a BTreeMap<String, Value>,
+}
+
+/// Findings that block: advisory findings (named in the report's
+/// `advisoryFindings` extension) never do, everything else does.
+fn blocking_count<'i>(
+    ids: impl Iterator<Item = &'i str>,
+    extensions: &BTreeMap<String, Value>,
+) -> usize {
+    let advisory: BTreeSet<&str> = extensions
+        .get("advisoryFindings")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("id").and_then(Value::as_str))
+                .collect()
+        })
+        .unwrap_or_default();
+    ids.filter(|id| !advisory.contains(id)).count()
+}
+
+impl<'a> GateSubject<'a> {
+    pub fn from_v1(report: &'a ReportV1) -> Self {
+        Self {
+            status: report.status,
+            finding_count: blocking_count(
+                report.findings.iter().map(|f| f.id.as_str()),
+                &report.extensions,
+            ),
+            gaps: &report.gaps,
+            extensions: &report.extensions,
+        }
+    }
+    pub fn from_v2(report: &'a ReportV2) -> Self {
+        Self {
+            status: report.status,
+            finding_count: blocking_count(
+                report.findings.iter().map(|f| f.id.as_str()),
+                &report.extensions,
+            ),
+            gaps: &report.gaps,
+            extensions: &report.extensions,
+        }
+    }
+}
+
+/// Pure gate for a report/run against `required` strength. Eligible only
+/// when the frozen-bound assurance is present, valid, recomputes, covers the
+/// frozen plan (when supplied), was run at >= `required` strength, is
+/// complete and clean, and the report's own status/gaps agree. Missing,
+/// malformed or future extensions, legacy reports, partial runs and claims
+/// that contradict evidence are `Incomplete`; any finding is
+/// `BlockedFindings` (a finding is never overridden by completeness).
+pub fn gate(
+    subject: &GateSubject<'_>,
+    frozen: Option<&AuditAssuranceV1>,
+    required: AuditProfile,
+    now_rfc3339_utc: &str,
+) -> GateDecision {
+    let mut blockers: Vec<String> = Vec::new();
+    let mut incomplete: Vec<String> = Vec::new();
+    if subject.finding_count > 0 || subject.status == ReportStatus::Findings {
+        blockers.push(format!("report-findings:{}", subject.finding_count));
+    }
+    match subject.status {
+        ReportStatus::Clean | ReportStatus::Findings => {}
+        other => incomplete.push(format!("report-status:{other:?}")),
+    }
+    for gap in subject.gaps {
+        incomplete.push(format!("report-gap:{gap}"));
+    }
+    let assurance = match subject.extensions.get(AUDIT_ASSURANCE_EXTENSION_KEY) {
+        None => {
+            incomplete.push(
+                "assurance-extension-absent: legacy report cannot carry release eligibility"
+                    .to_owned(),
+            );
+            None
+        }
+        Some(value) => match AuditAssuranceV1::from_value(value, now_rfc3339_utc) {
+            Ok(parsed) => Some(parsed),
+            Err(error) => {
+                incomplete.push(format!("assurance-extension-invalid: {error}"));
+                None
+            }
+        },
+    };
+    if let Some(assurance) = &assurance {
+        if let Some(frozen) = frozen {
+            for mismatch in frozen_mismatches(frozen, assurance) {
+                incomplete.push(format!("frozen-mismatch:{mismatch}"));
+            }
+        } else {
+            incomplete.push("frozen-plan-not-supplied: obligations unverifiable".to_owned());
+        }
+        if !assurance.profile.profile.can_project_to(required) {
+            incomplete.push(format!(
+                "profile-too-weak: ran {} required {}",
+                assurance.profile.profile.as_str(),
+                required.as_str()
+            ));
+        }
+        let summary = &assurance.summary;
+        if summary.findings > 0 {
+            blockers.push(format!("obligation-findings:{}", summary.findings));
+        }
+        if summary.completion != Completion::Complete {
+            incomplete.push(format!(
+                "assurance-completion:{:?} unmet={} deferred={} waived={}",
+                summary.completion, summary.unmet, summary.deferred, summary.waived
+            ));
+        }
+        if summary.waived > 0 {
+            incomplete.push(format!("waived-obligations:{}", summary.waived));
+        }
+        if required == AuditProfile::Release
+            && summary.release_eligibility != ReleaseEligibility::Eligible
+            && blockers.is_empty()
+        {
+            incomplete.push(format!(
+                "release-eligibility:{:?}",
+                summary.release_eligibility
+            ));
+        }
+    }
+    if !blockers.is_empty() {
+        blockers.extend(incomplete);
+        return GateDecision {
+            verdict: GateVerdict::BlockedFindings,
+            reasons: blockers,
+        };
+    }
+    if !incomplete.is_empty() {
+        return GateDecision {
+            verdict: GateVerdict::Incomplete,
+            reasons: incomplete,
+        };
+    }
+    GateDecision {
+        verdict: GateVerdict::Eligible,
+        reasons: vec!["complete-clean-frozen-denominator".to_owned()],
+    }
+}
+
+/// Gate over a v1 report (convenience).
+pub fn gate_report_v1(
+    report: &ReportV1,
+    frozen: Option<&AuditAssuranceV1>,
+    required: AuditProfile,
+    now_rfc3339_utc: &str,
+) -> GateDecision {
+    gate(
+        &GateSubject::from_v1(report),
+        frozen,
+        required,
+        now_rfc3339_utc,
+    )
+}
+
+/// Gate over a v2 report (convenience).
+pub fn gate_report_v2(
+    report: &ReportV2,
+    frozen: Option<&AuditAssuranceV1>,
+    required: AuditProfile,
+    now_rfc3339_utc: &str,
+) -> GateDecision {
+    gate(
+        &GateSubject::from_v2(report),
+        frozen,
+        required,
+        now_rfc3339_utc,
+    )
 }
 
 fn invalid(path: impl Into<String>, reason: impl Into<String>) -> AuditError {

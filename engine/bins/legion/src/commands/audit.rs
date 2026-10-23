@@ -101,8 +101,12 @@ pub struct AuditArgs {
     pub dir: Option<PathBuf>,
     #[arg(long)]
     pub json: bool,
+    /// `standard` (legacy, unchanged) or an assurance profile: `pre-pr`,
+    /// `repository`, `release`. Assurance profiles freeze a denominator into the plan.
     #[arg(long, default_value = "standard")]
     pub profile: String,
+    #[command(flatten)]
+    pub assurance: super::audit_assurance::AssuranceArgs,
     #[arg(long)]
     pub out: Option<PathBuf>,
     /// Largest estimated token count (packet JSON bytes / 4) one reasoning
@@ -730,6 +734,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             args.root.display()
         )));
     }
+    let assurance_request = super::audit_assurance::request(&args.profile, &args.assurance)?;
     let source_root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let scope_spec = if let Some(base) = &args.base_commit {
         legion_audit::scope::ScopeSpec::Range {
@@ -788,6 +793,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         snapshot: Some(frozen_snapshot.manifest.clone()),
     };
     let direct = args.provider_plan.is_some() || !args.provider_results.is_empty();
+    if assurance_request.is_some() && (direct || args.native_rule_manifest.is_some()) {
+        return Err(CommandError::usage(
+            "assurance profiles require the native provider registry route; --provider-plan, --provider-result and --native-rule-manifest cannot carry a frozen denominator",
+        ));
+    }
     let native_application_configured =
         std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some();
     if args.rightkit_trust.is_some()
@@ -1072,7 +1082,19 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             &selected_specs,
             signing_key.as_deref(),
             inventory_filter.as_ref(),
+            assurance_request.as_ref(),
         )
+    };
+    if assurance_request.is_some() {
+        if let Err(error) = &lens_basis {
+            return Err(CommandError::incomplete(format!(
+                "assurance profile could not freeze its plan: {error}"
+            )));
+        }
+    }
+    let assurance_summary: Value = match (&assurance_request, &lens_basis) {
+        (Some(request), Ok((plan, _))) => request.summary(plan.plan()),
+        _ => Value::Null,
     };
     // Size gate: report every lens's packet bytes, estimated tokens, parts and
     // required seats, and refuse to freeze an oversize plan without an
@@ -1182,6 +1204,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             "sourceRepository": source_root,
             "snapshotManifest": frozen_snapshot.manifest_path,
             "profile": args.profile,
+            "assurance": assurance_summary.clone(),
             "scope": scope.plan_json(),
             "reviewContext": review_context,
             "sourcePerformance": {"snapshot": frozen_snapshot.manifest.source_cache, "graph": graph_cache_stats},
@@ -1233,9 +1256,21 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 } else {
                     None
                 };
-            let mut report =
-                legion_audit::canonical_report(&source_root.to_string_lossy(), &execution)
-                    .map_err(|error| CommandError::integrity(error.to_string()))?;
+            let mut report = match (&assurance_request, &lens_basis) {
+                (Some(request), Ok((plan, _))) => legion_audit::canonical_report_assured(
+                    &source_root.to_string_lossy(),
+                    plan,
+                    &execution,
+                    &request.imported,
+                    &[],
+                    &super::audit_assurance::now_rfc3339_utc(),
+                ),
+                _ => legion_audit::canonical_report(&source_root.to_string_lossy(), &execution),
+            }
+            .map_err(|error| CommandError::integrity(error.to_string()))?;
+            if let Some(request) = &assurance_request {
+                report.gaps.extend(request.import_gaps.iter().cloned());
+            }
             let parity_gaps = native_audit_parity_gaps(
                 execution.planned_providers.len(),
                 execution.results.len(),
@@ -1429,6 +1464,14 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             report
                 .claims
                 .insert("completionValidation".into(), json!("not-run"));
+            if let (Some(_), Ok((plan, _))) = (&assurance_request, &lens_basis) {
+                legion_audit::verify_assurance(
+                    plan,
+                    &report,
+                    &super::audit_assurance::now_rfc3339_utc(),
+                )
+                .map_err(|error| CommandError::integrity(error.to_string()))?;
+            }
             let report_json = render_report_json(
                 &report,
                 run_report_scope(
@@ -1506,6 +1549,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "executionRoot": root,
                 "snapshotManifest": frozen_snapshot.manifest_path,
                 "profile": args.profile,
+                "assurance": assurance_summary.clone(),
                 "scope": scope.plan_json(),
                 "planDigest": execution.plan_digest,
                 "planSignature": execution.plan_signature,
@@ -2122,6 +2166,7 @@ fn freeze_lens_basis(
     specs: &[legion_contracts::ProviderSpec],
     signing_key: Option<&[u8]>,
     only_paths: Option<&std::collections::BTreeSet<String>>,
+    assurance: Option<&super::audit_assurance::AssuranceRequest>,
 ) -> LensBasis {
     let source =
         super::audit_inventory_source_scoped(root, only_paths).map_err(|error| error.message)?;
@@ -2130,6 +2175,15 @@ fn freeze_lens_basis(
         .map_err(|error| error.to_string())?;
     let pending = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, specs)
         .map_err(|error| error.to_string())?;
+    let pending = match assurance {
+        Some(request) => {
+            let frozen = request.build(&pending, root)?;
+            pending
+                .with_assurance(&frozen)
+                .map_err(|error| error.to_string())?
+        }
+        None => pending,
+    };
     let plan = match signing_key {
         Some(key) => pending.freeze(Some(key)),
         None => pending.freeze_source_diagnostic(),
@@ -4604,7 +4658,9 @@ fn native_registry_application(
 fn native_audit_external_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
 ) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
-    let policy = legion_audit::execution_policy::OwnerAdmissionRequired;
+    // No trusted owner is wired into this CLI, so resolution yields the
+    // fail-closed OwnerAdmissionRequired fallback exactly as before.
+    let policy = legion_audit::owner_admission::NativeAuthorizer::resolve(None, None);
     #[cfg(windows)]
     let process = legion_effects::platform::windows::WindowsProcess;
     #[cfg(unix)]
@@ -5387,6 +5443,7 @@ mod closure_tests {
             run_token_budget: 6_000_000,
             max_total_seats: 48,
             report_schema: 2,
+            assurance: Default::default(),
         };
         let scope = audit_scope(std::path::Path::new("."), &args);
         assert_eq!(scope.mode, "whole-repo");
@@ -6233,6 +6290,7 @@ mod closure_tests {
             run_token_budget: 6_000_000,
             max_total_seats: 48,
             report_schema: 2,
+            assurance: Default::default(),
         }
     }
 

@@ -6,6 +6,7 @@ use std::path::Path;
 use legion_contracts::ProviderSpec;
 
 use crate::{
+    assurance::{AuditAssuranceV1, ASSURANCE_BOUND},
     dag::topological,
     error::AuditError,
     integrity::{plan_digest, sign},
@@ -666,6 +667,34 @@ impl AuditPlan {
         self.bounds.get(FOLLOWUP_BOUND)
     }
 
+    /// Freeze a production-assurance plan (profile, runtime constraint and
+    /// obligation denominator) into `bounds` so the plan digest and
+    /// signature cover it. Call before `freeze`, and only when a new
+    /// profile (`pre-pr|repository|release`) or product contract was
+    /// selected: legacy plans (`standard`) never carry the bound. The
+    /// supplied assurance must be in freeze form (obligations `unmet` or
+    /// proven `inapplicable`; no pre-asserted evidence or waivers).
+    pub fn with_assurance(mut self, assurance: &AuditAssuranceV1) -> Result<Self, AuditError> {
+        assurance.validate_frozen()?;
+        if self.bounds.contains_key(ASSURANCE_BOUND) {
+            return Err(AuditError::Invalid(
+                "audit plan already carries a frozen assurance plan".into(),
+            ));
+        }
+        self.bounds
+            .insert(ASSURANCE_BOUND.into(), assurance.to_value()?);
+        Ok(self)
+    }
+
+    /// The frozen assurance plan, `None` for legacy plans. A present but
+    /// malformed/unsupported bound is an error, never silently absent.
+    pub fn assurance_binding(&self) -> Result<Option<AuditAssuranceV1>, AuditError> {
+        self.bounds
+            .get(ASSURANCE_BOUND)
+            .map(AuditAssuranceV1::from_frozen_value)
+            .transpose()
+    }
+
     pub(crate) fn validate_execution_policy(&self) -> Result<(), AuditError> {
         for (field, value) in crate::execution_policy::binding()
             .as_object()
@@ -694,6 +723,7 @@ impl AuditPlan {
                 "audit plan inventory digest is required".into(),
             ));
         }
+        self.assurance_binding()?;
         if let Some(binding) = self.bounds.get(PROVIDER_UNIVERSE_BOUND) {
             let object = binding.as_object().ok_or_else(|| {
                 AuditError::Invalid("provider universe bound is not an object".into())

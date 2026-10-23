@@ -96,7 +96,7 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
         "runs": [{
             "tool": {"driver": {"name": "Legion", "informationUri": "https://github.com/Orthic-Labs/legion", "rules": rules}},
             "results": ordered,
-            "properties": {"schemaVersion": report.schema_version, "reportId": report.report_id, "status": report.status, "gaps": report.gaps, "targets": report.targets, "claims": report.claims}
+            "properties": {"schemaVersion": report.schema_version, "reportId": report.report_id, "status": report.status, "gaps": report.gaps, "targets": report.targets, "claims": report.claims, "assurance": crate::assurance_view::sarif(&crate::assurance_view::view(&report.extensions))}
         }]
     });
     Ok(format!("{}\n", serde_json::to_string_pretty(&value)?))

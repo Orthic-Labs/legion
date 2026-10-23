@@ -449,6 +449,21 @@
       "may_close_own_candidates": true
     },
     {
+      "id": "architecture.structure",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "architecture.structure"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
       "id": "code.dotnet",
       "role": "deterministic",
       "phase": "facts",
@@ -479,12 +494,72 @@
       "may_close_own_candidates": true
     },
     {
+      "id": "code.javascript.native",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.javascript.native"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
       "id": "code.jvm",
       "role": "deterministic",
       "phase": "facts",
       "runner": {
         "kind": "runtime-script",
         "module": "code.jvm"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "code.kotlin.detekt-source",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.kotlin.detekt-source"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "code.kotlin.detekt-typed",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.kotlin.detekt-typed"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "code.android.lint",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.android.lint"
       },
       "benchmark_status": "unproven",
       "required_for_clean_claim": true,
@@ -524,6 +599,21 @@
       "may_close_own_candidates": true
     },
     {
+      "id": "code.apple.targets",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.apple.targets"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
       "id": "code.python",
       "role": "deterministic",
       "phase": "facts",
@@ -547,6 +637,21 @@
         "module": "code.rust"
       },
       "benchmark_status": "qualified",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "code.rust.targets",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "code.rust.targets"
+      },
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -637,6 +742,21 @@
         "module": "framework.data"
       },
       "benchmark_status": "qualified",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": false,
+      "fresh_context_required": false,
+      "may_close_own_candidates": true
+    },
+    {
+      "id": "framework.nginx",
+      "role": "deterministic",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "framework.nginx"
+      },
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,

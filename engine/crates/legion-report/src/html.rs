@@ -43,7 +43,11 @@ pub fn render(report: &ReportV1) -> Result<String, ReportError> {
         output.push_str(&escape::html(gap));
         output.push_str("</li>\n");
     }
-    output.push_str("</ul>\n<h2>Findings</h2>\n");
+    output.push_str("</ul>\n");
+    output.push_str(&crate::assurance_view::html(&crate::assurance_view::view(
+        &report.extensions,
+    )));
+    output.push_str("<h2>Findings</h2>\n");
     if report.findings.is_empty() {
         output.push_str("<p>No findings recorded; status remains authoritative.</p>\n");
     }

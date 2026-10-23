@@ -10,6 +10,7 @@ mod jvm_sdk;
 pub mod kotlin_detekt;
 pub mod long_tail;
 pub mod mobile;
+pub mod producer;
 pub mod python;
 pub mod rust;
 pub mod rust_targets;
@@ -235,6 +236,12 @@ impl ProviderExecutorAdapter {
         inventory: &InventoryEnvelope,
         tools: Option<&tools::ToolEvidence>,
     ) -> Result<ProviderResult, AuditError> {
+        // Assurance-extension providers (Kotlin detekt, Android Lint, Xcode
+        // targets, native JS lint, Rust target obligations) are plan-bound
+        // planners; they never reuse the language-config accounting below.
+        if let Some(result) = producer::execute_assurance(self, provider, inventory) {
+            return result;
+        }
         let config = evidence::config_for(&provider.id).ok_or_else(|| {
             AuditError::Provider(format!("unsupported native code provider: {}", provider.id))
         })?;

@@ -45,9 +45,10 @@ pub use inventory::{
 pub use native_providers::NativeProviderRegistry;
 pub use normalize::{normalize, normalize_all};
 pub use plan::{AuditPlan, AuditProvider, FrozenPlan, ProviderKind};
-pub use report::{canonical_report, lift_report_v2};
+pub use report::{canonical_report, canonical_report_assured, lift_report_v2, project_assurance};
 pub use verify::{
-    parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path, verify_binding,
-    verify_execution, verify_source_diagnostic, DETAILS_ARTIFACT_REF_KEYS,
+    parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path,
+    verify_assurance, verify_binding, verify_execution, verify_source_diagnostic,
+    DETAILS_ARTIFACT_REF_KEYS,
 };
 pub use worktree::{cleanup, create, WorktreeEffect, WorktreeReceipt};

@@ -212,6 +212,18 @@
       "selectable": true
     },
     {
+      "id": "architecture.structure",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "architecture",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "code.dotnet",
       "providerVersion": "1.0.0",
       "role": "deterministic",
@@ -264,7 +276,55 @@
       "selectable": true
     },
     {
+      "id": "code.javascript.native",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "code.jvm",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "code.kotlin.detekt-source",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "code.kotlin.detekt-typed",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
+      "id": "code.android.lint",
       "providerVersion": "1.0.0",
       "role": "deterministic",
       "family": "code",
@@ -333,6 +393,18 @@
       "selectable": true
     },
     {
+      "id": "code.apple.targets",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "code.python",
       "providerVersion": "1.0.0",
       "role": "deterministic",
@@ -383,6 +455,18 @@
           "admissionScope": "exact constructed SDK fixture authorizer; production owner admission remains denied",
           "coverageScope": "five original Rust tasks; features/targets & unsafe soundness remain explicit gaps; unchanged historical RustSec subset only"
         }
+      },
+      "selectable": true
+    },
+    {
+      "id": "code.rust.targets",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "code",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
       },
       "selectable": true
     },
@@ -535,6 +619,18 @@
           "stage": "outcome",
           "scope": "constructed verifier acceptance & rejection controls; not a population accuracy estimate"
         }
+      },
+      "selectable": true
+    },
+    {
+      "id": "framework.nginx",
+      "providerVersion": "1.0.0",
+      "role": "deterministic",
+      "family": "framework",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
       },
       "selectable": true
     },

@@ -97,6 +97,46 @@ mandatory universe and digest, selected/deferred mandatory paths and digests, ex
 sampled strata. Confidence applies only to eligible random strata; it never closes or softens a mandatory
 coverage gap. Statistical statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
 
+## Production assurance profiles (target CLI)
+
+Status: the engine module (`legion-audit` profiles, assurance, gate inputs) is authored; root
+integration wires the CLI after compile and CI. Until a built `legion` binary demonstrates a flag, these
+are target behavior only.
+
+- **Profiles** `pre-pr`, `repository`, `release` are strength-ordered and frozen before solving. A pass
+  under a weaker profile never projects to a stronger one; a release run cannot inherit a `pre-pr`
+  completeness claim. Legacy `--profile standard` and other legacy names are untouched.
+- **Runtime policy** `--runtime-policy no-node-python` is frozen into the profile. It constrains
+  Audit-owned execution: Node/Python launchers, plugins, TS-loaded configs, and child interpreters are
+  excluded from the launch closure. Evidence merely produced by Node/Python in application CI and
+  imported with authenticated provenance is not rejected, and the import discloses its upstream runtime.
+- **Imports** `--product-contract <json>` (one) and repeatable `--artifact-manifest <json>` carry product
+  obligations and authenticated artifact evidence. Imports never narrow the frozen denominator.
+- **Per-stack coverage** keeps denominators separate and never borrows results across them:
+  - Kotlin: source-level detekt (no JVM contract needed) is a distinct capability from typed detekt. Typed
+    results are never inferred from source results; missing typed inputs stay a gap.
+  - Android: Android Lint runs per variant; manifest, SDK, and target evidence are per app.
+  - Apple: Xcode/iOS targets need exact workspace, scheme, configuration, and destination. An iOS target
+    cannot use macOS SwiftPM qualification.
+  - JS/TS: native lint (Oxlint or Biome) runs without Node.
+  - PostgreSQL, Nginx, dependency health (advisories, freshness, EOL, licenses), structure facts, domain
+    contracts, and runtime journeys each report their own applicable set and typed gaps.
+- **Four separate claims** are never merged: *implemented* (source integrated, relevant checks passed);
+  *fixture-qualified* (exact rule revision, broken and valid fixtures, raw outcomes, false-positive and
+  false-negative counts, excluded cases); *host-qualified* (trusted owner invocation, containment,
+  termination, receipt validation, exact host and toolchain); *app-qualified* (exact repository set,
+  target and deployed artifacts, required journeys, current receipts for the selected profile).
+- **External tools** require native owner admission. Absent admission, each tool is an explicit typed
+  gap; it is never a clean result and never a direct fallback. Caller environment cannot grant admission.
+- **Report selectors**: `legion report <report.json> --report review|ponytail` (existing) and, for the
+  extension, `--report assurance|trend|debt --format json|markdown`. `assurance` projects the four claims
+  from a saved report; `trend` and `debt` project finding history and debt from saved reports or the
+  store. Projections never re-scan and never change verdicts.
+- **Gate**: `legion audit gate --run <dir>` validates a frozen run against its requirements and returns
+  `eligible`, `blocked-findings`, or `incomplete`, with structured reasons. The CLI maps these to exit
+  codes; there is no second policy engine. Only `eligible` supports a profile-level claim, and even then
+  it claims only the four-claim state actually reached.
+
 ## Native reasoning runtime (step 7 detail)
 
 The supported execution path is `legion audit run-reasoning --run <run-dir> [--claude <path>] [--model <id>] [--reasoning-effort <level>]`;

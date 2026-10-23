@@ -259,11 +259,13 @@ pub fn validate_runtime_closure(
 pub fn classify_runtime(runner_kind: &str) -> RuntimeClass {
     let normalized = runner_kind.trim().to_ascii_lowercase();
     match normalized.as_str() {
-        "native" | "rust" | "rust-algorithm" | "binary" => RuntimeClass::Native,
+        // `runtime-script` is the registry's legacy name for in-process native
+        // provider modules; plan.rs maps it to ProviderKind::RustAlgorithm.
+        "native" | "rust" | "rust-algorithm" | "binary" | "runtime-script" => RuntimeClass::Native,
         "jvm" | "java" | "kotlin" | "gradle" | "detekt" => RuntimeClass::Jvm,
         "swift" | "swiftpm" | "xcode" => RuntimeClass::Swift,
         "node" | "nodejs" | "node.js" | "npm" | "npx" | "pnpm" | "yarn" | "bun" | "deno"
-        | "runtime-script" | "javascript" | "typescript" => RuntimeClass::Node,
+        | "javascript" | "typescript" => RuntimeClass::Node,
         "python" | "python3" | "pip" | "uv" => RuntimeClass::Python,
         _ => RuntimeClass::Unknown,
     }

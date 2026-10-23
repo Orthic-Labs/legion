@@ -170,6 +170,8 @@ struct AuditCommandArgs {
 enum AuditSubcommand {
     /// Prepare an explicit linked continuation within original cumulative caps.
     Continue(commands::audit::ContinueAuditArgs),
+    /// Report whether a frozen run is release-eligible: eligible, blocked-findings or incomplete.
+    Gate(commands::audit_assurance::GateArgs),
     /// Run the frozen reasoning plan in an existing audit run directory.
     RunReasoning(commands::audit_runtime::RunReasoningArgs),
     /// Export existing authenticated native evidence without generation.
@@ -1643,6 +1645,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Policy(args) => commands::policy::run(args),
         Command::Audit(args) => match args.command {
             Some(AuditSubcommand::Continue(args)) => commands::audit::continue_command(args),
+            Some(AuditSubcommand::Gate(args)) => commands::audit_assurance::gate(args),
             Some(AuditSubcommand::RunReasoning(args)) => commands::audit_runtime::run(args).await,
             Some(AuditSubcommand::ExportReasoning(args)) => commands::audit_runtime::export(args),
             Some(AuditSubcommand::CheckReasoningDispatch(args)) => {

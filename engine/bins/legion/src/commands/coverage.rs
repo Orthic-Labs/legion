@@ -60,6 +60,8 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
             "security.rust-unsafe",
             "stack.rust-outdated",
             "quality.rust-unused-deps",
+            "code.rust.targets",
+            "architecture.structure",
         ],
     ),
     (
@@ -70,22 +72,38 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
             "security.node-dependencies",
             "security.js-licenses",
             "stack.node-outdated",
+            "code.javascript.native",
+            "architecture.structure",
         ],
     ),
     (
         "language.typescript",
         "language",
-        &["code.javascript", "quality.types"],
+        &["code.javascript", "code.javascript.native", "quality.types"],
     ),
     (
         "language.swift",
         "language",
-        &["quality.swift-lint", "apple.platform", "code.mobile"],
+        &[
+            "quality.swift-lint",
+            "apple.platform",
+            "code.mobile",
+            "code.apple.targets",
+        ],
     ),
     (
         "language.python",
         "language",
         &["code.python", "security.python-dependencies"],
+    ),
+    (
+        "language.kotlin",
+        "language",
+        &[
+            "code.kotlin.detekt-source",
+            "code.kotlin.detekt-typed",
+            "code.android.lint",
+        ],
     ),
     (
         "framework.react",
@@ -98,6 +116,8 @@ const FAMILIES: &[(&str, &str, &[&str])] = &[
         "framework",
         &["tauri.capabilities", "tauri.contract-mirror"],
     ),
+    ("framework.android", "framework", &["code.android.lint"]),
+    ("framework.nginx", "framework", &["framework.nginx"]),
 ];
 
 pub struct Scan {
@@ -158,6 +178,9 @@ impl Scan {
                 self.note("framework.tauri", relative)
             }
             "Package.swift" => self.note("language.swift", relative),
+            "build.gradle.kts" | "settings.gradle.kts" => self.note("language.kotlin", relative),
+            "AndroidManifest.xml" => self.note("framework.android", relative),
+            "nginx.conf" => self.note("framework.nginx", relative),
             "pyproject.toml" | "requirements.txt" | "setup.py" | "Pipfile" => {
                 self.note("language.python", relative)
             }

@@ -5,13 +5,17 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use legion_contracts::ReportV1;
+use legion_contracts::{ReportStatus, ReportV1};
 use legion_effects::artifact::ArtifactRecord;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    error::AuditError, execution::ExecutionReport, integrity::verify, inventory::InventoryEnvelope,
+    assurance::{frozen_mismatches, AuditAssuranceV1, Completion, AUDIT_ASSURANCE_EXTENSION_KEY},
+    error::AuditError,
+    execution::ExecutionReport,
+    integrity::verify,
+    inventory::InventoryEnvelope,
     plan::FrozenPlan,
 };
 
@@ -226,6 +230,52 @@ pub fn verify_binding(
         return Err(AuditError::SourceDrift("inventory digest drift".into()));
     }
     verify(plan.plan(), plan.digest(), plan.signature(), key)
+}
+
+/// Verify a report's assurance projection against the signed plan's frozen
+/// denominator. Legacy plan + legacy report (both without assurance) pass
+/// unchanged. A frozen plan requires the extension; a report cannot carry
+/// assurance the plan never froze; the extension must keep every frozen
+/// obligation, identity, scope, profile, target and runtime constraint; and
+/// the report status cannot claim `clean` over incomplete or finding-bearing
+/// assurance (claims never override missing evidence).
+pub fn verify_assurance(
+    plan: &FrozenPlan,
+    report: &ReportV1,
+    now_rfc3339_utc: &str,
+) -> Result<(), AuditError> {
+    let frozen = plan.plan().assurance_binding()?;
+    let projected = report.extensions.get(AUDIT_ASSURANCE_EXTENSION_KEY);
+    let (frozen, projected) = match (frozen, projected) {
+        (None, None) => return Ok(()),
+        (None, Some(_)) => {
+            return Err(AuditError::Invalid(
+                "report carries assurance the signed plan never froze".into(),
+            ))
+        }
+        (Some(_), None) => {
+            return Err(AuditError::Invalid(
+                "frozen assurance plan requires the auditAssuranceV1 report extension".into(),
+            ))
+        }
+        (Some(frozen), Some(projected)) => (frozen, projected),
+    };
+    let reported = AuditAssuranceV1::from_value(projected, now_rfc3339_utc)?;
+    let mismatches = frozen_mismatches(&frozen, &reported);
+    if !mismatches.is_empty() {
+        return Err(AuditError::Invalid(format!(
+            "assurance disagrees with frozen plan: {}",
+            mismatches.join(", ")
+        )));
+    }
+    if report.status == ReportStatus::Clean
+        && (reported.summary.completion != Completion::Complete || reported.summary.findings > 0)
+    {
+        return Err(AuditError::Invalid(
+            "report claims clean over incomplete or finding-bearing assurance".into(),
+        ));
+    }
+    Ok(())
 }
 
 pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {

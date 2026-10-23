@@ -21,7 +21,7 @@ pub mod test_quality;
 
 pub use common::Analysis;
 
-use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
+use crate::{AuditError, AuditProvider, InventoryEntry, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::ProviderResult;
 use serde_json::Value;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
@@ -95,6 +95,12 @@ impl ProviderExecutorAdapter {
             .cloned()
             .unwrap_or_else(|| serde_json::json!({"op":"always"}));
         let denominator = inventory.denominator_entries(&selector)?;
+        if matches!(
+            provider.id.as_str(),
+            producer::assurance::STRUCTURE_PROVIDER_ID | producer::assurance::NGINX_PROVIDER_ID
+        ) {
+            return self.execute_fact_provider(provider, &denominator.entries, &denominator.digest);
+        }
         if provider.id == "compatibility.core" && !input_supplied {
             if let Some((observation, root)) =
                 self.report_observation.as_ref().zip(self.root.as_ref())
@@ -224,6 +230,17 @@ impl ProviderExecutorAdapter {
                 producer::reconcile(facts, &provider.id, &mut analysis);
             }
         }
+        // PostgreSQL migration/config facts ride on the data provider: only a
+        // self-sourced run reads them, and only a detected PostgreSQL project
+        // contributes findings or gaps.
+        if provider.id == "framework.data" && !input_supplied {
+            if let Some(found) = producer::assurance::analyze_postgres_denominator(
+                self.root.as_deref(),
+                &denominator.entries,
+            ) {
+                producer::assurance::merge_postgres(&mut analysis, found);
+            }
+        }
         let paths = denominator
             .entries
             .iter()
@@ -261,6 +278,65 @@ impl ProviderExecutorAdapter {
             super::availability::mark_unavailable(&mut result, &reason);
         }
         Ok(result)
+    }
+}
+
+impl ProviderExecutorAdapter {
+    /// Self-sourced fact providers (`architecture.structure`,
+    /// `framework.nginx`). Host-injected analyzer input is not an input to
+    /// these: they read the frozen denominator, or report the gap. A
+    /// denominator with no file is not-applicable, never a pass.
+    fn execute_fact_provider(
+        &self,
+        provider: &AuditProvider,
+        entries: &[InventoryEntry],
+        digest: &str,
+    ) -> Result<ProviderResult, AuditError> {
+        if entries.is_empty() {
+            let (subject, reason) = if provider.id == producer::assurance::NGINX_PROVIDER_ID {
+                ("nginx", "no-nginx-files-in-inventory")
+            } else {
+                ("structure", "no-structure-files-in-inventory")
+            };
+            return crate::native_providers::code::applicability::not_applicable_result(
+                &provider.id,
+                provider.required,
+                subject,
+                reason,
+            );
+        }
+        let input = self.input_for(provider);
+        let root = self.root.as_deref();
+        let analysis = if provider.id == producer::assurance::NGINX_PROVIDER_ID {
+            producer::assurance::produce_nginx(root, entries, &input)
+        } else {
+            producer::assurance::produce_structure(root, entries)
+        };
+        let paths = entries
+            .iter()
+            .map(|entry| entry.path.clone())
+            .collect::<Vec<_>>();
+        let frozen_digest = provider
+            .configuration
+            .get("denominatorDigest")
+            .and_then(Value::as_str)
+            .map_or(digest.to_owned(), str::to_owned);
+        let frozen_count = provider
+            .configuration
+            .get("denominatorCount")
+            .and_then(Value::as_u64)
+            .map_or(entries.len(), |count| count as usize);
+        common::provider_result(
+            &provider.id,
+            provider.required,
+            frozen_digest,
+            frozen_count,
+            &analysis,
+            serde_json::json!({"producer": {"kind": "self-sourced", "mode": "frozen-denominator"}}),
+            Vec::new(),
+            &paths,
+        )
+        .map_err(AuditError::Provider)
     }
 }
 

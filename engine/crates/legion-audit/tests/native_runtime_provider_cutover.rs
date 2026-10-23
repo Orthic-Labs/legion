@@ -15,15 +15,22 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 38] = [
+const TESTED_RUNTIME_IDS: [&str; 46] = [
     "architecture.core",
+    "architecture.structure",
+    "code.android.lint",
+    "code.apple.targets",
     "code.dotnet",
     "code.javascript",
+    "code.javascript.native",
     "code.jvm",
+    "code.kotlin.detekt-source",
+    "code.kotlin.detekt-typed",
     "code.long-tail",
     "code.mobile",
     "code.python",
     "code.rust",
+    "code.rust.targets",
     "compatibility.core",
     "container.iac",
     "dependency.osv",
@@ -31,6 +38,7 @@ const TESTED_RUNTIME_IDS: [&str; 38] = [
     "framework.backend",
     "framework.data",
     "framework.frontend",
+    "framework.nginx",
     "governance.capability-ownership",
     "governance.policy",
     "imported.sarif",

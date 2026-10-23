@@ -2117,3 +2117,358 @@ pub fn reconcile(facts: &Facts, provider: &str, analysis: &mut Analysis) {
         object.insert("examined".into(), Value::from(facts.files_read));
     }
 }
+
+/// Self-sourced producers for the assurance-extension providers: structure
+/// facts (`architecture.structure`), nginx configuration facts
+/// (`framework.nginx`) and the PostgreSQL facts merged into `framework.data`.
+///
+/// Every denominator file is either read (bounded, digest-verified) or named
+/// in a `file-skipped:<reason>:<path>` gap. None of these producers connects to a
+/// service, runs a binary or reads a discovered credential; runtime and
+/// executed-database evidence only ever arrives as authenticated imports, so
+/// source-only results stay `unproven`.
+pub mod assurance {
+    use super::{extension, file_name, parent};
+    use crate::native_providers::{
+        architecture::{
+            common::{gap, string_gap, Analysis},
+            nginx::{self, ConfigOrigin, NginxContext, NginxFileInput, NginxPolicy},
+            postgres::{self, PostgresAnalysis, PostgresContext, PostgresSourceFile},
+            structure::{self, StructureConfig, StructureFileInput},
+        },
+        code::producer::{read_frozen, MAX_FILE_BYTES, MAX_TOTAL_BYTES},
+    };
+    use crate::InventoryEntry;
+    use serde_json::{json, Value};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        path::Path,
+    };
+
+    pub const STRUCTURE_PROVIDER_ID: &str = "architecture.structure";
+    pub const NGINX_PROVIDER_ID: &str = "framework.nginx";
+
+    /// Facts larger than this stay in the analyzer; the result carries a
+    /// summary and a named gap instead of an unbounded JSON blob.
+    const MAX_FACTS_JSON_BYTES: usize = 8 * 1024 * 1024;
+    const MAX_POSTGRES_FILES: usize = 2_000;
+    const TEMPLATE_SUFFIXES: &[&str] = &[".template", ".tpl", ".tmpl", ".j2", ".erb", ".envsubst"];
+
+    /// Structure facts over the frozen denominator. Facts are native evidence,
+    /// never a verdict: with no Blueprint graph the analyzer names
+    /// `blueprint-unavailable` and the result is `unproven`.
+    pub fn produce_structure(root: Option<&Path>, entries: &[InventoryEntry]) -> Analysis {
+        let read = read_frozen(root, entries.iter(), MAX_FILE_BYTES, MAX_TOTAL_BYTES);
+        let mut gaps: BTreeSet<String> = read
+            .skips
+            .iter()
+            .map(|skip| format!("file-skipped:{skip}"))
+            .collect();
+        let mut inputs = Vec::new();
+        for (path, bytes) in &read.files {
+            match std::str::from_utf8(bytes) {
+                Ok(text) => inputs.push(StructureFileInput {
+                    path: path.clone(),
+                    text: text.to_owned(),
+                }),
+                Err(_) => {
+                    gaps.insert(format!("file-skipped:non-utf8:{path}"));
+                }
+            }
+        }
+        let facts = structure::analyze_structure(&inputs, None, &StructureConfig::default());
+        gaps.extend(facts.gaps.iter().cloned());
+        if facts.partial {
+            gaps.insert("structure-partial".into());
+        }
+        let value = serde_json::to_value(&facts).unwrap_or(Value::Null);
+        let facts_value = if value.to_string().len() <= MAX_FACTS_JSON_BYTES {
+            value
+        } else {
+            gaps.insert("structure-facts-truncated-in-result".into());
+            json!({"truncated": true})
+        };
+        let complete = gaps.is_empty();
+        let mut analysis = Analysis::new(
+            if complete { "measured" } else { "unproven" },
+            complete,
+            json!({
+                "kind": "structure-files",
+                "expected": entries.len(),
+                "examined": read.files.len(),
+            }),
+        );
+        analysis.include_findings = false;
+        analysis.coverage_gaps = gaps.iter().map(|item| gap(item)).collect();
+        analysis.extras.insert(
+            "structureSummary".into(),
+            json!({
+                "files": facts.files.len(),
+                "duplicates": facts.duplicates.len(),
+                "unusedCandidates": facts.unused_candidates.len(),
+                "suggestions": facts.suggestions.len(),
+                "exclusions": facts.exclusions.len(),
+                "provesDeadCode": facts.proves_dead_code,
+            }),
+        );
+        analysis.extras.insert("structureFacts".into(), facts_value);
+        analysis
+    }
+
+    /// Nginx configuration facts and policy candidates. Configuration is
+    /// grouped by the directory holding an `nginx.conf` (its configuration
+    /// root); files outside every root are named gaps. Source configuration
+    /// never binds the deployed effective configuration, so the analyzer's
+    /// `effective-config-unbound` gap keeps the result `unproven` until a
+    /// rendered/`nginx -T` input is analyzed.
+    pub fn produce_nginx(
+        root: Option<&Path>,
+        entries: &[InventoryEntry],
+        input: &Value,
+    ) -> Analysis {
+        let read = read_frozen(root, entries.iter(), MAX_FILE_BYTES, MAX_TOTAL_BYTES);
+        let mut gaps: BTreeSet<String> = read
+            .skips
+            .iter()
+            .map(|skip| format!("file-skipped:{skip}"))
+            .collect();
+        let mut texts: BTreeMap<String, String> = BTreeMap::new();
+        for (path, bytes) in &read.files {
+            match std::str::from_utf8(bytes) {
+                Ok(text) => {
+                    texts.insert(path.clone(), text.to_owned());
+                }
+                Err(_) => {
+                    gaps.insert(format!("file-skipped:non-utf8:{path}"));
+                }
+            }
+        }
+        let policy = match input.get("nginxPolicy") {
+            None | Some(Value::Null) => NginxPolicy::default(),
+            Some(value) => match serde_json::from_value::<NginxPolicy>(value.clone()) {
+                Ok(policy) => policy,
+                Err(_) => {
+                    gaps.insert("input-invalid:nginxPolicy".into());
+                    NginxPolicy::default()
+                }
+            },
+        };
+        let mut roots: BTreeSet<String> = texts
+            .keys()
+            .filter(|path| file_name(path) == "nginx.conf")
+            .map(|path| parent(path).to_owned())
+            .collect();
+        if roots.is_empty() {
+            // No main file: analyze everything as one root so the analyzer
+            // names `main-config-missing` instead of the files vanishing.
+            roots.insert(String::new());
+        }
+        let mut groups: BTreeMap<String, Vec<NginxFileInput>> = BTreeMap::new();
+        let mut template_roots: BTreeSet<String> = BTreeSet::new();
+        for (path, text) in &texts {
+            let owner = roots
+                .iter()
+                .filter(|dir| dir.is_empty() || path.starts_with(&format!("{dir}/")))
+                .max_by_key(|dir| dir.len())
+                .cloned();
+            let Some(owner) = owner else {
+                gaps.insert(format!("nginx-config-unrooted:{path}"));
+                continue;
+            };
+            let relative = if owner.is_empty() {
+                path.clone()
+            } else {
+                path[owner.len() + 1..].to_owned()
+            };
+            let lower = path.to_ascii_lowercase();
+            if TEMPLATE_SUFFIXES
+                .iter()
+                .any(|suffix| lower.ends_with(suffix))
+                || text.contains("{{")
+                || text.contains("${")
+            {
+                template_roots.insert(owner.clone());
+            }
+            groups.entry(owner).or_default().push(NginxFileInput {
+                path: relative,
+                text: text.clone(),
+            });
+        }
+        let multiple = roots.len() > 1;
+        let mut findings: Vec<Value> = Vec::new();
+        let mut rows: Vec<Value> = Vec::new();
+        for (dir, inputs) in &groups {
+            let context = NginxContext {
+                origin: if template_roots.contains(dir) {
+                    ConfigOrigin::Template
+                } else {
+                    ConfigOrigin::Source
+                },
+                ..NginxContext::default()
+            };
+            let analysis = nginx::analyze_nginx(inputs, &context, &policy, &[]);
+            let label = if dir.is_empty() { "." } else { dir.as_str() };
+            for finding in &analysis.findings {
+                let mut finding = finding.clone();
+                if let Some(object) = finding.as_object_mut() {
+                    if !dir.is_empty() {
+                        if let Some(path) = object.get("path").and_then(Value::as_str) {
+                            let original = path.to_owned();
+                            object.insert("path".into(), json!(format!("{dir}/{original}")));
+                            object.insert("configPath".into(), json!(original));
+                        }
+                    }
+                    if multiple {
+                        if let Some(id) = object.get("id").and_then(Value::as_str) {
+                            let scoped = format!("{label}:{id}");
+                            object.insert("id".into(), json!(scoped));
+                        }
+                    }
+                }
+                findings.push(finding);
+            }
+            for item in &analysis.coverage_gaps {
+                gaps.insert(string_gap(item));
+            }
+            rows.push(json!({
+                "root": label,
+                "files": inputs.len(),
+                "status": analysis.status,
+                "delivery": analysis.extras.get("delivery").cloned().unwrap_or(Value::Null),
+                "nginxFacts": analysis.extras.get("nginxFacts").cloned().unwrap_or(Value::Null),
+                "nginxGaps": analysis.extras.get("nginxGaps").cloned().unwrap_or(Value::Null),
+                "runtimeAssertions": analysis
+                    .extras
+                    .get("runtimeAssertions")
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            }));
+        }
+        let complete = gaps.is_empty() && findings.is_empty();
+        let status = if !gaps.is_empty() {
+            "unproven"
+        } else if !findings.is_empty() {
+            "fail"
+        } else {
+            "pass"
+        };
+        let mut analysis = Analysis::new(
+            status,
+            complete,
+            json!({
+                "kind": "nginx-config",
+                "expected": entries.len(),
+                "examined": texts.len(),
+                "roots": groups.len(),
+            }),
+        );
+        analysis.findings = findings;
+        analysis.coverage_gaps = gaps.iter().map(|item| gap(item)).collect();
+        analysis
+            .extras
+            .insert("nginxRoots".into(), Value::Array(rows));
+        analysis
+    }
+
+    fn is_postgres_candidate(path: &str) -> bool {
+        let lower = path.to_ascii_lowercase();
+        let name = file_name(&lower);
+        let ext = extension(&lower);
+        matches!(ext.as_str(), "sql" | "yml" | "yaml" | "toml")
+            || name.starts_with("dockerfile")
+            || name.starts_with("docker-compose")
+            || name.contains("tool-versions")
+            || name.ends_with(".env.example")
+            || ((lower.contains("migrat") || lower.contains("alembic"))
+                && matches!(ext.as_str(), "py" | "js" | "ts" | "mjs" | "cjs" | "rb"))
+    }
+
+    /// PostgreSQL migration/config facts over the frozen denominator. `None`
+    /// when no candidate file could be read. Read failures count as gaps only
+    /// when PostgreSQL is detected, so an unrelated unreadable YAML never
+    /// makes a non-PostgreSQL repository incomplete.
+    pub fn analyze_postgres_denominator(
+        root: Option<&Path>,
+        entries: &[InventoryEntry],
+    ) -> Option<PostgresAnalysis> {
+        let mut candidates: Vec<&InventoryEntry> = entries
+            .iter()
+            .filter(|entry| is_postgres_candidate(&entry.path))
+            .collect();
+        if candidates.is_empty() {
+            return None;
+        }
+        let capped = candidates.len().saturating_sub(MAX_POSTGRES_FILES);
+        candidates.truncate(MAX_POSTGRES_FILES);
+        let read = read_frozen(
+            root,
+            candidates.iter().copied(),
+            MAX_FILE_BYTES,
+            MAX_TOTAL_BYTES,
+        );
+        let mut skipped: Vec<String> = read
+            .skips
+            .iter()
+            .map(|skip| format!("postgres-source-skipped:{skip}"))
+            .collect();
+        if capped > 0 {
+            skipped.push(format!("postgres-source-cap:+{capped}"));
+        }
+        let files: Vec<PostgresSourceFile> = read
+            .files
+            .iter()
+            .filter_map(|(path, bytes)| {
+                std::str::from_utf8(bytes)
+                    .ok()
+                    .map(|text| PostgresSourceFile {
+                        path: path.clone(),
+                        text: text.to_owned(),
+                    })
+            })
+            .collect();
+        if files.is_empty() {
+            return None;
+        }
+        let mut analysis = postgres::analyze_postgres(&files, &PostgresContext::default());
+        if analysis.applicable {
+            analysis.gaps.extend(skipped);
+        }
+        Some(analysis)
+    }
+
+    /// Folds PostgreSQL findings, gaps and facts into the `framework.data`
+    /// analysis. A repository where PostgreSQL is not detected keeps its
+    /// analysis unchanged apart from a typed `postgres` fact.
+    pub fn merge_postgres(analysis: &mut Analysis, postgres: PostgresAnalysis) {
+        if !postgres.applicable {
+            analysis
+                .extras
+                .insert("postgres".into(), json!({"applicable": false}));
+            return;
+        }
+        let converted = postgres.into_analysis();
+        if let Some(facts) = converted.extras.get("postgres") {
+            analysis.extras.insert("postgres".into(), facts.clone());
+        }
+        let known: BTreeSet<String> = analysis.coverage_gaps.iter().map(string_gap).collect();
+        for item in &converted.coverage_gaps {
+            if !known.contains(&string_gap(item)) {
+                analysis.coverage_gaps.push(item.clone());
+            }
+        }
+        if !converted.findings.is_empty() {
+            analysis.findings.extend(converted.findings);
+            analysis.include_findings = true;
+        }
+        if !analysis.coverage_gaps.is_empty() {
+            analysis.complete = false;
+            if analysis.status == "pass" || analysis.status == "measured" {
+                analysis.status = "unproven".into();
+            }
+        }
+        if !analysis.findings.is_empty() && analysis.status != "unproven" {
+            analysis.status = "fail".into();
+            analysis.complete = false;
+        }
+    }
+}

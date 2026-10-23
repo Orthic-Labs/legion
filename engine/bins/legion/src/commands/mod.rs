@@ -1,5 +1,6 @@
 pub mod apple;
 pub mod audit;
+pub mod audit_assurance;
 pub mod audit_runtime;
 pub mod authority;
 pub mod bind;

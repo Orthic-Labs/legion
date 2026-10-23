@@ -19,6 +19,16 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
     if cancellation.is_cancelled() {
         return Err(CommandError::cancelled());
     }
+    if matches!(args.report_kind.as_str(), "trend" | "debt") {
+        let format = projection_format(&args)?;
+        let root = super::audit_assurance::store_root(&absolute(&args.report_path)?)?;
+        let rendered = if args.report_kind == "trend" {
+            super::audit_assurance::trend_projection(&root, format)?
+        } else {
+            super::audit_assurance::debt_projection(&root, format)?
+        };
+        return emit(&args, rendered);
+    }
     let report_path = if args.report_path.is_absolute() {
         args.report_path.clone()
     } else {
@@ -71,6 +81,13 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
             ));
         }
         ("ponytail", "markdown" | "md") => legion_report::render_ponytail(&view),
+        ("assurance", _) => {
+            let format = projection_format(&args)?;
+            return emit(
+                &args,
+                super::audit_assurance::assurance_projection(&view, format)?,
+            );
+        }
         ("audit" | "review" | "ponytail", format) => {
             return Err(CommandError::usage(format!(
                 "unsupported report/format combination: --report {} --format {format}",
@@ -79,11 +96,35 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
         }
         (kind, _) => {
             return Err(CommandError::usage(format!(
-                "unsupported report type: {kind}; expected audit, review, or ponytail"
+                "unsupported report type: {kind}; expected audit, review, ponytail, assurance, trend, or debt"
             )));
         }
     }
     .map_err(super::io_error)?;
+    emit(&args, rendered)
+}
+
+fn absolute(path: &std::path::Path) -> Result<PathBuf, CommandError> {
+    if path.is_absolute() {
+        Ok(path.to_path_buf())
+    } else {
+        Ok(std::env::current_dir().map_err(super::io_error)?.join(path))
+    }
+}
+
+/// Projections accept only json and markdown.
+fn projection_format(args: &ReportArgs) -> Result<&'static str, CommandError> {
+    match args.format.as_str() {
+        "json" => Ok("json"),
+        "markdown" | "md" => Ok("markdown"),
+        format => Err(CommandError::usage(format!(
+            "unsupported report/format combination: --report {} --format {format}",
+            args.report_kind
+        ))),
+    }
+}
+
+fn emit(args: &ReportArgs, rendered: String) -> CommandResult {
     if let Some(path) = &args.out {
         std::fs::write(path, rendered.as_bytes()).map_err(super::io_error)?;
         Ok(
@@ -144,6 +185,89 @@ mod tests {
         assert!(body.contains("Confidence: `likely`"));
         assert!(!body.contains("proven"));
         assert!(!result.as_object().unwrap().contains_key("__raw"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn args(kind: &str, format: &str, path: PathBuf) -> ReportArgs {
+        ReportArgs {
+            report_path: path,
+            report_kind: kind.into(),
+            format: format.into(),
+            out: None,
+        }
+    }
+
+    fn temp(label: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "legion-report-{label}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[tokio::test]
+    async fn assurance_projection_refuses_legacy_report_and_bad_format() {
+        let root = temp("assurance");
+        let input = root.join("report.json");
+        std::fs::write(
+            &input,
+            r#"{"schema_version":1,"report_id":"legacy-1","status":"clean","findings":[],"gaps":[],"claims":{},"targets":[]}"#,
+        )
+        .unwrap();
+        let error = run(
+            args("assurance", "json", input.clone()),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.code, 2);
+        assert!(error.message.contains("no auditAssuranceV1"));
+        let error = run(
+            args("assurance", "sarif", input.clone()),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.code, 4);
+        // Legacy v1 round trip is unchanged.
+        let value = run(args("audit", "json", input), CancellationToken::new())
+            .await
+            .unwrap();
+        assert!(value["__raw"].as_str().unwrap().contains("legacy-1"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn unknown_kind_lists_projection_kinds() {
+        let root = temp("kind");
+        let input = root.join("report.json");
+        std::fs::write(
+            &input,
+            r#"{"schema_version":1,"report_id":"k-1","status":"clean","findings":[],"gaps":[],"claims":{},"targets":[]}"#,
+        )
+        .unwrap();
+        let error = run(args("bogus", "json", input), CancellationToken::new())
+            .await
+            .unwrap_err();
+        assert!(error.message.contains("assurance, trend, or debt"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn debt_projection_reports_markers_from_a_directory() {
+        let root = temp("debt");
+        std::fs::write(root.join("a.rs"), "// TODO: remove\nfn main() {}\n").unwrap();
+        let value = run(args("debt", "json", root.clone()), CancellationToken::new())
+            .await
+            .unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(value["__raw"].as_str().unwrap()).unwrap();
+        assert_eq!(parsed["kind"], "audit-debt-projection");
         std::fs::remove_dir_all(root).unwrap();
     }
 }

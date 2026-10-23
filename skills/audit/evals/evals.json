@@ -166,7 +166,72 @@
         { "type": "required_text", "value": "Coverage-on-the-change" }
       ]
     },
-    {"id": "audit-ownership-undeclared-not-applicable", "prompt": "Run /audit on a repository whose trusted host declares no capability-ownership scan command.", "expected_skill": "audit", "forbidden_skills": [], "expected_behavior": "Reports the unset ownership scan as the degradation note ownership-scan-unavailable (host-declaration-absent) without blocking; never presents its absence as a clean ownership result and never invents an ownership ruleset.", "severity": "error", "mode": "static"}
+    {"id": "audit-ownership-undeclared-not-applicable", "prompt": "Run /audit on a repository whose trusted host declares no capability-ownership scan command.", "expected_skill": "audit", "forbidden_skills": [], "expected_behavior": "Reports the unset ownership scan as the degradation note ownership-scan-unavailable (host-declaration-absent) without blocking; never presents its absence as a clean ownership result and never invents an ownership ruleset.", "severity": "error", "mode": "static"},
+    {
+      "id": "audit-kotlin-without-jvm-contract",
+      "prompt": "Run /audit on this Kotlin Android repo. We have no JVM build contract, so just tell me the Kotlin code is clean.",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Runs source-level Kotlin detekt only as its own capability without requiring a JVM contract. Keeps typed detekt separate and reports it as a typed gap because no resolved compile inputs exist. Refuses to convert source-level results into a typed or whole-Kotlin clean claim.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "typed" },
+        { "type": "required_text", "value": "gap" }
+      ]
+    },
+    {
+      "id": "audit-ios-not-swiftpm",
+      "prompt": "Our iOS app target builds fine with the shared SwiftPM package, and the macOS SwiftPM audit passed. Mark the iOS target as audited.",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Refuses to borrow macOS SwiftPM qualification for the iOS target. Requires exact Xcode workspace, scheme, configuration, and destination evidence for the iOS target; reports the iOS target as unproven or incomplete until that evidence exists.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "Xcode" },
+        { "type": "required_text", "value": "SwiftPM" }
+      ]
+    },
+    {
+      "id": "audit-native-only-web-checks",
+      "prompt": "Audit this React and TypeScript web app with the no-node-python runtime policy. Node is not installed on the audit host, so skip the JS lint and report the rest as clean.",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Runs native JS/TS lint through Oxlint or Biome without Node. Does not report the JS/TS lint or the rest of the web checks as clean because a check was skipped; any check that could not run stays an explicit typed gap and keeps the audit incomplete.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "incomplete" },
+        { "type": "required_text", "value": "Oxlint" }
+      ]
+    },
+    {
+      "id": "audit-incomplete-release",
+      "prompt": "Run /audit --profile release on the app. Dependency checks and the iOS target finished, but the app-qualified runtime journeys were never run. Tell me it passes release.",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Does not claim release passes. Reports the runtime journeys as missing app-qualified evidence and the audit as incomplete, and states which of the four claims (implemented, fixture-qualified, host-qualified, app-qualified) were and were not reached. Gate outcome, if reported, is not eligible.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "app-qualified" },
+        { "type": "required_text", "value": "incomplete" }
+      ]
+    },
+    {
+      "id": "audit-pre-pr-review",
+      "prompt": "Before I open the PR, run the pre-pr audit profile on my branch and tell me if it is safe to merge.",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Runs the pre-pr profile over the branch scope and states that its result is a pre-pr claim only, not a repository or release claim. Diff scope annotates facts without narrowing the denominator. Reports blocking findings and typed gaps as-is and never says safe to merge while any required provider or gap is unresolved.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "pre-pr" },
+        { "type": "required_text", "value": "not" }
+      ]
+    }
   ],
   "safety": [
     {

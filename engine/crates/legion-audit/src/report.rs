@@ -6,8 +6,13 @@ use legion_contracts::{
 use serde_json::{json, Value};
 
 use crate::{
+    assurance::{
+        evidence_from_execution, reconcile, AuditAssuranceV1, Completion, ObligationEvidence,
+        ObligationId, ObligationStatus, Waiver, AUDIT_ASSURANCE_EXTENSION_KEY,
+    },
     error::AuditError,
     execution::{ExecutionReport, OWNERSHIP_PROVIDER_ID},
+    plan::FrozenPlan,
 };
 
 pub fn canonical_report(
@@ -291,6 +296,87 @@ pub fn canonical_report(
         report.status = v2.status;
     }
     report.validate()?;
+    Ok(report)
+}
+
+/// Project a reconciled `auditAssuranceV1` into a v1 report as an additive
+/// extension (it flows unchanged into the lifted ReportV2). The report can
+/// never claim more than the evidence: every non-examined obligation is
+/// recorded as a gap, and a `clean` status is downgraded to `incomplete`
+/// unless the assurance is complete. Obligation findings with a clean
+/// report are contradictory and rejected. A zero-finding, complete
+/// assurance stays `clean` (no quota).
+pub fn project_assurance(
+    report: &mut ReportV1,
+    assurance: &AuditAssuranceV1,
+) -> Result<(), AuditError> {
+    if report
+        .extensions
+        .contains_key(AUDIT_ASSURANCE_EXTENSION_KEY)
+    {
+        return Err(AuditError::Invalid(format!(
+            "report extension {AUDIT_ASSURANCE_EXTENSION_KEY} is reserved"
+        )));
+    }
+    for obligation in &assurance.obligations {
+        if matches!(
+            obligation.status,
+            ObligationStatus::Unmet | ObligationStatus::Deferred | ObligationStatus::Waived
+        ) {
+            let state = format!("{:?}", obligation.status).to_ascii_lowercase();
+            report.gaps.push(format!(
+                "assurance-{state}:{}:{}",
+                obligation.id.target, obligation.id.concern
+            ));
+        }
+    }
+    report.gaps.sort();
+    report.gaps.dedup();
+    if assurance.summary.findings > 0 && report.status == ReportStatus::Clean {
+        return Err(AuditError::Invalid(
+            "assurance obligations carry findings but the report claims clean".into(),
+        ));
+    }
+    if assurance.summary.completion != Completion::Complete && report.status == ReportStatus::Clean
+    {
+        report.status = ReportStatus::Incomplete;
+    }
+    report.extensions.insert(
+        AUDIT_ASSURANCE_EXTENSION_KEY.to_owned(),
+        assurance.to_value()?,
+    );
+    report.validate()?;
+    Ok(())
+}
+
+/// `canonical_report` plus assurance projection. For a plan without a
+/// frozen assurance bound (legacy profiles) this is exactly
+/// `canonical_report`. Otherwise results are reconciled against the frozen
+/// denominator: provider evidence derives from the signed-plan execution,
+/// `imported` evidence and `waivers` are validated against frozen identities
+/// and anything unmatched is ignored (and surfaced as a gap).
+pub fn canonical_report_assured(
+    repository_id: &str,
+    plan: &FrozenPlan,
+    execution: &ExecutionReport,
+    imported: &[ObligationEvidence],
+    waivers: &[(ObligationId, Waiver)],
+    now_rfc3339_utc: &str,
+) -> Result<ReportV1, AuditError> {
+    let mut report = canonical_report(repository_id, execution)?;
+    let Some(frozen) = plan.plan().assurance_binding()? else {
+        return Ok(report);
+    };
+    let mut evidence = evidence_from_execution(&frozen, plan, execution);
+    evidence.extend(imported.iter().cloned());
+    let reconciled = reconcile(&frozen, &evidence, waivers, now_rfc3339_utc)?;
+    for rejected in &reconciled.rejected {
+        report.gaps.push(format!("assurance-rejected:{rejected}"));
+    }
+    project_assurance(&mut report, &reconciled.assurance)?;
+    if !reconciled.rejected.is_empty() && report.status == ReportStatus::Clean {
+        report.status = ReportStatus::Incomplete;
+    }
     Ok(report)
 }
 

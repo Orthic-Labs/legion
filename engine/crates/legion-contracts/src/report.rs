@@ -66,6 +66,11 @@ impl Report {
     pub fn digest(&self) -> Result<String, crate::canonical::CanonicalError> {
         canonical_digest(self)
     }
+    /// Raw `auditAssuranceV1` extension, if present. Uninterpreted JSON: the
+    /// absent, malformed and future-version cases are the caller's to refuse.
+    pub fn assurance_extension(&self) -> Option<&Value> {
+        self.extensions.get(AUDIT_ASSURANCE_EXTENSION_KEY)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,10 @@ pub const V2_FINDING_EVIDENCE_KEY: &str = "legionV2";
 /// Reserved report extension key carrying v2-only report fields in a v1
 /// projection.
 pub const V2_REPORT_EXTENSION_KEY: &str = "legionV2Report";
+/// Additive, versioned Audit production-assurance report extension. Reports
+/// that lack it stay readable but can never carry release eligibility;
+/// malformed or future-versioned content is never interpreted as a pass.
+pub const AUDIT_ASSURANCE_EXTENSION_KEY: &str = "auditAssuranceV1";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -854,6 +863,10 @@ impl ReportV2 {
         Ok(())
     }
 
+    /// Raw `auditAssuranceV1` extension, if present (uninterpreted JSON).
+    pub fn assurance_extension(&self) -> Option<&Value> {
+        self.extensions.get(AUDIT_ASSURANCE_EXTENSION_KEY)
+    }
     pub fn digest(&self) -> Result<String, crate::canonical::CanonicalError> {
         canonical_digest(self)
     }
