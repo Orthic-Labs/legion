@@ -2,6 +2,12 @@ lockfileVersion: '9.0'
 
 importers:
 
+  .:
+    devDependencies:
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+
   apps/web:
     dependencies:
       '@builder.io/qwik':
@@ -10,6 +16,8 @@ importers:
       '@builder.io/qwik-city':
         specifier: ^1.12.0
         version: 1.12.1
+  packages/empty: {}
+
   packages/ui:
     dependencies:
       react:
@@ -27,6 +35,9 @@ packages:
   react@18.3.1:
     resolution: {integrity: sha512-fixture}
 
+  typescript@5.6.3:
+    resolution: {integrity: sha512-fixture}
+
 snapshots:
 
   '@builder.io/qwik@1.12.1': {}
@@ -34,3 +45,5 @@ snapshots:
   '@builder.io/qwik-city@1.12.1': {}
 
   react@18.3.1: {}
+
+  typescript@5.6.3: {}
