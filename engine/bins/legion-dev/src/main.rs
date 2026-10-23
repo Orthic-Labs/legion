@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod apple_skill_integrity;
-mod audit_bench;
 mod audit_assurance;
+mod audit_bench;
 mod audit_capsule;
 mod audit_security_controls;
 mod checks;

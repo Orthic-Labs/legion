@@ -1114,6 +1114,32 @@ fn build_invocations(
         let largest = measure_invocations(&built.0, provider, sizer)?;
         Ok((built, largest))
     };
+    // Lenses of one bundle must derive the same excerpt parts so they keep
+    // sharing seats. Their own pattern-card overhead differs by lens, so first
+    // search the cap with every lens charged the largest possible card
+    // overhead (only when the exact original packet does not already fit).
+    // That measure never underestimates the real request, so any fit
+    // it finds is a real fit; when it cannot fit, fall back to exact sizing.
+    let first = build(Some(budget), false)?;
+    if first.1 <= target {
+        return Ok(first.0);
+    }
+    let card_reserve = pattern_cards::max_card_bytes_bound();
+    let (normalized_built, normalized_largest) =
+        refine_packet_materialization(budget, target, |budget| {
+            let (built, largest) = build(Some(budget), false)?;
+            let own_cards = built
+                .0
+                .iter()
+                .map(|request| pattern_cards::bound_card_bytes(&request.packet["lensPlan"]))
+                .min()
+                .unwrap_or(0);
+            let normalized = largest.saturating_add(card_reserve.saturating_sub(own_cards));
+            Ok((built, normalized))
+        })?;
+    if normalized_largest <= target {
+        return Ok(normalized_built);
+    }
     let mut full_attempts = 0;
     let (built, largest) = refine_packet_materialization(budget, target, |budget| {
         full_attempts += 1;

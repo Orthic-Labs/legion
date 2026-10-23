@@ -192,8 +192,11 @@ impl OwnerPolicyConfig {
         max_timeout_ms: u64,
         max_output_bytes: usize,
     ) -> Result<Self, String> {
-        let (policy_revision, plan_id, containment_id) =
-            (policy_revision.into(), plan_id.into(), containment_id.into());
+        let (policy_revision, plan_id, containment_id) = (
+            policy_revision.into(),
+            plan_id.into(),
+            containment_id.into(),
+        );
         if [&policy_revision, &plan_id, &containment_id]
             .iter()
             .any(|value| value.trim().is_empty())
@@ -203,10 +206,9 @@ impl OwnerPolicyConfig {
         if frozen_roots.is_empty() || max_timeout_ms == 0 || max_output_bytes == 0 {
             return Err("frozen roots and positive limits are required".into());
         }
-        if let Some(name) = environment_names
-            .iter()
-            .find(|name| name.is_empty() || name.contains(['=', '\0']) || forbidden_environment_name(name))
-        {
+        if let Some(name) = environment_names.iter().find(|name| {
+            name.is_empty() || name.contains(['=', '\0']) || forbidden_environment_name(name)
+        }) {
             return Err(format!("environment name {name:?} is not admissible"));
         }
         let canon = |path: &Path| {
@@ -384,7 +386,11 @@ impl OwnerBackedPolicy {
         let pin = request
             .expected_digest
             .as_deref()
-            .filter(|digest| digest.strip_prefix("sha256:").is_some_and(|hex| lower_hex(hex, 64)))
+            .filter(|digest| {
+                digest
+                    .strip_prefix("sha256:")
+                    .is_some_and(|hex| lower_hex(hex, 64))
+            })
             .ok_or("executable-digest-pin-required")?;
         let requested = Path::new(&request.executable);
         if !requested.is_absolute() {
@@ -402,7 +408,10 @@ impl OwnerBackedPolicy {
         }
         if executable.starts_with(&cfg.output_root)
             || (class != InvocationClass::ProjectExecuting
-                && cfg.frozen_roots.iter().any(|root| executable.starts_with(root)))
+                && cfg
+                    .frozen_roots
+                    .iter()
+                    .any(|root| executable.starts_with(root)))
         {
             return Err("executable-inside-controlled-root".into());
         }
@@ -411,7 +420,11 @@ impl OwnerBackedPolicy {
         if cwd != Path::new(&request.cwd) {
             return Err("cwd-not-canonical".into());
         }
-        let allowed_roots = || cfg.frozen_roots.iter().chain(std::iter::once(&cfg.output_root));
+        let allowed_roots = || {
+            cfg.frozen_roots
+                .iter()
+                .chain(std::iter::once(&cfg.output_root))
+        };
         if !allowed_roots().any(|root| cwd.starts_with(root)) {
             return Err("cwd-outside-admitted-roots".into());
         }
@@ -425,18 +438,31 @@ impl OwnerBackedPolicy {
                 None => arg.as_str(),
             };
             let path = Path::new(candidate);
-            let escapes = path.components().any(|part| matches!(part, Component::ParentDir));
+            let escapes = path
+                .components()
+                .any(|part| matches!(part, Component::ParentDir));
             if path.is_absolute() || escapes {
-                let joined = if path.is_absolute() { path.to_path_buf() } else { cwd.join(path) };
-                let resolved = resolve_allowing_missing(&joined).ok_or("argument-path-unresolved")?;
+                let joined = if path.is_absolute() {
+                    path.to_path_buf()
+                } else {
+                    cwd.join(path)
+                };
+                let resolved =
+                    resolve_allowing_missing(&joined).ok_or("argument-path-unresolved")?;
                 if !allowed_roots().any(|root| resolved.starts_with(root)) {
                     return Err("argument-path-outside-admitted-roots".into());
                 }
             }
         }
         // 7. Environment: names admitted by host policy only.
-        if request.environment_allowlist.iter().any(|name| !cfg.environment_names.contains(name))
-            || request.environment.keys().any(|name| !cfg.environment_names.contains(name))
+        if request
+            .environment_allowlist
+            .iter()
+            .any(|name| !cfg.environment_names.contains(name))
+            || request
+                .environment
+                .keys()
+                .any(|name| !cfg.environment_names.contains(name))
         {
             return Err("environment-name-not-admitted".into());
         }
@@ -495,7 +521,10 @@ impl OwnerBackedPolicy {
         if grant.nonce.trim().is_empty() {
             return Err("grant-nonce-missing".into());
         }
-        let mut seen = self.seen_nonces.lock().map_err(|_| "grant-ledger-poisoned")?;
+        let mut seen = self
+            .seen_nonces
+            .lock()
+            .map_err(|_| "grant-ledger-poisoned")?;
         if !seen.insert(grant.nonce) {
             return Err("grant-replayed".into());
         }
@@ -508,7 +537,10 @@ impl PolicyAuthorizer for OwnerBackedPolicy {
         match self.evaluate(request) {
             Ok(binding_digest) => self.decision(
                 true,
-                format!("owner-admitted:{}:{binding_digest}", self.frozen_identity.owner_id),
+                format!(
+                    "owner-admitted:{}:{binding_digest}",
+                    self.frozen_identity.owner_id
+                ),
             ),
             Err(code) => self.decision(false, format!("owner-admission-denied:{code}")),
         }
@@ -572,7 +604,10 @@ impl PolicyAuthorizer for NativeAuthorizer {
 
 fn descriptor(identity: &OwnerIdentity, config: &OwnerPolicyConfig) -> Value {
     let provenance = match &identity.provenance {
-        OwnerProvenance::Verified { key_id, receipt_digest } => {
+        OwnerProvenance::Verified {
+            key_id,
+            receipt_digest,
+        } => {
             json!({"verified": true, "keyId": key_id, "receiptDigest": receipt_digest})
         }
         OwnerProvenance::Unverified(reason) => json!({"verified": false, "reason": reason}),
@@ -593,7 +628,9 @@ fn safe_request_id(id: &str) -> bool {
     !id.is_empty()
         && !id.starts_with(['/', '\\'])
         && !id.contains(['\0', '\\'])
-        && !id.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        && !id
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
 }
 
 /// Canonicalize the deepest existing ancestor and append the remaining
@@ -617,10 +654,15 @@ fn resolve_allowing_missing(path: &Path) -> Option<PathBuf> {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn lower_hex(value: &str, length: usize) -> bool {
     value.len() == length
-        && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }

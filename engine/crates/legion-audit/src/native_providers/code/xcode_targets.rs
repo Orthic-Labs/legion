@@ -283,14 +283,25 @@ fn xml_tokens(text: &str) -> Vec<Tok> {
         }
         let rest = &bytes[at..];
         if rest.starts_with(b"<?") {
-            at = find_seq(bytes, at, b"?>").map(|end| end + 2).unwrap_or(bytes.len());
+            at = find_seq(bytes, at, b"?>")
+                .map(|end| end + 2)
+                .unwrap_or(bytes.len());
         } else if rest.starts_with(b"<!--") {
-            at = find_seq(bytes, at, b"-->").map(|end| end + 3).unwrap_or(bytes.len());
+            at = find_seq(bytes, at, b"-->")
+                .map(|end| end + 3)
+                .unwrap_or(bytes.len());
         } else if rest.starts_with(b"<!") {
-            at = find_seq(bytes, at, b">").map(|end| end + 1).unwrap_or(bytes.len());
+            at = find_seq(bytes, at, b">")
+                .map(|end| end + 1)
+                .unwrap_or(bytes.len());
         } else if rest.starts_with(b"</") {
-            let end = find_seq(bytes, at, b">").unwrap_or(bytes.len()).max(at + 2).min(bytes.len());
-            let name = String::from_utf8_lossy(&bytes[at + 2..end]).trim().to_string();
+            let end = find_seq(bytes, at, b">")
+                .unwrap_or(bytes.len())
+                .max(at + 2)
+                .min(bytes.len());
+            let name = String::from_utf8_lossy(&bytes[at + 2..end])
+                .trim()
+                .to_string();
             tokens.push(Tok::Close(name));
             at = end + 1;
         } else {
@@ -337,7 +348,8 @@ fn xml_tokens(text: &str) -> Vec<Tok> {
                             while at < bytes.len() && bytes[at].is_ascii_whitespace() {
                                 at += 1;
                             }
-                            if let Some(&quote) = bytes.get(at).filter(|q| **q == b'"' || **q == b'\'')
+                            if let Some(&quote) =
+                                bytes.get(at).filter(|q| **q == b'"' || **q == b'\'')
                             {
                                 at += 1;
                                 let value_start = at;
@@ -391,7 +403,9 @@ fn plist_value(tokens: &[Tok], at: &mut usize, depth: usize) -> Option<Value> {
         return None;
     }
     let (name, selfclose) = match tokens.get(*at)? {
-        Tok::Open { name, selfclose, .. } => (name.clone(), *selfclose),
+        Tok::Open {
+            name, selfclose, ..
+        } => (name.clone(), *selfclose),
         _ => return None,
     };
     *at += 1;
@@ -443,12 +457,22 @@ fn plist_value(tokens: &[Tok], at: &mut usize, depth: usize) -> Option<Value> {
             }
         }
         "integer" => {
-            let text = if selfclose { String::new() } else { text_and_close(tokens, at) };
-            Some(text.parse::<i64>().map(Value::from).unwrap_or(Value::String(text)))
+            let text = if selfclose {
+                String::new()
+            } else {
+                text_and_close(tokens, at)
+            };
+            Some(
+                text.parse::<i64>()
+                    .map(Value::from)
+                    .unwrap_or(Value::String(text)),
+            )
         }
-        "string" | "real" | "date" | "data" => {
-            Some(Value::String(if selfclose { String::new() } else { text_and_close(tokens, at) }))
-        }
+        "string" | "real" | "date" | "data" => Some(Value::String(if selfclose {
+            String::new()
+        } else {
+            text_and_close(tokens, at)
+        })),
         _ => None,
     }
 }
@@ -605,7 +629,13 @@ fn strings_of(object: &Value, key: &str) -> Vec<String> {
     object
         .get(key)
         .and_then(Value::as_array)
-        .map(|items| items.iter().filter_map(Value::as_str).map(str::to_string).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -690,7 +720,12 @@ fn looks_generated(path: &str) -> bool {
         || path.ends_with(".generated.swift")
 }
 
-fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut Vec<Gap>) -> Option<ProjectInfo> {
+fn parse_project(
+    path: &str,
+    bytes: &[u8],
+    files: &SnapshotFiles,
+    issues: &mut Vec<Gap>,
+) -> Option<ProjectInfo> {
     let container = parent_dir(path);
     let project_dir = parent_dir(&container);
     let root = match parse_openstep_plist(bytes) {
@@ -701,7 +736,10 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
         }
     };
     let Some(objects) = root.get("objects").and_then(Value::as_object) else {
-        issues.push(gap("pbxproj-unparseable", format!("{path}: no objects table")));
+        issues.push(gap(
+            "pbxproj-unparseable",
+            format!("{path}: no objects table"),
+        ));
         return None;
     };
     let Some(project) = objects
@@ -717,7 +755,11 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
         walk_groups(main, "", objects, &mut paths, 0);
     }
     let mut conditional = BTreeSet::new();
-    let project_settings = settings_of(objects, str_of(project, "buildConfigurationList"), &mut conditional);
+    let project_settings = settings_of(
+        objects,
+        str_of(project, "buildConfigurationList"),
+        &mut conditional,
+    );
     let configurations: Vec<String> = project_settings.keys().cloned().collect();
 
     let package_reference_count = objects
@@ -738,9 +780,15 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
         if str_of(target, "isa") != Some("PBXNativeTarget") {
             continue;
         }
-        let product_type = str_of(target, "productType").unwrap_or_default().to_string();
+        let product_type = str_of(target, "productType")
+            .unwrap_or_default()
+            .to_string();
         let mut target_conditional = BTreeSet::new();
-        let own = settings_of(objects, str_of(target, "buildConfigurationList"), &mut target_conditional);
+        let own = settings_of(
+            objects,
+            str_of(target, "buildConfigurationList"),
+            &mut target_conditional,
+        );
         let mut effective: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
         for config in &configurations {
             let mut merged = project_settings.get(config).cloned().unwrap_or_default();
@@ -765,14 +813,19 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
                     source_files.push(if relative.starts_with("unresolved:") {
                         relative.clone()
                     } else {
-                        norm_join(&project_dir, relative).unwrap_or_else(|| format!("unresolved:{relative}"))
+                        norm_join(&project_dir, relative)
+                            .unwrap_or_else(|| format!("unresolved:{relative}"))
                     });
                 }
             }
         }
         source_files.sort();
         source_files.dedup();
-        let generated_sources = source_files.iter().filter(|p| looks_generated(p)).cloned().collect();
+        let generated_sources = source_files
+            .iter()
+            .filter(|p| looks_generated(p))
+            .cloned()
+            .collect();
         let synchronized_roots: Vec<String> = strings_of(target, "fileSystemSynchronizedGroups")
             .iter()
             .filter_map(|id| paths.get(id))
@@ -783,7 +836,8 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
         targets.push(TargetInfo {
             name: str_of(target, "name").unwrap_or_default().to_string(),
             is_app: product_type == "com.apple.product-type.application",
-            is_test: product_type.contains("bundle.unit-test") || product_type.contains("bundle.ui-testing"),
+            is_test: product_type.contains("bundle.unit-test")
+                || product_type.contains("bundle.ui-testing"),
             product_type,
             settings: effective,
             conditional_settings: all_conditional.into_iter().collect(),
@@ -809,7 +863,9 @@ fn parse_project(path: &str, bytes: &[u8], files: &SnapshotFiles, issues: &mut V
             candidate.ends_with(".swift")
                 && (project_dir.is_empty() || candidate.starts_with(&prefix))
                 && !members.contains(candidate.as_str())
-                && !roots.iter().any(|root| candidate.starts_with(&format!("{root}/")))
+                && !roots
+                    .iter()
+                    .any(|root| candidate.starts_with(&format!("{root}/")))
         })
         .cloned()
         .collect();
@@ -845,8 +901,8 @@ fn parse_scheme(path: &str, bytes: &[u8]) -> Option<SchemeInfo> {
         match token {
             Tok::Open { name, attrs, .. } => match name.as_str() {
                 "Scheme" => saw_scheme = true,
-                "BuildAction" | "TestAction" | "LaunchAction" | "ProfileAction" | "AnalyzeAction"
-                | "ArchiveAction" => {
+                "BuildAction" | "TestAction" | "LaunchAction" | "ProfileAction"
+                | "AnalyzeAction" | "ArchiveAction" => {
                     section = name.clone();
                     let configuration = attrs.get("buildConfiguration").cloned();
                     if name == "TestAction" {
@@ -856,11 +912,15 @@ fn parse_scheme(path: &str, bytes: &[u8]) -> Option<SchemeInfo> {
                     }
                 }
                 "TestableReference" => {
-                    skipped_testable = attrs.get("skipped").is_some_and(|v| v.eq_ignore_ascii_case("YES"));
+                    skipped_testable = attrs
+                        .get("skipped")
+                        .is_some_and(|v| v.eq_ignore_ascii_case("YES"));
                 }
                 "TestPlanReference" if section == "TestAction" => {
                     if let Some(reference) = attrs.get("reference") {
-                        let default = attrs.get("default").is_some_and(|v| v.eq_ignore_ascii_case("YES"));
+                        let default = attrs
+                            .get("default")
+                            .is_some_and(|v| v.eq_ignore_ascii_case("YES"));
                         scheme.test_plans.push((reference.clone(), default));
                     }
                 }
@@ -877,7 +937,9 @@ fn parse_scheme(path: &str, bytes: &[u8]) -> Option<SchemeInfo> {
                         "BuildAction" => scheme.build_targets.push(buildable),
                         "TestAction" => {
                             if skipped_testable {
-                                scheme.skipped_testables.push(buildable.blueprint_name.clone());
+                                scheme
+                                    .skipped_testables
+                                    .push(buildable.blueprint_name.clone());
                             } else {
                                 scheme.testables.push(buildable);
                             }
@@ -950,7 +1012,13 @@ fn parse_test_plan(path: &str, bytes: &[u8]) -> Option<TestPlanInfo> {
         .and_then(Value::as_array)?
         .iter()
         .filter(|entry| entry.get("skipped").and_then(Value::as_bool) != Some(true))
-        .filter_map(|entry| entry.get("target")?.get("name")?.as_str().map(str::to_string))
+        .filter_map(|entry| {
+            entry
+                .get("target")?
+                .get("name")?
+                .as_str()
+                .map(str::to_string)
+        })
         .collect();
     let configurations = value
         .get("configurations")
@@ -982,7 +1050,10 @@ fn parse_package_resolved(path: &str, bytes: &[u8]) -> Option<PackageResolvedInf
     let mut pins = Vec::new();
     for pin in raw {
         let state = pin.get("state").cloned().unwrap_or(Value::Null);
-        let package = pin.get("package").and_then(Value::as_str).map(str::to_string);
+        let package = pin
+            .get("package")
+            .and_then(Value::as_str)
+            .map(str::to_string);
         let identity = str_of(&pin, "identity")
             .map(str::to_string)
             .or(package)
@@ -1014,12 +1085,18 @@ impl PartialOrd for PackagePin {
 
 impl Ord for PackagePin {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (&self.identity, &self.location, &self.revision, &self.version).cmp(&(
-            &other.identity,
-            &other.location,
-            &other.revision,
-            &other.version,
-        ))
+        (
+            &self.identity,
+            &self.location,
+            &self.revision,
+            &self.version,
+        )
+            .cmp(&(
+                &other.identity,
+                &other.location,
+                &other.revision,
+                &other.version,
+            ))
     }
 }
 
@@ -1041,17 +1118,23 @@ pub fn inventory_xcode(files: &SnapshotFiles) -> XcodeInventory {
         } else if path.ends_with(".xcscheme") {
             match parse_scheme(path, bytes) {
                 Some(scheme) => inventory.schemes.push(scheme),
-                None => inventory.issues.push(gap("scheme-unparseable", path.clone())),
+                None => inventory
+                    .issues
+                    .push(gap("scheme-unparseable", path.clone())),
             }
         } else if path.ends_with(".xctestplan") {
             match parse_test_plan(path, bytes) {
                 Some(plan) => inventory.test_plans.push(plan),
-                None => inventory.issues.push(gap("test-plan-unparseable", path.clone())),
+                None => inventory
+                    .issues
+                    .push(gap("test-plan-unparseable", path.clone())),
             }
         } else if base_name(path) == "Package.resolved" {
             match parse_package_resolved(path, bytes) {
                 Some(resolved) => inventory.package_resolved.push(resolved),
-                None => inventory.issues.push(gap("package-resolved-unparseable", path.clone())),
+                None => inventory
+                    .issues
+                    .push(gap("package-resolved-unparseable", path.clone())),
             }
         }
     }
@@ -1127,7 +1210,9 @@ impl XcodeObligation {
 }
 
 fn version_tuple(text: &str) -> Vec<u64> {
-    text.split('.').map(|part| part.parse().unwrap_or(0)).collect()
+    text.split('.')
+        .map(|part| part.parse().unwrap_or(0))
+        .collect()
 }
 
 fn version_gt(left: &str, right: &str) -> bool {
@@ -1207,7 +1292,11 @@ fn container_projects<'a>(inventory: &'a XcodeInventory, container: &str) -> Vec
             })
             .unwrap_or_default()
     } else {
-        inventory.projects.iter().filter(|project| project.path == container).collect()
+        inventory
+            .projects
+            .iter()
+            .filter(|project| project.path == container)
+            .collect()
     }
 }
 
@@ -1224,7 +1313,9 @@ fn scheme_candidates<'a>(
         .iter()
         .filter(|candidate| {
             candidate.name == scheme
-                && dirs.iter().any(|dir| candidate.path.starts_with(&format!("{dir}/")))
+                && dirs
+                    .iter()
+                    .any(|dir| candidate.path.starts_with(&format!("{dir}/")))
         })
         .collect()
 }
@@ -1238,7 +1329,10 @@ fn bind_plist(
     missing_code: &str,
 ) -> Option<Value> {
     let Some(bytes) = files.get(path) else {
-        gaps.push(gap(missing_code, format!("{label} `{path}` is not in the frozen snapshot")));
+        gaps.push(gap(
+            missing_code,
+            format!("{label} `{path}` is not in the frozen snapshot"),
+        ));
         return None;
     };
     bound.insert(path.to_string(), sha256_bytes(bytes));
@@ -1246,7 +1340,9 @@ fn bind_plist(
         Ok(value) => Some(value),
         Err(error) => {
             gaps.push(gap(
-                &format!("{label}-unparseable").to_lowercase().replace(' ', "-"),
+                &format!("{label}-unparseable")
+                    .to_lowercase()
+                    .replace(' ', "-"),
                 format!("{path}: {error}"),
             ));
             None
@@ -1278,23 +1374,37 @@ pub fn evaluate_static(
     if projects.is_empty() {
         gaps.push(gap(
             "container-missing",
-            format!("`{}` has no parsed project in the frozen snapshot", obligation.container),
+            format!(
+                "`{}` has no parsed project in the frozen snapshot",
+                obligation.container
+            ),
         ));
         return out;
     }
 
-    let schemes = scheme_candidates(inventory, &obligation.container, &projects, &obligation.scheme);
+    let schemes = scheme_candidates(
+        inventory,
+        &obligation.container,
+        &projects,
+        &obligation.scheme,
+    );
     let shared: Vec<&&SchemeInfo> = schemes.iter().filter(|scheme| scheme.shared).collect();
     let scheme = match shared.as_slice() {
         [one] => Some(**one),
         [] if schemes.is_empty() => {
-            gaps.push(gap("scheme-missing", format!("scheme `{}` not found", obligation.scheme)));
+            gaps.push(gap(
+                "scheme-missing",
+                format!("scheme `{}` not found", obligation.scheme),
+            ));
             None
         }
         [] => {
             gaps.push(gap(
                 "scheme-not-shared",
-                format!("scheme `{}` exists only as a user scheme", obligation.scheme),
+                format!(
+                    "scheme `{}` exists only as a user scheme",
+                    obligation.scheme
+                ),
             ));
             None
         }
@@ -1311,17 +1421,24 @@ pub fn evaluate_static(
         if !project.configurations.contains(&obligation.configuration) {
             gaps.push(gap(
                 "configuration-missing",
-                format!("`{}` has no configuration `{}`", project.path, obligation.configuration),
+                format!(
+                    "`{}` has no configuration `{}`",
+                    project.path, obligation.configuration
+                ),
             ));
         }
-        out.bound_inputs.insert(project.path.clone() + "/project.pbxproj", project.digest.clone());
+        out.bound_inputs.insert(
+            project.path.clone() + "/project.pbxproj",
+            project.digest.clone(),
+        );
     }
 
     let Some(scheme) = scheme else {
         return out;
     };
     out.scheme_path = Some(scheme.path.clone());
-    out.bound_inputs.insert(scheme.path.clone(), scheme.digest.clone());
+    out.bound_inputs
+        .insert(scheme.path.clone(), scheme.digest.clone());
 
     if scheme.test_configuration.as_deref() != Some(obligation.configuration.as_str()) {
         gaps.push(gap(
@@ -1339,25 +1456,38 @@ pub fn evaluate_static(
     match (&obligation.test_plan, scheme.test_plans.is_empty()) {
         (Some(wanted), _) => {
             let referenced = scheme.test_plans.iter().any(|(reference, _)| {
-                base_name(reference.trim_start_matches("container:")).trim_end_matches(".xctestplan") == wanted
+                base_name(reference.trim_start_matches("container:"))
+                    .trim_end_matches(".xctestplan")
+                    == wanted
             });
             if !referenced {
                 gaps.push(gap(
                     "test-plan-not-in-scheme",
-                    format!("scheme `{}` does not reference test plan `{wanted}`", scheme.name),
+                    format!(
+                        "scheme `{}` does not reference test plan `{wanted}`",
+                        scheme.name
+                    ),
                 ));
             }
             let container_dir = parent_dir(&obligation.container);
             let plan = inventory.test_plans.iter().find(|plan| {
                 plan.name == *wanted
-                    && (container_dir.is_empty() || plan.path.starts_with(&format!("{container_dir}/")))
+                    && (container_dir.is_empty()
+                        || plan.path.starts_with(&format!("{container_dir}/")))
             });
             match plan {
-                None => gaps.push(gap("test-plan-missing", format!("test plan `{wanted}` not in snapshot"))),
+                None => gaps.push(gap(
+                    "test-plan-missing",
+                    format!("test plan `{wanted}` not in snapshot"),
+                )),
                 Some(plan) => {
-                    out.bound_inputs.insert(plan.path.clone(), plan.digest.clone());
+                    out.bound_inputs
+                        .insert(plan.path.clone(), plan.digest.clone());
                     if plan.test_targets.is_empty() {
-                        gaps.push(gap("test-plan-empty", format!("test plan `{wanted}` selects no test target")));
+                        gaps.push(gap(
+                            "test-plan-empty",
+                            format!("test plan `{wanted}` selects no test target"),
+                        ));
                     }
                     selection.extend(plan.test_targets.iter().map(|name| format!("plan:{name}")));
                 }
@@ -1365,14 +1495,25 @@ pub fn evaluate_static(
         }
         (None, false) => gaps.push(gap(
             "test-plan-unspecified",
-            format!("scheme `{}` uses test plans but the obligation names none", scheme.name),
+            format!(
+                "scheme `{}` uses test plans but the obligation names none",
+                scheme.name
+            ),
         )),
         (None, true) => {
-            selection.extend(scheme.testables.iter().map(|t| format!("testable:{}", t.blueprint_name)));
+            selection.extend(
+                scheme
+                    .testables
+                    .iter()
+                    .map(|t| format!("testable:{}", t.blueprint_name)),
+            );
         }
     }
     if selection.is_empty() && !gaps.iter().any(|g| g.code == "test-plan-empty") {
-        gaps.push(gap("no-test-targets", "no executable test target is selected by the scheme/plan"));
+        gaps.push(gap(
+            "no-test-targets",
+            "no executable test target is selected by the scheme/plan",
+        ));
     }
     selection.sort();
 
@@ -1395,11 +1536,18 @@ pub fn evaluate_static(
             .flat_map(|project| project.targets.iter().map(move |target| (*project, target)))
             .find(|(_, target)| target.name == *name);
         let Some((project, target)) = target else {
-            gaps.push(gap("target-missing", format!("scheme target `{name}` not found in container")));
+            gaps.push(gap(
+                "target-missing",
+                format!("scheme target `{name}` not found in container"),
+            ));
             continue;
         };
         out.targets.push(name.clone());
-        let settings = target.settings.get(&obligation.configuration).cloned().unwrap_or_default();
+        let settings = target
+            .settings
+            .get(&obligation.configuration)
+            .cloned()
+            .unwrap_or_default();
         let sdks = platform_sdks(&settings);
         if !sdks.contains(&obligation.destination.sdk) {
             gaps.push(gap(
@@ -1426,7 +1574,9 @@ pub fn evaluate_static(
                     if version_gt(deployment, os) {
                         gaps.push(gap(
                             "deployment-target-above-destination",
-                            format!("target `{name}` requires {deployment}; destination OS is {os}"),
+                            format!(
+                                "target `{name}` requires {deployment}; destination OS is {os}"
+                            ),
                         ));
                     }
                 }
@@ -1437,7 +1587,9 @@ pub fn evaluate_static(
             if &mode != required || mode.contains("$(") {
                 gaps.push(gap(
                     "concurrency-mode-mismatch",
-                    format!("target `{name}` effective concurrency `{mode}`, required `{required}`"),
+                    format!(
+                        "target `{name}` effective concurrency `{mode}`, required `{required}`"
+                    ),
                 ));
             }
         }
@@ -1451,13 +1603,19 @@ pub fn evaluate_static(
         if !target.conditional_settings.is_empty() {
             gaps.push(gap(
                 "conditional-build-settings-unevaluated",
-                format!("target `{name}`: {}", target.conditional_settings.join(", ")),
+                format!(
+                    "target `{name}`: {}",
+                    target.conditional_settings.join(", ")
+                ),
             ));
         }
         if !target.generated_sources.is_empty() {
             gaps.push(gap(
                 "generated-sources-unbound",
-                format!("target `{name}` compiles generated inputs: {}", target.generated_sources.join(", ")),
+                format!(
+                    "target `{name}` compiles generated inputs: {}",
+                    target.generated_sources.join(", ")
+                ),
             ));
         }
         let project_dir = parent_dir(&project.path);
@@ -1474,7 +1632,9 @@ pub fn evaluate_static(
             }
         }
         if target.is_app {
-            let generated = settings.get("GENERATE_INFOPLIST_FILE").is_some_and(|v| v == "YES");
+            let generated = settings
+                .get("GENERATE_INFOPLIST_FILE")
+                .is_some_and(|v| v == "YES");
             match (settings.get("INFOPLIST_FILE"), generated) {
                 (Some(rel), _) => {
                     let path = norm_join(&project_dir, rel).unwrap_or_else(|| rel.clone());
@@ -1499,7 +1659,16 @@ pub fn evaluate_static(
                     )),
                     Some(rel) => {
                         let path = norm_join(&project_dir, rel).unwrap_or_else(|| rel.clone());
-                        if bind_plist(files, &path, "entitlements", gaps, &mut out.bound_inputs, "entitlements-input-missing").is_some() {
+                        if bind_plist(
+                            files,
+                            &path,
+                            "entitlements",
+                            gaps,
+                            &mut out.bound_inputs,
+                            "entitlements-input-missing",
+                        )
+                        .is_some()
+                        {
                             input_digests.insert(path.clone(), out.bound_inputs[&path].clone());
                         }
                     }
@@ -1508,16 +1677,28 @@ pub fn evaluate_static(
             if obligation.require_privacy_manifest {
                 let prefix = format!("{project_dir}/");
                 let manifest = files.keys().find(|path| {
-                    base_name(path) == "PrivacyInfo.xcprivacy" && (project_dir.is_empty() || path.starts_with(&prefix))
+                    base_name(path) == "PrivacyInfo.xcprivacy"
+                        && (project_dir.is_empty() || path.starts_with(&prefix))
                 });
                 match manifest {
                     None => gaps.push(gap(
                         "privacy-manifest-missing",
-                        format!("target `{name}` has no PrivacyInfo.xcprivacy under `{project_dir}`"),
+                        format!(
+                            "target `{name}` has no PrivacyInfo.xcprivacy under `{project_dir}`"
+                        ),
                     )),
                     Some(path) => {
                         let path = path.clone();
-                        if bind_plist(files, &path, "privacy manifest", gaps, &mut out.bound_inputs, "privacy-manifest-missing").is_some() {
+                        if bind_plist(
+                            files,
+                            &path,
+                            "privacy manifest",
+                            gaps,
+                            &mut out.bound_inputs,
+                            "privacy-manifest-missing",
+                        )
+                        .is_some()
+                        {
                             input_digests.insert(path.clone(), out.bound_inputs[&path].clone());
                         }
                     }
@@ -1538,12 +1719,17 @@ pub fn evaluate_static(
     }
 
     // Package graph.
-    let package_count: usize = projects.iter().map(|project| project.package_reference_count).sum();
+    let package_count: usize = projects
+        .iter()
+        .map(|project| project.package_reference_count)
+        .sum();
     let mut resolved: Vec<&PackageResolvedInfo> = inventory
         .package_resolved
         .iter()
         .filter(|resolved| {
-            resolved.path.starts_with(&format!("{}/", obligation.container))
+            resolved
+                .path
+                .starts_with(&format!("{}/", obligation.container))
                 || projects
                     .iter()
                     .any(|project| resolved.path.starts_with(&format!("{}/", project.path)))
@@ -1558,10 +1744,12 @@ pub fn evaluate_static(
         ));
     }
     for item in &resolved {
-        out.bound_inputs.insert(item.path.clone(), item.digest.clone());
+        out.bound_inputs
+            .insert(item.path.clone(), item.digest.clone());
     }
     let pins: Vec<&Vec<PackagePin>> = resolved.iter().map(|item| &item.pins).collect();
-    out.dependency_graph_digest = crate::integrity::digest(&json!({ "packageResolved": pins })).ok();
+    out.dependency_graph_digest =
+        crate::integrity::digest(&json!({ "packageResolved": pins })).ok();
     out.test_selection_digest = crate::integrity::digest(&json!({
         "testPlan": obligation.test_plan,
         "selection": selection,
@@ -1613,13 +1801,20 @@ pub fn expected_evidence(
     context: &ExpectedContext,
 ) -> Result<ExpectedEvidence, AuditError> {
     if !matches!(context.kind, ImportKind::Build | ImportKind::Test) {
-        return Err(AuditError::Invalid("xcode expectation kind must be build or test".into()));
+        return Err(AuditError::Invalid(
+            "xcode expectation kind must be build or test".into(),
+        ));
     }
     if !coverage.gaps.is_empty() {
         return Err(AuditError::Invalid(format!(
             "xcode obligation `{}` has unresolved input gaps: {}",
             obligation.id,
-            coverage.gaps.iter().map(|g| g.code.clone()).collect::<Vec<_>>().join(", ")
+            coverage
+                .gaps
+                .iter()
+                .map(|g| g.code.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
         )));
     }
     let missing = || AuditError::Invalid("static coverage lacks binding digests".into());
@@ -1635,7 +1830,10 @@ pub fn expected_evidence(
         } else {
             None
         },
-        dependency_graph_digest: coverage.dependency_graph_digest.clone().ok_or_else(missing)?,
+        dependency_graph_digest: coverage
+            .dependency_graph_digest
+            .clone()
+            .ok_or_else(missing)?,
         workload_digest: None,
         command: context.command.clone(),
         required_scope: context.required_scope.clone(),
@@ -1677,7 +1875,9 @@ pub fn parse_xcresult_summary(bytes: &[u8]) -> Result<XcresultSummary, String> {
         })
         .unwrap_or_default();
     Ok(XcresultSummary {
-        result: str_of(&value, "result").ok_or("summary has no result")?.to_string(),
+        result: str_of(&value, "result")
+            .ok_or("summary has no result")?
+            .to_string(),
         total_tests: count("totalTestCount").ok_or("summary has no totalTestCount")?,
         passed_tests: count("passedTests").unwrap_or(0),
         failed_tests: count("failedTests").unwrap_or(0),
@@ -1707,16 +1907,25 @@ pub fn link_evidence(
     if record.target.starts_with("swiftpm:") || record.target.starts_with("spm:") {
         gaps.push(gap(
             "swiftpm-evidence-cannot-discharge-xcode-scheme",
-            format!("evidence target `{}` is SwiftPM; scheme `{}` unmet", record.target, obligation.scheme),
+            format!(
+                "evidence target `{}` is SwiftPM; scheme `{}` unmet",
+                record.target, obligation.scheme
+            ),
         ));
     }
     if !record.authenticated {
-        gaps.push(gap("evidence-unauthenticated", "imported evidence is not authenticated"));
+        gaps.push(gap(
+            "evidence-unauthenticated",
+            "imported evidence is not authenticated",
+        ));
     }
     if record.target != expected.target {
         gaps.push(gap(
             "evidence-target-mismatch",
-            format!("evidence `{}` != obligation `{}`", record.target, expected.target),
+            format!(
+                "evidence `{}` != obligation `{}`",
+                record.target, expected.target
+            ),
         ));
     }
     if record.variant != expected.variant {
@@ -1730,26 +1939,47 @@ pub fn link_evidence(
         ));
     }
     if record.kind != expected.kind {
-        gaps.push(gap("evidence-kind-mismatch", format!("{:?} != {:?}", record.kind, expected.kind)));
+        gaps.push(gap(
+            "evidence-kind-mismatch",
+            format!("{:?} != {:?}", record.kind, expected.kind),
+        ));
     }
     if record.toolchain != expected.toolchain {
-        gaps.push(gap("evidence-toolchain-mismatch", "toolchain/SDK label differs from plan"));
+        gaps.push(gap(
+            "evidence-toolchain-mismatch",
+            "toolchain/SDK label differs from plan",
+        ));
     }
     if record.outcome != EvidenceOutcome::Passed {
-        gaps.push(gap("evidence-outcome-not-passed", format!("outcome {:?}", record.outcome)));
+        gaps.push(gap(
+            "evidence-outcome-not-passed",
+            format!("outcome {:?}", record.outcome),
+        ));
     }
     if !record.missing_scope.is_empty() {
-        gaps.push(gap("evidence-scope-incomplete", record.missing_scope.join(", ")));
+        gaps.push(gap(
+            "evidence-scope-incomplete",
+            record.missing_scope.join(", "),
+        ));
     }
     if record.fresh_until.as_str() < now_rfc3339_utc {
-        gaps.push(gap("evidence-stale", format!("fresh until {}", record.fresh_until)));
+        gaps.push(gap(
+            "evidence-stale",
+            format!("fresh until {}", record.fresh_until),
+        ));
     }
     let xcresult = record.artifacts.iter().find(|a| a.role == ROLE_XCRESULT);
     if xcresult.is_none() {
-        gaps.push(gap("xcresult-artifact-missing", "no retained artifact with role `xcresult`"));
+        gaps.push(gap(
+            "xcresult-artifact-missing",
+            "no retained artifact with role `xcresult`",
+        ));
     }
     if expected.kind == ImportKind::Test {
-        let summary = record.artifacts.iter().find(|a| a.role == ROLE_TEST_SUMMARY);
+        let summary = record
+            .artifacts
+            .iter()
+            .find(|a| a.role == ROLE_TEST_SUMMARY);
         match summary.and_then(|a| raw_artifacts.get(&a.path).map(|bytes| (a, bytes))) {
             None => gaps.push(gap(
                 "xcresult-summary-missing",
@@ -1757,7 +1987,10 @@ pub fn link_evidence(
             )),
             Some((artifact, bytes)) => {
                 if sha256_bytes(bytes) != artifact.digest {
-                    gaps.push(gap("xcresult-summary-digest-mismatch", artifact.path.clone()));
+                    gaps.push(gap(
+                        "xcresult-summary-digest-mismatch",
+                        artifact.path.clone(),
+                    ));
                 }
                 match parse_xcresult_summary(bytes) {
                     Err(error) => gaps.push(gap("xcresult-summary-unparseable", error)),
@@ -1765,10 +1998,15 @@ pub fn link_evidence(
                         if summary.total_tests == 0 {
                             gaps.push(gap("no-tests-executed", "xcresult reports zero tests"));
                         }
-                        if summary.failed_tests > 0 || !summary.result.eq_ignore_ascii_case("passed") {
+                        if summary.failed_tests > 0
+                            || !summary.result.eq_ignore_ascii_case("passed")
+                        {
                             gaps.push(gap(
                                 "xcresult-not-passed",
-                                format!("result {} ({} failed)", summary.result, summary.failed_tests),
+                                format!(
+                                    "result {} ({} failed)",
+                                    summary.result, summary.failed_tests
+                                ),
                             ));
                         }
                         let platform = expected_xcresult_platform(&obligation.destination);
@@ -1777,7 +2015,10 @@ pub fn link_evidence(
                         {
                             gaps.push(gap(
                                 "wrong-destination-evidence",
-                                format!("xcresult devices {:?} do not match `{platform}`", summary.devices),
+                                format!(
+                                    "xcresult devices {:?} do not match `{platform}`",
+                                    summary.devices
+                                ),
                             ));
                         }
                     }
@@ -1855,7 +2096,10 @@ impl AppleTargetBridge for UnconfiguredAppleBridge {
     }
 }
 
-pub fn request_for(obligation: &XcodeObligation, operation: AppleOperation) -> AppleOperationRequest {
+pub fn request_for(
+    obligation: &XcodeObligation,
+    operation: AppleOperation,
+) -> AppleOperationRequest {
     AppleOperationRequest {
         operation,
         container: obligation.container.clone(),
@@ -1924,14 +2168,31 @@ pub fn discharge_via_bridge(
         verifier,
         now_rfc3339_utc,
     );
-    let Some(record) = verdict.record.as_ref().filter(|_| verdict.satisfies_obligation) else {
-        let mut gaps: Vec<Gap> = verdict.reasons.iter().map(|reason| gap(reason, "A03 verification")).collect();
+    let Some(record) = verdict
+        .record
+        .as_ref()
+        .filter(|_| verdict.satisfies_obligation)
+    else {
+        let mut gaps: Vec<Gap> = verdict
+            .reasons
+            .iter()
+            .map(|reason| gap(reason, "A03 verification"))
+            .collect();
         if gaps.is_empty() {
-            gaps.push(gap("evidence-not-satisfying", "A03 verdict did not satisfy the obligation"));
+            gaps.push(gap(
+                "evidence-not-satisfying",
+                "A03 verdict did not satisfy the obligation",
+            ));
         }
         return unmet(obligation, gaps);
     };
-    let gaps = link_evidence(obligation, &expected, record, &result.raw_artifacts, now_rfc3339_utc);
+    let gaps = link_evidence(
+        obligation,
+        &expected,
+        record,
+        &result.raw_artifacts,
+        now_rfc3339_utc,
+    );
     if gaps.is_empty() {
         ObligationOutcome {
             id: obligation.id.clone(),
@@ -2022,15 +2283,26 @@ fn diagnostic_regex() -> &'static Regex {
 
 fn is_concurrency_message(message: &str) -> bool {
     let lower = message.to_lowercase();
-    ["sendable", "isolat", "data race", "mainactor", "main actor", "sendingrisks"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    [
+        "sendable",
+        "isolat",
+        "data race",
+        "mainactor",
+        "main actor",
+        "sendingrisks",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
 }
 
 /// Parse compiler output; `source_root` is stripped so findings carry
 /// snapshot-relative paths. Paths outside it (SDK, DerivedData) are counted,
 /// not attributed to source.
-pub fn parse_swift_diagnostics(output: &str, source_root: &str, context: DiagnosticContext) -> DiagnosticReport {
+pub fn parse_swift_diagnostics(
+    output: &str,
+    source_root: &str,
+    context: DiagnosticContext,
+) -> DiagnosticReport {
     let root = source_root.trim_end_matches('/');
     let mut findings = Vec::new();
     let mut outside = 0usize;
@@ -2133,19 +2405,31 @@ pub fn parse_swiftlint_json(
     let root = source_root.trim_end_matches('/');
     let mut gaps = Vec::new();
     if run.version != pin.version {
-        gaps.push(gap("swiftlint-version-unpinned", format!("{} != {}", run.version, pin.version)));
+        gaps.push(gap(
+            "swiftlint-version-unpinned",
+            format!("{} != {}", run.version, pin.version),
+        ));
     }
     if run.executable_digest != pin.executable_digest {
-        gaps.push(gap("swiftlint-executable-unpinned", "executable digest differs from pin"));
+        gaps.push(gap(
+            "swiftlint-executable-unpinned",
+            "executable digest differs from pin",
+        ));
     }
     if run.config_digest != pin.config_digest {
-        gaps.push(gap("swiftlint-config-unpinned", "configuration digest differs from pin"));
+        gaps.push(gap(
+            "swiftlint-config-unpinned",
+            "configuration digest differs from pin",
+        ));
     }
     let mut findings = Vec::new();
     for item in items.iter().take(MAX_FINDINGS) {
         let file = str_of(item, "file").unwrap_or_default();
         findings.push(LintFinding {
-            path: file.strip_prefix(&format!("{root}/")).unwrap_or(file).to_string(),
+            path: file
+                .strip_prefix(&format!("{root}/"))
+                .unwrap_or(file)
+                .to_string(),
             line: item.get("line").and_then(Value::as_u64).unwrap_or(0),
             column: item.get("character").and_then(Value::as_u64).unwrap_or(0),
             severity: str_of(item, "severity").unwrap_or_default().to_lowercase(),
@@ -2154,7 +2438,10 @@ pub fn parse_swiftlint_json(
         });
     }
     if items.len() > MAX_FINDINGS {
-        gaps.push(gap("swiftlint-output-truncated", format!("{} findings", items.len())));
+        gaps.push(gap(
+            "swiftlint-output-truncated",
+            format!("{} findings", items.len()),
+        ));
     }
     let qualified = gaps.is_empty();
     let status = if !qualified {
@@ -2215,10 +2502,16 @@ pub fn parse_periphery_json(
     let root = source_root.trim_end_matches('/');
     let mut gaps = Vec::new();
     if context.index_store_digest.is_none() {
-        gaps.push(gap("periphery-index-context-missing", "no retained index store digest"));
+        gaps.push(gap(
+            "periphery-index-context-missing",
+            "no retained index store digest",
+        ));
     }
     if context.build_evidence_id.is_none() {
-        gaps.push(gap("periphery-build-evidence-missing", "no linked scheme build evidence"));
+        gaps.push(gap(
+            "periphery-build-evidence-missing",
+            "no linked scheme build evidence",
+        ));
     }
     let mut candidates = Vec::new();
     for item in items.iter().take(MAX_FINDINGS) {
@@ -2230,10 +2523,15 @@ pub fn parse_periphery_json(
         candidates.push(UnusedCandidate {
             kind: str_of(item, "kind").unwrap_or_default().to_string(),
             name: str_of(item, "name").unwrap_or_default().to_string(),
-            path: file.strip_prefix(&format!("{root}/")).unwrap_or(file).to_string(),
+            path: file
+                .strip_prefix(&format!("{root}/"))
+                .unwrap_or(file)
+                .to_string(),
             line,
             column,
-            accessibility: str_of(item, "accessibility").unwrap_or_default().to_string(),
+            accessibility: str_of(item, "accessibility")
+                .unwrap_or_default()
+                .to_string(),
             confidence: "candidate".into(),
         });
     }

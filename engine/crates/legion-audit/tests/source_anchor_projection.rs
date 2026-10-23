@@ -23,7 +23,12 @@ fn lines(start: u32, end: u32) -> LineRange {
     LineRange { start, end }
 }
 
-fn evidence_for(path: &str, side: SourceSide, bytes: &[u8], range: LineRange) -> legion_contracts::source_anchor::SourceAnchorEvidence {
+fn evidence_for(
+    path: &str,
+    side: SourceSide,
+    bytes: &[u8],
+    range: LineRange,
+) -> legion_contracts::source_anchor::SourceAnchorEvidence {
     build_evidence(
         path,
         side,
@@ -42,7 +47,12 @@ fn diff(head: &str, files: Vec<PrDiffFile>) -> PrDiff {
     }
 }
 
-fn file(base: Option<&str>, head: Option<&str>, base_hunks: Vec<LineRange>, head_hunks: Vec<LineRange>) -> PrDiffFile {
+fn file(
+    base: Option<&str>,
+    head: Option<&str>,
+    base_hunks: Vec<LineRange>,
+    head_hunks: Vec<LineRange>,
+) -> PrDiffFile {
     PrDiffFile {
         base_path: base.map(Into::into),
         head_path: head.map(Into::into),
@@ -64,11 +74,8 @@ fn anchor01_wrong_snapshot_or_blob_is_rejected() {
         validate_evidence_against_bytes(&evidence, Some("snap-2"), Some(bytes)),
         AnchorValidation::SnapshotMismatch
     );
-    let wrong_blob = validate_evidence_against_bytes(
-        &evidence,
-        Some("snap-1"),
-        Some(b"alpha\nBETA\ngamma\n"),
-    );
+    let wrong_blob =
+        validate_evidence_against_bytes(&evidence, Some("snap-1"), Some(b"alpha\nBETA\ngamma\n"));
     assert_eq!(wrong_blob, AnchorValidation::FileDigestMismatch);
     // The mismatched-bytes result cannot project inline.
     assert_eq!(
@@ -76,7 +83,15 @@ fn anchor01_wrong_snapshot_or_blob_is_rejected() {
             &evidence,
             wrong_blob,
             "head",
-            &diff("head", vec![file(Some("src/a.rs"), Some("src/a.rs"), vec![], vec![lines(1, 3)])]),
+            &diff(
+                "head",
+                vec![file(
+                    Some("src/a.rs"),
+                    Some("src/a.rs"),
+                    vec![],
+                    vec![lines(1, 3)]
+                )]
+            ),
         ),
         PrProjection::SummaryOnly {
             reason: PrProjectionReason::NotValidated
@@ -89,10 +104,22 @@ fn anchor01_wrong_snapshot_or_blob_is_rejected() {
 fn anchor02_invalid_byte_ranges_are_rejected() {
     let bytes = "caf\u{e9}\nnext\n".as_bytes();
     for (range, expected) in [
-        (ByteRange { start: 0, end: 10_000 }, AnchorValidation::ByteRangeOutOfBounds),
-        (ByteRange { start: 5, end: 2 }, AnchorValidation::ReversedRange),
+        (
+            ByteRange {
+                start: 0,
+                end: 10_000,
+            },
+            AnchorValidation::ByteRangeOutOfBounds,
+        ),
+        (
+            ByteRange { start: 5, end: 2 },
+            AnchorValidation::ReversedRange,
+        ),
         // Byte 4 splits "é" (bytes 3..5).
-        (ByteRange { start: 4, end: 5 }, AnchorValidation::InvalidUtf8Boundary),
+        (
+            ByteRange { start: 4, end: 5 },
+            AnchorValidation::InvalidUtf8Boundary,
+        ),
     ] {
         assert_eq!(derive_position(bytes, range), Err(expected), "{range:?}");
         assert_eq!(
@@ -117,7 +144,13 @@ fn anchor03_repeated_snippet_is_ambiguous() {
     let original = evidence_for("src/a.rs", SourceSide::Selected, bytes, lines(2, 2));
     let padded = b"// new header\nfn a() {\n    check();\n}\nfn b() {\n    check();\n}\n";
     assert_eq!(
-        propose_reanchor(&original, None, Some("snap-2"), Some(padded), b"    check();"),
+        propose_reanchor(
+            &original,
+            None,
+            Some("snap-2"),
+            Some(padded),
+            b"    check();"
+        ),
         ReanchorOutcome::Ambiguous { occurrences: 2 },
         "relocation must not pick the first of two identical spans"
     );
@@ -156,7 +189,10 @@ fn anchor04_columns_derive_from_original_bytes() {
     // digest (no newline normalization), while its line hash peer in the
     // legacy anchor normalizes CRLF (existing position_anchor behaviour).
     let across = line_byte_range(bytes, lines(1, 2)).unwrap();
-    assert_eq!(&bytes[across.start as usize..across.end as usize], "\t\u{e9}\u{4e2d}\r\nx".as_bytes());
+    assert_eq!(
+        &bytes[across.start as usize..across.end as usize],
+        "\t\u{e9}\u{4e2d}\r\nx".as_bytes()
+    );
     // BOM + no final newline.
     let bom = b"\xef\xbb\xbffn main() {}";
     let derived = derive_position(bom, line_byte_range(bom, lines(1, 1)).unwrap()).unwrap();
@@ -176,7 +212,12 @@ fn anchor05_rename_and_deletion_keep_side_identity() {
         vec![lines(1, 2)],
     );
     assert_eq!(
-        project_to_pr(&evidence, AnchorValidation::Validated, "h", &diff("h", vec![renamed])),
+        project_to_pr(
+            &evidence,
+            AnchorValidation::Validated,
+            "h",
+            &diff("h", vec![renamed])
+        ),
         PrProjection::Inline {
             path: "src/old.rs".into(),
             side: SourceSide::Base,
@@ -186,8 +227,16 @@ fn anchor05_rename_and_deletion_keep_side_identity() {
     );
     let deleted = file(Some("src/old.rs"), None, vec![lines(1, 2)], vec![]);
     assert!(matches!(
-        project_to_pr(&evidence, AnchorValidation::Validated, "h", &diff("h", vec![deleted])),
-        PrProjection::Inline { side: SourceSide::Base, .. }
+        project_to_pr(
+            &evidence,
+            AnchorValidation::Validated,
+            "h",
+            &diff("h", vec![deleted])
+        ),
+        PrProjection::Inline {
+            side: SourceSide::Base,
+            ..
+        }
     ));
 }
 
@@ -200,16 +249,30 @@ fn anchor06_beyond_diff_finding_remains_in_summary() {
         serde_json::from_str(&legion_report::render_github_review(&report).unwrap()).unwrap();
     assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
     let body = payload["body"].as_str().unwrap();
-    assert!(body.contains("canonical fixture finding"), "finding retained in main report");
+    assert!(
+        body.contains("canonical fixture finding"),
+        "finding retained in main report"
+    );
     assert!(body.contains("src/caller.rs"));
     // And with a diff that does not cover the caller lines: still summary.
-    let evidence = report.findings[0].source_anchor_evidence().unwrap().unwrap();
+    let evidence = report.findings[0]
+        .source_anchor_evidence()
+        .unwrap()
+        .unwrap();
     assert_eq!(
         project_to_pr(
             &evidence,
             AnchorValidation::Validated,
             "head-1",
-            &diff("head-1", vec![file(Some("src/other.rs"), Some("src/other.rs"), vec![], vec![lines(1, 9)])]),
+            &diff(
+                "head-1",
+                vec![file(
+                    Some("src/other.rs"),
+                    Some("src/other.rs"),
+                    vec![],
+                    vec![lines(1, 9)]
+                )]
+            ),
         ),
         PrProjection::SummaryOnly {
             reason: PrProjectionReason::PathNotInDiff
@@ -239,7 +302,15 @@ fn anchor07_generated_artifact_is_cited_without_guessed_source() {
             &evidence,
             AnchorValidation::Validated,
             "h",
-            &diff("h", vec![file(Some("dist/bundle.min.js"), Some("dist/bundle.min.js"), vec![], vec![lines(1, 2)])]),
+            &diff(
+                "h",
+                vec![file(
+                    Some("dist/bundle.min.js"),
+                    Some("dist/bundle.min.js"),
+                    vec![],
+                    vec![lines(1, 2)]
+                )]
+            ),
         ),
         PrProjection::Inline {
             path: "dist/bundle.min.js".into(),
@@ -258,7 +329,10 @@ fn anchor08_location_validation_ignores_claim_text() {
     let bytes = b"fn checked() {\n    return;\n}\n";
     let mut report = canonical_report("src/a.rs:2", bytes);
     report.findings[0].message = "this line reads from the network".into();
-    let evidence = report.findings[0].source_anchor_evidence().unwrap().unwrap();
+    let evidence = report.findings[0]
+        .source_anchor_evidence()
+        .unwrap()
+        .unwrap();
     assert_eq!(
         validate_evidence_against_bytes(&evidence, Some("snap-1"), Some(bytes)),
         AnchorValidation::Validated,
@@ -273,7 +347,14 @@ fn anchor09_traversal_and_outside_snapshot_reject() {
     for bad in ["../secret.rs", "/etc/passwd", "src/../../x", "src\\win.rs"] {
         assert!(!safe_snapshot_path(bad), "{bad}");
         assert_eq!(
-            build_evidence(bad, SourceSide::Selected, None, None, b"x\n", ByteRange { start: 0, end: 1 }),
+            build_evidence(
+                bad,
+                SourceSide::Selected,
+                None,
+                None,
+                b"x\n",
+                ByteRange { start: 0, end: 1 }
+            ),
             Err(AnchorValidation::UnsafePath)
         );
     }
@@ -285,9 +366,14 @@ fn anchor09_traversal_and_outside_snapshot_reject() {
     );
     // A report carrying a traversal canonical path does not validate.
     let mut report = canonical_report("src/a.rs:1", b"x\n");
-    let mut forged = report.findings[0].source_anchor_evidence().unwrap().unwrap();
+    let mut forged = report.findings[0]
+        .source_anchor_evidence()
+        .unwrap()
+        .unwrap();
     forged.path = "../secret.rs".into();
-    report.findings[0].set_source_anchor_evidence(&forged).unwrap();
+    report.findings[0]
+        .set_source_anchor_evidence(&forged)
+        .unwrap();
     assert!(report.validate().is_err());
 }
 
@@ -304,13 +390,23 @@ fn acceptance_head_contiguity_and_reanchor_lineage() {
         vec![lines(1, 2), lines(3, 5)],
     );
     assert_eq!(
-        project_to_pr(&evidence, AnchorValidation::Validated, "head-a", &diff("head-b", vec![split.clone()])),
+        project_to_pr(
+            &evidence,
+            AnchorValidation::Validated,
+            "head-a",
+            &diff("head-b", vec![split.clone()])
+        ),
         PrProjection::SummaryOnly {
             reason: PrProjectionReason::HeadMismatch
         }
     );
     assert_eq!(
-        project_to_pr(&evidence, AnchorValidation::Validated, "head", &diff("head", vec![split])),
+        project_to_pr(
+            &evidence,
+            AnchorValidation::Validated,
+            "head",
+            &diff("head", vec![split])
+        ),
         PrProjection::SummaryOnly {
             reason: PrProjectionReason::LinesNonContiguousInDiff
         }
@@ -319,21 +415,44 @@ fn acceptance_head_contiguity_and_reanchor_lineage() {
     let before = b"head\ntarget();\ntail\n";
     let original = evidence_for("src/a.rs", SourceSide::Selected, before, lines(2, 2));
     let original_range = original.byte_range;
-    match propose_reanchor(&original, None, Some("snap-2"), Some(b"inserted\nhead\ntarget();\ntail\n"), b"target();") {
-        ReanchorOutcome::Candidate { candidate, previous_byte_range, .. } => {
+    match propose_reanchor(
+        &original,
+        None,
+        Some("snap-2"),
+        Some(b"inserted\nhead\ntarget();\ntail\n"),
+        b"target();",
+    ) {
+        ReanchorOutcome::Candidate {
+            candidate,
+            previous_byte_range,
+            ..
+        } => {
             assert_eq!(candidate.lines, lines(3, 3));
             assert_eq!(previous_byte_range, original_range);
         }
         other => panic!("expected lineage candidate, got {other:?}"),
     }
-    assert_eq!(original.byte_range, original_range, "confirmed anchor never moves in place");
+    assert_eq!(
+        original.byte_range, original_range,
+        "confirmed anchor never moves in place"
+    );
     // Changed source text at the old span: reverify fails, recorded as such.
     assert_eq!(
-        validate_evidence_against_bytes(&original, Some("snap-1"), Some(b"head\nchanged();\ntail\n")),
+        validate_evidence_against_bytes(
+            &original,
+            Some("snap-1"),
+            Some(b"head\nchanged();\ntail\n")
+        ),
         AnchorValidation::FileDigestMismatch
     );
     assert_eq!(
-        propose_reanchor(&original, None, Some("snap-2"), Some(b"head\nchanged();\ntail\n"), b"target();"),
+        propose_reanchor(
+            &original,
+            None,
+            Some("snap-2"),
+            Some(b"head\nchanged();\ntail\n"),
+            b"target();"
+        ),
         ReanchorOutcome::NotFound
     );
 }
@@ -375,7 +494,10 @@ fn canonical_report(location: &str, bytes: &[u8]) -> ReportV2 {
     };
     let mut report = ReportV2::from_v1_with(&v1, &context).unwrap();
     let anchor = report.findings[0].anchor.clone().expect("lifted anchor");
-    assert!(!anchor.failed(), "fixture location must position: {location}");
+    assert!(
+        !anchor.failed(),
+        "fixture location must position: {location}"
+    );
     let (_, canonical) = position_anchor_canonical(
         &anchor.path,
         anchor.range.start,

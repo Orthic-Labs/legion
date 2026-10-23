@@ -419,11 +419,7 @@ impl DomainContractSet {
     /// boundary. `required` makes an absent/empty contract set unresolved
     /// (missing context); when not required, absence yields an empty set and
     /// invents no requirement.
-    pub fn build(
-        inputs: &[ContractFileInput],
-        snapshots: &[SnapshotRef],
-        required: bool,
-    ) -> Self {
+    pub fn build(inputs: &[ContractFileInput], snapshots: &[SnapshotRef], required: bool) -> Self {
         let mut snapshots = snapshots.to_vec();
         snapshots.sort();
         snapshots.dedup();
@@ -479,7 +475,10 @@ impl DomainContractSet {
                             UnresolvedKind::InvalidContract,
                             None,
                             Some(repo),
-                            format!("{}: unsupported schemaVersion {}", input.path, doc.schema_version),
+                            format!(
+                                "{}: unsupported schemaVersion {}",
+                                input.path, doc.schema_version
+                            ),
                         ));
                         None
                     }
@@ -568,7 +567,10 @@ impl DomainContractSet {
         // Mappings: dedupe identical, conflict on differing duplicates.
         let mut by_key: BTreeMap<MappingKey, Vec<TermMapping>> = BTreeMap::new();
         for mapping in raw_mappings {
-            by_key.entry(mapping_key(&mapping)).or_default().push(mapping);
+            by_key
+                .entry(mapping_key(&mapping))
+                .or_default()
+                .push(mapping);
         }
         let mut mappings: Vec<TermMapping> = Vec::new();
         for (key, list) in by_key {
@@ -715,7 +717,11 @@ impl DomainContractSet {
     /// Digest of one term definition plus every mapping bound to it.
     pub fn term_digest(&self, term_id: &str) -> Option<String> {
         let term = self.terms.get(term_id)?;
-        let maps: Vec<&TermMapping> = self.mappings.iter().filter(|m| m.term_id == term_id).collect();
+        let maps: Vec<&TermMapping> = self
+            .mappings
+            .iter()
+            .filter(|m| m.term_id == term_id)
+            .collect();
         Some(sha256_digest(
             &serde_json::to_vec(&json!({"term": term, "mappings": maps})).unwrap_or_default(),
         ))
@@ -775,7 +781,8 @@ impl DomainContractSet {
         let mut unstated: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
 
         for (key, term) in &self.terms {
-            let maps: Vec<&TermMapping> = self.mappings.iter().filter(|m| &m.term_id == key).collect();
+            let maps: Vec<&TermMapping> =
+                self.mappings.iter().filter(|m| &m.term_id == key).collect();
             for m in &maps {
                 check_mapping(self, term, m, &mut candidates, &mut unstated);
             }
@@ -842,7 +849,10 @@ impl DomainContractSet {
             (
                 "contradicted",
                 "findings",
-                format!("{} mapping(s) contradict the authoritative term", found.len()),
+                format!(
+                    "{} mapping(s) contradict the authoritative term",
+                    found.len()
+                ),
             )
         } else if issues.iter().any(|u| u.kind.is_conflict()) {
             (
@@ -864,7 +874,8 @@ impl DomainContractSet {
             (
                 "implemented-unverified",
                 "pass",
-                "all mappings agree with the authoritative term; verification evidence is separate".to_owned(),
+                "all mappings agree with the authoritative term; verification evidence is separate"
+                    .to_owned(),
             )
         };
         let mut evidence: Vec<EvidencePointer> = self
@@ -1022,7 +1033,11 @@ fn compare_semantics(
     }
     match (&canon.unit, &actual.unit) {
         (Some(c), Some(a)) if norm(c) != norm(a) => bad.push((
-            if money { "money-unit-mismatch" } else { "unit-mismatch" },
+            if money {
+                "money-unit-mismatch"
+            } else {
+                "unit-mismatch"
+            },
             CandidateCategory::Correctness,
             format!("contract unit {c:?}, mapping unit {a:?}"),
         )),
@@ -1031,7 +1046,11 @@ fn compare_semantics(
     }
     match (canon.scale, actual.scale) {
         (Some(c), Some(a)) if c != a => bad.push((
-            if money { "money-unit-mismatch" } else { "scale-mismatch" },
+            if money {
+                "money-unit-mismatch"
+            } else {
+                "scale-mismatch"
+            },
             CandidateCategory::Correctness,
             format!("contract scale {c}, mapping scale {a}"),
         )),
@@ -1081,7 +1100,10 @@ fn push_candidate(
         "{key}|{}|{}|{:?}|{:?}|{}|{rule}|{detail}",
         term.version, mapping.repository_id, mapping.role, mapping.surface, mapping.symbol
     );
-    let id = format!("domain:{}", &hex::encode(Sha256::digest(seed.as_bytes()))[..16]);
+    let id = format!(
+        "domain:{}",
+        &hex::encode(Sha256::digest(seed.as_bytes()))[..16]
+    );
     out.entry(id.clone()).or_insert_with(|| DomainCandidate {
         id,
         term_id: key.clone(),
@@ -1109,7 +1131,10 @@ fn check_mapping(
 ) {
     let key = term.key();
     let mut note = |field: String| {
-        unstated.entry(key.clone()).or_default().insert(format!("{}:{field}", m.repository_id));
+        unstated
+            .entry(key.clone())
+            .or_default()
+            .insert(format!("{}:{field}", m.repository_id));
     };
 
     if let Some(canon) = &term.semantics {
@@ -1142,7 +1167,11 @@ fn check_mapping(
         if m.states.is_empty() {
             note("states".into());
         }
-        let outside: Vec<&String> = m.states.iter().filter(|s| !term.states.contains(s)).collect();
+        let outside: Vec<&String> = m
+            .states
+            .iter()
+            .filter(|s| !term.states.contains(s))
+            .collect();
         if !outside.is_empty() {
             push_candidate(
                 set,
@@ -1204,11 +1233,15 @@ fn check_cross(
         .iter()
         .filter(|m| matches!(m.role, MappingRole::Producer | MappingRole::Store))
         .collect();
-    let consumers: Vec<&&TermMapping> = maps.iter().filter(|m| m.role == MappingRole::Consumer).collect();
+    let consumers: Vec<&&TermMapping> = maps
+        .iter()
+        .filter(|m| m.role == MappingRole::Consumer)
+        .collect();
     for c in &consumers {
         for p in &producers {
             if !p.states.is_empty() && !c.states.is_empty() {
-                let missing: Vec<&String> = p.states.iter().filter(|s| !c.states.contains(s)).collect();
+                let missing: Vec<&String> =
+                    p.states.iter().filter(|s| !c.states.contains(s)).collect();
                 if !missing.is_empty() {
                     push_candidate(
                         set,

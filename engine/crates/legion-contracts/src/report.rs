@@ -3,14 +3,14 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::source_anchor::{
+    build_evidence, line_byte_range, validate_evidence_claims, AnchorValidation,
+    SourceAnchorEvidence, SourceSide, SOURCE_ANCHOR_EVIDENCE_KEY,
+};
 use crate::{
     canonical_digest,
     id::{FindingId, ReportId},
     require_version, ContractError,
-};
-use crate::source_anchor::{
-    build_evidence, line_byte_range, validate_evidence_claims, AnchorValidation, SourceAnchorEvidence,
-    SourceSide, SOURCE_ANCHOR_EVIDENCE_KEY,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -456,9 +456,7 @@ impl FindingV2 {
     /// has only a legacy anchor (or none); that state is preserved as-is and
     /// is never upgraded by guessing. A present-but-malformed value is an
     /// error, not an absence.
-    pub fn source_anchor_evidence(
-        &self,
-    ) -> Option<Result<SourceAnchorEvidence, ContractError>> {
+    pub fn source_anchor_evidence(&self) -> Option<Result<SourceAnchorEvidence, ContractError>> {
         let value = self.evidence.get(SOURCE_ANCHOR_EVIDENCE_KEY)?;
         Some(
             serde_json::from_value(value.clone())
@@ -1443,7 +1441,9 @@ mod v2_tests {
             &ctx_with(&resolve),
         )
         .unwrap();
-        v2.findings[0].set_source_anchor_evidence(&evidence).unwrap();
+        v2.findings[0]
+            .set_source_anchor_evidence(&evidence)
+            .unwrap();
         v2.validate().unwrap();
         let wire = v2.to_value_for_schema(1).unwrap();
         let back = Report::read_any(&wire).unwrap();

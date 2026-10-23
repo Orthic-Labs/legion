@@ -27,8 +27,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::artifact_evidence::{
-    is_rfc3339_utc_second, CommandBinding, EvidenceOutcome, ExpectedEvidence,
-    ImportedEvidenceRecord, ImportKind, ReplayPolicy, RepositoryBinding,
+    is_rfc3339_utc_second, CommandBinding, EvidenceOutcome, ExpectedEvidence, ImportKind,
+    ImportedEvidenceRecord, ReplayPolicy, RepositoryBinding,
 };
 use crate::assurance::{EvidenceKind, ObligationCandidate, ObligationStatus};
 use crate::error::AuditError;
@@ -169,7 +169,9 @@ impl EvidenceProducer {
     pub fn is_gap(&self) -> bool {
         match self {
             Self::Gap { .. } => true,
-            Self::Owner { qualified_owner_id, .. } => qualified_owner_id.trim().is_empty(),
+            Self::Owner {
+                qualified_owner_id, ..
+            } => qualified_owner_id.trim().is_empty(),
             Self::ImportedReceipt { issuer_id } => issuer_id.trim().is_empty(),
         }
     }
@@ -244,16 +246,34 @@ pub fn subject_mismatches(expected: &SubjectIdentity, observed: &SubjectIdentity
             out.push(format!("{name}-mismatch"));
         }
     };
-    check("artifact-digest", expected.artifact_digest == observed.artifact_digest);
-    check("build-config", expected.build_config_digest == observed.build_config_digest);
+    check(
+        "artifact-digest",
+        expected.artifact_digest == observed.artifact_digest,
+    );
+    check(
+        "build-config",
+        expected.build_config_digest == observed.build_config_digest,
+    );
     check("target", expected.target == observed.target);
     check("variant", expected.variant == observed.variant);
     check("scheme", expected.scheme == observed.scheme);
     check("destination", expected.destination == observed.destination);
-    check("application-id", expected.application_id == observed.application_id);
-    check("server-revision", expected.server_revision == observed.server_revision);
-    check("features", expected.normalized_features() == observed.normalized_features());
-    check("environment", expected.environment_id == observed.environment_id);
+    check(
+        "application-id",
+        expected.application_id == observed.application_id,
+    );
+    check(
+        "server-revision",
+        expected.server_revision == observed.server_revision,
+    );
+    check(
+        "features",
+        expected.normalized_features() == observed.normalized_features(),
+    );
+    check(
+        "environment",
+        expected.environment_id == observed.environment_id,
+    );
     out
 }
 
@@ -376,9 +396,10 @@ pub fn journey_expected_evidence(
 ) -> Result<ExpectedEvidence, AuditError> {
     declaration.validate()?;
     subject.validate()?;
-    let kind = declaration.axis.import_kind().ok_or_else(|| {
-        AuditError::Invalid("source axis has no import kind".into())
-    })?;
+    let kind = declaration
+        .axis
+        .import_kind()
+        .ok_or_else(|| AuditError::Invalid("source axis has no import kind".into()))?;
     if declaration.axis == OutcomeAxis::Load && workload_digest.is_none() {
         return Err(AuditError::Invalid(format!(
             "load journey {} requires a workload digest",
@@ -463,7 +484,11 @@ pub struct JourneyOutcome {
     pub pair: Option<PairBinding>,
 }
 
-fn unmet(declaration: &JourneyDeclaration, reasons: Vec<String>, record: Option<&ImportedEvidenceRecord>) -> JourneyOutcome {
+fn unmet(
+    declaration: &JourneyDeclaration,
+    reasons: Vec<String>,
+    record: Option<&ImportedEvidenceRecord>,
+) -> JourneyOutcome {
     JourneyOutcome {
         journey_id: declaration.id.clone(),
         axis: declaration.axis,
@@ -488,7 +513,11 @@ pub fn evaluate_journey(
     now_rfc3339_utc: &str,
 ) -> JourneyOutcome {
     if let Err(error) = declaration.validate() {
-        return unmet(declaration, vec![format!("invalid-declaration: {error}")], record);
+        return unmet(
+            declaration,
+            vec![format!("invalid-declaration: {error}")],
+            record,
+        );
     }
     let mut reasons: Vec<String> = Vec::new();
     if declaration.producer.is_gap() {
@@ -540,7 +569,8 @@ pub fn evaluate_journey(
             reasons.push(format!("scope-not-examined:{item}"));
         }
     }
-    let observed_steps: BTreeSet<&str> = observed.steps_examined.iter().map(String::as_str).collect();
+    let observed_steps: BTreeSet<&str> =
+        observed.steps_examined.iter().map(String::as_str).collect();
     for step in &declaration.steps {
         if !observed_steps.contains(step.as_str()) {
             reasons.push(format!("step-not-observed:{step}"));
@@ -604,11 +634,15 @@ pub fn evaluate_pairs(
     declarations: &[JourneyDeclaration],
     outcomes: &[JourneyOutcome],
 ) -> Vec<PairOutcome> {
-    let by_id: BTreeMap<&str, &JourneyOutcome> =
-        outcomes.iter().map(|o| (o.journey_id.as_str(), o)).collect();
+    let by_id: BTreeMap<&str, &JourneyOutcome> = outcomes
+        .iter()
+        .map(|o| (o.journey_id.as_str(), o))
+        .collect();
     let mut grouped: BTreeMap<String, Vec<PairMember>> = BTreeMap::new();
     for declaration in declarations {
-        let Some(pair) = &declaration.pair else { continue };
+        let Some(pair) = &declaration.pair else {
+            continue;
+        };
         let member = match by_id.get(declaration.id.as_str()) {
             Some(outcome) => PairMember {
                 journey_id: declaration.id.clone(),
@@ -623,7 +657,10 @@ pub fn evaluate_pairs(
                 reasons: vec!["pair-member-not-evaluated".into()],
             },
         };
-        grouped.entry(pair.pair_id.clone()).or_default().push(member);
+        grouped
+            .entry(pair.pair_id.clone())
+            .or_default()
+            .push(member);
     }
     grouped
         .into_iter()
@@ -634,7 +671,11 @@ pub fn evaluate_pairs(
                     status = member.status;
                 }
             }
-            PairOutcome { pair_id, status, members }
+            PairOutcome {
+                pair_id,
+                status,
+                members,
+            }
         })
         .collect()
 }
@@ -657,45 +698,230 @@ pub struct CatalogEntry {
 pub fn required_catalog() -> Vec<CatalogEntry> {
     use OutcomeAxis::*;
     use Stack::*;
-    let e = |stack, category, axis, summary| CatalogEntry { stack, category, axis, summary };
+    let e = |stack, category, axis, summary| CatalogEntry {
+        stack,
+        category,
+        axis,
+        summary,
+    };
     vec![
-        e(NodeCommerce, "checkout", Functional, "checkout with duplicate delivery"),
-        e(NodeCommerce, "refund", Functional, "refund state and money units"),
-        e(NodeCommerce, "inventory-oversell", Load, "concurrent stock decrement without oversell"),
-        e(NodeCommerce, "webhook-replay", Functional, "payment webhook replay is idempotent"),
-        e(NodeCommerce, "tenant-admin-authorization", Functional, "cross-tenant and admin authorization denial"),
-        e(NodeCommerce, "workload-latency", Load, "declared workload latency/error budget"),
-        e(ReactAdmin, "user-paths", Functional, "admin user paths in a real browser"),
-        e(ReactAdmin, "keyboard-a11y", A11y, "keyboard and accessibility interactions"),
-        e(ReactAdmin, "permission-transitions", Functional, "authorization changes enforced server-side"),
-        e(QwikStorefront, "user-paths", Functional, "navigation, checkout and resume"),
-        e(QwikStorefront, "keyboard-a11y", A11y, "keyboard and accessibility interactions"),
-        e(QwikStorefront, "seo-render-delivery", Functional, "rendered HTML delivered to crawlers"),
-        e(QwikStorefront, "resumability", Functional, "resume without re-execution or secret serialization"),
-        e(QwikStorefront, "visual-states", Visual, "rendered state coverage"),
-        e(Postgres, "migration-isolated", Functional, "migration on exact server/schema/data volume"),
-        e(Postgres, "recovery", Functional, "backup/restore or rollback recovery"),
-        e(Nginx, "routing", Functional, "isolated request routing behavior"),
-        e(Nginx, "private-cache", Functional, "authenticated responses never shared-cached"),
-        e(RustCore, "feature-target-matrix", Build, "declared feature/target/build matrix"),
-        e(TauriReact, "ipc-allowed-denied", Functional, "UI to IPC to Rust allowed and denied cases"),
+        e(
+            NodeCommerce,
+            "checkout",
+            Functional,
+            "checkout with duplicate delivery",
+        ),
+        e(
+            NodeCommerce,
+            "refund",
+            Functional,
+            "refund state and money units",
+        ),
+        e(
+            NodeCommerce,
+            "inventory-oversell",
+            Load,
+            "concurrent stock decrement without oversell",
+        ),
+        e(
+            NodeCommerce,
+            "webhook-replay",
+            Functional,
+            "payment webhook replay is idempotent",
+        ),
+        e(
+            NodeCommerce,
+            "tenant-admin-authorization",
+            Functional,
+            "cross-tenant and admin authorization denial",
+        ),
+        e(
+            NodeCommerce,
+            "workload-latency",
+            Load,
+            "declared workload latency/error budget",
+        ),
+        e(
+            ReactAdmin,
+            "user-paths",
+            Functional,
+            "admin user paths in a real browser",
+        ),
+        e(
+            ReactAdmin,
+            "keyboard-a11y",
+            A11y,
+            "keyboard and accessibility interactions",
+        ),
+        e(
+            ReactAdmin,
+            "permission-transitions",
+            Functional,
+            "authorization changes enforced server-side",
+        ),
+        e(
+            QwikStorefront,
+            "user-paths",
+            Functional,
+            "navigation, checkout and resume",
+        ),
+        e(
+            QwikStorefront,
+            "keyboard-a11y",
+            A11y,
+            "keyboard and accessibility interactions",
+        ),
+        e(
+            QwikStorefront,
+            "seo-render-delivery",
+            Functional,
+            "rendered HTML delivered to crawlers",
+        ),
+        e(
+            QwikStorefront,
+            "resumability",
+            Functional,
+            "resume without re-execution or secret serialization",
+        ),
+        e(
+            QwikStorefront,
+            "visual-states",
+            Visual,
+            "rendered state coverage",
+        ),
+        e(
+            Postgres,
+            "migration-isolated",
+            Functional,
+            "migration on exact server/schema/data volume",
+        ),
+        e(
+            Postgres,
+            "recovery",
+            Functional,
+            "backup/restore or rollback recovery",
+        ),
+        e(
+            Nginx,
+            "routing",
+            Functional,
+            "isolated request routing behavior",
+        ),
+        e(
+            Nginx,
+            "private-cache",
+            Functional,
+            "authenticated responses never shared-cached",
+        ),
+        e(
+            RustCore,
+            "feature-target-matrix",
+            Build,
+            "declared feature/target/build matrix",
+        ),
+        e(
+            TauriReact,
+            "ipc-allowed-denied",
+            Functional,
+            "UI to IPC to Rust allowed and denied cases",
+        ),
         e(TauriReact, "deep-link", Functional, "deep-link input trust"),
-        e(TauriReact, "path-capability-boundary", Functional, "path and capability scope"),
-        e(TauriReact, "packaged-artifact-security", ArtifactSecurity, "packaged artifact and capabilities"),
-        e(NativeGui, "responsiveness", Load, "UI-thread responsiveness under load"),
-        e(NativeGui, "cancellation-shutdown", Functional, "cancellation and clean shutdown"),
-        e(SwiftMacos, "lifecycle-permissions", Functional, "lifecycle and permission flows"),
-        e(SwiftMacos, "packaged-artifact-security", ArtifactSecurity, "signed/entitled packaged artifact"),
-        e(SwiftIos, "lifecycle-background", Functional, "background and foreground transitions"),
-        e(SwiftIos, "permission-denial-regrant", Functional, "permission denial and regrant"),
-        e(SwiftIos, "offline-reconnect", Functional, "offline and reconnect"),
-        e(SwiftIos, "cancellation-state-restoration", Functional, "cancellation and state restoration"),
-        e(SwiftIos, "packaged-artifact-security", ArtifactSecurity, "packaged artifact identity"),
-        e(KotlinAndroid, "lifecycle-background", Functional, "background and foreground transitions"),
-        e(KotlinAndroid, "permission-denial-regrant", Functional, "permission denial and regrant"),
-        e(KotlinAndroid, "process-death-restore", Functional, "process death and restoration"),
-        e(KotlinAndroid, "offline-reconnect", Functional, "offline and reconnect"),
-        e(KotlinAndroid, "packaged-artifact-security", ArtifactSecurity, "packaged APK/AAB variant identity"),
+        e(
+            TauriReact,
+            "path-capability-boundary",
+            Functional,
+            "path and capability scope",
+        ),
+        e(
+            TauriReact,
+            "packaged-artifact-security",
+            ArtifactSecurity,
+            "packaged artifact and capabilities",
+        ),
+        e(
+            NativeGui,
+            "responsiveness",
+            Load,
+            "UI-thread responsiveness under load",
+        ),
+        e(
+            NativeGui,
+            "cancellation-shutdown",
+            Functional,
+            "cancellation and clean shutdown",
+        ),
+        e(
+            SwiftMacos,
+            "lifecycle-permissions",
+            Functional,
+            "lifecycle and permission flows",
+        ),
+        e(
+            SwiftMacos,
+            "packaged-artifact-security",
+            ArtifactSecurity,
+            "signed/entitled packaged artifact",
+        ),
+        e(
+            SwiftIos,
+            "lifecycle-background",
+            Functional,
+            "background and foreground transitions",
+        ),
+        e(
+            SwiftIos,
+            "permission-denial-regrant",
+            Functional,
+            "permission denial and regrant",
+        ),
+        e(
+            SwiftIos,
+            "offline-reconnect",
+            Functional,
+            "offline and reconnect",
+        ),
+        e(
+            SwiftIos,
+            "cancellation-state-restoration",
+            Functional,
+            "cancellation and state restoration",
+        ),
+        e(
+            SwiftIos,
+            "packaged-artifact-security",
+            ArtifactSecurity,
+            "packaged artifact identity",
+        ),
+        e(
+            KotlinAndroid,
+            "lifecycle-background",
+            Functional,
+            "background and foreground transitions",
+        ),
+        e(
+            KotlinAndroid,
+            "permission-denial-regrant",
+            Functional,
+            "permission denial and regrant",
+        ),
+        e(
+            KotlinAndroid,
+            "process-death-restore",
+            Functional,
+            "process death and restoration",
+        ),
+        e(
+            KotlinAndroid,
+            "offline-reconnect",
+            Functional,
+            "offline and reconnect",
+        ),
+        e(
+            KotlinAndroid,
+            "packaged-artifact-security",
+            ArtifactSecurity,
+            "packaged APK/AAB variant identity",
+        ),
     ]
 }
 
@@ -766,7 +992,14 @@ pub fn stack_inventory(
 pub fn inventory_gaps(rows: &[CoverageRow]) -> Vec<String> {
     rows.iter()
         .filter(|row| row.producer.is_gap())
-        .map(|row| format!("{}:{}:{}", row.stack.label(), row.category, row.axis.label()))
+        .map(|row| {
+            format!(
+                "{}:{}:{}",
+                row.stack.label(),
+                row.category,
+                row.axis.label()
+            )
+        })
         .collect()
 }
 
@@ -810,7 +1043,9 @@ impl AxisReport {
     /// Fold one outcome into its own axis only. A failure/unmet anywhere on
     /// the axis dominates; a satisfied outcome replaces only `no-evidence`.
     pub fn record(&mut self, axis: OutcomeAxis, status: JourneyStatus, reasons: &[String]) {
-        let Some(state) = self.axes.get_mut(&axis) else { return };
+        let Some(state) = self.axes.get_mut(&axis) else {
+            return;
+        };
         let was_empty = state.reasons.len() == 1 && state.reasons[0] == "no-evidence";
         if was_empty {
             state.status = status;
@@ -831,7 +1066,9 @@ impl AxisReport {
 
     /// Complete only when every applicable axis is satisfied.
     pub fn is_complete(&self) -> bool {
-        self.axes.values().all(|s| s.status == JourneyStatus::Satisfied)
+        self.axes
+            .values()
+            .all(|s| s.status == JourneyStatus::Satisfied)
     }
 }
 
@@ -903,19 +1140,45 @@ impl PerformanceWorkload {
     pub fn missing_fields(&self) -> Vec<&'static str> {
         let mut out = Vec::new();
         let blank = |s: &str| s.trim().is_empty();
-        if blank(&self.workload_id) { out.push("workloadId"); }
-        if !self.workload_digest.starts_with("sha256:") { out.push("workloadDigest"); }
-        if !self.dataset_digest.starts_with("sha256:") { out.push("datasetDigest"); }
-        if !self.traffic_mix_digest.starts_with("sha256:") { out.push("trafficMixDigest"); }
-        if self.concurrency == 0 { out.push("concurrency"); }
-        if blank(&self.environment_id) { out.push("environmentId"); }
-        if blank(&self.hardware.cpu_model) { out.push("hardware.cpuModel"); }
-        if self.hardware.logical_cores == 0 { out.push("hardware.logicalCores"); }
-        if self.hardware.memory_mb == 0 { out.push("hardware.memoryMb"); }
-        if blank(&self.hardware.os) { out.push("hardware.os"); }
-        if blank(&self.hardware.os_version) { out.push("hardware.osVersion"); }
-        if blank(&self.measurement_method) { out.push("measurementMethod"); }
-        if self.sample_count == 0 { out.push("sampleCount"); }
+        if blank(&self.workload_id) {
+            out.push("workloadId");
+        }
+        if !self.workload_digest.starts_with("sha256:") {
+            out.push("workloadDigest");
+        }
+        if !self.dataset_digest.starts_with("sha256:") {
+            out.push("datasetDigest");
+        }
+        if !self.traffic_mix_digest.starts_with("sha256:") {
+            out.push("trafficMixDigest");
+        }
+        if self.concurrency == 0 {
+            out.push("concurrency");
+        }
+        if blank(&self.environment_id) {
+            out.push("environmentId");
+        }
+        if blank(&self.hardware.cpu_model) {
+            out.push("hardware.cpuModel");
+        }
+        if self.hardware.logical_cores == 0 {
+            out.push("hardware.logicalCores");
+        }
+        if self.hardware.memory_mb == 0 {
+            out.push("hardware.memoryMb");
+        }
+        if blank(&self.hardware.os) {
+            out.push("hardware.os");
+        }
+        if blank(&self.hardware.os_version) {
+            out.push("hardware.osVersion");
+        }
+        if blank(&self.measurement_method) {
+            out.push("measurementMethod");
+        }
+        if self.sample_count == 0 {
+            out.push("sampleCount");
+        }
         out
     }
 }
@@ -977,7 +1240,9 @@ pub enum Trend {
     NoBaseline,
     /// Baseline differs in these dimensions; no regression or improvement
     /// claim is made.
-    Incomparable { mismatches: Vec<String> },
+    Incomparable {
+        mismatches: Vec<String>,
+    },
     Improved,
     Unchanged,
     Regressed,
@@ -1021,7 +1286,10 @@ pub fn comparison_mismatches(
     check("excluded-routes", be == ce);
     check("environment", b.environment_id == c.environment_id);
     check("hardware", b.hardware == c.hardware);
-    check("measurement-method", b.measurement_method == c.measurement_method);
+    check(
+        "measurement-method",
+        b.measurement_method == c.measurement_method,
+    );
     out
 }
 
@@ -1050,11 +1318,17 @@ pub fn evaluate_performance(
             BudgetState::NotDeclared
         }
         Some(b) => {
-            if b.metric != current.metric || b.unit != current.unit || b.percentile != current.percentile {
+            if b.metric != current.metric
+                || b.unit != current.unit
+                || b.percentile != current.percentile
+            {
                 blocked = true;
                 reasons.push("budget-measurement-mismatch".into());
                 BudgetState::Unevaluable
-            } else if b.min_samples.is_some_and(|min| current.workload.sample_count < min) {
+            } else if b
+                .min_samples
+                .is_some_and(|min| current.workload.sample_count < min)
+            {
                 blocked = true;
                 reasons.push("insufficient-samples".into());
                 BudgetState::Unevaluable
@@ -1083,9 +1357,13 @@ pub fn evaluate_performance(
                 Trend::Incomparable { mismatches }
             } else if base.measurement.workload.sample_count == 0 || !missing.is_empty() {
                 reasons.push("incomparable-baseline:samples".into());
-                Trend::Incomparable { mismatches: vec!["samples".into()] }
+                Trend::Incomparable {
+                    mismatches: vec!["samples".into()],
+                }
             } else {
-                let direction = budget.map(|b| b.direction).unwrap_or(Direction::LowerIsBetter);
+                let direction = budget
+                    .map(|b| b.direction)
+                    .unwrap_or(Direction::LowerIsBetter);
                 let (b, c) = (base.measurement.value as u128, current.value as u128);
                 let worse = match direction {
                     Direction::LowerIsBetter => c > b,
@@ -1134,5 +1412,10 @@ pub fn evaluate_performance(
     } else {
         JourneyStatus::Satisfied
     };
-    PerformanceOutcome { status, budget: budget_state, trend, reasons }
+    PerformanceOutcome {
+        status,
+        budget: budget_state,
+        trend,
+        reasons,
+    }
 }

@@ -325,7 +325,7 @@ pub fn plan_effective_check(ctx: &NginxContext) -> NginxEffectiveCheckPlan {
 // ---------------------------------------------------------------- secrets
 
 fn digest_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn redacted(value: &str) -> String {
@@ -408,7 +408,13 @@ pub fn redact_effective_dump(dump: &str) -> String {
                 && (secret_directive(w)
                     || (matches!(
                         w,
-                        "proxy_set_header" | "add_header" | "fastcgi_param" | "more_set_headers" | "more_set_input_headers" | "grpc_set_header" | "uwsgi_param"
+                        "proxy_set_header"
+                            | "add_header"
+                            | "fastcgi_param"
+                            | "more_set_headers"
+                            | "more_set_input_headers"
+                            | "grpc_set_header"
+                            | "uwsgi_param"
                     ) && secret_header(header_name))
                     || (w == "set" && secret_header(header_name))
                     || (w == "proxy_pass" && next.contains('@')));
@@ -478,7 +484,11 @@ pub fn split_effective_dump(dump: &str) -> Vec<NginxFileInput> {
 
 #[derive(Clone, Debug)]
 enum Tok {
-    Word { text: String, quoted: bool, line: u32 },
+    Word {
+        text: String,
+        quoted: bool,
+        line: u32,
+    },
     Semi(u32),
     Open(u32),
     Close(u32),
@@ -574,7 +584,11 @@ fn tokenize(text: &str) -> Result<Vec<Tok>, ParseError> {
                 if !closed {
                     return Err(("unterminated-quote".into(), start_line));
                 }
-                toks.push(Tok::Word { text: word, quoted: true, line: start_line });
+                toks.push(Tok::Word {
+                    text: word,
+                    quoted: true,
+                    line: start_line,
+                });
             }
             _ => {
                 let start_line = line;
@@ -608,7 +622,11 @@ fn tokenize(text: &str) -> Result<Vec<Tok>, ParseError> {
                     word.push(d);
                     i += 1;
                 }
-                toks.push(Tok::Word { text: word, quoted: false, line: start_line });
+                toks.push(Tok::Word {
+                    text: word,
+                    quoted: false,
+                    line: start_line,
+                });
             }
         }
     }
@@ -773,7 +791,13 @@ struct Resolver<'a> {
 }
 
 impl<'a> Resolver<'a> {
-    fn gap(&mut self, kind: &str, file: Option<&str>, line: Option<u32>, detail: impl Into<String>) {
+    fn gap(
+        &mut self,
+        kind: &str,
+        file: Option<&str>,
+        line: Option<u32>,
+        detail: impl Into<String>,
+    ) {
         let g = NginxGap {
             kind: kind.into(),
             file: file.map(str::to_owned),
@@ -787,23 +811,43 @@ impl<'a> Resolver<'a> {
 
     fn expand_file(&mut self, path: &str, stack: &mut Vec<String>) -> Vec<Directive> {
         if stack.iter().any(|p| p == path) {
-            self.gap("include-cycle", Some(path), None, format!("cycle through {}", stack.join(" -> ")));
+            self.gap(
+                "include-cycle",
+                Some(path),
+                None,
+                format!("cycle through {}", stack.join(" -> ")),
+            );
             return Vec::new();
         }
         if stack.len() >= MAX_INCLUDE_DEPTH {
-            self.gap("include-depth-exceeded", Some(path), None, "include nesting limit reached");
+            self.gap(
+                "include-depth-exceeded",
+                Some(path),
+                None,
+                "include nesting limit reached",
+            );
             return Vec::new();
         }
         let files = self.files;
         if !self.parsed.contains_key(path) {
             let result = match files.get(path) {
                 Some(text) if text.len() > MAX_FILE_BYTES => {
-                    self.gap("file-too-large", Some(path), None, "file exceeds parser byte bound");
+                    self.gap(
+                        "file-too-large",
+                        Some(path),
+                        None,
+                        "file exceeds parser byte bound",
+                    );
                     None
                 }
                 Some(text) => {
                     if text.contains("{{") || text.contains("{%") || text.contains("<%") {
-                        self.gap("generated-config-template", Some(path), None, "template markers present; effective config not bound");
+                        self.gap(
+                            "generated-config-template",
+                            Some(path),
+                            None,
+                            "template markers present; effective config not bound",
+                        );
                     }
                     match tokenize(text).and_then(|toks| {
                         let mut pos = 0usize;
@@ -858,12 +902,22 @@ impl<'a> Resolver<'a> {
         let pattern = match (d.args.len(), d.arg(0)) {
             (1, Some(p)) => p.to_owned(),
             _ => {
-                self.gap("include-malformed", Some(&file), Some(line), "include needs exactly one argument");
+                self.gap(
+                    "include-malformed",
+                    Some(&file),
+                    Some(line),
+                    "include needs exactly one argument",
+                );
                 return Vec::new();
             }
         };
         if pattern.contains('$') {
-            self.gap("include-variable-target", Some(&file), Some(line), "include path contains a variable; closure unresolved");
+            self.gap(
+                "include-variable-target",
+                Some(&file),
+                Some(line),
+                "include path contains a variable; closure unresolved",
+            );
             return Vec::new();
         }
         let normalized = match normalize_path(&pattern, &self.prefix) {
@@ -886,7 +940,11 @@ impl<'a> Resolver<'a> {
             Vec::new()
         };
         if matches.is_empty() {
-            let kind = if wildcard { "include-glob-no-match" } else { "include-missing" };
+            let kind = if wildcard {
+                "include-glob-no-match"
+            } else {
+                "include-missing"
+            };
             self.gap(kind, Some(&file), Some(line), pattern.clone());
         }
         self.edges.push(IncludeEdge {
@@ -970,9 +1028,17 @@ fn eff_all<'a>(chain: &[&'a [Directive]], name: &str) -> Vec<&'a Directive> {
 fn header_entry(d: &Directive, name_index: usize, value_index: usize) -> Option<HeaderEntry> {
     let name = d.arg(name_index)?.to_ascii_lowercase();
     let value = d.arg(value_index).unwrap_or("");
-    let always = d.args.iter().skip(value_index + 1).any(|a| a.value == "always");
+    let always = d
+        .args
+        .iter()
+        .skip(value_index + 1)
+        .any(|a| a.value == "always");
     Some(HeaderEntry {
-        value: if secret_header(&name) { redacted(value) } else { value.to_owned() },
+        value: if secret_header(&name) {
+            redacted(value)
+        } else {
+            value.to_owned()
+        },
         name,
         always,
         file: d.file.clone(),
@@ -1005,7 +1071,8 @@ fn eff_headers(
         } else {
             "on".into()
         };
-        if inherit_aware && level.iter().any(|d| d.name == "add_header_inherit")
+        if inherit_aware
+            && level.iter().any(|d| d.name == "add_header_inherit")
             && version_at_least(version, ADD_HEADER_INHERIT_MIN_VERSION) != Some(true)
         {
             certain = false;
@@ -1083,9 +1150,12 @@ fn effective(chain: &[&[Directive]], version: Option<(u32, u32, u32)>) -> Effect
         .collect();
     EffectiveFacts {
         headers,
-        headers_certain: headers_certain && ph_certain
+        headers_certain: headers_certain
+            && ph_certain
             && !chain.iter().any(|l| has_modeled_if(l))
-            && !chain.iter().any(|l| l.iter().any(|d| d.name.starts_with("more_") || d.opaque)),
+            && !chain
+                .iter()
+                .any(|l| l.iter().any(|d| d.name.starts_with("more_") || d.opaque)),
         proxy_headers,
         auth_request: eff1(chain, "auth_request")
             .and_then(|d| d.arg(0))
@@ -1095,11 +1165,13 @@ fn effective(chain: &[&[Directive]], version: Option<(u32, u32, u32)>) -> Effect
             .and_then(|d| d.arg(0))
             .is_some_and(|v| v != "off"),
         access_rules: !eff_all(chain, "allow").is_empty() || !eff_all(chain, "deny").is_empty(),
-        satisfy: eff1(chain, "satisfy").and_then(|d| d.arg(0)).map(str::to_owned),
-        cache_enabled: cache
+        satisfy: eff1(chain, "satisfy")
             .and_then(|d| d.arg(0))
-            .is_some_and(|v| v != "off"),
-        cache_key: eff1(chain, "proxy_cache_key").and_then(|d| d.arg(0)).map(str::to_owned),
+            .map(str::to_owned),
+        cache_enabled: cache.and_then(|d| d.arg(0)).is_some_and(|v| v != "off"),
+        cache_key: eff1(chain, "proxy_cache_key")
+            .and_then(|d| d.arg(0))
+            .map(str::to_owned),
         cache_no_cache: args_of("proxy_no_cache"),
         cache_bypass: args_of("proxy_cache_bypass"),
         cache_ignore_headers: ignore,
@@ -1171,7 +1243,11 @@ fn build_location(
     let proxy_pass = own("proxy_pass").and_then(|x| x.arg(0)).map(scrub_url);
     let alias = own("alias").and_then(|x| x.arg(0)).map(str::to_owned);
     let returns = own("return").map(|x| {
-        x.args.iter().map(|a| a.value.as_str()).collect::<Vec<_>>().join(" ")
+        x.args
+            .iter()
+            .map(|a| a.value.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
     });
     let gateway = ["fastcgi_pass", "uwsgi_pass", "scgi_pass", "grpc_pass"]
         .iter()
@@ -1184,9 +1260,16 @@ fn build_location(
         LocationKind::Alias
     } else if returns.is_some() {
         LocationKind::Return
-    } else if ["root", "try_files", "index", "autoindex", "stub_status", "expires"]
-        .iter()
-        .any(|n| own(n).is_some())
+    } else if [
+        "root",
+        "try_files",
+        "index",
+        "autoindex",
+        "stub_status",
+        "expires",
+    ]
+    .iter()
+    .any(|n| own(n).is_some())
     {
         LocationKind::Static
     } else {
@@ -1227,7 +1310,15 @@ fn flatten_locations(
             let block: &[Directive] = d.block.as_deref().unwrap_or(&[]);
             let mut child: Vec<&[Directive]> = chain.to_vec();
             child.push(block);
-            flatten_locations(server_id, &format!("{index}."), block, &child, version, out, depth + 1);
+            flatten_locations(
+                server_id,
+                &format!("{index}."),
+                block,
+                &child,
+                version,
+                out,
+                depth + 1,
+            );
         }
     }
 }
@@ -1307,7 +1398,9 @@ pub fn parse_nginx(inputs: &[NginxFileInput], ctx: &NginxContext) -> NginxFacts 
     // Modules: dynamic loads and unbound third-party directives.
     for d in root.iter().filter(|d| d.name == "load_module") {
         if let Some(path) = d.arg(0) {
-            facts.loaded_modules.push(path.rsplit('/').next().unwrap_or(path).to_owned());
+            facts
+                .loaded_modules
+                .push(path.rsplit('/').next().unwrap_or(path).to_owned());
         }
     }
     let mut used: BTreeMap<&'static str, (String, u32)> = BTreeMap::new();
@@ -1352,11 +1445,18 @@ pub fn parse_nginx(inputs: &[NginxFileInput], ctx: &NginxContext) -> NginxFacts 
             let listen: Vec<String> = sblock
                 .iter()
                 .filter(|d| d.name == "listen")
-                .map(|d| d.args.iter().map(|a| a.value.as_str()).collect::<Vec<_>>().join(" "))
+                .map(|d| {
+                    d.args
+                        .iter()
+                        .map(|a| a.value.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
                 .collect();
-            let tls = sblock.iter().filter(|d| d.name == "listen").any(|d| {
-                d.args.iter().any(|a| a.value == "ssl" || a.value == "quic")
-            });
+            let tls = sblock
+                .iter()
+                .filter(|d| d.name == "listen")
+                .any(|d| d.args.iter().any(|a| a.value == "ssl" || a.value == "quic"));
             let mut locations = Vec::new();
             flatten_locations(&server_id, "", sblock, &chain, version, &mut locations, 0);
             facts.servers.push(ServerFact {
@@ -1374,7 +1474,9 @@ pub fn parse_nginx(inputs: &[NginxFileInput], ctx: &NginxContext) -> NginxFacts 
                     .iter()
                     .filter_map(|d| d.arg(0).map(str::to_owned))
                     .collect(),
-                real_ip_header: eff1(&chain, "real_ip_header").and_then(|d| d.arg(0)).map(str::to_owned),
+                real_ip_header: eff1(&chain, "real_ip_header")
+                    .and_then(|d| d.arg(0))
+                    .map(str::to_owned),
                 effective: effective(&chain, version),
                 locations,
             });
@@ -1421,7 +1523,11 @@ fn select_location<'a>(server: &'a ServerFact, path: &str) -> Selection<'a> {
         .iter()
         .filter(|l| !l.id[server.id.len() + 4..].contains('.'))
         .collect();
-    if let Some(l) = top.iter().copied().find(|l| l.modifier == "=" && l.pattern == path) {
+    if let Some(l) = top
+        .iter()
+        .copied()
+        .find(|l| l.modifier == "=" && l.pattern == path)
+    {
         return finish_selection(l);
     }
     let best = top
@@ -1453,14 +1559,18 @@ fn finish_selection<'a>(l: &'a LocationFact) -> Selection<'a> {
 
 fn has_cacheless_partition(e: &EffectiveFacts) -> bool {
     let partition = |items: &[String]| {
-        items
-            .iter()
-            .any(|v| v.contains("$http_authorization") || v.contains("$cookie_") || v.contains("$http_cookie"))
+        items.iter().any(|v| {
+            v.contains("$http_authorization")
+                || v.contains("$cookie_")
+                || v.contains("$http_cookie")
+        })
     };
     partition(&e.cache_no_cache)
         || partition(&e.cache_bypass)
         || e.cache_key.as_deref().is_some_and(|k| {
-            k.contains("$http_authorization") || k.contains("$cookie_") || k.contains("$http_cookie")
+            k.contains("$http_authorization")
+                || k.contains("$cookie_")
+                || k.contains("$http_cookie")
         })
 }
 
@@ -1502,21 +1612,41 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
             out.gaps.push(g);
         }
     };
-    let required: Vec<String> = policy.required_headers.iter().map(|h| h.to_ascii_lowercase()).collect();
-    let request_id = policy.request_id_header.as_ref().map(|h| h.to_ascii_lowercase());
+    let required: Vec<String> = policy
+        .required_headers
+        .iter()
+        .map(|h| h.to_ascii_lowercase())
+        .collect();
+    let request_id = policy
+        .request_id_header
+        .as_ref()
+        .map(|h| h.to_ascii_lowercase());
 
     for server in &facts.servers {
         // ---- TLS protocol floor (server level, version aware)
         if server.tls {
-            let weak = |p: &str| matches!(p.to_ascii_lowercase().as_str(), "sslv2" | "sslv3" | "tlsv1" | "tlsv1.1");
+            let weak = |p: &str| {
+                matches!(
+                    p.to_ascii_lowercase().as_str(),
+                    "sslv2" | "sslv3" | "tlsv1" | "tlsv1.1"
+                )
+            };
             match &server.effective.ssl_protocols {
                 Some(list) if list.iter().any(|p| weak(p)) => {
                     serial += 1;
-                    push(&mut out, candidate(
-                        "tls-weak-protocol", &server.id, serial, &server.file, server.line,
-                        "TLS listener enables a deprecated protocol".into(), Vec::new(),
-                        json!({"sslProtocols": list}),
-                    ));
+                    push(
+                        &mut out,
+                        candidate(
+                            "tls-weak-protocol",
+                            &server.id,
+                            serial,
+                            &server.file,
+                            server.line,
+                            "TLS listener enables a deprecated protocol".into(),
+                            Vec::new(),
+                            json!({"sslProtocols": list}),
+                        ),
+                    );
                 }
                 Some(_) => {}
                 None => match version_at_least(version, TLS_DEFAULT_MODERN_MIN_VERSION) {
@@ -1529,8 +1659,14 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                         ));
                     }
                     Some(true) => {}
-                    None => add_gap(&mut out, "version-unbound-tls-default", &server.file, server.line,
-                        "ssl_protocols unset; protocol default depends on unbound nginx version".into()),
+                    None => add_gap(
+                        &mut out,
+                        "version-unbound-tls-default",
+                        &server.file,
+                        server.line,
+                        "ssl_protocols unset; protocol default depends on unbound nginx version"
+                            .into(),
+                    ),
                 },
             }
         }
@@ -1541,12 +1677,24 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                 && !policy.trusted_proxy_cidrs.iter().any(|c| c == from);
             if broad || outside {
                 serial += 1;
-                let basis = if outside { vec!["trustedProxyCidrs".to_owned()] } else { Vec::new() };
-                push(&mut out, candidate(
-                    "forwarded-host-trust", &server.id, serial, &server.file, server.line,
-                    "set_real_ip_from trusts a source outside the declared edge".into(), basis,
-                    json!({"setRealIpFrom": from, "broad": broad}),
-                ));
+                let basis = if outside {
+                    vec!["trustedProxyCidrs".to_owned()]
+                } else {
+                    Vec::new()
+                };
+                push(
+                    &mut out,
+                    candidate(
+                        "forwarded-host-trust",
+                        &server.id,
+                        serial,
+                        &server.file,
+                        server.line,
+                        "set_real_ip_from trusts a source outside the declared edge".into(),
+                        basis,
+                        json!({"setRealIpFrom": from, "broad": broad}),
+                    ),
+                );
             }
         }
         // ---- body limit at server level
@@ -1556,18 +1704,43 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
             match limit {
                 Some(0) => {
                     serial += 1;
-                    push(&mut out, candidate("body-limit", &server.id, serial, &server.file, server.line,
-                        "client_max_body_size 0 disables the body limit".into(),
-                        vec!["maxBodyBytes".into()], json!({"configured": configured})));
+                    push(
+                        &mut out,
+                        candidate(
+                            "body-limit",
+                            &server.id,
+                            serial,
+                            &server.file,
+                            server.line,
+                            "client_max_body_size 0 disables the body limit".into(),
+                            vec!["maxBodyBytes".into()],
+                            json!({"configured": configured}),
+                        ),
+                    );
                 }
                 Some(n) if n > max => {
                     serial += 1;
-                    push(&mut out, candidate("body-limit", &server.id, serial, &server.file, server.line,
-                        "client_max_body_size exceeds declared ceiling".into(),
-                        vec!["maxBodyBytes".into()], json!({"configured": configured, "max": max})));
+                    push(
+                        &mut out,
+                        candidate(
+                            "body-limit",
+                            &server.id,
+                            serial,
+                            &server.file,
+                            server.line,
+                            "client_max_body_size exceeds declared ceiling".into(),
+                            vec!["maxBodyBytes".into()],
+                            json!({"configured": configured, "max": max}),
+                        ),
+                    );
                 }
-                None => add_gap(&mut out, "body-limit-unparsed", &server.file, server.line,
-                    "client_max_body_size value not understood".into()),
+                None => add_gap(
+                    &mut out,
+                    "body-limit-unparsed",
+                    &server.file,
+                    server.line,
+                    "client_max_body_size value not understood".into(),
+                ),
                 _ => {}
             }
         }
@@ -1604,8 +1777,13 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                         }
                     }
                 } else {
-                    add_gap(&mut out, "header-state-unproven", &loc.file, loc.line,
-                        "required-header evaluation skipped: effective headers uncertain".into());
+                    add_gap(
+                        &mut out,
+                        "header-state-unproven",
+                        &loc.file,
+                        loc.line,
+                        "required-header evaluation skipped: effective headers uncertain".into(),
+                    );
                 }
             }
             if let Some(mode) = &e.add_header_inherit {
@@ -1645,16 +1823,32 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                 let uri_start = after_scheme.find('/');
                 let uri = uri_start.map(|i| &after_scheme[i..]);
                 if target.contains('$') {
-                    let client_controlled = ["$http_", "$arg_", "$host", "$uri", "$request_uri", "$cookie_", "$args"]
-                        .iter()
-                        .any(|v| target.contains(v));
+                    let client_controlled = [
+                        "$http_",
+                        "$arg_",
+                        "$host",
+                        "$uri",
+                        "$request_uri",
+                        "$cookie_",
+                        "$args",
+                    ]
+                    .iter()
+                    .any(|v| target.contains(v));
                     if client_controlled {
                         serial += 1;
-                        push(&mut out, candidate(
-                            "proxy-pass-client-target", &loc.id, serial, &loc.file, loc.line,
-                            "proxy_pass target derives from client-controlled variable".into(),
-                            Vec::new(), json!({"target": target}),
-                        ));
+                        push(
+                            &mut out,
+                            candidate(
+                                "proxy-pass-client-target",
+                                &loc.id,
+                                serial,
+                                &loc.file,
+                                loc.line,
+                                "proxy_pass target derives from client-controlled variable".into(),
+                                Vec::new(),
+                                json!({"target": target}),
+                            ),
+                        );
                     }
                     add_gap(&mut out, "proxy-pass-variable-target", &loc.file, loc.line,
                         "variable proxy_pass target: URI rewriting and routing not statically resolvable".into());
@@ -1694,11 +1888,22 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                     };
                     if bad {
                         serial += 1;
-                        push(&mut out, candidate(
-                            "forwarded-host-trust", &loc.id, serial, &h.file, h.line,
-                            format!("`{}` forwards a client-supplied value unvalidated", h.name),
-                            Vec::new(), json!({"header": h.name, "value": h.value}),
-                        ));
+                        push(
+                            &mut out,
+                            candidate(
+                                "forwarded-host-trust",
+                                &loc.id,
+                                serial,
+                                &h.file,
+                                h.line,
+                                format!(
+                                    "`{}` forwards a client-supplied value unvalidated",
+                                    h.name
+                                ),
+                                Vec::new(),
+                                json!({"header": h.name, "value": h.value}),
+                            ),
+                        );
                     }
                 }
             }
@@ -1708,7 +1913,9 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                 if let Some(rid) = &request_id {
                     let bare = rid.replace('-', "_");
                     let propagated = e.proxy_headers.iter().any(|h| {
-                        &h.name == rid && (h.value.contains("$request_id") || h.value.contains(&format!("$http_{bare}")))
+                        &h.name == rid
+                            && (h.value.contains("$request_id")
+                                || h.value.contains(&format!("$http_{bare}")))
                     });
                     if !propagated {
                         serial += 1;
@@ -1728,15 +1935,27 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                     match parse_seconds(value) {
                         Some(s) if s > max => {
                             serial += 1;
-                            push(&mut out, candidate(
-                                "timeout-ceiling", &loc.id, serial, &loc.file, loc.line,
-                                format!("{name} exceeds declared ceiling"),
-                                vec!["maxTimeoutSeconds".into()],
-                                json!({"directive": name, "value": value, "max": max}),
-                            ));
+                            push(
+                                &mut out,
+                                candidate(
+                                    "timeout-ceiling",
+                                    &loc.id,
+                                    serial,
+                                    &loc.file,
+                                    loc.line,
+                                    format!("{name} exceeds declared ceiling"),
+                                    vec!["maxTimeoutSeconds".into()],
+                                    json!({"directive": name, "value": value, "max": max}),
+                                ),
+                            );
                         }
-                        None => add_gap(&mut out, "timeout-unparsed", &loc.file, loc.line,
-                            format!("{name} value not understood")),
+                        None => add_gap(
+                            &mut out,
+                            "timeout-unparsed",
+                            &loc.file,
+                            loc.line,
+                            format!("{name} value not understood"),
+                        ),
                         _ => {}
                     }
                 }
@@ -1753,12 +1972,17 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
                     json!({"cacheKey": e.cache_key, "ignoreHeaders": e.cache_ignore_headers}),
                 ));
             }
-            if e.auth_request.as_deref().is_some_and(|t| t.starts_with('/') && !t.contains('$')) {
+            if e.auth_request
+                .as_deref()
+                .is_some_and(|t| t.starts_with('/') && !t.contains('$'))
+            {
                 let target = e.auth_request.clone().unwrap_or_default();
                 let exists = server.locations.iter().any(|l| {
                     (l.modifier == "=" && l.pattern == target)
-                        || ((l.modifier.is_empty() || l.modifier == "^~") && target.starts_with(&l.pattern))
-                        || l.modifier == "~" || l.modifier == "~*"
+                        || ((l.modifier.is_empty() || l.modifier == "^~")
+                            && target.starts_with(&l.pattern))
+                        || l.modifier == "~"
+                        || l.modifier == "~*"
                 });
                 if !exists {
                     serial += 1;
@@ -1771,14 +1995,25 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
             }
             if e.satisfy.as_deref() == Some("any") && e.access_rules && authed {
                 serial += 1;
-                push(&mut out, candidate(
-                    "satisfy-any-bypass", &loc.id, serial, &loc.file, loc.line,
-                    "satisfy any lets an allow rule bypass authentication".into(),
-                    Vec::new(), json!({"satisfy": "any"}),
-                ));
+                push(
+                    &mut out,
+                    candidate(
+                        "satisfy-any-bypass",
+                        &loc.id,
+                        serial,
+                        &loc.file,
+                        loc.line,
+                        "satisfy any lets an allow rule bypass authentication".into(),
+                        Vec::new(),
+                        json!({"satisfy": "any"}),
+                    ),
+                );
             }
-            if matches!(loc.kind, LocationKind::Proxy) && e.cache_enabled
-                && policy.private_path_prefixes.is_empty() && policy.public_path_prefixes.is_empty() {
+            if matches!(loc.kind, LocationKind::Proxy)
+                && e.cache_enabled
+                && policy.private_path_prefixes.is_empty()
+                && policy.public_path_prefixes.is_empty()
+            {
                 add_gap(&mut out, "cache-policy-undeclared", &loc.file, loc.line,
                     "cache enabled but no public/private path policy declared; privacy cannot be judged".into());
             }
@@ -1786,18 +2021,44 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
 
         // ---- policy-declared private prefixes: auth routing + cache privacy
         for prefix in &policy.private_path_prefixes {
-            let (e, kind_id, file, line, internal, ret): (&EffectiveFacts, String, String, u32, bool, Option<&String>) =
-                match select_location(server, prefix) {
-                    Selection::Location(l) => (&l.effective, l.id.clone(), l.file.clone(), l.line, l.internal, l.returns.as_ref()),
-                    Selection::ServerLevel => (&server.effective, server.id.clone(), server.file.clone(), server.line, false, None),
-                    Selection::Unresolved(reason) => {
-                        add_gap(&mut out, "private-prefix-unresolved", &server.file, server.line,
-                            format!("{prefix}: {reason}; location selection needs regex evaluation"));
-                        continue;
-                    }
-                };
-            let denied = ret.is_some_and(|r| r.starts_with("403") || r.starts_with("404") || r.starts_with("401"))
-                || internal;
+            let (e, kind_id, file, line, internal, ret): (
+                &EffectiveFacts,
+                String,
+                String,
+                u32,
+                bool,
+                Option<&String>,
+            ) = match select_location(server, prefix) {
+                Selection::Location(l) => (
+                    &l.effective,
+                    l.id.clone(),
+                    l.file.clone(),
+                    l.line,
+                    l.internal,
+                    l.returns.as_ref(),
+                ),
+                Selection::ServerLevel => (
+                    &server.effective,
+                    server.id.clone(),
+                    server.file.clone(),
+                    server.line,
+                    false,
+                    None,
+                ),
+                Selection::Unresolved(reason) => {
+                    add_gap(
+                        &mut out,
+                        "private-prefix-unresolved",
+                        &server.file,
+                        server.line,
+                        format!("{prefix}: {reason}; location selection needs regex evaluation"),
+                    );
+                    continue;
+                }
+            };
+            let denied = ret.is_some_and(|r| {
+                r.starts_with("403") || r.starts_with("404") || r.starts_with("401")
+            }) || internal;
             let authed = e.auth_request.is_some() || e.auth_basic;
             if !authed && !denied {
                 serial += 1;
@@ -1809,7 +2070,10 @@ pub fn evaluate_nginx(facts: &NginxFacts, policy: &NginxPolicy) -> NginxEvaluati
             }
             if e.cache_enabled {
                 let ignores = e.cache_ignore_headers.iter().any(|h| {
-                    matches!(h.to_ascii_lowercase().as_str(), "cache-control" | "set-cookie" | "expires")
+                    matches!(
+                        h.to_ascii_lowercase().as_str(),
+                        "cache-control" | "set-cookie" | "expires"
+                    )
                 });
                 if ignores || !has_cacheless_partition(e) {
                     serial += 1;
@@ -1852,29 +2116,59 @@ pub fn reconcile_runtime(
         }
         for want in &policy.required_headers {
             let present = o.response_headers.contains_key(&want.to_ascii_lowercase());
-            push("runtime-header",
-                if present { AssertionState::Confirmed } else { AssertionState::Contradicted },
-                format!("{want} at status {}", o.status));
+            push(
+                "runtime-header",
+                if present {
+                    AssertionState::Confirmed
+                } else {
+                    AssertionState::Contradicted
+                },
+                format!("{want} at status {}", o.status),
+            );
         }
-        let private = policy.private_path_prefixes.iter().any(|p| o.path.starts_with(p.as_str()));
+        let private = policy
+            .private_path_prefixes
+            .iter()
+            .any(|p| o.path.starts_with(p.as_str()));
         if private {
-            let hit = o.cache_status.as_deref().is_some_and(|c| c.eq_ignore_ascii_case("hit"));
+            let hit = o
+                .cache_status
+                .as_deref()
+                .is_some_and(|c| c.eq_ignore_ascii_case("hit"));
             if hit && o.authenticated == Some(false) {
-                push("runtime-private-cache", AssertionState::Contradicted,
-                    "private path served from cache to an unauthenticated request".into());
+                push(
+                    "runtime-private-cache",
+                    AssertionState::Contradicted,
+                    "private path served from cache to an unauthenticated request".into(),
+                );
             } else if o.cache_status.is_some() {
-                push("runtime-private-cache", AssertionState::Confirmed,
-                    "private path not served from shared cache to unauthenticated request".into());
+                push(
+                    "runtime-private-cache",
+                    AssertionState::Confirmed,
+                    "private path not served from shared cache to unauthenticated request".into(),
+                );
             } else {
-                push("runtime-private-cache", AssertionState::Unproven,
-                    "no cache status observed".into());
+                push(
+                    "runtime-private-cache",
+                    AssertionState::Unproven,
+                    "no cache status observed".into(),
+                );
             }
         }
         if let Some(tls) = &o.tls_protocol {
-            let weak = matches!(tls.to_ascii_lowercase().as_str(), "tlsv1" | "tlsv1.0" | "tlsv1.1" | "sslv3");
-            push("runtime-tls",
-                if weak { AssertionState::Contradicted } else { AssertionState::Confirmed },
-                format!("negotiated {tls}"));
+            let weak = matches!(
+                tls.to_ascii_lowercase().as_str(),
+                "tlsv1" | "tlsv1.0" | "tlsv1.1" | "sslv3"
+            );
+            push(
+                "runtime-tls",
+                if weak {
+                    AssertionState::Contradicted
+                } else {
+                    AssertionState::Confirmed
+                },
+                format!("negotiated {tls}"),
+            );
         }
     }
     out
@@ -1913,7 +2207,9 @@ pub fn analyze_nginx(
             })
         })
         .collect();
-    let contradicted = runtime.iter().any(|a| a.state == AssertionState::Contradicted);
+    let contradicted = runtime
+        .iter()
+        .any(|a| a.state == AssertionState::Contradicted);
     let status = if !gaps.is_empty() {
         "unproven"
     } else if !findings.is_empty() || contradicted {
@@ -1944,7 +2240,14 @@ pub fn analyze_nginx(
     );
     analysis.extras.insert(
         "delivery".into(),
-        Value::String(if verified_runtime { "runtime-observed" } else { "source-only" }.into()),
+        Value::String(
+            if verified_runtime {
+                "runtime-observed"
+            } else {
+                "source-only"
+            }
+            .into(),
+        ),
     );
     analysis
 }
@@ -1963,6 +2266,9 @@ mod tests {
     fn escape_is_rejected() {
         assert!(normalize_path("../x", "/etc/nginx").is_err());
         assert!(normalize_path("/etc/other/x", "/etc/nginx").is_err());
-        assert_eq!(normalize_path("/etc/nginx/conf.d/a.conf", "/etc/nginx").unwrap(), "conf.d/a.conf");
+        assert_eq!(
+            normalize_path("/etc/nginx/conf.d/a.conf", "/etc/nginx").unwrap(),
+            "conf.d/a.conf"
+        );
     }
 }

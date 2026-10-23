@@ -1109,11 +1109,14 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
     ]
     .map(|id| spec(id, json!({"op":"always"})));
     for provider in &mut specs {
-        // 10_500-token seats: the whole-file correctness packet (lens plan,
-        // anchored report schema, semantic contract) sits a few hundred bytes
-        // under this envelope. The test is about graph context, not wording.
-        provider.reasoning["coverageRequest"] = json!({"mode":"risk-sampled", "runTokenBudget":52_500,
-            "seatTokenBudget":10_500, "maxTotalSeats":5});
+        // 12_000-token seats: the whole-file correctness packet (lens plan
+        // with its ten pattern cards and applicability accounting, anchored
+        // report schema, semantic contract) sits under this envelope. Packet
+        // A13's added correctness cards grew that fixed overhead to ~16.8 KB,
+        // past the former 10_500-token envelope (16 KB input limit), so the
+        // envelope scales with it. The test is about graph context, not wording.
+        provider.reasoning["coverageRequest"] = json!({"mode":"risk-sampled", "runTokenBudget":60_000,
+            "seatTokenBudget":12_000, "maxTotalSeats":5});
         provider.reasoning["reviewContext"] = json!({"mode":"whole-repo", "type":"all",
             "changedPaths":[], "snapshotKey":"sha256:frozen-fixture", "graphContext":graph});
     }
@@ -1126,14 +1129,14 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
     let dispatch = ingest::lens_dispatch_plan(
         &work,
         &ingest::DispatchLimits {
-            run_token_budget: 52_500,
-            seat_token_budget: 10_500,
+            run_token_budget: 60_000,
+            seat_token_budget: 12_000,
             max_total_seats: 5,
             wave_width: 1,
         },
     );
-    let input_limit = ingest::physical_planning_input_bytes(10_500);
-    let output_ceiling = ingest::dispatch_output_tokens(10_500);
+    let input_limit = ingest::physical_planning_input_bytes(12_000);
+    let output_ceiling = ingest::dispatch_output_tokens(12_000);
     // Capacity cannot change physical grouping: the same frozen packets &
     // per-call allowance determine drafts before run/call scheduling. Use
     // their fully schedulable projection only to recover exact shared-group
@@ -1142,8 +1145,8 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
     let physical_groups = ingest::lens_dispatch_plan(
         &work,
         &ingest::DispatchLimits {
-            run_token_budget: reference_calls * 10_500,
-            seat_token_budget: 10_500,
+            run_token_budget: reference_calls * 12_000,
+            seat_token_budget: 12_000,
             max_total_seats: reference_calls,
             wave_width: 1,
         },
@@ -1154,7 +1157,7 @@ fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() 
             "parts":item.request.packet.get("part"),"renderedBytes":sizes.host_envelope_bytes,
             "modelVisibleInputBytes":sizes.model_visible_input_bytes,
             "rawBytes":item.request.packet["excerpts"].as_array().unwrap().iter().map(|row|row["content"].as_str().unwrap().len()).sum::<usize>(),
-            "estimatedTokens":crate::next::estimated_request_tokens(sizes.model_visible_input_bytes, ingest::dispatch_output_tokens(10_500))})
+            "estimatedTokens":crate::next::estimated_request_tokens(sizes.model_visible_input_bytes, ingest::dispatch_output_tokens(12_000))})
     }).collect::<Vec<_>>();
     let diagnostics = json!({"inputByteLimit":input_limit,"requests":requests,
         "dispatch":dispatch,"physicalGroups":physical_groups});

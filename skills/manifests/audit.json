@@ -97,7 +97,7 @@
     {
       "path": "evals/patterns/cases.json",
       "uri": "legion-skill://audit/evals/patterns/cases.json",
-      "digest": "sha256:e208273e2860ad671bfcc3a6b1a89eb02826e1f68f346686a3ce417aa0977064"
+      "digest": "sha256:e89d1a0427f7daf800caef4f933dc213187f8220f0ec9fabf19fa4948e7fd5eb"
     },
     {
       "path": "references/a11y-checklist.md",
@@ -157,7 +157,7 @@
     {
       "path": "references/pattern-cards.md",
       "uri": "legion-skill://audit/references/pattern-cards.md",
-      "digest": "sha256:a848f105c75c59e965000751488fec245f12848c19309b5bef7f1d3cfbcf33f3"
+      "digest": "sha256:cede31e8ecff3f0e468857791dfe2a08505b57264d79161b4a39c3c01e958332"
     },
     {
       "path": "references/performance-checklist.md",

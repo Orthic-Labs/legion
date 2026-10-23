@@ -665,9 +665,7 @@ fn npm_source(resolved: Option<&str>) -> (String, Option<String>) {
     };
     if resolved.starts_with("git") || resolved.contains("github:") {
         let (url, revision) = match resolved.rsplit_once('#') {
-            Some((url, revision)) if !revision.is_empty() => {
-                (url, Some(revision.to_owned()))
-            }
+            Some((url, revision)) if !revision.is_empty() => (url, Some(revision.to_owned())),
             _ => (resolved, None),
         };
         return (format!("git:{url}"), revision);
@@ -760,10 +758,7 @@ fn parse_gradle(path: &str, raw: &str) -> Result<Vec<DependencyPackage>, String>
 /// Those formats omit registry/source, so every row stays `unrecorded`.
 fn parse_shared(path: &str, raw: &str) -> Result<Vec<DependencyPackage>, String> {
     let identities = parse_lock(path, raw)?;
-    identities
-        .iter()
-        .map(|purl| shared_row(purl))
-        .collect()
+    identities.iter().map(|purl| shared_row(purl)).collect()
 }
 
 fn shared_row(purl: &str) -> Result<DependencyPackage, String> {
@@ -817,10 +812,11 @@ fn new_row(
 fn advisory_gap_reason(package: &DependencyPackage) -> Option<&'static str> {
     if package.registry == UNRECORDED {
         Some("source-unrecorded")
+    } else if matches!(package.ecosystem, Ecosystem::Swift | Ecosystem::Gradle) {
+        // Ecosystem-level absence of advisory coverage dominates the source kind (Swift pins are git).
+        Some("ecosystem-unsupported")
     } else if package.registry.starts_with("git:") {
         Some("git-source")
-    } else if matches!(package.ecosystem, Ecosystem::Swift | Ecosystem::Gradle) {
-        Some("ecosystem-unsupported")
     } else if !matches!(
         (package.ecosystem, package.registry.as_str()),
         (Ecosystem::Cargo, "crates.io")

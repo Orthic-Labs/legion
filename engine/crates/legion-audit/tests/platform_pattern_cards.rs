@@ -130,7 +130,13 @@ fn routing_does_not_promote_maturity_or_add_benchmark_fields() {
     for card in PATTERN_CARDS {
         assert_eq!(card.maturity, RuleMaturity::Draft, "{}", card.id);
     }
-    for lens in ["correctness", "security", "data-safety", "performance", "resilience"] {
+    for lens in [
+        "correctness",
+        "security",
+        "data-safety",
+        "performance",
+        "resilience",
+    ] {
         let mut plan = json!({"lens": lens});
         bind_packet_cards_to_paths(&mut plan, &["src/lib.rs".to_owned()]);
         for card in plan["patternCards"].as_array().unwrap() {
@@ -170,7 +176,12 @@ fn platform_cards_route_by_language_and_changed_surface() {
 #[test]
 fn no_rule_requires_findings_quotas_or_deliberately_excluded_families() {
     for card in PATTERN_CARDS {
-        for forbidden in ["pinning", "down-migration", "di-seam", "dependency-injection"] {
+        for forbidden in [
+            "pinning",
+            "down-migration",
+            "di-seam",
+            "dependency-injection",
+        ] {
             assert!(!card.id.contains(forbidden), "{}", card.id);
         }
         for text in [

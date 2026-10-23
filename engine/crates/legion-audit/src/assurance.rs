@@ -108,10 +108,7 @@ impl ObligationId {
             ("ruleProfileRevision", &self.rule_profile_revision),
         ] {
             if value.trim().is_empty() {
-                return Err(invalid(
-                    format!("{path}.{field}"),
-                    "must be non-empty",
-                ));
+                return Err(invalid(format!("{path}.{field}"), "must be non-empty"));
             }
         }
         if self.snapshots.is_empty() {
@@ -234,10 +231,7 @@ impl Waiver {
             ));
         }
         if self.expires_at.as_str() <= now_rfc3339_utc {
-            return Err(invalid(
-                format!("{path}.expiresAt"),
-                "waiver is expired",
-            ));
+            return Err(invalid(format!("{path}.expiresAt"), "waiver is expired"));
         }
         Ok(())
     }
@@ -308,9 +302,10 @@ impl ProductionObligation {
                 }
             }
             ObligationStatus::Waived => {
-                let waiver = self.waiver.as_ref().ok_or_else(|| {
-                    invalid(format!("{path}.waiver"), "waived requires a waiver")
-                })?;
+                let waiver = self
+                    .waiver
+                    .as_ref()
+                    .ok_or_else(|| invalid(format!("{path}.waiver"), "waived requires a waiver"))?;
                 waiver.validate(&format!("{path}.waiver"), now_rfc3339_utc)?;
             }
             ObligationStatus::Inapplicable => {
@@ -413,15 +408,30 @@ pub fn evaluate_qualification(
             out.push(format!("{name}: record={record_value} run={context_value}"));
         }
     };
-    check("providerId", &record.provider_id, &context.provider_id, &mut mismatches);
-    check("providerVersion", &record.provider_version, &context.provider_version, &mut mismatches);
+    check(
+        "providerId",
+        &record.provider_id,
+        &context.provider_id,
+        &mut mismatches,
+    );
+    check(
+        "providerVersion",
+        &record.provider_version,
+        &context.provider_version,
+        &mut mismatches,
+    );
     match (&record.rule_version, &context.rule_version) {
         (Some(r), Some(c)) => check("ruleVersion", r, c, &mut mismatches),
         (None, Some(_)) => mismatches.push("ruleVersion: record missing".into()),
         _ => {}
     }
     check("host", &record.host, &context.host, &mut mismatches);
-    check("toolchain", &record.toolchain, &context.toolchain, &mut mismatches);
+    check(
+        "toolchain",
+        &record.toolchain,
+        &context.toolchain,
+        &mut mismatches,
+    );
     check("target", &record.target, &context.target, &mut mismatches);
     if record.variant != context.variant {
         mismatches.push("variant: record/run mismatch".into());
@@ -497,7 +507,10 @@ pub fn resolve_obligations(
     candidates: &[ObligationCandidate],
 ) -> Result<Vec<ProductionObligation>, AuditError> {
     if product_target.product.trim().is_empty() || product_target.target.trim().is_empty() {
-        return Err(invalid("productTarget", "product and target must be non-empty"));
+        return Err(invalid(
+            "productTarget",
+            "product and target must be non-empty",
+        ));
     }
     let mut obligations = Vec::new();
     let mut seen: BTreeSet<ObligationId> = BTreeSet::new();
@@ -525,10 +538,7 @@ pub fn resolve_obligations(
             Some(reason) if !reason.trim().is_empty() => {
                 (ObligationStatus::Inapplicable, Some(reason.clone()))
             }
-            _ => (
-                ObligationStatus::Unmet,
-                Some("not-yet-examined".to_owned()),
-            ),
+            _ => (ObligationStatus::Unmet, Some("not-yet-examined".to_owned())),
         };
         obligations.push(ProductionObligation {
             id,
@@ -605,7 +615,10 @@ pub fn apply_evidence(
         if !verdict.applicable {
             unmet(
                 &mut out,
-                format!("qualification-not-applicable:{}", verdict.mismatches.join(",")),
+                format!(
+                    "qualification-not-applicable:{}",
+                    verdict.mismatches.join(",")
+                ),
             );
             return out;
         }
@@ -644,7 +657,12 @@ pub fn apply_evidence(
                 return out;
             }
             if evidence.kind == EvidenceKind::AuthenticatedUpstreamReceipt
-                && evidence.attested_by.as_deref().unwrap_or("").trim().is_empty()
+                && evidence
+                    .attested_by
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .is_empty()
             {
                 unmet(&mut out, "missing-upstream-attestor".into());
                 return out;

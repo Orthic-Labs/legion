@@ -87,14 +87,28 @@ fn corpus_digests_bind_record_bytes_and_forgery_is_detectable() {
     let records = expected_records();
     assert_eq!(records.len(), 8, "corpus must keep all record cases");
     for (name, record, expected) in &records {
-        assert_eq!(record["schema"], "legion-audit-assurance-qualification/1", "{name}");
-        assert_eq!(record["syntheticFixture"], true, "{name}: corpus never enrolls");
+        assert_eq!(
+            record["schema"], "legion-audit-assurance-qualification/1",
+            "{name}"
+        );
+        assert_eq!(
+            record["syntheticFixture"], true,
+            "{name}: corpus never enrolls"
+        );
         let claimed = record["qualificationDigest"].as_str().expect("digest");
         if name == "forged-digest.json" {
-            assert_ne!(record_digest(record), claimed, "{name}: forgery must not verify");
+            assert_ne!(
+                record_digest(record),
+                claimed,
+                "{name}: forgery must not verify"
+            );
             assert_eq!(expected["verdict"], "rejected");
         } else {
-            assert_eq!(record_digest(record), claimed, "{name}: stale/forged digest");
+            assert_eq!(
+                record_digest(record),
+                claimed,
+                "{name}: stale/forged digest"
+            );
         }
         // No record may claim an unbounded platform scope.
         for field in ["target", "platform", "variant", "toolVersion"] {
@@ -102,14 +116,19 @@ fn corpus_digests_bind_record_bytes_and_forgery_is_detectable() {
             assert!(!value.is_empty() && value != "*", "{name}: scope.{field}");
         }
         assert!(
-            record["scope"]["excludedSupport"].as_array().is_some_and(|v| !v.is_empty()),
+            record["scope"]["excludedSupport"]
+                .as_array()
+                .is_some_and(|v| !v.is_empty()),
             "{name}: excluded support must be named"
         );
     }
 }
 
 fn u32_field(value: &Value, key: &str) -> u32 {
-    value[key].as_u64().and_then(|n| u32::try_from(n).ok()).unwrap_or(0)
+    value[key]
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0)
 }
 
 #[test]
@@ -119,7 +138,10 @@ fn declared_metrics_are_recomputed_from_outcome_counts() {
         let (mut tp, mut fp, mut fn_) = (0_u32, 0_u32, 0_u32);
         let mut ids = BTreeSet::new();
         for outcome in outcomes {
-            assert!(ids.insert(outcome["fixtureId"].as_str().unwrap_or("")), "{name}");
+            assert!(
+                ids.insert(outcome["fixtureId"].as_str().unwrap_or("")),
+                "{name}"
+            );
             let expected = u32_field(outcome, "expectedFindings");
             let emitted = u32_field(outcome, "emittedFindings");
             let matched = u32_field(outcome, "matchedFindings").min(expected);
@@ -143,19 +165,36 @@ fn declared_metrics_are_recomputed_from_outcome_counts() {
             .as_array()
             .map(|ids| ids.iter().filter_map(Value::as_str).collect())
             .unwrap_or_default();
-        assert!(authored.is_disjoint(&heldout), "{name}: held-out split leaked");
+        assert!(
+            authored.is_disjoint(&heldout),
+            "{name}: held-out split leaked"
+        );
         for id in authored.iter().chain(&heldout) {
             assert!(ids.contains(id), "{name}: basis fixture {id} not measured");
         }
         if record["basis"]["kind"] == "heldout" && !outcomes.is_empty() {
-            assert!(!heldout.is_empty(), "{name}: heldout basis needs held-out ids");
+            assert!(
+                !heldout.is_empty(),
+                "{name}: heldout basis needs held-out ids"
+            );
         }
         if let Some(declared) = record.get("metrics").filter(|m| !m.is_null()) {
-            assert_eq!(declared["sampleSize"].as_u64(), Some(outcomes.len() as u64), "{name}");
-            assert!(!declared["method"].as_str().unwrap_or("").is_empty(), "{name}");
+            assert_eq!(
+                declared["sampleSize"].as_u64(),
+                Some(outcomes.len() as u64),
+                "{name}"
+            );
+            assert!(
+                !declared["method"].as_str().unwrap_or("").is_empty(),
+                "{name}"
+            );
             let precision = (tp + fp > 0).then(|| f64::from(tp) / f64::from(tp + fp));
             let recall = (tp + fn_ > 0).then(|| f64::from(tp) / f64::from(tp + fn_));
-            assert_eq!(declared["precision"].as_f64(), precision, "{name}: precision");
+            assert_eq!(
+                declared["precision"].as_f64(),
+                precision,
+                "{name}: precision"
+            );
             assert_eq!(declared["recall"].as_f64(), recall, "{name}: recall");
         }
     }
@@ -168,8 +207,7 @@ fn false_green_zero_input_and_fixture_only_cases_stay_unqualified() {
         let false_green = outcomes.iter().any(|outcome| {
             outcome["kind"] == "positive"
                 && outcome["claimedClean"] == true
-                && u32_field(outcome, "expectedFindings")
-                    > u32_field(outcome, "matchedFindings")
+                && u32_field(outcome, "expectedFindings") > u32_field(outcome, "matchedFindings")
         });
         if false_green {
             assert_eq!(expected["verdict"], "rejected", "{name}: false-green");
@@ -195,7 +233,9 @@ fn false_green_zero_input_and_fixture_only_cases_stay_unqualified() {
 fn raw_output_digests_match_retained_bytes() {
     let root = repo_root();
     for (name, record, _) in &expected_records() {
-        let raw_outputs = record["provenance"]["rawOutputs"].as_array().expect("rawOutputs");
+        let raw_outputs = record["provenance"]["rawOutputs"]
+            .as_array()
+            .expect("rawOutputs");
         if name == "missing-raw-output.json" {
             assert!(raw_outputs.is_empty());
             continue;
@@ -203,9 +243,12 @@ fn raw_output_digests_match_retained_bytes() {
         assert!(!raw_outputs.is_empty(), "{name}: raw output required");
         for raw in raw_outputs {
             let relative = raw["path"].as_str().expect("raw path");
-            assert!(!relative.contains("..") && !relative.starts_with('/'), "{name}");
-            let bytes = fs::read(root.join(relative))
-                .unwrap_or_else(|e| panic!("{name}: {relative}: {e}"));
+            assert!(
+                !relative.contains("..") && !relative.starts_with('/'),
+                "{name}"
+            );
+            let bytes =
+                fs::read(root.join(relative)).unwrap_or_else(|e| panic!("{name}: {relative}: {e}"));
             assert_eq!(digest(&bytes), raw["sha256"].as_str().unwrap(), "{name}");
         }
     }
@@ -215,7 +258,10 @@ fn raw_output_digests_match_retained_bytes() {
 fn negative_evidence_corpus_covers_every_kind_and_never_expects_clean() {
     let cases = load_corpus("negative-evidence-cases.json");
     let cases = cases.as_array().expect("case array");
-    let kinds: BTreeSet<_> = cases.iter().filter_map(|case| case["kind"].as_str()).collect();
+    let kinds: BTreeSet<_> = cases
+        .iter()
+        .filter_map(|case| case["kind"].as_str())
+        .collect();
     let required: BTreeSet<_> = [
         "forged-import",
         "stale-import",
@@ -234,7 +280,10 @@ fn negative_evidence_corpus_covers_every_kind_and_never_expects_clean() {
     assert_eq!(kinds, required, "packet item 5 kinds must all be exercised");
     let mut ids = BTreeSet::new();
     for case in cases {
-        assert!(ids.insert(case["id"].as_str().unwrap_or("")), "duplicate case id");
+        assert!(
+            ids.insert(case["id"].as_str().unwrap_or("")),
+            "duplicate case id"
+        );
         let verdict = case["expectedVerdict"].as_str().expect("expectedVerdict");
         assert!(
             matches!(verdict, "unmet" | "rejected" | "findings-retained"),

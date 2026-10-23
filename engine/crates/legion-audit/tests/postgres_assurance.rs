@@ -3,9 +3,7 @@
 //! Requires root to add `pub mod postgres;` to
 //! `native_providers/architecture/mod.rs`.
 
-use legion_audit::artifact_evidence::{
-    ImportKind, ImportVerdict, ImportedEvidenceRecord,
-};
+use legion_audit::artifact_evidence::{ImportKind, ImportVerdict, ImportedEvidenceRecord};
 use legion_audit::native_providers::architecture::postgres::{
     analyze_postgres, assess_evidence, discovered_database_fingerprints, host_fingerprint,
     MigrationPhase, PostgresContext, PostgresExpectation, PostgresSourceFile,
@@ -51,10 +49,15 @@ fn load(sub: &str) -> Vec<PostgresSourceFile> {
 }
 
 fn sql(path: &str, text: &str) -> PostgresSourceFile {
-    PostgresSourceFile { path: path.into(), text: text.into() }
+    PostgresSourceFile {
+        path: path.into(),
+        text: text.into(),
+    }
 }
 
-fn rules(a: &legion_audit::native_providers::architecture::postgres::PostgresAnalysis) -> BTreeSet<String> {
+fn rules(
+    a: &legion_audit::native_providers::architecture::postgres::PostgresAnalysis,
+) -> BTreeSet<String> {
     a.findings.iter().map(|f| f.rule.clone()).collect()
 }
 
@@ -77,7 +80,10 @@ fn broken_migrations_report_version_aware_defects_and_never_complete() {
     }
     assert_eq!(a.facts["serverMajor"], json!(15));
     // Production cardinality is never inferable from source.
-    assert!(a.gaps.iter().any(|g| g.starts_with("table-cardinality-unknown:")));
+    assert!(a
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("table-cardinality-unknown:")));
     assert!(a.gaps.iter().any(|g| g.starts_with("lock-timeout-unset:")));
     assert!(!a.into_analysis().complete);
 }
@@ -94,8 +100,10 @@ fn legitimate_expand_contract_sequence_has_no_findings_or_gaps() {
     let contract = "valid/supabase/migrations/20240301000000_contract.sql";
     ctx.phases.insert(contract.into(), MigrationPhase::Contract);
     ctx.contract_compat_verified.insert(contract.into());
-    ctx.transaction_wrapped
-        .insert("valid/supabase/migrations/20240201000000_expand.sql".into(), false);
+    ctx.transaction_wrapped.insert(
+        "valid/supabase/migrations/20240201000000_expand.sql".into(),
+        false,
+    );
     let a = analyze_postgres(&load("valid"), &ctx);
     assert!(a.findings.is_empty(), "{:?}", a.findings);
     assert!(a.gaps.is_empty(), "{:?}", a.gaps);
@@ -104,7 +112,12 @@ fn legitimate_expand_contract_sequence_has_no_findings_or_gaps() {
 
 #[test]
 fn contract_without_compat_evidence_and_unspecified_destruction_are_findings() {
-    let mut ctx = PostgresContext { server_major: Some(15), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let mut ctx = PostgresContext {
+        server_major: Some(15),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     ctx.baseline_tables.insert("customers".into());
     let path = "valid/supabase/migrations/20240301000000_contract.sql";
     ctx.phases.insert(path.into(), MigrationPhase::Contract);
@@ -121,33 +134,66 @@ fn version_gated_syntax_is_a_defect_only_on_old_targets() {
         "db/migrations/20240101_idx.sql",
         "create table public.t (a int, b int);\ncreate index idx on public.t (a) include (b);\n",
     )];
-    let old = PostgresContext { server_major: Some(10), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let old = PostgresContext {
+        server_major: Some(10),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     assert!(rules(&analyze_postgres(&files, &old)).contains("syntax-unsupported-by-target-version"));
-    let new = PostgresContext { server_major: Some(15), ..old.clone() };
-    assert!(!rules(&analyze_postgres(&files, &new)).contains("syntax-unsupported-by-target-version"));
+    let new = PostgresContext {
+        server_major: Some(15),
+        ..old.clone()
+    };
+    assert!(
+        !rules(&analyze_postgres(&files, &new)).contains("syntax-unsupported-by-target-version")
+    );
     // Unknown version is a gap, not a clean pass.
-    let unknown = PostgresContext { server_major: None, ..old };
+    let unknown = PostgresContext {
+        server_major: None,
+        ..old
+    };
     let a = analyze_postgres(&files, &unknown);
-    assert!(a.gaps.iter().any(|g| g.starts_with("postgres-version-unknown")));
+    assert!(a
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("postgres-version-unknown")));
 }
 
 #[test]
 fn add_column_default_is_rewrite_before_11_but_not_after() {
     let files = [
-        sql("db/migrations/1_init.sql", "create table public.t (id int);\n"),
-        sql("db/migrations/2_add.sql", "alter table public.t add column flag boolean default false;\n"),
+        sql(
+            "db/migrations/1_init.sql",
+            "create table public.t (id int);\n",
+        ),
+        sql(
+            "db/migrations/2_add.sql",
+            "alter table public.t add column flag boolean default false;\n",
+        ),
     ];
-    let ctx = |v| PostgresContext { server_major: Some(v), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let ctx = |v| PostgresContext {
+        server_major: Some(v),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     assert!(rules(&analyze_postgres(&files, &ctx(10))).contains("add-column-table-rewrite"));
     assert!(!rules(&analyze_postgres(&files, &ctx(15))).contains("add-column-table-rewrite"));
 }
 
 #[test]
 fn missing_concurrently_and_missing_down_migration_are_not_automatic_defects() {
-    let files = [
-        sql("db/migrations/1_init.sql", "create table public.t (id int);\ncreate index t_id on public.t (id);\n"),
-    ];
-    let ctx = PostgresContext { server_major: Some(15), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let files = [sql(
+        "db/migrations/1_init.sql",
+        "create table public.t (id int);\ncreate index t_id on public.t (id);\n",
+    )];
+    let ctx = PostgresContext {
+        server_major: Some(15),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     let a = analyze_postgres(&files, &ctx);
     assert!(a.findings.is_empty(), "{:?}", a.findings);
 }
@@ -158,13 +204,23 @@ fn concurrently_without_known_transaction_scope_is_a_gap_and_wrapped_runner_is_a
         "db/migrations/1_idx.sql",
         "create index concurrently i on public.t (id);\nselect 1;\n",
     )];
-    let mut ctx = PostgresContext { server_major: Some(15), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let mut ctx = PostgresContext {
+        server_major: Some(15),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     ctx.baseline_tables.insert("t".into());
     let a = analyze_postgres(&files, &ctx);
-    assert!(a.gaps.iter().any(|g| g.starts_with("transaction-wrapper-unknown")));
+    assert!(a
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("transaction-wrapper-unknown")));
     assert!(!rules(&a).contains("non-transactional-statement-in-transaction"));
-    ctx.transaction_wrapped.insert("db/migrations/1_idx.sql".into(), true);
-    assert!(rules(&analyze_postgres(&files, &ctx)).contains("non-transactional-statement-in-transaction"));
+    ctx.transaction_wrapped
+        .insert("db/migrations/1_idx.sql".into(), true);
+    assert!(rules(&analyze_postgres(&files, &ctx))
+        .contains("non-transactional-statement-in-transaction"));
 }
 
 #[test]
@@ -177,25 +233,53 @@ fn dynamic_sql_and_nonsql_frameworks_are_gaps_and_down_sections_are_ignored() {
         "db/migrations/20240101_x.sql",
         "-- +goose Up\ncreate table public.t (id int);\n-- +goose Down\ndrop table public.t;\n",
     );
-    let ctx = PostgresContext { server_major: Some(15), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let ctx = PostgresContext {
+        server_major: Some(15),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     assert!(analyze_postgres(&[goose], &ctx).findings.is_empty());
 
-    let rails = sql("db/migrate/20240101_add.rb", "class Add < ActiveRecord::Migration[7.0]; end");
+    let rails = sql(
+        "db/migrate/20240101_add.rb",
+        "class Add < ActiveRecord::Migration[7.0]; end",
+    );
     let a = analyze_postgres(&[rails], &ctx);
-    assert!(a.gaps.iter().any(|g| g.starts_with("migration-framework-nonsql:")));
+    assert!(a
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("migration-framework-nonsql:")));
 }
 
 #[test]
 fn duplicate_versions_and_unknown_schema_are_explicit() {
-    let ctx = PostgresContext { server_major: Some(15), search_path: Some(vec![]), lock_timeout_declared: true, ..Default::default() };
+    let ctx = PostgresContext {
+        server_major: Some(15),
+        search_path: Some(vec![]),
+        lock_timeout_declared: true,
+        ..Default::default()
+    };
     let files = [
-        sql("db/migrations/20240101_a.sql", "create table public.a (id int);\n"),
-        sql("db/migrations/20240101_b.sql", "create table public.b (id int);\n"),
-        sql("db/migrations/20240102_c.sql", "alter table public.unknown_t add column x int;\n"),
+        sql(
+            "db/migrations/20240101_a.sql",
+            "create table public.a (id int);\n",
+        ),
+        sql(
+            "db/migrations/20240101_b.sql",
+            "create table public.b (id int);\n",
+        ),
+        sql(
+            "db/migrations/20240102_c.sql",
+            "alter table public.unknown_t add column x int;\n",
+        ),
     ];
     let a = analyze_postgres(&files, &ctx);
     assert!(rules(&a).contains("duplicate-migration-version"));
-    assert!(a.gaps.iter().any(|g| g.starts_with("object-origin-unknown")));
+    assert!(a
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("object-origin-unknown")));
 }
 
 #[test]
@@ -254,7 +338,12 @@ fn verdict(kind: ImportKind, bytes: &[u8], newly_executed: bool) -> ImportVerdic
         "issuedAt": "2024-01-01T00:00:00Z", "freshUntil": "2099-01-01T00:00:00Z"
     }))
     .expect("record");
-    ImportVerdict { authenticated: true, satisfies_obligation: true, reasons: vec![], record: Some(record) }
+    ImportVerdict {
+        authenticated: true,
+        satisfies_obligation: true,
+        reasons: vec![],
+        record: Some(record),
+    }
 }
 
 fn expectation() -> PostgresExpectation {
@@ -270,7 +359,12 @@ fn expectation() -> PostgresExpectation {
     }
 }
 
-fn assess(concern: &str, kind: ImportKind, facts: &Value, expect: &PostgresExpectation) -> legion_audit::native_providers::architecture::postgres::ObligationAssessment {
+fn assess(
+    concern: &str,
+    kind: ImportKind,
+    facts: &Value,
+    expect: &PostgresExpectation,
+) -> legion_audit::native_providers::architecture::postgres::ObligationAssessment {
     let bytes = serde_json::to_vec(facts).unwrap();
     assess_evidence(concern, &verdict(kind, &bytes, true), &bytes, expect)
 }
@@ -294,7 +388,12 @@ fn matching_isolated_evidence_satisfies_each_concern() {
 fn plan_only_evidence_is_not_measured_execution() {
     let mut facts = good_facts(CONCERN_EXPLAIN_PLAN);
     facts["plan"]["analyze"] = json!(false);
-    let r = assess(CONCERN_EXPLAIN_PLAN, ImportKind::Performance, &facts, &expectation());
+    let r = assess(
+        CONCERN_EXPLAIN_PLAN,
+        ImportKind::Performance,
+        &facts,
+        &expectation(),
+    );
     assert_eq!(r.status, "satisfied");
     assert!(!r.measured_execution);
 
@@ -302,23 +401,47 @@ fn plan_only_evidence_is_not_measured_execution() {
     facts["workload"]["readOps"] = json!(0);
     facts["workload"]["writeOps"] = json!(0);
     facts["plan"]["analyze"] = json!(false);
-    let r = assess(CONCERN_WORKLOAD_MEASURED, ImportKind::Performance, &facts, &expectation());
+    let r = assess(
+        CONCERN_WORKLOAD_MEASURED,
+        ImportKind::Performance,
+        &facts,
+        &expectation(),
+    );
     assert_eq!(r.status, "unmet");
-    assert!(r.reasons.iter().any(|x| x == "plan-only-is-not-measured-execution"));
+    assert!(r
+        .reasons
+        .iter()
+        .any(|x| x == "plan-only-is-not-measured-execution"));
 }
 
 #[test]
 fn source_detected_queries_are_not_a_complete_workload() {
     let mut facts = good_facts(CONCERN_WORKLOAD_MEASURED);
     facts["workload"]["denominatorAttested"] = json!(false);
-    let r = assess(CONCERN_WORKLOAD_MEASURED, ImportKind::Performance, &facts, &expectation());
+    let r = assess(
+        CONCERN_WORKLOAD_MEASURED,
+        ImportKind::Performance,
+        &facts,
+        &expectation(),
+    );
     assert_eq!(r.status, "unmet");
-    assert!(r.reasons.iter().any(|x| x == "workload-denominator-unattested"));
+    assert!(r
+        .reasons
+        .iter()
+        .any(|x| x == "workload-denominator-unattested"));
 
     let mut expect = expectation();
     expect.required_query_ids.insert("q2".into());
-    let r = assess(CONCERN_WORKLOAD_MEASURED, ImportKind::Performance, &good_facts(CONCERN_WORKLOAD_MEASURED), &expect);
-    assert!(r.reasons.iter().any(|x| x == "detected-queries-not-in-workload"));
+    let r = assess(
+        CONCERN_WORKLOAD_MEASURED,
+        ImportKind::Performance,
+        &good_facts(CONCERN_WORKLOAD_MEASURED),
+        &expect,
+    );
+    assert!(r
+        .reasons
+        .iter()
+        .any(|x| x == "detected-queries-not-in-workload"));
 }
 
 #[test]
@@ -326,13 +449,19 @@ fn wrong_version_schema_or_head_leaves_obligation_unmet() {
     let c = CONCERN_ISOLATED_MIGRATION;
     let mut facts = good_facts(c);
     facts["postgresVersionMajor"] = json!(14);
-    assert!(assess(c, ImportKind::Runtime, &facts, &expectation()).reasons.contains(&"postgres-version-mismatch".to_owned()));
+    assert!(assess(c, ImportKind::Runtime, &facts, &expectation())
+        .reasons
+        .contains(&"postgres-version-mismatch".to_owned()));
     let mut facts = good_facts(c);
     facts["schemaDigest"] = json!("sha256:zz");
-    assert!(assess(c, ImportKind::Runtime, &facts, &expectation()).reasons.contains(&"schema-digest-mismatch".to_owned()));
+    assert!(assess(c, ImportKind::Runtime, &facts, &expectation())
+        .reasons
+        .contains(&"schema-digest-mismatch".to_owned()));
     let mut facts = good_facts(c);
     facts["migrationHead"] = json!("older");
-    assert!(assess(c, ImportKind::Runtime, &facts, &expectation()).reasons.contains(&"migration-head-mismatch".to_owned()));
+    assert!(assess(c, ImportKind::Runtime, &facts, &expectation())
+        .reasons
+        .contains(&"migration-head-mismatch".to_owned()));
 }
 
 #[test]
@@ -344,7 +473,9 @@ fn backup_existence_without_verified_restore_is_unmet() {
     let r = assess(c, ImportKind::Runtime, &facts, &expectation());
     assert_eq!(r.status, "unmet");
     assert!(r.reasons.contains(&"restore-not-performed".to_owned()));
-    assert!(r.reasons.contains(&"restore-invariants-unverified".to_owned()));
+    assert!(r
+        .reasons
+        .contains(&"restore-invariants-unverified".to_owned()));
     assert!(!r.measured_execution);
 }
 
@@ -357,15 +488,25 @@ fn production_or_repository_referenced_targets_are_refused() {
     let mut facts = good_facts(c);
     facts["target"]["hostFingerprint"] = json!(prod);
     let r = assess(c, ImportKind::Runtime, &facts, &expect);
-    assert!(r.reasons.contains(&"target-is-repository-referenced-database".to_owned()));
+    assert!(r
+        .reasons
+        .contains(&"target-is-repository-referenced-database".to_owned()));
 
     let mut facts = good_facts(c);
     facts["target"]["kind"] = json!("production");
     facts["target"]["roleSuperuser"] = json!(true);
     facts["target"]["statementTimeoutMs"] = json!(null);
     let r = assess(c, ImportKind::Runtime, &facts, &expectation());
-    for reason in ["target-not-declared-isolated", "target-role-not-restricted", "statement-timeout-unbounded"] {
-        assert!(r.reasons.contains(&reason.to_owned()), "{reason}: {:?}", r.reasons);
+    for reason in [
+        "target-not-declared-isolated",
+        "target-role-not-restricted",
+        "statement-timeout-unbounded",
+    ] {
+        assert!(
+            r.reasons.contains(&reason.to_owned()),
+            "{reason}: {:?}",
+            r.reasons
+        );
     }
 }
 
@@ -373,11 +514,27 @@ fn production_or_repository_referenced_targets_are_refused() {
 fn replayed_or_unauthenticated_evidence_never_satisfies() {
     let c = CONCERN_CONTENTION;
     let bytes = serde_json::to_vec(&good_facts(c)).unwrap();
-    let replay = assess_evidence(c, &verdict(ImportKind::Performance, &bytes, false), &bytes, &expectation());
+    let replay = assess_evidence(
+        c,
+        &verdict(ImportKind::Performance, &bytes, false),
+        &bytes,
+        &expectation(),
+    );
     assert_eq!(replay.status, "unmet");
     let mut v = verdict(ImportKind::Performance, &bytes, true);
     v.authenticated = false;
-    assert_eq!(assess_evidence(c, &v, &bytes, &expectation()).status, "unmet");
-    let none = ImportVerdict { authenticated: false, satisfies_obligation: false, reasons: vec!["untrusted-issuer".into()], record: None };
-    assert_eq!(assess_evidence(c, &none, &bytes, &expectation()).status, "unmet");
+    assert_eq!(
+        assess_evidence(c, &v, &bytes, &expectation()).status,
+        "unmet"
+    );
+    let none = ImportVerdict {
+        authenticated: false,
+        satisfies_obligation: false,
+        reasons: vec!["untrusted-issuer".into()],
+        record: None,
+    };
+    assert_eq!(
+        assess_evidence(c, &none, &bytes, &expectation()).status,
+        "unmet"
+    );
 }

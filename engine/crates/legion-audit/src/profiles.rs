@@ -148,8 +148,7 @@ impl FrozenProfile {
     }
 
     pub fn to_bound_value(&self) -> Result<Value, AuditError> {
-        serde_json::to_value(self)
-            .map_err(|e| AuditError::Invalid(format!("profile: {e}")))
+        serde_json::to_value(self).map_err(|e| AuditError::Invalid(format!("profile: {e}")))
     }
 
     pub fn from_bound_value(value: &Value) -> Result<Self, AuditError> {

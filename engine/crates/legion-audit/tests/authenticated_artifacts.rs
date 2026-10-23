@@ -12,9 +12,7 @@ use legion_audit::artifact_evidence::{
     ArtifactEvidenceEnvelope, ExecutionMode, ExpectedEvidence, ProvenanceVerifier, ReplayPolicy,
     TrustEnrollment, UnconfiguredVerifier, VerifiedIssuer,
 };
-use legion_audit::native_providers::security::imported_sarif::{
-    ingest_sarif, SarifAuthentication,
-};
+use legion_audit::native_providers::security::imported_sarif::{ingest_sarif, SarifAuthentication};
 use serde_json::{json, Value};
 
 const NOW: &str = "2026-10-23T10:00:00Z";
@@ -212,7 +210,11 @@ fn wrong_branch_target_toolchain_and_stale_evidence_cannot_satisfy() {
         NOW,
     );
     assert!(!verdict.satisfies_obligation);
-    for code in ["repository-branch-mismatch", "target-mismatch", "toolchain-mismatch"] {
+    for code in [
+        "repository-branch-mismatch",
+        "target-mismatch",
+        "toolchain-mismatch",
+    ] {
         assert!(verdict.reasons.iter().any(|r| r == code), "missing {code}");
     }
 
@@ -232,7 +234,10 @@ fn wrong_branch_target_toolchain_and_stale_evidence_cannot_satisfy() {
 #[test]
 fn incomplete_scope_and_missing_sibling_repo_cannot_certify() {
     let mut partial = envelope("node-ci/envelope.json");
-    partial.scope.examined.retain(|item| item != "journey:checkout");
+    partial
+        .scope
+        .examined
+        .retain(|item| item != "journey:checkout");
     partial.scope.missing.push("journey:checkout".into());
     let verdict = verify_artifact_evidence(
         &partial,
@@ -244,11 +249,20 @@ fn incomplete_scope_and_missing_sibling_repo_cannot_certify() {
         NOW,
     );
     assert!(!verdict.satisfies_obligation);
-    assert!(verdict.reasons.iter().any(|r| r == "examined-scope-incomplete"));
-    assert!(verdict.reasons.iter().any(|r| r == "missing-scope-declared"));
+    assert!(verdict
+        .reasons
+        .iter()
+        .any(|r| r == "examined-scope-incomplete"));
+    assert!(verdict
+        .reasons
+        .iter()
+        .any(|r| r == "missing-scope-declared"));
 
     let mut single_repo = envelope("node-ci/envelope.json");
-    single_repo.subject.repositories.retain(|repo| repo.repository_id == "web");
+    single_repo
+        .subject
+        .repositories
+        .retain(|repo| repo.repository_id == "web");
     let verdict = verify_artifact_evidence(
         &single_repo,
         &raw_for(&single_repo),
@@ -259,7 +273,10 @@ fn incomplete_scope_and_missing_sibling_repo_cannot_certify() {
         NOW,
     );
     assert!(!verdict.authenticated);
-    assert!(verdict.reasons.iter().any(|r| r == "repository-set-mismatch"));
+    assert!(verdict
+        .reasons
+        .iter()
+        .any(|r| r == "repository-set-mismatch"));
 }
 
 #[test]
@@ -294,7 +311,10 @@ fn replay_is_never_relabelled_as_newly_executed() {
     assert!(allowed.satisfies_obligation, "{:?}", allowed.reasons);
     let record = allowed.record.expect("record");
     assert!(!record.newly_executed);
-    assert_eq!(record.replay_of.as_deref(), Some("node-ci-test-2026-10-22-001"));
+    assert_eq!(
+        record.replay_of.as_deref(),
+        Some("node-ci-test-2026-10-22-001")
+    );
 }
 
 #[test]

@@ -770,6 +770,41 @@ pub fn packet_cards_for_lens(lens: &str) -> Vec<Value> {
         .collect()
 }
 
+/// Bytes a bound lens plan spends on pattern cards: card bodies plus the
+/// per-card applicability rows (the shared path list is excluded because it
+/// is identical for every lens of a part).
+pub fn bound_card_bytes(lens_plan: &Value) -> u64 {
+    let cards = lens_plan
+        .get("patternCards")
+        .map_or(0, |cards| cards.to_string().len());
+    let rows = lens_plan
+        .pointer("/patternCardApplicability/cards")
+        .map_or(0, |rows| rows.to_string().len());
+    (cards + rows) as u64
+}
+
+/// Upper bound of `bound_card_bytes` for any lens: every owned card retained
+/// plus a generous per-card accounting row. Used to normalize packet sizing so
+/// lenses of one bundle keep deriving the same excerpt parts (and keep sharing
+/// seats) however many cards each lens owns.
+pub fn max_card_bytes_bound() -> u64 {
+    let mut lenses = PATTERN_CARDS
+        .iter()
+        .map(|card| card.owner_lens)
+        .collect::<Vec<_>>();
+    lenses.sort_unstable();
+    lenses.dedup();
+    lenses
+        .into_iter()
+        .map(|lens| {
+            cards_for_lens(lens)
+                .map(|card| card.to_packet_value().to_string().len() + card.id.len() + 120)
+                .sum::<usize>() as u64
+        })
+        .max()
+        .unwrap_or(0)
+}
+
 /// Bind cards after source selection/partitioning, never from repository-wide
 /// language guesses. Unknown language, framework, or trigger fit retains work.
 pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[String]) {
@@ -911,7 +946,9 @@ mod tests {
             let bound = bound_cards(&paths);
             assert_eq!(
                 card_ids(&bound),
-                UNRESTRICTED_CORRECTNESS.into_iter().collect::<BTreeSet<_>>()
+                UNRESTRICTED_CORRECTNESS
+                    .into_iter()
+                    .collect::<BTreeSet<_>>()
             );
             let excluded = rows_in_state(&bound, "excluded");
             let restricted = cards_for_lens("correctness")
@@ -940,9 +977,16 @@ mod tests {
         assert!(card_ids(&tsx).contains("react-state-effect-ownership"));
         assert!(!card_ids(&tsx).contains("swift-actor-reentrancy-stale-state"));
         // Tauri cards retain Rust, front-end, and configuration sources.
-        for path in ["src-tauri/src/main.rs", "src/ui.ts", "src-tauri/tauri.conf.json"] {
+        for path in [
+            "src-tauri/src/main.rs",
+            "src/ui.ts",
+            "src-tauri/tauri.conf.json",
+        ] {
             let security = bound_for("security", &[path]);
-            assert!(card_ids(&security).contains("tauri-ipc-command-boundary"), "{path}");
+            assert!(
+                card_ids(&security).contains("tauri-ipc-command-boundary"),
+                "{path}"
+            );
         }
         let swift_security = bound_for("security", &["App/Model.swift"]);
         assert!(!card_ids(&swift_security).contains("tauri-ipc-command-boundary"));
@@ -1176,7 +1220,12 @@ mod tests {
     #[test]
     fn excluded_rule_families_are_not_present() {
         for card in PATTERN_CARDS {
-            for forbidden in ["pinning", "down-migration", "di-seam", "dependency-injection"] {
+            for forbidden in [
+                "pinning",
+                "down-migration",
+                "di-seam",
+                "dependency-injection",
+            ] {
                 assert!(!card.id.contains(forbidden), "{}", card.id);
             }
         }
@@ -1189,7 +1238,10 @@ mod tests {
             ("qwik-resumability-closure-capture", "correctness"),
             ("qwik-loader-action-validation", "security"),
             ("react-state-effect-ownership", "correctness"),
-            ("secret-serialization-through-logs-and-telemetry", "security"),
+            (
+                "secret-serialization-through-logs-and-telemetry",
+                "security",
+            ),
             ("commerce-money-and-inventory-invariants", "data-safety"),
             ("webhook-idempotency-and-verification-order", "data-safety"),
             ("tenant-authorization-scope", "security"),
@@ -1207,13 +1259,22 @@ mod tests {
             ("tauri-deeplink-and-update-trust", "security"),
             ("rust-gui-per-frame-work", "performance"),
             ("migration-expand-contract-rollout", "data-safety"),
-            ("version-gated-api-without-minimum-guard", "release-readiness"),
-            ("config-key-drift-between-code-and-environments", "release-readiness"),
+            (
+                "version-gated-api-without-minimum-guard",
+                "release-readiness",
+            ),
+            (
+                "config-key-drift-between-code-and-environments",
+                "release-readiness",
+            ),
             ("a11y-interactive-name-role-keyboard", "a11y"),
             ("privacy-collection-consent-and-disclosure", "data-safety"),
             ("outbound-call-timeout-and-retry-bound", "resilience"),
             ("release-debug-surface-shipped", "release-readiness"),
-            ("component-decomposition-recommendation-contract", "architecture"),
+            (
+                "component-decomposition-recommendation-contract",
+                "architecture",
+            ),
         ] {
             let card = PATTERN_CARDS.iter().find(|card| card.id == id).expect(id);
             assert_eq!(card.owner_lens, lens, "{id}");

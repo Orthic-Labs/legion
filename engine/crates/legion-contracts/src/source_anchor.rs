@@ -209,8 +209,7 @@ fn line_column_at(
     if !text.is_char_boundary(offset) {
         return Err(AnchorValidation::InvalidUtf8Boundary);
     }
-    if offset > 0 && offset < bytes.len() && bytes[offset - 1] == b'\r' && bytes[offset] == b'\n'
-    {
+    if offset > 0 && offset < bytes.len() && bytes[offset - 1] == b'\r' && bytes[offset] == b'\n' {
         return Err(AnchorValidation::InsideLineTerminator);
     }
     if spans.is_empty() {
@@ -242,7 +241,10 @@ fn line_column_at(
 /// Derives lines, columns & digests for `range` from the original bytes.
 /// Fails closed on non-UTF-8 bytes, reversed / out-of-bounds ranges, offsets
 /// that split a scalar & offsets inside a CRLF terminator.
-pub fn derive_position(bytes: &[u8], range: ByteRange) -> Result<DerivedPosition, AnchorValidation> {
+pub fn derive_position(
+    bytes: &[u8],
+    range: ByteRange,
+) -> Result<DerivedPosition, AnchorValidation> {
     if range.end < range.start {
         return Err(AnchorValidation::ReversedRange);
     }
@@ -422,10 +424,16 @@ pub fn locate_span(bytes: &[u8], span: &[u8]) -> SpanLocation {
 /// can replace the confirmed position. Failed & ambiguous outcomes are
 /// recorded as themselves.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "outcome")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "outcome"
+)]
 pub enum ReanchorOutcome {
     /// Same file bytes & same byte range still validate on the new snapshot.
-    Unchanged { evidence: SourceAnchorEvidence },
+    Unchanged {
+        evidence: SourceAnchorEvidence,
+    },
     /// The exact span occurs exactly once, at a different offset. Lineage
     /// only; not a confirmed finding position until reverified.
     Candidate {
@@ -434,9 +442,13 @@ pub enum ReanchorOutcome {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         previous_snapshot_key: Option<String>,
     },
-    Ambiguous { occurrences: u64 },
+    Ambiguous {
+        occurrences: u64,
+    },
     NotFound,
-    Invalid { reason: AnchorValidation },
+    Invalid {
+        reason: AnchorValidation,
+    },
 }
 
 /// Proposes lineage for `original` on new bytes. `span_bytes` must be the
@@ -554,7 +566,11 @@ impl PrProjectionReason {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "projection")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "projection"
+)]
 pub enum PrProjection {
     /// Representable as an inline comment on this exact diff. `line` is the
     /// final line on `side`; `start_line` is set only for a multi-line span
@@ -567,7 +583,9 @@ pub enum PrProjection {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         start_line: Option<u32>,
     },
-    SummaryOnly { reason: PrProjectionReason },
+    SummaryOnly {
+        reason: PrProjectionReason,
+    },
 }
 
 /// Projects validated evidence onto an exact PR diff. `validation` must be
@@ -633,8 +651,11 @@ pub fn project_to_pr(
             start_line: (lines.start < lines.end).then_some(lines.start),
         };
     }
-    let covered_at_all = (lines.start..=lines.end)
-        .all(|line| hunks.iter().any(|hunk| hunk.start <= line && line <= hunk.end));
+    let covered_at_all = (lines.start..=lines.end).all(|line| {
+        hunks
+            .iter()
+            .any(|hunk| hunk.start <= line && line <= hunk.end)
+    });
     summary(if covered_at_all {
         PrProjectionReason::LinesNonContiguousInDiff
     } else {
@@ -684,11 +705,15 @@ mod tests {
         // content column.
         assert_ne!(
             derived.file_digest,
-            derive_position(b"ab\ncd\n", range(0, 2)).unwrap().file_digest
+            derive_position(b"ab\ncd\n", range(0, 2))
+                .unwrap()
+                .file_digest
         );
         assert_eq!(
             derived.span_digest,
-            derive_position(b"ab\ncd\n", range(0, 2)).unwrap().span_digest
+            derive_position(b"ab\ncd\n", range(0, 2))
+                .unwrap()
+                .span_digest
         );
     }
 
@@ -864,17 +889,38 @@ mod tests {
         };
         // Changed PR head & mismatched bytes get no inline comment.
         assert_eq!(
-            project_to_pr(&evidence, AnchorValidation::Validated, "head-a", &diff("head-b", vec![file.clone()])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::HeadMismatch }
+            project_to_pr(
+                &evidence,
+                AnchorValidation::Validated,
+                "head-a",
+                &diff("head-b", vec![file.clone()])
+            ),
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::HeadMismatch
+            }
         );
         assert_eq!(
-            project_to_pr(&evidence, AnchorValidation::FileDigestMismatch, "head-a", &diff("head-a", vec![file.clone()])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::NotValidated }
+            project_to_pr(
+                &evidence,
+                AnchorValidation::FileDigestMismatch,
+                "head-a",
+                &diff("head-a", vec![file.clone()])
+            ),
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::NotValidated
+            }
         );
         // Span crosses two hunks: in the diff, but not contiguously.
         assert_eq!(
-            project_to_pr(&evidence, AnchorValidation::Validated, "head-a", &diff("head-a", vec![file])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::LinesNonContiguousInDiff }
+            project_to_pr(
+                &evidence,
+                AnchorValidation::Validated,
+                "head-a",
+                &diff("head-a", vec![file])
+            ),
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::LinesNonContiguousInDiff
+            }
         );
         let one_hunk = PrDiffFile {
             base_path: Some("src/a.rs".into()),
@@ -883,7 +929,12 @@ mod tests {
             head_hunks: vec![LineRange { start: 1, end: 4 }],
         };
         assert_eq!(
-            project_to_pr(&evidence, AnchorValidation::Validated, "head-a", &diff("head-a", vec![one_hunk])),
+            project_to_pr(
+                &evidence,
+                AnchorValidation::Validated,
+                "head-a",
+                &diff("head-a", vec![one_hunk])
+            ),
             PrProjection::Inline {
                 path: "src/a.rs".into(),
                 side: SourceSide::Selected,
@@ -908,12 +959,21 @@ mod tests {
             head_hunks: vec![LineRange { start: 1, end: 4 }],
         };
         assert_eq!(
-            project_to_pr(&late, AnchorValidation::Validated, "h", &diff("h", vec![file])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::LinesOutsideDiff }
+            project_to_pr(
+                &late,
+                AnchorValidation::Validated,
+                "h",
+                &diff("h", vec![file])
+            ),
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::LinesOutsideDiff
+            }
         );
         assert_eq!(
             project_to_pr(&late, AnchorValidation::Validated, "h", &diff("h", vec![])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::PathNotInDiff }
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::PathNotInDiff
+            }
         );
     }
 
@@ -938,7 +998,12 @@ mod tests {
             head_hunks: vec![],
         };
         assert_eq!(
-            project_to_pr(&evidence, AnchorValidation::Validated, "h", &diff("h", vec![deleted])),
+            project_to_pr(
+                &evidence,
+                AnchorValidation::Validated,
+                "h",
+                &diff("h", vec![deleted])
+            ),
             PrProjection::Inline {
                 path: "src/old.rs".into(),
                 side: SourceSide::Base,
@@ -956,8 +1021,15 @@ mod tests {
             head_hunks: vec![],
         };
         assert_eq!(
-            project_to_pr(&selected_claim, AnchorValidation::Validated, "h", &diff("h", vec![deleted])),
-            PrProjection::SummaryOnly { reason: PrProjectionReason::SideFileMissing }
+            project_to_pr(
+                &selected_claim,
+                AnchorValidation::Validated,
+                "h",
+                &diff("h", vec![deleted])
+            ),
+            PrProjection::SummaryOnly {
+                reason: PrProjectionReason::SideFileMissing
+            }
         );
         // Rename: base evidence uses the old name & base hunks only.
         let renamed = PrDiffFile {
@@ -976,11 +1048,28 @@ mod tests {
     fn safe_paths_allow_non_ascii_and_reject_traversal() {
         assert!(safe_snapshot_path("src/\u{65e5}\u{672c}.rs"));
         assert!(safe_snapshot_path("a/b.rs"));
-        for bad in ["", "/etc/passwd", "../x", "a/../x", "a//b", "a/./b", "a\\b", "C:x", "a:b"] {
+        for bad in [
+            "",
+            "/etc/passwd",
+            "../x",
+            "a/../x",
+            "a//b",
+            "a/./b",
+            "a\\b",
+            "C:x",
+            "a:b",
+        ] {
             assert!(!safe_snapshot_path(bad), "{bad}");
         }
         assert_eq!(
-            build_evidence("../x", SourceSide::Selected, None, None, b"x\n", range(0, 1)),
+            build_evidence(
+                "../x",
+                SourceSide::Selected,
+                None,
+                None,
+                b"x\n",
+                range(0, 1)
+            ),
             Err(AnchorValidation::UnsafePath)
         );
     }

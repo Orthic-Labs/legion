@@ -212,8 +212,7 @@ fn registry_metadata_counts_only_when_current() {
     );
 
     assert!(inventory.findings.iter().any(|finding| {
-        finding.kind == FindingKind::LatestDiffers
-            && finding.detail.as_deref() == Some("1.13.2")
+        finding.kind == FindingKind::LatestDiffers && finding.detail.as_deref() == Some("1.13.2")
     }));
     assert!(inventory.gaps.iter().any(|gap| {
         gap.kind == "registry-metadata-stale" && gap.subject.as_deref() == Some("serde")

@@ -44,9 +44,14 @@ pub enum DebtKind {
 #[serde(rename_all = "kebab-case", tag = "basis")]
 pub enum FirstSeen {
     /// From repository history supplied by the caller (RFC 3339 date/time).
-    History { at: String },
+    History {
+        at: String,
+    },
     /// First time an Audit run observed it (run date), not authorship date.
-    Observed { at: String, run_digest: String },
+    Observed {
+        at: String,
+        run_digest: String,
+    },
     Unknown,
 }
 
@@ -145,7 +150,9 @@ pub fn harvest(path: &str, content: &str) -> Vec<DebtRecord> {
             ));
         }
         if let Some(token) = SUPPRESSIONS.iter().find(|s| trimmed.contains(**s)) {
-            let tag = trimmed.find(ACCEPT_TAG).map(|i| &trimmed[i + ACCEPT_TAG.len()..]);
+            let tag = trimmed
+                .find(ACCEPT_TAG)
+                .map(|i| &trimmed[i + ACCEPT_TAG.len()..]);
             let owner = tag.and_then(|t| attr(t, "owner")).map(str::to_owned);
             let reason = tag.and_then(|t| attr(t, "reason")).map(str::to_owned);
             let expiry = tag
@@ -199,12 +206,13 @@ fn record(
         DebtKind::Suppression => "suppression",
     };
     let text_digest = digest_hex(&[text]);
-    let accepted = kind == DebtKind::Suppression
-        && owner.is_some()
-        && reason.is_some()
-        && expiry.is_some();
+    let accepted =
+        kind == DebtKind::Suppression && owner.is_some() && reason.is_some() && expiry.is_some();
     DebtRecord {
-        id: format!("debt:{}", &digest_hex(&[path, kind_label, token, &text_digest])[..16]),
+        id: format!(
+            "debt:{}",
+            &digest_hex(&[path, kind_label, token, &text_digest])[..16]
+        ),
         kind,
         path: path.to_owned(),
         line,

@@ -319,7 +319,9 @@ impl ReviewLedger {
             Some(_) => return Err(LedgerRefusal::AlreadyDispatched(id.into())),
         }
         if tokens > self.author_room(&state) {
-            state.required.insert(id.into(), ObligationState::Incomplete);
+            state
+                .required
+                .insert(id.into(), ObligationState::Incomplete);
             state.gaps.insert(format!("author-budget-exhausted:{id}"));
             return Err(LedgerRefusal::AuthorBudgetExhausted(id.into()));
         }
@@ -352,7 +354,9 @@ impl ReviewLedger {
             .ok_or_else(|| LedgerRefusal::NotReserved(id.into()))?;
         state.held = state.held.saturating_sub(hold);
         state.charged = state.charged.saturating_add(hold);
-        state.required.insert(id.into(), ObligationState::Incomplete);
+        state
+            .required
+            .insert(id.into(), ObligationState::Incomplete);
         state.gaps.insert(format!("author-incomplete:{id}:{cause}"));
         Ok(())
     }

@@ -483,17 +483,37 @@ fn context_mismatches(
             mismatches.push(format!("{name}-drift"));
         }
     };
-    check("provider-version", &scope.provider_version, &current.provider_version);
-    check("rule-profile-revision", &scope.rule_profile_revision, &current.rule_profile_revision);
+    check(
+        "provider-version",
+        &scope.provider_version,
+        &current.provider_version,
+    );
+    check(
+        "rule-profile-revision",
+        &scope.rule_profile_revision,
+        &current.rule_profile_revision,
+    );
     check("tool", &scope.tool, &current.tool);
     check("tool-version", &scope.tool_version, &current.tool_version);
-    check("config-digest", &scope.config_digest, &current.config_digest);
+    check(
+        "config-digest",
+        &scope.config_digest,
+        &current.config_digest,
+    );
     check("platform", &scope.platform, &current.platform);
     check("toolchain", &scope.toolchain, &current.toolchain);
     check("target", &scope.target, &current.target);
     check("variant", &scope.variant, &current.variant);
-    check("implementation-digest", &record.provenance.implementation_digest, &current.implementation_digest);
-    check("source-closure-digest", &record.provenance.source_closure_digest, &current.source_closure_digest);
+    check(
+        "implementation-digest",
+        &record.provenance.implementation_digest,
+        &current.implementation_digest,
+    );
+    check(
+        "source-closure-digest",
+        &record.provenance.source_closure_digest,
+        &current.source_closure_digest,
+    );
     let claimed: BTreeSet<_> = scope.features.iter().collect();
     let actual: BTreeSet<_> = current.features.iter().collect();
     if claimed != actual {
@@ -526,8 +546,14 @@ pub fn validate_record(
     }
     for (name, value) in [
         ("config-digest", &scope.config_digest),
-        ("source-closure-digest", &record.provenance.source_closure_digest),
-        ("implementation-digest", &record.provenance.implementation_digest),
+        (
+            "source-closure-digest",
+            &record.provenance.source_closure_digest,
+        ),
+        (
+            "implementation-digest",
+            &record.provenance.implementation_digest,
+        ),
     ] {
         if !is_digest(value) {
             rejected.push(format!("{name}-malformed"));
@@ -612,7 +638,10 @@ pub fn validate_record(
         && (provenance.commit.as_deref().is_none_or(|commit| {
             commit.len() != 40 || !commit.bytes().all(|byte| byte.is_ascii_hexdigit())
         }) || provenance.run_id.is_none_or(|run| run == 0)
-            || provenance.workflow.as_deref().is_none_or(|name| name.trim().is_empty()))
+            || provenance
+                .workflow
+                .as_deref()
+                .is_none_or(|name| name.trim().is_empty()))
     {
         rejected.push("ci-provenance-incomplete".into());
     }
@@ -636,18 +665,24 @@ pub fn validate_record(
     // Lifecycle caps: fixture-only bases, non-CI capture and synthetic
     // corpus records can never be effective `qualified`.
     let mut effective = record.lifecycle;
-    let cap = |effective: &mut Lifecycle, max: Lifecycle, reason: &str, capped: &mut Vec<String>| {
-        if effective.rank() > max.rank() {
-            *effective = max;
-        }
-        // Every triggered cap is named, even when an earlier cap already
-        // lowered the effective lifecycle.
-        if record.lifecycle.rank() > max.rank() {
-            capped.push(reason.to_string());
-        }
-    };
+    let cap =
+        |effective: &mut Lifecycle, max: Lifecycle, reason: &str, capped: &mut Vec<String>| {
+            if effective.rank() > max.rank() {
+                *effective = max;
+            }
+            // Every triggered cap is named, even when an earlier cap already
+            // lowered the effective lifecycle.
+            if record.lifecycle.rank() > max.rank() {
+                capped.push(reason.to_string());
+            }
+        };
     if !record.basis.kind.qualifies_behaviour() {
-        cap(&mut effective, Lifecycle::Shadow, "fixture-only-basis-capped-shadow", &mut capped);
+        cap(
+            &mut effective,
+            Lifecycle::Shadow,
+            "fixture-only-basis-capped-shadow",
+            &mut capped,
+        );
     }
     if record.basis.kind == BasisKind::Heldout {
         let disjoint = record
@@ -659,19 +694,39 @@ pub fn validate_record(
             || metrics.heldout_sample_size == 0
             || !disjoint
         {
-            cap(&mut effective, Lifecycle::Shadow, "heldout-split-not-separate", &mut capped);
+            cap(
+                &mut effective,
+                Lifecycle::Shadow,
+                "heldout-split-not-separate",
+                &mut capped,
+            );
         }
     }
     if record.basis.kind == BasisKind::ProductionObservation
         && record.basis.production_observations == 0
     {
-        cap(&mut effective, Lifecycle::Shadow, "production-observation-absent", &mut capped);
+        cap(
+            &mut effective,
+            Lifecycle::Shadow,
+            "production-observation-absent",
+            &mut capped,
+        );
     }
     if provenance.source != ProvenanceSource::Ci || !provenance.authenticated {
-        cap(&mut effective, Lifecycle::Shadow, "not-ci-enrolled", &mut capped);
+        cap(
+            &mut effective,
+            Lifecycle::Shadow,
+            "not-ci-enrolled",
+            &mut capped,
+        );
     }
     if record.synthetic_fixture {
-        cap(&mut effective, Lifecycle::Shadow, "synthetic-fixture-not-enrolled", &mut capped);
+        cap(
+            &mut effective,
+            Lifecycle::Shadow,
+            "synthetic-fixture-not-enrolled",
+            &mut capped,
+        );
     }
 
     let verdict = if !rejected.is_empty() {
@@ -726,10 +781,7 @@ pub fn safe_relative_path(value: &str) -> bool {
 
 /// Verify retained raw-output bytes under `root`. Returns named failures;
 /// a missing or drifted raw output is a failure, never a skip.
-pub fn validate_raw_outputs(
-    root: &Path,
-    record: &AssuranceQualificationRecord,
-) -> Vec<String> {
+pub fn validate_raw_outputs(root: &Path, record: &AssuranceQualificationRecord) -> Vec<String> {
     let mut failures = Vec::new();
     for raw in &record.provenance.raw_outputs {
         if !safe_relative_path(&raw.path) {
@@ -740,7 +792,10 @@ pub fn validate_raw_outputs(
         let mut symlinked = false;
         for part in raw.path.split('/') {
             current.push(part);
-            if current.symlink_metadata().is_ok_and(|meta| meta.file_type().is_symlink()) {
+            if current
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink())
+            {
                 symlinked = true;
             }
         }
@@ -928,7 +983,9 @@ pub fn summarize_retained_index(index: &Value) -> Value {
                 .and_then(Value::as_str)
                 .is_some_and(is_digest);
         if !digest_ok {
-            problems.push(format!("{provider}: retained record digest missing/malformed"));
+            problems.push(format!(
+                "{provider}: retained record digest missing/malformed"
+            ));
         }
     }
     json!({
@@ -1020,8 +1077,8 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
     let mut reports = Vec::new();
     for path in collect_record_paths(&opts.records)? {
         let bytes = fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-        let record: AssuranceQualificationRecord = serde_json::from_slice(&bytes)
-            .map_err(|e| format!("{}: {e}", path.display()))?;
+        let record: AssuranceQualificationRecord =
+            serde_json::from_slice(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
         let mut report = validate_record(&record, &opts.now, current.as_ref());
         let raw_failures = validate_raw_outputs(root, &record);
         if !raw_failures.is_empty() {
@@ -1051,7 +1108,10 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
             .unwrap_or_else(|_| json!({"entries": 0, "problems": ["retained-index-malformed"]})),
         Err(_) => json!({"entries": 0, "problems": ["retained-index-missing"]}),
     };
-    if retained["problems"].as_array().is_some_and(|p| !p.is_empty()) {
+    if retained["problems"]
+        .as_array()
+        .is_some_and(|p| !p.is_empty())
+    {
         ok = false;
     }
     let summary = report_json(&reports, &negative, &retained);
@@ -1153,9 +1213,17 @@ mod tests {
                 implementation_digest: DIGEST_C.to_string(),
             },
             outcomes: vec![
-                outcome("authored-pos", FixtureSplit::Authored, OutcomeKind::Positive),
+                outcome(
+                    "authored-pos",
+                    FixtureSplit::Authored,
+                    OutcomeKind::Positive,
+                ),
                 outcome("heldout-pos", FixtureSplit::Heldout, OutcomeKind::Positive),
-                outcome("heldout-clean", FixtureSplit::Heldout, OutcomeKind::Negative),
+                outcome(
+                    "heldout-clean",
+                    FixtureSplit::Heldout,
+                    OutcomeKind::Negative,
+                ),
             ],
             metrics: Some(DeclaredMetrics {
                 method: "per-fixture expected/emitted/matched counts".to_string(),
@@ -1163,7 +1231,11 @@ mod tests {
                 precision: 1.0,
                 recall: 1.0,
             }),
-            cost: Cost { wall_time_ms: 25, model_calls: 0, tokens: None },
+            cost: Cost {
+                wall_time_ms: 25,
+                model_calls: 0,
+                tokens: None,
+            },
             qualification_digest: String::new(),
         };
         seal(&mut record);
@@ -1190,7 +1262,10 @@ mod tests {
             let report = validate_record(&record(basis), NOW, None);
             assert_eq!(report.verdict, Verdict::FixtureScoped, "{basis:?}");
             assert_eq!(report.effective_lifecycle, Lifecycle::Shadow);
-            assert!(report.reasons.iter().any(|r| r == "fixture-only-basis-capped-shadow"));
+            assert!(report
+                .reasons
+                .iter()
+                .any(|r| r == "fixture-only-basis-capped-shadow"));
         }
     }
 
@@ -1200,7 +1275,10 @@ mod tests {
         forged.scope.tool_version = "9.9.9".to_string();
         let report = validate_record(&forged, NOW, None);
         assert_eq!(report.verdict, Verdict::Rejected);
-        assert!(report.reasons.iter().any(|r| r == "qualification-digest-mismatch"));
+        assert!(report
+            .reasons
+            .iter()
+            .any(|r| r == "qualification-digest-mismatch"));
 
         let mut no_raw = record(BasisKind::Heldout);
         no_raw.provenance.raw_outputs.clear();
@@ -1215,7 +1293,10 @@ mod tests {
         let mut stale = record(BasisKind::Heldout);
         stale.provenance.fresh_until = "2026-01-01T00:00:00Z".to_string();
         seal(&mut stale);
-        assert_eq!(validate_record(&stale, NOW, None).verdict, Verdict::Invalidated);
+        assert_eq!(
+            validate_record(&stale, NOW, None).verdict,
+            Verdict::Invalidated
+        );
 
         let sealed = record(BasisKind::Heldout);
         let current = CurrentContext {
@@ -1234,7 +1315,10 @@ mod tests {
         };
         let report = validate_record(&sealed, NOW, Some(&current));
         assert_eq!(report.verdict, Verdict::Invalidated);
-        assert!(report.reasons.iter().any(|r| r == "rule-profile-revision-drift"));
+        assert!(report
+            .reasons
+            .iter()
+            .any(|r| r == "rule-profile-revision-drift"));
     }
 
     #[test]

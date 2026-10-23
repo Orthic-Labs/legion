@@ -181,11 +181,16 @@ pub fn analyze(input: &Value) -> Result<Analysis, String> {
         for candidate in &evaluation.candidates {
             let mut value = serde_json::to_value(candidate).unwrap_or(Value::Null);
             if let Some(map) = value.as_object_mut() {
-                map.insert("kind".into(), Value::String("domain-contract-violation".into()));
+                map.insert(
+                    "kind".into(),
+                    Value::String("domain-contract-violation".into()),
+                );
             }
             result.findings.push(value);
         }
-        result.extras.insert("domainContracts".into(), evaluation.to_value());
+        result
+            .extras
+            .insert("domainContracts".into(), evaluation.to_value());
         result.complete = result.complete && gaps.is_empty();
     }
     result.coverage_gaps = gaps;
@@ -207,7 +212,10 @@ fn domain_contracts(
     gaps: &mut Vec<Value>,
 ) -> Option<crate::domain_contract::DomainEvaluation> {
     let spec = artifacts?.get("domainContracts")?;
-    let required = spec.get("required").and_then(Value::as_bool).unwrap_or(false);
+    let required = spec
+        .get("required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let snapshots: Vec<SnapshotRef> = match spec
         .get("snapshots")
         .cloned()
@@ -227,10 +235,26 @@ fn domain_contracts(
             files
                 .iter()
                 .map(|file| ContractFileInput {
-                    repository_id: file.get("repositoryId").and_then(Value::as_str).unwrap_or("").to_owned(),
-                    path: file.get("path").and_then(Value::as_str).unwrap_or("").to_owned(),
-                    bytes: file.get("content").and_then(Value::as_str).unwrap_or("").as_bytes().to_vec(),
-                    expected_digest: file.get("digest").and_then(Value::as_str).map(str::to_owned),
+                    repository_id: file
+                        .get("repositoryId")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                    path: file
+                        .get("path")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned(),
+                    bytes: file
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .as_bytes()
+                        .to_vec(),
+                    expected_digest: file
+                        .get("digest")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned),
                 })
                 .collect()
         })
@@ -259,7 +283,12 @@ fn domain_contracts(
         let ids: Vec<String> = row
             .get("domainTerms")
             .and_then(Value::as_array)
-            .map(|ids| ids.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            })
             .unwrap_or_default();
         if ids.is_empty() {
             continue;
@@ -270,7 +299,10 @@ fn domain_contracts(
             }
         }
         if let Some(map) = row.as_object_mut() {
-            map.insert("domainContractDigest".into(), Value::String(set.scoped_digest(&ids)));
+            map.insert(
+                "domainContractDigest".into(),
+                Value::String(set.scoped_digest(&ids)),
+            );
         }
     }
     let evaluation = set.evaluate();

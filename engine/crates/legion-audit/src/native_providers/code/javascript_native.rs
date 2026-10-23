@@ -221,24 +221,96 @@ pub struct NativeRule {
 /// The exact enabled subset. Every id must resolve in the pinned binary
 /// before admission (root probe); an unresolved id is `unsupported-rule`.
 pub const NATIVE_RULES: &[NativeRule] = &[
-    NativeRule { oxlint: "eslint/no-debugger", biome: "lint/suspicious/noDebugger", concern: "debugging-leftover" },
-    NativeRule { oxlint: "eslint/no-eval", biome: "lint/security/noGlobalEval", concern: "code-injection-sink" },
-    NativeRule { oxlint: "eslint/eqeqeq", biome: "lint/suspicious/noDoubleEquals", concern: "correctness" },
-    NativeRule { oxlint: "eslint/no-unused-vars", biome: "lint/correctness/noUnusedVariables", concern: "correctness" },
-    NativeRule { oxlint: "eslint/no-dupe-keys", biome: "lint/suspicious/noDuplicateObjectKeys", concern: "correctness" },
-    NativeRule { oxlint: "eslint/no-unreachable", biome: "lint/correctness/noUnreachable", concern: "correctness" },
-    NativeRule { oxlint: "react/rules-of-hooks", biome: "lint/correctness/useHookAtTopLevel", concern: "react-hooks" },
-    NativeRule { oxlint: "react/exhaustive-deps", biome: "lint/correctness/useExhaustiveDependencies", concern: "react-hooks" },
-    NativeRule { oxlint: "react/jsx-key", biome: "lint/correctness/useJsxKeyInIterable", concern: "react-lists" },
-    NativeRule { oxlint: "react/no-danger", biome: "lint/security/noDangerouslySetInnerHtml", concern: "xss-sink" },
-    NativeRule { oxlint: "jsx-a11y/alt-text", biome: "lint/a11y/useAltText", concern: "a11y" },
-    NativeRule { oxlint: "jsx-a11y/anchor-is-valid", biome: "lint/a11y/useValidAnchor", concern: "a11y" },
-    NativeRule { oxlint: "jsx-a11y/click-events-have-key-events", biome: "lint/a11y/useKeyWithClickEvents", concern: "a11y" },
-    NativeRule { oxlint: "jsx-a11y/no-static-element-interactions", biome: "lint/a11y/noStaticElementInteractions", concern: "a11y" },
-    NativeRule { oxlint: "jsx-a11y/label-has-associated-control", biome: "lint/a11y/noLabelWithoutControl", concern: "a11y" },
-    NativeRule { oxlint: "jsx-a11y/heading-has-content", biome: "lint/a11y/useHeadingContent", concern: "a11y" },
-    NativeRule { oxlint: "typescript/no-explicit-any", biome: "lint/suspicious/noExplicitAny", concern: "type-safety" },
-    NativeRule { oxlint: "typescript/no-non-null-assertion", biome: "lint/style/noNonNullAssertion", concern: "type-safety" },
+    NativeRule {
+        oxlint: "eslint/no-debugger",
+        biome: "lint/suspicious/noDebugger",
+        concern: "debugging-leftover",
+    },
+    NativeRule {
+        oxlint: "eslint/no-eval",
+        biome: "lint/security/noGlobalEval",
+        concern: "code-injection-sink",
+    },
+    NativeRule {
+        oxlint: "eslint/eqeqeq",
+        biome: "lint/suspicious/noDoubleEquals",
+        concern: "correctness",
+    },
+    NativeRule {
+        oxlint: "eslint/no-unused-vars",
+        biome: "lint/correctness/noUnusedVariables",
+        concern: "correctness",
+    },
+    NativeRule {
+        oxlint: "eslint/no-dupe-keys",
+        biome: "lint/suspicious/noDuplicateObjectKeys",
+        concern: "correctness",
+    },
+    NativeRule {
+        oxlint: "eslint/no-unreachable",
+        biome: "lint/correctness/noUnreachable",
+        concern: "correctness",
+    },
+    NativeRule {
+        oxlint: "react/rules-of-hooks",
+        biome: "lint/correctness/useHookAtTopLevel",
+        concern: "react-hooks",
+    },
+    NativeRule {
+        oxlint: "react/exhaustive-deps",
+        biome: "lint/correctness/useExhaustiveDependencies",
+        concern: "react-hooks",
+    },
+    NativeRule {
+        oxlint: "react/jsx-key",
+        biome: "lint/correctness/useJsxKeyInIterable",
+        concern: "react-lists",
+    },
+    NativeRule {
+        oxlint: "react/no-danger",
+        biome: "lint/security/noDangerouslySetInnerHtml",
+        concern: "xss-sink",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/alt-text",
+        biome: "lint/a11y/useAltText",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/anchor-is-valid",
+        biome: "lint/a11y/useValidAnchor",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/click-events-have-key-events",
+        biome: "lint/a11y/useKeyWithClickEvents",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/no-static-element-interactions",
+        biome: "lint/a11y/noStaticElementInteractions",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/label-has-associated-control",
+        biome: "lint/a11y/noLabelWithoutControl",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "jsx-a11y/heading-has-content",
+        biome: "lint/a11y/useHeadingContent",
+        concern: "a11y",
+    },
+    NativeRule {
+        oxlint: "typescript/no-explicit-any",
+        biome: "lint/suspicious/noExplicitAny",
+        concern: "type-safety",
+    },
+    NativeRule {
+        oxlint: "typescript/no-non-null-assertion",
+        biome: "lint/style/noNonNullAssertion",
+        concern: "type-safety",
+    },
 ];
 
 /// Concerns native lint cannot discharge, with the evidence that would and
@@ -534,9 +606,7 @@ fn applicable_configs(entries: &[InventoryEntry], dir: &str) -> Vec<String> {
         })
         .filter(|entry| {
             let config_dir = dir_of(&entry.path);
-            config_dir.is_empty()
-                || dir == config_dir
-                || dir.starts_with(&format!("{config_dir}/"))
+            config_dir.is_empty() || dir == config_dir || dir.starts_with(&format!("{config_dir}/"))
         })
         .map(|entry| entry.path.clone())
         .collect();
@@ -584,11 +654,13 @@ fn discover_packages(
             applicable_repo_configs: applicable_configs(entries, &dir),
             ..JsPackage::default()
         };
-        let manifest = reader(&entry.path).and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+        let manifest =
+            reader(&entry.path).and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
         match manifest {
-            None => package
-                .gaps
-                .push(gap(&format!("javascript-manifest-unreadable:{}", label(&dir)))),
+            None => package.gaps.push(gap(&format!(
+                "javascript-manifest-unreadable:{}",
+                label(&dir)
+            ))),
             Some(manifest) => {
                 let declared = declared_dependencies(&manifest);
                 for (framework, package_name) in FRAMEWORK_PACKAGES {
@@ -901,7 +973,10 @@ pub fn plan_native_lint(
             continue;
         }
         if !safe_relative(&entry.path) || entry.path.starts_with('-') {
-            gaps.push(gap(&format!("javascript-source-path-unsafe:{}", entry.path)));
+            gaps.push(gap(&format!(
+                "javascript-source-path-unsafe:{}",
+                entry.path
+            )));
             continue;
         }
         if let Some(segment) = excluded_segment(&entry.path) {
@@ -955,8 +1030,13 @@ pub fn plan_native_lint(
         } else {
             build_argv(options, &slot.files)
         };
-        let scope_digest =
-            unit_scope_digest(options.linter, dir, &pin.version, &config_digest, &slot.files);
+        let scope_digest = unit_scope_digest(
+            options.linter,
+            dir,
+            &pin.version,
+            &config_digest,
+            &slot.files,
+        );
         units.push(NativeLintUnit {
             package_dir: dir.clone(),
             linter: options.linter,
@@ -1105,10 +1185,12 @@ pub fn parse_biome_report(
         let path = location
             .and_then(|found| found.get("path"))
             .and_then(|found| {
-                found
-                    .as_str()
-                    .map(str::to_string)
-                    .or_else(|| found.get("file").and_then(Value::as_str).map(str::to_string))
+                found.as_str().map(str::to_string).or_else(|| {
+                    found
+                        .get("file")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
             })
             .unwrap_or_default();
         let inline_source = location
@@ -1133,7 +1215,9 @@ pub fn parse_biome_report(
         report.diagnostics.push(NativeDiagnostic {
             severity: severity_label(item.get("severity").and_then(Value::as_str).unwrap_or("")),
             message: truncated_message(
-                item.get("description").and_then(Value::as_str).unwrap_or(""),
+                item.get("description")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
             ),
             rule: category,
             path,
@@ -1228,7 +1312,10 @@ pub fn classify_run(
         return outcome;
     }
     let stderr_text = String::from_utf8_lossy(stderr).to_lowercase();
-    if CONFIG_MARKERS.iter().any(|marker| stderr_text.contains(marker)) {
+    if CONFIG_MARKERS
+        .iter()
+        .any(|marker| stderr_text.contains(marker))
+    {
         outcome.status = NativeLintStatus::InvalidConfig;
         return outcome;
     }
@@ -1261,7 +1348,11 @@ pub fn classify_run(
             return outcome;
         }
     };
-    if report.diagnostics.iter().any(|diagnostic| diagnostic.config_error) {
+    if report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.config_error)
+    {
         outcome.status = NativeLintStatus::InvalidConfig;
         return outcome;
     }
@@ -1272,9 +1363,7 @@ pub fn classify_run(
             "native-lint-scanned-set-mismatch:{count}/{}",
             unit.files.len()
         ))),
-        (Linter::Oxlint, None) => outcome
-            .gaps
-            .push(gap("native-lint-scanned-set-unproven")),
+        (Linter::Oxlint, None) => outcome.gaps.push(gap("native-lint-scanned-set-unproven")),
         (Linter::Biome, _) => outcome.gaps.push(gap("biome-scanned-set-unproven")),
     }
     if report.diagnostics_not_printed > 0 {
@@ -1355,7 +1444,9 @@ mod tests {
     #[test]
     fn unpinned_identity_always_names_gaps() {
         let gaps = validate_pin(&NativeLinterPin::unpinned(Linter::Oxlint));
-        assert!(gaps.iter().any(|gap| gap.ends_with("oxlint-version-unpinned")));
+        assert!(gaps
+            .iter()
+            .any(|gap| gap.ends_with("oxlint-version-unpinned")));
         assert!(gaps
             .iter()
             .any(|gap| gap.ends_with("oxlint-distribution-digest-missing")));

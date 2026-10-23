@@ -67,7 +67,8 @@ pub struct ContainmentProfile {
 
 impl ContainmentProfile {
     pub fn validate(&self) -> Result<(), EffectError> {
-        let bad = |detail: &str| EffectError::SandboxMissing(format!("containment profile: {detail}"));
+        let bad =
+            |detail: &str| EffectError::SandboxMissing(format!("containment profile: {detail}"));
         if self.owner_id.trim().is_empty() || self.containment_id.trim().is_empty() {
             return Err(bad("owner and containment ids are required"));
         }
@@ -77,7 +78,9 @@ impl ContainmentProfile {
             return Err(bad("read-only roots must be absolute and non-empty"));
         }
         if !self.scratch_root.is_absolute() || self.scratch_root.parent().is_none() {
-            return Err(bad("scratch root must be absolute and not a filesystem root"));
+            return Err(bad(
+                "scratch root must be absolute and not a filesystem root",
+            ));
         }
         if self
             .read_only_roots
@@ -87,7 +90,10 @@ impl ContainmentProfile {
             return Err(bad("scratch root must be disjoint from read-only roots"));
         }
         if self.allowed_executables.is_empty()
-            || self.allowed_executables.iter().any(|path| !path.is_absolute())
+            || self
+                .allowed_executables
+                .iter()
+                .any(|path| !path.is_absolute())
         {
             return Err(bad("allowed executables must be absolute and non-empty"));
         }
@@ -152,7 +158,10 @@ impl<R: ContainedRuntime> PlatformProcess for OwnerProcess<R> {
     fn run<'a>(&'a self, launch: ProcessLaunch) -> ProcessFuture<'a> {
         Box::pin(async move {
             check_launch(&self.profile, &launch)?;
-            let output = self.runtime.run_contained(launch.clone(), &self.profile).await?;
+            let output = self
+                .runtime
+                .run_contained(launch.clone(), &self.profile)
+                .await?;
             Ok(distrust_output(output, &launch))
         })
     }
@@ -171,7 +180,9 @@ fn check_launch(profile: &ContainmentProfile, launch: &ProcessLaunch) -> Result<
     let canonical = std::fs::canonicalize(executable)
         .map_err(|error| EffectError::MissingExecutable(error.to_string()))?;
     if canonical != executable || !profile.allowed_executables.contains(&canonical) {
-        return Err(unauthorized("executable is not the admitted canonical path"));
+        return Err(unauthorized(
+            "executable is not the admitted canonical path",
+        ));
     }
     let cwd = std::fs::canonicalize(&launch.cwd)
         .map_err(|error| unauthorized(format!("cwd unresolved: {error}")))?;
@@ -188,13 +199,17 @@ fn check_launch(profile: &ContainmentProfile, launch: &ProcessLaunch) -> Result<
         return Err(unauthorized("argument contains NUL"));
     }
     if let Some(name) = launch.environment.keys().find(|name| {
-        !profile.environment_names.contains(*name)
-            || name.is_empty()
-            || name.contains(['=', '\0'])
+        !profile.environment_names.contains(*name) || name.is_empty() || name.contains(['=', '\0'])
     }) {
-        return Err(unauthorized(format!("environment name {name:?} is not admitted")));
+        return Err(unauthorized(format!(
+            "environment name {name:?} is not admitted"
+        )));
     }
-    if launch.environment.values().any(|value| value.contains('\0')) {
+    if launch
+        .environment
+        .values()
+        .any(|value| value.contains('\0'))
+    {
         return Err(unauthorized("environment value contains NUL"));
     }
     if launch.timeout_ms == 0
@@ -264,7 +279,13 @@ mod tests {
         }
     }
     fn tree(started: bool, terminated: bool, reaped: bool) -> ProcessTreeEvidence {
-        ProcessTreeEvidence { started, terminated, hard_killed: false, reaped, detail: None }
+        ProcessTreeEvidence {
+            started,
+            terminated,
+            hard_killed: false,
+            reaped,
+            detail: None,
+        }
     }
 
     #[test]

@@ -104,7 +104,12 @@ pub fn compare(previous: &TrendPoint, current: &TrendPoint) -> Comparison {
     }
     let (a, b) = (&previous.cohort, &current.cohort);
     same("profile", &a.profile, &b.profile, &mut reasons);
-    same("targets", &a.targets_digest, &b.targets_digest, &mut reasons);
+    same(
+        "targets",
+        &a.targets_digest,
+        &b.targets_digest,
+        &mut reasons,
+    );
     same("rules", &a.rules_digest, &b.rules_digest, &mut reasons);
     same(
         "qualification",

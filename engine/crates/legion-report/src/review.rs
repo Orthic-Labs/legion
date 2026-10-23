@@ -762,8 +762,7 @@ mod tests {
         // No supplied diff: no fabricated inline comment, finding stays in
         // the summary body with its canonical coordinates.
         let report = canonical_report(SourceSide::Selected);
-        let payload: Value =
-            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let payload: Value = serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
         assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
         let body = payload["body"].as_str().unwrap();
         assert!(body.contains("Canonical anchor:"));
@@ -771,8 +770,7 @@ mod tests {
         // Exact diff at the report head: RIGHT inline comment.
         let mut report = canonical_report(SourceSide::Selected);
         with_pr_diff(&mut report, "head-1", false);
-        let payload: Value =
-            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let payload: Value = serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
         let comments = payload["comments"].as_array().unwrap();
         assert_eq!(comments.len(), 1);
         assert_eq!(comments[0]["path"], "src/lib.rs");
@@ -782,10 +780,12 @@ mod tests {
         // PR head moved: no inline comment on a stale diff.
         let mut report = canonical_report(SourceSide::Selected);
         with_pr_diff(&mut report, "head-2", false);
-        let payload: Value =
-            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let payload: Value = serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
         assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
-        assert!(payload["body"].as_str().unwrap().contains("unverified finding"));
+        assert!(payload["body"]
+            .as_str()
+            .unwrap()
+            .contains("unverified finding"));
     }
 
     #[test]
@@ -793,8 +793,7 @@ mod tests {
         use legion_contracts::source_anchor::SourceSide;
         let mut report = canonical_report(SourceSide::Base);
         with_pr_diff(&mut report, "head-1", true);
-        let payload: Value =
-            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let payload: Value = serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
         let comments = payload["comments"].as_array().unwrap();
         assert_eq!(comments.len(), 1);
         assert_eq!(comments[0]["side"], "LEFT");

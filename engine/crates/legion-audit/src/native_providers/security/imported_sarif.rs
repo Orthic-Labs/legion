@@ -43,7 +43,10 @@ impl ImportedSarif {
 
     /// Execution provenance exists only after independent authentication.
     pub fn has_execution_provenance(&self) -> bool {
-        matches!(self.authentication, SarifAuthentication::Authenticated { .. })
+        matches!(
+            self.authentication,
+            SarifAuthentication::Authenticated { .. }
+        )
     }
 
     pub fn satisfies_obligation(&self) -> bool {

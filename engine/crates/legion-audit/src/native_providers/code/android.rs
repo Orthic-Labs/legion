@@ -315,9 +315,7 @@ pub fn parse_xml(bytes: &[u8]) -> Result<XmlElement, String> {
                 if element.attrs.iter().any(|(existing, _)| existing == key) {
                     return Err("duplicate-attribute".into());
                 }
-                element
-                    .attrs
-                    .push((key.to_string(), decode_entities(raw)?));
+                element.attrs.push((key.to_string(), decode_entities(raw)?));
                 i = value_end + 1;
             }
             count += 1;
@@ -423,7 +421,9 @@ pub fn infer_applicability(
                 None => gaps.push(gap(format!("android-build-file-unread:{}", entry.path))),
             }
         }
-        if entry.path.contains("/res/") && entry.path.ends_with(".xml") && !in_build_output(&entry.path)
+        if entry.path.contains("/res/")
+            && entry.path.ends_with(".xml")
+            && !in_build_output(&entry.path)
         {
             resources += 1;
         }
@@ -568,8 +568,8 @@ pub struct AndroidBuildModel {
 
 impl AndroidBuildModel {
     pub fn from_value(value: &Value) -> Result<Self, String> {
-        let model: Self =
-            serde_json::from_value(value.clone()).map_err(|error| format!("android model: {error}"))?;
+        let model: Self = serde_json::from_value(value.clone())
+            .map_err(|error| format!("android model: {error}"))?;
         if model.schema_version != MODEL_SCHEMA_VERSION {
             return Err("unsupported android model schemaVersion".into());
         }
@@ -592,11 +592,7 @@ impl AndroidBuildModel {
     }
 
     pub fn digest(&self) -> String {
-        sha256_hex(
-            serde_json::to_string(self)
-                .unwrap_or_default()
-                .as_bytes(),
-        )
+        sha256_hex(serde_json::to_string(self).unwrap_or_default().as_bytes())
     }
 }
 
@@ -812,10 +808,7 @@ impl AndroidLintPlan {
     }
 }
 
-fn module_inventory_gaps(
-    module: &ModuleModel,
-    entries: &[InventoryEntry],
-) -> Vec<String> {
+fn module_inventory_gaps(module: &ModuleModel, entries: &[InventoryEntry]) -> Vec<String> {
     let mut gaps = Vec::new();
     if module.lint_excluded {
         gaps.push(gap(format!(
@@ -845,7 +838,10 @@ fn module_inventory_gaps(
     ] {
         let exists = entries.iter().any(|e| e.path == format!("{prefix}{name}"));
         if exists && declared.is_none() {
-            gaps.push(gap(format!("android-lint-{kind}-undeclared:{}", module.path)));
+            gaps.push(gap(format!(
+                "android-lint-{kind}-undeclared:{}",
+                module.path
+            )));
         }
         if let Some(sealed) = declared {
             if !is_sha256_digest(&sealed.digest) {
@@ -905,10 +901,7 @@ fn variant_gaps(
     gaps
 }
 
-fn scope_items(
-    module: &ModuleModel,
-    variant: &VariantModel,
-) -> Vec<String> {
+fn scope_items(module: &ModuleModel, variant: &VariantModel) -> Vec<String> {
     let mut items = vec![
         format!("task:{}", variant.lint_task),
         format!("module:{}", module.path),
@@ -922,7 +915,10 @@ fn scope_items(
         items.push(format!("source-set:{}:{}", set.name, set.digest));
     }
     for generated in &variant.generated_resources {
-        items.push(format!("generated-resource:{}:{}", generated.path, generated.digest));
+        items.push(format!(
+            "generated-resource:{}:{}",
+            generated.path, generated.digest
+        ));
     }
     items.push(format!(
         "baseline:{}",
@@ -1094,19 +1090,26 @@ pub fn plan_lint(
     for (module, variant) in selected {
         let id = format!("android-lint:{}:{}", module.path, variant.name);
         if !seen.insert(id.clone()) {
-            gaps.push(gap(format!("android-variant-duplicate:{}:{}", module.path, variant.name)));
+            gaps.push(gap(format!(
+                "android-variant-duplicate:{}:{}",
+                module.path, variant.name
+            )));
             continue;
         }
         let mut plan_gaps = module_inventory_gaps(module, entries);
         plan_gaps.extend(variant_gaps(model, module, variant, entries));
-        plan_gaps.extend(gaps.iter().filter(|g| {
-            // Model-wide structural failures poison every obligation.
-            g.contains("android-sdk-")
-                || g.contains("android-model-")
-                || g.contains("-version-missing")
-                || g.contains("android-gradle-program")
-                || g.contains("android-build-tools")
-        }).cloned());
+        plan_gaps.extend(
+            gaps.iter()
+                .filter(|g| {
+                    // Model-wide structural failures poison every obligation.
+                    g.contains("android-sdk-")
+                        || g.contains("android-model-")
+                        || g.contains("-version-missing")
+                        || g.contains("android-gradle-program")
+                        || g.contains("android-build-tools")
+                })
+                .cloned(),
+        );
         let items = scope_items(module, variant);
         let scope_digest = obligation_scope_digest(model, module, variant, &items);
         let plan_gaps = sorted_unique(plan_gaps);
@@ -1230,14 +1233,16 @@ pub fn parse_lint_xml(bytes: &[u8]) -> ParsedLintReport {
         }
     };
     if root.name != "issues" {
-        parsed.gaps.push(gap("android-lint-malformed-report:root-not-issues"));
+        parsed
+            .gaps
+            .push(gap("android-lint-malformed-report:root-not-issues"));
         return parsed;
     }
     let format = root.attr("format").unwrap_or("").to_string();
     if !SUPPORTED_XML_FORMATS.contains(&format.as_str()) {
-        parsed
-            .gaps
-            .push(gap(format!("android-lint-unsupported-report-format:{format}")));
+        parsed.gaps.push(gap(format!(
+            "android-lint-unsupported-report-format:{format}"
+        )));
         parsed.format = format;
         return parsed;
     }
@@ -1255,11 +1260,15 @@ pub fn parse_lint_xml(bytes: &[u8]) -> ParsedLintReport {
             continue;
         };
         let Some(location) = issue.children_named("location").next() else {
-            parsed.gaps.push(gap("android-lint-result-missing-location"));
+            parsed
+                .gaps
+                .push(gap("android-lint-result-missing-location"));
             continue;
         };
         let Some(file) = location.attr("file").filter(|f| !f.is_empty()) else {
-            parsed.gaps.push(gap("android-lint-result-missing-location"));
+            parsed
+                .gaps
+                .push(gap("android-lint-result-missing-location"));
             continue;
         };
         let line = location
@@ -1311,7 +1320,11 @@ pub fn parse_lint_sarif(bytes: &[u8]) -> ParsedLintReport {
         malformed(&mut parsed, "unsupported-sarif-version");
         return parsed;
     }
-    let Some(runs) = root.get("runs").and_then(Value::as_array).filter(|r| r.len() == 1) else {
+    let Some(runs) = root
+        .get("runs")
+        .and_then(Value::as_array)
+        .filter(|r| r.len() == 1)
+    else {
         malformed(&mut parsed, "runs-not-single");
         return parsed;
     };
@@ -1338,16 +1351,23 @@ pub fn parse_lint_sarif(bytes: &[u8]) -> ParsedLintReport {
             continue;
         };
         let location = &result["locations"][0]["physicalLocation"];
-        let uri = location["artifactLocation"].get("uri").and_then(Value::as_str);
+        let uri = location["artifactLocation"]
+            .get("uri")
+            .and_then(Value::as_str);
         let line = location["region"]
             .get("startLine")
             .and_then(Value::as_u64)
             .filter(|l| *l >= 1);
         let (Some(uri), Some(line)) = (uri, line) else {
-            parsed.gaps.push(gap("android-lint-result-missing-location"));
+            parsed
+                .gaps
+                .push(gap("android-lint-result-missing-location"));
             continue;
         };
-        let raw_level = result.get("level").and_then(Value::as_str).unwrap_or("warning");
+        let raw_level = result
+            .get("level")
+            .and_then(Value::as_str)
+            .unwrap_or("warning");
         parsed.issues.push(LintIssue {
             rule_id: rule_id.to_string(),
             severity: normalize_severity(raw_level),
@@ -1360,7 +1380,10 @@ pub fn parse_lint_sarif(bytes: &[u8]) -> ParsedLintReport {
                 .and_then(Value::as_u64)
                 .unwrap_or(1) as usize,
             message: truncated_message(
-                result["message"].get("text").and_then(Value::as_str).unwrap_or(rule_id),
+                result["message"]
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .unwrap_or(rule_id),
             ),
         });
     }
@@ -1416,7 +1439,11 @@ pub fn parse_lint_config(bytes: &[u8]) -> Result<Vec<ConfigSuppression>, String>
     let mut out = Vec::new();
     for issue in root.children_named("issue") {
         let id = issue.attr("id").unwrap_or("all").to_string();
-        if issue.attr("severity").map(|s| s.eq_ignore_ascii_case("ignore")) == Some(true) {
+        if issue
+            .attr("severity")
+            .map(|s| s.eq_ignore_ascii_case("ignore"))
+            == Some(true)
+        {
             out.push(ConfigSuppression {
                 rule_id: id.clone(),
                 kind: "severity-ignore",
@@ -1549,9 +1576,13 @@ pub struct AndroidLintEvaluation {
 }
 
 fn is_deferrable(gap_text: &str) -> bool {
-    ["android-model-missing", "android-lint-evidence-missing", "android-lint-execution-not-admitted"]
-        .iter()
-        .any(|kind| gap_text.ends_with(&format!(":{kind}")) || gap_text.contains(&format!(":{kind}:")))
+    [
+        "android-model-missing",
+        "android-lint-evidence-missing",
+        "android-lint-execution-not-admitted",
+    ]
+    .iter()
+    .any(|kind| gap_text.ends_with(&format!(":{kind}")) || gap_text.contains(&format!(":{kind}:")))
 }
 
 /// Resolve a report/baseline path to an inventory path, or a build-output
@@ -1620,16 +1651,17 @@ fn module_aux(
         (Some(declared), Some(bytes)) => {
             let digest = sha256_hex(bytes);
             if digest != declared.digest {
-                out.gaps.push(gap(format!("android-lint-baseline-mismatch:{module_path}")));
+                out.gaps
+                    .push(gap(format!("android-lint-baseline-mismatch:{module_path}")));
             }
             match aux.approved_baseline_digests.get(module_path) {
                 Some(approved) if *approved == digest => {}
                 Some(_) => out
                     .gaps
                     .push(gap(format!("android-lint-baseline-changed:{module_path}"))),
-                None => out
-                    .gaps
-                    .push(gap(format!("android-lint-baseline-unreviewed:{module_path}"))),
+                None => out.gaps.push(gap(format!(
+                    "android-lint-baseline-unreviewed:{module_path}"
+                ))),
             }
             match parse_baseline_xml(bytes) {
                 Ok(entries) => {
@@ -1647,29 +1679,30 @@ fn module_aux(
                     }
                     out.suppressed = entries;
                 }
-                Err(error) => out
-                    .gaps
-                    .push(gap(format!("android-lint-baseline-malformed:{module_path}:{error}"))),
+                Err(error) => out.gaps.push(gap(format!(
+                    "android-lint-baseline-malformed:{module_path}:{error}"
+                ))),
             }
         }
         (Some(_), None) => out
             .gaps
             .push(gap(format!("android-lint-baseline-unread:{module_path}"))),
-        (None, Some(_)) => out
-            .gaps
-            .push(gap(format!("android-lint-baseline-undeclared:{module_path}"))),
+        (None, Some(_)) => out.gaps.push(gap(format!(
+            "android-lint-baseline-undeclared:{module_path}"
+        ))),
         (None, None) => {}
     }
     match (&module.lint_config, aux.lint_configs.get(module_path)) {
         (Some(declared), Some(bytes)) => {
             if sha256_hex(bytes) != declared.digest {
-                out.gaps.push(gap(format!("android-lint-config-mismatch:{module_path}")));
+                out.gaps
+                    .push(gap(format!("android-lint-config-mismatch:{module_path}")));
             }
             match parse_lint_config(bytes) {
                 Ok(config) => out.config = config,
-                Err(error) => out
-                    .gaps
-                    .push(gap(format!("android-lint-config-malformed:{module_path}:{error}"))),
+                Err(error) => out.gaps.push(gap(format!(
+                    "android-lint-config-malformed:{module_path}:{error}"
+                ))),
             }
         }
         (Some(_), None) => out
@@ -1717,7 +1750,9 @@ fn check_evidence(
     if let Some(model) = &plan.model {
         match parsed.lint_version.as_deref() {
             Some(version) if version == model.lint_version => {}
-            Some(version) => gaps.push(gap(format!("android-lint-version-mismatch:{id}:{version}"))),
+            Some(version) => {
+                gaps.push(gap(format!("android-lint-version-mismatch:{id}:{version}")))
+            }
             None => {}
         }
     }
@@ -1761,7 +1796,10 @@ fn check_evidence(
             }
             authenticated = record.authenticated;
             if !matches!(record.kind, ImportKind::Sarif | ImportKind::Artifact) {
-                gaps.push(gap(format!("android-lint-import-kind:{id}:{}", record.kind.label())));
+                gaps.push(gap(format!(
+                    "android-lint-import-kind:{id}:{}",
+                    record.kind.label()
+                )));
             }
             if record.target != obligation.obligation_target()
                 || record.variant.as_deref() != Some(obligation.module.as_str())
@@ -1778,7 +1816,10 @@ fn check_evidence(
             {
                 gaps.push(gap(format!("android-lint-import-artifact-mismatch:{id}")));
             }
-            if matches!(record.outcome, EvidenceOutcome::Failed | EvidenceOutcome::Error) {
+            if matches!(
+                record.outcome,
+                EvidenceOutcome::Failed | EvidenceOutcome::Error
+            ) {
                 gaps.push(gap(format!("android-lint-import-outcome:{id}")));
             }
             if !record.newly_executed || record.replay_of.is_some() {
@@ -1817,13 +1858,21 @@ pub fn evaluate_lint(
         .collect();
     for (module, variant) in by_key.keys() {
         if !known.contains(&(*module, *variant)) {
-            gaps.push(gap(format!("android-lint-evidence-unmatched:{module}:{variant}")));
+            gaps.push(gap(format!(
+                "android-lint-evidence-unmatched:{module}:{variant}"
+            )));
         }
     }
     let mut results = Vec::new();
     for obligation in &plan.obligations {
         let mut ob_gaps = obligation.plan_gaps.clone();
-        let module_aux = module_aux(plan, &obligation.module, &obligation.module_dir, aux, &inventory);
+        let module_aux = module_aux(
+            plan,
+            &obligation.module,
+            &obligation.module_dir,
+            aux,
+            &inventory,
+        );
         ob_gaps.extend(module_aux.gaps.clone());
         let offered = by_key
             .get(&(obligation.module.as_str(), obligation.variant.as_str()))
@@ -1843,10 +1892,16 @@ pub fn evaluate_lint(
             scope_digest: obligation.scope_digest.clone(),
         };
         if offered.len() > 1 {
-            ob_gaps.push(gap(format!("android-lint-evidence-duplicate:{}", obligation.id)));
+            ob_gaps.push(gap(format!(
+                "android-lint-evidence-duplicate:{}",
+                obligation.id
+            )));
         }
         let Some(item) = offered.first() else {
-            ob_gaps.push(gap(format!("android-lint-evidence-missing:{}", obligation.id)));
+            ob_gaps.push(gap(format!(
+                "android-lint-evidence-missing:{}",
+                obligation.id
+            )));
             result.gaps = sorted_unique(ob_gaps);
             results.push(result);
             continue;
@@ -1914,9 +1969,12 @@ pub fn evaluate_lint(
         all_gaps.extend(result.gaps.clone());
     }
     let all_gaps = sorted_unique(all_gaps);
-    let obligations_ok = results
-        .iter()
-        .all(|r| matches!(r.status, ObligationStatus::Satisfied | ObligationStatus::Findings));
+    let obligations_ok = results.iter().all(|r| {
+        matches!(
+            r.status,
+            ObligationStatus::Satisfied | ObligationStatus::Findings
+        )
+    });
     let applicable = plan.is_applicable();
     let complete = applicable && !results.is_empty() && obligations_ok && all_gaps.is_empty();
     let any_findings = results.iter().any(|r| !r.candidates.is_empty());
@@ -1954,7 +2012,12 @@ impl AndroidLintEvaluation {
     pub fn native_findings(&self) -> Vec<NativeFinding> {
         self.obligations
             .iter()
-            .filter(|r| matches!(r.status, ObligationStatus::Satisfied | ObligationStatus::Findings))
+            .filter(|r| {
+                matches!(
+                    r.status,
+                    ObligationStatus::Satisfied | ObligationStatus::Findings
+                )
+            })
             .flat_map(|r| r.candidates.iter())
             .map(|candidate| NativeFinding {
                 rule: Cow::Owned(format!("android-lint/{}", candidate.rule_id)),
@@ -2026,7 +2089,13 @@ fn fact(kind: &str, subject: &str, detail: &str, path: &str, lens: &'static str)
     }
 }
 
-const COMPONENT_TAGS: &[&str] = &["activity", "activity-alias", "service", "receiver", "provider"];
+const COMPONENT_TAGS: &[&str] = &[
+    "activity",
+    "activity-alias",
+    "service",
+    "receiver",
+    "provider",
+];
 
 /// Extract exported-component, permission, cleartext, debuggable, backup
 /// and deep-link facts from one manifest.
@@ -2131,7 +2200,10 @@ pub fn webview_source_facts(path: &str, text: &str) -> Vec<PlatformFact> {
             "webview-universal-file-access",
         ),
         ("loadUrl(\"http://", "webview-cleartext-url"),
-        ("MIXED_CONTENT_ALWAYS_ALLOW", "webview-mixed-content-allowed"),
+        (
+            "MIXED_CONTENT_ALWAYS_ALLOW",
+            "webview-mixed-content-allowed",
+        ),
     ];
     let mut facts = Vec::new();
     for (index, line) in text.lines().enumerate() {

@@ -75,10 +75,12 @@ impl StructureLanguage {
     fn branch_keywords(self) -> &'static [&'static str] {
         match self {
             Self::Rust => &["if", "match", "while", "for", "loop", "&&", "||", "?"],
-            Self::TypeScript | Self::JavaScript => {
-                &["if", "else", "switch", "case", "while", "for", "catch", "&&", "||", "?"]
-            }
-            Self::Swift => &["if", "guard", "switch", "case", "while", "for", "catch", "&&", "||"],
+            Self::TypeScript | Self::JavaScript => &[
+                "if", "else", "switch", "case", "while", "for", "catch", "&&", "||", "?",
+            ],
+            Self::Swift => &[
+                "if", "guard", "switch", "case", "while", "for", "catch", "&&", "||",
+            ],
             Self::Kotlin => &["if", "when", "while", "for", "catch", "&&", "||"],
         }
     }
@@ -89,8 +91,12 @@ impl StructureLanguage {
 pub enum ParseStatus {
     Parsed,
     /// Unsupported/unbalanced syntax: metrics are absent, never zero.
-    Partial { reason: String },
-    Unsupported { reason: String },
+    Partial {
+        reason: String,
+    },
+    Unsupported {
+        reason: String,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -360,7 +366,9 @@ pub fn classify_exclusion(path: &str, text: &str) -> Option<ExclusionReason> {
     if name.contains(".min.") {
         return Some(ExclusionReason::MinifiedArtifact);
     }
-    if segments.iter().any(|s| matches!(*s, "generated" | "gen" | "__generated__"))
+    if segments
+        .iter()
+        .any(|s| matches!(*s, "generated" | "gen" | "__generated__"))
         || name.contains(".g.")
         || name.contains(".pb.")
         || name.contains(".generated.")
@@ -380,15 +388,28 @@ pub fn classify_exclusion(path: &str, text: &str) -> Option<ExclusionReason> {
 
 /// Dynamic reachability barriers. Presence of any keeps no-callers symbols
 /// in the containing file uncertified.
-pub fn detect_uncertainties(language: StructureLanguage, path: &str, text: &str) -> Vec<UncertaintyKind> {
+pub fn detect_uncertainties(
+    language: StructureLanguage,
+    path: &str,
+    text: &str,
+) -> Vec<UncertaintyKind> {
     let mut found = BTreeSet::new();
     let has = |needles: &[&str]| needles.iter().any(|n| text.contains(n));
     if has(&["import(", "require(", "System.import", "__import__"]) {
         found.insert(UncertaintyKind::DynamicImport);
     }
     if has(&[
-        "reflect", "Reflect.", "Class.forName", "::class", "NSClassFromString",
-        "objc_msgSend", "getattr", "eval(", "Function(", "KClass", "Mirror(",
+        "reflect",
+        "Reflect.",
+        "Class.forName",
+        "::class",
+        "NSClassFromString",
+        "objc_msgSend",
+        "getattr",
+        "eval(",
+        "Function(",
+        "KClass",
+        "Mirror(",
     ]) {
         found.insert(UncertaintyKind::Reflection);
     }
@@ -397,7 +418,16 @@ pub fn detect_uncertainties(language: StructureLanguage, path: &str, text: &str)
         || lower.contains("/app/")
         || file_name(&lower).starts_with("page.")
         || file_name(&lower).starts_with("route.")
-        || has(&["@Get(", "@Post(", "@Route", "#[get(", "#[post(", ".route(", "@Composable"])
+        || file_name(&lower).starts_with("routes.")
+        || has(&[
+            "@Get(",
+            "@Post(",
+            "@Route",
+            "#[get(",
+            "#[post(",
+            ".route(",
+            "@Composable",
+        ])
     {
         found.insert(UncertaintyKind::RouteDiscovery);
     }
@@ -412,21 +442,39 @@ pub fn detect_uncertainties(language: StructureLanguage, path: &str, text: &str)
         found.insert(UncertaintyKind::SwiftSelector);
     }
     if language == StructureLanguage::Kotlin {
-        if has(&["R.", "resources.getIdentifier", "@AndroidEntryPoint", "R8", "keepnames"]) {
+        if has(&[
+            "R.",
+            "resources.getIdentifier",
+            "@AndroidEntryPoint",
+            "R8",
+            "keepnames",
+        ]) {
             found.insert(UncertaintyKind::AndroidResource);
         }
         if has(&["proguard", "minifyEnabled", "shrinkResources"]) {
             found.insert(UncertaintyKind::R8Shrinking);
         }
     }
-    if has(&["@Generated", "generated binding", "ViewBinding", "GeneratedMessage"]) {
+    if has(&[
+        "@Generated",
+        "generated binding",
+        "ViewBinding",
+        "GeneratedMessage",
+    ]) {
         found.insert(UncertaintyKind::GeneratedBinding);
     }
     let name = file_name(&lower);
     if matches!(
         name,
-        "main.rs" | "lib.rs" | "mod.rs" | "main.ts" | "main.tsx" | "main.js" | "main.swift"
-            | "mainactivity.kt" | "application.kt"
+        "main.rs"
+            | "lib.rs"
+            | "mod.rs"
+            | "main.ts"
+            | "main.tsx"
+            | "main.js"
+            | "main.swift"
+            | "mainactivity.kt"
+            | "application.kt"
     ) || name.starts_with("index.")
         || has(&["@main", "fn main(", "fun main(", "static void Main"])
     {
@@ -535,7 +583,11 @@ pub fn tokenize_normalized(text: &str) -> Vec<NormalizedToken> {
                 let keyword = is_keyword(word);
                 tokens.push(NormalizedToken {
                     exact: word.to_owned(),
-                    near: if keyword { word.to_owned() } else { "ID".into() },
+                    near: if keyword {
+                        word.to_owned()
+                    } else {
+                        "ID".into()
+                    },
                     line: line_no,
                 });
             } else if c.is_ascii_digit() {
@@ -554,7 +606,11 @@ pub fn tokenize_normalized(text: &str) -> Vec<NormalizedToken> {
                 // Keep two-char operators the metrics count as branches.
                 let two = line.get(i..i + 2).unwrap_or("");
                 if ["&&", "||", "=>", "::", "?.", "??"].contains(&two) {
-                    tokens.push(NormalizedToken { exact: two.into(), near: two.into(), line: line_no });
+                    tokens.push(NormalizedToken {
+                        exact: two.into(),
+                        near: two.into(),
+                        line: line_no,
+                    });
                     i += 2;
                 } else {
                     let ch_len = line[i..].chars().next().map(char::len_utf8).unwrap_or(1);
@@ -574,14 +630,73 @@ pub fn tokenize_normalized(text: &str) -> Vec<NormalizedToken> {
 fn is_keyword(word: &str) -> bool {
     matches!(
         word,
-        "fn" | "let" | "mut" | "if" | "else" | "match" | "for" | "while" | "loop" | "return"
-            | "pub" | "struct" | "enum" | "trait" | "impl" | "use" | "mod" | "const" | "static"
-            | "function" | "var" | "class" | "interface" | "export" | "import" | "from" | "switch"
-            | "case" | "try" | "catch" | "new" | "typeof" | "func" | "guard" | "protocol"
-            | "extension" | "fun" | "val" | "object" | "when" | "suspend" | "package" | "in"
-            | "is" | "as" | "this" | "self" | "Self" | "true" | "false" | "null" | "nil" | "await"
-            | "async" | "throws" | "throw" | "break" | "continue" | "where" | "type" | "data"
-            | "sealed" | "override" | "private" | "public" | "internal" | "final" | "open"
+        "fn" | "let"
+            | "mut"
+            | "if"
+            | "else"
+            | "match"
+            | "for"
+            | "while"
+            | "loop"
+            | "return"
+            | "pub"
+            | "struct"
+            | "enum"
+            | "trait"
+            | "impl"
+            | "use"
+            | "mod"
+            | "const"
+            | "static"
+            | "function"
+            | "var"
+            | "class"
+            | "interface"
+            | "export"
+            | "import"
+            | "from"
+            | "switch"
+            | "case"
+            | "try"
+            | "catch"
+            | "new"
+            | "typeof"
+            | "func"
+            | "guard"
+            | "protocol"
+            | "extension"
+            | "fun"
+            | "val"
+            | "object"
+            | "when"
+            | "suspend"
+            | "package"
+            | "in"
+            | "is"
+            | "as"
+            | "this"
+            | "self"
+            | "Self"
+            | "true"
+            | "false"
+            | "null"
+            | "nil"
+            | "await"
+            | "async"
+            | "throws"
+            | "throw"
+            | "break"
+            | "continue"
+            | "where"
+            | "type"
+            | "data"
+            | "sealed"
+            | "override"
+            | "private"
+            | "public"
+            | "internal"
+            | "final"
+            | "open"
     )
 }
 
@@ -610,13 +725,14 @@ fn declared_symbols(language: StructureLanguage, text: &str) -> Vec<(String, u64
             StructureLanguage::Rust => identifier_after(trimmed, "fn "),
             StructureLanguage::Swift => identifier_after(trimmed, "func "),
             StructureLanguage::Kotlin => identifier_after(trimmed, "fun "),
-            StructureLanguage::TypeScript | StructureLanguage::JavaScript => identifier_after(trimmed, "function ")
-                .or_else(|| {
+            StructureLanguage::TypeScript | StructureLanguage::JavaScript => {
+                identifier_after(trimmed, "function ").or_else(|| {
                     (trimmed.starts_with("const ") || trimmed.starts_with("export const "))
                         .then(|| identifier_after(trimmed, "const "))
                         .flatten()
                         .filter(|_| trimmed.contains("=>") || trimmed.contains('('))
-                }),
+                })
+            }
         };
         if let Some(name) = name {
             if !symbols.iter().any(|(n, _, _)| n == &name) {
@@ -630,9 +746,14 @@ fn declared_symbols(language: StructureLanguage, text: &str) -> Vec<(String, u64
 fn top_level_responsibilities(language: StructureLanguage, text: &str) -> Vec<String> {
     let markers: &[&str] = match language {
         StructureLanguage::Rust => &["struct ", "enum ", "trait ", "impl ", "fn ", "mod "],
-        StructureLanguage::TypeScript | StructureLanguage::JavaScript => {
-            &["class ", "interface ", "function ", "const ", "type ", "enum "]
-        }
+        StructureLanguage::TypeScript | StructureLanguage::JavaScript => &[
+            "class ",
+            "interface ",
+            "function ",
+            "const ",
+            "type ",
+            "enum ",
+        ],
         StructureLanguage::Swift => &["struct ", "class ", "enum ", "protocol ", "actor ", "func "],
         StructureLanguage::Kotlin => &["class ", "object ", "interface ", "fun ", "data class "],
     };
@@ -679,26 +800,82 @@ fn occurrences_of(text: &str, needles: &[&str]) -> Vec<String> {
 fn state_and_effects(language: StructureLanguage, text: &str) -> (Vec<String>, Vec<String>) {
     let (state, effects): (&[&str], &[&str]) = match language {
         StructureLanguage::Rust => (
-            &["static mut", "Mutex<", "RwLock<", "RefCell<", "Atomic", "OnceLock<"],
-            &["std::fs::", "Command::new", "reqwest", "tokio::spawn", "println!"],
+            &[
+                "static mut",
+                "Mutex<",
+                "RwLock<",
+                "RefCell<",
+                "Atomic",
+                "OnceLock<",
+            ],
+            &[
+                "std::fs::",
+                "Command::new",
+                "reqwest",
+                "tokio::spawn",
+                "println!",
+            ],
         ),
         StructureLanguage::TypeScript | StructureLanguage::JavaScript => (
-            &["useState(", "useReducer(", "useRef(", "createSignal(", "useStore(", "$state("],
-            &["useEffect(", "useVisibleTask$(", "fetch(", "addEventListener(", "setInterval(", "setTimeout("],
+            &[
+                "useState(",
+                "useReducer(",
+                "useRef(",
+                "createSignal(",
+                "useStore(",
+                "$state(",
+            ],
+            &[
+                "useEffect(",
+                "useVisibleTask$(",
+                "fetch(",
+                "addEventListener(",
+                "setInterval(",
+                "setTimeout(",
+            ],
         ),
         StructureLanguage::Swift => (
-            &["@State", "@StateObject", "@ObservedObject", "@Published", "@Binding", "@AppStorage"],
-            &[".task", ".onAppear", "URLSession", "Task {", "NotificationCenter"],
+            &[
+                "@State",
+                "@StateObject",
+                "@ObservedObject",
+                "@Published",
+                "@Binding",
+                "@AppStorage",
+            ],
+            &[
+                ".task",
+                ".onAppear",
+                "URLSession",
+                "Task {",
+                "NotificationCenter",
+            ],
         ),
         StructureLanguage::Kotlin => (
-            &["mutableStateOf(", "remember {", "StateFlow", "MutableState", "by lazy"],
-            &["LaunchedEffect(", "DisposableEffect(", "SideEffect", "viewModelScope.launch", "Retrofit"],
+            &[
+                "mutableStateOf(",
+                "remember {",
+                "StateFlow",
+                "MutableState",
+                "by lazy",
+            ],
+            &[
+                "LaunchedEffect(",
+                "DisposableEffect(",
+                "SideEffect",
+                "viewModelScope.launch",
+                "Retrofit",
+            ],
         ),
     };
     (occurrences_of(text, state), occurrences_of(text, effects))
 }
 
-fn measure_file(language: StructureLanguage, text: &str, tokens: &[NormalizedToken]) -> (ParseStatus, Option<FileMetrics>) {
+fn measure_file(
+    language: StructureLanguage,
+    text: &str,
+    tokens: &[NormalizedToken],
+) -> (ParseStatus, Option<FileMetrics>) {
     let Some((max_depth, per_line_depth)) = brace_profile(text) else {
         return (
             ParseStatus::Partial {
@@ -736,7 +913,11 @@ fn measure_file(language: StructureLanguage, text: &str, tokens: &[NormalizedTok
     let symbols = declared_symbols(language, text);
     for (name, start, _) in &symbols {
         let start_idx = (*start as usize).saturating_sub(1);
-        let base = if start_idx == 0 { 0 } else { per_line_depth.get(start_idx - 1).copied().unwrap_or(0) };
+        let base = if start_idx == 0 {
+            0
+        } else {
+            per_line_depth.get(start_idx - 1).copied().unwrap_or(0)
+        };
         let mut end = lines.len();
         for idx in start_idx..lines.len() {
             if idx > start_idx && per_line_depth.get(idx).copied().unwrap_or(0) <= base {
@@ -798,7 +979,10 @@ fn impl_count(name: &str, corpus: &[(String, String)]) -> (usize, bool) {
                     .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                     .collect();
                 let lower = target.to_ascii_lowercase();
-                if ["fake", "mock", "stub", "double", "test"].iter().any(|w| lower.contains(w)) {
+                if ["fake", "mock", "stub", "double", "test"]
+                    .iter()
+                    .any(|w| lower.contains(w))
+                {
                     has_double = true;
                 } else {
                     production += 1;
@@ -839,7 +1023,10 @@ fn is_barrel(text: &str) -> bool {
 fn is_part_file(path: &str) -> bool {
     let normalized = path.replace('\\', "/");
     let segments: Vec<&str> = normalized.split('/').collect();
-    let parent = segments.get(segments.len().wrapping_sub(2)).copied().unwrap_or("");
+    let parent = segments
+        .get(segments.len().wrapping_sub(2))
+        .copied()
+        .unwrap_or("");
     let parent_lower = parent.to_ascii_lowercase();
     if parent_lower == "parts" || parent_lower.ends_with("_parts") {
         return true;
@@ -880,7 +1067,13 @@ fn find_duplicates(
                 let slice = &tokens[start..start + window];
                 let joined = slice
                     .iter()
-                    .map(|t| if near_mode { t.near.as_str() } else { t.exact.as_str() })
+                    .map(|t| {
+                        if near_mode {
+                            t.near.as_str()
+                        } else {
+                            t.exact.as_str()
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("\u{1}");
                 groups
@@ -911,12 +1104,15 @@ fn find_duplicates(
             }
             if near_mode {
                 // Skip groups already exact (same first occurrence).
-                let first_lines = (parsed[first_file].0.clone(), parsed[first_file].2[kept[0].1].line);
+                let first_lines = (
+                    parsed[first_file].0.clone(),
+                    parsed[first_file].2[kept[0].1].line,
+                );
                 if spans.iter().any(|s: &DuplicateSpan| {
                     s.kind == DuplicateKind::Exact
-                        && s.occurrences
-                            .first()
-                            .is_some_and(|o| o.path == first_lines.0 && o.start_line == first_lines.1)
+                        && s.occurrences.first().is_some_and(|o| {
+                            o.path == first_lines.0 && o.start_line == first_lines.1
+                        })
                 }) {
                     continue;
                 }
@@ -938,7 +1134,11 @@ fn find_duplicates(
                 .find(|inv| inv.normalized_digest == digest)
                 .cloned();
             spans.push(DuplicateSpan {
-                kind: if near_mode { DuplicateKind::Near } else { DuplicateKind::Exact },
+                kind: if near_mode {
+                    DuplicateKind::Near
+                } else {
+                    DuplicateKind::Exact
+                },
                 language,
                 grammar: language.grammar().into(),
                 token_normalizer: TOKEN_NORMALIZER_VERSION.into(),
@@ -997,7 +1197,10 @@ pub fn analyze_structure(
             graph_callers
                 .entry(edge.to.clone())
                 .or_default()
-                .push(format!("{} ({}/{})", edge.from, edge.confidence, edge.source));
+                .push(format!(
+                    "{} ({}/{})",
+                    edge.from, edge.confidence, edge.source
+                ));
         }
     }
 
@@ -1042,9 +1245,16 @@ pub fn analyze_structure(
             }
         }
         let lower_path = path.to_ascii_lowercase();
-        if ["auth", "crypto", "secret", "token", "permission", "security"]
-            .iter()
-            .any(|w| lower_path.contains(w))
+        if [
+            "auth",
+            "crypto",
+            "secret",
+            "token",
+            "permission",
+            "security",
+        ]
+        .iter()
+        .any(|w| lower_path.contains(w))
         {
             seams.insert(SeamKind::Security);
         }
@@ -1084,7 +1294,8 @@ pub fn analyze_structure(
             }
         }
         if !seams.is_empty() && priority != InvestigationPriority::None {
-            priority_reasons.push("preserved seam/barrel present; priority is investigation only".into());
+            priority_reasons
+                .push("preserved seam/barrel present; priority is investigation only".into());
         }
 
         // Unused candidates: no lexical/graph caller for a non-exported
@@ -1104,7 +1315,11 @@ pub fn analyze_structure(
                     symbol: symbol.clone(),
                     path: path.clone(),
                     line: *line,
-                    evidence: if graph.is_some() { "no-graph-callers".into() } else { "no-lexical-callers".into() },
+                    evidence: if graph.is_some() {
+                        "no-graph-callers".into()
+                    } else {
+                        "no-lexical-callers".into()
+                    },
                     uncertainties: uncertainties.clone(),
                     certifies_dead: false,
                 });
@@ -1151,7 +1366,10 @@ pub fn analyze_structure(
     let mut by_dir: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for fact in &file_facts {
         if is_part_file(&fact.path) {
-            by_dir.entry(parent_dir(&fact.path)).or_default().push(fact.path.clone());
+            by_dir
+                .entry(parent_dir(&fact.path))
+                .or_default()
+                .push(fact.path.clone());
         }
     }
     let include_roots: Vec<String> = included
@@ -1248,5 +1466,3 @@ pub fn analyze_structure(
         proves_dead_code: false,
     }
 }
-
-

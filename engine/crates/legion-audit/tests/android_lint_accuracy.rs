@@ -344,7 +344,10 @@ fn applicability_is_inferred_from_agp_manifest_and_resources() {
 #[test]
 fn plain_kotlin_is_not_applicable_and_partial_evidence_is_ambiguous() {
     let plain = vec![
-        entry("build.gradle.kts", sha(&fixture("plain-kotlin/build.gradle.kts"))),
+        entry(
+            "build.gradle.kts",
+            sha(&fixture("plain-kotlin/build.gradle.kts")),
+        ),
         entry("Main.kt", sha(&fixture("plain-kotlin/Main.kt"))),
     ];
     let texts = BTreeMap::from([(
@@ -402,7 +405,10 @@ fn variants_are_enumerated_from_the_model_with_exact_task_identity() {
     assert_eq!(phone.obligation_target(), "android:phoneRelease");
     assert_eq!(phone.obligation_variant(), ":app");
     // Argv comes from the model task identity, never a whole-product lint.
-    let runner = phone.runner.as_ref().expect("admitted route plans a runner");
+    let runner = phone
+        .runner
+        .as_ref()
+        .expect("admitted route plans a runner");
     assert_eq!(runner.program, "gradlew-from-model-receipt");
     assert_eq!(runner.argv[0], ":app:lintPhoneRelease");
     assert!(!runner.argv.iter().any(|arg| arg == "lint"));
@@ -425,7 +431,10 @@ fn explicit_required_variants_and_unknown_pairs() {
     ]);
     let plan = plan_with(Some(&model), &options);
     assert_eq!(plan.obligations.len(), 1);
-    assert!(has_gap(&plan.gaps, "android-required-variant-unknown::app:nonexistent"));
+    assert!(has_gap(
+        &plan.gaps,
+        "android-required-variant-unknown::app:nonexistent"
+    ));
 }
 
 #[test]
@@ -444,9 +453,18 @@ fn missing_sdk_resolution_failure_exclusion_and_absent_module_are_gaps() {
     broken.sdk = None;
     let plan = plan_with(Some(&broken), &admitted(AuditProfile::Release));
     assert!(has_gap(&plan.gaps, "android-sdk-missing"));
-    assert!(plan.obligations.iter().all(|o| has_gap(&o.plan_gaps, "android-sdk-missing")));
+    assert!(plan
+        .obligations
+        .iter()
+        .all(|o| has_gap(&o.plan_gaps, "android-sdk-missing")));
     assert!(plan.obligations.iter().all(|o| o.runner.is_none()));
-    let evaluation = evaluate_lint(&plan, &entries, &full_local_evidence(&plan), &AuxFiles::default(), NOW);
+    let evaluation = evaluate_lint(
+        &plan,
+        &entries,
+        &full_local_evidence(&plan),
+        &AuxFiles::default(),
+        NOW,
+    );
     assert!(!evaluation.complete && !evaluation.clean);
 
     let mut broken = build_model(&entries);
@@ -454,13 +472,36 @@ fn missing_sdk_resolution_failure_exclusion_and_absent_module_are_gaps() {
     broken.modules[0].lint_excluded = true;
     broken.modules[0].exclusion_reason = Some("disabled in build.gradle".into());
     let plan = plan_with(Some(&broken), &admitted(AuditProfile::Release));
-    let lib = plan.obligations.iter().find(|o| o.module == ":lib").unwrap();
-    assert!(has_gap(&lib.plan_gaps, "android-gradle-resolution-failed::lib"));
-    let app = plan.obligations.iter().find(|o| o.module == ":app").unwrap();
-    assert!(has_gap(&app.plan_gaps, "android-module-excluded::app:disabled in build.gradle"));
-    let evaluation = evaluate_lint(&plan, &entries, &full_local_evidence(&plan), &AuxFiles::default(), NOW);
+    let lib = plan
+        .obligations
+        .iter()
+        .find(|o| o.module == ":lib")
+        .unwrap();
+    assert!(has_gap(
+        &lib.plan_gaps,
+        "android-gradle-resolution-failed::lib"
+    ));
+    let app = plan
+        .obligations
+        .iter()
+        .find(|o| o.module == ":app")
+        .unwrap();
+    assert!(has_gap(
+        &app.plan_gaps,
+        "android-module-excluded::app:disabled in build.gradle"
+    ));
+    let evaluation = evaluate_lint(
+        &plan,
+        &entries,
+        &full_local_evidence(&plan),
+        &AuxFiles::default(),
+        NOW,
+    );
     assert!(!evaluation.complete);
-    assert!(evaluation.obligations.iter().all(|r| r.status == ObligationStatus::Rejected));
+    assert!(evaluation
+        .obligations
+        .iter()
+        .all(|r| r.status == ObligationStatus::Rejected));
 
     // The repository has a manifest-bearing module the model never listed.
     let mut partial = build_model(&entries);
@@ -474,7 +515,12 @@ fn drifted_source_set_or_bad_task_identity_blocks_the_obligation() {
     let mut drifted = entries();
     let model = build_model(&drifted);
     drifted[RELEASE_CONFIG_INDEX].digest = Some(format!("sha256:{}", "c".repeat(64)));
-    let plan = plan_lint(&drifted, &build_texts(), Some(&model), &admitted(AuditProfile::Release));
+    let plan = plan_lint(
+        &drifted,
+        &build_texts(),
+        Some(&model),
+        &admitted(AuditProfile::Release),
+    );
     let phone = &plan.obligations[0];
     assert!(has_gap(
         &phone.plan_gaps,
@@ -485,7 +531,10 @@ fn drifted_source_set_or_bad_task_identity_blocks_the_obligation() {
     let mut renamed = build_model(&entries);
     renamed.modules[0].variants[0].lint_task = ":app:lintVitalPhoneRelease".into();
     let plan = plan_with(Some(&renamed), &admitted(AuditProfile::Release));
-    assert!(has_gap(&plan.obligations[0].plan_gaps, "android-lint-task-identity-mismatch"));
+    assert!(has_gap(
+        &plan.obligations[0].plan_gaps,
+        "android-lint-task-identity-mismatch"
+    ));
 }
 
 #[test]
@@ -517,12 +566,21 @@ fn full_admitted_evidence_for_every_variant_is_complete_but_not_clean_with_findi
     assert_eq!(phone.status, ObligationStatus::Findings);
     assert_eq!(phone.candidates.len(), 3);
     assert!(phone.candidates.iter().any(|c| c.generated));
-    assert_eq!(evaluation.obligations[1].status, ObligationStatus::Satisfied);
+    assert_eq!(
+        evaluation.obligations[1].status,
+        ObligationStatus::Satisfied
+    );
     assert_eq!(evaluation.native_findings().len(), 3);
-    assert!(evaluation.native_findings().iter().any(|f| f.severity == "error"));
+    assert!(evaluation
+        .native_findings()
+        .iter()
+        .any(|f| f.severity == "error"));
     // Lint success never claims compile/tests/device/package coverage.
     assert!(evaluation.claim_limits.contains(&"device-lifecycle"));
-    assert_eq!(adjacent_obligations(&plan).len(), plan.obligations.len() * 4);
+    assert_eq!(
+        adjacent_obligations(&plan).len(),
+        plan.obligations.len() * 4
+    );
     assert_eq!(evaluation.to_value()["providerId"], PROVIDER_ID);
 }
 
@@ -533,11 +591,21 @@ fn clean_only_when_every_variant_is_qualified_and_finding_free() {
     let plan = plan_with(Some(&model), &admitted(AuditProfile::Release));
     let evidence = vec![
         local_run(&plan, ":app", "phoneRelease", "tablet-release.xml", Some(0)),
-        local_run(&plan, ":app", "tabletRelease", "tablet-release.xml", Some(0)),
+        local_run(
+            &plan,
+            ":app",
+            "tabletRelease",
+            "tablet-release.xml",
+            Some(0),
+        ),
         local_run(&plan, ":lib", "release", "lib-release.xml", Some(0)),
     ];
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &AuxFiles::default(), NOW);
-    assert!(evaluation.complete && evaluation.clean, "{:?}", evaluation.gaps);
+    assert!(
+        evaluation.complete && evaluation.clean,
+        "{:?}",
+        evaluation.gaps
+    );
 }
 
 #[test]
@@ -550,7 +618,11 @@ fn scanning_one_variant_cannot_certify_both() {
         local_run(&plan, ":lib", "release", "lib-release.xml", Some(0)),
     ];
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &AuxFiles::default(), NOW);
-    let tablet = evaluation.obligations.iter().find(|r| r.variant == "tabletRelease").unwrap();
+    let tablet = evaluation
+        .obligations
+        .iter()
+        .find(|r| r.variant == "tabletRelease")
+        .unwrap();
     assert_eq!(tablet.status, ObligationStatus::Missing);
     assert!(!evaluation.complete && !evaluation.clean && !evaluation.profile_satisfied);
     assert!(has_gap(
@@ -567,17 +639,28 @@ fn scanning_one_variant_cannot_certify_both() {
 
     // A scope claim lacking this variant's source sets is incomplete.
     let mut narrow = full_local_evidence(&plan);
-    narrow[1].examined_scope.retain(|item| !item.starts_with("source-set:tablet"));
+    narrow[1]
+        .examined_scope
+        .retain(|item| !item.starts_with("source-set:tablet"));
     let evaluation = evaluate_lint(&plan, &entries, &narrow, &AuxFiles::default(), NOW);
     assert!(has_gap(&evaluation.gaps, "android-lint-scope-incomplete"));
     assert!(!evaluation.complete);
 
     // Evidence for a variant the plan never froze is named, not absorbed.
     let mut extra = full_local_evidence(&plan);
-    extra.push(local_run(&plan, ":app", "phoneRelease", "phone-release.xml", Some(1)));
+    extra.push(local_run(
+        &plan,
+        ":app",
+        "phoneRelease",
+        "phone-release.xml",
+        Some(1),
+    ));
     extra[3].variant = "phoneDebug".into();
     let evaluation = evaluate_lint(&plan, &entries, &extra, &AuxFiles::default(), NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-evidence-unmatched::app:phoneDebug"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-evidence-unmatched::app:phoneDebug"
+    ));
     assert!(!evaluation.complete);
 }
 
@@ -597,14 +680,20 @@ fn unsigned_local_file_and_unauthenticated_import_never_satisfy() {
     assert_eq!(evaluation.obligations[0].status, ObligationStatus::Findings);
     assert!(evaluation.obligations[0].authenticated);
     for index in [1, 2] {
-        assert_eq!(evaluation.obligations[index].status, ObligationStatus::Rejected);
+        assert_eq!(
+            evaluation.obligations[index].status,
+            ObligationStatus::Rejected
+        );
         assert!(!evaluation.obligations[index].authenticated);
         assert!(has_gap(
             &evaluation.obligations[index].gaps,
             "android-lint-evidence-unauthenticated"
         ));
     }
-    assert!(evaluation.native_findings().iter().all(|f| f.path.starts_with("app/")));
+    assert!(evaluation
+        .native_findings()
+        .iter()
+        .all(|f| f.path.starts_with("app/")));
 }
 
 #[test]
@@ -639,7 +728,11 @@ fn stale_replayed_wrong_subject_and_wrong_artifact_imports_are_rejected() {
         record.artifacts[0].digest = format!("sha256:{}", "d".repeat(64));
     }
     let evaluation = evaluate_lint(&plan, &entries, &[stale], &AuxFiles::default(), NOW);
-    let tablet = evaluation.obligations.iter().find(|r| r.variant == "tabletRelease").unwrap();
+    let tablet = evaluation
+        .obligations
+        .iter()
+        .find(|r| r.variant == "tabletRelease")
+        .unwrap();
     assert_eq!(tablet.status, ObligationStatus::Rejected);
     for needle in [
         "android-lint-evidence-stale",
@@ -658,9 +751,19 @@ fn local_run_exit_and_receipt_semantics() {
     let model = build_model(&entries);
     let plan = plan_with(Some(&model), &admitted(AuditProfile::Release));
     // Exit 1 with only a warning is a build/compile failure, not lint findings.
-    let mut run = local_run(&plan, ":app", "tabletRelease", "exit-without-errors.xml", Some(1));
+    let mut run = local_run(
+        &plan,
+        ":app",
+        "tabletRelease",
+        "exit-without-errors.xml",
+        Some(1),
+    );
     let evaluation = evaluate_lint(&plan, &entries, &[run.clone()], &AuxFiles::default(), NOW);
-    let tablet = evaluation.obligations.iter().find(|r| r.variant == "tabletRelease").unwrap();
+    let tablet = evaluation
+        .obligations
+        .iter()
+        .find(|r| r.variant == "tabletRelease")
+        .unwrap();
     assert!(has_gap(&tablet.gaps, "android-lint-exit-without-errors"));
     assert_eq!(tablet.status, ObligationStatus::Rejected);
 
@@ -675,14 +778,20 @@ fn local_run_exit_and_receipt_semantics() {
         receipt.report_artifact_digest = Some(format!("sha256:{}", "e".repeat(64)));
     }
     let evaluation = evaluate_lint(&plan, &entries, &[run], &AuxFiles::default(), NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-receipt-link-missing"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-receipt-link-missing"
+    ));
 
     // A local run is rejected when the plan never admitted execution.
     let options = AndroidLintOptions::new(AuditProfile::Release, ExecutionRoute::NotAdmitted);
     let unadmitted = plan_with(Some(&model), &options);
     let evidence = full_local_evidence(&unadmitted);
     let evaluation = evaluate_lint(&unadmitted, &entries, &evidence, &AuxFiles::default(), NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-local-run-not-admitted"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-local-run-not-admitted"
+    ));
     assert!(!evaluation.complete);
 }
 
@@ -691,18 +800,46 @@ fn wrong_toolchain_lint_version_and_unresolved_locations_are_gaps() {
     let entries = entries();
     let model = build_model(&entries);
     let plan = plan_with(Some(&model), &admitted(AuditProfile::Release));
-    let mut wrong_toolchain = local_run(&plan, ":app", "tabletRelease", "tablet-release.xml", Some(0));
+    let mut wrong_toolchain = local_run(
+        &plan,
+        ":app",
+        "tabletRelease",
+        "tablet-release.xml",
+        Some(0),
+    );
     wrong_toolchain.toolchain = "agp-7.0.0+gradle-7.0+jdk-17+lint-30.0.0+compileSdk-33".into();
-    let evaluation = evaluate_lint(&plan, &entries, &[wrong_toolchain], &AuxFiles::default(), NOW);
+    let evaluation = evaluate_lint(
+        &plan,
+        &entries,
+        &[wrong_toolchain],
+        &AuxFiles::default(),
+        NOW,
+    );
     assert!(has_gap(&evaluation.gaps, "android-lint-toolchain-mismatch"));
 
-    let wrong_version = local_run(&plan, ":app", "tabletRelease", "wrong-lint-version.xml", Some(0));
+    let wrong_version = local_run(
+        &plan,
+        ":app",
+        "tabletRelease",
+        "wrong-lint-version.xml",
+        Some(0),
+    );
     let evaluation = evaluate_lint(&plan, &entries, &[wrong_version], &AuxFiles::default(), NOW);
     assert!(has_gap(&evaluation.gaps, "android-lint-version-mismatch"));
 
-    let absolute = local_run(&plan, ":app", "tabletRelease", "absolute-unresolved.xml", Some(1));
+    let absolute = local_run(
+        &plan,
+        ":app",
+        "tabletRelease",
+        "absolute-unresolved.xml",
+        Some(1),
+    );
     let evaluation = evaluate_lint(&plan, &entries, &[absolute], &AuxFiles::default(), NOW);
-    let tablet = evaluation.obligations.iter().find(|r| r.variant == "tabletRelease").unwrap();
+    let tablet = evaluation
+        .obligations
+        .iter()
+        .find(|r| r.variant == "tabletRelease")
+        .unwrap();
     assert!(tablet.candidates.is_empty());
     assert!(has_gap(&tablet.gaps, "android-lint-location-unresolved"));
     assert_eq!(tablet.status, ObligationStatus::Rejected);
@@ -724,7 +861,13 @@ fn pre_pr_defers_lint_but_release_stays_incomplete() {
     assert!(evaluation.deferred.is_empty());
 
     // A rejected (not merely missing) obligation is never deferrable.
-    let mut unsigned = local_run(&pre_pr, ":app", "tabletRelease", "tablet-release.xml", Some(0));
+    let mut unsigned = local_run(
+        &pre_pr,
+        ":app",
+        "tabletRelease",
+        "tablet-release.xml",
+        Some(0),
+    );
     unsigned.source = LintEvidenceSource::UnsignedFile;
     let evaluation = evaluate_lint(&pre_pr, &entries, &[unsigned], &AuxFiles::default(), NOW);
     assert!(!evaluation.profile_satisfied);
@@ -756,8 +899,10 @@ fn baseline_suppressions_stay_visible_and_changes_trigger_review() {
     let evidence = full_local_evidence(&plan);
     let mut aux = AuxFiles::default();
     aux.baselines.insert(":app".into(), clean.clone());
-    aux.lint_configs.insert(":app".into(), fixture("baselines/lint-config.xml"));
-    aux.approved_baseline_digests.insert(":app".into(), sha(&clean));
+    aux.lint_configs
+        .insert(":app".into(), fixture("baselines/lint-config.xml"));
+    aux.approved_baseline_digests
+        .insert(":app".into(), sha(&clean));
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &aux, NOW);
     assert!(evaluation.gaps.is_empty(), "{:?}", evaluation.gaps);
     let phone = &evaluation.obligations[0];
@@ -772,18 +917,27 @@ fn baseline_suppressions_stay_visible_and_changes_trigger_review() {
         .approved_baseline_digests
         .insert(":app".into(), format!("sha256:{}", "1".repeat(64)));
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &changed, NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-baseline-changed::app"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-baseline-changed::app"
+    ));
     assert!(!evaluation.complete);
 
     // No prior review at all is also a review gap.
     let mut unreviewed = aux.clone();
     unreviewed.approved_baseline_digests.clear();
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &unreviewed, NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-baseline-unreviewed::app"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-baseline-unreviewed::app"
+    ));
 
     // Baseline and config declared but never read.
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &AuxFiles::default(), NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-baseline-unread::app"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-baseline-unread::app"
+    ));
     assert!(has_gap(&evaluation.gaps, "android-lint-config-unread::app"));
 }
 
@@ -796,8 +950,10 @@ fn stale_baseline_entries_and_digest_drift_leave_gaps() {
     let evidence = full_local_evidence(&plan);
     let mut aux = AuxFiles::default();
     aux.baselines.insert(":app".into(), stale.clone());
-    aux.lint_configs.insert(":app".into(), fixture("baselines/lint-config.xml"));
-    aux.approved_baseline_digests.insert(":app".into(), sha(&stale));
+    aux.lint_configs
+        .insert(":app".into(), fixture("baselines/lint-config.xml"));
+    aux.approved_baseline_digests
+        .insert(":app".into(), sha(&stale));
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &aux, NOW);
     assert!(has_gap(
         &evaluation.gaps,
@@ -807,9 +963,14 @@ fn stale_baseline_entries_and_digest_drift_leave_gaps() {
 
     // Bytes that differ from the digest frozen in the model.
     let mut drift = aux.clone();
-    drift.baselines.insert(":app".into(), fixture("baselines/baseline-clean.xml"));
+    drift
+        .baselines
+        .insert(":app".into(), fixture("baselines/baseline-clean.xml"));
     let evaluation = evaluate_lint(&plan, &entries, &evidence, &drift, NOW);
-    assert!(has_gap(&evaluation.gaps, "android-lint-baseline-mismatch::app"));
+    assert!(has_gap(
+        &evaluation.gaps,
+        "android-lint-baseline-mismatch::app"
+    ));
 
     // A baseline present in the repository but undeclared by the model.
     let mut with_file = entries.clone();
@@ -821,7 +982,10 @@ fn stale_baseline_entries_and_digest_drift_leave_gaps() {
         Some(&plain_model),
         &admitted(AuditProfile::Release),
     );
-    assert!(has_gap(&plan.obligations[0].plan_gaps, "android-lint-baseline-undeclared::app"));
+    assert!(has_gap(
+        &plan.obligations[0].plan_gaps,
+        "android-lint-baseline-undeclared::app"
+    ));
 }
 
 // ---------------------------------------------------------------------------
@@ -840,13 +1004,19 @@ fn xml_parser_rejects_dtd_entities_truncation_and_bombs() {
     assert!(has_gap(&truncated.gaps, "android-lint-malformed-report"));
 
     let unsupported = parse_lint_xml(&fixture("reports/unsupported-format.xml"));
-    assert!(has_gap(&unsupported.gaps, "android-lint-unsupported-report-format:3"));
+    assert!(has_gap(
+        &unsupported.gaps,
+        "android-lint-unsupported-report-format:3"
+    ));
 
     let deep = format!("{}{}", "<a>".repeat(200), "</a>".repeat(200));
     assert_eq!(parse_xml(deep.as_bytes()), Err("too-deep".to_string()));
     assert!(parse_xml(b"<a x=\"1\" x=\"2\"/>").is_err());
     assert!(parse_xml(b"<a x=\"&bogus;\"/>").is_err());
-    assert_eq!(parse_xml(b"<a x=\"1 &lt; 2\"/>").unwrap().attr("x"), Some("1 < 2"));
+    assert_eq!(
+        parse_xml(b"<a x=\"1 &lt; 2\"/>").unwrap().attr("x"),
+        Some("1 < 2")
+    );
 }
 
 #[test]
@@ -855,10 +1025,18 @@ fn lint_xml_report_yields_locations_severities_and_version() {
     assert!(parsed.gaps.is_empty(), "{:?}", parsed.gaps);
     assert_eq!(parsed.lint_version.as_deref(), Some("31.5.0"));
     assert_eq!(parsed.issues.len(), 3);
-    let receiver = parsed.issues.iter().find(|i| i.rule_id == "ExportedReceiver").unwrap();
+    let receiver = parsed
+        .issues
+        .iter()
+        .find(|i| i.rule_id == "ExportedReceiver")
+        .unwrap();
     assert_eq!(receiver.severity, "error");
     assert_eq!(receiver.line, 23);
-    let text = parsed.issues.iter().find(|i| i.rule_id == "HardcodedText").unwrap();
+    let text = parsed
+        .issues
+        .iter()
+        .find(|i| i.rule_id == "HardcodedText")
+        .unwrap();
     assert_eq!(text.severity, "warning");
     assert!(text.message.contains("\"Hello\""));
 }
@@ -883,7 +1061,9 @@ fn baseline_and_lint_config_parsers() {
     let config = parse_lint_config(&fixture("baselines/lint-config.xml")).unwrap();
     assert_eq!(config.len(), 2);
     assert!(config.iter().any(|c| c.kind == "severity-ignore"));
-    assert!(config.iter().any(|c| c.kind == "path-ignore" && c.detail == "**/legacy/**"));
+    assert!(config
+        .iter()
+        .any(|c| c.kind == "path-ignore" && c.detail == "**/legacy/**"));
 }
 
 // ---------------------------------------------------------------------------
@@ -910,13 +1090,19 @@ fn manifest_and_webview_facts_feed_existing_lenses() {
     assert_eq!(deep.detail, "https://example.com autoVerify=true");
     assert!(manifest_facts(path, b"<!DOCTYPE manifest []><manifest/>").is_err());
 
-    let source =
-        String::from_utf8(fixture("project/app/src/main/kotlin/com/example/MainActivity.kt")).unwrap();
+    let source = String::from_utf8(fixture(
+        "project/app/src/main/kotlin/com/example/MainActivity.kt",
+    ))
+    .unwrap();
     let web = webview_source_facts("app/src/main/kotlin/com/example/MainActivity.kt", &source);
     let kinds: Vec<&str> = web.iter().map(|f| f.kind.as_str()).collect();
     assert_eq!(
         kinds,
-        ["webview-javascript-enabled", "webview-javascript-interface", "webview-cleartext-url"]
+        [
+            "webview-javascript-enabled",
+            "webview-javascript-interface",
+            "webview-cleartext-url"
+        ]
     );
     assert!(web.iter().all(|f| f.line.is_some() && f.lens == "security"));
 }

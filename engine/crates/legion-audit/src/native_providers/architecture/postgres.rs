@@ -144,12 +144,7 @@ fn is_ident(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
 
-fn finish(
-    norm: &mut String,
-    bodies: &mut Vec<String>,
-    start: &mut usize,
-    out: &mut Vec<Stmt>,
-) {
+fn finish(norm: &mut String, bodies: &mut Vec<String>, start: &mut usize, out: &mut Vec<Stmt>) {
     let tokens: Vec<String> = norm.split_whitespace().map(str::to_owned).collect();
     if !tokens.is_empty() {
         out.push(Stmt {
@@ -223,9 +218,8 @@ fn split_statements(sql: &str) -> Vec<Stmt> {
                 i += 1;
             }
             '\'' => {
-                let escapes = i > 0
-                    && matches!(c[i - 1], 'e' | 'E')
-                    && (i < 2 || !is_ident(c[i - 2]));
+                let escapes =
+                    i > 0 && matches!(c[i - 1], 'e' | 'E') && (i < 2 || !is_ident(c[i - 2]));
                 i += 1;
                 while i < c.len() {
                     if escapes && c[i] == '\\' {
@@ -264,8 +258,8 @@ fn split_statements(sql: &str) -> Vec<Stmt> {
                 while j < c.len() && is_ident(c[j]) {
                     j += 1;
                 }
-                let tag_ok = c.get(j) == Some(&'$')
-                    && !c.get(i + 1).is_some_and(|d| d.is_ascii_digit());
+                let tag_ok =
+                    c.get(j) == Some(&'$') && !c.get(i + 1).is_some_and(|d| d.is_ascii_digit());
                 if !tag_ok {
                     norm.push(' ');
                     norm.push('$');
@@ -394,7 +388,8 @@ fn order_key_for(path: &str) -> Option<OrderKey> {
         if ch.is_ascii_digit() || ch == '.' {
             digits.push(ch);
         } else if ch == '_' {
-            if chars.get(i + 1) == Some(&'_') || !chars.get(i + 1).is_some_and(|n| n.is_ascii_digit())
+            if chars.get(i + 1) == Some(&'_')
+                || !chars.get(i + 1).is_some_and(|n| n.is_ascii_digit())
             {
                 break;
             }
@@ -425,12 +420,13 @@ fn is_migration_path(path: &str) -> bool {
     if !lower.ends_with(".sql") {
         return false;
     }
-    lower.split('/').any(|part| {
-        part.starts_with("migrat") || part == "flyway" || part == "sqitch"
-    }) || lower
-        .rsplit('/')
-        .next()
-        .is_some_and(|f| f.starts_with('v') && f.contains("__"))
+    lower
+        .split('/')
+        .any(|part| part.starts_with("migrat") || part == "flyway" || part == "sqitch")
+        || lower
+            .rsplit('/')
+            .next()
+            .is_some_and(|f| f.starts_with('v') && f.contains("__"))
 }
 
 fn framework_of(path: &str, text: &str) -> Option<&'static str> {
@@ -467,7 +463,10 @@ fn nonsql_framework(path: &str) -> Option<&'static str> {
     } else if lower.contains("alembic/versions/") && file.ends_with(".py") {
         Some("alembic")
     } else if (lower.contains("/migrations/") || lower.starts_with("migrations/"))
-        && (file.ends_with(".js") || file.ends_with(".ts") || file.ends_with(".cjs") || file.ends_with(".mjs"))
+        && (file.ends_with(".js")
+            || file.ends_with(".ts")
+            || file.ends_with(".cjs")
+            || file.ends_with(".mjs"))
         && file.chars().next().is_some_and(|c| c.is_ascii_digit())
     {
         Some("js-migration")
@@ -488,7 +487,10 @@ fn up_section(text: &str) -> String {
         return text.to_owned();
     };
     let start = lower.find(up).map(|p| p + up.len()).unwrap_or(0);
-    let end = lower[start..].find(down).map(|p| p + start).unwrap_or(text.len());
+    let end = lower[start..]
+        .find(down)
+        .map(|p| p + start)
+        .unwrap_or(text.len());
     text[start..end].to_owned()
 }
 
@@ -496,8 +498,14 @@ fn versions_in(text: &str) -> BTreeSet<u32> {
     let mut out = BTreeSet::new();
     let lower = text.to_ascii_lowercase();
     for marker in [
-        "postgres:", "postgresql:", "postgis/postgis:", "postgresql@", "postgresql-",
-        "postgres_version=", "postgres_version:", "pg_version=",
+        "postgres:",
+        "postgresql:",
+        "postgis/postgis:",
+        "postgresql@",
+        "postgresql-",
+        "postgres_version=",
+        "postgres_version:",
+        "pg_version=",
     ] {
         let mut rest = lower.as_str();
         while let Some(pos) = rest.find(marker) {
@@ -600,7 +608,8 @@ impl<'a> Analyzer<'a> {
 
     fn cardinality(&mut self, table: &str) {
         if !self.ctx.table_rows.contains_key(table) {
-            self.gaps.insert(format!("table-cardinality-unknown:{table}"));
+            self.gaps
+                .insert(format!("table-cardinality-unknown:{table}"));
         }
     }
 
@@ -655,18 +664,29 @@ impl<'a> Analyzer<'a> {
 }
 
 const VOLATILE_DEFAULTS: &[&str] = &[
-    "random", "clock_timestamp", "timeofday", "nextval", "gen_random_uuid", "uuid_generate_v4",
-    "uuid_generate_v1", "gen_random_bytes", "txid_current", "setseed",
+    "random",
+    "clock_timestamp",
+    "timeofday",
+    "nextval",
+    "gen_random_uuid",
+    "uuid_generate_v4",
+    "uuid_generate_v1",
+    "gen_random_bytes",
+    "txid_current",
+    "setseed",
 ];
 
 fn default_is_volatile(clause: &[String]) -> bool {
     let Some(d) = clause.iter().position(|x| x == "default") else {
         return false;
     };
-    clause[d + 1..]
+    clause[d + 1..].iter().any(|tok| {
+        VOLATILE_DEFAULTS
+            .iter()
+            .any(|v| tok == v || tok.starts_with(&format!("{v}(")))
+    }) || clause
         .iter()
-        .any(|tok| VOLATILE_DEFAULTS.iter().any(|v| tok == v || tok.starts_with(&format!("{v}("))))
-        || clause.iter().any(|x| x == "serial" || x == "bigserial" || x == "smallserial")
+        .any(|x| x == "serial" || x == "bigserial" || x == "smallserial")
 }
 
 /// Derive facts and findings from migration/config sources. Never executes
@@ -783,11 +803,13 @@ pub fn analyze_postgres(files: &[PostgresSourceFile], ctx: &PostgresContext) -> 
 
     for table in &an.rls_enabled.clone() {
         if !an.policies.contains(table) {
-            an.gaps.insert(format!("rls-enabled-without-policy-in-set:{table}"));
+            an.gaps
+                .insert(format!("rls-enabled-without-policy-in-set:{table}"));
         }
     }
     if !an.unknown_origin.is_empty() {
-        an.gaps.insert(format!("object-origin-unknown:{}", an.unknown_origin.len()));
+        an.gaps
+            .insert(format!("object-origin-unknown:{}", an.unknown_origin.len()));
     }
     if versions.is_empty() && ctx.server_major.is_none() {
         an.gaps.insert("postgres-version-unknown".into());
@@ -843,7 +865,9 @@ fn check_migration(
             an.gaps.insert(format!("psql-meta-command:{path}"));
             continue;
         }
-        if t.iter().any(|x| x.contains("{{") || x.contains("${") || x.contains("<%")) {
+        if t.iter()
+            .any(|x| x.contains("{{") || x.contains("${") || x.contains("<%"))
+        {
             an.gaps.insert(format!("templated-sql:{path}"));
         }
         if matches!(first, "begin" | "start") {
@@ -876,12 +900,20 @@ fn check_migration(
         if first == "do" {
             let opaque = s.bodies.iter().any(|b| {
                 let l = b.to_ascii_lowercase();
-                ["alter ", "drop ", "create ", "truncate ", "grant ", "revoke "]
-                    .iter()
-                    .any(|k| l.contains(k))
+                [
+                    "alter ",
+                    "drop ",
+                    "create ",
+                    "truncate ",
+                    "grant ",
+                    "revoke ",
+                ]
+                .iter()
+                .any(|k| l.contains(k))
             });
             if opaque && !bodies_dynamic {
-                an.gaps.insert(format!("opaque-procedural-ddl:{path}:{line}"));
+                an.gaps
+                    .insert(format!("opaque-procedural-ddl:{path}:{line}"));
             }
         }
         if first == "execute" || first == "prepare" {
@@ -961,10 +993,12 @@ fn check_migration(
                     "definite",
                     path,
                     line,
-                    "statement cannot run inside a transaction block but the migration opened one".into(),
+                    "statement cannot run inside a transaction block but the migration opened one"
+                        .into(),
                 );
             } else if alter_enum && block_cannot.is_none() && in_txn {
-                an.gaps.insert("postgres-version-unknown:alter-type-add-value".into());
+                an.gaps
+                    .insert("postgres-version-unknown:alter-type-add-value".into());
             } else if !in_txn && block_cannot == Some(true) {
                 match wrapped {
                     Some(true) => an.push(
@@ -981,7 +1015,8 @@ fn check_migration(
                     }
                 }
                 if others && wrapped != Some(false) {
-                    an.gaps.insert(format!("multi-statement-submission-unknown:{path}"));
+                    an.gaps
+                        .insert(format!("multi-statement-submission-unknown:{path}"));
                 }
             }
         }
@@ -1044,7 +1079,11 @@ fn check_migration(
         }
 
         // CREATE TABLE
-        if first == "create" && has_word(t, "table") && !has_word(t, "temp") && !has_word(t, "temporary") {
+        if first == "create"
+            && has_word(t, "table")
+            && !has_word(t, "temp")
+            && !has_word(t, "temporary")
+        {
             if let Some(p) = seq(t, &["table"]) {
                 if let Some((r, _)) = rel_at(t, p + 1) {
                     here.insert(r.clone());
@@ -1124,7 +1163,8 @@ fn check_migration(
                 }
             }
         }
-        if first == "alter" && (has_word(t, "view") || has_word(t, "function") || has_word(t, "index"))
+        if first == "alter"
+            && (has_word(t, "view") || has_word(t, "function") || has_word(t, "index"))
             && has(t, &["rename", "to"])
         {
             an.breaking_shape("RENAME", path, line, "object");
@@ -1132,7 +1172,10 @@ fn check_migration(
 
         // Security
         if first == "create" && has_word(t, "function") && has(t, &["security", "definer"]) {
-            let name = seq(t, &["function"]).and_then(|p| rel_at(t, p + 1)).map(|x| x.0).unwrap_or_default();
+            let name = seq(t, &["function"])
+                .and_then(|p| rel_at(t, p + 1))
+                .map(|x| x.0)
+                .unwrap_or_default();
             an.definer_fns.insert(name.clone());
             let pinned = has(t, &["set", "search_path"]);
             if !pinned {
@@ -1148,7 +1191,10 @@ fn check_migration(
             an.gaps.insert(format!("execute-acl-unproven:{name}"));
         }
         if first == "grant" && has_word(t, "execute") {
-            if let Some(f) = seq(t, &["function"]).and_then(|p| rel_at(t, p + 1)).map(|x| x.0) {
+            if let Some(f) = seq(t, &["function"])
+                .and_then(|p| rel_at(t, p + 1))
+                .map(|x| x.0)
+            {
                 if an.definer_fns.contains(&f) && (has_word(t, "public") || has_word(t, "anon")) {
                     an.push(
                         "definer-execute-granted-to-public",
@@ -1262,13 +1308,19 @@ fn check_alter_clause(
             );
             if is_constraint {
                 let not_valid = has(c, &["not", "valid"]);
-                let name = if second == "constraint" { c.get(2).cloned().unwrap_or_default() } else { String::new() };
+                let name = if second == "constraint" {
+                    c.get(2).cloned().unwrap_or_default()
+                } else {
+                    String::new()
+                };
                 let is_nn_check = has(c, &["is", "not", "null"]);
                 if !name.is_empty() {
-                    an.staged.insert((table.to_owned(), name), (is_nn_check, false));
+                    an.staged
+                        .insert((table.to_owned(), name), (is_nn_check, false));
                 }
                 let kind_fk_check = has_word(c, "foreign") || has_word(c, "check");
-                let kind_idx = has_word(c, "unique") || has_word(c, "primary") || has_word(c, "exclude");
+                let kind_idx =
+                    has_word(c, "unique") || has_word(c, "primary") || has_word(c, "exclude");
                 if !new_here && !small {
                     if kind_fk_check && !not_valid {
                         an.cardinality(table);
@@ -1331,14 +1383,22 @@ fn check_alter_clause(
                                 "conditional",
                                 path,
                                 line,
-                                format!("ADD COLUMN {col} DEFAULT on PostgreSQL <11 rewrites {table}"),
+                                format!(
+                                    "ADD COLUMN {col} DEFAULT on PostgreSQL <11 rewrites {table}"
+                                ),
                             );
                         }
                         _ => {}
                     }
                 }
             }
-            if notnull && !has_default && !new_here && !identity && !ty.starts_with("serial") && !ty.starts_with("bigserial") {
+            if notnull
+                && !has_default
+                && !new_here
+                && !identity
+                && !ty.starts_with("serial")
+                && !ty.starts_with("bigserial")
+            {
                 an.push(
                     "add-not-null-column-without-default",
                     "warning",
@@ -1366,7 +1426,9 @@ fn check_alter_clause(
                     "conditional",
                     path,
                     line,
-                    format!("inline REFERENCES on existing {table} takes a lock to add the foreign key"),
+                    format!(
+                        "inline REFERENCES on existing {table} takes a lock to add the foreign key"
+                    ),
                 );
             }
         }
@@ -1465,7 +1527,9 @@ pub fn discovered_database_fingerprints(text: &str) -> BTreeSet<String> {
         while let Some(pos) = rest.find(scheme) {
             let after = &rest[pos + scheme.len()..];
             let end = after
-                .find(|c: char| c.is_whitespace() || matches!(c, '"' | '\'' | '`' | ')' | '<' | '>'))
+                .find(|c: char| {
+                    c.is_whitespace() || matches!(c, '"' | '\'' | '`' | ')' | '<' | '>')
+                })
                 .unwrap_or(after.len());
             let url = &after[..end];
             let authority_end = url.find(['/', '?']).unwrap_or(url.len());
@@ -1490,7 +1554,12 @@ pub fn host_fingerprint(host_port: &str, database: &str) -> String {
     format!(
         "sha256:{}",
         hex::encode(Sha256::digest(
-            format!("{}/{}", host_port.to_ascii_lowercase(), database.to_ascii_lowercase()).as_bytes()
+            format!(
+                "{}/{}",
+                host_port.to_ascii_lowercase(),
+                database.to_ascii_lowercase()
+            )
+            .as_bytes()
         ))
     )
 }
@@ -1714,14 +1783,21 @@ pub fn assess_evidence(
     }
     if tg.host_fingerprint.is_empty() {
         reasons.push("target-fingerprint-missing".into());
-    } else if expect.forbidden_host_fingerprints.contains(&tg.host_fingerprint) {
+    } else if expect
+        .forbidden_host_fingerprints
+        .contains(&tg.host_fingerprint)
+    {
         reasons.push("target-is-repository-referenced-database".into());
     }
     if tg.role_superuser != Some(false) || !tg.role_restricted {
         reasons.push("target-role-not-restricted".into());
     }
-    let max_stmt = expect.max_statement_timeout_ms.unwrap_or(DEFAULT_MAX_STATEMENT_TIMEOUT_MS);
-    let max_lock = expect.max_lock_timeout_ms.unwrap_or(DEFAULT_MAX_LOCK_TIMEOUT_MS);
+    let max_stmt = expect
+        .max_statement_timeout_ms
+        .unwrap_or(DEFAULT_MAX_STATEMENT_TIMEOUT_MS);
+    let max_lock = expect
+        .max_lock_timeout_ms
+        .unwrap_or(DEFAULT_MAX_LOCK_TIMEOUT_MS);
     match tg.statement_timeout_ms {
         Some(ms) if ms > 0 && ms <= max_stmt => {}
         _ => reasons.push("statement-timeout-unbounded".into()),
@@ -1769,7 +1845,11 @@ pub fn assess_evidence(
                 reasons.push("no-explain-output".into());
             }
             let covered: BTreeSet<&String> = facts.plan.query_ids.iter().collect();
-            if expect.required_query_ids.iter().any(|q| !covered.contains(q)) {
+            if expect
+                .required_query_ids
+                .iter()
+                .any(|q| !covered.contains(q))
+            {
                 reasons.push("detected-queries-without-plan".into());
             }
             // A plan alone is never measured execution.
@@ -1786,11 +1866,19 @@ pub fn assess_evidence(
             if w.row_counts.is_empty() {
                 reasons.push("row-counts-unrecorded".into());
             }
-            if w.queries.is_empty() || w.queries.iter().any(|q| q.executions == 0 || q.params_digest.is_empty()) {
+            if w.queries.is_empty()
+                || w.queries
+                    .iter()
+                    .any(|q| q.executions == 0 || q.params_digest.is_empty())
+            {
                 reasons.push("query-executions-or-parameters-unrecorded".into());
             }
             let covered: BTreeSet<&String> = w.queries.iter().map(|q| &q.id).collect();
-            if expect.required_query_ids.iter().any(|q| !covered.contains(q)) {
+            if expect
+                .required_query_ids
+                .iter()
+                .any(|q| !covered.contains(q))
+            {
                 reasons.push("detected-queries-not-in-workload".into());
             }
             if !w.denominator_attested {
@@ -1831,7 +1919,9 @@ pub fn assess_evidence(
                 reasons.push("restored-row-counts-unproven".into());
             }
             let got: BTreeSet<&String> = r.verified_invariants.iter().collect();
-            if r.verified_invariants.is_empty() || expect.required_invariants.iter().any(|i| !got.contains(i)) {
+            if r.verified_invariants.is_empty()
+                || expect.required_invariants.iter().any(|i| !got.contains(i))
+            {
                 reasons.push("restore-invariants-unverified".into());
             }
             measured = r.restored;

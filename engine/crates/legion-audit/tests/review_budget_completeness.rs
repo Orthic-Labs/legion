@@ -58,7 +58,9 @@ fn timeout_keeps_candidates_and_spent_budget_and_never_completes() {
         Err(LedgerRefusal::AuthorBudgetExhausted("a".into()))
     );
     match ledger.completion() {
-        Completion::Incomplete { unverified, gaps, .. } => {
+        Completion::Incomplete {
+            unverified, gaps, ..
+        } => {
             assert_eq!(unverified, ids(&["cand-1"]));
             assert!(gaps.iter().any(|g| g.starts_with("author-incomplete:a:")));
         }

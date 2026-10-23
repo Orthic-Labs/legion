@@ -208,8 +208,8 @@ impl ArtifactEvidenceEnvelope {
     /// itself. This is the value a [`ProvenanceVerifier`] must bind its
     /// attestation check to.
     pub fn canonical_claims_digest(&self) -> Result<String, AuditError> {
-        let mut claims = serde_json::to_value(self)
-            .map_err(|error| AuditError::Invalid(error.to_string()))?;
+        let mut claims =
+            serde_json::to_value(self).map_err(|error| AuditError::Invalid(error.to_string()))?;
         if let Some(issuer) = claims.get_mut("issuer").and_then(Value::as_object_mut) {
             issuer.remove("attestationDigest");
         }
@@ -320,7 +320,9 @@ impl TrustEnrollment {
     }
 
     pub fn issuer(&self, issuer_id: &str) -> Option<&TrustedIssuer> {
-        self.issuers.iter().find(|issuer| issuer.issuer_id == issuer_id)
+        self.issuers
+            .iter()
+            .find(|issuer| issuer.issuer_id == issuer_id)
     }
 
     /// Enroll the pinned RustRight broker as an issuer from the existing
@@ -469,7 +471,10 @@ impl ProvenanceVerifier for UnconfiguredVerifier {
         _claims_digest: &str,
         _attestation: &[u8],
     ) -> Result<VerifiedIssuer, String> {
-        Err("provenance-verifier-unconfigured: root must enroll a RustRight or host/CI verifier".into())
+        Err(
+            "provenance-verifier-unconfigured: root must enroll a RustRight or host/CI verifier"
+                .into(),
+        )
     }
 }
 
@@ -542,7 +547,10 @@ pub struct ImportVerdict {
 }
 
 fn repo_map(repos: &[RepositoryBinding]) -> BTreeMap<&str, &RepositoryBinding> {
-    repos.iter().map(|repo| (repo.repository_id.as_str(), repo)).collect()
+    repos
+        .iter()
+        .map(|repo| (repo.repository_id.as_str(), repo))
+        .collect()
 }
 
 fn safe_artifact_path(path: &str) -> bool {
@@ -591,7 +599,8 @@ pub fn verify_artifact_evidence(
             if trusted.trust_root_id != envelope.issuer.trust_root_id {
                 fail("trust-root-mismatch");
             }
-            if trusted.key_id != envelope.issuer.key_id || !is_lower_hex64(&envelope.issuer.key_id) {
+            if trusted.key_id != envelope.issuer.key_id || !is_lower_hex64(&envelope.issuer.key_id)
+            {
                 fail("issuer-key-mismatch");
             }
             if trusted.attestation_format != envelope.issuer.attestation_format {
@@ -650,7 +659,8 @@ pub fn verify_artifact_evidence(
     if subject.toolchain != expected.toolchain || !non_empty(&subject.toolchain) {
         fail("toolchain-mismatch");
     }
-    if subject.config_digest != expected.config_digest || !is_sha256_digest(&subject.config_digest) {
+    if subject.config_digest != expected.config_digest || !is_sha256_digest(&subject.config_digest)
+    {
         fail("config-digest-mismatch");
     }
     if subject.test_selection_digest != expected.test_selection_digest
@@ -677,8 +687,7 @@ pub fn verify_artifact_evidence(
     if subject.command != expected.command || !is_sha256_digest(&subject.command.command_digest) {
         fail("command-mismatch");
     }
-    if expected.upstream_runtime.is_some()
-        && envelope.upstream_runtime != expected.upstream_runtime
+    if expected.upstream_runtime.is_some() && envelope.upstream_runtime != expected.upstream_runtime
     {
         fail("upstream-runtime-mismatch");
     }
@@ -718,7 +727,9 @@ pub fn verify_artifact_evidence(
     // Scope: examined must cover required; self-declared missing scope is
     // incomplete scope and can never satisfy.
     let examined: BTreeSet<&str> = envelope.scope.examined.iter().map(String::as_str).collect();
-    if examined.len() != envelope.scope.examined.len() || examined.iter().any(|item| !non_empty(item)) {
+    if examined.len() != envelope.scope.examined.len()
+        || examined.iter().any(|item| !non_empty(item))
+    {
         fail("examined-scope-malformed");
     }
     if expected
@@ -750,7 +761,11 @@ pub fn verify_artifact_evidence(
     // Replay: never relabelled as newly executed.
     let replayed = envelope.execution_mode == ExecutionMode::Replayed;
     if replayed {
-        if envelope.replay_of.as_deref().is_none_or(|id| !non_empty(id)) {
+        if envelope
+            .replay_of
+            .as_deref()
+            .is_none_or(|id| !non_empty(id))
+        {
             fail("replay-lineage-missing");
         }
         if expected.replay_policy == ReplayPolicy::Deny {
@@ -787,8 +802,9 @@ pub fn verify_artifact_evidence(
         }
     }
 
-    let authenticated =
-        provenance_ok && trusted.is_some() && reasons.iter().all(|reason| {
+    let authenticated = provenance_ok
+        && trusted.is_some()
+        && reasons.iter().all(|reason| {
             // Incomplete scope / denied replay / error outcome keep the
             // evidence authenticated-but-not-satisfying only when every
             // binding above still held; any binding failure is forgery-class
@@ -989,7 +1005,11 @@ mod tests {
 
     #[test]
     fn archive_gate_rejects_links_escapes_and_bombs() {
-        let link = vec![ArchiveMember { name: "a".into(), expanded_bytes: 1, is_link: true }];
+        let link = vec![ArchiveMember {
+            name: "a".into(),
+            expanded_bytes: 1,
+            is_link: true,
+        }];
         assert!(validate_archive_members(&link, ArchiveLimits::default()).is_err());
         let escape = vec![ArchiveMember {
             name: "../evil".into(),
@@ -1005,5 +1025,3 @@ mod tests {
         assert!(validate_archive_members(&bomb, ArchiveLimits::default()).is_err());
     }
 }
-
-

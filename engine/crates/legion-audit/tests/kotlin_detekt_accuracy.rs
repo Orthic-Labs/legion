@@ -10,13 +10,12 @@ use legion_audit::{
         kotlin_detekt::{
             analyze_source, analyze_typed, classify_run, compute_classpath_digest,
             dedupe_against_jvm, glob_match, normalize_report_path, parse_sarif_report,
-            parse_version_output, plan_source, plan_typed, provider_selector,
-            select_kotlin_files, validate_pin, validate_typed_evidence, version_gaps,
-            ClasspathEntry, DetektExclusion, DetektMode, DetektOptions, DetektStatus,
-            DetektToolPin, PluginQualification, ReceiptLink, TypedClasspathEvidence,
-            TypedProvenance, EXIT_CLEAN, EXIT_ISSUES_FOUND, MAX_DETEKT_FINDINGS,
-            PINNED_DETEKT_VERSION, SOURCE_CONFIG, SOURCE_PROVIDER_ID, TYPED_CONFIG,
-            TYPED_PROVIDER_ID,
+            parse_version_output, plan_source, plan_typed, provider_selector, select_kotlin_files,
+            validate_pin, validate_typed_evidence, version_gaps, ClasspathEntry, DetektExclusion,
+            DetektMode, DetektOptions, DetektStatus, DetektToolPin, PluginQualification,
+            ReceiptLink, TypedClasspathEvidence, TypedProvenance, EXIT_CLEAN, EXIT_ISSUES_FOUND,
+            MAX_DETEKT_FINDINGS, PINNED_DETEKT_VERSION, SOURCE_CONFIG, SOURCE_PROVIDER_ID,
+            TYPED_CONFIG, TYPED_PROVIDER_ID,
         },
     },
     InventoryEntry,
@@ -142,7 +141,10 @@ fn plain_kotlin_repo_without_legion_contract_plans_source_mode() {
     assert!(argv.contains("--report sarif:detekt.sarif"));
     assert!(argv.contains(&format!("--language-version {}", "2.0")));
     assert!(!argv.contains("gradle") && !argv.contains("legion-jvm-sdk"));
-    assert!(!argv.contains("--plugins"), "no repo plugins in source mode");
+    assert!(
+        !argv.contains("--plugins"),
+        "no repo plugins in source mode"
+    );
     // Actual scanned files are frozen, each an explicit --input.
     for file in &plan.scope.scanned {
         assert!(argv.contains(&format!("--input {}", file.path)));
@@ -150,10 +152,12 @@ fn plain_kotlin_repo_without_legion_contract_plans_source_mode() {
     assert!(!plan.scope.scanned.iter().any(|f| f.path == GENERATED));
     assert_eq!(
         plan.scope.excluded,
-        vec![legion_audit::native_providers::code::kotlin_detekt::ExcludedFile {
-            path: GENERATED.into(),
-            pattern: "**/build/generated/**".into(),
-        }]
+        vec![
+            legion_audit::native_providers::code::kotlin_detekt::ExcludedFile {
+                path: GENERATED.into(),
+                pattern: "**/build/generated/**".into(),
+            }
+        ]
     );
     assert!(plan.scope.unsupported.iter().any(|p| p == "scripts.kts"));
     assert!(plan
@@ -180,10 +184,7 @@ fn source_and_typed_modes_have_independent_ids_selectors_and_context() {
     );
     assert_eq!(SOURCE_CONFIG.tools, ["detekt"].as_slice());
     assert!(SOURCE_CONFIG.required_context.is_empty());
-    assert_eq!(
-        TYPED_CONFIG.required_context,
-        ["typedClasspath"].as_slice()
-    );
+    assert_eq!(TYPED_CONFIG.required_context, ["typedClasspath"].as_slice());
     let input = json!({"files": [{"path": "A.kt"}]});
     let source = analyze_source(&input);
     assert_eq!(source["provider"], SOURCE_PROVIDER_ID);
@@ -211,7 +212,10 @@ fn findings_and_compiler_failure_are_distinct_per_file_diagnostics() {
         outcome.candidates[0].rule_id,
         "detekt.empty-blocks.EmptyCatchBlock"
     );
-    assert_eq!((outcome.candidates[0].line, outcome.candidates[0].column), (7, 9));
+    assert_eq!(
+        (outcome.candidates[0].line, outcome.candidates[0].column),
+        (7, 9)
+    );
     assert_eq!(
         outcome.candidates[0].receipt_id.as_deref(),
         Some("receipt:fixture-detekt-1")
@@ -234,7 +238,10 @@ fn findings_and_compiler_failure_are_distinct_per_file_diagnostics() {
 
 #[test]
 fn clean_requires_proven_scanned_set_zero_file_is_never_clean() {
-    let clean = classify_run(parse("reports/clean.sarif.json", &[ANSWER]), Some(EXIT_CLEAN));
+    let clean = classify_run(
+        parse("reports/clean.sarif.json", &[ANSWER]),
+        Some(EXIT_CLEAN),
+    );
     assert_eq!(clean.status, DetektStatus::Clean);
     assert!(clean.complete);
 
@@ -309,7 +316,14 @@ fn typed_wrong_or_missing_classpath_is_incomplete_source_result_remains() {
         wrong.classpath_digest,
         compute_classpath_digest(&wrong.classpath)
     );
-    let plan = plan_typed(&entries, &pin(), &options(), Some(&wrong), "android-35", "release");
+    let plan = plan_typed(
+        &entries,
+        &pin(),
+        &options(),
+        Some(&wrong),
+        "android-35",
+        "release",
+    );
     assert_eq!(plan.provider_id, TYPED_PROVIDER_ID);
     assert!(plan.argv.is_none(), "no silent fallback under the typed id");
     assert!(plan
@@ -327,14 +341,18 @@ fn typed_wrong_or_missing_classpath_is_incomplete_source_result_remains() {
         .any(|gap| gap.contains("typed-classpath-missing")));
 
     let valid = typed_fixture("typed/valid-release.json");
-    assert!(validate_typed_evidence(
+    assert!(
+        validate_typed_evidence(Some(&valid), "android-35", "release", TYPED_PROVIDER_ID)
+            .is_empty()
+    );
+    let typed = plan_typed(
+        &entries,
+        &pin(),
+        &options(),
         Some(&valid),
         "android-35",
         "release",
-        TYPED_PROVIDER_ID
-    )
-    .is_empty());
-    let typed = plan_typed(&entries, &pin(), &options(), Some(&valid), "android-35", "release");
+    );
     assert!(typed.is_runnable(), "gaps: {:?}", typed.gaps);
     let argv = typed.argv.clone().unwrap().join(" ");
     assert!(argv.contains("--classpath"));
@@ -361,15 +379,16 @@ fn typed_wrong_or_missing_classpath_is_incomplete_source_result_remains() {
             authenticated: false,
         },
     };
-    let gaps = validate_typed_evidence(
-        Some(&imported),
-        "android-35",
-        "release",
-        TYPED_PROVIDER_ID,
-    );
-    assert!(gaps.iter().any(|gap| gap.contains("typed-import-unauthenticated")));
-    assert!(gaps.iter().any(|gap| gap.contains("typed-classpath-entry-unsealed")));
-    assert!(gaps.iter().any(|gap| gap.contains("typed-classpath-digest-mismatch")));
+    let gaps = validate_typed_evidence(Some(&imported), "android-35", "release", TYPED_PROVIDER_ID);
+    assert!(gaps
+        .iter()
+        .any(|gap| gap.contains("typed-import-unauthenticated")));
+    assert!(gaps
+        .iter()
+        .any(|gap| gap.contains("typed-classpath-entry-unsealed")));
+    assert!(gaps
+        .iter()
+        .any(|gap| gap.contains("typed-classpath-digest-mismatch")));
 }
 
 #[test]
@@ -388,7 +407,10 @@ fn missing_tool_version_mismatch_malformed_and_operational_exit_never_clean() {
         parse_version_output(b"detekt version 1.23.8\n").as_deref(),
         Some("1.23.8")
     );
-    assert_eq!(parse_version_output(b"bash: java: command not found\n"), None);
+    assert_eq!(
+        parse_version_output(b"bash: java: command not found\n"),
+        None
+    );
     assert!(version_gaps(None, &pin(), SOURCE_PROVIDER_ID)
         .iter()
         .any(|gap| gap.contains("detekt-version-unproven")));

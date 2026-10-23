@@ -17,10 +17,10 @@ use legion_audit::native_providers::code::rust_targets::{
 };
 use legion_audit::profiles::AuditProfile;
 use legion_audit::runtime_obligations::{
-    comparison_mismatches, evaluate_journey, evaluate_pairs, evaluate_performance,
-    inventory_gaps, journey_candidates, stack_inventory, AxisReport, BudgetState,
-    EvidenceProducer, JourneyDeclaration, JourneyObserved, JourneyStatus, OutcomeAxis,
-    PerformanceBaseline, PerformanceBudget, Stack, SubjectIdentity, Trend,
+    comparison_mismatches, evaluate_journey, evaluate_pairs, evaluate_performance, inventory_gaps,
+    journey_candidates, stack_inventory, AxisReport, BudgetState, EvidenceProducer,
+    JourneyDeclaration, JourneyObserved, JourneyStatus, OutcomeAxis, PerformanceBaseline,
+    PerformanceBudget, Stack, SubjectIdentity, Trend,
 };
 use serde_json::Value;
 
@@ -44,7 +44,10 @@ fn declarations() -> Vec<JourneyDeclaration> {
 }
 
 fn declaration(id: &str) -> JourneyDeclaration {
-    declarations().into_iter().find(|d| d.id == id).expect("declared journey")
+    declarations()
+        .into_iter()
+        .find(|d| d.id == id)
+        .expect("declared journey")
 }
 
 fn subject() -> SubjectIdentity {
@@ -116,7 +119,13 @@ fn matching_journey_satisfies_and_wrong_identity_does_not() {
     let decl = declaration("ios-state-restoration");
     let expected = subject();
     let rec = record(&decl, &expected);
-    let ok = evaluate_journey(&decl, &expected, Some(&rec), Some(&observed(&decl, &expected)), NOW);
+    let ok = evaluate_journey(
+        &decl,
+        &expected,
+        Some(&rec),
+        Some(&observed(&decl, &expected)),
+        NOW,
+    );
     assert_eq!(ok.status, JourneyStatus::Satisfied, "{:?}", ok.reasons);
 
     let mut wrong_binary = expected.clone();
@@ -141,7 +150,11 @@ fn matching_journey_satisfies_and_wrong_identity_does_not() {
             NOW,
         );
         assert_eq!(outcome.status, JourneyStatus::Unmet, "{reason}");
-        assert!(outcome.reasons.iter().any(|r| r == reason), "{reason}: {:?}", outcome.reasons);
+        assert!(
+            outcome.reasons.iter().any(|r| r == reason),
+            "{reason}: {:?}",
+            outcome.reasons
+        );
     }
 }
 
@@ -154,24 +167,48 @@ fn missing_stale_replayed_and_gap_evidence_never_satisfy() {
 
     let mut stale = record(&decl, &expected);
     stale.fresh_until = "2026-10-22T00:00:00Z".into();
-    let out = evaluate_journey(&decl, &expected, Some(&stale), Some(&observed(&decl, &expected)), NOW);
+    let out = evaluate_journey(
+        &decl,
+        &expected,
+        Some(&stale),
+        Some(&observed(&decl, &expected)),
+        NOW,
+    );
     assert!(out.reasons.iter().any(|r| r == "stale-evidence"));
 
     let mut replayed = record(&decl, &expected);
     replayed.newly_executed = false;
-    let out = evaluate_journey(&decl, &expected, Some(&replayed), Some(&observed(&decl, &expected)), NOW);
+    let out = evaluate_journey(
+        &decl,
+        &expected,
+        Some(&replayed),
+        Some(&observed(&decl, &expected)),
+        NOW,
+    );
     assert_eq!(out.status, JourneyStatus::Unmet);
     assert!(out.replayed);
 
     let mut partial = record(&decl, &expected);
     partial.examined_scope.pop();
-    let out = evaluate_journey(&decl, &expected, Some(&partial), Some(&observed(&decl, &expected)), NOW);
+    let out = evaluate_journey(
+        &decl,
+        &expected,
+        Some(&partial),
+        Some(&observed(&decl, &expected)),
+        NOW,
+    );
     assert_eq!(out.status, JourneyStatus::Unmet);
 
     // A declared producer gap stays unmet even with otherwise valid evidence.
     let gap = declaration("android-process-death");
     let rec = record(&gap, &expected);
-    let out = evaluate_journey(&gap, &expected, Some(&rec), Some(&observed(&gap, &expected)), NOW);
+    let out = evaluate_journey(
+        &gap,
+        &expected,
+        Some(&rec),
+        Some(&observed(&gap, &expected)),
+        NOW,
+    );
     assert_eq!(out.status, JourneyStatus::Unmet);
     assert!(out.reasons.iter().any(|r| r.starts_with("producer-gap")));
 }
@@ -184,27 +221,62 @@ fn paired_scenarios_report_evidence_specific_outcomes() {
     let cancel = declaration("node-checkout-cancellation");
 
     let dup_rec = record(&dup, &expected);
-    let dup_out = evaluate_journey(&dup, &expected, Some(&dup_rec), Some(&observed(&dup, &expected)), NOW);
-    assert_eq!(dup_out.status, JourneyStatus::Satisfied, "{:?}", dup_out.reasons);
+    let dup_out = evaluate_journey(
+        &dup,
+        &expected,
+        Some(&dup_rec),
+        Some(&observed(&dup, &expected)),
+        NOW,
+    );
+    assert_eq!(
+        dup_out.status,
+        JourneyStatus::Satisfied,
+        "{:?}",
+        dup_out.reasons
+    );
 
     // Cancellation has no evidence: duplicate-delivery pass does not cover it.
     let pairs = evaluate_pairs(&decls, &[dup_out.clone()]);
-    let pair = pairs.iter().find(|p| p.pair_id == "checkout-pair").expect("pair");
+    let pair = pairs
+        .iter()
+        .find(|p| p.pair_id == "checkout-pair")
+        .expect("pair");
     assert_eq!(pair.status, JourneyStatus::Unmet);
-    let member = |role: &str| pair.members.iter().find(|m| m.role == role).expect("member");
-    assert_eq!(member("duplicate-delivery").status, JourneyStatus::Satisfied);
+    let member = |role: &str| {
+        pair.members
+            .iter()
+            .find(|m| m.role == role)
+            .expect("member")
+    };
+    assert_eq!(
+        member("duplicate-delivery").status,
+        JourneyStatus::Satisfied
+    );
     assert_eq!(member("cancellation").status, JourneyStatus::Unmet);
 
     // A failed cancellation is a finding for that member only.
     let mut failed = record(&cancel, &expected);
     failed.outcome = EvidenceOutcome::Failed;
-    let cancel_out = evaluate_journey(&cancel, &expected, Some(&failed), Some(&observed(&cancel, &expected)), NOW);
+    let cancel_out = evaluate_journey(
+        &cancel,
+        &expected,
+        Some(&failed),
+        Some(&observed(&cancel, &expected)),
+        NOW,
+    );
     assert_eq!(cancel_out.status, JourneyStatus::Findings);
     let pairs = evaluate_pairs(&decls, &[dup_out, cancel_out]);
-    let pair = pairs.iter().find(|p| p.pair_id == "checkout-pair").expect("pair");
+    let pair = pairs
+        .iter()
+        .find(|p| p.pair_id == "checkout-pair")
+        .expect("pair");
     assert_eq!(pair.status, JourneyStatus::Findings);
     assert_eq!(
-        pair.members.iter().find(|m| m.role == "duplicate-delivery").unwrap().status,
+        pair.members
+            .iter()
+            .find(|m| m.role == "duplicate-delivery")
+            .unwrap()
+            .status,
         JourneyStatus::Satisfied
     );
 }
@@ -228,14 +300,21 @@ fn inventory_lists_every_applicable_category_with_producer_or_gap() {
     .collect();
     let rows = stack_inventory(&applicable, &declarations());
     for stack in &applicable {
-        assert!(rows.iter().any(|r| r.stack == *stack), "{stack:?} absent from inventory");
+        assert!(
+            rows.iter().any(|r| r.stack == *stack),
+            "{stack:?} absent from inventory"
+        );
     }
     let gaps = inventory_gaps(&rows);
     // Declared-but-gap and undeclared categories are explicit.
-    assert!(gaps.iter().any(|g| g.starts_with("kotlin-android:process-death-restore")));
+    assert!(gaps
+        .iter()
+        .any(|g| g.starts_with("kotlin-android:process-death-restore")));
     assert!(gaps.iter().any(|g| g.starts_with("postgres:recovery")));
     // A producer-backed category is not listed as a gap.
-    assert!(!gaps.iter().any(|g| g.starts_with("swift-ios:cancellation-state-restoration")));
+    assert!(!gaps
+        .iter()
+        .any(|g| g.starts_with("swift-ios:cancellation-state-restoration")));
     let ios = rows
         .iter()
         .find(|r| r.stack == Stack::SwiftIos && r.category == "cancellation-state-restoration")
@@ -243,7 +322,9 @@ fn inventory_lists_every_applicable_category_with_producer_or_gap() {
     assert!(matches!(ios.producer, EvidenceProducer::Owner { .. }));
     // Inapplicable stacks are omitted only when root excluded them.
     let only_nginx: BTreeSet<Stack> = [Stack::Nginx].into_iter().collect();
-    assert!(stack_inventory(&only_nginx, &[]).iter().all(|r| r.stack == Stack::Nginx));
+    assert!(stack_inventory(&only_nginx, &[])
+        .iter()
+        .all(|r| r.stack == Stack::Nginx));
 }
 
 #[test]
@@ -251,7 +332,9 @@ fn candidates_keep_gap_producers_and_reject_duplicates() {
     let decls = declarations();
     let candidates = journey_candidates(&decls, &[AuditProfile::Release]).expect("candidates");
     assert_eq!(candidates.len(), decls.len());
-    assert!(candidates.iter().any(|c| c.concern == "journey:functional:android-process-death"));
+    assert!(candidates
+        .iter()
+        .any(|c| c.concern == "journey:functional:android-process-death"));
     let mut dup = decls.clone();
     dup.push(decls[0].clone());
     assert!(journey_candidates(&dup, &[AuditProfile::Release]).is_err());
@@ -261,7 +344,10 @@ fn candidates_keep_gap_producers_and_reject_duplicates() {
 fn outcome_axes_stay_separate_and_unknown_stays_incomplete() {
     let mut report = AxisReport::new(BTreeMap::new());
     report.record(OutcomeAxis::Functional, JourneyStatus::Satisfied, &[]);
-    assert_eq!(report.axes[&OutcomeAxis::Functional].status, JourneyStatus::Satisfied);
+    assert_eq!(
+        report.axes[&OutcomeAxis::Functional].status,
+        JourneyStatus::Satisfied
+    );
     for axis in [
         OutcomeAxis::Source,
         OutcomeAxis::Build,
@@ -273,8 +359,15 @@ fn outcome_axes_stay_separate_and_unknown_stays_incomplete() {
         assert_eq!(report.axes[&axis].status, JourneyStatus::Unmet, "{axis:?}");
     }
     assert!(!report.is_complete());
-    report.record(OutcomeAxis::Functional, JourneyStatus::Findings, &["journey-failed".into()]);
-    assert_eq!(report.axes[&OutcomeAxis::Functional].status, JourneyStatus::Findings);
+    report.record(
+        OutcomeAxis::Functional,
+        JourneyStatus::Findings,
+        &["journey-failed".into()],
+    );
+    assert_eq!(
+        report.axes[&OutcomeAxis::Functional].status,
+        JourneyStatus::Findings
+    );
 }
 
 fn perf_baseline() -> PerformanceBaseline {
@@ -292,7 +385,10 @@ fn missing_budget_is_not_invented() {
     let outcome = evaluate_performance(&current, Some(&base), None);
     assert_eq!(outcome.status, JourneyStatus::Unmet);
     assert_eq!(outcome.budget, BudgetState::NotDeclared);
-    assert!(outcome.reasons.iter().any(|r| r == "performance-budget-not-declared"));
+    assert!(outcome
+        .reasons
+        .iter()
+        .any(|r| r == "performance-budget-not-declared"));
 }
 
 #[test]
@@ -348,7 +444,10 @@ fn undeclared_tolerance_never_gates_and_budget_exceed_is_a_finding() {
     slower.value = 900;
     let outcome = evaluate_performance(&slower, Some(&base), Some(&budget));
     assert_eq!(outcome.status, JourneyStatus::Satisfied);
-    assert!(outcome.reasons.iter().any(|r| r == "regression-tolerance-not-declared"));
+    assert!(outcome
+        .reasons
+        .iter()
+        .any(|r| r == "regression-tolerance-not-declared"));
 
     let mut over = base.measurement.clone();
     over.value = 1200;
@@ -371,7 +470,10 @@ fn incomplete_workload_or_samples_stay_unmet() {
     blank.workload.dataset_digest = "unknown".into();
     let outcome = evaluate_performance(&blank, None, Some(&budget));
     assert_eq!(outcome.status, JourneyStatus::Unmet);
-    assert!(outcome.reasons.iter().any(|r| r.starts_with("incomplete-workload-record")));
+    assert!(outcome
+        .reasons
+        .iter()
+        .any(|r| r.starts_with("incomplete-workload-record")));
 }
 
 // ---------------------------------------------------------------------------
@@ -386,7 +488,10 @@ fn selection(triple: &str, features: FeatureSelection) -> RustTargetSelection {
         features,
         toolchain: "rustc-1.90".into(),
         build_config_digest: D2.into(),
-        test_selection: Some(TestSelection { digest: D3.into(), filters: vec![] }),
+        test_selection: Some(TestSelection {
+            digest: D3.into(),
+            filters: vec![],
+        }),
     }
 }
 
@@ -429,12 +534,21 @@ fn rust_record(
 fn empty_matrix_is_an_explicit_gap_not_a_pass() {
     let plan = plan_rust_obligations(&RustTargetMatrix::default(), &[RustObligationKind::Build]);
     assert!(plan.obligations.is_empty());
-    assert!(plan.gaps.iter().any(|g| g.starts_with("no-declared-target-matrix")));
+    assert!(plan
+        .gaps
+        .iter()
+        .any(|g| g.starts_with("no-declared-target-matrix")));
 }
 
 #[test]
 fn all_features_is_invalid_with_mutually_exclusive_features() {
-    let m = matrix(vec![selection("x86_64-unknown-linux-gnu", FeatureSelection::AllFeatures)], vec![]);
+    let m = matrix(
+        vec![selection(
+            "x86_64-unknown-linux-gnu",
+            FeatureSelection::AllFeatures,
+        )],
+        vec![],
+    );
     let plan = plan_rust_obligations(&m, &[RustObligationKind::Build]);
     let obligation = &plan.obligations[0];
     assert!(obligation
@@ -447,26 +561,41 @@ fn all_features_is_invalid_with_mutually_exclusive_features() {
     let conflicting = matrix(
         vec![selection(
             "x86_64-unknown-linux-gnu",
-            FeatureSelection::Explicit { features: vec!["tls-rustls".into(), "tls-native".into()] },
+            FeatureSelection::Explicit {
+                features: vec!["tls-rustls".into(), "tls-native".into()],
+            },
         )],
         vec![],
     );
     let plan = plan_rust_obligations(&conflicting, &[RustObligationKind::Build]);
-    assert!(plan.obligations[0].plan_gaps.iter().any(|g| g.starts_with("mutually-exclusive-features")));
+    assert!(plan.obligations[0]
+        .plan_gaps
+        .iter()
+        .any(|g| g.starts_with("mutually-exclusive-features")));
 }
 
 #[test]
 fn evidence_for_another_target_or_feature_set_cannot_discharge() {
     let linux = selection(
         "x86_64-unknown-linux-gnu",
-        FeatureSelection::Explicit { features: vec!["gui".into()] },
+        FeatureSelection::Explicit {
+            features: vec!["gui".into()],
+        },
     );
     let mac = selection("aarch64-apple-darwin", linux.features.clone());
     let m = matrix(vec![linux, mac], vec![]);
     let plan = plan_rust_obligations(&m, &[RustObligationKind::Build]);
     assert_eq!(plan.obligations.len(), 2);
-    let linux_ob = plan.obligations.iter().find(|o| o.target_triple.contains("linux")).unwrap();
-    let mac_ob = plan.obligations.iter().find(|o| o.target_triple.contains("darwin")).unwrap();
+    let linux_ob = plan
+        .obligations
+        .iter()
+        .find(|o| o.target_triple.contains("linux"))
+        .unwrap();
+    let mac_ob = plan
+        .obligations
+        .iter()
+        .find(|o| o.target_triple.contains("darwin"))
+        .unwrap();
 
     let good = rust_record(
         &linux_ob.id,
@@ -475,7 +604,10 @@ fn evidence_for_another_target_or_feature_set_cannot_discharge() {
         ImportKind::Build,
         vec![],
     );
-    assert_eq!(evaluate_rust_evidence(linux_ob, Some(&good), NOW).status, ObligationStatus::Satisfied);
+    assert_eq!(
+        evaluate_rust_evidence(linux_ob, Some(&good), NOW).status,
+        ObligationStatus::Satisfied
+    );
 
     // The Linux record presented for the macOS obligation is rejected.
     let borrowed = evaluate_rust_evidence(mac_ob, Some(&good), NOW);
@@ -485,7 +617,10 @@ fn evidence_for_another_target_or_feature_set_cannot_discharge() {
     // Same target, different feature selection is a different obligation.
     let other_features = plan_rust_obligations(
         &matrix(
-            vec![selection("x86_64-unknown-linux-gnu", FeatureSelection::Default)],
+            vec![selection(
+                "x86_64-unknown-linux-gnu",
+                FeatureSelection::Default,
+            )],
             vec![],
         ),
         &[RustObligationKind::Build],
@@ -517,8 +652,20 @@ fn evidence_for_another_target_or_feature_set_cannot_discharge() {
 #[test]
 fn miri_covers_only_executed_supported_unsafe_paths() {
     let sites = vec![
-        UnsafeSite { id: "u1".into(), path: "src/a.rs".into(), line: 10, miri_supported: true, unsupported_reason: None },
-        UnsafeSite { id: "u2".into(), path: "src/b.rs".into(), line: 20, miri_supported: true, unsupported_reason: None },
+        UnsafeSite {
+            id: "u1".into(),
+            path: "src/a.rs".into(),
+            line: 10,
+            miri_supported: true,
+            unsupported_reason: None,
+        },
+        UnsafeSite {
+            id: "u2".into(),
+            path: "src/b.rs".into(),
+            line: 20,
+            miri_supported: true,
+            unsupported_reason: None,
+        },
         UnsafeSite {
             id: "u3".into(),
             path: "src/ffi.rs".into(),
@@ -536,7 +683,13 @@ fn miri_covers_only_executed_supported_unsafe_paths() {
     assert_eq!(coverage.claim, "executed-supported-paths-only");
 
     // A passing Miri receipt that executed one site leaves the obligation unmet.
-    let m = matrix(vec![selection("x86_64-unknown-linux-gnu", FeatureSelection::Default)], sites);
+    let m = matrix(
+        vec![selection(
+            "x86_64-unknown-linux-gnu",
+            FeatureSelection::Default,
+        )],
+        sites,
+    );
     let plan = plan_rust_obligations(&m, &[RustObligationKind::Miri]);
     let ob = &plan.obligations[0];
     let rec = rust_record(
@@ -548,8 +701,14 @@ fn miri_covers_only_executed_supported_unsafe_paths() {
     );
     let outcome = evaluate_rust_evidence(ob, Some(&rec), NOW);
     assert_eq!(outcome.status, ObligationStatus::Unmet);
-    assert!(outcome.reasons.iter().any(|r| r == "unsafe-site-not-executed:u2"));
-    assert!(outcome.reasons.iter().any(|r| r.starts_with("miri-unsupported:u3")));
+    assert!(outcome
+        .reasons
+        .iter()
+        .any(|r| r == "unsafe-site-not-executed:u2"));
+    assert!(outcome
+        .reasons
+        .iter()
+        .any(|r| r.starts_with("miri-unsupported:u3")));
 }
 
 #[test]
@@ -557,5 +716,8 @@ fn test_obligation_requires_declared_selection() {
     let mut entry = selection("x86_64-unknown-linux-gnu", FeatureSelection::Default);
     entry.test_selection = None;
     let plan = plan_rust_obligations(&matrix(vec![entry], vec![]), &[RustObligationKind::Test]);
-    assert!(plan.obligations[0].plan_gaps.iter().any(|g| g == "test-selection-undeclared"));
+    assert!(plan.obligations[0]
+        .plan_gaps
+        .iter()
+        .any(|g| g == "test-selection-undeclared"));
 }

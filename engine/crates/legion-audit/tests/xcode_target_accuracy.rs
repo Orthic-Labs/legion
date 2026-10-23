@@ -20,11 +20,18 @@ fn fixtures() -> PathBuf {
 }
 
 fn collect(dir: &Path, prefix: &str, out: &mut SnapshotFiles) {
-    let mut entries: Vec<_> = fs::read_dir(dir).expect("dir").map(|e| e.expect("entry").path()).collect();
+    let mut entries: Vec<_> = fs::read_dir(dir)
+        .expect("dir")
+        .map(|e| e.expect("entry").path())
+        .collect();
     entries.sort();
     for path in entries {
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
-        let relative = if prefix.is_empty() { name } else { format!("{prefix}/{name}") };
+        let relative = if prefix.is_empty() {
+            name
+        } else {
+            format!("{prefix}/{name}")
+        };
         if path.is_dir() {
             collect(&path, &relative, out);
         } else {
@@ -107,7 +114,9 @@ fn record_for(
         verifier_id: "v".into(),
         outcome: EvidenceOutcome::Passed,
         repositories: context().repositories,
-        target: target.map(str::to_string).unwrap_or_else(|| obligation.evidence_target()),
+        target: target
+            .map(str::to_string)
+            .unwrap_or_else(|| obligation.evidence_target()),
         variant: Some(obligation.evidence_variant()),
         toolchain: context().toolchain,
         upstream_runtime: None,
@@ -174,7 +183,10 @@ fn inventory_binds_project_scheme_plan_settings_and_packages() {
     let scheme = &inventory.schemes[0];
     assert!(scheme.shared);
     assert_eq!(scheme.test_configuration.as_deref(), Some("Debug"));
-    assert_eq!(scheme.test_plans, vec![("container:App.xctestplan".to_string(), true)]);
+    assert_eq!(
+        scheme.test_plans,
+        vec![("container:App.xctestplan".to_string(), true)]
+    );
     assert_eq!(inventory.test_plans[0].test_targets, vec!["AppTests"]);
     assert_eq!(inventory.package_resolved[0].pins.len(), 1);
 }
@@ -186,8 +198,12 @@ fn bound_inputs_are_unmet_until_execution_evidence_exists() {
     let coverage = evaluate_static(&inventory, &files, &ios_obligation());
     assert!(coverage.gaps.is_empty(), "{:?}", coverage.gaps);
     assert!(coverage.config_digest.is_some() && coverage.test_selection_digest.is_some());
-    assert!(coverage.bound_inputs.contains_key("App/App/App.entitlements"));
-    assert!(coverage.bound_inputs.contains_key("App/App/PrivacyInfo.xcprivacy"));
+    assert!(coverage
+        .bound_inputs
+        .contains_key("App/App/App.entitlements"));
+    assert!(coverage
+        .bound_inputs
+        .contains_key("App/App/PrivacyInfo.xcprivacy"));
     let report = analyze_targets(&files, &[ios_obligation()]);
     assert_eq!(report["status"], "inventoried");
     assert_eq!(report["obligations"][0]["status"], "unmet");
@@ -202,8 +218,18 @@ fn macos_swiftpm_pass_leaves_ios_scheme_obligation_unmet() {
     let summary = summary_bytes("xcresult-summary-macos.json");
     let mut record = record_for(&obligation, &summary, Some("swiftpm:Tool"));
     record.variant = Some("debug|macosx".into());
-    let gaps = link_evidence(&obligation, &expected, &record, &raw(&summary), "2026-10-24T00:00:00Z");
-    assert!(has(&gaps, "swiftpm-evidence-cannot-discharge-xcode-scheme"), "{:?}", codes(&gaps));
+    let gaps = link_evidence(
+        &obligation,
+        &expected,
+        &record,
+        &raw(&summary),
+        "2026-10-24T00:00:00Z",
+    );
+    assert!(
+        has(&gaps, "swiftpm-evidence-cannot-discharge-xcode-scheme"),
+        "{:?}",
+        codes(&gaps)
+    );
     assert!(has(&gaps, "evidence-target-mismatch"));
     assert!(has(&gaps, "evidence-variant-mismatch"));
     assert!(has(&gaps, "wrong-destination-evidence"));
@@ -254,11 +280,21 @@ fn wrong_sdk_destination_test_plan_or_missing_entitlements_cannot_satisfy() {
     let gaps = evaluate_static(&inventory_xcode(&files), &files, &obligation).gaps;
     assert!(has(&gaps, "entitlements-input-missing"));
     assert!(has(&gaps, "privacy-manifest-missing"));
-    assert!(expected_evidence(&obligation, &evaluate_static(&inventory_xcode(&files), &files, &obligation), &context()).is_err());
+    assert!(expected_evidence(
+        &obligation,
+        &evaluate_static(&inventory_xcode(&files), &files, &obligation),
+        &context()
+    )
+    .is_err());
 
     // Concurrency mode weaker than required.
     let mut files = base.clone();
-    replace_in(&mut files, PBX, "SWIFT_STRICT_CONCURRENCY = complete;", "SWIFT_STRICT_CONCURRENCY = minimal;");
+    replace_in(
+        &mut files,
+        PBX,
+        "SWIFT_STRICT_CONCURRENCY = complete;",
+        "SWIFT_STRICT_CONCURRENCY = minimal;",
+    );
     let gaps = evaluate_static(&inventory_xcode(&files), &files, &obligation).gaps;
     assert!(has(&gaps, "concurrency-mode-mismatch"));
 }
@@ -278,7 +314,10 @@ fn unsupported_destination_is_explicit() {
     let mut device = ios_obligation();
     device.destination.platform = "iOS".into();
     device.destination.sdk = "iphoneos".into();
-    assert!(has(&evaluate_static(&inventory_xcode(&files), &files, &device).gaps, "unsupported-destination"));
+    assert!(has(
+        &evaluate_static(&inventory_xcode(&files), &files, &device).gaps,
+        "unsupported-destination"
+    ));
 }
 
 #[test]
@@ -289,18 +328,23 @@ fn strict_concurrency_finding_and_clean_actor_control_keep_context() {
         sdk: "iphonesimulator".into(),
         concurrency_mode: mode.into(),
     };
-    let finding_text = fs::read_to_string(fixtures().join("diagnostics/strict-concurrency.txt")).unwrap();
+    let finding_text =
+        fs::read_to_string(fixtures().join("diagnostics/strict-concurrency.txt")).unwrap();
     let report = parse_swift_diagnostics(&finding_text, "/build/src", context("complete"));
     assert_eq!(report.status, "concurrency-findings");
     assert_eq!(report.concurrency_findings, 2);
     assert_eq!(report.findings.len(), 3);
     assert_eq!(report.outside_source_root, 1);
     assert_eq!(report.findings[0].path, "App/App/Isolated.swift");
-    assert_eq!(report.findings[0].category.as_deref(), Some("ActorIsolation"));
+    assert_eq!(
+        report.findings[0].category.as_deref(),
+        Some("ActorIsolation")
+    );
     assert!(!report.findings[2].concurrency);
     assert_eq!(report.context.sdk, "iphonesimulator");
 
-    let clean_text = fs::read_to_string(fixtures().join("diagnostics/clean-actor-isolation.txt")).unwrap();
+    let clean_text =
+        fs::read_to_string(fixtures().join("diagnostics/clean-actor-isolation.txt")).unwrap();
     let clean = parse_swift_diagnostics(&clean_text, "/build/src", context("complete"));
     assert_eq!(clean.status, "no-concurrency-findings-observed");
     assert!(clean.absence_is_evidence);
@@ -332,7 +376,13 @@ fn valid_xcresult_envelope_links_tests_to_exact_scheme_and_artifact() {
     assert!(has(&gaps, "xcresult-summary-missing"));
 
     // Stale evidence is a gap, not a pass.
-    let gaps = link_evidence(&obligation, &expected, &record, &raw(&summary), "2027-01-01T00:00:00Z");
+    let gaps = link_evidence(
+        &obligation,
+        &expected,
+        &record,
+        &raw(&summary),
+        "2027-01-01T00:00:00Z",
+    );
     assert!(has(&gaps, "evidence-stale"));
 }
 
@@ -343,7 +393,10 @@ fn unconfigured_bridge_leaves_obligation_unmet_with_explicit_gap() {
     let coverage = evaluate_static(&inventory_xcode(&files), &files, &obligation);
     let request = request_for(&obligation, AppleOperation::Test);
     assert_eq!(request.code_signing, CodeSigningPosture::Disabled);
-    let gap = UnconfiguredAppleBridge.execute(&request).err().expect("gap");
+    let gap = UnconfiguredAppleBridge
+        .execute(&request)
+        .err()
+        .expect("gap");
     assert_eq!(gap.code, "apple-bridge-unconfigured");
     assert!(coverage.gaps.is_empty());
 }

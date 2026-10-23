@@ -57,8 +57,12 @@ fn candidate(
 }
 
 fn release_profile() -> FrozenProfile {
-    FrozenProfile::freeze(AuditProfile::Release, "rev-1", RuntimeConstraint::NoNodePython)
-        .unwrap()
+    FrozenProfile::freeze(
+        AuditProfile::Release,
+        "rev-1",
+        RuntimeConstraint::NoNodePython,
+    )
+    .unwrap()
 }
 
 fn one_obligation(profile: &FrozenProfile) -> ProductionObligation {
@@ -68,7 +72,11 @@ fn one_obligation(profile: &FrozenProfile) -> ProductionObligation {
         &[candidate(
             "source-static",
             EvidenceKind::ProviderExecution,
-            vec![AuditProfile::PrePr, AuditProfile::Repository, AuditProfile::Release],
+            vec![
+                AuditProfile::PrePr,
+                AuditProfile::Repository,
+                AuditProfile::Release,
+            ],
         )],
     )
     .unwrap()
@@ -134,7 +142,10 @@ fn empty_universe_is_distinct_from_zero_examined_required_input() {
 fn complete_provider_evidence_satisfies_and_findings_stay_findings() {
     let obligation = one_obligation(&release_profile());
     assert_eq!(obligation.status, ObligationStatus::Unmet);
-    let clean = apply_evidence(&obligation, &provider_evidence(&obligation, complete_coverage()));
+    let clean = apply_evidence(
+        &obligation,
+        &provider_evidence(&obligation, complete_coverage()),
+    );
     assert_eq!(clean.status, ObligationStatus::Satisfied);
     let mut with_finding = provider_evidence(&obligation, complete_coverage());
     with_finding.finding_ids = vec!["finding-1".into()];
@@ -151,7 +162,10 @@ fn missing_scanner_and_zero_coverage_leave_obligation_unmet() {
     let obligation = one_obligation(&release_profile());
     let mut no_coverage = provider_evidence(&obligation, complete_coverage());
     no_coverage.coverage = None;
-    assert_eq!(apply_evidence(&obligation, &no_coverage).status, ObligationStatus::Unmet);
+    assert_eq!(
+        apply_evidence(&obligation, &no_coverage).status,
+        ObligationStatus::Unmet
+    );
     let zero = Coverage {
         denominator_digest: DIGEST.into(),
         expected: 0,
@@ -201,7 +215,10 @@ fn unauthenticated_or_unverified_import_stays_unmet() {
         produced_by_runtime: Some("node".into()),
         qualification: None,
     };
-    assert_eq!(apply_evidence(obligation, &unauthenticated).status, ObligationStatus::Unmet);
+    assert_eq!(
+        apply_evidence(obligation, &unauthenticated).status,
+        ObligationStatus::Unmet
+    );
     // Node-*produced* imported evidence is admissible once authenticated:
     // Audit did not execute Node.
     let mut authenticated = unauthenticated.clone();
@@ -232,7 +249,10 @@ fn fixture_only_and_stale_qualification_do_not_apply() {
     let obligation = one_obligation(&release_profile());
     let mut evidence = provider_evidence(&obligation, complete_coverage());
     evidence.qualification = Some(verdict);
-    assert_eq!(apply_evidence(&obligation, &evidence).status, ObligationStatus::Unmet);
+    assert_eq!(
+        apply_evidence(&obligation, &evidence).status,
+        ObligationStatus::Unmet
+    );
     assert!(!evaluate_qualification(None, &context, NOW).applicable);
 }
 
@@ -251,12 +271,24 @@ fn pre_pr_pass_never_projects_release_and_profiles_freeze_strength() {
         candidate(
             "source-static",
             EvidenceKind::ProviderExecution,
-            vec![AuditProfile::PrePr, AuditProfile::Repository, AuditProfile::Release],
+            vec![
+                AuditProfile::PrePr,
+                AuditProfile::Repository,
+                AuditProfile::Release,
+            ],
         ),
-        candidate("runtime-journey", EvidenceKind::Runtime, vec![AuditProfile::Release]),
+        candidate(
+            "runtime-journey",
+            EvidenceKind::Runtime,
+            vec![AuditProfile::Release],
+        ),
     ];
     let frozen = resolve_obligations(&product_target(), &pre_pr, &candidates).unwrap();
-    assert_eq!(frozen.len(), 1, "release-only work is legitimately omitted from pre-pr");
+    assert_eq!(
+        frozen.len(),
+        1,
+        "release-only work is legitimately omitted from pre-pr"
+    );
     let summary = summarize(AuditProfile::PrePr, &frozen);
     assert_eq!(summary.release_eligibility, ReleaseEligibility::NotAssessed);
     let round_trip = FrozenProfile::from_bound_value(&pre_pr.to_bound_value().unwrap()).unwrap();
@@ -356,6 +388,9 @@ fn fixture_assurance_validates_as_a_partial_release_claim() {
     let value = fixture("assurance-partial-release.json");
     let assurance = AuditAssuranceV1::from_value(&value, NOW).unwrap();
     assert_eq!(assurance.summary.completion, Completion::Partial);
-    assert_eq!(assurance.summary.release_eligibility, ReleaseEligibility::NotEligible);
+    assert_eq!(
+        assurance.summary.release_eligibility,
+        ReleaseEligibility::NotEligible
+    );
     assert_eq!(assurance.summary.waived, 1);
 }

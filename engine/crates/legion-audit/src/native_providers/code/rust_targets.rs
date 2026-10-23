@@ -22,8 +22,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::artifact_evidence::{
-    is_rfc3339_utc_second, CommandBinding, EvidenceOutcome, ExpectedEvidence,
-    ImportedEvidenceRecord, ImportKind, ReplayPolicy, RepositoryBinding,
+    is_rfc3339_utc_second, CommandBinding, EvidenceOutcome, ExpectedEvidence, ImportKind,
+    ImportedEvidenceRecord, ReplayPolicy, RepositoryBinding,
 };
 use crate::assurance::{EvidenceKind, ObligationStatus, QualificationContext};
 use crate::error::AuditError;
@@ -121,7 +121,12 @@ pub struct RustTargetSelection {
 impl RustTargetSelection {
     /// A02 `ObligationId.variant`: package, profile and feature selection.
     pub fn variant(&self) -> String {
-        format!("{}:{}:{}", self.package, self.profile, self.features.label())
+        format!(
+            "{}:{}:{}",
+            self.package,
+            self.profile,
+            self.features.label()
+        )
     }
 }
 
@@ -230,7 +235,12 @@ impl RustTargetObligation {
     }
 
     pub fn obligation_variant(&self) -> String {
-        format!("{}:{}:{}", self.package, self.profile, self.features.label())
+        format!(
+            "{}:{}:{}",
+            self.package,
+            self.profile,
+            self.features.label()
+        )
     }
 
     pub fn concern(&self) -> String {
@@ -327,7 +337,11 @@ pub fn selection_problems(
         }
         return out;
     };
-    let declared: BTreeSet<&str> = constraints.declared_features.iter().map(String::as_str).collect();
+    let declared: BTreeSet<&str> = constraints
+        .declared_features
+        .iter()
+        .map(String::as_str)
+        .collect();
     match &selection.features {
         FeatureSelection::Default => {}
         FeatureSelection::AllFeatures => {
@@ -340,7 +354,8 @@ pub fn selection_problems(
                 None => out.push("all-features-validity-undeclared".into()),
             }
         }
-        FeatureSelection::NoDefaultFeatures { features } | FeatureSelection::Explicit { features } => {
+        FeatureSelection::NoDefaultFeatures { features }
+        | FeatureSelection::Explicit { features } => {
             let chosen: BTreeSet<&str> = features.iter().map(String::as_str).collect();
             for feature in &chosen {
                 if !declared.contains(feature) {
@@ -348,12 +363,17 @@ pub fn selection_problems(
                 }
             }
             for group in &constraints.mutually_exclusive {
-                let hits: Vec<&String> =
-                    group.iter().filter(|f| chosen.contains(f.as_str())).collect();
+                let hits: Vec<&String> = group
+                    .iter()
+                    .filter(|f| chosen.contains(f.as_str()))
+                    .collect();
                 if hits.len() > 1 {
                     out.push(format!(
                         "mutually-exclusive-features:{}",
-                        hits.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("+")
+                        hits.iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>()
+                            .join("+")
                     ));
                 }
             }
@@ -372,7 +392,8 @@ pub fn plan_rust_obligations(
     let mut plan = RustTargetPlan::default();
     if matrix.entries.is_empty() {
         plan.gaps.push(
-            "no-declared-target-matrix: code.rust does not claim every target or feature set".into(),
+            "no-declared-target-matrix: code.rust does not claim every target or feature set"
+                .into(),
         );
         return plan;
     }
@@ -468,7 +489,9 @@ pub fn evaluate_miri_coverage(
             unsupported.push(format!(
                 "{}:{}",
                 site.id,
-                site.unsupported_reason.as_deref().unwrap_or("miri-unsupported")
+                site.unsupported_reason
+                    .as_deref()
+                    .unwrap_or("miri-unsupported")
             ));
         } else if executed_site_ids.contains(&site.id) {
             covered.push(site.id.clone());

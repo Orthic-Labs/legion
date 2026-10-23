@@ -512,7 +512,11 @@ pub fn validate_typed_evidence(
         gaps.push(gap(provider_id, "typed-classpath-digest-mismatch"));
     }
     for generated in &evidence.generated_sources {
-        if generated.digest.as_deref().is_none_or(|d| !is_sha256_digest(d)) {
+        if generated
+            .digest
+            .as_deref()
+            .is_none_or(|d| !is_sha256_digest(d))
+        {
             gaps.push(gap(
                 provider_id,
                 &format!("typed-generated-source-unsealed:{}", generated.path),
@@ -522,10 +526,7 @@ pub fn validate_typed_evidence(
     if expected_target.is_empty() || evidence.compilation_target != expected_target {
         gaps.push(gap(
             provider_id,
-            &format!(
-                "typed-target-mismatch:{}",
-                evidence.compilation_target
-            ),
+            &format!("typed-target-mismatch:{}", evidence.compilation_target),
         ));
     }
     if expected_variant.is_empty() || evidence.variant != expected_variant {
@@ -578,10 +579,7 @@ pub struct PluginQualification {
     pub rules: Vec<String>,
 }
 
-fn plugin_qualification_gaps(
-    plugins: &[PluginQualification],
-    provider_id: &str,
-) -> Vec<String> {
+fn plugin_qualification_gaps(plugins: &[PluginQualification], provider_id: &str) -> Vec<String> {
     let mut gaps = Vec::new();
     for plugin in plugins {
         if plugin.plugin_id.trim().is_empty()
@@ -916,21 +914,9 @@ pub fn plan_typed(
     expected_target: &str,
     expected_variant: &str,
 ) -> DetektPlan {
-    let gaps = validate_typed_evidence(
-        typed,
-        expected_target,
-        expected_variant,
-        TYPED_PROVIDER_ID,
-    );
+    let gaps = validate_typed_evidence(typed, expected_target, expected_variant, TYPED_PROVIDER_ID);
     let typed_arg = if gaps.is_empty() { typed } else { None };
-    plan(
-        DetektMode::Typed,
-        entries,
-        pin,
-        options,
-        typed_arg,
-        gaps,
-    )
+    plan(DetektMode::Typed, entries, pin, options, typed_arg, gaps)
 }
 
 // ---------------------------------------------------------------------------
@@ -1111,7 +1097,13 @@ pub fn normalize_report_path(uri: &str, base_prefix: Option<&str>) -> Option<Str
     Some(path.to_string())
 }
 
-fn candidate_identity(provider_id: &str, rule_id: &str, path: &str, line: usize, column: usize) -> String {
+fn candidate_identity(
+    provider_id: &str,
+    rule_id: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> String {
     sha256_hex(format!("{provider_id}\0{rule_id}\0{path}\0{line}\0{column}").as_bytes())
 }
 
@@ -1216,11 +1208,8 @@ pub fn parse_sarif_report(
                 .collect()
         })
         .unwrap_or_default();
-    let scanned_set: BTreeSet<String> = scope
-        .scanned
-        .iter()
-        .map(|file| file.path.clone())
-        .collect();
+    let scanned_set: BTreeSet<String> =
+        scope.scanned.iter().map(|file| file.path.clone()).collect();
     let reported_scanned: Vec<String> = run
         .get("artifacts")
         .and_then(Value::as_array)
@@ -1241,13 +1230,19 @@ pub fn parse_sarif_report(
     let artifacts_present = run.get("artifacts").and_then(Value::as_array).is_some();
     if artifacts_present {
         let reported_set: BTreeSet<&String> = reported_scanned.iter().collect();
-        for missing in scanned_set.iter().filter(|path| !reported_set.contains(path)) {
+        for missing in scanned_set
+            .iter()
+            .filter(|path| !reported_set.contains(path))
+        {
             gaps.push(gap(
                 provider_id,
                 &format!("detekt-file-not-in-report:{missing}"),
             ));
         }
-        for extra in reported_set.iter().filter(|path| !scanned_set.contains(**path)) {
+        for extra in reported_set
+            .iter()
+            .filter(|path| !scanned_set.contains(**path))
+        {
             gaps.push(gap(
                 provider_id,
                 &format!("detekt-report-outside-denominator:{extra}"),
@@ -1306,10 +1301,7 @@ pub fn parse_sarif_report(
                             .or_default()
                             .compiler_errors
                             .push(message);
-                        gaps.push(gap(
-                            provider_id,
-                            &format!("detekt-compiler-failure:{path}"),
-                        ));
+                        gaps.push(gap(provider_id, &format!("detekt-compiler-failure:{path}")));
                     }
                     _ => gaps.push(gap(provider_id, "detekt-compiler-failure:unlocated")),
                 }
@@ -1368,10 +1360,7 @@ pub fn parse_sarif_report(
                     .or_default()
                     .compiler_errors
                     .push(message);
-                gaps.push(gap(
-                    provider_id,
-                    &format!("detekt-compiler-failure:{path}"),
-                ));
+                gaps.push(gap(provider_id, &format!("detekt-compiler-failure:{path}")));
             } else {
                 gaps.push(gap(provider_id, "detekt-compiler-failure:unlocated"));
             }
@@ -1445,8 +1434,7 @@ pub fn parse_sarif_report(
     }
     gaps.sort();
     gaps.dedup();
-    let zero_file = scope.scanned.is_empty()
-        || (artifacts_present && reported_scanned.is_empty());
+    let zero_file = scope.scanned.is_empty() || (artifacts_present && reported_scanned.is_empty());
     let status = if zero_file {
         DetektStatus::ZeroFileScan
     } else if compiler_failures > 0 {
@@ -1486,9 +1474,10 @@ pub fn classify_run(outcome: DetektOutcome, exit_code: Option<i32>) -> DetektOut
     match exit_code {
         Some(EXIT_CLEAN) => {
             if !outcome.candidates.is_empty() {
-                outcome
-                    .gaps
-                    .push(gap(&provider_id, "detekt-exit-report-mismatch:clean-with-findings"));
+                outcome.gaps.push(gap(
+                    &provider_id,
+                    "detekt-exit-report-mismatch:clean-with-findings",
+                ));
             }
         }
         Some(EXIT_ISSUES_FOUND) => {
@@ -1505,9 +1494,10 @@ pub fn classify_run(outcome: DetektOutcome, exit_code: Option<i32>) -> DetektOut
             }
         }
         Some(code) => {
-            outcome
-                .gaps
-                .push(gap(&provider_id, &format!("detekt-tool-failed:exit-{code}")));
+            outcome.gaps.push(gap(
+                &provider_id,
+                &format!("detekt-tool-failed:exit-{code}"),
+            ));
             outcome.status = DetektStatus::ToolFailure;
         }
         None => {
@@ -1593,5 +1583,3 @@ pub fn dedupe_against_jvm(
     }
     DedupOutcome { kept, duplicates }
 }
-
-

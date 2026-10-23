@@ -182,10 +182,30 @@ pub fn invalidation_reasons(
         out.push("rule revision changed".into());
     }
     opt_changed("profile", &prior.profile, &current.profile, &mut out);
-    opt_changed("target", &prior.target_digest, &current.target_digest, &mut out);
-    map_changed("source", &prior.source_digests, &current.source_digests, &mut out);
-    map_changed("caller", &prior.caller_digests, &current.caller_digests, &mut out);
-    opt_changed("config", &prior.config_digest, &current.config_digest, &mut out);
+    opt_changed(
+        "target",
+        &prior.target_digest,
+        &current.target_digest,
+        &mut out,
+    );
+    map_changed(
+        "source",
+        &prior.source_digests,
+        &current.source_digests,
+        &mut out,
+    );
+    map_changed(
+        "caller",
+        &prior.caller_digests,
+        &current.caller_digests,
+        &mut out,
+    );
+    opt_changed(
+        "config",
+        &prior.config_digest,
+        &current.config_digest,
+        &mut out,
+    );
     opt_changed(
         "contract set",
         &prior.contract_set_digest,
@@ -284,9 +304,9 @@ pub struct ResolutionEvidence {
 }
 
 fn sha256_ref(value: &str) -> bool {
-    value.strip_prefix("sha256:").is_some_and(|hex| {
-        hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit())
-    })
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
 impl ResolutionEvidence {
@@ -316,7 +336,10 @@ impl ResolutionEvidence {
             return Err("rule was not executed at the evidence revision".into());
         }
         if self.kind == ResolutionKind::ReviewedRepair
-            && self.accepted_by.as_deref().map_or(true, |a| a.trim().is_empty())
+            && self
+                .accepted_by
+                .as_deref()
+                .map_or(true, |a| a.trim().is_empty())
         {
             return Err("reviewed repair has no accepting reviewer".into());
         }
@@ -495,7 +518,12 @@ fn assess(prior: &PriorFinding, run: &RunView, domain: Option<&DomainContractSet
             };
             if !invalid_reasons.is_empty() {
                 reasons.extend(invalid_reasons);
-                return result(Disposition::NeedsRevalidation, Basis::Reused, standing, reasons);
+                return result(
+                    Disposition::NeedsRevalidation,
+                    Basis::Reused,
+                    standing,
+                    reasons,
+                );
             }
             return result(Disposition::Open, Basis::Reused, standing, reasons);
         }
@@ -507,31 +535,61 @@ fn assess(prior: &PriorFinding, run: &RunView, domain: Option<&DomainContractSet
         reasons.push(format!(
             "relocation candidate {candidate} is lineage only; not re-verified"
         ));
-        return result(Disposition::UnresolvedLocation, Basis::Executed, standing, reasons);
+        return result(
+            Disposition::UnresolvedLocation,
+            Basis::Executed,
+            standing,
+            reasons,
+        );
     }
 
     // 3. Symbol/file gone: never a closure.
     if run.missing_symbols.contains(&prior.id) {
         reasons.push("symbol or file no longer present; removal is not resolution".into());
-        return result(Disposition::UnresolvedLocation, Basis::Executed, standing, reasons);
+        return result(
+            Disposition::UnresolvedLocation,
+            Basis::Executed,
+            standing,
+            reasons,
+        );
     }
 
     // 4. Absent: was it genuinely examined?
     if !run.complete {
         reasons.push("latest run incomplete; prior state carried".into());
-        return result(preserved(prior, standing), Basis::NotExamined, standing, reasons);
+        return result(
+            preserved(prior, standing),
+            Basis::NotExamined,
+            standing,
+            reasons,
+        );
     }
     let Some(executed_revision) = run.executed_rules.get(&prior.rule_id) else {
         reasons.push("rule or scanner did not run; absence proves nothing".into());
-        return result(preserved(prior, standing), Basis::NotExamined, standing, reasons);
+        return result(
+            preserved(prior, standing),
+            Basis::NotExamined,
+            standing,
+            reasons,
+        );
     };
     if !run.covered_paths.contains(&norm(&prior.path)) {
         reasons.push("finding site outside this run's scope; prior state carried".into());
-        return result(preserved(prior, standing), Basis::NotExamined, standing, reasons);
+        return result(
+            preserved(prior, standing),
+            Basis::NotExamined,
+            standing,
+            reasons,
+        );
     }
     if *executed_revision != prior.rule_revision {
         reasons.push("rule revision changed since the finding was recorded".into());
-        return result(Disposition::NeedsRevalidation, Basis::Executed, standing, reasons);
+        return result(
+            Disposition::NeedsRevalidation,
+            Basis::Executed,
+            standing,
+            reasons,
+        );
     }
     match run.evidence.get(&prior.id) {
         Some(evidence) => match evidence.validate(prior, run) {
@@ -543,16 +601,31 @@ fn assess(prior: &PriorFinding, run: &RunView, domain: Option<&DomainContractSet
                 };
                 reasons.retain(|r| !r.starts_with("legacy resolved"));
                 reasons.push("verified by accepted resolution evidence".into());
-                result(Disposition::VerifiedFixed, Basis::Executed, standing, reasons)
+                result(
+                    Disposition::VerifiedFixed,
+                    Basis::Executed,
+                    standing,
+                    reasons,
+                )
             }
             Err(why) => {
                 reasons.push(format!("resolution evidence rejected: {why}"));
-                result(Disposition::NeedsRevalidation, Basis::Executed, standing, reasons)
+                result(
+                    Disposition::NeedsRevalidation,
+                    Basis::Executed,
+                    standing,
+                    reasons,
+                )
             }
         },
         None => {
             reasons.push("absent without resolution evidence or regression condition".into());
-            result(Disposition::NeedsRevalidation, Basis::Executed, standing, reasons)
+            result(
+                Disposition::NeedsRevalidation,
+                Basis::Executed,
+                standing,
+                reasons,
+            )
         }
     }
 }

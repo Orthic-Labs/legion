@@ -8,10 +8,9 @@
 use legion_audit::{
     native_providers::code::javascript_native::{
         classify_run, coverage_manifest, frozen_reader, no_node_coverage, owned_biome_config,
-        owned_oxlint_config, owned_config_text, parse_version_output, plan_native_lint,
-        qwik_leads, qwik_version_facts, validate_pin, version_gaps, Linter, NativeLintOptions,
-        NativeLintPlan, NativeLintStatus, NativeLintUnit, NativeLinterPin, NATIVE_RULES,
-        PROVIDER_ID,
+        owned_config_text, owned_oxlint_config, parse_version_output, plan_native_lint, qwik_leads,
+        qwik_version_facts, validate_pin, version_gaps, Linter, NativeLintOptions, NativeLintPlan,
+        NativeLintStatus, NativeLintUnit, NativeLinterPin, NATIVE_RULES, PROVIDER_ID,
     },
     InventoryEntry,
 };
@@ -114,12 +113,18 @@ fn owned_configs_enable_only_native_plugins_and_the_exact_rule_subset() {
 
     let biome = owned_biome_config();
     assert_eq!(biome["linter"]["rules"]["recommended"], json!(false));
-    assert_eq!(biome["linter"]["rules"]["suspicious"]["noDebugger"], json!("error"));
+    assert_eq!(
+        biome["linter"]["rules"]["suspicious"]["noDebugger"],
+        json!("error")
+    );
 
     for linter in [Linter::Oxlint, Linter::Biome] {
         let text = owned_config_text(linter);
         assert!(!text.contains("extends"), "owned config must not extend");
-        assert!(!text.contains("jsPlugins"), "owned config must not load JS plugins");
+        assert!(
+            !text.contains("jsPlugins"),
+            "owned config must not load JS plugins"
+        );
     }
 }
 
@@ -137,7 +142,10 @@ fn plan_is_node_free_and_owns_argv_without_repository_configs() {
     assert_eq!(plan.provider_id, PROVIDER_ID);
     for unit in &plan.units {
         assert_eq!(unit.program, "oxlint");
-        assert!(!unit.argv.iter().any(|arg| matches!(arg.as_str(), "npx" | "pnpm" | "node" | "npm")));
+        assert!(!unit
+            .argv
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "npx" | "pnpm" | "node" | "npm")));
         assert!(unit.argv.contains(&"--disable-nested-config".to_string()));
         assert!(unit.argv.starts_with(&[
             "--config".to_string(),
@@ -148,7 +156,10 @@ fn plan_is_node_free_and_owns_argv_without_repository_configs() {
     }
 
     let web = unit(&plan, "apps/web");
-    assert_eq!(web.ignored_repo_configs, vec!["apps/web/eslint.config.mjs".to_string()]);
+    assert_eq!(
+        web.ignored_repo_configs,
+        vec!["apps/web/eslint.config.mjs".to_string()]
+    );
     assert!(web.argv.contains(&"apps/web/src/root.tsx".to_string()));
     assert!(web.runnable());
     assert_eq!(web.files.len(), 3);
@@ -166,7 +177,11 @@ fn monorepo_packages_keep_their_roots_and_exclude_generated_trees() {
         &fixture_pin(Linter::Oxlint),
         &NativeLintOptions::new(Linter::Oxlint, STAGE),
     );
-    let dirs: Vec<&str> = plan.packages.iter().map(|package| package.dir.as_str()).collect();
+    let dirs: Vec<&str> = plan
+        .packages
+        .iter()
+        .map(|package| package.dir.as_str())
+        .collect();
     assert_eq!(dirs, vec!["", "apps/web", "packages/empty", "packages/ui"]);
     assert!(plan
         .excluded
@@ -221,7 +236,9 @@ fn framework_versions_come_from_lockfiles_not_manifest_ranges() {
 
     let facts = qwik_version_facts(&plan.packages);
     assert_eq!(facts.len(), 2);
-    assert!(facts.iter().all(|fact| fact["versionProven"] == json!(true)));
+    assert!(facts
+        .iter()
+        .all(|fact| fact["versionProven"] == json!(true)));
 }
 
 #[test]
@@ -301,7 +318,10 @@ fn unsealed_source_marks_its_package_incomplete() {
         &NativeLintOptions::new(Linter::Oxlint, STAGE),
     );
     let web = unit(&plan, "apps/web");
-    assert!(has_gap(&web.gaps, "javascript-source-unsealed:apps/web/src/clean.ts"));
+    assert!(has_gap(
+        &web.gaps,
+        "javascript-source-unsealed:apps/web/src/clean.ts"
+    ));
     assert!(!web.runnable());
 }
 
@@ -331,13 +351,27 @@ fn oxlint_outcomes_are_distinct_clean_finding_config_rule_and_operational() {
         &NativeLintOptions::new(Linter::Oxlint, STAGE),
     );
     let web = unit(&plan, "apps/web");
-    let clean = classify_run(web, Some(0), &output("outputs/oxlint-clean.json"), b"", &read, MAX_FINDINGS);
+    let clean = classify_run(
+        web,
+        Some(0),
+        &output("outputs/oxlint-clean.json"),
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
     assert_eq!(clean.status, NativeLintStatus::Clean);
     assert!(clean.gaps.is_empty());
     assert_eq!(clean.files_scanned, Some(3));
     assert_eq!(clean.files_expected, 3);
 
-    let finding = classify_run(web, Some(1), &output("outputs/oxlint-findings.json"), b"", &read, MAX_FINDINGS);
+    let finding = classify_run(
+        web,
+        Some(1),
+        &output("outputs/oxlint-findings.json"),
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
     assert_eq!(finding.status, NativeLintStatus::Findings);
     assert_eq!(finding.findings.len(), 1);
     let found = &finding.findings[0];
@@ -384,7 +418,10 @@ fn oxlint_outcomes_are_distinct_clean_finding_config_rule_and_operational() {
         &read,
         MAX_FINDINGS,
     );
-    assert_eq!(exit_without_findings.status, NativeLintStatus::OperationalFailure);
+    assert_eq!(
+        exit_without_findings.status,
+        NativeLintStatus::OperationalFailure
+    );
 }
 
 #[test]
@@ -400,9 +437,19 @@ fn scanned_set_mismatch_is_incomplete_never_clean() {
     );
     // packages/ui has one source; the clean report claims three files.
     let ui = unit(&plan, "packages/ui");
-    let outcome = classify_run(ui, Some(0), &output("outputs/oxlint-clean.json"), b"", &read, MAX_FINDINGS);
+    let outcome = classify_run(
+        ui,
+        Some(0),
+        &output("outputs/oxlint-clean.json"),
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
     assert_eq!(outcome.status, NativeLintStatus::Incomplete);
-    assert!(has_gap(&outcome.gaps, "native-lint-scanned-set-mismatch:3/1"));
+    assert!(has_gap(
+        &outcome.gaps,
+        "native-lint-scanned-set-mismatch:3/1"
+    ));
 }
 
 #[test]
@@ -424,7 +471,14 @@ fn biome_never_claims_clean_without_a_proven_scanned_set() {
         "--reporter".to_string(),
         "json".to_string(),
     ]));
-    let clean = classify_run(ui, Some(0), br#"{"summary":{},"diagnostics":[]}"#, b"", &read, MAX_FINDINGS);
+    let clean = classify_run(
+        ui,
+        Some(0),
+        br#"{"summary":{},"diagnostics":[]}"#,
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
     assert_eq!(clean.status, NativeLintStatus::Incomplete);
     assert!(has_gap(&clean.gaps, "biome-scanned-set-unproven"));
 
@@ -459,7 +513,14 @@ fn biome_never_claims_clean_without_a_proven_scanned_set() {
         "summary": {},
         "diagnostics": [{"category": "configuration", "severity": "error", "description": "bad", "location": {}}]
     });
-    let invalid = classify_run(ui, Some(1), config_error.to_string().as_bytes(), b"", &read, MAX_FINDINGS);
+    let invalid = classify_run(
+        ui,
+        Some(1),
+        config_error.to_string().as_bytes(),
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
     assert_eq!(invalid.status, NativeLintStatus::InvalidConfig);
 }
 
@@ -469,12 +530,19 @@ fn qwik_lexer_matches_are_leads_only() {
     let root = repo_root();
     let read = frozen_reader(&root, &entries);
     let leads = qwik_leads(&entries, &read);
-    assert_eq!(leads.len(), 1, "one boundary line with a non-serializable constructor");
+    assert_eq!(
+        leads.len(),
+        1,
+        "one boundary line with a non-serializable constructor"
+    );
     let lead: &Value = &leads[0];
     assert_eq!(lead["kind"], json!("qwik-serialization-boundary-lead"));
     assert_eq!(lead["path"], json!("apps/web/src/root.tsx"));
     assert_eq!(lead["line"], json!(5));
-    assert!(lead["token"].as_str().expect("token").starts_with("new Map"));
+    assert!(lead["token"]
+        .as_str()
+        .expect("token")
+        .starts_with("new Map"));
     assert_eq!(lead["leadOnly"], json!(true));
     assert_eq!(lead["satisfiesObligations"], json!(false));
 }
@@ -492,18 +560,24 @@ fn coverage_claims_no_equivalence_and_keeps_qwik_runtime_uncovered() {
     assert!(covered.contains(&json!("react-hooks")));
     assert!(covered.contains(&json!("a11y")));
     let uncovered = manifest["uncoveredConcerns"].as_array().expect("uncovered");
+    assert!(
+        uncovered
+            .iter()
+            .any(|item| item["concern"] == json!("qwik-resumability")
+                && item["owner"] == json!("A16"))
+    );
     assert!(uncovered
         .iter()
-        .any(|item| item["concern"] == json!("qwik-resumability") && item["owner"] == json!("A16")));
-    assert!(uncovered
-        .iter()
-        .any(|item| item["concern"] == json!("typescript-semantics") && item["owner"] == json!("A03")));
+        .any(|item| item["concern"] == json!("typescript-semantics")
+            && item["owner"] == json!("A03")));
 }
 
 #[test]
 fn no_node_profile_excludes_legacy_node_tools_and_keeps_uncovered_visible() {
     let profile = no_node_coverage();
-    let excluded = profile["excludedLegacyNodeTools"].as_array().expect("excluded");
+    let excluded = profile["excludedLegacyNodeTools"]
+        .as_array()
+        .expect("excluded");
     assert!(excluded.contains(&json!("code.javascript:build")));
     assert!(excluded.contains(&json!("code.javascript:test")));
     let uncovered = profile["uncoveredConcerns"].as_array().expect("uncovered");
@@ -512,7 +586,10 @@ fn no_node_profile_excludes_legacy_node_tools_and_keeps_uncovered_visible() {
 
 #[test]
 fn version_probe_requires_a_recognized_version_string() {
-    assert_eq!(parse_version_output(b"Version 1.2.3\n"), Some("1.2.3".to_string()));
+    assert_eq!(
+        parse_version_output(b"Version 1.2.3\n"),
+        Some("1.2.3".to_string())
+    );
     assert_eq!(parse_version_output(b"unrecognized"), None);
     let pin = fixture_pin(Linter::Oxlint);
     assert!(version_gaps(None, &pin)

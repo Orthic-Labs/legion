@@ -24,7 +24,11 @@ fn collect(dir: &Path, prefix: &str, out: &mut Vec<StructureFileInput>) {
     entries.sort();
     for path in entries {
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
-        let relative = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
+        let relative = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix}/{name}")
+        };
         if path.is_dir() {
             collect(&path, &relative, out);
         } else {
@@ -60,7 +64,10 @@ fn clean_large_component_has_no_automatic_defect() {
         .find(|file| file.path.ends_with("Profile.tsx"))
         .expect("profile component measured");
     let metrics = file.metrics.as_ref().expect("parsed metrics");
-    assert!(metrics.code_lines > 20, "fixture must exceed the review trigger");
+    assert!(
+        metrics.code_lines > 20,
+        "fixture must exceed the review trigger"
+    );
     assert_eq!(file.parse_status, ParseStatus::Parsed);
     assert_eq!(file.grammar, "lexical-typescript/1");
     assert_eq!(
@@ -68,7 +75,11 @@ fn clean_large_component_has_no_automatic_defect() {
         InvestigationPriority::None,
         "one coherent component over the LOC trigger is not a defect"
     );
-    assert!(file.component.state.iter().any(|state| state.contains("useState")));
+    assert!(file
+        .component
+        .state
+        .iter()
+        .any(|state| state.contains("useState")));
     assert!(!facts.proves_dead_code);
 }
 
@@ -96,7 +107,10 @@ fn one_impl_di_seam_and_legitimate_barrel_are_preserved() {
         .find(|file| file.path.ends_with("index.ts"))
         .expect("barrel measured");
     assert!(index.component.seams.contains(&SeamKind::Barrel));
-    assert!(barrel.logical_modules.iter().all(|module| !module.mechanical_split));
+    assert!(barrel
+        .logical_modules
+        .iter()
+        .all(|module| !module.mechanical_split));
 }
 
 #[test]
@@ -122,18 +136,28 @@ fn mechanical_split_aggregates_logical_module() {
 #[test]
 fn exact_and_near_duplicates_stay_distinct_and_qualification_gated() {
     let facts = analyze_structure(&fixture_inputs("duplicates"), None, &test_config());
-    assert!(facts.duplicates.iter().any(|span| span.kind == DuplicateKind::Exact
-        && span.language == StructureLanguage::Rust));
-    assert!(facts.duplicates.iter().any(|span| span.kind == DuplicateKind::Near
-        && span.language == StructureLanguage::TypeScript));
-    assert!(facts.duplicates.iter().all(|span| !span.qualified));
-    assert!(facts.replaces_jscpd_for.is_empty());
-    assert!(facts.gaps.iter().any(|gap| gap.contains("duplication-unqualified")));
     assert!(facts
         .duplicates
         .iter()
-        .all(|span| span.shared_abstraction.is_none()),
-        "no shared abstraction without invariant/ownership evidence");
+        .any(|span| span.kind == DuplicateKind::Exact && span.language == StructureLanguage::Rust));
+    assert!(facts
+        .duplicates
+        .iter()
+        .any(|span| span.kind == DuplicateKind::Near
+            && span.language == StructureLanguage::TypeScript));
+    assert!(facts.duplicates.iter().all(|span| !span.qualified));
+    assert!(facts.replaces_jscpd_for.is_empty());
+    assert!(facts
+        .gaps
+        .iter()
+        .any(|gap| gap.contains("duplication-unqualified")));
+    assert!(
+        facts
+            .duplicates
+            .iter()
+            .all(|span| span.shared_abstraction.is_none()),
+        "no shared abstraction without invariant/ownership evidence"
+    );
     for suggestion in &facts.suggestions {
         assert!(suggestion.severity.is_none());
         assert_eq!(suggestion.release_outcome_effect, "none");
@@ -178,20 +202,29 @@ fn generated_and_vendor_exclusions_are_recorded() {
 #[test]
 fn reflected_and_route_discovered_symbols_cannot_be_certified_dead() {
     let facts = analyze_structure(&fixture_inputs("dynamic"), None, &test_config());
-    assert!(facts.unused_candidates.iter().all(|candidate| !candidate.certifies_dead));
-    assert!(!facts
+    assert!(facts
         .unused_candidates
         .iter()
-        .any(|candidate| candidate.symbol == "reflectedHandler"),
-        "exported reflected handler is public API, never a dead candidate");
+        .all(|candidate| !candidate.certifies_dead));
+    assert!(
+        !facts
+            .unused_candidates
+            .iter()
+            .any(|candidate| candidate.symbol == "reflectedHandler"),
+        "exported reflected handler is public API, never a dead candidate"
+    );
     let routes = facts
         .files
         .iter()
         .find(|file| file.path.ends_with("routes.ts"))
         .expect("routes measured");
-    assert!(routes.uncertainties.contains(&UncertaintyKind::DynamicImport));
+    assert!(routes
+        .uncertainties
+        .contains(&UncertaintyKind::DynamicImport));
     assert!(routes.uncertainties.contains(&UncertaintyKind::Reflection));
-    assert!(routes.uncertainties.contains(&UncertaintyKind::RouteDiscovery));
+    assert!(routes
+        .uncertainties
+        .contains(&UncertaintyKind::RouteDiscovery));
 
     let swift = facts
         .files
@@ -199,7 +232,9 @@ fn reflected_and_route_discovered_symbols_cannot_be_certified_dead() {
         .find(|file| file.path.ends_with("Reflected.swift"))
         .expect("swift measured");
     assert_eq!(swift.grammar, "lexical-swift/1");
-    assert!(swift.uncertainties.contains(&UncertaintyKind::SwiftSelector));
+    assert!(swift
+        .uncertainties
+        .contains(&UncertaintyKind::SwiftSelector));
     assert!(swift.metrics.is_some());
 
     let kotlin = facts
@@ -208,7 +243,9 @@ fn reflected_and_route_discovered_symbols_cannot_be_certified_dead() {
         .find(|file| file.path.ends_with("Screen.kt"))
         .expect("kotlin measured");
     assert_eq!(kotlin.grammar, "lexical-kotlin/1");
-    assert!(kotlin.uncertainties.contains(&UncertaintyKind::AndroidResource));
+    assert!(kotlin
+        .uncertainties
+        .contains(&UncertaintyKind::AndroidResource));
     assert!(kotlin.metrics.is_some());
 }
 
@@ -217,7 +254,10 @@ fn unsupported_parse_is_partial_never_zero_complexity() {
     let facts = analyze_structure(&fixture_inputs("unsupported"), None, &test_config());
     let broken = &facts.files[0];
     assert!(matches!(broken.parse_status, ParseStatus::Partial { .. }));
-    assert!(broken.metrics.is_none(), "unsupported syntax must not report zero complexity");
+    assert!(
+        broken.metrics.is_none(),
+        "unsupported syntax must not report zero complexity"
+    );
     assert!(facts.partial);
     assert!(facts.gaps.iter().any(|gap| gap.contains("partial-parse")));
     assert!(facts.duplicates.is_empty());

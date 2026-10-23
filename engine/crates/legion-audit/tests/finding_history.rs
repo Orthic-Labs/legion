@@ -102,16 +102,25 @@ fn removed_scanner_incomplete_run_and_narrow_scope_preserve_open() {
     let mut no_rule = run();
     no_rule.executed_rules.clear();
     let a = one(&[prior("f1")], &no_rule);
-    assert_eq!((a.disposition, a.basis), (Disposition::Open, Basis::NotExamined));
+    assert_eq!(
+        (a.disposition, a.basis),
+        (Disposition::Open, Basis::NotExamined)
+    );
 
     let mut incomplete = run();
     incomplete.complete = false;
-    assert_eq!(one(&[prior("f1")], &incomplete).disposition, Disposition::Open);
+    assert_eq!(
+        one(&[prior("f1")], &incomplete).disposition,
+        Disposition::Open
+    );
 
     let mut narrow = run();
     narrow.covered_paths = BTreeSet::from(["src/other.rs".into()]);
     let a = one(&[prior("f1")], &narrow);
-    assert_eq!((a.disposition, a.basis), (Disposition::Open, Basis::NotExamined));
+    assert_eq!(
+        (a.disposition, a.basis),
+        (Disposition::Open, Basis::NotExamined)
+    );
 }
 
 #[test]
@@ -179,7 +188,9 @@ fn reuse_requires_unchanged_context_and_stays_distinct_from_executed() {
     assert_eq!((a.disposition, a.basis), (Disposition::Open, Basis::Reused));
 
     let mut changed_caller = key();
-    changed_caller.caller_digests.insert("src/b.rs".into(), "c2".into());
+    changed_caller
+        .caller_digests
+        .insert("src/b.rs".into(), "c2".into());
     let a = one(&[p.clone()], &reused_run(changed_caller));
     assert_eq!(a.disposition, Disposition::NeedsRevalidation);
     assert!(a.reasons.iter().any(|r| r.contains("caller changed")));
@@ -195,7 +206,10 @@ fn reuse_requires_unchanged_context_and_stays_distinct_from_executed() {
     let mut r = run();
     r.present.insert("f1".into());
     let a = one(&[p], &r);
-    assert_eq!((a.disposition, a.basis), (Disposition::Open, Basis::Executed));
+    assert_eq!(
+        (a.disposition, a.basis),
+        (Disposition::Open, Basis::Executed)
+    );
 }
 
 #[test]
@@ -291,7 +305,10 @@ fn index_rebuilds_from_reports_rejects_bad_ones_and_never_rewrites_reports() {
         &root,
         r#"{"status":"findings","gaps":[],"findings":[{"id":"f1"},{"id":"f2"}]}"#,
     );
-    let partial = put_report(&root, r#"{"status":"incomplete","gaps":["x"],"findings":[]}"#);
+    let partial = put_report(
+        &root,
+        r#"{"status":"incomplete","gaps":["x"],"findings":[]}"#,
+    );
     let reports = root.join(".audit/state/reports");
     std::fs::write(reports.join("deadbeef.json"), "{}").unwrap();
     let before = std::fs::read(reports.join(&good)).unwrap();
@@ -299,15 +316,34 @@ fn index_rebuilds_from_reports_rejects_bad_ones_and_never_rewrites_reports() {
     let (index, rebuilt) = load_or_rebuild(&root).unwrap();
     assert!(rebuilt);
     assert_eq!(index.baselines().count(), 1);
-    assert_eq!(index.reports.iter().find(|r| r.file == good).unwrap().finding_ids, ["f1", "f2"]);
-    assert!(!index.reports.iter().find(|r| r.file == partial).unwrap().baseline_eligible);
+    assert_eq!(
+        index
+            .reports
+            .iter()
+            .find(|r| r.file == good)
+            .unwrap()
+            .finding_ids,
+        ["f1", "f2"]
+    );
+    assert!(
+        !index
+            .reports
+            .iter()
+            .find(|r| r.file == partial)
+            .unwrap()
+            .baseline_eligible
+    );
     assert_eq!(index.rejected.len(), 1);
 
     // Intact cache is reused.
     assert!(!load_or_rebuild(&root).unwrap().1);
 
     // Corrupt cache rebuilds.
-    std::fs::write(root.join(".audit/audit/finding-history-index.json"), "{corrupt").unwrap();
+    std::fs::write(
+        root.join(".audit/audit/finding-history-index.json"),
+        "{corrupt",
+    )
+    .unwrap();
     assert!(load_or_rebuild(&root).unwrap().1);
 
     // Stale cache (new report) rebuilds.
@@ -361,7 +397,9 @@ fn debt_age_is_not_invented_and_not_blocking_without_policy() {
     let strict = debt::assess(
         &merged[0],
         "2026-10-23",
-        DebtPolicy { marker_deadline_days: Some(10) },
+        DebtPolicy {
+            marker_deadline_days: Some(10),
+        },
     );
     assert!(strict.deadline_exceeded);
 
